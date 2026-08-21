@@ -192,7 +192,12 @@ struct MessageDraft {
     /// write, and nothing above it should have to remember that.
     std::vector<std::string> lines;
 
-    std::string charset{"CP866"};
+    /// The charset the adapter converts the text into on the way to disk, which
+    /// is what the CHRS control line among the kludges names. Empty where the
+    /// draft has nothing to say about it — a message copied out of a body that
+    /// could not be read — and then the base writes it in the charset it reads
+    /// that area in, there being no better answer to hand.
+    std::string charset;
     /// Minutes east of UTC where the message was written, for the base's own
     /// stamp. The TZUTC control line says the same thing to the network.
     int utcOffsetMinutes{0};

@@ -441,9 +441,10 @@ domain::MessageDraft copyOf(const domain::MessageHeader& header,
     draft.attributes = header.attributes;
     draft.written = header.date;
     // The charset it was read in, so that the CHRS line among the kludges — kept
-    // with the rest — still says what the bytes are. A message that declared
-    // none was read in the area's default and goes back in it.
-    if (!kept.charset.empty()) draft.charset = kept.charset;
+    // with the rest — still says what the bytes are. Empty only where the body
+    // could not be read at all, and then the base it is going into writes it in
+    // the charset it reads that area in; see FtnMsgBase::encode().
+    draft.charset = kept.charset;
     // The zone the message states it was written by, so the base stores the
     // stamp above under the clock the message itself names.
     draft.utcOffsetMinutes = tzutcMinutes(header.utcOffset);
@@ -472,9 +473,10 @@ domain::MessageDraft buildChange(const ComposeFields& fields, const PreservedLin
     if (const auto to = domain::FtnAddress::parse(fields.toAddr)) draft.destAddr = *to;
     // The charset the message was read in, so that the CHRS line among the
     // kludges — which is kept along with the rest — still says what the bytes
-    // are. A message with none was read in the configured default and is
-    // written back in it.
-    if (!kept.charset.empty()) draft.charset = kept.charset;
+    // are. Empty only where the body could not be read at all, and then the
+    // base writes it in the charset it reads that area in; see
+    // FtnMsgBase::encode().
+    draft.charset = kept.charset;
     draft.utcOffsetMinutes = stamp.utcOffsetMinutes;
 
     // The kludges as the message carried them, save for the two that describe

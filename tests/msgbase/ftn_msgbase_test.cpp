@@ -589,6 +589,47 @@ TEST_CASE("FtnMsgBase writes a message and reads it back", "[squish]") {
     CHECK(body.charset == "CP866");
 }
 
+TEST_CASE("A draft naming no charset is written in the area's own", "[squish]") {
+    // A draft carries no charset only where the body it was made of could not
+    // be read — copyOf() and buildChange() pass on what the base said, and a
+    // base that read nothing said nothing. The message still has to land on
+    // disk in a charset, and the only one to hand is the one this area is read
+    // in, so that is what encode() falls back to. KOI8-R rather than CP866
+    // here: the fallback has to follow the area, not a code page picked once
+    // and written into the draft struct.
+    TempSquishBase base;
+    FtnMsgBase msgbase("KOI8-R");
+    REQUIRE(msgbase.open(localnetArea(base.path())));
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = "Yegor Gluhov";
+    draft.to = "Иван Петров";
+    draft.subject = "Привет";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3"};
+    draft.lines = {"Привет!"};
+    REQUIRE(draft.charset.empty());
+
+    const uint32_t number = msgbase.write(draft);
+    REQUIRE(number != 0);
+
+    // Written in KOI8-R and read back in KOI8-R, which is the same round trip
+    // a message declaring the charset makes. Written in anything else it would
+    // come back mojibake, since the message names no charset of its own for the
+    // reader to go by.
+    const auto header = msgbase.header(number);
+    CHECK(header.to == "Иван Петров");
+    CHECK(header.subject == "Привет");
+
+    const auto body = msgbase.body(number);
+    CHECK(body.charset == "KOI8-R");
+    std::string text;
+    for (const auto& line : body.lines) {
+        if (!line.kludge) text.append(line.text).append("|");
+    }
+    CHECK(text == "Привет!|");
+}
+
 TEST_CASE("A Squish header short of a zone is read out of its kludges", "[squish]") {
     // What a tosser writes into a Squish base: the XMSG address words carry a
     // net and a node, the zone and the point are left at zero, and INTL, FMPT

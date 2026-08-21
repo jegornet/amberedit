@@ -318,21 +318,30 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     // seen and changed, and a base that added bits of its own would be writing
     // a message nobody asked for.
     raw.header.attributes = draft.attributes;
-    raw.header.from = recoder_.fromUtf8(draft.from, draft.charset);
-    raw.header.to = recoder_.fromUtf8(draft.to, draft.charset);
-    raw.header.subject = recoder_.fromUtf8(draft.subject, draft.charset);
+    // The charset the draft names, and where it names none — a message copied
+    // out of a body that could not be read — the one this area is read in. It
+    // is `default_charset` rather than `compose_charset`, which the builder has
+    // already had its say about: this is not a message being written here, it
+    // is one being put back, and the area's own charset is the closest thing to
+    // the charset it came in.
+    const std::string charset =
+        draft.charset.empty() ? detector_.defaultCharset() : draft.charset;
+
+    raw.header.from = recoder_.fromUtf8(draft.from, charset);
+    raw.header.to = recoder_.fromUtf8(draft.to, charset);
+    raw.header.subject = recoder_.fromUtf8(draft.subject, charset);
     raw.header.origAddr = draft.origAddr;
     raw.header.destAddr = draft.destAddr;
     raw.header.utcOffsetMinutes = draft.utcOffsetMinutes;
 
     for (const auto& kludge : draft.kludges) {
-        raw.kludges.push_back(recoder_.fromUtf8(kludge, draft.charset));
+        raw.kludges.push_back(recoder_.fromUtf8(kludge, charset));
     }
     // A hard carriage return ends a line in an FTN message (FTS-0001); the
     // 0x0A a text editor would leave has no place in one, which is why the
     // draft carries lines rather than text.
     for (const auto& line : draft.lines) {
-        raw.text += recoder_.fromUtf8(line, draft.charset);
+        raw.text += recoder_.fromUtf8(line, charset);
         raw.text += '\r';
     }
     return raw;
