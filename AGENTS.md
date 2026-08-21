@@ -276,15 +276,33 @@ Rules that hold the design together:
   "flags": FTS-0001 calls them attributes. "Flag" is left for a boolean on a
   struct, a command-line option, or a bit in someone else's format
   (`NodeEntry::flags` are FTS-5001's node flags and stay that).
+- **Everything that can fail answers with `Result<T>`** — `tl::expected<T,
+  std::string>` from `support/result.hpp` — and the error is the sentence a
+  person reads, already complete. Nothing throws, nothing keeps a `lastError()`
+  to be asked afterwards, and no bool means "look somewhere else for why".
+  `std::optional` still means *absence* and is not a failure, `std::error_code`
+  with the non-throwing `std::filesystem` overloads is still how the filesystem
+  is asked, and a function answering a plain question — `isOpen()`, `count()` —
+  is still a bool. A Result is read through `*` after being checked, never
+  through `value()`.
 - Errors a user can act on **before** the screen opens — a config, a theme, a
-  template — are a thrown `std::runtime_error` naming the file, printed by
-  `main()`. Once the interface is up there is nowhere to say anything: there is
-  no status line, and a screen that cannot do what was asked simply does not do
-  it, having said so by drawing its menu button dimmed. The UI still catches
-  exceptions per frame and per keystroke: a broken area must never take the
-  application down. The one exception is `ui/error_dialog.cpp`, for an area that
-  will not open — asked for by a key that had every reason to work. A second use
-  for it wants an argument first.
+  template, a keyboard layout — come back out to `main()`, which names the file
+  and prints them. Once the interface is up there is nowhere to say anything:
+  there is no status line, and a screen that cannot do what was asked simply
+  does not do it, having said so by drawing its menu button dimmed. The one
+  exception is `ui/error_dialog.cpp`, for an area that will not open — asked for
+  by a key that had every reason to work. A second use for it wants an argument
+  first.
+- **`main()` and the UI's per-frame and per-keystroke handlers still catch**, and
+  those three are the only places that do. Not for AmberEdit's own errors, which
+  are values, but for what the standard library throws underneath: `bad_alloc`,
+  `std::stoll`, the `std::filesystem` overloads that take no `error_code`. A
+  broken area must never take the application down.
+- **A diagnostic per item is a field and not a `Result`.** A list where one
+  member is broken and the rest are fine — `AreaEntry::error`,
+  `CompileReport::problems`, `CopyCommand::error`, `StartingText::error` — is a
+  report to be shown beside the things that worked, and a Result there would
+  throw the answer away to keep the complaint.
 - There is no toolbar and no status line, and no bottom bar goes back in: the
   rows one would take are the message's. What a screen offers is in the menu
   behind its top-right corner.

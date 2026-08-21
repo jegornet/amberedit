@@ -2,16 +2,15 @@
 
 #include <fstream>
 #include <sstream>
-#include <stdexcept>
 
 namespace amberedit::config::text {
 
-std::string readFile(const std::string& path) {
+Result<std::string> readFile(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("cannot open file: " + path);
+    if (!in) return failure("cannot open file: " + path);
     std::ostringstream buffer;
     buffer << in.rdbuf();
-    if (in.bad()) throw std::runtime_error("error reading file: " + path);
+    if (in.bad()) return failure("error reading file: " + path);
     return buffer.str();
 }
 

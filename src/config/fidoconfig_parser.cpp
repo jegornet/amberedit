@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <optional>
 #include <set>
+#include <stdexcept>
 #include <utility>
 
 #include "config/text_util.hpp"
@@ -127,8 +128,9 @@ void parseInto(const std::string& content, std::vector<AreaConfig>& areas,
             if (included.is_relative()) included = baseDir / included;
             std::error_code ec;
             if (!std::filesystem::exists(included, ec)) continue;
-            parseInto(text::readFile(included.string()), areas, included.parent_path(),
-                      includeDepth - 1);
+            const auto text = text::readFile(included.string());
+            if (!text) throw std::runtime_error(text.error());
+            parseInto(*text, areas, included.parent_path(), includeDepth - 1);
             continue;
         }
 
@@ -144,9 +146,10 @@ void parseInto(const std::string& content, std::vector<AreaConfig>& areas,
 FidoconfigParser::FidoconfigParser(std::string path) : path_(std::move(path)) {}
 
 std::vector<AreaConfig> FidoconfigParser::loadAreas() {
-    const std::string content = text::readFile(path_);
+    const auto content = text::readFile(path_);
+    if (!content) throw std::runtime_error(content.error());
     std::vector<AreaConfig> areas;
-    parseInto(content, areas, std::filesystem::path(path_).parent_path(),
+    parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
               /*includeDepth=*/8);
     return areas;
 }

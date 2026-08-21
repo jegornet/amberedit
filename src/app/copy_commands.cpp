@@ -123,15 +123,13 @@ void readTokenFile(const std::string& name, const std::string& fileDir, CopyKind
     if (path.is_relative() && !fileDir.empty())
         path = std::filesystem::path(fileDir) / path;
 
-    std::string bytes;
-    try {
-        bytes = config::text::readFile(path.string());
-    } catch (const std::exception& e) {
-        command.error = e.what();
+    const auto bytes = config::text::readFile(path.string());
+    if (!bytes) {
+        command.error = bytes.error();
         return;
     }
 
-    for (const auto& raw : splitOn(bytes, separatorsInFile(kind))) {
+    for (const auto& raw : splitOn(*bytes, separatorsInFile(kind))) {
         const std::string_view trimmed = config::text::trim(raw);
         if (trimmed.empty() || trimmed.front() == '@') continue;
         if (const auto token = makeToken(trimmed, kind)) command.tokens.push_back(*token);

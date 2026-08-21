@@ -120,7 +120,8 @@ TEST_CASE("exportMessage writes the file in the charset it is given [export]") {
     head.subject = kPrivetUtf8;
     REQUIRE(exportMessage(ExportRequest{path, "CP866", kFormat}, head, body()).ok());
 
-    const std::string written = amberedit::config::text::readFile(path);
+    const std::string written =
+        amberedit::test::valueOf(amberedit::config::text::readFile(path));
     // Above the adapter everything is UTF-8; what lands on disk is the charset
     // the file is to be read in.
     CHECK_MESSAGE(contains(written, "Subj : " + kPrivetCp866), written);
@@ -139,8 +140,8 @@ TEST_CASE("exportMessage adds to a file rather than writing over it [export]") {
 
     // Exporting one message after another into one file is what an export is
     // usually for, so the second is added to the first rather than losing it.
-    const auto lines =
-        amberedit::config::text::splitLines(amberedit::config::text::readFile(path));
+    const auto lines = amberedit::config::text::splitLines(
+        amberedit::test::valueOf(amberedit::config::text::readFile(path)));
     CHECK(lines.size() == 16);
     CHECK(lines[2] == "Subj : About the weather");
     CHECK(lines[10] == "Subj : And another thing");
@@ -224,7 +225,8 @@ TEST_CASE("saveUueFiles writes each file whole [export][uue]") {
     const auto files = uueFilesIn(messageCarrying(bytes, "report.zip"));
 
     REQUIRE(saveUueFiles(dir.path(""), files).ok());
-    CHECK(amberedit::config::text::readFile(dir.path("report.zip")) == bytes);
+    CHECK(amberedit::test::valueOf(
+              amberedit::config::text::readFile(dir.path("report.zip"))) == bytes);
 }
 
 TEST_CASE("saveUueFiles writes over nothing [export][uue]") {
@@ -245,8 +247,8 @@ TEST_CASE("saveUueFiles writes over nothing [export][uue]") {
     const auto result = saveUueFiles(dir.path(""), files);
     CHECK_FALSE(result.ok());
     CHECK_MESSAGE(contains(result.error, "report.zip"), result.error);
-    CHECK(amberedit::config::text::readFile(dir.path("report.zip")) ==
-          "something of the user's own");
+    CHECK(amberedit::test::valueOf(amberedit::config::text::readFile(
+              dir.path("report.zip"))) == "something of the user's own");
     CHECK_FALSE(std::filesystem::exists(dir.path("one.txt")));
 }
 

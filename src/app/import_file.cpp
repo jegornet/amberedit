@@ -58,15 +58,11 @@ std::string charsetFor(const std::string& named) {
 }
 
 ImportResult importText(const ImportRequest& request) {
-    std::string bytes;
-    try {
-        bytes = config::text::readFile(request.path);
-    } catch (const std::exception& e) {
-        return ImportResult{{}, e.what()};
-    }
+    const auto bytes = config::text::readFile(request.path);
+    if (!bytes) return ImportResult{{}, bytes.error()};
 
     encoding::IconvRecoder recoder;
-    const std::string utf8 = recoder.toUtf8(bytes, charsetFor(request.charset));
+    const std::string utf8 = recoder.toUtf8(*bytes, charsetFor(request.charset));
     // The recoder hands the bytes back unchanged rather than throwing, which is
     // right for a message being read and wrong here: the charset was typed a
     // moment ago, and a mistyped one would go into the message as mojibake
@@ -89,18 +85,14 @@ ImportResult importText(const ImportRequest& request) {
 }
 
 ImportResult importUue(const ImportRequest& request) {
-    std::string bytes;
-    try {
-        bytes = config::text::readFile(request.path);
-    } catch (const std::exception& e) {
-        return ImportResult{{}, e.what()};
-    }
+    const auto bytes = config::text::readFile(request.path);
+    if (!bytes) return ImportResult{{}, bytes.error()};
 
     // The name the file goes out under, and nothing of the path it was read
     // from: where it stood on this machine is nobody else's business, and
     // uudecode would make a directory of it at the other end.
     const std::string name = std::filesystem::path(request.path).filename().string();
-    return ImportResult{uuencode(bytes, name), {}};
+    return ImportResult{uuencode(*bytes, name), {}};
 }
 
 /// One six-bit group as a uuencoded character.

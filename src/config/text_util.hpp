@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include "support/result.hpp"
+
 namespace amberedit::config::text {
 
 /// Case folding and whitespace, for ASCII and deliberately for nothing else.
@@ -160,7 +162,8 @@ inline std::vector<std::string> splitLines(std::string_view text) {
     return lines;
 }
 
-/// Reads a whole file. Throws std::runtime_error if it is unavailable.
-std::string readFile(const std::string& path);
+/// Reads a whole file, or says why it could not be read — naming the path,
+/// which is the one thing a caller cannot add and a reader needs.
+[[nodiscard]] Result<std::string> readFile(const std::string& path);
 
 }  // namespace amberedit::config::text

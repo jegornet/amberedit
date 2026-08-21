@@ -1369,7 +1369,9 @@ AppConfig AppConfig::loadFromFile(const std::string& path) {
     if (!std::filesystem::exists(path, ec)) {
         throw std::runtime_error("config not found: " + path);
     }
-    AppConfig cfg = loadFromString(text::readFile(path), path);
+    const auto content = text::readFile(path);
+    if (!content) throw std::runtime_error(content.error());
+    AppConfig cfg = loadFromString(*content, path);
     // Where a file named without a path is looked for. Settled here rather than
     // in `loadFromString`, which parses a config that need not have come off a
     // disk at all.
@@ -1386,10 +1388,8 @@ AppConfig AppConfig::loadFromFile(const std::string& path) {
                                  ": template is not set — it must point at the file "
                                  "a new message starts from");
     }
-    try {
-        static_cast<void>(text::readFile(cfg.templatePath));
-    } catch (const std::exception& e) {
-        throw std::runtime_error(std::string("message template: ") + e.what());
+    if (const auto read = text::readFile(cfg.templatePath); !read) {
+        throw std::runtime_error("message template: " + read.error());
     }
 
     // And the same for a template an area group names, for the same reason: a
@@ -1399,11 +1399,9 @@ AppConfig AppConfig::loadFromFile(const std::string& path) {
         if (!group.states("template")) continue;
         AppConfig probe = cfg;
         for (const auto& setting : group.settings) applySetting(probe, setting);
-        try {
-            static_cast<void>(text::readFile(probe.templatePath));
-        } catch (const std::exception& e) {
+        if (const auto read = text::readFile(probe.templatePath); !read) {
             throw std::runtime_error("message template of the group at line " +
-                                     std::to_string(group.line) + ": " + e.what());
+                                     std::to_string(group.line) + ": " + read.error());
         }
     }
     return cfg;

@@ -85,15 +85,13 @@ Palette parsePalette(const std::string& text, const std::string& originName) {
 }
 
 Palette loadPalette(const std::string& path) {
-    std::string text;
-    try {
-        text = config::text::readFile(path);
-    } catch (const std::exception& e) {
+    const auto text = config::text::readFile(path);
+    if (!text) {
         // Named as a theme rather than as a file: it is the config's `theme`
         // line that sent us here, and that is where the answer is.
-        throw std::runtime_error("cannot read theme " + path + ": " + e.what());
+        throw std::runtime_error("cannot read theme " + path + ": " + text.error());
     }
-    return fromEntries(config::parseCfg(text, path));
+    return fromEntries(config::parseCfg(*text, path));
 }
 
 }  // namespace amberedit::ui::theme

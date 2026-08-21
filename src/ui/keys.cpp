@@ -302,13 +302,9 @@ KeyMap KeyMap::parse(std::string_view text, const std::string& origin) {
 }
 
 KeyMap KeyMap::loadFromFile(const std::string& path) {
-    std::string text;
-    try {
-        text = config::text::readFile(path);
-    } catch (const std::exception&) {
-        throw std::runtime_error("keys file not found: " + path);
-    }
-    return parse(text, path);
+    const auto text = config::text::readFile(path);
+    if (!text) throw std::runtime_error("keys file not found: " + path);
+    return parse(*text, path);
 }
 
 void KeyMap::bind(KeyCommand command, Event key) {

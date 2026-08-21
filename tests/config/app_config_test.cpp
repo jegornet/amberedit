@@ -1180,8 +1180,8 @@ TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     // would hand every new user a config that stops at startup. The paths in it
     // point at a system that is not this one, so only the parsing is checked.
     const auto path = amberedit::test::projectPath("amberedit.cfg.example");
-    const auto cfg =
-        AppConfig::loadFromString(amberedit::config::text::readFile(path), path);
+    const auto cfg = AppConfig::loadFromString(
+        amberedit::test::valueOf(amberedit::config::text::readFile(path)), path);
 
     CHECK(cfg.tosserConfigFormat == TosserConfigFormat::Fidoconfig);
     CHECK(cfg.userName == "Vasya Pupkin");

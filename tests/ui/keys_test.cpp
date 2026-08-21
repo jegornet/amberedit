@@ -65,8 +65,8 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {
     // The example is what a user copies to start from, so a default it has
     // fallen behind on would be a layout that quietly changes as it is adopted.
-    const std::string text = amberedit::config::text::readFile(
-        amberedit::test::projectPath("amberkeys.cfg.example"));
+    const std::string text = amberedit::test::valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("amberkeys.cfg.example")));
     const KeyMap written = KeyMap::parse(text, "amberkeys.cfg.example");
     const KeyMap defaults = KeyMap::defaults();
 

@@ -175,8 +175,8 @@ struct ExportFixture {
 
     /// What the file at `name` holds, in the charset it was written in.
     [[nodiscard]] std::string fileText(const std::string& name) const {
-        return amberedit::config::text::readFile(
-            (std::filesystem::path(state.exportDirectory) / name).string());
+        return amberedit::test::valueOf(amberedit::config::text::readFile(
+            (std::filesystem::path(state.exportDirectory) / name).string()));
     }
 
     TempDir dir;

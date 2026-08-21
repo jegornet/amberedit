@@ -1,6 +1,7 @@
 #include "config/squish_cfg_parser.hpp"
 
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 #include "config/text_util.hpp"
@@ -81,7 +82,9 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
 SquishCfgParser::SquishCfgParser(std::string path) : path_(std::move(path)) {}
 
 std::vector<AreaConfig> SquishCfgParser::loadAreas() {
-    return parseText(text::readFile(path_));
+    const auto content = text::readFile(path_);
+    if (!content) throw std::runtime_error(content.error());
+    return parseText(*content);
 }
 
 std::vector<AreaConfig> SquishCfgParser::parseText(const std::string& content) {
