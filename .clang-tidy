@@ -42,8 +42,9 @@ Checks: >
 #     renaming does not make the calls safer.
 #
 #   bugprone-exception-escape
-#     Flags main(), which already catches std::exception and is allowed to
-#     propagate anything it does not.
+#     Flags main(), which catches std::exception — for what the standard library
+#     throws underneath, AmberEdit's own failures being Result values — and is
+#     allowed to propagate anything it does not.
 #
 #   bugprone-signed-bitwise
 #     The UTF-8 decoder in encoding/iconv_recoder.cpp masks integer-promoted

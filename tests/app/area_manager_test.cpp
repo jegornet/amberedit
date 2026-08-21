@@ -265,7 +265,8 @@ TEST_CASE("reload() names each area before it opens it [areamanager]") {
     std::vector<std::string> reached;
     auto manager =
         makeManager({areaNamed("one"), areaNamed("two")}, configWithAddress("2:5020/1"));
-    manager.reload([&reached](const std::string& tag) { reached.push_back(tag); });
+    REQUIRE(manager.reload([&reached](const std::string& tag) { reached.push_back(tag); })
+                .has_value());
 
     CHECK(reached == std::vector<std::string>{"one", "two"});
 }

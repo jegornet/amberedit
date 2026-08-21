@@ -1434,7 +1434,7 @@ taking a row.
   `compose_charset` is what a new message is encoded in and what its CHRS
   announces, and it is the only thing `message_builder.cpp` reads. Neither has a
   default: a guess would be a silent mojibake in whichever direction it guessed
-  wrong, so `fromEntries()` throws when either is missing, alongside the check
+  wrong, so `fromEntries()` fails when either is missing, alongside the check
   that there is an area list at all — `tosser_config`, `area ... endarea`
   blocks, or both.
 - **`IBMPC` is not CP866**, however often it is one in practice. FTS-5003 keeps
@@ -1486,8 +1486,8 @@ taking a row.
   `config/cfg_file`: a line is a key and the values after it, double quotes round
   a value whose spaces matter, a `#` starting a word ending the line. No
   sections, and no types beyond what reading a key asks for —
-  `CfgEntry::text/one/number/numberIn/flag`, each throwing with the file and line
-  named. Adding a setting is a branch in `fromEntries()`
+  `CfgEntry::text/one/number/numberIn/flag`, each answering with a `Result` that
+  names the file and the line. Adding a setting is a branch in `fromEntries()`
   (`config/app_config.cpp`), and a key not in it is refused rather than passed
   over: a misspelling should be a message and not a setting quietly back at its
   default. Keys are lowercased on the way in, values never. The two shapes a file
@@ -1518,7 +1518,8 @@ taking a row.
     edit rather than a field, a parse and an apply that drift apart. It also
     means a group is *applied once while the config is read*, over a copy that is
     thrown away, so a bad value stops AmberEdit at startup and `effectiveFor()`
-    can never throw.
+    can never fail — which is why it discards the answer rather than passing it
+    on, and why its 43 call sites have nothing to check.
   - **What a group may say is a whitelist** (`isGroupSetting()`), not a list of
     what it may not: a setting added to the chain and not to the table comes out
     as "not a per-area setting", where the other way round it would come out as a
@@ -1835,9 +1836,9 @@ time and the length, written into the file as a `SourceState` per line. A listin
 and a stat per line, nothing read and no archive unpacked. `--compile` compiles
 anyway.
 
-**Nothing in the compiling throws.** A nodelist that is missing or will not read
-is a line in `CompileReport::problems`, and its `SourceState` is written into the
-compiled file as the nothing it was — which is what stops every start from trying
+**Nothing in the compiling fails as a whole.** A nodelist that is missing or will
+not read is a line in `CompileReport::problems`, and its `SourceState` is
+written into the compiled file as the nothing it was — which is what stops every start from trying
 it again. A compiled file that cannot be written leaves `written` false. That
 contract is the reason `compileNodelists` catches around each source and around
 the write: AmberEdit is a mail reader whose nodelist is a convenience, and there
@@ -1859,8 +1860,8 @@ The pieces, in the order the work goes through them:
   them over in — the number alone is wrong for the week after New
   Year, when `.365` is the older file and the larger number. An archive is
   unpacked without paths into the temporary directory, only the entry carrying
-  the nodelist, and every file it wrote is removed by the destructor, including
-  on the way out of an exception. Which directory that is is
+  the nodelist, and every file it wrote is removed by the destructor, whichever
+  way out is taken. Which directory that is is
   `config::makeTempDir`'s answer and not this class's — see below. **What stands
   inside an archive is named by the archive that was found, not by the line that
   found it**: `Z2PNT.Z99` and `z2*.z*` both land on `Z2PNT.Z19`, and `Z2PNT` with
@@ -1992,7 +1993,8 @@ turns up in `AreaConfig::description` as though the tosser config had carried it
 **Compiling happens at startup on the nodelist's terms exactly**: `main.cpp`
 calls `refreshEcholist()` before the terminal is taken over, the state written
 into the compiled file is compared against a stat per line, `--compile` compiles
-anyway, and **nothing in the compiling throws**. Read [The nodelist](#the-nodelist)
+anyway, and **nothing in the compiling fails as a whole**. Read
+[The nodelist](#the-nodelist)
 for the reasoning; all of it holds here word for word.
 
 The pieces, in the order the work goes through them:
@@ -2011,7 +2013,7 @@ The pieces, in the order the work goes through them:
   `.na` entries** (a distribution carries reports, a readme and further archives
   beside them), in the order their names sort in so that an archive read twice
   reads the same way twice. Every file it wrote is removed by the destructor,
-  including on the way out of an exception.
+  whichever way out is taken.
 - **The charset is settled here and never survives it.** An `echolist` line
   states the charset the file is written in and the text is decoded to UTF-8 as
   it is read, so `parseEcholist` and everything past it see UTF-8 like the rest

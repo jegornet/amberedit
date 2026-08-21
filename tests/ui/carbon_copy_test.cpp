@@ -146,7 +146,7 @@ struct CopyFixture {
             nodeOf("2:5020/3456", "Sergey Sergeev"),
             nodeOf("2:5020/4567", "Sergey Petrov"),
         };
-        nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+        REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
         config.nodelistDbPath = dir.path("nodelist.db");
     }
 

@@ -134,7 +134,7 @@ struct Fixture {
         nodelist::DbSource points{
             {"~/ftn/nodelist/Z2PNT.Z99", "/home/user/ftn/nodelist/Z2PNT.Z19", 3, 4},
             {node("2:240/1120.8", "Point #8", "Werner Krammer", "Dieburg")}};
-        nodelist::writeNodelistDb(dir.path("nodelist.db"), {nodes, points}, 0);
+        REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {nodes, points}, 0).has_value());
         area.config.nodelistDbPath = dir.path("nodelist.db");
     }
 };
@@ -181,7 +181,7 @@ TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off "
     nodelist::DbSource source{
         {"nodelist", "/home/user/ftn/nodelist/NODELIST.225", 1, 2},
         {node(boss.toString(), "The Boss", "Some Sysop", "Nowhere")}};
-    nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     area.config.nodelistDbPath = dir.path("nodelist.db");
 
     nodelist_dialog::open(area.state);

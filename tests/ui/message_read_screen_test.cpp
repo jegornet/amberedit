@@ -997,7 +997,7 @@ void giveNodelistWithSender(AreaFixture& fixture, const amberedit::test::TempDir
     amberedit::nodelist::DbSource source;
     source.state.spec = "nodelist";
     source.entries = {entry};
-    amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
 }
 
@@ -1092,7 +1092,7 @@ TEST_CASE("A point nobody lists is placed where its boss is "
     amberedit::nodelist::DbSource source;
     source.state.spec = "nodelist";
     source.entries = {entry};
-    amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
 
     fixture.state.readHeader->origAddr = point;
@@ -1202,7 +1202,7 @@ TEST_CASE("A sender no nodelist holds is said nothing about "
     amberedit::nodelist::DbSource source;
     source.state.spec = "nodelist";
     source.entries = {other};
-    amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
     fixture.state.nodelistOpened = false;
 

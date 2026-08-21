@@ -1664,7 +1664,7 @@ void giveNodelist(ComposeFixture& fixture, const amberedit::test::TempDir& dir) 
         nodeOf("2:240/1200", "Hub Sued", "Ulrich Schroeter jr"),
         nodeOf("2:240/2188", "Kruemel Boks!", "Christian von Busse"),
     };
-    nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
 }
 

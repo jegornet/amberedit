@@ -2,7 +2,6 @@
 
 #include <doctest/doctest.h>
 
-#include <exception>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -21,29 +20,12 @@ inline bool contains(std::string_view haystack, std::string_view text) {
     return haystack.find(text) != std::string_view::npos;
 }
 
-/// The message of the std::runtime_error `run` throws, or "" if it throws none.
-///
-/// doctest's CHECK_THROWS_WITH compares the whole message and nothing less,
-/// which none of these assertions want: the messages carry a file-and-line
-/// prefix and run on past the part worth asserting. Catching the message and
-/// putting `contains` to it says the same thing and says what was thrown when
-/// it fails.
-template <typename F>
-std::string errorFrom(F&& run) {
-    try {
-        run();
-    } catch (const std::exception& e) {
-        return e.what();
-    }
-    return {};
-}
-
 /// The reason a Result holds no value, or "" where it holds one.
 ///
-/// The counterpart of `errorFrom` for the code that answers with a Result
-/// rather than throwing, and used the same way: the messages carry a
-/// file-and-line prefix and run on past the part worth asserting, so this is
-/// paired with `contains` and CHECK_MESSAGE.
+/// doctest has no matchers and none of these assertions wants a whole message
+/// compared: they carry a file-and-line prefix and run on past the part worth
+/// asserting. So this is paired with `contains` and CHECK_MESSAGE, which prints
+/// the message when the assertion fails.
 template <typename T>
 std::string errorOf(const Result<T>& result) {
     return result ? std::string{} : result.error();
