@@ -1,4 +1,5 @@
 #include "echolist/echolist_db.hpp"
+#include "config/text_util.hpp"
 
 #include <cstring>
 #include <fstream>
@@ -28,6 +29,9 @@ using msgbase::bytes::readU32;
 }  // namespace
 
 Result<EcholistDb> EcholistDb::open(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("compiled echolist not found: " + path);
 

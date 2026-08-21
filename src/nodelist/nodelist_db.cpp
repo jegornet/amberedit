@@ -1,4 +1,5 @@
 #include "nodelist/nodelist_db.hpp"
+#include "config/text_util.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -45,6 +46,9 @@ struct Ranked {
 }  // namespace
 
 Result<NodelistDb> NodelistDb::open(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("compiled nodelist not found: " + path);
 

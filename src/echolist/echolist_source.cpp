@@ -103,6 +103,9 @@ std::optional<std::string> newestMatch(const std::string& spec) {
 }
 
 Result<std::string> readWholeFile(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("cannot read the echolist: " + path);
     std::string text(std::istreambuf_iterator<char>(in),

@@ -1,4 +1,5 @@
 #include "archive/zip_reader.hpp"
+#include "config/text_util.hpp"
 
 #include <zlib.h>
 
@@ -61,6 +62,9 @@ std::string ZipEntry::baseName() const {
 }
 
 Result<ZipArchive> ZipArchive::open(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("cannot read the archive: " + path);
 
