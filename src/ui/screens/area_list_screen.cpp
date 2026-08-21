@@ -466,10 +466,15 @@ bool handleEvent(AppState& state, const Event& event) {
         openSelected(state);
         return true;
     }
-    // The wheel moves the cursor a line at a time, the same as ↑↓.
+    // The wheel moves the cursor a line at a time, the same as ↑↓ — through
+    // `list_wheel_throttle`, which where a row stands more than one line tall
+    // spends a row's worth of notches on each area. The search ends on the
+    // notch that was swallowed as much as on the one that moved: either way the
+    // wheel has been turned, and the query has said what it had to say.
     if (const int wheel = wheelDelta(event); wheel != 0) {
         endSearch();
-        moveBy(state, wheel);
+        if (const int steps = state.wheelSteps(wheel, state.areaRowHeight()); steps != 0)
+            moveBy(state, steps);
         return true;
     }
     if (event == Event::ArrowUp) {

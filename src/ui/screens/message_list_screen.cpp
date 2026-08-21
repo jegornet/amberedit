@@ -523,9 +523,15 @@ bool handleEvent(AppState& state, const Event& event) {
         openSelected(state);
         return true;
     }
-    // The wheel moves the cursor a line at a time, the same as ↑↓.
+    // The wheel moves the cursor a line at a time, the same as ↑↓ — through
+    // `list_wheel_throttle`, which where a row stands more than one line tall
+    // spends a row's worth of notches on each message, so that a flick moves
+    // the list as far as it moves the text in the reader. A notch it swallows
+    // is still handled: the wheel was turned at the list, and the list is what
+    // answers it.
     if (const int wheel = wheelDelta(event); wheel != 0) {
-        moveBy(state, wheel);
+        if (const int steps = state.wheelSteps(wheel, state.msgRowHeight()); steps != 0)
+            moveBy(state, steps);
         return true;
     }
     if (event == Event::ArrowUp) {

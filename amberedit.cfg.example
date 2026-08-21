@@ -609,6 +609,26 @@ menu_buttons_width 20
 # the current one and only then opens it.
 click_animation_ms 100
 
+# Whether the wheel is counted against the height of a row in the lists.
+# Optional; on by default. A notch of the wheel is a line, so a list whose rows
+# stand two or three lines tall — any arealist_format or msglist_format with a
+# \n in it — moves two or three times as far under the same flick as anything
+# else on the screen.
+# With this on, the first notch of a run moves the cursor and the rest of that
+# row's worth are swallowed: a two-line row costs two notches and a three-line
+# row three. A format written on one line is untouched either way, there being
+# nothing to count, which is why this is one setting rather than one per list.
+list_wheel_throttle on
+
+# How far apart two notches may be and still count as one run of the wheel, in
+# milliseconds. Optional; 200 by default, 0 to 2000. Anything slower than this
+# is scrolling by hand rather than a flick, and every notch of it moves the
+# cursor: what the counting is for is making a fast wheel proportionate, not
+# making a deliberate one wait. 0 turns the counting off as surely as
+# list_wheel_throttle off does, there being no run left for a notch to belong
+# to.
+list_wheel_throttle_ms 200
+
 # --- dates --------------------------------------------------------------------
 
 # How every stamp shown while reading is written: the two in the reader's header

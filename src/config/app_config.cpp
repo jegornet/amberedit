@@ -859,6 +859,18 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         const auto read = entry.numberIn(0, 1000);
         if (!read) return tl::make_unexpected(read.error());
         cfg.clickAnimationMs = static_cast<int>(*read);
+    } else if (key == "list_wheel_throttle") {
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.listWheelThrottle = *read;
+    } else if (key == "list_wheel_throttle_ms") {
+        // Zero is meaningful — it is a second way to turn the counting off,
+        // there being no gap two notches can fall inside — and the ceiling is
+        // where two notches are no longer one movement of the wheel by any
+        // reading.
+        const auto read = entry.numberIn(0, 2000);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.listWheelThrottleMs = static_cast<int>(*read);
     } else if (key == "reader_datetime_format") {
         const auto read = readTimeFormat(entry);
         if (!read) return tl::make_unexpected(read.error());

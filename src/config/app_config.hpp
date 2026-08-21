@@ -866,6 +866,32 @@ struct AppConfig {
     /// act on has been on the screen all along.
     int clickAnimationMs{100};
 
+    /// Whether the wheel is counted against the height of a row in the lists
+    /// whose rows can stand more than one line tall, from `list_wheel_throttle`.
+    /// On unless the config says otherwise.
+    ///
+    /// A notch of the wheel is a line, and a list drawn from a format with a
+    /// `\n` in it answers each of them with a whole row — two or three lines of
+    /// movement for one line of wheel, so the list runs away under a flick that
+    /// moves anything else on the screen a few lines. With this on, the first
+    /// notch of a run moves the cursor and the rest of that row's worth are
+    /// swallowed: a two-line row costs two notches and a three-line row three.
+    /// A single-line format is untouched either way — there is nothing to
+    /// count — which is why this is one setting for every list rather than one
+    /// per list.
+    bool listWheelThrottle{true};
+
+    /// How far apart two notches may be and still count as one run of the
+    /// wheel, in milliseconds, from `list_wheel_throttle_ms`. 200 by default,
+    /// which is slower than any flick and faster than scrolling by hand.
+    ///
+    /// Anything slower than this is somebody moving the list deliberately, and
+    /// every notch of it moves the cursor: what is being made proportionate is
+    /// the fast wheel. Zero turns the counting off as surely as
+    /// `list_wheel_throttle off` does, there being no run for a notch to belong
+    /// to.
+    int listWheelThrottleMs{200};
+
     /// How every stamp the reader shows is written, from
     /// `reader_datetime_format`: the two in the header block — when the message
     /// was written and when it arrived — the Date column of the message list,

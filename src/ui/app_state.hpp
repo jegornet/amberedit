@@ -3,6 +3,7 @@
 #include "ui/term/box.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <ctime>
 #include <exception>
@@ -29,6 +30,7 @@
 #include "ui/dir_listing.hpp"
 #include "ui/keys.hpp"
 #include "ui/text_editor.hpp"
+#include "ui/wheel_throttle.hpp"
 
 namespace amberedit::ui {
 
@@ -1139,6 +1141,37 @@ struct AppState {
     /// How long a click is shown for before it acts, in milliseconds, from the
     /// config. Zero turns the animation off.
     int clickAnimationMs{100};
+
+    // --- the wheel ----------------------------------------------------------
+    /// What the wheel has done lately, for the lists whose rows can stand more
+    /// than one line tall. One counter for the wheel rather than one per list:
+    /// there is one wheel, and a run of notches is a run of them wherever the
+    /// pointer is; how tall a row of the list under it stands is handed in a
+    /// notch at a time.
+    WheelThrottle listWheel;
+
+    /// What time it is, in milliseconds off a monotonic clock — the only clock
+    /// the interface reads, and it reads it for one thing: how far apart two
+    /// notches of the wheel arrived. It is a member so that a test can hand the
+    /// screens a clock it moves itself, a real wheel being the one thing a test
+    /// cannot roll.
+    std::function<Millis()> monotonicMs{[] {
+        using namespace std::chrono;
+        return duration_cast<milliseconds>(steady_clock::now().time_since_epoch())
+            .count();
+    }};
+
+    /// How far one notch of the wheel moves the cursor of a list whose rows
+    /// stand `rowHeight` lines tall: the notch itself, or nothing where it is
+    /// one of the notches `list_wheel_throttle` spends on the row already moved
+    /// onto. A swallowed notch is still the wheel being turned — the screen
+    /// answers it by doing nothing rather than by leaving it to whatever is
+    /// underneath.
+    [[nodiscard]] int wheelSteps(int delta, int rowHeight) {
+        if (!config.listWheelThrottle) return delta;
+        return listWheel.step(delta, rowHeight, monotonicMs(),
+                              config.listWheelThrottleMs);
+    }
 
     /// Draws the interface as it stands, at once. Filled in by the shell, which
     /// is what owns the terminal; the tests leave it unset. It is for the two

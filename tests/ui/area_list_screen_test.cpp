@@ -100,6 +100,18 @@ std::vector<AreaConfig> numberedAreas(int count) {
     return areas;
 }
 
+/// A notch of the wheel, up or down. Where the pointer stands is not asked
+/// after: the list moves its cursor wherever in it the wheel was turned.
+Event wheel(bool down) {
+    amberedit::ui::term::MouseEvent mouse;
+    mouse.button = down ? amberedit::ui::term::MouseEvent::Button::WheelDown
+                        : amberedit::ui::term::MouseEvent::Button::WheelUp;
+    mouse.motion = amberedit::ui::term::MouseEvent::Motion::Pressed;
+    mouse.x = 0;
+    mouse.y = 0;
+    return Event::Mouse(mouse);
+}
+
 AreaConfig squishArea(const std::string& tag, const std::string& path) {
     AreaConfig area;
     area.tag = tag;
@@ -230,6 +242,54 @@ TEST_CASE("The slash leaves the cursor where it is when nothing is unread "
 
     REQUIRE(area_list::handleEvent(fixture.state, Event::Character("/")));
     CHECK(fixture.state.areaCursor == 1);
+    CHECK(fixture.state.areaSearch.empty());
+}
+
+TEST_CASE("The wheel spends a row's worth of notches on a two-line row [arealist]") {
+    using amberedit::config::AreaFieldKind;
+    Fixture fixture(numberedAreas(20));
+    fixture.state.height = 24;
+    // Two lines to the row, whatever the window: the name on one and the
+    // description under it, which is what the narrow default holds.
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+                                           {{AreaFieldKind::Description, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+
+    // A clock the test turns itself, as the message list's own test does.
+    amberedit::ui::Millis now = 1000;
+    fixture.state.monotonicMs = [&now] { return now; };
+    const auto notch = [&fixture, &now](bool down, amberedit::ui::Millis after) {
+        now += after;
+        REQUIRE(area_list::handleEvent(fixture.state, wheel(down)));
+    };
+
+    fixture.state.areaCursor = 0;
+    for (int i = 0; i < 6; ++i) notch(true, 20);
+    CHECK(fixture.state.areaCursor == 3);
+
+    // Slower than the window, and every notch moves an area again.
+    for (int i = 0; i < 3; ++i) notch(true, 500);
+    CHECK(fixture.state.areaCursor == 6);
+}
+
+TEST_CASE("A notch the throttle swallows still ends the quick search [arealist]") {
+    using amberedit::config::AreaFieldKind;
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+                                           {{AreaFieldKind::Description, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    amberedit::ui::Millis now = 1000;
+    fixture.state.monotonicMs = [&now] { return now; };
+
+    // The first notch of the run moves and ends the search; the second is
+    // swallowed, and a search typed in the meantime ends on it all the same —
+    // the wheel has been turned, whatever the list did about it.
+    REQUIRE(area_list::handleEvent(fixture.state, wheel(true)));
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
+    REQUIRE(fixture.state.areaSearch == "t");
+
+    now += 20;
+    REQUIRE(area_list::handleEvent(fixture.state, wheel(true)));
     CHECK(fixture.state.areaSearch.empty());
 }
 

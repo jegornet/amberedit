@@ -41,6 +41,18 @@ std::vector<std::string> rowsOf(AreaFixture& fixture) {
     return rows;
 }
 
+/// A notch of the wheel, up or down. Where the pointer stands is not asked
+/// after: the list moves its cursor wherever in it the wheel was turned.
+Event wheel(bool down) {
+    term::MouseEvent mouse;
+    mouse.button =
+        down ? term::MouseEvent::Button::WheelDown : term::MouseEvent::Button::WheelUp;
+    mouse.motion = term::MouseEvent::Motion::Pressed;
+    mouse.x = 0;
+    mouse.y = 0;
+    return Event::Mouse(mouse);
+}
+
 /// The rightmost column of a drawn row, as a glyph rather than as a byte: the
 /// scrollbar's own are three bytes each.
 std::string lastGlyph(const std::string& row) {
@@ -263,6 +275,78 @@ TEST_CASE("Moving within the list scrolls a row at a time [messagelist][squish]"
     REQUIRE(message_list::handleEvent(fixture.state, Event::ArrowDown));
     CHECK(fixture.state.messageOffset == offset + 1);
     CHECK(fixture.cursorRow() == rows - 1);
+}
+
+TEST_CASE("The wheel spends a row's worth of notches on a two-line row "
+          "[messagelist][squish]") {
+    using amberedit::config::MsgFieldKind;
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    // Two lines to the row, whatever the window: the number and the names on
+    // one, the subject under them.
+    fixture.config.messageListFormatNarrow = {
+        {{MsgFieldKind::Number, 4}, {MsgFieldKind::Space, 1}, {MsgFieldKind::From, 0}},
+        {{MsgFieldKind::Subject, 0}}};
+    fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    REQUIRE(static_cast<int>(fixture.state.messageCount) > 20);
+
+    // A clock the test turns itself: a run of the wheel is what it is by how
+    // far apart the notches arrive, and no test can flick a real one.
+    amberedit::ui::Millis now = 1000;
+    fixture.state.monotonicMs = [&now] { return now; };
+    const auto notch = [&fixture, &now](bool down, amberedit::ui::Millis after) {
+        now += after;
+        REQUIRE(message_list::handleEvent(fixture.state, wheel(down)));
+    };
+
+    // A flick — six notches in quick succession — moves three messages, the
+    // row being two lines tall. Every one of them is handled: the swallowed
+    // ones are the list answering the wheel by standing still.
+    const int start = fixture.state.messageCursor;
+    for (int i = 0; i < 6; ++i) notch(true, 20);
+    CHECK(fixture.state.messageCursor == start + 3);
+
+    // Scrolling by hand is not a flick and is not counted: notches further
+    // apart than the window each move a message.
+    for (int i = 0; i < 4; ++i) notch(true, 500);
+    CHECK(fixture.state.messageCursor == start + 7);
+
+    // Turning back moves at once rather than after the row's worth is paid.
+    notch(false, 20);
+    CHECK(fixture.state.messageCursor == start + 6);
+
+    // And with the throttle off the wheel is a message a notch again, however
+    // tall the row stands.
+    fixture.config.listWheelThrottle = false;
+    const int before = fixture.state.messageCursor;
+    for (int i = 0; i < 6; ++i) notch(true, 20);
+    CHECK(fixture.state.messageCursor == before + 6);
+}
+
+TEST_CASE("A single-line row moves a message a notch [messagelist][squish]") {
+    using amberedit::config::MsgFieldKind;
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    // One line to the row: there is nothing for the throttle to count, and it
+    // is on all the same.
+    fixture.config.messageListFormatNarrow = {
+        {{MsgFieldKind::Number, 4}, {MsgFieldKind::Space, 1}, {MsgFieldKind::Subject, 0}}};
+    fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+
+    amberedit::ui::Millis now = 1000;
+    fixture.state.monotonicMs = [&now] { return now; };
+    const int start = fixture.state.messageCursor;
+    for (int i = 0; i < 6; ++i) {
+        now += 20;
+        REQUIRE(message_list::handleEvent(fixture.state, wheel(true)));
+    }
+    CHECK(fixture.state.messageCursor == start + 6);
 }
 
 TEST_CASE("The table draws the columns msglist_format asks for "

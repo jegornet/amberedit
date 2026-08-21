@@ -431,7 +431,9 @@ Rules that hold the design together:
   it does nothing at all until a layout gives it something to do.
 - The wheel moves a line per notch on every screen — the cursor in the lists, the
   body in the reader — through `ui::wheelDelta()` (`ui/event_util.hpp`), which
-  returns -1/0/+1 and leaves each screen to decide what that moves. The mouse is
+  returns -1/0/+1 and leaves each screen to decide what that moves. A list whose
+  rows stand more than one line tall counts those notches rather than taking one
+  for a row; the bullet under this one is how. The mouse is
   turned on in `Terminal`'s constructor with `mouseinterval(0)`: without it
   ncurses holds a press for a fifth of a second to see whether it becomes a
   double click. Acting on the press alone matters too — a terminal that also
@@ -439,6 +441,18 @@ Rules that hold the design together:
   terminfo's decision: an entry with `xm` gets SGR 1006 and works at any width,
   one without falls back to the original mode, whose coordinates stop at column
   223. Apple's terminfo has no `xm`; every current Linux one does.
+- **A wheel notch is a line, and a row of a list may be several.** Where
+  `arealist_format` or `msglist_format` holds a `\n`, the two list screens hand
+  each notch to `AppState::wheelSteps()` (`ui/app_state.hpp`) with the height of
+  their row, and it answers with the notch or with 0: the first notch of a run
+  moves the cursor and the rest of that row's worth are swallowed, so a two-line
+  row costs two notches. `ui::WheelThrottle` (`ui/wheel_throttle.hpp`) is the
+  whole of the arithmetic and holds no clock — `AppState::monotonicMs` is read
+  for it, which is what lets a test flick a wheel. A run is notches one way
+  arriving no further apart than `list_wheel_throttle_ms`; slower than that, or
+  with `list_wheel_throttle off`, every notch moves a row. **A swallowed notch is
+  still handled** — the screen returns true and does nothing — or the event would
+  fall through to whatever is under the list.
 - Horizontal scrolling is deliberately unhandled, and "swipe to the next message"
   is not to be reached for again without a new signal: nothing the terminal
   reports carries an event's phase, so a trackpad's momentum tail cannot be told

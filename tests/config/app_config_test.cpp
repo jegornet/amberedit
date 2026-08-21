@@ -444,6 +444,26 @@ TEST_CASE("AppConfig reads how long a click is shown [app_config]") {
     CHECK_FALSE(loads("click_animation_ms briefly\n"));
 }
 
+TEST_CASE("AppConfig reads the wheel throttle [app_config]") {
+    // On by default: every list that can be drawn more than one line to the row
+    // is one the wheel would otherwise move two or three times too fast.
+    CHECK(with("").listWheelThrottle);
+    CHECK(with("").listWheelThrottleMs == 200);
+
+    CHECK_FALSE(with("list_wheel_throttle off\n").listWheelThrottle);
+    CHECK(with("list_wheel_throttle_ms 350\n").listWheelThrottleMs == 350);
+    // Zero is a setting rather than a mistake: with no gap for two notches to
+    // fall inside, no notch belongs to the run before it and every one of them
+    // moves the cursor.
+    CHECK(with("list_wheel_throttle_ms 0\n").listWheelThrottleMs == 0);
+
+    CHECK_FALSE(loads("list_wheel_throttle sometimes\n"));
+    CHECK_FALSE(loads("list_wheel_throttle\n"));
+    CHECK_FALSE(loads("list_wheel_throttle_ms 2001\n"));
+    CHECK_FALSE(loads("list_wheel_throttle_ms -1\n"));
+    CHECK_FALSE(loads("list_wheel_throttle_ms briefly\n"));
+}
+
 TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     using amberedit::config::AreaFieldKind;
     using amberedit::config::AreaListFormat;
