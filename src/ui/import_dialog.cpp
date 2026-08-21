@@ -207,12 +207,12 @@ Outcome importPath(AppState& state, Picker& picker, const std::string& path) {
     // asking: the terminal is being read in that charset, and a file on the same
     // machine was written by the same hands — a box for it would be one more
     // question with one answer.
-    app::ImportResult result =
+    auto imported =
         app::importFile(app::ImportRequest{path, state.importMode, ensureUtf8Locale(),
                                            config.importBegin, config.importEnd});
 
-    if (!result.ok()) {
-        picker.error = result.error;
+    if (!imported) {
+        picker.error = imported.error();
         return Outcome::Ignored;
     }
     // A file read from somewhere else is where the next import starts looking.
@@ -220,7 +220,7 @@ Outcome importPath(AppState& state, Picker& picker, const std::string& path) {
     if (!parent.empty()) state.importDirectory = parent.lexically_normal().string();
 
     picker.error.clear();
-    picker.lines = std::move(result.lines);
+    picker.lines = std::move(*imported);
     return Outcome::Imported;
 }
 

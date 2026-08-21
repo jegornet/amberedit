@@ -73,9 +73,9 @@ TEST_CASE("importFile reads text in its own charset [import]") {
     const std::string path = write(dir, "note.txt", kPrivetCp866 + "\nsecond line\n");
 
     const auto result = importFile(textRequest(path, "CP866"));
-    REQUIRE(result.ok());
-    CHECK(result.lines == std::vector<std::string>{"=== Cut ===", kPrivetUtf8,
-                                                   "second line", "=== Cut ==="});
+    REQUIRE(result.has_value());
+    CHECK(*result == std::vector<std::string>{"=== Cut ===", kPrivetUtf8, "second line",
+                                              "=== Cut ==="});
 }
 
 TEST_CASE("importFile understands the FTN spelling of a charset [import]") {
@@ -84,9 +84,8 @@ TEST_CASE("importFile understands the FTN spelling of a charset [import]") {
     // the dialog means by it what a CHRS kludge means by it.
     const auto result =
         importFile(textRequest(write(dir, "note.txt", kPrivetCp866), "+7_FIDO"));
-    REQUIRE(result.ok());
-    CHECK(result.lines ==
-          std::vector<std::string>{"=== Cut ===", kPrivetUtf8, "=== Cut ==="});
+    REQUIRE(result.has_value());
+    CHECK(*result == std::vector<std::string>{"=== Cut ===", kPrivetUtf8, "=== Cut ==="});
 }
 
 TEST_CASE("importFile writes no cut line the config leaves empty [import]") {
@@ -97,8 +96,8 @@ TEST_CASE("importFile writes no cut line the config leaves empty [import]") {
     request.beginLine.clear();
     request.endLine.clear();
     const auto result = importFile(request);
-    REQUIRE(result.ok());
-    CHECK(result.lines == std::vector<std::string>{"one"});
+    REQUIRE(result.has_value());
+    CHECK(*result == std::vector<std::string>{"one"});
 }
 
 TEST_CASE("importFile makes a text file safe to carry [import]") {
@@ -108,8 +107,8 @@ TEST_CASE("importFile makes a text file safe to carry [import]") {
     // where FTS-0001 finds it rather than where it was written.
     const std::string content("a\tb\r\nc\0\ad\n", 10);
     const auto result = importFile(textRequest(write(dir, "note.txt", content), "UTF-8"));
-    REQUIRE(result.ok());
-    CHECK(result.lines ==
+    REQUIRE(result.has_value());
+    CHECK(*result ==
           std::vector<std::string>{"=== Cut ===", "a       b", "cd", "=== Cut ==="});
 }
 
@@ -120,26 +119,25 @@ TEST_CASE("importFile disarms the commands a file carries [import]") {
     // of the message never asked for.
     const auto result = importFile(
         textRequest(write(dir, "note.txt", "CC: Ivan Ivanov\nplain\n"), "UTF-8"));
-    REQUIRE(result.ok());
-    CHECK(result.lines == std::vector<std::string>{"=== Cut ===", "!CC: Ivan Ivanov",
-                                                   "plain", "=== Cut ==="});
+    REQUIRE(result.has_value());
+    CHECK(*result == std::vector<std::string>{"=== Cut ===", "!CC: Ivan Ivanov", "plain",
+                                              "=== Cut ==="});
 }
 
 TEST_CASE("importFile says what it could not read [import]") {
     const TempDir dir;
 
     const auto missing = importFile(textRequest(dir.path("nothing.txt"), "UTF-8"));
-    CHECK_FALSE(missing.ok());
-    CHECK(missing.lines.empty());
-    CHECK_MESSAGE(contains(missing.error, "nothing.txt"), missing.error);
+    CHECK_FALSE(missing.has_value());
+    CHECK_MESSAGE(contains(missing.error(), "nothing.txt"), missing.error());
 
     // A charset iconv does not know is an error rather than the bytes handed
     // back as they stand: the name was typed a moment ago, and mojibake in the
     // message is not something the user could undo afterwards.
     const auto unknown =
         importFile(textRequest(write(dir, "note.txt", kPrivetCp866), "CP8666"));
-    CHECK_FALSE(unknown.ok());
-    CHECK_MESSAGE(contains(unknown.error, "CP8666"), unknown.error);
+    CHECK_FALSE(unknown.has_value());
+    CHECK_MESSAGE(contains(unknown.error(), "CP8666"), unknown.error());
 }
 
 TEST_CASE("uuencode writes a block uudecode reads back [import]") {
@@ -179,19 +177,19 @@ TEST_CASE("importFile as UUE carries the file and no cut lines [import]") {
     ImportRequest request = textRequest(path, "CP866");
     request.mode = ImportMode::Uue;
     const auto result = importFile(request);
-    REQUIRE(result.ok());
+    REQUIRE(result.has_value());
     // The file's own name and nothing of the path it was read from, and a block
     // with nothing round it: what a decoder at the other end looks for is
     // `begin`, and a cut line in front of it is one more thing to trip over.
-    CHECK(result.lines.front() == "begin 644 picture.gif");
-    CHECK(result.lines.back() == "end");
-    CHECK(uudecode(result.lines) == bytes);
+    CHECK(result->front() == "begin 644 picture.gif");
+    CHECK(result->back() == "end");
+    CHECK(uudecode(*result) == bytes);
 }
 
 TEST_CASE("importFile as UUE takes an empty file [import]") {
     const TempDir dir;
     const auto result = importFile(
         ImportRequest{write(dir, "empty.bin", ""), ImportMode::Uue, "", "", ""});
-    REQUIRE(result.ok());
-    CHECK(result.lines == std::vector<std::string>{"begin 644 empty.bin", "`", "end"});
+    REQUIRE(result.has_value());
+    CHECK(*result == std::vector<std::string>{"begin 644 empty.bin", "`", "end"});
 }

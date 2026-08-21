@@ -3,6 +3,7 @@
 #include <string>
 
 #include "encoding/iconv_recoder.hpp"
+#include "test_strings.hpp"
 
 using amberedit::encoding::IconvRecoder;
 using amberedit::encoding::isValidUtf8;
@@ -21,13 +22,13 @@ const std::string kPrivetUtf8 = "Привет";
 TEST_CASE("IconvRecoder converts CP866 to UTF-8 [iconv]") {
     IconvRecoder recoder;
     CHECK(recoder.toUtf8(kPrivetCp866, "CP866") == kPrivetUtf8);
-    CHECK(recoder.lastError().empty());
+    CHECK(amberedit::test::errorOf(recoder.intoUtf8(kPrivetCp866, "CP866")).empty());
 }
 
 TEST_CASE("IconvRecoder converts KOI8-R to UTF-8 [iconv]") {
     IconvRecoder recoder;
     CHECK(recoder.toUtf8(kPrivetKoi8, "KOI8-R") == kPrivetUtf8);
-    CHECK(recoder.lastError().empty());
+    CHECK(amberedit::test::errorOf(recoder.intoUtf8(kPrivetKoi8, "KOI8-R")).empty());
 }
 
 TEST_CASE("IconvRecoder leaves valid UTF-8 alone [iconv]") {
@@ -53,9 +54,12 @@ TEST_CASE("IconvRecoder handles an empty string [iconv]") {
 TEST_CASE("IconvRecoder survives an unknown charset [iconv]") {
     IconvRecoder recoder;
     // The text comes back unchanged — the message beats strictness about its
-    // encoding.
+    // encoding — and the checked form says why, for the export and the import,
+    // which must not accept an approximation.
     CHECK(recoder.toUtf8("abc", "NO-SUCH-CHARSET") == "abc");
-    CHECK_FALSE(recoder.lastError().empty());
+    const std::string error =
+        amberedit::test::errorOf(recoder.intoUtf8("abc", "NO-SUCH-CHARSET"));
+    CHECK_MESSAGE(amberedit::test::contains(error, "NO-SUCH-CHARSET"), error);
 }
 
 TEST_CASE("IconvRecoder survives text larger than the buffer [iconv]") {

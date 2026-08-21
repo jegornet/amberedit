@@ -208,10 +208,9 @@ Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
     const app::ExportRequest request{path, ensureUtf8Locale(),
                                      state.config.readerDateTimeFormat, how};
 
-    const app::ExportResult result =
-        app::exportMessage(request, *state.readHeader, *state.readBody);
-    if (!result.ok()) {
-        picker.error = result.error;
+    const auto written_ = app::exportMessage(request, *state.readHeader, *state.readBody);
+    if (!written_) {
+        picker.error = written_.error();
         return Outcome::Ignored;
     }
 
@@ -246,10 +245,9 @@ Outcome runExport(AppState& state, Picker& picker) {
         // Whole files under the names the message gave them, into the directory
         // the listing is standing in — there is nothing else to say, which is
         // why nothing under the list is typed into.
-        const app::ExportResult result =
-            app::saveUueFiles(state.exportDirectory, picker.files);
-        if (!result.ok()) {
-            picker.error = result.error;
+        const auto saved = app::saveUueFiles(state.exportDirectory, picker.files);
+        if (!saved) {
+            picker.error = saved.error();
             return Outcome::Ignored;
         }
         // The directory stays for the next export, exactly as a text one leaves

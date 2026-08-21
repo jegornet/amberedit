@@ -4,6 +4,8 @@
 #include <string_view>
 #include <vector>
 
+#include "support/result.hpp"
+
 /// A file read into the message being written — what the editor's Import
 /// command ends at, once the file, the mode and the charset have been picked.
 ///
@@ -39,18 +41,11 @@ struct ImportRequest {
 
 /// The lines to put into the message, or what went wrong.
 ///
-/// A file that cannot be read, or a charset iconv does not know, comes back as
-/// an error rather than as something approximate: the dialog is still up and can
+/// A file that cannot be read, or a charset iconv does not know, comes back as a
+/// failure rather than as something approximate: the dialog is still up and can
 /// say so, and a charset the user has just mistyped would otherwise go into the
 /// message as mojibake nobody could undo.
-struct ImportResult {
-    std::vector<std::string> lines;
-    std::string error;
-
-    [[nodiscard]] bool ok() const { return error.empty(); }
-};
-
-[[nodiscard]] ImportResult importFile(const ImportRequest& request);
+[[nodiscard]] Result<std::vector<std::string>> importFile(const ImportRequest& request);
 
 /// `bytes` in the uuencoded form FTN mail has always carried a file in: the
 /// `begin 644 <name>` line, the data at 45 bytes to the line, the `` ` `` that
