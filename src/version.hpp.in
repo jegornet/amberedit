@@ -1,0 +1,28 @@
+#pragma once
+
+#include <string_view>
+
+/// Generated into the build directory from src/version.hpp.in. The version is
+/// stated once, in project(AmberEdit VERSION ...), and everything that has to name
+/// the program — the tearline, the template's @ver/@pid tokens, --version —
+/// reads it from here rather than spelling it out again.
+namespace amberedit {
+
+inline constexpr std::string_view kProgramName = "@PROJECT_NAME@";
+inline constexpr std::string_view kVersion = "@PROJECT_VERSION@";
+
+/// The system AmberEdit was built for, lowercase: "linux", "darwin", "freebsd".
+inline constexpr std::string_view kSystemName = "@AMBEREDIT_SYSTEM@";
+
+/// The long form of the name, as FTN programs have always written it: the
+/// program, a slash, and the system it runs on — "AmberEdit/linux". It is what a
+/// reader of the tearline wants when a message turns out to have been written
+/// wrong, the same way GoldED+/LNX says which build wrote a message.
+inline constexpr std::string_view kLongProgramName = "@PROJECT_NAME@/@AMBEREDIT_SYSTEM@";
+
+/// The long name and the version together: what AmberEdit calls itself when it
+/// signs something, and what the default tearline comes out as.
+inline constexpr std::string_view kProgramId =
+    "@PROJECT_NAME@/@AMBEREDIT_SYSTEM@ @PROJECT_VERSION@";
+
+}  // namespace amberedit

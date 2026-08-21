@@ -1,0 +1,26 @@
+Source: amberedit
+Section: mail
+Priority: optional
+Maintainer: Yegor Gluhov <git@jegor.net>
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.16),
+               g++ (>= 4:8),
+               pkg-config,
+               libncurses-dev,
+               zlib1g-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/jegornet/amberedit
+Rules-Requires-Root: no
+
+Package: amberedit
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: FidoNet mail editor for the terminal
+ AmberEdit reads and writes Squish, JAM and Fido *.msg message bases on top of
+ an existing tosser configuration, which it reads from a fidoconfig, an
+ areas.bbs or a squish.cfg rather than duplicating.
+ .
+ It is a reader and an editor, not a mailer and not a tosser: what it writes
+ goes out only when a tosser carries it. Both UTF-8 and the legacy single-byte
+ encodings FidoNet still runs on — CP866, CP437 and the rest — are read and
+ written, and nodelists, pointlists and echolists are compiled and searched.

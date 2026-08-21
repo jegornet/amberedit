@@ -1,0 +1,167 @@
+#include <exception>
+#include <iostream>
+#include <memory>
+#include <string>
+
+#include "app/area_manager.hpp"
+#include "config/app_config.hpp"
+#include "echolist/echolist_area_source.hpp"
+#include "echolist/echolist_compiler.hpp"
+#include "msgbase/msgbase_lastread_store.hpp"
+#include "nodelist/nodelist_compiler.hpp"
+#include "ui/app_shell.hpp"
+#include "ui/keys.hpp"
+#include "version.hpp"
+
+namespace {
+
+void printUsage(const char* program) {
+    std::cerr
+        << "AmberEdit — a Fidonet mail editor.\n\n"
+        << "Usage:\n  " << program << " [-c <config>] [--compile]\n\n"
+        << "Options:\n"
+        << "  -c, --config <path>   path to the AmberEdit config\n"
+        << "      --compile         compile the nodelists and echolists before\n"
+        << "                        starting, whether or not they look like they\n"
+        << "                        have changed\n"
+        << "  -h, --help            this help\n"
+        << "  -V, --version         the version AmberEdit signs its messages with\n\n"
+        << "Without -c the config is looked up in: $AMBEREDIT_CONFIG,\n"
+        << "./amberedit.cfg, ~/.ambereditrc\n";
+}
+
+/// Compiles the nodelists the config names, where they need it.
+///
+/// This runs at every start and is deliberately not allowed to stop one: a
+/// nodelist that has gone, or an archive that will not unpack, is said out loud
+/// here and left at that. AmberEdit is a mail reader whose nodelist is a
+/// convenience, and there is no version of "your nodelist is missing" that is
+/// worth standing between the user and their mail.
+///
+/// It says nothing at all in the ordinary case, which is a compiled file that
+/// is already the answer for the nodelists on disk.
+void compileNodelists(const amberedit::config::AppConfig& config, bool force) {
+    amberedit::nodelist::CompileOptions options;
+    options.sources = config.nodelistSources;
+    options.dbPath = config.nodelistDbPath;
+    options.tempDir = config.tempDirPath;
+
+    const auto report = amberedit::nodelist::refreshNodelist(options, force, &std::cout);
+    if (report.written) {
+        std::cout << report.nodes << " nodes";
+        if (report.points != 0) std::cout << " and " << report.points << " points";
+        std::cout << " into " << options.dbPath << "\n";
+    }
+    for (const auto& problem : report.problems) {
+        std::cerr << "warning: " << problem << "\n";
+    }
+}
+
+/// Compiles the echolists the config names, where they need it.
+///
+/// The nodelist's terms exactly, and for the nodelist's reason: this runs at
+/// every start, says nothing at all in the ordinary case, and a missing or
+/// unreadable echolist is a warning on the way past. An area whose description
+/// an echolist would have carried is then an area shown by whatever the tosser
+/// config says about it, which is the state every system was in before there
+/// was an echolist at all.
+void compileEcholists(const amberedit::config::AppConfig& config, bool force) {
+    amberedit::echolist::CompileOptions options;
+    options.sources.reserve(config.echolistSources.size());
+    for (const auto& source : config.echolistSources) {
+        options.sources.push_back({source.path, source.charset});
+    }
+    options.dbPath = config.echolistDbPath;
+    options.tempDir = config.tempDirPath;
+
+    const auto report = amberedit::echolist::refreshEcholist(options, force, &std::cout);
+    if (report.written) {
+        std::cout << report.areas << " areas into " << options.dbPath << "\n";
+    }
+    for (const auto& problem : report.problems) {
+        std::cerr << "warning: " << problem << "\n";
+    }
+}
+
+}  // namespace
+
+int main(int argc, char* argv[]) {
+    std::string configPath;
+    bool forceCompile = false;
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            printUsage(argv[0]);
+            return 0;
+        }
+        // The one line a script would want to read, on stdout and by itself:
+        // the same string the tearline of every message we write carries.
+        if (arg == "-V" || arg == "--version") {
+            std::cout << amberedit::kProgramId << "\n";
+            return 0;
+        }
+        // Forcing it, rather than a mode of its own: the nodelists and the
+        // echolists are compiled when they have changed anyway, so what is left
+        // for a flag to mean is "compile them even though they look unchanged" —
+        // after which this is the same start it would have been.
+        if (arg == "--compile") {
+            forceCompile = true;
+            continue;
+        }
+        if (arg == "-c" || arg == "--config") {
+            if (i + 1 >= argc) {
+                std::cerr << "error: " << arg << " needs a value\n";
+                return 2;
+            }
+            configPath = argv[++i];
+            continue;
+        }
+        std::cerr << "error: unknown option '" << arg << "'\n";
+        printUsage(argv[0]);
+        return 2;
+    }
+
+    try {
+        if (configPath.empty()) {
+            auto found = amberedit::config::AppConfig::findDefaultConfigPath();
+            if (!found) {
+                std::cerr << "error: no AmberEdit config found.\n"
+                          << "Point at one with -c, or copy amberedit.cfg.example to "
+                             "./amberedit.cfg or ~/.ambereditrc.\n";
+                return 1;
+            }
+            configPath = *found;
+        }
+
+        const auto appConfig = amberedit::config::AppConfig::loadFromFile(configPath);
+
+        // The keyboard layout, read here so that a `keys` file that cannot be
+        // read is said out loud like any other startup failure. A config naming
+        // none is AmberEdit's own layout, which is what most configs are.
+        const auto keys = appConfig.keysPath.empty()
+                              ? amberedit::ui::KeyMap::defaults()
+                              : amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
+
+        // Before the terminal is taken over, which is the only place there is
+        // left to say anything about either of them.
+        compileNodelists(appConfig, forceCompile);
+        compileEcholists(appConfig, forceCompile);
+
+        amberedit::app::AreaManager manager(
+            amberedit::echolist::withEcholistDescriptions(
+                amberedit::app::makeAreaSource(appConfig), appConfig),
+            std::make_unique<amberedit::msgbase::MsgBaseLastReadStore>(
+                appConfig.lastreadUser, appConfig.userName),
+            appConfig);
+        manager.reload();
+
+        return amberedit::ui::runApp(manager, appConfig, keys);
+    } catch (const std::exception& e) {
+        // Only startup failures reach this point (no config, unreadable tosser
+        // config) — inside the UI exceptions are caught and shown in the status
+        // line.
+        std::cerr << "error: " << e.what() << "\n";
+        return 1;
+    }
+}

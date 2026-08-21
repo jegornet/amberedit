@@ -1,0 +1,6 @@
+netmailarea NETMAIL  /Users/egor/ftn/msg/netmail  -g A -b msg
+localarea   PERSONAL.MAIL /Users/egor/ftn/msg/personal.mail -g A -b squish
+badarea     BAD      /Users/egor/ftn/msg/bad      -g B -b squish
+dupearea    DUPES    /Users/egor/ftn/msg/dupes    -g B -b squish
+localarea   MEMORIES /Users/egor/ftn/msg/memories -g B -b squish
+EchoArea localnet /Users/egor/ftn/msg/localnet -b squish -dupecheck del -dupehistory 14 -a 192:168/2 192:168/1

@@ -1,0 +1,16 @@
+# Test sources inherit the project configuration and drop two checks that only
+# ever fire on Catch2's macros, never on anything a person wrote here.
+
+InheritParentConfig: true
+
+Checks: >
+  -bugprone-throwing-static-initialization,
+  -bugprone-unchecked-optional-access,
+
+# bugprone-throwing-static-initialization
+#   TEST_CASE expands to a static auto-registrar object, so every test case in
+#   the suite reports one of these against a generated 'dummyUserN' name.
+#
+# bugprone-unchecked-optional-access
+#   REQUIRE(opt.has_value()) is opaque to the checker, so the opt-> that
+#   follows it looks unchecked. The assertion is exactly what guards it.

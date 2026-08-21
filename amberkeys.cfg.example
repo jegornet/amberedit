@@ -1,0 +1,95 @@
+# AmberEdit keyboard layout — the defaults, written out.
+#
+# Point at it with a "keys" line in amberedit.cfg:
+#
+#   keys ~/ftn/etc/amberkeys.cfg
+#
+# A config naming no file at all gets exactly this layout, so there is nothing
+# to copy unless something is to change.
+#
+# THE FILE IS THE LAYOUT ENTIRE. A command no line here names has no key at all
+# — this is a layout rather than a list of corrections, so copy the whole of it
+# and edit what you want moved. A command may be named on several lines, and it
+# then answers to each of those keys.
+#
+# A line is a key and a command, in that order:
+#
+#   l    reader.list
+#   F2   reader.change
+#
+# Blank lines are ignored, and a line starting with "#" is a comment — which is
+# why "#" itself is the one printable character that cannot be a key here.
+#
+# Keys are written as:
+#
+#   a single character   l  G  /  +        upper and lower case are different keys
+#   a function key       F1 ... F12
+#   Del
+#   Ctrl-<letter>        Ctrl-N            case does not matter after Ctrl-
+#   Alt-<letter>         Alt-F
+#   Alt-<arrow>          Alt-Left  Alt-Right  Alt-Up  Alt-Down
+#
+# Moving about cannot be rebound, and naming one of those keys here is an error
+# rather than a line that is quietly dropped: the arrows, PgUp and PgDn, Home and
+# End, Space, Enter, Esc, Backspace and Tab mean the same thing on every screen
+# and in every dialog, and a layout that had taken Esc away would leave you on a
+# screen with no way out of it. The dialogs answer for themselves entirely — what
+# Enter, Esc and the arrows do in a box is the box's, and so are the attribute
+# chords.
+#
+# Two screens may share a key: F2 below is Change in the reader and Save in the
+# editor, and neither screen is ever the other. Two commands of one screen may
+# not, and a key written twice for one screen is an error naming both.
+#
+# A bare letter bound in the area list stops being a letter the quick search can
+# be typed with — the commands are answered first. By default only "/" is taken
+# there, and no area tag holds one.
+
+# --- anywhere -----------------------------------------------------------------
+# Quitting, from whatever screen is up — except the attributes dialog, where
+# every chord belongs to the dialog while it is on the screen.
+Ctrl-Q          app.quit
+
+# --- the area list ------------------------------------------------------------
+/               arealist.next-unread
+Ctrl-R          arealist.rescan
+
+# --- the reader ---------------------------------------------------------------
+q               reader.reply
+F4              reader.reply
+n               reader.reply-to
+F5              reader.reply-to
+e               reader.new
+m               reader.forward
+c               reader.change
+F2              reader.change
+d               reader.delete
+Del             reader.delete
+w               reader.export
+f               reader.find
+l               reader.list
+F9              reader.list
+i               reader.info
+Ctrl-N          reader.nodelist
+F10             reader.nodelist
+k               reader.kludges
+b               reader.scrollbar
+-               reader.thread-up
++               reader.thread-down
+=               reader.thread-down
+
+# --- the editor ---------------------------------------------------------------
+Ctrl-S          compose.save
+F2              compose.save
+Ctrl-F          compose.attributes
+Ctrl-O          compose.import
+Ctrl-U          compose.header-back
+Ctrl-Y          compose.delete-line
+Ctrl-D          compose.delete-quote
+Ctrl-W          compose.delete-word
+Alt-B           compose.word-left
+Alt-Left        compose.word-left
+Alt-F           compose.word-right
+Alt-Right       compose.word-right
+Ctrl-A          compose.line-start
+Ctrl-E          compose.line-end

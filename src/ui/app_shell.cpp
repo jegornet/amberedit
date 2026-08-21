@@ -1,0 +1,539 @@
+#include "ui/app_shell.hpp"
+
+#include <chrono>
+#include <cstdint>
+#include <exception>
+#include <string>
+#include <thread>
+#include <utility>
+#include <vector>
+
+#include "ui/app_state.hpp"
+#include "ui/area_dialog.hpp"
+#include "ui/attributes_dialog.hpp"
+#include "ui/confirm_dialog.hpp"
+#include "ui/error_dialog.hpp"
+#include "ui/export_dialog.hpp"
+#include "ui/export_mode_dialog.hpp"
+#include "ui/find_dialog.hpp"
+#include "ui/forward_dialog.hpp"
+#include "ui/hint_bar.hpp"
+#include "ui/import_dialog.hpp"
+#include "ui/info_dialog.hpp"
+#include "ui/menu_dialog.hpp"
+#include "ui/nodelist_dialog.hpp"
+#include "ui/reply_dialog.hpp"
+#include "ui/rescan_dialog.hpp"
+#include "ui/screens/area_list_screen.hpp"
+#include "ui/screens/compose_screen.hpp"
+#include "ui/screens/message_list_screen.hpp"
+#include "ui/screens/message_read_screen.hpp"
+#include "ui/term/element.hpp"
+#include "ui/term/event.hpp"
+#include "ui/term/terminal.hpp"
+#include "ui/term/utf8.hpp"
+#include "ui/theme.hpp"
+
+namespace amberedit::ui {
+
+using namespace term;
+
+namespace {
+
+/// What the area dialog is being opened for, given the answer to the one before
+/// it. The two enums are deliberately apart: the first dialog asks what is to
+/// become of the message and knows nothing of areas, and the second one is asked
+/// by `n` as well, which the first never sees.
+AppState::AreaPicker::For purposeOf(AppState::ForwardPicker::Mode mode) {
+    switch (mode) {
+        case AppState::ForwardPicker::Mode::Move: return AppState::AreaPicker::For::Move;
+        case AppState::ForwardPicker::Mode::Copy: return AppState::AreaPicker::For::Copy;
+        case AppState::ForwardPicker::Mode::Forward: break;
+    }
+    return AppState::AreaPicker::For::Forward;
+}
+
+/// The whole interface, as one tree of boxes, for whichever screen is up.
+///
+/// Rendering touches the message base — loading headers, re-wrapping a body — so
+/// it can fail, and a base that cannot be read must not bring the application
+/// down while the user is looking at it.
+Element document(AppState& state) {
+    Element body = text("");
+    try {
+        switch (state.navigator.current()) {
+            case app::ScreenId::AreaList: body = screens::area_list::render(state); break;
+            case app::ScreenId::MessageList:
+                screens::message_list::ensureHeaders(state);
+                body = screens::message_list::render(state);
+                break;
+            case app::ScreenId::MessageRead:
+                screens::message_read::relayout(state);
+                body = screens::message_read::render(state);
+                break;
+            case app::ScreenId::Compose: body = screens::compose::render(state); break;
+        }
+    } catch (const std::exception& e) {
+        body = text(" error: " + std::string(e.what())) | color(theme::palette.error);
+    }
+
+    // Eleven modals, and only ever one of them at a time: the context menu is
+    // the one thing the reader and the editor both open, the confirmation is
+    // asked from screens neither of the two lists can be up on, seven of them
+    // are the reader's, opened by different keys, two are the editor's, and the
+    // error box comes up on the area list in place of the screen that would not
+    // open.
+    //
+    // The menu is drawn first, under the rest: everything it can do is put a
+    // box of its own on the screen, and it is gone by the time that box is up.
+    if (state.menuView) {
+        body = menu_dialog::render(state, std::move(body));
+    }
+    if (!state.replyChoices.empty()) {
+        body = reply_dialog::render(state, std::move(body));
+    }
+    if (state.infoView) {
+        body = info_dialog::render(state, std::move(body));
+    }
+    if (state.nodelistView) {
+        body = nodelist_dialog::render(state, std::move(body));
+    }
+    // The two halves of `m`, one after the other: what is to become of the
+    // message, and then which area it is to become that in.
+    if (state.forwardPicker) {
+        body = forward_dialog::render(state, std::move(body));
+    }
+    if (state.areaPicker) {
+        body = area_dialog::render(state, std::move(body));
+    }
+    // Both over the compose screen, which is the one screen either opens from.
+    if (state.attributePicker) {
+        body = attributes_dialog::render(state, std::move(body));
+    }
+    if (state.importPicker) {
+        body = import_dialog::render(state, std::move(body));
+    }
+    // And these two over the reader, which is the one screen either opens from —
+    // the second in the first's place, the two being one question in two halves
+    // the way the forward picker and the area picker are.
+    if (state.exportModePicker) {
+        body = export_mode_dialog::render(state, std::move(body));
+    }
+    if (state.exportPicker) {
+        body = export_dialog::render(state, std::move(body));
+    }
+    if (state.findPicker) {
+        body = find_dialog::render(state, std::move(body));
+    }
+    if (state.confirm != AppState::Confirm::None) {
+        body = confirm_dialog::render(state, std::move(body));
+    }
+    if (!state.errorMessage.empty()) {
+        body = error_dialog::render(state, std::move(body));
+    }
+    // Over both of them, though it never meets either: a rescan is asked for on
+    // the area list, where neither of the other two can be up.
+    if (state.rescanning) {
+        body = rescan_dialog::render(state, std::move(body));
+    }
+
+    // The hint bar under the lot, dialogs included: it says what the screen
+    // behind them does, and it is the one row `runApp()` has already taken off
+    // their height for. It paints its own black over the fill below, which is
+    // the last word on that row since a decorator paints before its children.
+    if (state.hintBarShown()) {
+        body = vbox({std::move(body) | flex, hint_bar::render(state)});
+    }
+
+    // The palette is painted across the whole screen rather than left to show
+    // through: the theme's colors were chosen against its own background, and on
+    // a light terminal the quiet greys would be unreadable.
+    return std::move(body) | bgcolor(theme::palette.background);
+}
+
+}  // namespace
+
+int runApp(app::AreaManager& manager, const config::AppConfig& config,
+           const KeyMap& keys) {
+    // Before anything is drawn, and never again: every screen reads the palette
+    // while rendering. A theme named in the config but unreadable throws out of
+    // here, which is what the caller reports — a theme is asked for explicitly,
+    // so a mistake in one should be said out loud.
+    if (!config.themePath.empty()) theme::palette = theme::loadPalette(config.themePath);
+
+    AppState state(manager, config);
+    state.keys = keys;
+    // The terminal is told which letters Alt is held with before it starts
+    // reading any: a layout binding none leaves Escape unambiguous everywhere.
+    Terminal terminal(keys.altLetters());
+
+    // Putting a frame on the screen from inside whatever is running, rather
+    // than at the top of the loop. It lives here because the terminal does, and
+    // it is what lets a long call — the rescan naming each area as it opens it —
+    // show its own progress while the loop is blocked in it.
+    state.drawFrame = [&state, &terminal] { terminal.draw(document(state)); };
+
+    // How a click is shown before it is acted on. The screens say when — the
+    // button they have just been clicked on, or the row they have just moved
+    // the cursor onto — and this draws that frame and leaves it there for
+    // `click_animation_ms`. It is the whole of the animation: what a screen
+    // does after asking for it is written as though there were none.
+    //
+    // The pause is a plain sleep rather than a deadline the poll loop watches.
+    // Nothing is animated in the meantime and the click has already been read,
+    // so there is nothing for the loop to do that waiting here would delay —
+    // and a keystroke arriving mid-pause is not lost, only read a fifth of a
+    // second later, ncurses having buffered it.
+    state.holdFrame = [&state] {
+        state.redraw();
+        std::this_thread::sleep_for(std::chrono::milliseconds(state.clickAnimationMs));
+    };
+
+    while (terminal.running()) {
+        state.width = terminal.width();
+        state.height = terminal.height();
+        // The hint bar's row comes off the height every screen lays itself out
+        // against, here rather than in each of them: a screen has no business
+        // knowing what stands under it, and the ones that draw no hints are a
+        // row shorter all the same so that moving between them moves nothing.
+        if (state.hintBarShown() && state.height > 1) --state.height;
+        terminal.draw(document(state));
+
+        // A rescan is asked for on one frame and done on the next. Opening every
+        // base again is what takes the time, so the modal saying so has to be on
+        // the screen — the frame just drawn — before it starts, and there is no
+        // second thread for it to run on.
+        //
+        // Whatever was typed meanwhile is dropped rather than acted on when it
+        // ends: those keys were aimed at counts that were being rebuilt, and a
+        // letter into the quick search or an Enter opening an area would land on
+        // a list nobody has looked at yet.
+        if (state.rescanning) {
+            screens::area_list::rescan(state);
+            state.rescanning = false;
+            terminal.flushInput();
+            continue;
+        }
+
+        const Event event = terminal.poll();
+
+        // A resize is not a keystroke: the frame above has already been drawn to
+        // the new size, and there is nothing else for it to mean.
+        if (event == Event::Resize) continue;
+
+        // The attributes dialog is modal and takes every key, ahead even of the
+        // one that quits: its chords are its own and no layout can move them —
+        // Ctrl-C is Crash while it is up, which is what the list beside the
+        // checkboxes says — so it is the one screen anywhere that can claim a
+        // key back. It closes on Esc like every other box.
+        if (state.attributePicker) {
+            attributes_dialog::handleEvent(state, event);
+            continue;
+        }
+
+        // Quitting is answered from any screen, ahead of anything modal.
+        if (state.keys.is(event, KeyCommand::AppQuit)) {
+            terminal.exit();
+            continue;
+        }
+
+        // The error box is modal in the same way, and stands where a screen
+        // that would not open should have been: until it is acknowledged there
+        // is nothing underneath for a key to mean.
+        if (!state.errorMessage.empty()) {
+            error_dialog::handleEvent(state, event);
+            continue;
+        }
+
+        // The quit dialog is modal: while it is up it takes every key, so
+        // nothing underneath can act on a keystroke aimed at the confirmation.
+        if (state.confirm != AppState::Confirm::None) {
+            // Taken before the answer, which is what puts the question away.
+            const AppState::Confirm asked = state.confirm;
+            const confirm_dialog::Outcome answer =
+                confirm_dialog::handleEvent(state, event);
+            if (answer == confirm_dialog::Outcome::Ignored) continue;
+            state.confirm = AppState::Confirm::None;
+            if (answer == confirm_dialog::Outcome::Dismissed) {
+                // Only one question has anything to do with the second answer:
+                // the commands found in a message are ignored and the message
+                // is stored all the same. Everywhere else "no" means the thing
+                // asked about does not happen, which is nothing to act on.
+                if (asked == AppState::Confirm::ProcessCopies) {
+                    screens::compose::ignoreCopies(state);
+                }
+                continue;
+            }
+            // Answered yes. What that means belongs to whoever asked, so the
+            // question is put away first and then acted on.
+            switch (asked) {
+                case AppState::Confirm::Quit: terminal.exit(); break;
+                case AppState::Confirm::SaveMessage:
+                    screens::compose::saveMessage(state);
+                    break;
+                case AppState::Confirm::DropMessage:
+                    screens::compose::dropMessage(state);
+                    break;
+                case AppState::Confirm::DeleteMessage:
+                    screens::message_read::deleteMessage(state);
+                    break;
+                // Which of the two was asked is also what the message gets:
+                // the template's notice at the head of it where it is somebody
+                // else's, and nothing at all where it is the user's own.
+                case AppState::Confirm::ChangeForeignMessage:
+                    screens::compose::startChange(state, /*notice=*/true);
+                    break;
+                case AppState::Confirm::ChangeSentMessage:
+                    screens::compose::startChange(state, /*notice=*/false);
+                    break;
+                case AppState::Confirm::ProcessCopies:
+                    screens::compose::processCopies(state);
+                    break;
+                case AppState::Confirm::None: break;
+            }
+            continue;
+        }
+
+        // The context menu is modal in the same way, and stands over whichever
+        // screen opened it until a command is picked or it is dismissed. What
+        // the command means belongs to that screen, so the box is put away
+        // first and the screen underneath asked afterwards — every one of those
+        // commands can put a box of its own up, and two modals at once is not
+        // something this loop can mean.
+        if (state.menuView) {
+            if (menu_dialog::handleEvent(state, event) == menu_dialog::Outcome::Picked) {
+                const config::MenuCommand command = menu_dialog::current(state);
+                state.menuView.reset();
+                switch (state.navigator.current()) {
+                    case app::ScreenId::MessageRead:
+                        screens::message_read::runMenuCommand(state, command);
+                        break;
+                    case app::ScreenId::Compose:
+                        screens::compose::runMenuCommand(state, command);
+                        break;
+                    // Neither list carries a menu button, so neither can be the
+                    // screen a menu was opened from.
+                    case app::ScreenId::AreaList:
+                    case app::ScreenId::MessageList: break;
+                }
+            }
+            continue;
+        }
+
+        // The forward dialog is modal in the same way, and stands over the
+        // reader until it is answered — with what is to become of the message,
+        // which the area picker below then asks the where of. The two boxes are
+        // one question in two halves, so the answer to the first is carried into
+        // the second rather than acted on here.
+        if (state.forwardPicker) {
+            if (forward_dialog::handleEvent(state, event) ==
+                forward_dialog::Outcome::Picked) {
+                const auto mode = state.forwardPicker->mode;
+                state.forwardPicker.reset();
+                screens::message_read::askArea(state, purposeOf(mode));
+            }
+            continue;
+        }
+
+        // The area picker is modal in the same way: it stands over the reader
+        // until an area is picked for the message to go into. A reply or a
+        // forward is then begun the way `q` and `e` begin a message here; a move
+        // or a copy is done there and then, there being nothing to write.
+        if (state.areaPicker) {
+            if (area_dialog::handleEvent(state, event) == area_dialog::Outcome::Picked) {
+                // Both copied out before the dialog is put away: what follows
+                // opens and closes bases, and the manager's list is the only
+                // thing holding the area.
+                const domain::AreaConfig target =
+                    manager.areas()[static_cast<size_t>(state.areaPicker->cursor)].config;
+                const auto purpose = state.areaPicker->purpose;
+                state.areaPicker.reset();
+                switch (purpose) {
+                    case AppState::AreaPicker::For::Reply:
+                        screens::compose::startReplyTo(state, target);
+                        break;
+                    case AppState::AreaPicker::For::Forward:
+                        screens::compose::startForwardTo(state, target);
+                        break;
+                    case AppState::AreaPicker::For::Move:
+                        screens::message_read::moveMessage(state, target);
+                        break;
+                    case AppState::AreaPicker::For::Copy:
+                        screens::message_read::copyMessage(state, target);
+                        break;
+                }
+            }
+            continue;
+        }
+
+        // The import dialog is modal in the same way, and stands over the
+        // editor until a file has been read or the question dropped. It does
+        // the reading itself, being what is still on the screen when a file
+        // will not open; what comes back here is the lines it came to, and
+        // where they go in the message is the editor's business.
+        if (state.importPicker) {
+            if (import_dialog::handleEvent(state, event) ==
+                import_dialog::Outcome::Imported) {
+                // Taken out before the dialog is put away, which is what owns
+                // them.
+                const std::vector<std::string> lines =
+                    std::move(state.importPicker->lines);
+                state.importPicker.reset();
+                screens::compose::insertImported(state, lines);
+            }
+            continue;
+        }
+
+        // The export asks what before it asks where, wherever the message
+        // carries uuencoded files: the files taken out of it, or the message
+        // written as the text it also is. The export dialog follows either
+        // answer in this box's place, which is why the files are carried into it
+        // rather than acted on here.
+        if (state.exportModePicker) {
+            if (export_mode_dialog::handleEvent(state, event) ==
+                export_mode_dialog::Outcome::Picked) {
+                // Both taken off the box before it is put away, which is what
+                // holds them.
+                const bool decode =
+                    state.exportModePicker->mode == AppState::ExportPicker::Mode::Uue;
+                std::vector<app::UueFile> files =
+                    std::move(state.exportModePicker->files);
+                state.exportModePicker.reset();
+                export_dialog::open(
+                    state, decode ? std::move(files) : std::vector<app::UueFile>{});
+            }
+            continue;
+        }
+
+        // The export dialog is modal in the same way, and stands over the
+        // reader until the message has been written or the question dropped. It
+        // writes the file itself, being what is still on the screen when a file
+        // will not open; there is nothing left here to do but put it away.
+        if (state.exportPicker) {
+            if (export_dialog::handleEvent(state, event) ==
+                export_dialog::Outcome::Written) {
+                state.exportPicker.reset();
+            }
+            continue;
+        }
+
+        // The find box is modal in the same way, and stands over the reader
+        // until it has found something or been put away. It asks and does not
+        // search: what it was answered with goes to the reader, which is what
+        // walks the base and moves to the message. A search that came to
+        // nothing leaves the box standing with the words still in it, saying so
+        // in its bottom rule — the export box's habit, and for the same reason.
+        if (state.findPicker) {
+            if (find_dialog::handleEvent(state, event) == find_dialog::Outcome::Search) {
+                // Copied out first: finding a message loads it, and nothing is
+                // to be read back off the box across that.
+                const std::string query = state.findPicker->query;
+                const app::SearchScope scope = state.findPicker->scope;
+                if (screens::message_read::findMessage(state, query, scope)) {
+                    state.findPicker.reset();
+                } else if (state.findPicker) {
+                    state.findPicker->error = "Not found";
+                }
+            }
+            continue;
+        }
+
+        // The nodelist is modal in the same way. Opened by Ctrl-N it shows rather
+        // than asks — every key either looks something up in it or puts it
+        // away, and it does both itself. Opened from the compose screen it is
+        // answering half of a To row, and the node picked is carried back to
+        // the header the same way the area picker's answer is.
+        if (state.nodelistView) {
+            // Taken before the key is answered: the box may put itself away,
+            // and what it was opened for is what says whether anything is
+            // waiting on the answer.
+            const auto purpose = state.nodelistView->purpose;
+            const bool picked = nodelist_dialog::handleEvent(state, event) ==
+                                nodelist_dialog::Outcome::Picked;
+            const bool carbon =
+                purpose == AppState::NodelistView::Purpose::PickCarbonCopy;
+            if (picked) {
+                // The node is taken off the box before it is put away, which is
+                // what holds it.
+                const auto node = nodelist_dialog::currentNode(state);
+                state.nodelistView.reset();
+                if (carbon) {
+                    screens::compose::useCarbonCopy(state, node ? &*node : nullptr);
+                } else if (node) {
+                    screens::compose::useNode(state, purpose, *node);
+                }
+            } else if (carbon && !state.nodelistView) {
+                // Closed without picking anybody. The message is waiting to be
+                // stored and cannot wait on a box that is gone: that copy is
+                // not made, and the editor is told so.
+                screens::compose::useCarbonCopy(state, nullptr);
+            }
+            continue;
+        }
+
+        // The info box is modal in the same way, and shows rather than asks:
+        // every key either moves about inside it or puts it away, and it does
+        // both itself.
+        if (state.infoView) {
+            info_dialog::handleEvent(state, event);
+            continue;
+        }
+
+        // The list of replies is modal in the same way, and stands between the
+        // reader and the key it was opened with.
+        if (!state.replyChoices.empty()) {
+            if (reply_dialog::handleEvent(state, event) ==
+                reply_dialog::Outcome::Picked) {
+                const uint32_t number =
+                    state.replyChoices[static_cast<size_t>(state.replyChoice)].number;
+                state.replyChoices.clear();
+                screens::message_read::goToMessage(state, number);
+            }
+            continue;
+        }
+
+        // The hints along the bottom row, which belongs to no screen: a click on
+        // one is answered with the key that hint is written under, and that key
+        // is what the screen is then given. A click anywhere else comes through
+        // as itself.
+        const Event forScreen = hint_bar::clicked(state, event).value_or(event);
+
+        // A keystroke that throws is swallowed rather than reported: a broken
+        // area must not take the application down while the user is looking at
+        // it, and there is nowhere left to say so — there is no status line.
+        // The next frame is drawn from the state the failed
+        // keystroke left, which is the state it found.
+        try {
+            switch (state.navigator.current()) {
+                case app::ScreenId::AreaList:
+                    screens::area_list::handleEvent(state, forScreen);
+                    break;
+                case app::ScreenId::MessageList:
+                    screens::message_list::handleEvent(state, forScreen);
+                    break;
+                case app::ScreenId::MessageRead:
+                    screens::message_read::handleEvent(state, forScreen);
+                    break;
+                case app::ScreenId::Compose:
+                    screens::compose::handleEvent(state, forScreen);
+                    break;
+            }
+        } catch (const std::exception&) {  // NOLINT(bugprone-empty-catch)
+        }
+
+        // A key that put a different screen in front of the user takes the rest
+        // of what was typed with it, the terminal being where those keys are
+        // waiting. Leaving an area at its end is the one that asks for this: the
+        // key doing it is held down, and the screen it lands on binds it to
+        // something else.
+        if (state.discardTypeahead) {
+            state.discardTypeahead = false;
+            terminal.flushInput();
+        }
+    }
+
+    manager.closeCurrentArea();
+    return 0;
+}
+
+}  // namespace amberedit::ui

@@ -1,0 +1,100 @@
+# RPM packaging for RHEL 8 and 9 and their rebuilds (Rocky, AlmaLinux, CentOS
+# Stream), and for Fedora.
+#
+# Everything comes from BaseOS and AppStream except the test framework, which is
+# in EPEL, so `dnf install epel-release` first — or build with
+#
+#   rpmbuild -ba amberedit.spec --without check
+#
+# which drops both the dependency and the test run.
+
+%bcond_without check
+
+Name:           amberedit
+Version:        0.1.1
+Release:        1%{?dist}
+Summary:        FidoNet mail editor
+
+License:        GPL-2.0-or-later
+URL:            https://github.com/jegornet/amberedit
+
+Source0:        %{url}/archive/v%{version}/%{name}-%{version}.tar.gz
+
+# GCC 8 is the floor and is what RHEL 8 ships: the code is C++17 and needs no
+# gcc-toolset. CMake 3.16 likewise — RHEL 8 has 3.20 or newer.
+BuildRequires:  gcc-c++ >= 8
+BuildRequires:  cmake >= 3.16
+BuildRequires:  make
+BuildRequires:  pkgconfig
+# The wide-character ncurses. ncurses-devel carries both the narrow and the
+# wide library; the build probes for cchar_t and init_extended_pair and fails
+# the configure if it got the narrow one.
+BuildRequires:  pkgconfig(ncursesw)
+# zlib to unpack zipped nodelists and echolists
+BuildRequires:  zlib-devel
+
+# The single-byte charsets FidoNet runs on — CP866, CP437, KOI8-R — are not in
+# the base glibc on RHEL 9 and later or on Fedora: the gconv modules for them
+# were split out into glibc-gconv-extra, and RHEL 8 is the last release carrying
+# them in libc. Nothing detects this automatically, because a gconv module is
+# opened by name at run time and leaves no linkage for rpm to find. Without it
+# iconv_open("CP866") fails and a CP866 message shows as mojibake — which is the
+# whole of what this program is for. It is wanted at build time as well, since
+# %%check converts between these charsets.
+%if 0%{?rhel} >= 9 || 0%{?fedora}
+BuildRequires:  glibc-gconv-extra
+Requires:       glibc-gconv-extra
+%endif
+%if %{with check}
+# Header-only, so it is wanted at build time and never at run time. The tests are
+# written against the 2.13 series and the build refuses v3 by version, so the
+# package asked for is the one holding 2.13 — and which package that is moved.
+# EPEL 8 has the series as catch-devel; EPEL 9 and later, and Fedora, upgraded
+# catch to v3 and kept the old series beside it as catch2-devel. Getting this
+# wrong is not a missing dependency but a silent one: CMake would find v3, refuse
+# it, and fall back to fetching 2.13 over a network an rpmbuild does not have.
+%if 0%{?rhel} == 8
+BuildRequires:  catch-devel >= 2.13
+%else
+BuildRequires:  catch2-devel >= 2.13
+%endif
+%endif
+
+%description
+A FidoNet mail editor for the terminal, reading Squish, JAM and Fido *.msg
+message bases. Message areas can be read from a fidoconfig, areas.bbs or
+squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
+
+%prep
+%setup -q
+
+%build
+# AMBEREDIT_BUILD_TESTS is stated either way: with --without check there is no
+# Catch2 installed to find, and the default would stop the configure.
+%cmake -DAMBEREDIT_BUILD_TESTS:BOOL=%{?with_check:ON}%{!?with_check:OFF}
+%cmake_build
+
+%if %{with check}
+%check
+%ctest
+%endif
+
+%install
+# The binary, the template and the themes all come from the CMake install, which
+# places them where amberedit.cfg.example says they are. Nothing is placed here
+# by hand: a second copy of those paths is a second thing to keep in step.
+%cmake_install
+
+%files
+%license LICENSE
+# The sample config stays documentation: AmberEdit looks for its config where
+# the user keeps it, and this one is here to be copied.
+%doc README.md INSTALL.md amberedit.cfg.example amberkeys.cfg.example
+%{_bindir}/amberedit
+%dir %{_datadir}/%{name}
+%{_datadir}/%{name}/default.tpl
+%{_datadir}/%{name}/themes
+
+%changelog
+* Thu Aug 20 2026 Yegor Gluhov <git@jegor.net> - 0.1.1-1
+- Initial package.

@@ -1,0 +1,187 @@
+#include "ui/keys.hpp"
+
+#include <catch2/catch.hpp>
+
+#include <fstream>
+#include <string>
+
+#include "config/text_util.hpp"
+#include "temp_dir.hpp"
+#include "test_paths.hpp"
+#include "ui/term/event.hpp"
+
+using amberedit::ui::KeyCommand;
+using amberedit::ui::KeyMap;
+using amberedit::ui::keyNamed;
+using amberedit::ui::nameOf;
+using amberedit::ui::spellingOf;
+using amberedit::ui::term::Event;
+
+namespace {
+
+Event ctrl(char letter) {
+    return Event::Character(std::string(1, letter), true);
+}
+Event alt(char letter) {
+    return Event::Character(std::string(1, letter), false, true);
+}
+
+}  // namespace
+
+TEST_CASE("The defaults are the layout AmberEdit has always had", "[keys]") {
+    const KeyMap keys = KeyMap::defaults();
+
+    CHECK(keys.is(Event::Character('l'), KeyCommand::ReaderList));
+    CHECK(keys.is(Event::F9, KeyCommand::ReaderList));
+    CHECK(keys.is(Event::Character('q'), KeyCommand::ReaderReply));
+    CHECK(keys.is(Event::F4, KeyCommand::ReaderReply));
+    CHECK(keys.is(Event::Delete, KeyCommand::ReaderDelete));
+    CHECK(keys.is(ctrl('n'), KeyCommand::ReaderNodelist));
+    CHECK(keys.is(Event::F10, KeyCommand::ReaderNodelist));
+    CHECK(keys.is(ctrl('q'), KeyCommand::AppQuit));
+    // Quitting is one chord: Ctrl-C is left to whatever a layout wants of it.
+    CHECK_FALSE(keys.is(ctrl('c'), KeyCommand::AppQuit));
+    CHECK(keys.is(ctrl('w'), KeyCommand::ComposeDeleteWord));
+    CHECK(keys.is(alt('b'), KeyCommand::ComposeWordLeft));
+    CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, false, true),
+                  KeyCommand::ComposeWordLeft));
+
+    // F2 is two commands, and the two screens never meet.
+    CHECK(keys.is(Event::F2, KeyCommand::ReaderChange));
+    CHECK(keys.is(Event::F2, KeyCommand::ComposeSave));
+
+    // A key that runs nothing, and a mouse report, which is never a binding.
+    CHECK_FALSE(keys.is(Event::Character('z'), KeyCommand::ReaderList));
+    CHECK_FALSE(keys.is(Event::Mouse({}), KeyCommand::ReaderList));
+
+    // Alt reaches the terminal only for the letters a layout binds, and these
+    // are they.
+    CHECK(keys.altLetters() == "bf");
+}
+
+TEST_CASE("amberkeys.cfg.example is the defaults, written out", "[keys]") {
+    // The example is what a user copies to start from, so a default it has
+    // fallen behind on would be a layout that quietly changes as it is adopted.
+    const std::string text = amberedit::config::text::readFile(
+        amberedit::test::projectPath("amberkeys.cfg.example"));
+    const KeyMap written = KeyMap::parse(text, "amberkeys.cfg.example");
+    const KeyMap defaults = KeyMap::defaults();
+
+    for (size_t i = 0; i < amberedit::ui::kKeyCommandCount; ++i) {
+        const auto command = static_cast<KeyCommand>(i);
+        INFO(nameOf(command));
+        CHECK(written.keysOf(command) == defaults.keysOf(command));
+    }
+}
+
+TEST_CASE("A layout is the whole of the layout", "[keys]") {
+    const KeyMap keys = KeyMap::parse(
+        "# what this system is used to\n"
+        "\n"
+        "F3   reader.find\n"
+        "F3   compose.save\n",
+        "keys");
+
+    CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
+    // The letter the default layout had is gone with the rest of it: a file is
+    // a layout and not a list of corrections.
+    CHECK_FALSE(keys.is(Event::Character('f'), KeyCommand::ReaderFind));
+    // And a command the file never names has no key at all.
+    CHECK(keys.keysOf(KeyCommand::ReaderList).empty());
+    CHECK(keys.keysOf(KeyCommand::AppQuit).empty());
+    // Two screens sharing one key is what F2 does by default, and is allowed.
+    CHECK(keys.is(Event::F3, KeyCommand::ComposeSave));
+}
+
+TEST_CASE("A key is read the way it is written", "[keys]") {
+    // Case tells two letters apart, and does not tell two spellings of a
+    // modifier apart.
+    CHECK(keyNamed("g") == Event::Character('g'));
+    CHECK(keyNamed("G") == Event::Character('G'));
+    CHECK(keyNamed("ctrl-n") == ctrl('n'));
+    CHECK(keyNamed("CTRL-N") == ctrl('n'));
+    CHECK(keyNamed("f10") == Event::F10);
+    CHECK(keyNamed("Del") == Event::Delete);
+    CHECK(keyNamed("Delete") == Event::Delete);
+    CHECK(keyNamed("-") == Event::Character('-'));
+    CHECK(keyNamed("Alt-Left") == Event::Named(Event::Name::ArrowLeft, false, true));
+
+    // Ctrl goes with a letter and Alt with a letter or an arrow: nothing else
+    // is a key a terminal can be made to report.
+    CHECK_FALSE(keyNamed("Ctrl-F5"));
+    CHECK_FALSE(keyNamed("Ctrl-+"));
+    CHECK_FALSE(keyNamed("Alt-F5"));
+    CHECK_FALSE(keyNamed("F13"));
+    CHECK_FALSE(keyNamed("Ctrl"));
+    CHECK_FALSE(keyNamed(""));
+
+    // And what is written back out reads the same again.
+    for (const char* spelling : {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left"}) {
+        const auto key = keyNamed(spelling);
+        REQUIRE(key);
+        CHECK(keyNamed(spellingOf(*key)) == key);
+    }
+}
+
+TEST_CASE("The keys that move about cannot be bound", "[keys]") {
+    for (const char* spelling :
+         {"Esc", "escape", "Enter", "Return", "Tab", "Backspace", "Space", "Home", "End",
+          "PgUp", "PageDown", "Up", "Down", "Left", "Right"}) {
+        INFO(spelling);
+        CHECK(amberedit::ui::isReservedKey(spelling));
+        CHECK_FALSE(keyNamed(spelling));
+    }
+    // Bare only: Alt-Left is how a word is walked over.
+    CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Left"));
+
+    CHECK_THROWS_WITH(KeyMap::parse("Esc reader.list", "keys"),
+                      Catch::Matchers::Contains("cannot be bound"));
+}
+
+TEST_CASE("A layout that cannot be read says which line is wrong", "[keys]") {
+    CHECK_THROWS_WITH(
+        KeyMap::parse("l reader.lst", "keys"),
+        Catch::Matchers::Contains("keys:1: no command is called reader.lst"));
+    CHECK_THROWS_WITH(KeyMap::parse("\nF13 reader.list", "keys"),
+                      Catch::Matchers::Contains("keys:2: no key is called F13"));
+    CHECK_THROWS_WITH(KeyMap::parse("l\n", "keys"),
+                      Catch::Matchers::Contains("a line is a key and a command"));
+    CHECK_THROWS_WITH(KeyMap::parse("l reader.list now\n", "keys"),
+                      Catch::Matchers::Contains("a line is a key and a command"));
+
+    // One screen may not have a key twice, and the message names what it is
+    // already doing.
+    CHECK_THROWS_WITH(KeyMap::parse("l reader.list\nl reader.find\n", "keys"),
+                      Catch::Matchers::Contains("l is already reader.list"));
+    // Quitting is answered before every screen, so it shares with nothing.
+    CHECK_THROWS_WITH(KeyMap::parse("x app.quit\nx compose.save\n", "keys"),
+                      Catch::Matchers::Contains("x is already app.quit"));
+}
+
+TEST_CASE("A layout is read from the file the config names", "[keys]") {
+    amberedit::test::TempDir dir;
+    const std::string path = dir.path("amberkeys.cfg");
+    {
+        std::ofstream out(path);
+        out << "  # indented comments count too\n\n";
+        out << "F3\treader.find\n";
+        out << "Alt-J compose.word-left\n";
+    }
+
+    const KeyMap keys = KeyMap::loadFromFile(path);
+    CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
+    // The terminal is told about the letters this layout uses and no others.
+    CHECK(keys.altLetters() == "j");
+
+    CHECK_THROWS_WITH(KeyMap::loadFromFile(dir.path("gone.cfg")),
+                      Catch::Matchers::Contains("keys file not found"));
+
+    // The file's own name is what a mistake in it is reported against, since
+    // that is what the reader of the message has to go and open.
+    const std::string bad = dir.path("bad.cfg");
+    {
+        std::ofstream out(bad);
+        out << "F3 reader.find\nEsc reader.list\n";
+    }
+    CHECK_THROWS_WITH(KeyMap::loadFromFile(bad), Catch::Matchers::Contains(bad + ":2: "));
+}

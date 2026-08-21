@@ -1,0 +1,80 @@
+# Lint configuration for amberedit. Without this file every IDE applies its own
+# defaults, so what counts as a warning differs per developer. The set below is
+# one the project passes cleanly — if a check fires, it is a finding, not noise.
+#
+# Each exclusion says why it is off, so nobody has to re-derive the reasoning.
+
+Checks: >
+  bugprone-*,
+  performance-*,
+  modernize-concat-nested-namespaces,
+  modernize-deprecated-headers,
+  modernize-loop-convert,
+  modernize-make-shared,
+  modernize-make-unique,
+  modernize-use-emplace,
+  modernize-use-nodiscard,
+  modernize-use-nullptr,
+  modernize-use-override,
+  modernize-use-using,
+  readability-const-return-type,
+  readability-delete-null-pointer,
+  readability-duplicate-include,
+  readability-else-after-return,
+  readability-inconsistent-declaration-parameter-name,
+  readability-math-missing-parentheses,
+  readability-misleading-indentation,
+  readability-named-parameter,
+  readability-redundant-*,
+  readability-simplify-boolean-expr,
+  readability-static-definition-in-anonymous-namespace,
+  readability-use-std-min-max,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -bugprone-signed-bitwise,
+  -performance-enum-size,
+  -performance-no-int-to-ptr,
+
+# Why the four exclusions above are off:
+#
+#   bugprone-easily-swappable-parameters
+#     Fires on any (int, int) pair. Screen geometry is full of them and
+#     renaming does not make the calls safer.
+#
+#   bugprone-exception-escape
+#     Flags main(), which already catches std::exception and is allowed to
+#     propagate anything it does not.
+#
+#   bugprone-signed-bitwise
+#     The UTF-8 decoder in encoding/iconv_recoder.cpp masks integer-promoted
+#     unsigned char values; that is the idiomatic way to write it.
+#
+#   performance-enum-size
+#     Suggests uint8_t bases for our four small enums. A handful of bytes on
+#     enums that are never stored in bulk is not worth the noise.
+#
+#   performance-no-int-to-ptr
+#     iconv's API defines its failure value as (iconv_t)-1, so the cast is
+#     mandated by the library.
+#
+# Three checks are left out for a different reason: modernize-use-ranges,
+# modernize-use-starts-ends-with and readability-container-contains all argue
+# for C++20 spellings, and the project is C++17 so that it builds on RHEL 8's
+# GCC 8. They are inert under -std=c++17, but listing them would invite a run
+# with a newer default standard to undo the C++17 forms on purpose.
+#
+# Whole families deliberately left out of the list above, because they argue
+# with the style in .clang-format rather than with correctness:
+# modernize-use-trailing-return-type, readability-braces-around-statements,
+# readability-identifier-length, readability-magic-numbers,
+# readability-implicit-bool-conversion, readability-uppercase-literal-suffix,
+# readability-trailing-comma, readability-function-cognitive-complexity.
+
+# Only our own headers: the FetchContent dependencies are not ours to lint.
+# The subdirectories are named explicitly on purpose: a bare '.*/src/.*' also
+# matches _deps/catch2-src/src, which drags Catch2's own headers into every
+# report.
+HeaderFilterRegex: '.*/src/(app|config|domain|encoding|msgbase|ports|ui)/.*'
+
+WarningsAsErrors: ''
+FormatStyle: file

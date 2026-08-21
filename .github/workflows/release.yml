@@ -1,0 +1,272 @@
+# Everything a tag produces: a source tarball, native packages for the
+# distributions that have a format of their own, and an archive for macOS, which
+# does not.
+#
+# The tarball is built once and handed to the package jobs. It is what
+# amberedit.spec's Source0 names, so an RPM built here and an RPM built from a
+# downloaded release archive are built from the same bytes.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to build
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  tarball:
+    name: Source tarball
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      # The version comes off the tag with its leading v taken away, and every
+      # file that also states it has to agree. `project(AmberEdit VERSION ...)`
+      # is the one the code reads, through the generated version.hpp; the spec
+      # and debian/changelog are what name the packages. A tag disagreeing with
+      # any of them is a release nobody can rebuild, and the deb one fails
+      # silently — dpkg takes the changelog's number and ships a 0.1.1 package
+      # from a v0.2 tag — so all three are checked here rather than trusted.
+      - id: v
+        name: Work out and check the version
+        run: |
+          tag="${{ inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+
+          cmake_v=$(sed -n 's/^project(AmberEdit VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          spec_v=$(sed -n 's/^Version: *\([0-9.]*\).*/\1/p' amberedit.spec)
+          deb_v=$(sed -n '1s/^amberedit (\([0-9.]*\)-[0-9]*).*/\1/p' debian/changelog)
+
+          fail=0
+          for pair in "CMakeLists.txt:$cmake_v" "amberedit.spec:$spec_v" "debian/changelog:$deb_v"; do
+            file="${pair%%:*}"; got="${pair#*:}"
+            if [ "$got" != "$version" ]; then
+              echo "::error::tag $tag says $version, $file says '${got:-nothing}'"
+              fail=1
+            fi
+          done
+          [ "$fail" -eq 0 ] || exit 1
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build the tarball
+        run: |
+          v='${{ steps.v.outputs.version }}'
+          git archive --format=tar.gz --prefix="amberedit-$v/" \
+              -o "amberedit-$v.tar.gz" HEAD
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: amberedit-*.tar.gz
+
+  rpm:
+    name: RPM (${{ matrix.name }})
+    needs: tarball
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # One job and no more writes the source RPM — see the step below for
+          # why one is enough. This is the one, being the oldest rpm of the three.
+          - name: el8
+            image: rockylinux:8
+            srpm: true
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel catch-devel
+          # EPEL 9 and later carry the 2.13 series the tests want as
+          # catch2-devel rather than catch-devel; amberedit.spec's BuildRequires
+          # makes the same distinction, so these two lines and the spec have to
+          # agree.
+          - name: el9
+            image: rockylinux:9
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel catch2-devel glibc-gconv-extra
+          - name: fedora
+            image: fedora:latest
+            deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel catch2-devel glibc-gconv-extra
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+
+      - name: Build the RPM
+        env:
+          DEPS: ${{ matrix.deps }}
+          IMAGE: ${{ matrix.image }}
+          SRPM: ${{ matrix.srpm }}
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD":/src -e DEPS -e SRPM "$IMAGE" sh -c '
+            set -eu
+            eval "$DEPS"
+            rpmdev-setuptree
+            cp /src/amberedit-*.tar.gz "$HOME/rpmbuild/SOURCES/"
+            rpmbuild -ba /src/amberedit.spec
+            # The debuginfo and debugsource packages are left behind: they are the
+            # bulk of what rpmbuild writes and nobody downloads symbols from a
+            # release page.
+            find "$HOME"/rpmbuild/RPMS -name "*.rpm" \
+                 ! -name "*debuginfo*" ! -name "*debugsource*" -exec cp {} /src/out/ \;
+            # The source RPM is built a second time and only once for the whole
+            # matrix, with no dist tag. A source RPM is the spec and the tarball
+            # and nothing else, and the spec inside it keeps %{?dist} unexpanded,
+            # so whichever of these three built it the rebuild stamps itself with
+            # the dist of the machine doing the rebuilding. Three of them would
+            # therefore be the same package three times over, under names that
+            # each claim a distribution the package is not tied to. Writing
+            # straight to out/ saves matching a name that changes with Release.
+            if [ "${SRPM:-}" = true ]; then
+                rpmbuild -bs --define "dist %{nil}" --define "_srcrpmdir /src/out" \
+                         /src/amberedit.spec
+            fi'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm-${{ matrix.name }}
+          path: out/*.rpm
+
+  deb:
+    name: deb (${{ matrix.name }})
+    needs: tarball
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-stable
+            image: debian:stable
+          - name: ubuntu-22.04
+            image: ubuntu:22.04
+          - name: ubuntu-24.04
+            image: ubuntu:24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      # dpkg-buildpackage writes its output beside the source directory, so the
+      # tree is copied one level down and the .deb collected from the parent.
+      #
+      # The distribution goes into the version, and it has to: three builds of
+      # 0.1.1-1 for three distributions are three different packages with one
+      # file name, and uploading them to a release silently leaves whichever
+      # landed last. What survives then is not marked, so a deb built against
+      # Ubuntu 24.04's glibc is offered to 22.04, where it cannot install.
+      #
+      # `~ubuntu22.04` is the spelling Ubuntu itself uses for a per-release
+      # rebuild, and '~' sorts *before* the plain version, so a machine that
+      # later sees a real 0.1.1-1 upgrades onto it. The suffix is read from the
+      # image rather than written in the matrix, so it cannot drift when
+      # debian:stable becomes the next release. debian/source/format is
+      # `3.0 (native)`, so the first line of debian/changelog is the whole of
+      # where the version lives.
+      - name: Build the deb
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD":/src -e DEBIAN_FRONTEND=noninteractive "$IMAGE" sh -c '
+            set -eu
+            apt-get update
+            apt-get -y install --no-install-recommends build-essential devscripts debhelper cmake pkg-config libncurses-dev zlib1g-dev ca-certificates
+            mkdir -p /build/amberedit && cp -a /src/. /build/amberedit/
+            rm -rf /build/amberedit/build /build/amberedit/cmake-build-debug /build/amberedit/out
+            cd /build/amberedit
+
+            . /etc/os-release
+            suffix="${ID}${VERSION_ID}"
+            sed -i "1s/^amberedit (\([^)]*\))/amberedit (\1~${suffix})/" debian/changelog
+            head -1 debian/changelog
+
+            dpkg-buildpackage -us -uc -b
+
+            # The debug symbols are not what anyone comes to a release page for,
+            # and on Debian they are another .deb. Ubuntu spells them .ddeb and
+            # the glob misses them already.
+            find /build -maxdepth 1 -name "*.deb" ! -name "*dbgsym*" -exec cp {} /src/out/ \;'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.name }}
+          path: out/*.deb
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    needs: tarball
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x86_64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Build and stage
+        run: |
+          brew install ncurses
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+                -DAMBEREDIT_BUILD_TESTS=OFF \
+                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses)"
+          cmake --build build -j"$(sysctl -n hw.ncpu)"
+          cmake --install build --prefix stage
+
+      # The sample configs and the two documents are not installed by the build — each
+      # package format has its own place for documentation, and an archive's is
+      # the top of it.
+      - name: Pack
+        run: |
+          v='${{ needs.tarball.outputs.version }}'
+          cp README.md INSTALL.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
+          tar -C stage -czf "amberedit-$v-macos-${{ matrix.arch }}.tar.gz" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.arch }}
+          path: amberedit-*.tar.gz
+
+  publish:
+    name: Publish the release
+    needs: [tarball, rpm, deb, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # The source tarball is built for the RPM jobs, which have no network to
+      # fetch Source0 with, and to hang the version check on. It is not an
+      # asset: GitHub attaches the very archive amberedit.spec's Source0 names —
+      # same commit, same tree, `amberedit-<version>/` at the top of it — to
+      # every release by itself. Uploading ours beside it would put two
+      # identical trees on the page under different names, and the one a
+      # `spectool -g` fetches would still be GitHub's.
+      - name: Leave the source tarball out
+        run: rm -rf artifacts/tarball
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          draft: true
+          files: artifacts/**/*

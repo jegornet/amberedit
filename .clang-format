@@ -1,0 +1,15 @@
+# Google style as the base, with a 90-column limit: Fidonet identifiers and the
+# explanatory comments do not fit comfortably in 80.
+BasedOnStyle: Google
+Language: Cpp
+Standard: c++17
+ColumnLimit: 90
+IndentWidth: 4
+# Flush with the class, which is the usual pairing with a four-space indent.
+AccessModifierOffset: -4
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortCaseLabelsOnASingleLine: true
+IncludeBlocks: Preserve
+SortIncludes: CaseSensitive

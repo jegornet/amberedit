@@ -1,0 +1,114 @@
+# Build and test on every system AmberEdit is meant to build on.
+#
+# The Linux jobs run their distribution in `docker run` from an ordinary
+# ubuntu-latest runner rather than through the `container:` key. That is
+# deliberate: `container:` makes every action run its own Node inside the image,
+# and RHEL 8's glibc sits exactly on the boundary of what current Node builds
+# accept. Checking out on the host and mounting the tree in sidesteps the
+# question entirely, and it is the same command AGENTS.md gives for checking the
+# compiler floor by hand.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The floor, and the whole reason the project is C++17: stock GCC 8.5
+          # and the CMake the release ships, no gcc-toolset. EPEL carries the
+          # 2.13 Catch2 the tests are written against, so this one takes the
+          # packaged path rather than fetching.
+          - name: Rocky Linux 8 (GCC 8, the floor)
+            image: rockylinux:8
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake git make ncurses-devel zlib-devel catch-devel
+          # EPEL 9 and later carry the 2.13 series as catch2-devel, not
+          # catch-devel: catch was upgraded to v3 there and the old series kept
+          # beside it. amberedit.spec makes the same distinction by %{rhel}.
+          - name: Rocky Linux 9
+            image: rockylinux:9
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake git make ncurses-devel zlib-devel catch2-devel glibc-gconv-extra
+          # Newest GCC, which is where a warning or a tightened header shows up
+          # years before it reaches an LTS.
+          - name: Fedora latest (newest GCC)
+            image: fedora:latest
+            deps: dnf -y install gcc-c++ cmake git make ncurses-devel zlib-devel catch2-devel glibc-gconv-extra
+          # No catch2 package on these three: which series Debian's carries
+          # moves from release to release, and v3 is refused by version anyway,
+          # so they fetch 2.13.8 and the path where Catch2 is *found* is covered
+          # by the three above. `git` is here for that fetch, not for checkout.
+          - name: Debian stable
+            image: debian:stable
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake git make pkg-config libncurses-dev zlib1g-dev ca-certificates
+          - name: Ubuntu 22.04
+            image: ubuntu:22.04
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake git make pkg-config libncurses-dev zlib1g-dev ca-certificates
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake git make pkg-config libncurses-dev zlib1g-dev ca-certificates
+    steps:
+      - uses: actions/checkout@v4
+
+      # The copy is not incidental: one test opens testdata/msgbase/charsets in
+      # the source tree itself, so a read-only mount fails there and nowhere
+      # else.
+      - name: Build and test
+        env:
+          DEPS: ${{ matrix.deps }}
+          IMAGE: ${{ matrix.image }}
+        run: |
+          docker run --rm -v "$PWD":/src:ro -e DEPS -e DEBIAN_FRONTEND=noninteractive "$IMAGE" sh -c '
+            set -eu
+            eval "$DEPS"
+            cp -a /src /work && rm -rf /work/build
+            cmake -S /work -B /out -DCMAKE_BUILD_TYPE=Release
+            cmake --build /out -j"$(nproc)"
+            cd /out && ctest --output-on-failure'
+
+  macos:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS arm64
+            runner: macos-15
+          - name: macOS x86_64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      # Apple ships ncurses 5.7, which has no wide characters at all, so the
+      # Homebrew one is asked for by prefix. This pair of jobs is also the only
+      # coverage the two CMake branches that are dead on glibc get: iconv as a
+      # separate library, and the header under ncursesw/.
+      - name: Install ncurses
+        run: brew install ncurses
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses)"
+
+      - name: Build
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

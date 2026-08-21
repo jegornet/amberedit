@@ -1,0 +1,792 @@
+# Example AmberEdit configuration.
+#
+# Copy it to ./amberedit.cfg or ~/.ambereditrc and fix up the paths — those are
+# where AmberEdit looks when it is started without -c, after $AMBEREDIT_CONFIG.
+# The area list and the paths to the message bases are NOT here: they are read
+# from your tosser's configuration.
+#
+# A line is a key and the values after it, separated by spaces. A value that has
+# spaces of its own — or a "#" in it — is written in double quotes; a "#"
+# starting a word begins a comment. Keys may be written in any case, and every
+# key but "aka", "akamatch", "nodelist", "echolist", "address_macro", "twit" and
+# "twit_subj" is written at most once.
+#
+# Each setting below says what it does, what it takes and what it defaults to.
+
+# --- who you are --------------------------------------------------------------
+
+# Your name. Required.
+name Vasya Pupkin
+
+# Your main address, 3D or 4D. Required.
+address 2:382/9999.1
+
+# Your other addresses. Optional; one line per AKA.
+#aka 2:5020/999.1
+#aka 192:168/2
+
+# Which of your addresses netmail to which destinations is written from.
+# Optional — a system with one address needs none of it. One line per AKA: the
+# AKA first, then the FTN address patterns it answers for.
+#
+# In a pattern any component may be a "*", and a "*" at the end of it stands for
+# that component and every one after it:
+#
+#   192:*         the whole of zone 192
+#   172:16/*      zone 172, net 16, any node and point
+#   2:5020/999.*  node 2:5020/999 and all its points, the boss included
+#   2:5020/999    that node alone, its points not being it
+#   *             anything at all
+#
+# 5D addresses are not supported, a "@domain" in a pattern is refused. Where the
+# patterns of two AKAs both fit an address, the one that pins down more of it
+# wins — counting components from the left up to the first "*" — and between two
+# that say as much, the line written first. An AKA named by "aka" alone is one
+# you have and one that is never picked on its own.
+#akamatch 192:168/2 192:* 172:16/*        # 192:168/2 for zone 192, and 172:16/*
+#akamatch 2:5020/999.1 2:5020/999.*       # 2:5020/999.1 for that node and points
+
+# A short word typed where a netmail recipient goes, standing for the whole of
+# that recipient. Optional; one line per macro.
+#
+#   address_macro <macro>,<name>,<address>[,"subject"][,attributes]
+#
+# Type the macro into the "To" name field of a netmail and press Enter: the name,
+# the address and — where the line names them — the subject and the attributes
+# are filled in, and the nodelist is not consulted. The commas separate the
+# fields, blanks around each one mean nothing, and an empty field was not stated:
+# "af,AreaFix,2:382/736,,k/s" names the attributes and leaves the subject alone.
+# The macro is matched whole and without regard to case, so "af" never fires on
+# "Olaf".
+#
+# The attributes are the short forms AmberEdit shows a message's attributes in —
+# Pvt, Cra, Hld, Dir, Imm, Att, Frq, Trs, Orp, K/s, Loc, Rrq, Cpt, Arq, Urq, Rcv,
+# Snt, Scn — written in any case and separated by blanks, a slash being unable to
+# separate what "K/s" has one inside of. They are ADDED to what the message
+# already carries (Loc and Pvt, for a netmail of your own).
+#address_macro af,AreaFix,2:382/736,"PASSWORD",k/s
+#address_macro ff,FileFix,2:382/736,"PASSWORD"
+#address_macro boss,Sysop,2:5020/999
+
+# --- tosser and message bases -------------------------------------------------
+
+# Path to the tosser config. Required unless you declare every area yourself in
+# the "area ... endarea" blocks below.
+tosser_config ~/ftn/etc/areas
+
+# Format of that config. Required as soon as tosser_config names one — AmberEdit
+# does not guess it from the file.
+#   "fidoconfig" - hpt-style, EchoArea / NetmailArea / ... lines
+#   "areas.bbs"  - line-based areas.bbs
+#   "squish.cfg" - Squish's own config, with its attached -$ options
+tosser_config_format fidoconfig
+
+# An area of your own, in the fields a tosser config states one with. The blocks
+# are ADDED to what the tosser config declares — a local base for your own notes
+# is no business of the tosser's — and they are the whole area list where there
+# is no tosser_config at all. A tag declared here AND by the tosser stops
+# AmberEdit at startup: two answers to "where is the base for this tag" is not
+# something to pick a winner for.
+#
+# The tag stands on the "area" line. Everything else is optional except the
+# path, which only a passthrough area does without:
+#   path         the base without its extension, as the tosser config writes it
+#   type         squish | jam | msg | passthrough. Left out, AmberEdit works it
+#                out from the files on disk — but then it cannot CREATE the base
+#                for you when you first enter the area, having no format to
+#                create it in. State it for a base that is not there yet.
+#   kind         echo | netmail | local | bad | dupe. "echo" if left out.
+#   description  what the area list's "d" column shows
+#   group_label  what its "g" column shows — fidoconfig's -g. Not the same thing
+#                as a "group ... endgroup" block, which is settings for areas.
+#   address      the AKA the area is presented under. Your "address" if left out
+#   link         the downlinks, several to a line and several lines
+#
+# How an area is READ — charset, origin, template — is a group block's to say,
+# and a group covers an area declared here exactly as it covers any other.
+#area NOTES
+#    path ~/ftn/msg/notes
+#    type jam
+#    kind local
+#    description "Notes to myself"
+#endarea
+
+# Character set a message you READ is decoded from when it carries no CHRS
+# kludge, or when its kludge names no particular one — as the obsolete
+# "CHRS: IBMPC 2" does. Required; may be set per area in a group block.
+default_charset CP866
+
+# Character set a message you WRITE is encoded in, and that its own CHRS kludge
+# announces. Required; may be set per area in a group block.
+compose_charset CP866
+
+# Which lastread slot in a message base is yours. Optional; 0 by default, which
+# is right on a single-user system. Squish (.sql) and Fido *.msg (the "lastread"
+# file in the area directory) are arrays indexed by this number; JAM (.jlr) finds
+# your record by the CRC of your name and keeps this number in its UserID field.
+# If another reader works on the same bases, use the number it does — GoldED
+# calls it SQUISHUSERNO / FIDOUSERNO.
+lastread_user 0
+
+# --- nodelists & pointlists ---------------------------------------------------
+
+# The nodelists you keep. Optional; one line per nodelist, and their ORDER IS
+# THEIR PRECEDENCE — where two of them list one address, the one named first
+# keeps it. Nodelists and pointlists both: a "Boss" line is what makes a
+# pointlist one, and no setting says which is which. Three ways of naming one:
+#
+#   ~/ftn/nodelist/nodelist.ndl   a file, by its name
+#   ~/ftn/nodelist/Z2DAILY.999    the newest of the files whose extension is a
+#                                 day number, 001 to 366 ("999" is not a day of
+#                                 any year, which is what makes it the pattern)
+#   ~/ftn/nodelist/Z2PNT.Z99      the newest of the zip archives whose extension
+#                                 is Z (or z) and two digits, unpacked into the
+#                                 temporary directory (see tmpdir, below) and
+#                                 taken away again after reading
+#
+# The last two may be written as wildcards instead, which some find easier to
+# remember than which sentinel means which: "Z2DAILY.*" is "Z2DAILY.999" and
+# "Z2PNT.z*" is "Z2PNT.Z99". The name in front of the extension is a glob in
+# every case ("z2*.999"), and a wildcard against an extension that names neither
+# pattern is simply a glob over the whole filename ("nodelist.n*"), the newest
+# file it matches being the nodelist. Only the filename: a "*" in a directory
+# stands for itself.
+#
+# "The newest" is the modification time, with the higher number breaking a tie.
+# AmberEdit compiles them itself at startup whenever they have changed, so a
+# nodelist that arrives while it is not running is compiled the next time it is;
+# "amberedit --compile" compiles them anyway. A nodelist that is missing or will
+# not read is a warning on the way past and never more than that.
+#nodelist ~/ftn/nodelist/nodelist.ndl
+#nodelist ~/ftn/nodelist/Z2DAILY.999
+#nodelist ~/ftn/nodelist/Z2PNT.Z99
+
+# Where the compiled nodelist goes. Required as soon as there is a "nodelist"
+# line; on its own it is a compiled nodelist something else keeps up to date.
+# Ctrl-N (or F10) in the reader searches it, by an address whole or in part or
+# by any part of a sysop's name.
+#nodelist_db ~/ftn/nodelist/nodelist.db
+
+# A directory to work in — today that is unpacking a zipped nodelist or echolist.
+# Optional: without it an "amberedit" directory of your own under the system's
+# temporary one is used ($TMPDIR or /tmp), made the first time something is
+# unpacked. Name one here to work somewhere else — a filesystem with room on it,
+# or one a reboot does not empty. Nothing is left in it either way.
+#tmpdir ~/ftn/tmp
+
+# --- echolists ----------------------------------------------------------------
+
+# The echolists you keep, for the descriptions they carry: what an echo is, in
+# the words the network agreed rather than the words your tosser config happens
+# to have. Optional; one line per echolist, and their ORDER IS THEIR PRECEDENCE —
+# where two of them describe one echo, the one named first keeps it. A line names
+# either an echolist or a zip archive of them:
+#
+#   ~/ftn/echolist/echo50.lst      an echolist, by its name
+#   ~/ftn/echolist/elst2601.zip    an archive, unpacked without paths into the
+#                                  temporary directory (see tmpdir, above) and
+#                                  taken away again after reading. Every ".lst"
+#                                  and ".na" in it is read, in the order their
+#                                  names sort in, and nothing else in it is
+#                                  written to disk at all
+#   ~/ftn/echolist/echo*.zip       the newest file whose name matches — which is
+#                                  what to write when the echolist you are sent
+#                                  carries its month in its name, so that next
+#                                  month's is picked up without editing this file
+#
+# A "*" stands for any run of characters and a "?" for exactly one, in the
+# filename only: a "*" in a directory stands for itself. "The newest" is the
+# modification time, and where two files share one the later name wins — so a
+# name carrying a date settles it in the order such names sort in. Whether what
+# was found is an archive is its own name's to say, so "echo*.*" may land on
+# either kind and reads whichever it landed on.
+#
+# Two shapes, told apart by the extension. A ".na" is the areas-to-request list a
+# hub publishes — the echotag, some blanks, and the description running to the
+# end of the line. Anything else is read as the comma-separated list an echolist
+# is usually published as:
+#
+#   [Status],Tag,Comment,Moderator's Name,Address,
+#
+# of which the tag and the comment are what AmberEdit reads. Both shapes take ";"
+# at the start of a line as a comment. The format has no quoting, so a comma in a
+# description is where that description ends.
+#
+# After the path, optionally, the character set that echolist is written in —
+# CP866 for a Russian one, and the Fidonet spellings ("+7_FIDO", a bare "866")
+# mean here what they mean in a CHRS kludge. A line that states none is read in
+# the charset your locale names, which is right only if the two agree: state it.
+#
+# AmberEdit compiles them itself at startup whenever they have changed, exactly
+# as it does the nodelists; "amberedit --compile" compiles them anyway. An
+# echolist that is missing or will not read is a warning on the way past and
+# never more than that.
+#echolist ~/ftn/echolist/echo50.lst CP866
+#echolist ~/ftn/echolist/elst2601.zip
+
+# Where the compiled echolist goes. Required as soon as there is an "echolist"
+# line; on its own it is a compiled echolist something else keeps up to date.
+#echolist_db ~/ftn/amberecho.db
+
+# Whether the reader says where the message was written: the sender's location as
+# the nodelist gives it, in the rule that closes the header block. Optional; on
+# by default, and it costs no row. A sender no compiled nodelist holds leaves the
+# rule as it was; a point no pointlist here lists is placed where its boss is.
+show_location on
+
+# Whether the reader says how much message there is: its size at the left end of
+# the rule that closes the header block — a bare count of bytes under a kilobyte
+# ("917") and kilobytes or megabytes above it ("4k"). Optional; off by default,
+# and it costs no row when it is on. What is counted is the whole message,
+# service lines included, as it stands here in UTF-8 rather than in the bytes the
+# base keeps it in.
+reader_show_message_size off
+
+# --- the keyboard -------------------------------------------------------------
+
+# A keyboard layout. Optional; without one AmberEdit uses its own, which is what
+# README's key tables describe and what amberkeys.cfg.example holds written out.
+#
+# The file is a key and a command per line — "l reader.list", "F2 reader.change"
+# — and it is the layout ENTIRE: a command it does not name has no key at all,
+# so copy amberkeys.cfg.example and edit that rather than writing a short file of
+# corrections. Moving about is not bindable; naming one of those keys is an error
+# rather than a line quietly dropped.
+#keys ~/ftn/etc/amberkeys.cfg
+
+# --- area list ----------------------------------------------------------------
+
+# How the area list is sorted. Optional; "te" by default. A set of letters,
+# written in any case:
+#   a   the address (AKA) the area is presented under
+#   e   the echoid (the area tag)
+#   g   the group, where the tosser config has one
+#   t   the type, in the order net, echo, local
+#   u   unread messages (try it!)
+# Each letter may be preceded by "-" for descending or "+" for ascending (the
+# default). The first letter decides and the rest break its ties, so "-u+e" is
+# unread descending and then echoid ascending; spaces between letters mean
+# nothing. Areas the letters leave equal stay in the order the tosser config
+# names them, and arealist_sort "" leaves the whole list in that order. The
+# unread counts are those of the moment the list was built.
+arealist_sort te
+
+# What a row of the area list holds. Optional; "e c u\nd n" "e d c un" by
+# default. One or two formats: with two, the first is the row in a window
+# narrower than adaptive_ui_threshold and the second the row in one at it or
+# wider, so a wide window can afford the description beside the name where a
+# narrow one has to put it underneath; with one, that format stands whatever the
+# window is. Each format is a set of letters, written in any case, each
+# optionally followed by the width in columns it is given:
+#   a   the area's number in the list, counted from one      4 columns
+#   e   the echoid (the area tag)                            what is left
+#   d   the description (-d in fidoconfig, or an echolist)   what is left
+#   g   the group, where the tosser config has one           5 columns
+#   c   how many messages the area holds                     4 columns
+#   u   how many of them are unread                          4 columns
+#   n   a star where anything is unread                      1 column
+# A \n — a backslash and an n, this file knowing no escapes of its own — begins
+# the next line of the row, and a row may stand up to sixteen lines tall. Every
+# line has to hold something: a row that is to have a blank line in it writes
+# that line as a space, where an empty one is a \n typed once too often and is
+# refused. A width of 0 means "whatever the fixed-width fields leave on this
+# line", shared equally where several fields on the line ask for it — each line
+# is measured on its own, so the name on a line of its own has the whole width
+# whatever stands under it. A space is a space and the only way to a gap between
+# two columns, so a format that is to have one is written in quotes — which is
+# what tells one format from two: "a e0 c3 u3n" numbers the areas, gives the
+# name what the rest leave, and closes with two three-column counts and the star
+# hanging off the unread one. A count too wide for its column is shortened
+# rather than cut (17342 as 17k, 1034556 as 1M, and a bare + where not even that
+# fits). There is one heading row however tall a row is, and it follows the
+# format's first line; areas.bbs has no groups, so there a g column stays blank.
+# Where the two formats are not the same height, dragging the window across
+# adaptive_ui_threshold keeps the selected area where it stands on the screen
+# and counts the areas above and below it again.
+arealist_format "e c u\nd n" "e d c un"
+
+# Which description an area is shown by where it has two — one from the tosser
+# config (or an "area ... endarea" block here) and one from an echolist.
+# Optional; "area" by default, "echolist" for the other way round. Only a
+# description that says something counts either way: whichever you prefer, an
+# empty one steps aside for the other, so an echo your tosser config is silent
+# about is described by the echolist in both settings. Where the description is
+# shown is the area list's "d" column and the @CDESC/@ODESC template tokens.
+arealist_description_priority area
+
+# What the area list's description column shows for an area nothing describes —
+# neither the tosser config nor an echolist. Optional; "no description" by
+# default, so that the column reads as a missing description rather than an
+# unfinished row.
+# Written empty (arealist_description_default "") the column stays blank, which
+# is what it did before this setting existed. The description column is drawn in
+# the theme's "dimmed" color throughout, quiet like a kludge line — what the area
+# says about itself as much as what stands in where it says nothing: it is the
+# one column that is prose rather than a fact about the area, and the names and
+# the counts beside it are what the list is read down. Only the column is
+# concerned: the @CDESC/@ODESC template tokens are still empty where there is no
+# description.
+arealist_description_default "no description"
+
+# Whether the area list draws the reader's scrollbar in its rightmost column.
+# Optional; off by default. It is drawn only where the list is longer than the
+# screen, and where it is drawn the rows have a column less to lay out in.
+arealist_scrollbar off
+
+# --- message list -------------------------------------------------------------
+
+# What a row of the message list holds. Optional; "a f0 t0 d15\ns" "a f t s d"
+# by default. Written exactly as arealist_format is — one or two formats, the
+# narrow window's and the wide one's, each a set of letters in any case, each
+# optionally followed by the width in columns it is given:
+#   a   the message's number in the area, counted from one   the numbers in it
+#   f   who the message is from                              20 columns
+#   t   who it is to                                         20 columns
+#   s   what it is about                                     what is left
+#   d   when it was written, in reader_datetime_format       what the stamps need
+# A \n begins the next line of the row, a row stands up to sixteen lines tall,
+# and every line has to hold something — a blank line in a row is written as a
+# space. A width of 0 means "whatever the rest of this line leaves", shared
+# equally where several fields on the line ask for it, and each line is measured
+# on its own.
+#
+# The two columns with no plain number of their own take a pass each, before the
+# fields written 0 are given what is left:
+#   "a" stands as wide as the highest number that can go in it — four columns
+#       for an area of 1200 messages, six for one of 150402 — and never under
+#       three, so that a handful of messages still reads as a column rather than
+#       as a stray digit against the left edge.
+#   "d" takes what the stamps on the screen come to and no more. A stamp too
+#       wide for its column is cut at the spaces rather than mid-word — "15 Aug
+#       26 20:28 +0200" to "15 Aug 26 20:28" to "15 Aug 26" to "15 Aug" to "15" —
+#       so a column of fourteen shows nine of "30 Jul 26" and would stand five
+#       empty; what it does not use goes to the fields written 0 instead.
+# Either may be given a width like any other field: a4 pins the number column,
+# d0 hands the stamp whatever the line leaves over.
+#
+# So the default narrow row puts the number, the two names and the stamp on one
+# line and the subject across the whole of the next, a window that narrow having
+# no columns to put them side by side; the wide one is the single row the list
+# has always drawn. The narrow row writes the stamp's width out — fifteen, what
+# reader_datetime_format's own default comes to down to the minute — rather than
+# leaving it measured: pinning the column keeps the names beside it the same
+# width from one screenful to the next, where a measured one would widen and
+# narrow as the zones in the messages on screen came and went. The subject is drawn in the theme's "dimmed" color wherever
+# it stands, quiet like the area list's description: it is the one column that is
+# prose rather than a fact about the message, and the numbers, names and stamps
+# beside it are what the list is read down. Where the two formats are not the
+# same height, dragging the window across adaptive_ui_threshold keeps the
+# selected message where it stands on the screen.
+msglist_format "a f0 t0 d15\ns" "a f t s d"
+
+# Whether the message list draws the reader's scrollbar in its rightmost column,
+# on the same terms as arealist_scrollbar. Optional; on by default.
+msglist_scrollbar on
+
+# Whether a message nobody has read yet is drawn in the theme's msglist_unread
+# color across the whole row. Optional; on by default. A From or To naming you
+# keeps the own_name color. What counts as unread is the mark the base itself
+# keeps on each message — TimesRead in JAM and in a Fido *.msg, the MSGSEEN bit
+# in Squish — and not the unread count in the area list, which is a position:
+# a message read out of order is read wherever the mark stands. The marks are
+# made either way; this only says whether the list paints them.
+highlight_unread on
+
+# --- message reader -----------------------------------------------------------
+
+# Whether the message reader starts with the scrollbar beside the text shown.
+# Optional; on by default. The `b` key toggles it for the session.
+reader_scrollbar on
+
+# Whether links in the message text are underlined as well as colored.
+# Optional; on by default.
+reader_underline_links on
+
+# Whether the reader acts on the style codes a message may be written with:
+# _underlined_, *bold*, /italic/ and #inverted# phrases. Optional; off by
+# default; may be set per area in a group block. A marker only counts where a
+# word could start or end, so `snake_case`, `2*3*4`, /usr/local/bin and
+# `#include <stdio.h>` are left alone. Italic needs a terminal that draws it.
+reader_stylecodes off
+
+# EXPERIMENTAL. Whether the reader acts on the BBS color codes — "pipe codes" —
+# in the Renegade/Telegard dialect: a pipe and two decimal digits, |00 to |31.
+# See also http://wiki.synchro.net/custom:colors#renegade_telegard_format
+# Optional; off by default; may be set per area in a group block.
+bbs_codes_renegade off
+
+# Whether the reader leaves the area at its ends: → on the last message and ← on
+# the first go back to the area list. Optional; on by default. Off, the two keys
+# stop at the ends instead. Esc leaves the area from anywhere either way, and an
+# area holding no messages is left by both keys. Leaving by ← on the first
+# message also takes the lastread mark off the area, the key having asked for the
+# message before it; Esc on that same message leaves the mark where it was.
+reader_edge_exit on
+
+# Where entering an area from the area list lands: on the message after the
+# lastread mark, or on the marked one itself. Optional; on by default. A mark on
+# the newest message, and an area with no mark at all, open the same way
+# whichever way this stands.
+reader_lastread_auto_next on
+
+# Whether an answer follows the "AREA:" line in the beginning of the message
+# replying to the area it was posted to.
+# Optional; on by default; may be set per area in a group block.
+areareplydirect on
+
+# Where the answers to this area's messages belong. One area tag, matched
+# whatever its case is written in. Optional; unset by default; may be set per
+# area in a group block, which is how one echo says it and the rest do not.
+#
+# It says two things, and both are about answering:
+#
+#   * the "reply in another area" dialog — the reader's "n" — opens with its
+#     cursor on that area. Only where the cursor starts: nothing is picked for
+#     you, and "q" and the Reply button are untouched — they answer in the area
+#     on screen, or the one the message's own "AREA:" line names. A tag no area
+#     in the list carries opens the dialog at the top of the list, as naming
+#     none does;
+#   * where the area named is a NETMAIL one, a "CC:" line in a message written
+#     in this echo is carried out, and the copies are written there. An echo
+#     naming no netmail area has nowhere to put a message addressed to one
+#     person, and its "CC:" lines stay in the message as the text you typed.
+#reply_to_area NETMAIL
+
+# --- carbon copies and crossposts ---------------------------------------------
+#
+# A message you write may carry two commands in its own text, GoldED's way and
+# in GoldED's spelling. Each has to BEGIN its line, and neither is read in a
+# quoted line, in a control line, or in the tearline and origin closing the
+# message:
+#
+#   CC: Ivan Ivanov, 2:5020/1234, #Vasya Pupkin, @friends.lst
+#   XC: ru.* ru.linux, #ru.talk
+#   XP: ru.linux                          (XP: and XC: are the same command)
+#
+# "CC:" sends a copy of the message to everybody it names, separated by commas
+# alone — a name holds spaces and does not hold a comma. A recipient may be a
+# name the nodelist knows, an address ("2:5020/1234", or "5020/1234", "/1234",
+# ".5" for what this area's own AKA can finish), a name and an address together,
+# or an address_macro. "@file" reads the recipients from a file of names,
+# separated by commas and by lines, and a "@" inside that file is passed over.
+#
+# "XC:"/"XP:" posts the message in every echo its masks name, separated by
+# commas, spaces or tabs, with "*" and "?" matching an echotag as they do
+# everywhere else. Netmail areas are never crossposted to, an echo named twice
+# is written to once, and a mask covering the echo you are writing in leaves it
+# where it already is.
+#
+# A "#" in front of a recipient or a mask carries the copy out and leaves that
+# name out of the list the message keeps. On the mask covering the echo you are
+# writing in, it also leaves the "Originally in" line unsaid.
+#
+# Both are carried out when you store the message, and you are asked first.
+# Whatever nobody could find — a name no nodelist answers for, a mask no echo
+# matches, a file that cannot be read — leaves its line in the message, and a
+# box afterwards says what was not done.
+
+# What the message keeps where its "CC:" lines stood. Optional; "names" by
+# default; may be set per area in a group block.
+#
+#   keep      the "CC:" lines stay exactly as you typed them
+#   names     "* Carbon copied to Ivan Ivanov, Vasya Pupkin", wrapped at
+#             quote_margin
+#   visible   "* Carbon copied to Ivan Ivanov  2:5020/1234", one per recipient
+#   hidden    a "CC: <name> <address>" kludge per recipient, which a person
+#             reading the message does not see
+#   remove    the lines go and nothing stands in their place
+#
+# The list stands where the first "CC:" line it was made from stood.
+compose_cc_list names
+
+# And the same for the "XC:"/"XP:" lines. Optional; "verbose" by default; may be
+# set per area in a group block. The words are the ones GoldED writes them with:
+#
+#   raw       the "XC:" lines stay exactly as you typed them
+#   verbose   "* Originally in ru.talk" and "* Crossposted in ru.linux, ru.unix",
+#             wrapped at quote_margin
+#   yes       the same, one "* Crossposted in" line per echo
+#   none      the lines go and nothing stands in their place
+compose_xc_list verbose
+
+# --- layout configuration -----------------------------------------------------
+
+# The width, in columns, where a window stops counting as a narrow one — the line
+# every "when_narrow" and "when_wide" setting is read against. Optional; 80 by
+# default, 20 to 1000. Under it a window is narrow, at it and over it is wide,
+# measured again on every frame. The message list reads the same line without a
+# setting of its own: a narrow window drops its To column and gives the room to
+# the subjects.
+adaptive_ui_threshold 80
+
+# Whether the last row of the screen is the hint bar — the commands of whichever
+# screen is up, each behind the key that runs it: "/ next-unread  ctrl-r rescan"
+# on the area list. Optional; "when_wide" by default, the same four values as
+# back_button below and the same line they are read against — the row is not cut
+# short to fit, so a window too narrow for it does without.
+#
+# The keys come from the layout, so a command the "keys" file leaves unbound is
+# left out of the row, and one with several keys is shown under the shortest of
+# them — a bare key before a chord, a chord before a function key. The message
+# list has no commands of its own and its row is blank; the row is taken off the
+# screen either way, so moving between screens moves nothing else.
+#
+# Clicking a hint presses the key it is written under, and the hint lights up
+# for the length of the click the way every other button does. Standing there it
+# looks like what it is — a reminder rather than a row of buttons.
+#
+# The hints are drawn in the theme's "hint_bar" — dark grey in both themes that
+# ship here — and what is left of the row beside them is a rule in "separator",
+# the same rule that closes the headings at the top of a screen.
+hint_bar when_wide
+
+# Whether the reader and the message list show a back button — a left arrow in
+# the top-left corner. Optional; "when_narrow" by default. Esc does the same
+# whether the button is there or not.
+#   on           always, whatever the window is
+#   off          never — the title takes the corner back
+#   when_narrow  only where the window is narrower than adaptive_ui_threshold
+#   when_wide    the other way round: only at that width and over
+back_button when_narrow
+
+# Whether the editor shows a delete-line button — a box around the line the
+# cursor is on, with a cross in it, drawn down the three rightmost columns and
+# over the scrollbar where there is one. Clicking it deletes that line, which is
+# what ^Y does from the keyboard. Optional; "when_narrow" by default, the same
+# four values as back_button and the same line they are read against.
+#
+# It costs the message three columns on every row and not only on the row it
+# stands beside: the button walks the message with the cursor, and text laid out
+# to the full width elsewhere would rewrap under it at every keystroke.
+compose_delete_line_button when_narrow
+
+# The context menu: a column of buttons, one command each, opened by the button
+# in the top-right corner of the reader and of the editor. Every command is one a
+# key does too; a button whose command has nothing to do is drawn dimmed. The
+# value is the commands in the order they are to stand, and each screen has its
+# own key and its own commands:
+#
+#   reader_menu   list      the list of messages in the area
+#                 reply     answer the message, quoting it
+#                 reply_to  answer it in another area
+#                 new       write a new message
+#                 forward   pass the message on into another area, as `m` does
+#                 find      look for a message in the area, as `f` does
+#                 change    change the message, as `c`/F2 does
+#                 info      what the base holds about the message, as `i` does
+#                 export    write the message out to a text file, as `w` does
+#                 nodelist  look an address or a sysop up, as Ctrl-N/F10 does
+#
+#   compose_menu  save      store the message being written, as ^S does
+#                 import    read a file into the message, as ^O does
+#
+# The two lists below are the defaults. "change", "info" and "export" are left
+# out of the reader's — write them in to have them:
+#
+#   reader_menu list reply reply_to new forward find change info export nodelist
+#
+# The area list and the message list carry no menu button and have no setting for
+# one.
+reader_menu list reply reply_to new forward find nodelist
+compose_menu save import
+
+# Whether the reader and the editor show the menu button at all. Optional;
+# "when_narrow" by default, the same four values as back_button and the same line
+# they are read against.
+menu_button when_narrow
+
+# How wide one button of the menu stands, in columns, the frame included.
+# Optional; 20 by default, 4 to 100. A label with no room left for it
+# is cut, as every other label in the interface is.
+menu_buttons_width 20
+
+# How long a click is shown before it acts, in milliseconds. Optional; 100 by
+# default, 0 turning the animation off. A click on a button draws it in the
+# theme's animated_button_text color for that long; a click in a list shows the
+# row it landed on as the current one and only then opens it.
+click_animation_ms 100
+
+# --- dates --------------------------------------------------------------------
+
+# How every stamp shown while reading is written: the two in the reader's header
+# block (Date, and Recd under it), the Date column of the message list, and the
+# one beside each answer in the replies dialog. Optional; "%d %b %y %H:%M %z" by
+# default. One setting for the date and the time both, because each place showing
+# them shows one string.
+#
+# The value is a strftime(3) format: %d day, %m month, %b month by name, %y and
+# %Y the year in two digits and in four, %H:%M:%S the time, %a the weekday, %% a
+# literal "%". AmberEdit sets no LC_TIME, so %a and %b come out in English.
+#
+# %z writes the offset from UTC the message's own TZUTC control line states
+# ("+0300", "-0330") and writes nothing where the message carries no TZUTC — an
+# FTN stamp is in no time zone of its own, and nothing is worked out from this
+# machine's zone. The arrival stamp is passed no zone at all. The stamp is
+# trimmed at both ends, so the space before a %z that wrote nothing goes with it.
+#
+# Every column showing a stamp is measured, so a format may be as long as it
+# likes; what it may not do is write more than one line (%n, %t) or nothing but
+# blank.
+reader_datetime_format "%d %b %y %H:%M %z"
+
+# Whether the header block carries a "Recd" row — when the message arrived here —
+# under the Date row saying when it was written. Optional; "off" by default; the
+# same four values as back_button. Drawn exactly as the Date row is. The same row
+# in the reader and in the editor, so the two blocks go on lining up field for
+# field; a message written here arrived from nowhere and the row is simply blank
+# rather than coming and going with the message.
+show_recd_date off
+
+# What the message template's date and time tokens are written with: @cdate and
+# @ctime for the message being written, @odate and @otime for the one being
+# answered. Optional; "%d %b %y" and "%H:%M" by default; strftime formats like
+# the one above, and both may be set per area in a group block. Two settings and
+# not one, because a template writes them through two tokens.
+template_date_format "%d %b %y"
+template_time_format "%H:%M"
+
+# --- writing a message --------------------------------------------------------
+
+# Theme file to draw the interface with. Optional: without it AmberEdit uses its
+# built-in palette, which themes/default.cfg is a copy of.
+#theme /usr/share/amberedit/themes/default.cfg       # the built-in palette
+#theme /usr/share/amberedit/themes/ged_classic.cfg   # GoldED Classic
+
+# The GoldED-style message template. Required and has to be readable; may be set
+# per area in a group block.
+template /usr/share/amberedit/default.tpl
+
+# What a quoted line is prefixed with. Optional; " FL> " by default, which is
+# GoldED's — the letters before the ">" stand for the initials of whoever is
+# being quoted. Exactly one ">" is required: that character is what quote levels
+# are counted in, so a second would send a first-level quote out looking like a
+# second-level one.
+quote_string " FL> "
+
+# The column quoted text is wrapped at. Optional; 78 by default, which keeps a
+# line inside the 79 characters FTN messages are written to and leaves one in
+# hand for the next quote level; 20 to 255. It says nothing about the lines you
+# type yourself, which are wrapped by whatever shows them.
+quote_margin 78
+
+# The two lines standing either side of a file read into a message as text — ^T
+# in the editor, and "import" in compose_menu. Optional; "=== Cut ===" both. An
+# empty one writes no line at all. Only text is fenced: a file read in as UUE
+# carries its own "begin" and "end".
+import_begin "=== Cut ==="
+import_end "=== Cut ==="
+
+# The two lines every message is signed with. "tearline" is what stands after the
+# "--- " that closes the text; "origin" is what stands between " * Origin: " and
+# the address in brackets under it. Both are single lines with the same
+# replacement tokens a template uses, so "@longpid @version" — the default
+# tearline — names AmberEdit and its version without the version being written
+# here (@longpid is the name with the system under it, @pid the bare name).
+#
+# The origin text is empty by default: it is your own words about your system.
+# The line itself is written whatever it says — an echomail message without one
+# is one a tosser may refuse — and an empty tearline goes out as "---" alone.
+tearline "@longpid @version"
+origin "Somewhere in the world"
+
+# --- twits --------------------------------------------------------------------
+
+# Whom you would rather not read. Optional; as many lines of either as you like,
+# and a message matching ANY of them is a twit.
+#
+#   twit "Ivan Ivanov"        that name, whoever holds it
+#   twit *Spammer*            every name holding "Spammer"
+#   twit 2:5030/*             everything written from net 5030 of zone 2
+#   twit_subj "*for sale*"    every message about that, whoever wrote it
+#
+# A "twit" line names either a name or an FTN address, and which of the two it is
+# is settled by whether it parses as an address holding a zone. A NAME is matched
+# whole, with "*" for any run of characters and "?" for exactly one, case folded
+# for ASCII — so a rule to be found *inside* a name says so with stars of its
+# own. An ADDRESS is the pattern the akamatch lines are written in. A message
+# carrying no address — which is every echomail message in a JAM base, the format
+# keeping none there — is not covered by a rule about addresses. "twit_subj" is
+# the same kind of glob over the subject line.
+#twit "Ivan Ivanov"
+#twit_subj "*for sale*"
+
+# Whether a "twit" line covers the messages written TO that name or address as
+# well as the ones written from it. Optional; on by default. It says nothing
+# about twit_subj: a subject has no direction to have an opinion about.
+twit_to on
+
+# What the reader does with a twit. Optional; "blank" by default.
+#
+#   show      nothing at all: the lines are written and the messages stand
+#   blank     the text replaced by "This is a twit message. Press Space to view
+#             it", and Space shows it after all
+#   skip      walked past, unless the message is addressed to you
+#   ignore    walked past whatever it says
+#   kill      DELETED from the message base, without asking, as the area opens
+#
+# "skip" and "ignore" walk in the direction you are reading, and a message picked
+# out of the list — or the one an area opens on — is treated as a place in the
+# area the same way. A run of twits at the end of the area is the end of it,
+# which is where reader_edge_exit has its say; where every message in an area is
+# a twit there is nowhere to skip to and the area reads as "blank" reads.
+#
+# "kill" cannot be undone: every twit is taken out of the area as it is opened —
+# not marked, not hidden, deleted — and no confirmation is asked for. This
+# setting is the confirmation, given once here.
+twit_mode blank
+
+# --- area groups --------------------------------------------------------------
+#
+# Everything above is the answer for every area you read. An area group is the
+# answer for some of them: a "group ... endgroup" block naming the areas it
+# covers on "member" lines, and restating the settings those areas are read and
+# written under.
+#
+#   group
+#     member esp.*
+#     default_charset LATIN-1
+#     compose_charset LATIN-1
+#   endgroup
+#
+#   group
+#     member r50.*
+#     member min_admin
+#     name Vasiliy Pupkin
+#   endgroup
+#
+# A "member" pattern is matched against the area tag and nothing else, with "*"
+# for any run of characters (the empty one included) and "?" for exactly one;
+# everything else stands for itself, the dots included, so "esp.*" covers
+# esp.argentina and esp.charla.libre alike and "*" covers every area you have.
+# Case is folded for ASCII, and a "member" line takes as many patterns as you
+# like and may be written as often as you like.
+#
+# Where two groups both cover an area, the one whose pattern says more about the
+# tag wins — the literal characters before its first wildcard, then the literal
+# characters in the whole of it, and a pattern with no wildcard at all beating
+# one that has any: "esp.argentina" beats "*.argentina", which beats "esp.*",
+# which beats "*". They win setting by setting, so a group over "member *" can
+# give every area an origin while a group over "member esp.*" gives some of them
+# a charset. Two groups that say exactly as much about one area and both state
+# the same setting are refused at startup.
+#
+# What a group may state, and nothing else — a key not on this list is refused
+# rather than quietly ignored:
+#
+#   name                  address
+#   default_charset       compose_charset
+#   origin                tearline
+#   template              quote_string          quote_margin
+#   template_date_format  template_time_format
+#   import_begin          import_end
+#   reader_stylecodes     areareplydirect       reply_to_area
+#   bbs_codes_renegade
+#   compose_cc_list       compose_xc_list
+#   twit                  twit_subj             twit_to      twit_mode
+#
+# A group's "twit" and "twit_subj" lines are ADDED to the ones outside it, and a
+# group cannot take a twit off the list — "twit_mode show" is the one thing that
+# says "not here". An "address" stated in a group overrides the one the tosser
+# config gives that area. Everything else is the whole config's: the layout, the
+# menus, the theme, the area list's own order and columns, the tosser config, and
+# the aka / akamatch rules.

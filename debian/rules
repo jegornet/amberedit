@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --buildsystem=cmake
+
+# The tests are off in a package build and nowhere else. Catch2 is found before
+# it is fetched, and only the 2.13 series will do — Debian and the older Ubuntus
+# package that, the newer ones package v3, which the build refuses. Where the
+# system copy is unusable CMake falls back to fetching one, and a package build
+# has no network to fetch with. The test run is the CI matrix's job, on the same
+# distributions, where the network is there.
+override_dh_auto_configure:
+	dh_auto_configure -- -DAMBEREDIT_BUILD_TESTS=OFF
