@@ -164,12 +164,6 @@ Element document(AppState& state) {
 
 int runApp(app::AreaManager& manager, const config::AppConfig& config,
            const KeyMap& keys) {
-    // Before anything is drawn, and never again: every screen reads the palette
-    // while rendering. A theme named in the config but unreadable throws out of
-    // here, which is what the caller reports — a theme is asked for explicitly,
-    // so a mistake in one should be said out loud.
-    if (!config.themePath.empty()) theme::palette = theme::loadPalette(config.themePath);
-
     AppState state(manager, config);
     state.keys = keys;
     // The terminal is told which letters Alt is held with before it starts

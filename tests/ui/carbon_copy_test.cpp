@@ -16,6 +16,7 @@
 #include "ports/i_area_source.hpp"
 #include "ports/i_lastread_store.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -123,13 +124,14 @@ struct CopyFixture {
         // Where a `@file` is looked for when it names no directory of its own.
         cfg.configDir = dir.path("");
         if (!groups.empty()) {
-            cfg.areaGroups = AppConfig::loadFromString(
-                                 "tosser_config /dev/null\n"
-                                 "tosser_config_format fidoconfig\n"
-                                 "default_charset CP866\n"
-                                 "compose_charset CP866\n" +
-                                 groups)
-                                 .areaGroups;
+            cfg.areaGroups =
+                amberedit::test::valueOf(
+                    AppConfig::loadFromString("tosser_config /dev/null\n"
+                                              "tosser_config_format fidoconfig\n"
+                                              "default_charset CP866\n"
+                                              "compose_charset CP866\n" +
+                                              groups))
+                    .areaGroups;
         }
         return cfg;
     }

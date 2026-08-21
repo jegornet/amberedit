@@ -5,6 +5,7 @@
 
 #include "config/app_config.hpp"
 #include "domain/message.hpp"
+#include "test_strings.hpp"
 #include "ui/msg_list_format.hpp"
 
 using amberedit::config::AppConfig;
@@ -19,11 +20,11 @@ namespace {
 /// The fields a format string asks for, read through the config so that the
 /// test lays out what a user would actually have written.
 MsgListFormat fields(const std::string& format) {
-    return AppConfig::loadFromString(
-               "tosser_config a\ntosser_config_format hpt\n"
-               "default_charset CP866\ncompose_charset CP866\n"
-               "msglist_format \"" +
-               format + "\"\n")
+    return amberedit::test::valueOf(
+               AppConfig::loadFromString("tosser_config a\ntosser_config_format hpt\n"
+                                         "default_charset CP866\ncompose_charset CP866\n"
+                                         "msglist_format \"" +
+                                         format + "\"\n"))
         .messageListFormatNarrow;
 }
 

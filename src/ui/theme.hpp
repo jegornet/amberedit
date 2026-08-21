@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 
+#include "support/result.hpp"
 #include "ui/term/color.hpp"
 
 namespace amberedit::ui::theme {
@@ -167,14 +168,14 @@ inline Palette palette;
 /// Every role is optional and an absent one keeps its built-in color, so a file
 /// may state as little as one line.
 ///
-/// Throws std::runtime_error naming the file and the key if it cannot be read
-/// or parsed, if a key is not a role, or if a value is not a color. A theme is
-/// asked for explicitly, so a mistake in one is worth saying out loud rather
-/// than passing over in silence.
-[[nodiscard]] Palette loadPalette(const std::string& path);
+/// Fails, naming the file and the key, if it cannot be read or parsed, if a key
+/// is not a role, or if a value is not a color. A theme is asked for explicitly,
+/// so a mistake in one is worth saying out loud rather than passing over in
+/// silence.
+[[nodiscard]] Result<Palette> loadPalette(const std::string& path);
 
 /// Parses a theme from a string — the entry point used by the tests.
-[[nodiscard]] Palette parsePalette(const std::string& text,
-                                   const std::string& originName = "<string>");
+[[nodiscard]] Result<Palette> parsePalette(const std::string& text,
+                                           const std::string& originName = "<string>");
 
 }  // namespace amberedit::ui::theme

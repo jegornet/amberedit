@@ -12,6 +12,7 @@
 #include "msgbase/null_lastread_store.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::app::AreaManager;
 using amberedit::config::AppConfig;
@@ -60,11 +61,11 @@ AppConfig configWithAddress(const std::string& address) {
 /// tests below are about. The body states its own default_charset: which
 /// charset an area is read in is half of what they check.
 AppConfig configFrom(const std::string& body) {
-    return AppConfig::loadFromString(
-        "tosser_config /dev/null\n"
-        "tosser_config_format fidoconfig\n"
-        "compose_charset CP866\n" +
-        body);
+    return amberedit::test::valueOf(
+        AppConfig::loadFromString("tosser_config /dev/null\n"
+                                  "tosser_config_format fidoconfig\n"
+                                  "compose_charset CP866\n" +
+                                  body));
 }
 
 const amberedit::app::AreaEntry& entryFor(const AreaManager& manager,
@@ -347,17 +348,17 @@ TEST_CASE("An area declared in the config is read like any other [areamanager]")
     // `area ... endarea` blocks, and everything reload() does to an area — the
     // AKA it fills in, the passthrough it marks, the group it resolves — it does
     // to these as well.
-    const auto config = AppConfig::loadFromString(
-        "default_charset CP866\n"
-        "compose_charset CP866\n"
-        "address 2:5020/9999\n"
-        "area NOTES\n"
-        "  type passthrough\n"
-        "endarea\n"
-        "group\n"
-        "  member notes\n"
-        "  default_charset UTF-8\n"
-        "endgroup\n");
+    const auto config =
+        amberedit::test::valueOf(AppConfig::loadFromString("default_charset CP866\n"
+                                                           "compose_charset CP866\n"
+                                                           "address 2:5020/9999\n"
+                                                           "area NOTES\n"
+                                                           "  type passthrough\n"
+                                                           "endarea\n"
+                                                           "group\n"
+                                                           "  member notes\n"
+                                                           "  default_charset UTF-8\n"
+                                                           "endgroup\n"));
 
     AreaManager manager(amberedit::app::makeAreaSource(config),
                         std::make_unique<amberedit::msgbase::NullLastReadStore>(),

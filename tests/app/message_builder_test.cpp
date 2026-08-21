@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "app/message_builder.hpp"
+#include "test_strings.hpp"
 #include "version.hpp"
 
 using amberedit::app::buildDraft;
@@ -831,17 +832,17 @@ TEST_CASE("A message carries the settings of the area group it is written in "
     // The builder reads everything off the config it is handed, so a per-area
     // setting reaches it by the config being resolved for that area first. This
     // is that resolution and what comes out the other end of it.
-    const AppConfig cfg = AppConfig::loadFromString(
-        "tosser_config /dev/null\n"
-        "tosser_config_format fidoconfig\n"
-        "default_charset CP866\n"
-        "compose_charset CP866\n"
-        "origin Somewhere in the world\n"
-        "group\n"
-        "  member esp.*\n"
-        "  compose_charset LATIN-1\n"
-        "  origin En algún lugar del mundo\n"
-        "endgroup\n");
+    const AppConfig cfg = amberedit::test::valueOf(
+        AppConfig::loadFromString("tosser_config /dev/null\n"
+                                  "tosser_config_format fidoconfig\n"
+                                  "default_charset CP866\n"
+                                  "compose_charset CP866\n"
+                                  "origin Somewhere in the world\n"
+                                  "group\n"
+                                  "  member esp.*\n"
+                                  "  compose_charset LATIN-1\n"
+                                  "  origin En algún lugar del mundo\n"
+                                  "endgroup\n"));
 
     AreaConfig grouped = areaOf(AreaKind::Echo);
     grouped.tag = "esp.argentina";

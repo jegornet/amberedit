@@ -17,15 +17,17 @@
 namespace amberedit::config {
 namespace {
 
-TosserConfigFormat parseFormat(const CfgEntry& entry) {
-    const std::string value = text::toLower(entry.one());
+Result<TosserConfigFormat> parseFormat(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
     if (value == "fidoconfig" || value == "hpt") return TosserConfigFormat::Fidoconfig;
     if (value == "areas.bbs" || value == "areasbbs" || value == "bbs")
         return TosserConfigFormat::AreasBbs;
     if (value == "squish" || value == "squish.cfg" || value == "squishcfg")
         return TosserConfigFormat::SquishCfg;
-    entry.fail("unknown tosser_config_format: '" + value +
-               "' (expected fidoconfig | areas.bbs | squish.cfg)");
+    return entry.fail("unknown tosser_config_format: '" + value +
+                      "' (expected fidoconfig | areas.bbs | squish.cfg)");
 }
 
 /// The `arealist_sort` letters: a criterion each, optionally preceded by `-` for
@@ -36,9 +38,9 @@ TosserConfigFormat parseFormat(const CfgEntry& entry) {
 /// An empty value is not an empty setting: it asks for the tosser config's own
 /// order, which is the only way to say "leave the list as it is written" now
 /// that the default sorts it.
-std::vector<AreaSortCriterion> parseAreaSort(const CfgEntry& entry) {
+Result<std::vector<AreaSortCriterion>> parseAreaSort(const CfgEntry& entry) {
     if (entry.values.empty()) {
-        entry.fail(
+        return entry.fail(
             "arealist_sort needs the letters to sort by — write arealist_sort \"\" for "
             "the tosser config's own order");
     }
@@ -51,8 +53,9 @@ std::vector<AreaSortCriterion> parseAreaSort(const CfgEntry& entry) {
         for (const char raw : value) {
             if (raw == '+' || raw == '-') {
                 if (modifierSeen) {
-                    entry.fail("arealist_sort: '" + std::string(1, raw) +
-                               "' follows another +/- with no criterion between them");
+                    return entry.fail(
+                        "arealist_sort: '" + std::string(1, raw) +
+                        "' follows another +/- with no criterion between them");
                 }
                 descending = raw == '-';
                 modifierSeen = true;
@@ -67,18 +70,19 @@ std::vector<AreaSortCriterion> parseAreaSort(const CfgEntry& entry) {
                 case 't': key = AreaSortKey::Type; break;
                 case 'u': key = AreaSortKey::Unread; break;
                 default:
-                    entry.fail("arealist_sort: '" + std::string(1, raw) +
-                               "' is not a sort criterion (a address, e echoid, "
-                               "g group, t type, u unread, each optionally "
-                               "preceded by - or +)");
+                    return entry.fail("arealist_sort: '" + std::string(1, raw) +
+                                      "' is not a sort criterion (a address, e echoid, "
+                                      "g group, t type, u unread, each optionally "
+                                      "preceded by - or +)");
             }
             // A criterion written twice can only be a slip: the second one
             // sorts what the first has already left in order, so it does
             // nothing whichever way round it was meant.
             const auto same = [key](const AreaSortCriterion& c) { return c.key == key; };
             if (std::any_of(criteria.begin(), criteria.end(), same)) {
-                entry.fail("arealist_sort: '" + std::string(1, text::asciiLower(raw)) +
-                           "' is named twice");
+                return entry.fail("arealist_sort: '" +
+                                  std::string(1, text::asciiLower(raw)) +
+                                  "' is named twice");
             }
             criteria.push_back(AreaSortCriterion{key, descending});
             descending = false;
@@ -86,7 +90,8 @@ std::vector<AreaSortCriterion> parseAreaSort(const CfgEntry& entry) {
         }
     }
 
-    if (modifierSeen) entry.fail("arealist_sort: a trailing +/- names no criterion");
+    if (modifierSeen)
+        return entry.fail("arealist_sort: a trailing +/- names no criterion");
     return criteria;
 }
 
@@ -183,12 +188,13 @@ const MenuNames& composeCommands() {
 }
 
 /// What a menu key says about a word that is not one of its commands. Its own
-/// function so that the message is built where it is thrown rather than once per
-/// value read — `fail` throws, so it is built at most once.
-[[noreturn]] void failUnknownCommand(const CfgEntry& entry, const std::string& value,
-                                     const std::string& offered) {
-    entry.fail(entry.key + ": '" + value + "' is not one of its commands (" + offered +
-               ")");
+/// function so that the message is built where it is returned rather than once
+/// per value read.
+tl::unexpected<std::string> failUnknownCommand(const CfgEntry& entry,
+                                               const std::string& value,
+                                               const std::string& offered) {
+    return entry.fail(entry.key + ": '" + value + "' is not one of its commands (" +
+                      offered + ")");
 }
 
 /// The commands a menu key names, as the key writes them.
@@ -198,7 +204,8 @@ const MenuNames& composeCommands() {
 /// malformed stops AmberEdit rather than being skipped: a dropped button is one
 /// the user wrote down and cannot see, which is exactly the shape of a mistake
 /// nobody finds.
-std::vector<MenuCommand> parseMenu(const CfgEntry& entry, const MenuNames& known) {
+Result<std::vector<MenuCommand>> parseMenu(const CfgEntry& entry,
+                                           const MenuNames& known) {
     std::string offered;
     for (const auto& command : known) {
         if (!offered.empty()) offered += ", ";
@@ -206,8 +213,8 @@ std::vector<MenuCommand> parseMenu(const CfgEntry& entry, const MenuNames& known
     }
 
     if (entry.values.empty()) {
-        entry.fail(entry.key + " needs the commands to put in the menu (" + offered +
-                   ") — write menu_button off for no menu at all");
+        return entry.fail(entry.key + " needs the commands to put in the menu (" +
+                          offered + ") — write menu_button off for no menu at all");
     }
 
     std::vector<MenuCommand> commands;
@@ -218,35 +225,38 @@ std::vector<MenuCommand> parseMenu(const CfgEntry& entry, const MenuNames& known
         // read as an unknown command, since the setting moved and did not go
         // away.
         if (name == "none") {
-            entry.fail(entry.key + ": 'none' is no longer one of its values — write " +
-                       "menu_button off for no menu at all, and this key for what the "
-                       "menu holds");
+            return entry.fail(
+                entry.key + ": 'none' is no longer one of its values — write " +
+                "menu_button off for no menu at all, and this key for what the "
+                "menu holds");
         }
 
         const auto found =
             std::find_if(known.begin(), known.end(),
                          [&name](const auto& pair) { return pair.first == name; });
-        if (found == known.end()) failUnknownCommand(entry, value, offered);
+        if (found == known.end()) return failUnknownCommand(entry, value, offered);
         // Written twice can only be a slip: two buttons doing the same thing
         // one under the other is not something anyone asks for on purpose.
         if (std::find(commands.begin(), commands.end(), found->second) !=
             commands.end()) {
-            entry.fail(entry.key + ": '" + name + "' is named twice");
+            return entry.fail(entry.key + ": '" + name + "' is named twice");
         }
         commands.push_back(found->second);
     }
     return commands;
 }
 
-Visibility parseVisibility(const CfgEntry& entry) {
-    const std::string value = text::toLower(entry.one());
+Result<Visibility> parseVisibility(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
     if (value == "on") return Visibility::On;
     if (value == "off") return Visibility::Off;
     if (value == "when_narrow") return Visibility::WhenNarrow;
     if (value == "when_wide") return Visibility::WhenWide;
-    entry.fail(entry.key + ": '" + entry.one() +
-               "' does not say whether it is shown (on | off | when_narrow | "
-               "when_wide)");
+    return entry.fail(entry.key + ": '" + *only +
+                      "' does not say whether it is shown (on | off | when_narrow | "
+                      "when_wide)");
 }
 
 /// A strftime format for a date or a time, checked as far as it can be: it has
@@ -256,12 +266,15 @@ Visibility parseVisibility(const CfgEntry& entry) {
 /// would take the header table's columns with it. What a
 /// specifier means beyond that is the C library's business, and one it does not
 /// know comes out as it was written, where the user can see it.
-std::string readTimeFormat(const CfgEntry& entry) {
-    const std::string value = entry.text();
+Result<std::string> readTimeFormat(const CfgEntry& entry) {
+    const auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(joined.error());
+    const std::string& value = *joined;
     if (value.empty()) {
-        entry.fail(entry.key +
-                   " needs a strftime format, e.g. \"%d %b %y\" — there is no way to "
-                   "ask for no date at all");
+        return entry.fail(
+            entry.key +
+            " needs a strftime format, e.g. \"%d %b %y\" — there is no way to "
+            "ask for no date at all");
     }
 
     // The sample is given a zone, so that a format asking for one — `%z` and
@@ -273,15 +286,15 @@ std::string readTimeFormat(const CfgEntry& entry) {
     // A stamp is trimmed, so a format that writes nothing but blank writes
     // nothing at all — which is the empty format above under another spelling.
     if (written.empty()) {
-        entry.fail(entry.key + ": '" + value +
-                   "' writes no stamp at all, and there is no way to ask for no "
-                   "date");
+        return entry.fail(entry.key + ": '" + value +
+                          "' writes no stamp at all, and there is no way to ask for no "
+                          "date");
     }
     const auto isControl = [](char c) { return static_cast<unsigned char>(c) < 0x20; };
     if (std::any_of(written.begin(), written.end(), isControl)) {
-        entry.fail(entry.key + ": '" + value +
-                   "' writes a stamp over more than one line, which a date on a "
-                   "header row cannot be");
+        return entry.fail(entry.key + ": '" + value +
+                          "' writes a stamp over more than one line, which a date on a "
+                          "header row cannot be");
     }
     return value;
 }
@@ -299,42 +312,48 @@ std::string expandTilde(std::string path) {
 /// A path setting: the value with a leading `~/` expanded, and never the empty
 /// one. An empty path reads back as "the setting was never written", and a line
 /// that is there was meant to do something.
-std::string readPath(const CfgEntry& entry, const char* what) {
-    const std::string path = expandTilde(entry.text());
-    if (path.empty()) entry.fail(entry.key + " needs the path of " + what);
+Result<std::string> readPath(const CfgEntry& entry, const char* what) {
+    const auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(joined.error());
+    const std::string path = expandTilde(*joined);
+    if (path.empty()) return entry.fail(entry.key + " needs the path of " + what);
     return path;
 }
 
 /// An `echolist` line: the path, and the charset that file is written in where
 /// the line says. Two values at most — the charset is one word, and a path with
 /// a space in it is written in quotes like every other value.
-EcholistSource readEcholist(const CfgEntry& entry) {
+Result<EcholistSource> readEcholist(const CfgEntry& entry) {
     if (entry.values.empty() || entry.values.size() > 2) {
-        entry.fail(
+        return entry.fail(
             "echolist takes the path of an echolist, and after it the charset it is "
             "written in where that is not the locale's — e.g. echolist "
             "~/ftn/echolist/echo50.lst CP866");
     }
     EcholistSource source;
     source.path = expandTilde(entry.values[0]);
-    if (source.path.empty()) entry.fail("echolist needs the path of an echolist");
+    if (source.path.empty()) return entry.fail("echolist needs the path of an echolist");
     if (entry.values.size() == 2) source.charset = entry.values[1];
     return source;
 }
 
 /// The `arealist_description_priority` word: which of the two descriptions an
 /// area with both is shown by.
-DescriptionPriority parseDescriptionPriority(const CfgEntry& entry) {
-    const std::string value = text::toLower(entry.one());
+Result<DescriptionPriority> parseDescriptionPriority(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
     if (value == "area") return DescriptionPriority::Area;
     if (value == "echolist") return DescriptionPriority::Echolist;
-    entry.fail("unknown arealist_description_priority: '" + value +
-               "' (expected area | echolist)");
+    return entry.fail("unknown arealist_description_priority: '" + value +
+                      "' (expected area | echolist)");
 }
 
-domain::FtnAddress readAddress(const CfgEntry& entry, const std::string& value) {
+Result<domain::FtnAddress> readAddress(const CfgEntry& entry, const std::string& value) {
     const auto address = domain::FtnAddress::parse(value);
-    if (!address) entry.fail(entry.key + " is not an FTN address: '" + value + "'");
+    if (!address) {
+        return entry.fail(entry.key + " is not an FTN address: '" + value + "'");
+    }
     return *address;
 }
 
@@ -346,11 +365,13 @@ domain::FtnAddress readAddress(const CfgEntry& entry, const std::string& value) 
 /// names attributes without a subject: `af,AreaFix,2:382/736,,k/s`. A comma is
 /// therefore always a separator and never text, quoted or not — a subject with
 /// one in it cannot be written here, and nothing else on the line could hold one.
-std::vector<std::string> macroFields(const CfgEntry& entry) {
+Result<std::vector<std::string>> macroFields(const CfgEntry& entry) {
     // The line as it was written, the quotes gone and the runs of blank between
     // words collapsed: a quoted subject arrives as one value with its spaces
     // kept, and an unquoted one as several that join back into what was typed.
-    const std::string line = entry.text();
+    const auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(joined.error());
+    const std::string& line = *joined;
 
     std::vector<std::string> fields;
     size_t start = 0;
@@ -367,13 +388,15 @@ std::vector<std::string> macroFields(const CfgEntry& entry) {
 
 /// What an `address_macro` says about a word that is not an attribute. Its own
 /// function, as `failUnknownCommand` is and for the same reason: the list of
-/// what was on offer is built where it is thrown rather than once per word read.
-[[noreturn]] void failUnknownAttribute(const CfgEntry& entry, const std::string& word) {
+/// what was on offer is built where it is returned rather than once per word
+/// read.
+tl::unexpected<std::string> failUnknownAttribute(const CfgEntry& entry,
+                                                 const std::string& word) {
     // Uns is the one word that looks like an attribute and is none: it is shown
     // when Loc is set and Snt is not, and there is no bit to set for it. Saying
     // so beats "not an attribute" about a word every screen in AmberEdit prints.
     if (text::iequals(word, "Uns")) {
-        entry.fail(
+        return entry.fail(
             "address_macro: 'Uns' is not an attribute a message carries — it is shown "
             "for Loc set with Snt clear, which is what a message written here "
             "already is");
@@ -384,8 +407,8 @@ std::vector<std::string> macroFields(const CfgEntry& entry) {
         if (!offered.empty()) offered += ", ";
         offered += name;
     }
-    entry.fail("address_macro: '" + word + "' is not a message attribute (" + offered +
-               ")");
+    return entry.fail("address_macro: '" + word + "' is not a message attribute (" +
+                      offered + ")");
 }
 
 /// The attributes an `address_macro` writes its message with: the short forms
@@ -394,21 +417,23 @@ std::vector<std::string> macroFields(const CfgEntry& entry) {
 /// Blanks rather than another punctuation mark, because one of the names is
 /// `K/s` and a slash between attributes could not then be told from the slash
 /// inside one.
-uint32_t macroAttributes(const CfgEntry& entry, const std::string& field) {
+Result<uint32_t> macroAttributes(const CfgEntry& entry, const std::string& field) {
     uint32_t attributes = 0;
     for (const std::string& word : text::tokenize(field)) {
         const auto bit = domain::messageAttributeBit(word);
-        if (!bit) failUnknownAttribute(entry, word);
+        if (!bit) return failUnknownAttribute(entry, word);
         attributes |= *bit;
     }
     return attributes;
 }
 
 /// One `address_macro` line, read onto the macro it describes.
-AddressMacro readAddressMacro(const CfgEntry& entry) {
-    const std::vector<std::string> fields = macroFields(entry);
+Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
+    const auto read = macroFields(entry);
+    if (!read) return tl::make_unexpected(read.error());
+    const std::vector<std::string>& fields = *read;
     if (fields.size() < 3 || fields.size() > 5) {
-        entry.fail(
+        return entry.fail(
             "address_macro takes a macro, a name and an address, and may take a "
             "subject and the attributes after them, e.g. address_macro "
             "af,AreaFix,2:382/736,\"PASSWORD\",k/s");
@@ -417,11 +442,15 @@ AddressMacro readAddressMacro(const CfgEntry& entry) {
     AddressMacro macro;
     macro.macro = fields[0];
     macro.name = fields[1];
-    if (macro.macro.empty()) entry.fail("address_macro needs the word that is typed");
-    if (macro.name.empty()) {
-        entry.fail("address_macro needs the name the message is addressed to");
+    if (macro.macro.empty()) {
+        return entry.fail("address_macro needs the word that is typed");
     }
-    macro.address = readAddress(entry, fields[2]);
+    if (macro.name.empty()) {
+        return entry.fail("address_macro needs the name the message is addressed to");
+    }
+    const auto address = readAddress(entry, fields[2]);
+    if (!address) return tl::make_unexpected(address.error());
+    macro.address = *address;
 
     // Empty is "the line said nothing about it" rather than "make it empty":
     // that is what lets the attributes be named without a subject, and a macro
@@ -429,46 +458,55 @@ AddressMacro readAddressMacro(const CfgEntry& entry) {
     // there itself.
     if (fields.size() > 3 && !fields[3].empty()) macro.subject = fields[3];
     if (fields.size() > 4 && !fields[4].empty()) {
-        macro.attributes = macroAttributes(entry, fields[4]);
+        const auto attributes = macroAttributes(entry, fields[4]);
+        if (!attributes) return tl::make_unexpected(attributes.error());
+        macro.attributes = *attributes;
     }
     return macro;
 }
 
 /// The value of `compose_cc_list`: what a message keeps of the `CC:` lines it
 /// was written with.
-CarbonList parseCarbonList(const CfgEntry& entry) {
-    const std::string value = text::toLower(entry.one());
+Result<CarbonList> parseCarbonList(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
     if (value == "keep") return CarbonList::Keep;
     if (value == "names") return CarbonList::Names;
     if (value == "visible") return CarbonList::Visible;
     if (value == "hidden") return CarbonList::Hidden;
     if (value == "remove") return CarbonList::Remove;
-    entry.fail("compose_cc_list: '" + entry.one() +
-               "' is not one of its values (keep | names | visible | hidden | remove)");
+    return entry.fail(
+        "compose_cc_list: '" + *only +
+        "' is not one of its values (keep | names | visible | hidden | remove)");
 }
 
 /// The value of `compose_xc_list`, the same for the `XC:`/`XP:` lines. The
 /// words are the ones GoldED writes them with, which is why they are not the
 /// five above with one taken away.
-CrosspostList parseCrosspostList(const CfgEntry& entry) {
-    const std::string value = text::toLower(entry.one());
+Result<CrosspostList> parseCrosspostList(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
     if (value == "raw") return CrosspostList::Raw;
     if (value == "verbose") return CrosspostList::Verbose;
     if (value == "yes") return CrosspostList::Yes;
     if (value == "none") return CrosspostList::None;
-    entry.fail("compose_xc_list: '" + entry.one() +
-               "' is not one of its values (raw | verbose | yes | none)");
+    return entry.fail("compose_xc_list: '" + *only +
+                      "' is not one of its values (raw | verbose | yes | none)");
 }
 
-TwitMode parseTwitMode(const CfgEntry& entry) {
-    const std::string value = text::toLower(entry.one());
+Result<TwitMode> parseTwitMode(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
     if (value == "show") return TwitMode::Show;
     if (value == "blank") return TwitMode::Blank;
     if (value == "skip") return TwitMode::Skip;
     if (value == "ignore") return TwitMode::Ignore;
     if (value == "kill") return TwitMode::Kill;
-    entry.fail("twit_mode: '" + entry.one() +
-               "' is not one of its values (show | blank | skip | ignore | kill)");
+    return entry.fail("twit_mode: '" + *only +
+                      "' is not one of its values (show | blank | skip | ignore | kill)");
 }
 
 /// One `twit` line: an FTN address pattern, or a name to match whole.
@@ -478,18 +516,20 @@ TwitMode parseTwitMode(const CfgEntry& entry) {
 /// address there is" and quietly stop being the name glob it was written as.
 /// Nothing that is not an address is refused: a name is what a name looks like,
 /// and there is no third thing a `twit` line could be.
-TwitRule readTwit(const CfgEntry& entry) {
+Result<TwitRule> readTwit(const CfgEntry& entry) {
     // Asked before `text()`, which would say only that the key needs a value:
     // what a `twit` line takes is worth saying where somebody has written one
     // and left it empty, and `twit ""` is the same mistake as a bare `twit`.
     constexpr const char* kNeeds =
         "twit needs a name or an FTN address, e.g. twit \"Ivan Ivanov\"";
-    if (entry.values.empty()) entry.fail(kNeeds);
+    if (entry.values.empty()) return entry.fail(kNeeds);
 
     // The line as it was written, quoted or not: `twit Ivan Ivanov` and
     // `twit "Ivan Ivanov"` are the same name, as they are for `name`.
-    const std::string value = entry.text();
-    if (value.empty()) entry.fail(kNeeds);
+    const auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(joined.error());
+    const std::string& value = *joined;
+    if (value.empty()) return entry.fail(kNeeds);
 
     TwitRule rule;
     if (value.find(':') != std::string::npos) {
@@ -516,14 +556,18 @@ AkaMatch& akaEntryFor(AppConfig& cfg, const domain::FtnAddress& aka) {
 /// AmberEdit here rather than being skipped — a dropped entry would show up as
 /// netmail from the wrong address, which is what the lines are there to
 /// prevent.
-void readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) {
+Result<void> readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) {
     for (const CfgEntry* entry : akas) {
-        if (entry->values.empty()) entry->fail(entry->key + " needs an AKA of yours");
-        const auto aka = readAddress(*entry, entry->values.front());
+        if (entry->values.empty()) {
+            return entry->fail(entry->key + " needs an AKA of yours");
+        }
+        const auto read = readAddress(*entry, entry->values.front());
+        if (!read) return tl::make_unexpected(read.error());
+        const domain::FtnAddress& aka = *read;
 
         if (entry->key == "aka") {
             if (entry->values.size() != 1) {
-                entry->fail(
+                return entry->fail(
                     "aka takes one address — write the destinations it is used for "
                     "on an akamatch line");
             }
@@ -532,12 +576,12 @@ void readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) {
         }
 
         if (entry->values.size() < 2) {
-            entry->fail(
+            return entry->fail(
                 "akamatch takes an AKA and the address patterns it is used for, "
                 "e.g. akamatch 2:5020/9999.1 2:5020/9999.*");
         }
         if (!cfg.userAddress) {
-            entry->fail(
+            return entry->fail(
                 "akamatch needs the address line — it is the address used when no "
                 "pattern matches");
         }
@@ -546,13 +590,14 @@ void readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) {
         for (size_t i = 1; i < entry->values.size(); ++i) {
             const auto pattern = domain::AddressPattern::parse(entry->values[i]);
             if (!pattern) {
-                entry->fail("akamatch pattern for '" + aka.toString() +
-                            "' is not an FTN address pattern: '" + entry->values[i] +
-                            "'");
+                return entry->fail("akamatch pattern for '" + aka.toString() +
+                                   "' is not an FTN address pattern: '" +
+                                   entry->values[i] + "'");
             }
             into.patterns.push_back(*pattern);
         }
     }
+    return {};
 }
 
 /// One setting, read onto a config. False when the key is not a setting at all,
@@ -563,21 +608,35 @@ void readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) {
 /// running its own lines through it again — which is what keeps "adding a
 /// setting is a branch in fromEntries()" true for groups as well, with no second
 /// table of overrides to be kept in step with this one.
-bool applySetting(AppConfig& cfg, const CfgEntry& entry) {
+Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
     const std::string& key = entry.key;
 
     if (key == "name") {
-        cfg.userName = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.userName = *read;
     } else if (key == "address") {
-        cfg.userAddress = readAddress(entry, entry.one());
+        const auto only = entry.one();
+        if (!only) return tl::make_unexpected(only.error());
+        const auto read = readAddress(entry, *only);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.userAddress = *read;
     } else if (key == "tosser_config") {
-        cfg.tosserConfigPath = expandTilde(entry.text());
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.tosserConfigPath = expandTilde(*read);
     } else if (key == "tosser_config_format") {
-        cfg.tosserConfigFormat = parseFormat(entry);
+        const auto read = parseFormat(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.tosserConfigFormat = *read;
     } else if (key == "nodelist") {
-        cfg.nodelistSources.push_back(readPath(entry, "a nodelist file"));
+        const auto read = readPath(entry, "a nodelist file");
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.nodelistSources.push_back(*read);
     } else if (key == "address_macro") {
-        AddressMacro macro = readAddressMacro(entry);
+        const auto read = readAddressMacro(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        AddressMacro macro = *read;
         // The same word twice is a contradiction, and the line that lost would
         // be an invisible one — exactly what any other key written twice is
         // stopped for.
@@ -585,103 +644,161 @@ bool applySetting(AppConfig& cfg, const CfgEntry& entry) {
             return text::iequals(earlier.macro, macro.macro);
         };
         if (std::any_of(cfg.addressMacros.begin(), cfg.addressMacros.end(), same)) {
-            entry.fail("address_macro '" + macro.macro + "' is defined twice");
+            return entry.fail("address_macro '" + macro.macro + "' is defined twice");
         }
         cfg.addressMacros.push_back(std::move(macro));
     } else if (key == "nodelist_db") {
-        cfg.nodelistDbPath = readPath(entry, "the compiled nodelist");
+        const auto read = readPath(entry, "the compiled nodelist");
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.nodelistDbPath = *read;
     } else if (key == "echolist") {
-        cfg.echolistSources.push_back(readEcholist(entry));
+        const auto read = readEcholist(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.echolistSources.push_back(*read);
     } else if (key == "echolist_db") {
-        cfg.echolistDbPath = readPath(entry, "the compiled echolist");
+        const auto read = readPath(entry, "the compiled echolist");
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.echolistDbPath = *read;
     } else if (key == "keys") {
-        cfg.keysPath = readPath(entry, "a keyboard layout");
+        const auto read = readPath(entry, "a keyboard layout");
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.keysPath = *read;
     } else if (key == "tmpdir") {
-        cfg.tempDirPath = readPath(entry, "a directory to work in");
+        const auto read = readPath(entry, "a directory to work in");
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.tempDirPath = *read;
     } else if (key == "default_charset") {
-        cfg.defaultCharset = entry.one();
+        const auto read = entry.one();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.defaultCharset = *read;
     } else if (key == "compose_charset") {
-        cfg.composeCharset = entry.one();
+        const auto read = entry.one();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.composeCharset = *read;
     } else if (key == "lastread_user") {
         // The number is an index into an array on disk, and the array is
         // grown by seeking past its end — so a mistyped one would silently
         // create a sparse file megabytes long. 65535 is the ceiling the
         // Fido *.msg lastread file imposes anyway, its records being two
         // bytes wide.
-        cfg.lastreadUser = static_cast<int>(entry.numberIn(0, 65535));
+        const auto read = entry.numberIn(0, 65535);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.lastreadUser = static_cast<int>(*read);
     } else if (key == "arealist_sort") {
-        cfg.areaListSort = parseAreaSort(entry);
+        const auto read = parseAreaSort(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.areaListSort = *read;
     } else if (key == "arealist_format") {
-        const ListFormats formats = parseListFormats(entry, areaFormatSpec());
+        const auto read = parseListFormats(entry, areaFormatSpec());
+        if (!read) return tl::make_unexpected(read.error());
         cfg.areaListFormatNarrow =
-            formatOf<AreaListFormat, AreaFieldKind>(formats.narrow, areaFieldOf);
+            formatOf<AreaListFormat, AreaFieldKind>(read->narrow, areaFieldOf);
         cfg.areaListFormatWide =
-            formatOf<AreaListFormat, AreaFieldKind>(formats.wide, areaFieldOf);
+            formatOf<AreaListFormat, AreaFieldKind>(read->wide, areaFieldOf);
     } else if (key == "msglist_format") {
-        const ListFormats formats = parseListFormats(entry, msgFormatSpec());
+        const auto read = parseListFormats(entry, msgFormatSpec());
+        if (!read) return tl::make_unexpected(read.error());
         cfg.messageListFormatNarrow =
-            formatOf<MsgListFormat, MsgFieldKind>(formats.narrow, msgFieldOf);
+            formatOf<MsgListFormat, MsgFieldKind>(read->narrow, msgFieldOf);
         cfg.messageListFormatWide =
-            formatOf<MsgListFormat, MsgFieldKind>(formats.wide, msgFieldOf);
+            formatOf<MsgListFormat, MsgFieldKind>(read->wide, msgFieldOf);
     } else if (key == "arealist_description_priority") {
-        cfg.areaDescriptionPriority = parseDescriptionPriority(entry);
+        const auto read = parseDescriptionPriority(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.areaDescriptionPriority = *read;
     } else if (key == "arealist_description_default") {
         // Written with no value at all the line says nothing, and what it would
         // silently mean — the blank column — is the one thing worth being sure
         // was meant. `arealist_description_default ""` says it out loud.
         if (entry.values.empty()) {
-            entry.fail(
+            return entry.fail(
                 "arealist_description_default needs the text to show for an area with "
                 "no description — write arealist_description_default \"\" to leave the "
                 "column blank");
         }
-        cfg.areaDescriptionDefault = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.areaDescriptionDefault = *read;
     } else if (key == "arealist_scrollbar") {
-        cfg.areaListScrollbar = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.areaListScrollbar = *read;
     } else if (key == "msglist_scrollbar") {
-        cfg.messageListScrollbar = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.messageListScrollbar = *read;
     } else if (key == "highlight_unread") {
-        cfg.highlightUnread = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.highlightUnread = *read;
     } else if (key == "reader_scrollbar") {
-        cfg.showScrollbar = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.showScrollbar = *read;
     } else if (key == "reader_underline_links") {
-        cfg.underlineLinks = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.underlineLinks = *read;
     } else if (key == "reader_stylecodes") {
-        cfg.styleCodes = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.styleCodes = *read;
     } else if (key == "bbs_codes_renegade") {
-        cfg.bbsCodesRenegade = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.bbsCodesRenegade = *read;
     } else if (key == "reader_edge_exit") {
-        cfg.edgeExit = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.edgeExit = *read;
     } else if (key == "reader_lastread_auto_next") {
-        cfg.lastreadAutoNext = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.lastreadAutoNext = *read;
     } else if (key == "areareplydirect") {
-        cfg.areaReplyDirect = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.areaReplyDirect = *read;
     } else if (key == "compose_cc_list") {
-        cfg.carbonList = parseCarbonList(entry);
+        const auto read = parseCarbonList(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.carbonList = *read;
     } else if (key == "compose_xc_list") {
-        cfg.crosspostList = parseCrosspostList(entry);
+        const auto read = parseCrosspostList(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.crosspostList = *read;
     } else if (key == "reply_to_area") {
         // The tag is taken as it is written and checked against nothing: the
         // area list is not built yet when the config is read, and the dialog
         // that uses it opens at the top of the list where the tag names no
         // area it holds.
-        cfg.replyToArea = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.replyToArea = *read;
     } else if (key == "twit") {
-        cfg.twits.push_back(readTwit(entry));
+        const auto read = readTwit(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.twits.push_back(*read);
     } else if (key == "twit_subj") {
         // A subject is one string, spaces and all, and an empty pattern would
         // cover every message carrying no subject at all — which is a great
         // many of them, and not something anyone writes a line to ask for.
         constexpr const char* kNeeds =
             "twit_subj needs a subject to ignore, e.g. twit_subj \"*SPAM*\"";
-        if (entry.values.empty()) entry.fail(kNeeds);
-        std::string pattern = entry.text();
-        if (pattern.empty()) entry.fail(kNeeds);
+        if (entry.values.empty()) return entry.fail(kNeeds);
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        std::string pattern = *read;
+        if (pattern.empty()) return entry.fail(kNeeds);
         cfg.twitSubjects.push_back(std::move(pattern));
     } else if (key == "twit_to") {
-        cfg.twitTo = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.twitTo = *read;
     } else if (key == "twit_mode") {
-        cfg.twitMode = parseTwitMode(entry);
+        const auto read = parseTwitMode(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.twitMode = *read;
     } else if (key == "adaptive_ui_threshold") {
         // The floor is where a window still has room for the things
         // `when_narrow` puts on the screen — under twenty columns a menu
@@ -689,52 +806,88 @@ bool applySetting(AppConfig& cfg, const CfgEntry& entry) {
         // nothing sane
         // is dragged past, where every window-led setting would be stuck on
         // the one side of the line for good.
-        cfg.adaptiveUiThreshold = static_cast<int>(entry.numberIn(20, 1000));
+        const auto read = entry.numberIn(20, 1000);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.adaptiveUiThreshold = static_cast<int>(*read);
     } else if (key == "back_button") {
-        cfg.backButton = parseVisibility(entry);
+        const auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.backButton = *read;
     } else if (key == "hint_bar") {
-        cfg.hintBar = parseVisibility(entry);
+        const auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.hintBar = *read;
     } else if (key == "compose_delete_line_button") {
-        cfg.composeDeleteLineButton = parseVisibility(entry);
+        const auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.composeDeleteLineButton = *read;
     } else if (key == "show_location") {
-        cfg.showLocation = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.showLocation = *read;
     } else if (key == "reader_show_message_size") {
-        cfg.readerShowMessageSize = entry.flag();
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.readerShowMessageSize = *read;
     } else if (key == "show_recd_date") {
-        cfg.showRecdDate = parseVisibility(entry);
+        const auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.showRecdDate = *read;
     } else if (key == "menu_button") {
-        cfg.menuButton = parseVisibility(entry);
+        const auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.menuButton = *read;
     } else if (key == "reader_menu") {
-        cfg.readerMenu = parseMenu(entry, readerCommands());
+        const auto read = parseMenu(entry, readerCommands());
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.readerMenu = *read;
     } else if (key == "compose_menu") {
-        cfg.composeMenu = parseMenu(entry, composeCommands());
+        const auto read = parseMenu(entry, composeCommands());
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.composeMenu = *read;
     } else if (key == "menu_buttons_width") {
         // The floor is a frame with a column of label left inside it, under
         // which a button says nothing at all; the ceiling is wider than any
         // window a menu would be read in.
-        cfg.menuButtonsWidth = static_cast<int>(entry.numberIn(4, 100));
+        const auto read = entry.numberIn(4, 100);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.menuButtonsWidth = static_cast<int>(*read);
     } else if (key == "click_animation_ms") {
         // Zero is meaningful — it is how the animation is turned off — and
         // the ceiling is a second, past which a click stops reading as
         // feedback and starts reading as the program having hung.
-        cfg.clickAnimationMs = static_cast<int>(entry.numberIn(0, 1000));
+        const auto read = entry.numberIn(0, 1000);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.clickAnimationMs = static_cast<int>(*read);
     } else if (key == "reader_datetime_format") {
-        cfg.readerDateTimeFormat = readTimeFormat(entry);
+        const auto read = readTimeFormat(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.readerDateTimeFormat = *read;
     } else if (key == "template_date_format") {
-        cfg.templateDateFormat = readTimeFormat(entry);
+        const auto read = readTimeFormat(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.templateDateFormat = *read;
     } else if (key == "template_time_format") {
-        cfg.templateTimeFormat = readTimeFormat(entry);
+        const auto read = readTimeFormat(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.templateTimeFormat = *read;
     } else if (key == "theme") {
-        cfg.themePath = expandTilde(entry.text());
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.themePath = expandTilde(*read);
     } else if (key == "template") {
-        cfg.templatePath = expandTilde(entry.text());
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.templatePath = expandTilde(*read);
     } else if (key == "quote_string") {
         // One '>' and no more: it is what quote levels are counted in, so a
         // second one would send a first-level quote out looking like a
         // second-level one — to us and to every other reader alike.
-        const std::string value = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        const std::string& value = *read;
         if (std::count(value.begin(), value.end(), '>') != 1) {
-            entry.fail(
+            return entry.fail(
                 "quote_string must contain exactly one '>', which is what marks "
                 "a quoted line: '" +
                 value + "'");
@@ -744,18 +897,28 @@ bool applySetting(AppConfig& cfg, const CfgEntry& entry) {
         // Below 20 the prefix leaves nothing worth wrapping, and past 255
         // the line stops being one another reader will show as it was
         // written.
-        cfg.quoteMargin = static_cast<int>(entry.numberIn(20, 255));
+        const auto read = entry.numberIn(20, 255);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.quoteMargin = static_cast<int>(*read);
     } else if (key == "import_begin") {
         // Empty is a value like any other here: it is how a file goes into a
         // message with no line in front of it, and `entry.text()` of a key
         // written with nothing after it is exactly that.
-        cfg.importBegin = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.importBegin = *read;
     } else if (key == "import_end") {
-        cfg.importEnd = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.importEnd = *read;
     } else if (key == "tearline") {
-        cfg.tearline = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.tearline = *read;
     } else if (key == "origin") {
-        cfg.origin = entry.text();
+        const auto read = entry.text();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.origin = *read;
     } else {
         return false;
     }
@@ -812,18 +975,15 @@ bool applySetting(AppConfig& cfg, const CfgEntry& entry) {
 /// Whether the key is a setting at all — which only applySetting() can say, so
 /// it is asked by reading the line onto a config that is thrown away.
 ///
-/// A line that throws was recognised: only a key the chain knows reads its value
-/// at all, and complaining about the value is what that reading does. The
-/// complaint is swallowed here because the caller is not asking whether the line
-/// is right, only whether the key exists — a `theme` with no value belongs
-/// outside a group whether or not it also needs a value.
+/// A line that could not be read was still recognised: only a key the chain
+/// knows reads its value at all, and complaining about the value is what that
+/// reading does. The complaint is dropped here because the caller is not asking
+/// whether the line is right, only whether the key exists — a `theme` with no
+/// value belongs outside a group whether or not it also needs a value.
 [[nodiscard]] bool isKnownSetting(const CfgEntry& entry) {
-    try {
-        AppConfig probe;
-        return applySetting(probe, entry);
-    } catch (const std::exception&) {
-        return true;
-    }
+    AppConfig probe;
+    const Result<bool> read = applySetting(probe, entry);
+    return !read || *read;
 }
 
 /// One `group ... endgroup` or `area ... endarea` block as it stood in the file:
@@ -850,9 +1010,9 @@ struct Block {
 /// Neither block nests, in itself or in the other: a group states settings for
 /// the areas it covers and an area states what an area is, and there is nothing
 /// one of them could mean inside the other.
-std::vector<const CfgEntry*> splitBlocks(const std::vector<CfgEntry>& entries,
-                                         std::vector<Block>& groups,
-                                         std::vector<Block>& areas) {
+Result<std::vector<const CfgEntry*>> splitBlocks(const std::vector<CfgEntry>& entries,
+                                                 std::vector<Block>& groups,
+                                                 std::vector<Block>& areas) {
     std::vector<const CfgEntry*> globals;
     Block open;
     bool openIsArea = false;
@@ -861,19 +1021,19 @@ std::vector<const CfgEntry*> splitBlocks(const std::vector<CfgEntry>& entries,
         const bool opensArea = entry.key == "area";
         if (opensArea || entry.key == "group") {
             if (open.opener != nullptr) {
-                entry.fail(entry.key + " inside a " + open.opener->key +
-                           " block, opened at line " +
-                           std::to_string(open.opener->line) +
-                           " — the blocks do not nest");
+                return entry.fail(entry.key + " inside a " + open.opener->key +
+                                  " block, opened at line " +
+                                  std::to_string(open.opener->line) +
+                                  " — the blocks do not nest");
             }
             if (opensArea) {
                 if (entry.values.size() != 1) {
-                    entry.fail(
+                    return entry.fail(
                         "area takes the echotag of the area it declares and nothing "
                         "else, e.g. area ru.linux");
                 }
             } else if (!entry.values.empty()) {
-                entry.fail(
+                return entry.fail(
                     "group takes no values — write the areas it covers on member "
                     "lines inside it");
             }
@@ -885,15 +1045,17 @@ std::vector<const CfgEntry*> splitBlocks(const std::vector<CfgEntry>& entries,
         const bool closesArea = entry.key == "endarea";
         if (closesArea || entry.key == "endgroup") {
             if (open.opener == nullptr) {
-                entry.fail(entry.key + " with no " +
-                           std::string(closesArea ? "area" : "group") + " above it");
+                return entry.fail(entry.key + " with no " +
+                                  std::string(closesArea ? "area" : "group") +
+                                  " above it");
             }
             if (closesArea != openIsArea) {
-                entry.fail(entry.key + " closes the " + open.opener->key +
-                           " block opened at line " + std::to_string(open.opener->line) +
-                           " — write end" + open.opener->key);
+                return entry.fail(entry.key + " closes the " + open.opener->key +
+                                  " block opened at line " +
+                                  std::to_string(open.opener->line) + " — write end" +
+                                  open.opener->key);
             }
-            if (!entry.values.empty()) entry.fail(entry.key + " takes no values");
+            if (!entry.values.empty()) return entry.fail(entry.key + " takes no values");
             (closesArea ? areas : groups).push_back(std::move(open));
             open = Block{};
             continue;
@@ -902,15 +1064,15 @@ std::vector<const CfgEntry*> splitBlocks(const std::vector<CfgEntry>& entries,
         if (open.opener != nullptr) {
             open.lines.push_back(&entry);
         } else if (entry.key == "member") {
-            entry.fail("member is only written inside a group ... endgroup block");
+            return entry.fail("member is only written inside a group ... endgroup block");
         } else {
             globals.push_back(&entry);
         }
     }
 
     if (open.opener != nullptr) {
-        open.opener->fail(open.opener->key + " is never closed by an end" +
-                          open.opener->key);
+        return open.opener->fail(open.opener->key + " is never closed by an end" +
+                                 open.opener->key);
     }
     return globals;
 }
@@ -924,8 +1086,8 @@ std::vector<const CfgEntry*> splitBlocks(const std::vector<CfgEntry>& entries,
 /// declares: an ambiguous config is ambiguous whether or not an echo that trips
 /// it has been subscribed yet, and a config error should be one at startup and
 /// not on the day a new area arrives.
-void checkUnambiguous(const AreaGroup& first, const AreaGroup& second,
-                      const CfgEntry& opener) {
+Result<void> checkUnambiguous(const AreaGroup& first, const AreaGroup& second,
+                              const CfgEntry& opener) {
     std::string shared;
     for (const auto& setting : first.settings) {
         if (second.states(setting.key)) {
@@ -933,12 +1095,12 @@ void checkUnambiguous(const AreaGroup& first, const AreaGroup& second,
             break;
         }
     }
-    if (shared.empty()) return;
+    if (shared.empty()) return {};
 
     for (const auto& a : first.members) {
         for (const auto& b : second.members) {
             if (a.specificity() != b.specificity() || !a.overlaps(b)) continue;
-            opener.fail(
+            return opener.fail(
                 "the groups at line " + std::to_string(first.line) + " and line " +
                 std::to_string(second.line) + " both set " + shared + " for the areas '" +
                 a.toString() + "' and '" + b.toString() +
@@ -946,12 +1108,13 @@ void checkUnambiguous(const AreaGroup& first, const AreaGroup& second,
                 "one of them so that it says more about the tag than the other");
         }
     }
+    return {};
 }
 
 /// The `group ... endgroup` blocks, read once the whole file has been: a group
 /// is laid over the file's own settings, so what it lays them over has to be
 /// finished first.
-void readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
+Result<void> readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
     for (const auto& block : blocks) {
         AreaGroup group;
         group.line = block.opener->line;
@@ -960,11 +1123,11 @@ void readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
         for (const CfgEntry* entry : block.lines) {
             if (entry->key == "member") {
                 if (entry->values.empty()) {
-                    entry->fail("member needs an area tag, e.g. member esp.*");
+                    return entry->fail("member needs an area tag, e.g. member esp.*");
                 }
                 for (const auto& value : entry->values) {
                     const auto pattern = AreaTagPattern::parse(value);
-                    if (!pattern) entry->fail("member pattern is empty");
+                    if (!pattern) return entry->fail("member pattern is empty");
                     group.members.push_back(*pattern);
                 }
                 continue;
@@ -974,26 +1137,27 @@ void readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
             // same key outside the group is another setting entirely, and the
             // two never see each other.
             if (!isRepeatable(entry->key) && !seen.insert(entry->key).second) {
-                entry->fail(entry->key + " is set twice in this group");
+                return entry->fail(entry->key + " is set twice in this group");
             }
             if (!isGroupSetting(entry->key)) {
                 // A key the top level knows is refused for what it is; one
                 // nobody knows gets the message it would have got anywhere.
                 if (isKnownSetting(*entry)) {
-                    entry->fail("'" + entry->key +
-                                "' is a setting for the whole config and not for one "
-                                "area — write it outside the group ... endgroup block");
+                    return entry->fail(
+                        "'" + entry->key +
+                        "' is a setting for the whole config and not for one "
+                        "area — write it outside the group ... endgroup block");
                 }
-                entry->fail("unknown setting '" + entry->key + "'");
+                return entry->fail("unknown setting '" + entry->key + "'");
             }
             group.settings.push_back(*entry);
         }
 
         if (group.members.empty()) {
-            block.opener->fail("a group with no member line covers no area");
+            return block.opener->fail("a group with no member line covers no area");
         }
         if (group.settings.empty()) {
-            block.opener->fail("a group that sets nothing changes nothing");
+            return block.opener->fail("a group that sets nothing changes nothing");
         }
 
         // Read here and thrown away: it is the same code the resolution runs,
@@ -1002,7 +1166,10 @@ void readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
         // AmberEdit at startup, as one misspelled outside a group does, and not
         // at the moment somebody opens the one area that group covers.
         AppConfig probe = cfg;
-        for (const auto& setting : group.settings) applySetting(probe, setting);
+        for (const auto& setting : group.settings) {
+            const auto applied = applySetting(probe, setting);
+            if (!applied) return tl::make_unexpected(applied.error());
+        }
 
         // An address a group states is an AKA of ours wherever it turns up, so
         // that a message written under it is still recognised as one's own. It
@@ -1014,10 +1181,12 @@ void readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
         }
 
         for (const auto& earlier : cfg.areaGroups) {
-            checkUnambiguous(earlier, group, *block.opener);
+            const auto checked = checkUnambiguous(earlier, group, *block.opener);
+            if (!checked) return tl::make_unexpected(checked.error());
         }
         cfg.areaGroups.push_back(std::move(group));
     }
+    return {};
 }
 
 /// The `area ... endarea` blocks: the areas the config declares itself, in the
@@ -1032,14 +1201,14 @@ void readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
 /// Nothing here looks at the disk. Whether the base a block names is there is a
 /// question for the moment the area is opened, and an area declared before its
 /// base exists is exactly what someone writes a block for.
-void readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
+Result<void> readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
     for (const auto& block : blocks) {
         ManualArea manual;
         manual.line = block.opener->line;
         domain::AreaConfig& area = manual.area;
         area.tag = block.opener->values.front();
         if (area.tag.empty()) {
-            block.opener->fail("area needs an echotag, e.g. area ru.linux");
+            return block.opener->fail("area needs an echotag, e.g. area ru.linux");
         }
 
         // `link` is the one field that is a list; anything else written twice is
@@ -1048,50 +1217,67 @@ void readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
 
         for (const CfgEntry* entry : block.lines) {
             if (entry->key != "link" && !seen.insert(entry->key).second) {
-                entry->fail(entry->key + " is set twice in this area");
+                return entry->fail(entry->key + " is set twice in this area");
             }
 
             if (entry->key == "path") {
-                area.path = readPath(*entry, "the message base");
+                const auto path = readPath(*entry, "the message base");
+                if (!path) return tl::make_unexpected(path.error());
+                area.path = *path;
             } else if (entry->key == "type") {
-                const auto type = domain::parseMsgBaseType(entry->one());
+                const auto only = entry->one();
+                if (!only) return tl::make_unexpected(only.error());
+                const auto type = domain::parseMsgBaseType(*only);
                 if (!type) {
-                    entry->fail("'" + entry->one() +
-                                "' is not a base type "
-                                "(squish | jam | msg | passthrough)");
+                    return entry->fail("'" + *only +
+                                       "' is not a base type "
+                                       "(squish | jam | msg | passthrough)");
                 }
                 area.type = *type;
             } else if (entry->key == "kind") {
-                const auto kind = domain::parseAreaKind(entry->one());
+                const auto only = entry->one();
+                if (!only) return tl::make_unexpected(only.error());
+                const auto kind = domain::parseAreaKind(*only);
                 if (!kind) {
-                    entry->fail("'" + entry->one() +
-                                "' is not an area kind "
-                                "(echo | netmail | local | bad | dupe)");
+                    return entry->fail("'" + *only +
+                                       "' is not an area kind "
+                                       "(echo | netmail | local | bad | dupe)");
                 }
                 area.kind = *kind;
             } else if (entry->key == "description") {
-                area.description = entry->text();
+                const auto read = entry->text();
+                if (!read) return tl::make_unexpected(read.error());
+                area.description = *read;
             } else if (entry->key == "group_label") {
-                area.group = entry->one();
+                const auto read = entry->one();
+                if (!read) return tl::make_unexpected(read.error());
+                area.group = *read;
             } else if (entry->key == "address") {
-                area.address = readAddress(*entry, entry->one());
+                const auto only = entry->one();
+                if (!only) return tl::make_unexpected(only.error());
+                const auto address = readAddress(*entry, *only);
+                if (!address) return tl::make_unexpected(address.error());
+                area.address = *address;
             } else if (entry->key == "link") {
                 if (entry->values.empty()) {
-                    entry->fail("link needs the address of a downlink");
+                    return entry->fail("link needs the address of a downlink");
                 }
                 for (const auto& value : entry->values) {
-                    area.links.push_back(readAddress(*entry, value));
+                    const auto link = readAddress(*entry, value);
+                    if (!link) return tl::make_unexpected(link.error());
+                    area.links.push_back(*link);
                 }
             } else if (isKnownSetting(*entry)) {
                 // A block declares an area; how it is read is a group's to say,
                 // and a group matches an area declared here like any other.
-                entry->fail("'" + entry->key +
-                            "' is a setting and not a field of an area — write it in a "
-                            "group ... endgroup block whose member covers this area");
+                return entry->fail(
+                    "'" + entry->key +
+                    "' is a setting and not a field of an area — write it in a "
+                    "group ... endgroup block whose member covers this area");
             } else {
-                entry->fail("unknown area field '" + entry->key +
-                            "' (path, type, kind, description, group_label, "
-                            "address, link)");
+                return entry->fail("unknown area field '" + entry->key +
+                                   "' (path, type, kind, description, group_label, "
+                                   "address, link)");
             }
         }
 
@@ -1103,21 +1289,21 @@ void readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
         // area deliberately without a base.
         if (area.type == domain::MsgBaseType::Passthrough) {
             if (!area.path.empty()) {
-                block.opener->fail("area '" + area.tag +
-                                   "' is passthrough and names a path — a "
-                                   "passthrough area has no base on disk");
+                return block.opener->fail("area '" + area.tag +
+                                          "' is passthrough and names a path — a "
+                                          "passthrough area has no base on disk");
             }
         } else if (area.path.empty()) {
-            block.opener->fail("area '" + area.tag +
-                               "' states no path — write `type passthrough` "
-                               "where there is deliberately no base");
+            return block.opener->fail("area '" + area.tag +
+                                      "' states no path — write `type passthrough` "
+                                      "where there is deliberately no base");
         }
 
         for (const auto& earlier : cfg.manualAreas) {
             if (!text::iequals(earlier.area.tag, area.tag)) continue;
-            block.opener->fail("area '" + area.tag +
-                               "' is declared twice, here and at line " +
-                               std::to_string(earlier.line));
+            return block.opener->fail("area '" + area.tag +
+                                      "' is declared twice, here and at line " +
+                                      std::to_string(earlier.line));
         }
 
         // The AKA an area is presented under is one of ours wherever it turns
@@ -1128,18 +1314,20 @@ void readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
 
         cfg.manualAreas.push_back(std::move(manual));
     }
+    return {};
 }
 
-AppConfig fromEntries(const std::vector<CfgEntry>& entries,
-                      const std::string& originName) {
+Result<AppConfig> fromEntries(const std::vector<CfgEntry>& entries,
+                              const std::string& originName) {
     AppConfig cfg;
     std::set<std::string> seen;
     std::vector<const CfgEntry*> akas;
     std::vector<Block> groupBlocks;
     std::vector<Block> areaBlocks;
 
-    const std::vector<const CfgEntry*> globals =
-        splitBlocks(entries, groupBlocks, areaBlocks);
+    const auto split = splitBlocks(entries, groupBlocks, areaBlocks);
+    if (!split) return tl::make_unexpected(split.error());
+    const std::vector<const CfgEntry*>& globals = *split;
 
     for (const CfgEntry* entry : globals) {
         const std::string& key = entry->key;
@@ -1164,10 +1352,12 @@ AppConfig fromEntries(const std::vector<CfgEntry>& entries,
         // would be an invisible one. Which of them was meant is not ours to
         // guess.
         if (!isRepeatable(key) && !seen.insert(key).second) {
-            entry->fail(key + " is set twice");
+            return entry->fail(key + " is set twice");
         }
 
-        if (!applySetting(cfg, *entry)) entry->fail("unknown setting '" + key + "'");
+        const auto applied = applySetting(cfg, *entry);
+        if (!applied) return tl::make_unexpected(applied.error());
+        if (!*applied) return entry->fail("unknown setting '" + key + "'");
     }
 
     // Asked of the lines rather than of the config: the format has a value
@@ -1182,20 +1372,20 @@ AppConfig fromEntries(const std::vector<CfgEntry>& entries,
     // beside the echoes, and neither is a config that opens on an empty screen.
     if (cfg.tosserConfigPath.empty()) {
         if (areaBlocks.empty()) {
-            throw std::runtime_error(
+            return failure(
                 originName +
                 ": there is no area list — set tosser_config to the tosser's "
                 "areas/areas.bbs, or declare the areas here in area ... endarea "
                 "blocks");
         }
         if (formatStated) {
-            throw std::runtime_error(
+            return failure(
                 originName +
                 ": tosser_config_format names the format of a config that is not "
                 "set — write tosser_config as well, or take the line out");
         }
     } else if (!formatStated) {
-        throw std::runtime_error(
+        return failure(
             originName +
             ": tosser_config_format is not set — state fidoconfig, areas.bbs or "
             "squish.cfg explicitly");
@@ -1205,22 +1395,21 @@ AppConfig fromEntries(const std::vector<CfgEntry>& entries,
     // write in, and a default guessed here would be a silent mojibake in
     // whichever of the two directions it guessed wrong.
     if (cfg.defaultCharset.empty()) {
-        throw std::runtime_error(
+        return failure(
             originName +
             ": default_charset is not set — it is the charset a message is read "
             "in when its CHRS kludge names none");
     }
     if (cfg.composeCharset.empty()) {
-        throw std::runtime_error(
-            originName +
-            ": compose_charset is not set — it is the charset a message is "
-            "written in");
+        return failure(originName +
+                       ": compose_charset is not set — it is the charset a message is "
+                       "written in");
     }
     // A nodelist with nowhere to compile it to is a line that does nothing, and
     // the other way round is not: a config may read a compiled nodelist that
     // something else keeps up to date, and then it names only the file.
     if (!cfg.nodelistSources.empty() && cfg.nodelistDbPath.empty()) {
-        throw std::runtime_error(
+        return failure(
             originName +
             ": nodelist_db is not set — it is the file AmberEdit compiles the "
             "nodelist lines into, and the file AmberEdit reads them back from");
@@ -1229,15 +1418,21 @@ AppConfig fromEntries(const std::vector<CfgEntry>& entries,
     // may read a compiled echolist something else keeps up to date, and then it
     // names only the file.
     if (!cfg.echolistSources.empty() && cfg.echolistDbPath.empty()) {
-        throw std::runtime_error(
+        return failure(
             originName +
             ": echolist_db is not set — it is the file AmberEdit compiles the "
             "echolist lines into, and the file AmberEdit reads them back from");
     }
 
-    readAkas(akas, cfg);
-    readManualAreas(areaBlocks, cfg);
-    readGroups(groupBlocks, cfg);
+    if (const auto read = readAkas(akas, cfg); !read) {
+        return tl::make_unexpected(read.error());
+    }
+    if (const auto read = readManualAreas(areaBlocks, cfg); !read) {
+        return tl::make_unexpected(read.error());
+    }
+    if (const auto read = readGroups(groupBlocks, cfg); !read) {
+        return tl::make_unexpected(read.error());
+    }
     return cfg;
 }
 
@@ -1309,10 +1504,12 @@ AppConfig AppConfig::effectiveFor(const domain::AreaConfig& area) const {
     AppConfig resolved = *this;
     for (const AreaGroup* group : groupsFor(area)) {
         // Every one of these lines was read once already, onto a copy, while the
-        // config was parsed — so nothing here can throw, and a setting a group
+        // config was parsed — so nothing here can fail, and a setting a group
         // never mentions keeps whatever the group before it, or the file itself,
         // gave it.
-        for (const auto& setting : group->settings) applySetting(resolved, setting);
+        for (const auto& setting : group->settings) {
+            static_cast<void>(applySetting(resolved, setting));
+        }
     }
     return resolved;
 }
@@ -1359,19 +1556,23 @@ std::optional<domain::FtnAddress> AppConfig::akaMatching(
     return std::nullopt;
 }
 
-AppConfig AppConfig::loadFromString(const std::string& text,
-                                    const std::string& originName) {
-    return fromEntries(parseCfg(text, originName), originName);
+Result<AppConfig> AppConfig::loadFromString(const std::string& text,
+                                            const std::string& originName) {
+    const auto entries = parseCfg(text, originName);
+    if (!entries) return tl::make_unexpected(entries.error());
+    return fromEntries(*entries, originName);
 }
 
-AppConfig AppConfig::loadFromFile(const std::string& path) {
+Result<AppConfig> AppConfig::loadFromFile(const std::string& path) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
-        throw std::runtime_error("config not found: " + path);
+        return failure("config not found: " + path);
     }
     const auto content = text::readFile(path);
-    if (!content) throw std::runtime_error(content.error());
-    AppConfig cfg = loadFromString(*content, path);
+    if (!content) return tl::make_unexpected(content.error());
+    auto parsed = loadFromString(*content, path);
+    if (!parsed) return tl::make_unexpected(parsed.error());
+    AppConfig cfg = std::move(*parsed);
     // Where a file named without a path is looked for. Settled here rather than
     // in `loadFromString`, which parses a config that need not have come off a
     // disk at all.
@@ -1384,12 +1585,12 @@ AppConfig AppConfig::loadFromFile(const std::string& path) {
     // disk. `loadFromString` skips this: it parses a config without standing in
     // for the machine one would run on.
     if (cfg.templatePath.empty()) {
-        throw std::runtime_error(path +
-                                 ": template is not set — it must point at the file "
-                                 "a new message starts from");
+        return failure(path +
+                       ": template is not set — it must point at the file "
+                       "a new message starts from");
     }
     if (const auto read = text::readFile(cfg.templatePath); !read) {
-        throw std::runtime_error("message template: " + read.error());
+        return failure("message template: " + read.error());
     }
 
     // And the same for a template an area group names, for the same reason: a
@@ -1398,10 +1599,13 @@ AppConfig AppConfig::loadFromFile(const std::string& path) {
     for (const auto& group : cfg.areaGroups) {
         if (!group.states("template")) continue;
         AppConfig probe = cfg;
-        for (const auto& setting : group.settings) applySetting(probe, setting);
+        for (const auto& setting : group.settings) {
+            const auto applied = applySetting(probe, setting);
+            if (!applied) return tl::make_unexpected(applied.error());
+        }
         if (const auto read = text::readFile(probe.templatePath); !read) {
-            throw std::runtime_error("message template of the group at line " +
-                                     std::to_string(group.line) + ": " + read.error());
+            return failure("message template of the group at line " +
+                           std::to_string(group.line) + ": " + read.error());
         }
     }
     return cfg;

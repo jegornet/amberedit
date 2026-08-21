@@ -13,6 +13,7 @@
 #include "ports/i_area_source.hpp"
 #include "ports/i_lastread_store.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
 #include "ui/forward_dialog.hpp"
@@ -231,13 +232,14 @@ struct TwoAreaFixture {
         // there is nothing else here a config read from text would settle
         // differently.
         if (!groups.empty()) {
-            cfg.areaGroups = amberedit::config::AppConfig::loadFromString(
-                                 "tosser_config /dev/null\n"
-                                 "tosser_config_format fidoconfig\n"
-                                 "default_charset CP866\n"
-                                 "compose_charset CP866\n" +
-                                 groups)
-                                 .areaGroups;
+            cfg.areaGroups =
+                amberedit::test::valueOf(amberedit::config::AppConfig::loadFromString(
+                                             "tosser_config /dev/null\n"
+                                             "tosser_config_format fidoconfig\n"
+                                             "default_charset CP866\n"
+                                             "compose_charset CP866\n" +
+                                             groups))
+                    .areaGroups;
         }
         return cfg;
     }
