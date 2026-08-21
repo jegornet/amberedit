@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cstring>
 #include <fstream>
-#include <stdexcept>
 
 #include "msgbase/byte_order.hpp"
 
@@ -45,20 +44,20 @@ struct Ranked {
 
 }  // namespace
 
-NodelistDb NodelistDb::open(const std::string& path) {
+Result<NodelistDb> NodelistDb::open(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("compiled nodelist not found: " + path);
+    if (!in) return failure("compiled nodelist not found: " + path);
 
     NodelistDb db;
     db.path_ = path;
     db.data_.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-    if (in.bad()) throw std::runtime_error("cannot read the compiled nodelist: " + path);
+    if (in.bad()) return failure("cannot read the compiled nodelist: " + path);
 
     const auto* raw = db.data_.data();
     const uint64_t size = db.data_.size();
     if (size < format::kHeaderSize ||
         std::memcmp(raw, format::kMagic, sizeof(format::kMagic)) != 0) {
-        throw std::runtime_error(
+        return failure(
             path +
             " is not a compiled nodelist — nodelist_db names the "
             "file AmberEdit compiles them into, not a nodelist itself");
@@ -66,7 +65,7 @@ NodelistDb NodelistDb::open(const std::string& path) {
 
     const uint16_t version = readU16(raw + 8);
     if (version != format::kVersion) {
-        throw std::runtime_error(
+        return failure(
             path + " was compiled as format version " + std::to_string(version) +
             ", and this AmberEdit reads "
             "version " +
@@ -96,35 +95,33 @@ NodelistDb NodelistDb::open(const std::string& path) {
         within(db.namePoolOffset_, db.namePoolSize_, size) &&
         within(db.recordsOffset_, db.recordsSize_, size) && within(sourceOffset, 0, size);
     if (!sane) {
-        throw std::runtime_error("the compiled nodelist is truncated or damaged: " +
+        return failure("the compiled nodelist is truncated or damaged: " +
                                  path + " — amberedit --compile writes it again");
     }
     // The pool is read as C strings, so the last one has to end.
     if (db.namePoolSize_ != 0 && raw[db.namePoolOffset_ + db.namePoolSize_ - 1] != '\0') {
-        throw std::runtime_error("the compiled nodelist is damaged: " + path +
+        return failure("the compiled nodelist is damaged: " + path +
                                  " — amberedit --compile writes it again");
     }
 
     uint64_t at = sourceOffset;
     db.sources_.reserve(sourceCount);
+    // Answers whether it could read, the complaint being the same one for every
+    // way it could not: a lambda cannot return out of open() on its behalf.
     const auto readString = [&](std::string& out) {
-        if (!within(at, 2, size)) {
-            throw std::runtime_error("the compiled nodelist is truncated: " + path);
-        }
+        if (!within(at, 2, size)) return false;
         const uint16_t length = readU16(raw + at);
         at += 2;
-        if (!within(at, length, size)) {
-            throw std::runtime_error("the compiled nodelist is truncated: " + path);
-        }
+        if (!within(at, length, size)) return false;
         out.assign(reinterpret_cast<const char*>(raw + at), length);
         at += length;
+        return true;
     };
     for (uint32_t i = 0; i < sourceCount; ++i) {
         SourceState state;
-        readString(state.spec);
-        readString(state.path);
-        if (!within(at, 16, size)) {
-            throw std::runtime_error("the compiled nodelist is truncated: " + path);
+        if (!readString(state.spec) || !readString(state.path) ||
+            !within(at, 16, size)) {
+            return failure("the compiled nodelist is truncated: " + path);
         }
         state.modified = readU64(raw + at);
         state.size = readU64(raw + at + 8);
@@ -136,8 +133,28 @@ NodelistDb NodelistDb::open(const std::string& path) {
         const unsigned char* item =
             raw + db.nameIndexOffset_ + (i * format::kNameEntrySize);
         if (readU32(item) >= db.namePoolSize_ || readU32(item + 4) >= db.nodeCount_) {
-            throw std::runtime_error("the compiled nodelist is damaged: " + path +
-                                     " — amberedit --compile writes it again");
+            return failure("the compiled nodelist is damaged: " + path +
+                           " — amberedit --compile writes it again");
+        }
+    }
+
+    // And every record the searches and the dialog will read, checked here for
+    // the same reason as the index arrays above: a truncated file must fail at
+    // open, where the path can be named, rather than in the middle of a list
+    // being drawn where there is nowhere left to say anything. That is what lets
+    // addressAt(), sourceAt() and entry() be total.
+    for (size_t i = 0; i < db.nodeCount_; ++i) {
+        const uint64_t record =
+            static_cast<uint64_t>(db.recordsOffset_) + db.recordOffsetAt(i);
+        if (!within(record, format::kRecordFixedSize, size)) {
+            return failure("the compiled nodelist is truncated: " + path +
+                           " — amberedit --compile writes it again");
+        }
+        uint64_t total = 0;
+        for (size_t f = 0; f < 5; ++f) total += readU16(raw + record + 14 + (f * 2));
+        if (!within(record + format::kRecordFixedSize, total, size)) {
+            return failure("the compiled nodelist is truncated: " + path +
+                           " — amberedit --compile writes it again");
         }
     }
 
@@ -155,7 +172,7 @@ uint32_t NodelistDb::recordOffsetAt(size_t index) const {
 }
 
 domain::FtnAddress NodelistDb::addressAt(size_t index) const {
-    if (index >= nodeCount_) throw std::runtime_error("no such node in " + path_);
+    if (index >= nodeCount_) return {};
     const uint64_t key = keyAt(index);
     return {static_cast<uint16_t>(key >> 48),
             static_cast<uint16_t>(key >> 32),
@@ -165,22 +182,15 @@ domain::FtnAddress NodelistDb::addressAt(size_t index) const {
 }
 
 size_t NodelistDb::sourceAt(size_t index) const {
-    if (index >= nodeCount_) throw std::runtime_error("no such node in " + path_);
+    if (index >= nodeCount_) return sources_.size();
     const uint64_t at = static_cast<uint64_t>(recordsOffset_) + recordOffsetAt(index);
-    if (!within(at, format::kRecordFixedSize, data_.size())) {
-        throw std::runtime_error("the compiled nodelist is truncated: " + path_);
-    }
     return data_[at + 1];
 }
 
 NodeEntry NodelistDb::entry(size_t index) const {
-    if (index >= nodeCount_) throw std::runtime_error("no such node in " + path_);
+    if (index >= nodeCount_) return {};
 
     const uint64_t at = static_cast<uint64_t>(recordsOffset_) + recordOffsetAt(index);
-    const uint64_t size = data_.size();
-    if (!within(at, format::kRecordFixedSize, size)) {
-        throw std::runtime_error("the compiled nodelist is truncated: " + path_);
-    }
     const unsigned char* raw = data_.data() + at;
 
     NodeEntry entry;
@@ -190,14 +200,7 @@ NodeEntry NodelistDb::entry(size_t index) const {
     entry.speed = readU32(raw + 10);
 
     uint16_t lengths[5];
-    uint64_t total = 0;
-    for (size_t i = 0; i < 5; ++i) {
-        lengths[i] = readU16(raw + 14 + (i * 2));
-        total += lengths[i];
-    }
-    if (!within(at + format::kRecordFixedSize, total, size)) {
-        throw std::runtime_error("the compiled nodelist is truncated: " + path_);
-    }
+    for (size_t i = 0; i < 5; ++i) lengths[i] = readU16(raw + 14 + (i * 2));
 
     const char* text = reinterpret_cast<const char*>(raw) + format::kRecordFixedSize;
     std::string* const fields[5] = {&entry.system, &entry.location, &entry.sysop,

@@ -41,7 +41,7 @@ TEST_CASE("the nodelist and the pointlist in testdata compile into one file "
 
     // The two are one file, and each node is under the address its own list put
     // it at.
-    const auto db = nodelist::NodelistDb::open(options.dbPath);
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(options.dbPath));
     CHECK(db.size() == report.nodes + report.points);
     REQUIRE(db.sources().size() == 2);
     // A node remembers the line the config wrote and not the file it happened
@@ -120,7 +120,7 @@ TEST_CASE("a nodelist that is not there is said out loud and never thrown "
 
     // The one that would not read is in the compiled file all the same, as the
     // nothing it was: that is what stops the next start compiling again.
-    const auto db = nodelist::NodelistDb::open(options.dbPath);
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(options.dbPath));
     REQUIRE(db.sources().size() == 2);
     CHECK(db.sources()[0].spec == options.sources[0]);
     CHECK(db.sources()[0].path.empty());

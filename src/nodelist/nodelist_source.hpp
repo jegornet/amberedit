@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "support/result.hpp"
+
 namespace amberedit::nodelist {
 
 /// What a `nodelist` line names.
@@ -134,12 +136,13 @@ public:
         std::string text;
     };
 
-    /// Resolves the spec, unpacks it where it is an archive, and reads it.
-    /// Throws std::runtime_error saying what was looked for and where.
-    [[nodiscard]] Loaded read(const std::string& spec);
+    /// Resolves the spec, unpacks it where it is an archive, and reads it, or
+    /// says what was looked for and where.
+    [[nodiscard]] Result<Loaded> read(const std::string& spec);
 
 private:
-    [[nodiscard]] Loaded readArchive(const NodelistSpec& spec, const SourceState& state);
+    [[nodiscard]] Result<Loaded> readArchive(const NodelistSpec& spec,
+                                             const SourceState& state);
 
     std::string tempDir_;
     std::vector<std::string> unpacked_;

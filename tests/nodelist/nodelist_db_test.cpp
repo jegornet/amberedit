@@ -2,6 +2,7 @@
 
 #include <doctest/doctest.h>
 
+#include <filesystem>
 #include <fstream>
 
 #include "nodelist/nodelist_writer.hpp"
@@ -10,7 +11,6 @@
 
 using namespace amberedit;
 using amberedit::test::contains;
-using amberedit::test::errorFrom;
 
 namespace {
 
@@ -59,12 +59,12 @@ TEST_CASE("a compiled nodelist reads back what went into it [nodelist]") {
                       node("2:5020/999.1", "A Point", "Vasiliy Pupkin")};
     source.entries[0].flags = "CM,IBN:24554";
 
-    const auto report = nodelist::writeNodelistDb(path, {source}, 1234567890);
+    const auto report = amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 1234567890));
     CHECK(report.nodes == 1);
     CHECK(report.points == 1);
     CHECK(report.duplicates == 0);
 
-    const auto db = nodelist::NodelistDb::open(path);
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
     REQUIRE(db.size() == 2);
     CHECK(db.builtAt() == 1234567890);
     REQUIRE(db.sources().size() == 1);
@@ -98,8 +98,8 @@ TEST_CASE("a node is found by its whole address and by any part of one [nodelist
         node("2:5020/999.1", "A Point", "Petr Petrov"),
         node("3:640/1384", "Another", "Somebody Else"),
     };
-    nodelist::writeNodelistDb(path, {source}, 0);
-    const auto db = nodelist::NodelistDb::open(path);
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 0)));
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
     REQUIRE(db.size() == 7);
 
     const auto range = [&db](const std::string& text) {
@@ -144,8 +144,8 @@ TEST_CASE("a node is found by the whole of a sysop's name or by part of one "
         node("2:5020/999", "A_BBS", "Vasiliy Pupkin"),
         node("2:5020/1042", "Another", "Andrew Leary"),
     };
-    nodelist::writeNodelistDb(path, {source}, 0);
-    const auto db = nodelist::NodelistDb::open(path);
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 0)));
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
 
     // The whole name, either way it is spelled, and either case.
     CHECK(addresses(db, bySysop(db, "Tommi Koivula")) ==
@@ -191,8 +191,8 @@ TEST_CASE("a point nobody lists is answered for by its boss [nodelist]") {
         node("2:5020/999.1", "A Point", "Petr Petrov"),
         node("2:5020/1000", "Another", "Ivan Ivanov"),
     };
-    nodelist::writeNodelistDb(path, {source}, 0);
-    const auto db = nodelist::NodelistDb::open(path);
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 0)));
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
 
     const auto at = [&db](const std::string& address) {
         const auto found = db.findOrBoss(*domain::FtnAddress::parse(address));
@@ -230,8 +230,8 @@ TEST_CASE("a sysop search can answer closest first [nodelist]") {
         node("2:1/4", "D", "Bill O'Leary"),    // and stands inside a word of
         node("2:1/5", "E", "Zoe Leary"),       // a word of it, and a shorter name
     };
-    nodelist::writeNodelistDb(path, {source}, 0);
-    const auto db = nodelist::NodelistDb::open(path);
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 0)));
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
 
     // Address order is the order the nodelist itself is in, and says nothing
     // about which of them the query meant.
@@ -267,10 +267,10 @@ TEST_CASE("the first nodelist to name an address is the one that keeps it "
                               {node("2:5020/999", "The second", "Second Op"),
                                node("2:5020/1000", "Only here", "Third Op")}};
 
-    const auto report = nodelist::writeNodelistDb(path, {first, second}, 0);
+    const auto report = amberedit::test::valueOf(nodelist::writeNodelistDb(path, {first, second}, 0));
     CHECK(report.duplicates == 1);
 
-    const auto db = nodelist::NodelistDb::open(path);
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
     REQUIRE(db.size() == 2);
     CHECK(db.entry(0).system == "The first");
     CHECK(db.sourceAt(0) == 0);
@@ -284,7 +284,7 @@ TEST_CASE("a compiled nodelist that is not one is refused by name [nodelist]") {
     test::TempDir dir;
 
     const std::string missing = dir.path("nothing.db");
-    const std::string error = errorFrom([&] { nodelist::NodelistDb::open(missing); });
+    const std::string error = amberedit::test::errorOf(nodelist::NodelistDb::open(missing));
     CHECK_MESSAGE(contains(error, missing), error);
 
     const std::string wrong = dir.path("wrong.db");
@@ -292,29 +292,67 @@ TEST_CASE("a compiled nodelist that is not one is refused by name [nodelist]") {
         std::ofstream out(wrong, std::ios::binary);
         out << "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n";
     }
-    const std::string error2 = errorFrom([&] { nodelist::NodelistDb::open(wrong); });
+    const std::string error2 = amberedit::test::errorOf(nodelist::NodelistDb::open(wrong));
     CHECK_MESSAGE(contains(error2, "not a compiled nodelist"), error2);
 
     // The version marker is what a file compiled by another AmberEdit is caught
     // by, and the complaint says what to do about it.
     const std::string old = dir.path("old.db");
-    nodelist::writeNodelistDb(old, {{{"nodelist"}, {node("2:5020/999", "A", "B")}}}, 0);
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(old, {{{"nodelist"}, {node("2:5020/999", "A", "B")}}}, 0)));
     {
         std::fstream out(old, std::ios::binary | std::ios::in | std::ios::out);
         out.seekp(8);
         const char version[2] = {0x63, 0x00};
         out.write(version, 2);
     }
-    const std::string error3 = errorFrom([&] { nodelist::NodelistDb::open(old); });
+    const std::string error3 = amberedit::test::errorOf(nodelist::NodelistDb::open(old));
     CHECK_MESSAGE(contains(error3, "format version 99"), error3);
+}
+
+TEST_CASE("a compiled nodelist whose records do not fit is refused at open "
+          "[nodelist]") {
+    // A record states the lengths of its five fields, and one of them stating
+    // more than the file holds is a file whose header still adds up. It is
+    // refused at open, where the path can be named, and that is what lets
+    // addressAt(), entry() and sourceAt() be total: the dialog draws a row at a
+    // time and has nowhere to say that one of them could not be read.
+    test::TempDir dir;
+    const std::string path = dir.path("bent.db");
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(
+        path, {{{"nodelist"}, {node("2:5020/999", "A System", "A Sysop")}}}, 0)));
+
+    // The offset of the records is the fifth field of the header, and the first
+    // of a record's five field lengths stands fourteen bytes into it.
+    uint32_t recordsOffset = 0;
+    {
+        std::ifstream in(path, std::ios::binary);
+        in.seekg(16);
+        char raw[4];
+        in.read(raw, 4);
+        recordsOffset = static_cast<uint32_t>(static_cast<unsigned char>(raw[0])) |
+                        static_cast<uint32_t>(static_cast<unsigned char>(raw[1])) << 8 |
+                        static_cast<uint32_t>(static_cast<unsigned char>(raw[2])) << 16 |
+                        static_cast<uint32_t>(static_cast<unsigned char>(raw[3])) << 24;
+    }
+    REQUIRE(recordsOffset != 0);
+    {
+        std::fstream out(path, std::ios::binary | std::ios::in | std::ios::out);
+        out.seekp(static_cast<std::streamoff>(recordsOffset) + 14);
+        const char huge[2] = {'\xff', '\xff'};
+        out.write(huge, 2);
+    }
+
+    const std::string error = amberedit::test::errorOf(nodelist::NodelistDb::open(path));
+    CHECK_MESSAGE(contains(error, "truncated"), error);
+    CHECK_MESSAGE(contains(error, path), error);
 }
 
 TEST_CASE("an empty nodelist compiles and answers nothing [nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
-    nodelist::writeNodelistDb(path, {{{"nodelist"}, {}}}, 0);
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {{{"nodelist"}, {}}}, 0)));
 
-    const auto db = nodelist::NodelistDb::open(path);
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
     CHECK(db.empty());
     CHECK_FALSE(db.find(*domain::FtnAddress::parse("2:5020/999")));
     CHECK(db.findBySysop("anybody").empty());

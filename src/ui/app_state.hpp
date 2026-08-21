@@ -289,12 +289,10 @@ struct AppState {
             if (config.nodelistDbPath.empty()) {
                 nodelistProblem =
                     "no nodelist — append nodelist and nodelist_db lines to the config";
+            } else if (auto opened = nodelist::NodelistDb::open(config.nodelistDbPath)) {
+                nodelistDb = std::move(*opened);
             } else {
-                try {
-                    nodelistDb = nodelist::NodelistDb::open(config.nodelistDbPath);
-                } catch (const std::exception& e) {
-                    nodelistProblem = e.what();
-                }
+                nodelistProblem = opened.error();
             }
         }
         return nodelistDb ? &*nodelistDb : nullptr;

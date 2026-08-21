@@ -4,7 +4,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
+#include <utility>
 #include <unordered_map>
 
 #include "msgbase/byte_order.hpp"
@@ -60,25 +60,26 @@ struct NameEntry {
 /// 200 bytes and every field of it far shorter, so this only fires on a file
 /// that is not a nodelist at all — but the length is written in two bytes, and
 /// a truncated one would be read back as a record boundary in the wrong place.
-uint16_t fieldLength(const std::string& field, const char* what,
-                     const std::string& path) {
+Result<uint16_t> fieldLength(const std::string& field, const char* what,
+                             const std::string& path) {
     if (field.size() > 0xffff) {
-        throw std::runtime_error(path + ": a nodelist line has a " + what + " field of " +
-                                 std::to_string(field.size()) +
-                                 " bytes, which no nodelist line has");
+        return failure(path + ": a nodelist line has a " + what + " field of " +
+                       std::to_string(field.size()) +
+                       " bytes, which no nodelist line has");
     }
     return static_cast<uint16_t>(field.size());
 }
 
 }  // namespace
 
-WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>& sources,
-                            std::time_t builtAt) {
+Result<WriteReport> writeNodelistDb(const std::string& path,
+                                    const std::vector<DbSource>& sources,
+                                    std::time_t builtAt) {
     if (sources.size() > format::kMaxSources) {
-        throw std::runtime_error(path + ": " + std::to_string(sources.size()) +
-                                 " nodelists is more than the " +
-                                 std::to_string(format::kMaxSources) +
-                                 " one compiled file can be made of");
+        return failure(path + ": " + std::to_string(sources.size()) +
+                       " nodelists is more than the " +
+                       std::to_string(format::kMaxSources) +
+                       " one compiled file can be made of");
     }
 
     std::vector<Pending> pending;
@@ -122,7 +123,7 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
     for (const auto& item : kept) {
         const NodeEntry& entry = *item.entry;
         if (records.size() > 0xffffffffu) {
-            throw std::runtime_error(path + ": the nodelists do not fit in one file");
+            return failure(path + ": the nodelists do not fit in one file");
         }
         appendU64(addressIndex, item.key);
         appendU32(addressIndex, static_cast<uint32_t>(records.size()));
@@ -134,11 +135,20 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
         appendU16(records, entry.address.node);
         appendU16(records, entry.address.point);
         appendU32(records, entry.speed);
-        appendU16(records, fieldLength(entry.system, "system name", path));
-        appendU16(records, fieldLength(entry.location, "location", path));
-        appendU16(records, fieldLength(entry.sysop, "sysop", path));
-        appendU16(records, fieldLength(entry.phone, "phone", path));
-        appendU16(records, fieldLength(entry.flags, "flags", path));
+        // The five lengths in the order the record writes them, each checked
+        // before it is appended: a field too long for two bytes would be read
+        // back as a record boundary in the wrong place.
+        const std::pair<const std::string*, const char*> fields[5] = {
+            {&entry.system, "system name"},
+            {&entry.location, "location"},
+            {&entry.sysop, "sysop"},
+            {&entry.phone, "phone"},
+            {&entry.flags, "flags"}};
+        for (const auto& field : fields) {
+            const auto length = fieldLength(*field.first, field.second, path);
+            if (!length) return tl::make_unexpected(length.error());
+            appendU16(records, *length);
+        }
         records += entry.system;
         records += entry.location;
         records += entry.sysop;
@@ -166,8 +176,7 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
         auto found = poolOffsets.find(folded);
         if (found == poolOffsets.end()) {
             if (namePool.size() > 0xffffffffu - folded.size() - 1) {
-                throw std::runtime_error(path +
-                                         ": the sysop names do not fit in one file");
+                return failure(path + ": the sysop names do not fit in one file");
             }
             found =
                 poolOffsets.emplace(folded, static_cast<uint32_t>(namePool.size())).first;
@@ -230,7 +239,7 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
     const uint64_t fileSize =
         static_cast<uint64_t>(recordsOffset) + static_cast<uint64_t>(records.size());
     if (fileSize > 0xffffffffu) {
-        throw std::runtime_error(path + ": the nodelists do not fit in one file");
+        return failure(path + ": the nodelists do not fit in one file");
     }
 
     std::string header;
@@ -260,8 +269,7 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
     {
         std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
         if (!out) {
-            throw std::runtime_error("cannot write the compiled nodelist: " +
-                                     temporary.string());
+            return failure("cannot write the compiled nodelist: " + temporary.string());
         }
         out.write(header.data(), static_cast<std::streamsize>(header.size()));
         out.write(addressIndex.data(), static_cast<std::streamsize>(addressIndex.size()));
@@ -274,8 +282,7 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
         if (!out) {
             std::error_code ec;
             fs::remove(temporary, ec);
-            throw std::runtime_error("cannot write the compiled nodelist: " +
-                                     temporary.string());
+            return failure("cannot write the compiled nodelist: " + temporary.string());
         }
     }
 
@@ -283,8 +290,8 @@ WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>
     fs::rename(temporary, destination, ec);
     if (ec) {
         fs::remove(temporary, ec);
-        throw std::runtime_error("cannot put the compiled nodelist at " + path + ": " +
-                                 ec.message());
+        return failure("cannot put the compiled nodelist at " + path + ": " +
+                       ec.message());
     }
 
     report.bytes = static_cast<size_t>(fileSize);
