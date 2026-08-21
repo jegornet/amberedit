@@ -17,8 +17,10 @@ namespace {
 std::string quoted(const std::vector<std::string>& lines, const std::string& author,
                    const std::string& quoteString, int margin) {
     std::string out;
+    bool first = true;
     for (const auto& line : quoteLines(lines, author, quoteString, margin)) {
-        if (!out.empty()) out += '|';
+        if (!first) out += '|';
+        first = false;
         out += line;
     }
     return out;
@@ -71,9 +73,10 @@ TEST_CASE("A line that is not a quote gets the author's initials [quoting]") {
           " VP> >8 lines follow");
 }
 
-TEST_CASE("A line with nothing on it is not quoted at all [quoting]") {
+TEST_CASE("A line with nothing on it comes out empty rather than quoted [quoting]") {
     // Nothing to answer, and a reply padded with empty quotes reads worse than
-    // one without them.
+    // one without them — but the break in the text is the answered message's
+    // paragraphing and stays.
     CHECK(quoted({""}, "Vasya Pupkin", " FL> ", 78).empty());
     CHECK(quoted({"     "}, "Vasya Pupkin", " FL> ", 78).empty());
     CHECK(quoted({"\t "}, "Vasya Pupkin", " FL> ", 78).empty());
@@ -82,9 +85,23 @@ TEST_CASE("A line with nothing on it is not quoted at all [quoting]") {
     CHECK(quoted({" AB> "}, "Vasya Pupkin", " FL> ", 78).empty());
     CHECK(quoted({" AB>>   "}, "Vasya Pupkin", " FL> ", 78).empty());
 
-    // The lines round it are quoted as they were.
+    // One empty line between two paragraphs stays one.
+    CHECK(quoted({"one", "", "two"}, "Vasya Pupkin", " FL> ", 78) ==
+          " VP> one|| VP> two");
+}
+
+TEST_CASE("A run of empty lines comes out as one [quoting]") {
+    // Whatever they were written as — bare, spaces, or empty quotes — several
+    // in a row are one break in the text.
     CHECK(quoted({"one", "", "  ", " AB> ", "two"}, "Vasya Pupkin", " FL> ", 78) ==
-          " VP> one| VP> two");
+          " VP> one|| VP> two");
+    CHECK(quoted({"one", "", "", "", "two"}, "Vasya Pupkin", " FL> ", 78) ==
+          " VP> one|| VP> two");
+
+    // The head and the tail of the quote are no different: what the answered
+    // message spaced its text with, the reply is written between.
+    CHECK(quoted({"", "", "one"}, "Vasya Pupkin", " FL> ", 78) == "| VP> one");
+    CHECK(quoted({"one", "", ""}, "Vasya Pupkin", " FL> ", 78) == " VP> one|");
 }
 
 TEST_CASE("A quoted line is wrapped at the margin, prefix and all [quoting]") {

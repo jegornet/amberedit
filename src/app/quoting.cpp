@@ -230,6 +230,9 @@ std::vector<std::string> quoteLines(const std::vector<std::string>& lines,
     const auto limit = static_cast<size_t>(std::max(1, margin));
 
     std::vector<std::string> out;
+    // Set by a line with nothing on it and cleared by the empty line it is
+    // written out as, so that a run of them yields one break and no more.
+    bool pendingBreak = false;
     for (const auto& line : lines) {
         const QuotePrefix existing = parseQuotePrefix(line);
         const std::string prefix =
@@ -240,8 +243,17 @@ std::vector<std::string> quoteLines(const std::vector<std::string>& lines,
         // A line with nothing on it is not quoted at all — neither an empty
         // one, nor one of nothing but spaces, nor one that is a quote prefix
         // and no more. There is nothing there to answer, and a reply padded
-        // with empty quotes is harder to read than one without them.
-        if (rest.find_first_not_of(" \t") == std::string_view::npos) continue;
+        // with empty quotes is harder to read than one without them. It stays
+        // as the empty line it is: the paragraphs of the answered message are
+        // what the reply is written between.
+        if (rest.find_first_not_of(" \t") == std::string_view::npos) {
+            pendingBreak = true;
+            continue;
+        }
+        if (pendingBreak) {
+            out.emplace_back();
+            pendingBreak = false;
+        }
 
         // A line that fits is quoted as it stands. Indentation, tables and
         // ASCII art survive that way; only what overflows is rearranged.
@@ -258,6 +270,7 @@ std::vector<std::string> quoteLines(const std::vector<std::string>& lines,
             out.push_back(rstrip(prefix + piece));
         }
     }
+    if (pendingBreak) out.emplace_back();
     return out;
 }
 

@@ -47,7 +47,10 @@ struct QuotePrefix {
 /// under the same prefix.
 ///
 /// A line carrying nothing — empty, all spaces, or a quote prefix and no more
-/// — is left out rather than quoted: there is nothing there to answer.
+/// — comes out empty rather than quoted: there is nothing there to answer, and
+/// an empty quote reads worse than a break in the text. The break itself is
+/// kept, because it is how the answered message was paragraphed; a run of
+/// several such lines comes out as one.
 ///
 /// Measured in characters rather than terminal columns: the margin is about
 /// how long the line is in the message, and in the single-byte charsets FTN
