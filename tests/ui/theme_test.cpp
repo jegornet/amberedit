@@ -86,6 +86,13 @@ TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.selection, builtIn.selection));
     CHECK(same(loaded.selectionText, builtIn.selectionText));
     CHECK(same(loaded.inputField, builtIn.inputField));
+    CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
+    CHECK(same(loaded.dialogText, builtIn.dialogText));
+    CHECK(same(loaded.dialogTitle, builtIn.dialogTitle));
+    CHECK(same(loaded.dialogLabel, builtIn.dialogLabel));
+    CHECK(same(loaded.dialogHint, builtIn.dialogHint));
+    CHECK(same(loaded.dialogField, builtIn.dialogField));
+    CHECK(same(loaded.dialogFlash, builtIn.dialogFlash));
     CHECK(same(loaded.header, builtIn.header));
     CHECK(same(loaded.ownName, builtIn.ownName));
     CHECK(same(loaded.msglistUnread, builtIn.msglistUnread));
@@ -123,6 +130,13 @@ TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.selection, builtIn.selection));
     CHECK_FALSE(same(loaded.selectionText, builtIn.selectionText));
     CHECK_FALSE(same(loaded.inputField, builtIn.inputField));
+    CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
+    CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
+    CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));
+    CHECK_FALSE(same(loaded.dialogLabel, builtIn.dialogLabel));
+    CHECK_FALSE(same(loaded.dialogHint, builtIn.dialogHint));
+    CHECK_FALSE(same(loaded.dialogField, builtIn.dialogField));
+    CHECK_FALSE(same(loaded.dialogFlash, builtIn.dialogFlash));
     CHECK_FALSE(same(loaded.header, builtIn.header));
     CHECK_FALSE(same(loaded.ownName, builtIn.ownName));
     CHECK_FALSE(same(loaded.msglistUnread, builtIn.msglistUnread));
@@ -151,6 +165,41 @@ TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.unsent, builtIn.unsent));
     CHECK_FALSE(same(loaded.found, builtIn.found));
     CHECK_FALSE(same(loaded.animatedButtonText, builtIn.animatedButtonText));
+}
+
+TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [theme]") {
+    // The rule the dialog palette exists for: a modal carries a fill of its
+    // own, so every color drawn on that fill has to be something else. Left
+    // unchecked it is an invisible confirmation rather than an ugly one — the
+    // text is there, in the color of what is behind it.
+    for (const char* file : {"themes/default.cfg", "themes/ged_classic.cfg"}) {
+        CAPTURE(file);
+        const Palette theme = valueOf(
+            amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
+
+        // Written straight onto the box.
+        CHECK_FALSE(same(theme.dialogText, theme.dialogBackground));
+        CHECK_FALSE(same(theme.dialogTitle, theme.dialogBackground));
+        CHECK_FALSE(same(theme.dialogLabel, theme.dialogBackground));
+        CHECK_FALSE(same(theme.dialogHint, theme.dialogBackground));
+        CHECK_FALSE(same(theme.dialogFlash, theme.dialogBackground));
+        CHECK_FALSE(same(theme.menuButton, theme.dialogBackground));
+        CHECK_FALSE(same(theme.separator, theme.dialogBackground));
+        CHECK_FALSE(same(theme.error, theme.dialogBackground));
+
+        // The two fills a box puts down over its own: the bar on whatever Enter
+        // would act on, and the slot that takes typing.
+        CHECK_FALSE(same(theme.selection, theme.dialogBackground));
+        CHECK_FALSE(same(theme.dialogField, theme.dialogBackground));
+
+        // And what is written on each of them. A click lands on the selected
+        // button as readily as on the other one, which is what puts
+        // `dialog_flash` on the bar; a field standing idle is `dialog_label` on
+        // the slot.
+        CHECK_FALSE(same(theme.selectionText, theme.selection));
+        CHECK_FALSE(same(theme.dialogFlash, theme.selection));
+        CHECK_FALSE(same(theme.dialogLabel, theme.dialogField));
+    }
 }
 
 TEST_CASE("A broken theme is refused with the file and line named [theme]") {

@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -149,7 +150,7 @@ Element bar(int width, const std::string& left, const std::string& right,
     const int before = room / 2;
     return hbox(
         {text(left + horizontalRule(before)) | color(theme::palette.separator),
-         text(label) | color(theme::palette.tableHeader),
+         text(label) | color(theme::palette.dialogTitle),
          text(horizontalRule(room - before) + right) | color(theme::palette.separator)});
 }
 
@@ -189,8 +190,9 @@ Element render(AppState& state, Element background) {
         const std::string content =
             at < total ? view.lines[static_cast<size_t>(at)].text : std::string{};
 
-        Element row = text(" " + padRight(content, columns) + " ") |
-                      color(heading ? theme::palette.header : theme::palette.text);
+        Element row =
+            text(" " + padRight(content, columns) + " ") |
+            color(heading ? theme::palette.dialogLabel : theme::palette.dialogText);
         if (heading) row = std::move(row) | bold;
         lines.push_back(hbox({side(), std::move(row), side()}));
     }
@@ -206,7 +208,8 @@ Element render(AppState& state, Element background) {
     }
     lines.push_back(bar(inner, "╰", "╯", position));
 
-    return dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+    return dbox(
+        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {

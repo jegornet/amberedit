@@ -10,8 +10,10 @@ namespace amberedit::ui::term {
 ///
 /// The default-constructed Color is not black: it is "whatever this terminal
 /// uses when nothing is asked for", which is what a cleared cell must be. Only
-/// `clear_under` produces those, so that a dialog does not inherit the theme's
-/// background — see `element.cpp`.
+/// `clear_under` produces those — and nothing the user looks at is left in one:
+/// the screen is painted in the theme's `background`, and a dialog paints its
+/// own `dialog_background` over the box it has just cleared. See `element.cpp`
+/// and `ui/dialog_frame.cpp`.
 struct Color {
     uint8_t index{0};
     bool defaulted{true};

@@ -294,7 +294,7 @@ Element modeMark(const std::string& label, bool chosen, bool focused) {
                bgcolor(theme::palette.selection);
     }
     return std::move(element) |
-           color(chosen ? theme::palette.header : theme::palette.text);
+           color(chosen ? theme::palette.dialogLabel : theme::palette.dialogText);
 }
 
 /// A file's stamp, written the way every other stamp in the interface is —
@@ -572,12 +572,12 @@ Element render(AppState& state, Element background) {
     // leaves the cursor where it was, as it does on the area list: erasing it
     // takes the user back to what was still matching.
     std::string label = " Import file ";
-    theme::Color tint = theme::palette.tableHeader;
+    theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         label = " File: " + picker.search + "▌ ";
-        tint = findByPrefix(picker.entries, picker.search) ? theme::palette.tableHeader
+        tint = findByPrefix(picker.entries, picker.search) ? theme::palette.dialogTitle
                                                            : theme::palette.error;
     }
 
@@ -591,9 +591,9 @@ Element render(AppState& state, Element background) {
     picker.pathBox = Box::Nowhere();
     lines.push_back(dialog::framed(
         inputField(picker.path, picker.pathCursor, inner, onPath,
-                   onPath ? theme::palette.selectionText : theme::palette.header,
+                   onPath ? theme::palette.selectionText : theme::palette.dialogLabel,
                    &picker.pathOrigin) |
-        bgcolor(onPath ? theme::palette.selection : theme::palette.inputField) |
+        bgcolor(onPath ? theme::palette.selection : theme::palette.dialogField) |
         reflect(picker.pathBox)));
     lines.push_back(dialog::divider(inner));
 
@@ -607,7 +607,7 @@ Element render(AppState& state, Element background) {
     for (int i = 0; i < picker.rows; ++i) {
         const int index = picker.offset + i;
         if (index >= total) {
-            lines.push_back(dialog::line("", inner, theme::palette.text));
+            lines.push_back(dialog::line("", inner, theme::palette.dialogText));
             continue;
         }
         const auto& entry = picker.entries[static_cast<size_t>(index)];
@@ -621,10 +621,10 @@ Element render(AppState& state, Element background) {
             // The cursor is still on this row while the typing is elsewhere in
             // the box — Enter reads what it names — so the row says so quietly
             // rather than wearing the fill of a list being walked.
-            cell = std::move(cell) | bold | color(theme::palette.header);
+            cell = std::move(cell) | bold | color(theme::palette.dialogLabel);
         } else {
-            cell = std::move(cell) |
-                   color(entry.directory ? theme::palette.header : theme::palette.text);
+            cell = std::move(cell) | color(entry.directory ? theme::palette.dialogLabel
+                                                           : theme::palette.dialogText);
         }
 
         picker.rowBoxes.push_back({index, {}});
@@ -643,7 +643,7 @@ Element render(AppState& state, Element background) {
     const int modeUsed = displayWidth(kModeLabel) + displayWidth(kModeGap) +
                          markWidth("Text") + markWidth("UUE");
     lines.push_back(dialog::framed(hbox(
-        {text(kModeLabel) | color(theme::palette.header),
+        {text(kModeLabel) | color(theme::palette.dialogLabel),
          modeMark("Text", state.importMode == app::ImportMode::Text, onMode) |
              reflect(picker.textModeBox),
          text(kModeGap),
@@ -656,9 +656,11 @@ Element render(AppState& state, Element background) {
     // on the screen to be corrected.
     lines.push_back(dialog::bottomBar(kHint, picker.error, inner));
 
-    // clear_under wipes the screen behind the box, so the message underneath
-    // does not show through it.
-    return dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the message underneath neither shows
+    // through it nor colors it.
+    return dbox(
+        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

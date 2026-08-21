@@ -355,9 +355,10 @@ TEST_CASE("a disabled button is drawn quietly and the cursor's is filled [menu]"
     // on, so that what it is on is visible from across the box.
     CHECK(cell(items[0].box).first == theme::palette.selectionText);
     CHECK(cell(items[0].box).second == theme::palette.selection);
-    // The dead one is drawn in `dimmed`, which is what everything the interface
-    // shows but will not act on is drawn in.
-    CHECK(cell(items[1].box).first == theme::palette.dimmed);
+    // The dead one is drawn in `dialog_hint`, which is what a box shows but
+    // will not act on — the counterpart inside a box of the `dimmed` the lists
+    // use, and a separate role because the box carries a fill of its own.
+    CHECK(cell(items[1].box).first == theme::palette.dialogHint);
 }
 
 TEST_CASE("a click answers with the button it landed on [menu]") {

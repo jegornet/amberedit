@@ -562,7 +562,9 @@ compose_delete_line_button when_narrow
 
 # The context menu: a column of buttons, one command each, opened by the button
 # in the top-right corner of the reader and of the editor. Every command is one a
-# key does too; a button whose command has nothing to do is drawn dimmed. The
+# key does too; a button whose command has nothing to do is drawn quietly, in
+# the theme's "dialog_hint" color as everything else a box shows but will not
+# act on is. The
 # value is the commands in the order they are to stand, and each screen has its
 # own key and its own commands:
 #
@@ -602,8 +604,9 @@ menu_buttons_width 20
 
 # How long a click is shown before it acts, in milliseconds. Optional; 100 by
 # default, 0 turning the animation off. A click on a button draws it in the
-# theme's animated_button_text color for that long; a click in a list shows the
-# row it landed on as the current one and only then opens it.
+# theme's animated_button_text color for that long — dialog_flash where the
+# button stands inside a dialog; a click in a list shows the row it landed on as
+# the current one and only then opens it.
 click_animation_ms 100
 
 # --- dates --------------------------------------------------------------------

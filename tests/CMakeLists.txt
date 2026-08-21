@@ -64,6 +64,7 @@ add_executable(amberedit_tests
   ui/delete_line_button_test.cpp
   ui/menu_dialog_test.cpp
   ui/element_test.cpp
+  ui/dialog_frame_test.cpp
   ui/list_page_test.cpp
   ui/quick_search_test.cpp
   ui/theme_test.cpp

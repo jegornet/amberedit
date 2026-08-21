@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -49,7 +50,7 @@ Element rowOf(const std::string& text_, bool selected) {
         return std::move(element) | bold | color(theme::palette.selectionText) |
                bgcolor(theme::palette.selection);
     }
-    return std::move(element) | color(theme::palette.text);
+    return std::move(element) | color(theme::palette.dialogText);
 }
 
 /// The top of the frame, with the title in the middle of it.
@@ -58,7 +59,7 @@ Element titleBar(int width) {
     const int left = std::max(0, (width - displayWidth(label)) / 2);
     const int right = std::max(0, width - left - displayWidth(label));
     return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.separator),
-                 text(label) | color(theme::palette.tableHeader),
+                 text(label) | color(theme::palette.dialogTitle),
                  text(horizontalRule(right) + "╮") | color(theme::palette.separator)});
 }
 
@@ -91,9 +92,11 @@ Element render(AppState& state, Element background) {
     lines.push_back(text("╰" + horizontalRule(inner) + "╯") |
                     color(theme::palette.separator));
 
-    // clear_under wipes the screen behind the box, so the message underneath
-    // does not show through it.
-    return dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the message underneath neither shows
+    // through it nor colors it.
+    return dbox(
+        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

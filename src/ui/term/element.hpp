@@ -96,9 +96,11 @@ protected:
 [[nodiscard]] Element vcenter(Element child);
 [[nodiscard]] Element center(Element child);
 
-/// Blanks the cells under the element before it is drawn, back to the terminal's
-/// own colors. Used with `dbox` so that what a dialog covers does not show
-/// through it.
+/// Blanks the cells under the element before it is drawn — the colors and the
+/// attributes both, back to the terminal's own. Used with `dbox` so that what a
+/// dialog covers does not show through it, and never on its own: the cells it
+/// leaves are in a color no theme chose, so `dialog::surface()` puts the box's
+/// own fill down over them in the same breath.
 [[nodiscard]] Element clear_under(Element child);
 
 [[nodiscard]] Element bold(Element child);

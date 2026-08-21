@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/list_page.hpp"
 #include "ui/quick_search.hpp"
@@ -114,12 +115,12 @@ Element render(AppState& state, Element background) {
     // leaves the cursor where it was, as it does on the area list: erasing it
     // takes the user back to what was still matching.
     std::string label = titleFor(picker.purpose);
-    theme::Color tint = theme::palette.tableHeader;
+    theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         label = " Area: " + picker.search + "▌ ";
-        tint = findAreaByPrefix(areas, picker.search) ? theme::palette.tableHeader
+        tint = findAreaByPrefix(areas, picker.search) ? theme::palette.dialogTitle
                                                       : theme::palette.error;
     }
 
@@ -154,9 +155,9 @@ Element render(AppState& state, Element background) {
             cell = std::move(cell) | bold | color(theme::palette.selectionText) |
                    bgcolor(theme::palette.selection);
         } else if (!entry.isAvailable()) {
-            cell = std::move(cell) | color(theme::palette.dimmed);
+            cell = std::move(cell) | color(theme::palette.dialogHint);
         } else {
-            cell = std::move(cell) | color(theme::palette.text);
+            cell = std::move(cell) | color(theme::palette.dialogText);
         }
 
         picker.rows.push_back({index, {}});
@@ -166,9 +167,11 @@ Element render(AppState& state, Element background) {
     lines.push_back(text("╰" + horizontalRule(inner) + "╯") |
                     color(theme::palette.separator));
 
-    // clear_under wipes the screen behind the box, so the message underneath
-    // does not show through it.
-    return dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the message underneath neither shows
+    // through it nor colors it.
+    return dbox(
+        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

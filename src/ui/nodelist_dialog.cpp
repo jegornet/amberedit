@@ -383,9 +383,9 @@ Element render(AppState& state, Element background) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         dialog::titleBar(" Lookup: " + view.lookup + "▌ ", inner,
-                         view.found ? theme::palette.tableHeader : theme::palette.error),
-        dialog::line(first, inner, theme::palette.header),
-        dialog::line(second, inner, theme::palette.text),
+                         view.found ? theme::palette.dialogTitle : theme::palette.error),
+        dialog::line(first, inner, theme::palette.dialogLabel),
+        dialog::line(second, inner, theme::palette.dialogText),
         dialog::divider(inner),
     };
 
@@ -436,7 +436,7 @@ Element render(AppState& state, Element background) {
             cell = std::move(cell) | bold | color(theme::palette.selectionText) |
                    bgcolor(theme::palette.selection);
         } else {
-            cell = std::move(cell) | color(theme::palette.text);
+            cell = std::move(cell) | color(theme::palette.dialogText);
         }
         view.rowBoxes.push_back({at, {}});
         lines.push_back(
@@ -444,7 +444,8 @@ Element render(AppState& state, Element background) {
     }
 
     lines.push_back(dialog::footerBar(sourceLabel(state, view, total), inner));
-    return dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+    return dbox(
+        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

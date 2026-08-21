@@ -53,7 +53,7 @@ Element bottomBar(const std::string& hint, const std::string& error, int width) 
     if (hint.empty()) {
         return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.separator);
     }
-    return labelledRule("╰", "╯", " " + hint + " ", width, theme::palette.footer,
+    return labelledRule("╰", "╯", " " + hint + " ", width, theme::palette.dialogHint,
                         /*centred=*/false);
 }
 
@@ -61,8 +61,16 @@ Element footerBar(const std::string& label, int width) {
     if (label.empty()) {
         return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.separator);
     }
-    return labelledRule("╰", "╯", " " + label + " ", width, theme::palette.footer,
+    return labelledRule("╰", "╯", " " + label + " ", width, theme::palette.dialogHint,
                         /*centred=*/true);
+}
+
+Element surface(Element box) {
+    // clear_under is outermost of the three: a decorator draws before its
+    // child, so the wipe has to happen before the fill goes down rather than
+    // over it.
+    return std::move(box) | bgcolor(theme::palette.dialogBackground) |
+           color(theme::palette.dialogText) | clear_under;
 }
 
 Element framed(Element content) {

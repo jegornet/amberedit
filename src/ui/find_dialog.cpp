@@ -91,8 +91,9 @@ Element radio(const std::string& label, bool chosen, bool current, int inner) {
                               color(theme::palette.selectionText) |
                               bgcolor(theme::palette.selection));
     }
-    return dialog::framed(std::move(element) |
-                          color(chosen ? theme::palette.text : theme::palette.header));
+    return dialog::framed(
+        std::move(element) |
+        color(chosen ? theme::palette.dialogText : theme::palette.dialogLabel));
 }
 
 /// The button that runs the search, centred on a row of the box's own width —
@@ -103,12 +104,12 @@ Element findButton(const AppState& state, Picker& picker, int inner) {
     // Innermost, so that it is the color that lands: a parent paints its whole
     // box and the child paints over it.
     if (state.isPressed(AppState::Pressed::FindButton)) {
-        element = std::move(element) | color(theme::palette.animatedButtonText);
+        element = std::move(element) | color(theme::palette.dialogFlash);
     }
     element = picker.focus == Focus::Button
                   ? std::move(element) | bold | color(theme::palette.selectionText) |
                         bgcolor(theme::palette.selection)
-                  : std::move(element) | color(theme::palette.text);
+                  : std::move(element) | color(theme::palette.dialogText);
 
     const int spare = std::max(0, inner - displayWidth(kFindLabel));
     const int left = spare / 2;
@@ -180,9 +181,9 @@ Element render(AppState& state, Element background) {
     const int fieldWidth = std::max(1, inner - displayWidth(kLabel));
     Element field =
         inputField(picker.query, picker.cursor, fieldWidth, typing,
-                   typing ? theme::palette.selectionText : theme::palette.header,
+                   typing ? theme::palette.selectionText : theme::palette.dialogLabel,
                    &picker.origin) |
-        bgcolor(typing ? theme::palette.selection : theme::palette.inputField) |
+        bgcolor(typing ? theme::palette.selection : theme::palette.dialogField) |
         reflect(picker.queryBox);
 
     const bool onScope = picker.focus == Focus::Scope;
@@ -193,11 +194,11 @@ Element render(AppState& state, Element background) {
     Elements lines{
         dialog::titleBar(kTitle, inner),
         dialog::framed(
-            hbox({text(kLabel) | color(theme::palette.header), std::move(field)})),
+            hbox({text(kLabel) | color(theme::palette.dialogLabel), std::move(field)})),
         dialog::divider(inner),
         // The question the answers are to, so that neither of them has to say
         // "look in" as well as what it names.
-        dialog::line(" Look in:", inner, theme::palette.header),
+        dialog::line(" Look in:", inner, theme::palette.dialogLabel),
         radio(kBothLabel, picker.scope == Scope::HeaderAndText,
               onScope && picker.scope == Scope::HeaderAndText, inner) |
             reflect(picker.bothBox),
@@ -209,9 +210,11 @@ Element render(AppState& state, Element background) {
         dialog::bottomBar(kHint, picker.error, inner),
     };
 
-    // clear_under wipes the screen behind the box, so the message underneath
-    // does not show through it.
-    return dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the message underneath neither shows
+    // through it nor colors it.
+    return dbox(
+        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

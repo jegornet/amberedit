@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "app/export_file.hpp"
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -47,12 +48,12 @@ Element button(const std::string& label, bool selected, bool pressed) {
     auto element = text("  " + label + "  ");
     // Innermost, so that it is the color that lands: a parent paints its whole
     // box and the child paints over it.
-    if (pressed) element = std::move(element) | color(theme::palette.animatedButtonText);
+    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
     if (selected) {
         return std::move(element) | bold | color(theme::palette.selectionText) |
                bgcolor(theme::palette.selection);
     }
-    return std::move(element) | color(theme::palette.text);
+    return std::move(element) | color(theme::palette.dialogText);
 }
 
 void step(AppState::ExportModePicker& picker, int delta) {
@@ -109,11 +110,11 @@ Element render(AppState& state, Element background) {
     AppState::ExportModePicker& picker = *state.exportModePicker;
 
     Elements rows{
-        text(kHeading) | bold | color(theme::palette.text),
+        text(kHeading) | bold | color(theme::palette.dialogText),
         text(""),
     };
     for (const auto& name : namesShown(picker.files)) {
-        rows.push_back(text("  " + name) | color(theme::palette.header));
+        rows.push_back(text("  " + name) | color(theme::palette.dialogLabel));
     }
     rows.push_back(text(""));
 
@@ -133,16 +134,17 @@ Element render(AppState& state, Element background) {
                    center);
     rows.push_back(text(""));
     rows.push_back(text("←→ choose · Enter confirm · f/t · Esc cancel") |
-                   color(theme::palette.footer));
+                   color(theme::palette.dialogHint));
 
     // The frame is drawn round a padded box: without the margins the hint line
     // sets the width and ends up flush against the border.
-    auto dialog = hbox({text("  "), vbox(std::move(rows)), text("  ")}) | border |
-                  color(theme::palette.separator);
+    auto box = hbox({text("  "), vbox(std::move(rows)), text("  ")}) | border |
+               color(theme::palette.separator);
 
-    // clear_under wipes the screen behind the box, so the message underneath
-    // does not show through it.
-    return dbox({std::move(background), std::move(dialog) | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the message underneath neither shows
+    // through it nor colors it.
+    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

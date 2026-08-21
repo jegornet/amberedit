@@ -66,10 +66,11 @@ TEST_CASE("the innermost colour is the one that shows [element]") {
 }
 
 TEST_CASE("a dialog wipes what it covers and nothing else [element]") {
-    // Composed the way the dialogs compose it — `dialog | clear_under | center`.
-    // That order is what bounds the wipe: dbox hands every child the whole
-    // screen, so it is the centring outside clear_under that keeps it to the
-    // dialog. Getting this the wrong way round would blank the screen.
+    // Composed the way `dialog::surface()` composes it, the fill it puts down
+    // over the wipe left off. That order is what bounds the wipe: dbox hands
+    // every child the whole screen, so it is the centring outside clear_under
+    // that keeps it to the dialog. Getting this the wrong way round would blank
+    // the screen.
     Screen screen(5, 1);
     Element dialog = center(clear_under(text("x")));
     render(screen,

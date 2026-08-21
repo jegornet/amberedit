@@ -321,9 +321,9 @@ Outcome goToPath(AppState& state, Picker& picker) {
 Element box(const std::string& value, size_t cursor, int width, bool focused,
             size_t* origin, term::Box& where) {
     return inputField(value, cursor, width, focused,
-                      focused ? theme::palette.selectionText : theme::palette.header,
+                      focused ? theme::palette.selectionText : theme::palette.dialogLabel,
                       origin) |
-           bgcolor(focused ? theme::palette.selection : theme::palette.inputField) |
+           bgcolor(focused ? theme::palette.selection : theme::palette.dialogField) |
            reflect(where);
 }
 
@@ -334,12 +334,12 @@ Element answerButton(const std::string& label, bool selected, bool pressed) {
     auto element = text("  " + label + "  ");
     // Innermost, so that it is the color that lands: a parent paints its whole
     // box and the child paints over it.
-    if (pressed) element = std::move(element) | color(theme::palette.animatedButtonText);
+    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
     if (selected) {
         return std::move(element) | bold | color(theme::palette.selectionText) |
                bgcolor(theme::palette.selection);
     }
-    return std::move(element) | color(theme::palette.text);
+    return std::move(element) | color(theme::palette.dialogText);
 }
 
 /// The question a file already there raises, drawn over the box that raised it:
@@ -358,10 +358,10 @@ Element existingQuestion(AppState& state, Picker& picker) {
     };
 
     auto content = vbox({
-        text("File exists:") | bold | color(theme::palette.text),
+        text("File exists:") | bold | color(theme::palette.dialogText),
         text("  " + truncateToWidth(fs::path(existing.path).filename().string(),
                                     kExistingNameWidth)) |
-            color(theme::palette.header),
+            color(theme::palette.dialogLabel),
         text(""),
         hbox({
             answer("Overwrite", Answer::Overwrite, existing.overwriteBox),
@@ -370,7 +370,7 @@ Element existingQuestion(AppState& state, Picker& picker) {
         }) | center,
         text(""),
         text("←→ choose · Enter confirm · o/a · Esc cancel") |
-            color(theme::palette.footer),
+            color(theme::palette.dialogHint),
     });
 
     // The frame is drawn round a padded box: without the margins the hint line
@@ -640,12 +640,12 @@ Element render(AppState& state, Element background) {
     const auto total = static_cast<int>(picker.entries.size());
 
     std::string label = writingFiles(picker) ? " Export files " : " Export message ";
-    theme::Color tint = theme::palette.tableHeader;
+    theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         label = " Dir: " + picker.search + "▌ ";
-        tint = findByPrefix(picker.entries, picker.search) ? theme::palette.tableHeader
+        tint = findByPrefix(picker.entries, picker.search) ? theme::palette.dialogTitle
                                                            : theme::palette.error;
     }
 
@@ -666,7 +666,7 @@ Element render(AppState& state, Element background) {
     for (int i = 0; i < picker.rows; ++i) {
         const int index = picker.offset + i;
         if (index >= total) {
-            lines.push_back(dialog::line("", inner, theme::palette.text));
+            lines.push_back(dialog::line("", inner, theme::palette.dialogText));
             continue;
         }
         const auto& entry = picker.entries[static_cast<size_t>(index)];
@@ -681,9 +681,9 @@ Element render(AppState& state, Element background) {
             // The cursor is still on this row while the typing is elsewhere in
             // the box, so the row says so quietly rather than wearing the fill
             // of a list being walked.
-            cell = std::move(cell) | bold | color(theme::palette.header);
+            cell = std::move(cell) | bold | color(theme::palette.dialogLabel);
         } else {
-            cell = std::move(cell) | color(theme::palette.header);
+            cell = std::move(cell) | color(theme::palette.dialogLabel);
         }
 
         picker.rowBoxes.push_back({index, {}});
@@ -714,7 +714,7 @@ Element render(AppState& state, Element background) {
             lines.push_back(
                 dialog::framed(text((i == 0 ? std::string(kFilesLabel) : blank) +
                                     padRight(truncateToWidth(name, nameRoom), nameRoom)) |
-                               color(theme::palette.header)));
+                               color(theme::palette.dialogLabel)));
         }
 
         // The button that writes them, which is the ring's third stop where a
@@ -722,12 +722,12 @@ Element render(AppState& state, Element background) {
         // label cannot.
         Element save = text(kSaveLabel);
         if (state.isPressed(AppState::Pressed::ExportSave)) {
-            save = std::move(save) | color(theme::palette.animatedButtonText);
+            save = std::move(save) | color(theme::palette.dialogFlash);
         }
         save = picker.focus == Focus::Name
                    ? std::move(save) | bold | color(theme::palette.selectionText) |
                          bgcolor(theme::palette.selection)
-                   : std::move(save) | color(theme::palette.text);
+                   : std::move(save) | color(theme::palette.dialogText);
 
         // Centred by measuring rather than by a filler: a row of this box is as
         // wide as it is written, and a row narrower than the rest would take the
@@ -742,7 +742,7 @@ Element render(AppState& state, Element background) {
         // over, which is why this is typed rather than picked off the list above.
         const int nameWidth = std::max(1, inner - displayWidth(kNameLabel));
         lines.push_back(dialog::framed(hbox(
-            {text(kNameLabel) | color(theme::palette.header),
+            {text(kNameLabel) | color(theme::palette.dialogLabel),
              box(state.exportName, picker.nameCursor, nameWidth,
                  picker.focus == Focus::Name, &picker.nameOrigin, picker.nameBox)})));
     }
@@ -750,15 +750,16 @@ Element render(AppState& state, Element background) {
     lines.push_back(dialog::bottomBar(writingFiles(picker) ? kFilesHint : kHint,
                                       picker.error, inner));
 
-    // clear_under wipes the screen behind the box, so the message underneath
-    // does not show through it.
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the message underneath neither shows
+    // through it nor colors it.
     Element drawn =
-        dbox({std::move(background), vbox(std::move(lines)) | clear_under | center});
+        dbox({std::move(background), dialog::surface(vbox(std::move(lines))) | center});
     if (picker.existing) {
         // Over the box rather than in its place: what is being asked about is
         // the name standing in it.
-        drawn = dbox(
-            {std::move(drawn), existingQuestion(state, picker) | clear_under | center});
+        drawn = dbox({std::move(drawn),
+                      dialog::surface(existingQuestion(state, picker)) | center});
     }
     return drawn;
 }

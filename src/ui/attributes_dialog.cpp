@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "domain/message.hpp"
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -107,8 +108,8 @@ Element checkbox(const Attribute& attribute, uint32_t attributes, bool current) 
         return std::move(cell) | bold | color(theme::palette.selectionText) |
                bgcolor(theme::palette.selection);
     }
-    if (on) return std::move(cell) | bold | color(theme::palette.header);
-    return std::move(cell) | color(theme::palette.kludge);
+    if (on) return std::move(cell) | bold | color(theme::palette.dialogLabel);
+    return std::move(cell) | color(theme::palette.dialogHint);
 }
 
 /// What the button that closes the dialog says, and how wide that leaves it —
@@ -119,7 +120,7 @@ constexpr const char* kDoneLabel = "  Done  ";
 /// and lit for the length of a click on it.
 Element doneButton(bool pressed) {
     auto label = text(kDoneLabel);
-    if (pressed) label = std::move(label) | color(theme::palette.animatedButtonText);
+    if (pressed) label = std::move(label) | color(theme::palette.dialogFlash);
     return std::move(label) | bold | color(theme::palette.selectionText) |
            bgcolor(theme::palette.selection);
 }
@@ -131,7 +132,7 @@ Element titleBar(const std::string& label, int width) {
     const int left = std::max(0, (width - displayWidth(shown)) / 2);
     const int right = std::max(0, width - left - displayWidth(shown));
     return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.separator),
-                 text(shown) | color(theme::palette.tableHeader),
+                 text(shown) | color(theme::palette.dialogTitle),
                  text(horizontalRule(right) + "╮") | color(theme::palette.separator)});
 }
 
@@ -199,7 +200,7 @@ Element render(AppState& state, Element background) {
         rows.push_back(framed(hbox(std::move(cells))));
     }
 
-    rows.push_back(centred("", inner, theme::palette.text));
+    rows.push_back(centred("", inner, theme::palette.dialogText));
     const Element button =
         doneButton(state.isPressed(AppState::Pressed::AttributesDone)) |
         reflect(picker.doneBox);
@@ -210,13 +211,14 @@ Element render(AppState& state, Element background) {
               text(std::string(
                   static_cast<size_t>(std::max(0, inner - left - buttonWidth)), ' '))})));
     rows.push_back(centred("Space toggles · Ctrl-Z clears · Enter done · Esc puts back",
-                           inner, theme::palette.footer));
+                           inner, theme::palette.dialogHint));
     rows.push_back(text("╰" + horizontalRule(inner) + "╯") |
                    color(theme::palette.separator));
 
-    // clear_under wipes the screen behind the box, so the header underneath does
-    // not show through it.
-    return dbox({std::move(background), vbox(std::move(rows)) | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the header underneath neither shows
+    // through it nor colors it.
+    return dbox({std::move(background), dialog::surface(vbox(std::move(rows))) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {

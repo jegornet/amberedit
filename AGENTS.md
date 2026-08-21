@@ -448,7 +448,8 @@ Rules that hold the design together:
   continuously. A reader that sleeps between reads lets the terminal buffer fill,
   which blocks the app mid-frame and shows up as phantom extra events.
 - **A click is shown before it is acted on**, for `click_animation_ms`. A button
-  is taken to the theme's `animated_button_text`, frame and all; a list moves its
+  is taken to the theme's `animated_button_text` — `dialog_flash` where the
+  button stands inside a box — frame and all; a list moves its
   cursor onto the row the pointer landed on and holds the frame before opening
   it. Only clicks get it: the keyboard has shown what Enter would act on long
   before the key is pressed. `AppState::showClick()` is the whole of it — it sets
@@ -1164,12 +1165,16 @@ decides what an occurrence is.
 
 ### Dialogs
 
-Every modal shares three habits, and a new one is expected to keep them: it is
+Every modal shares four habits, and a new one is expected to keep them: it is
 **measured once off the window** by `fitBox()` and keeps its size until the
 window changes (a box measured against what it is showing would be a different
 size in every directory and every area, and the row under the pointer would move
-as it was opened again); where it has a frame it is `ui/dialog_frame.*`; and a
-click outside it dismisses it without the screen underneath acting on the click.
+as it was opened again); where it has a frame it is `ui/dialog_frame.*`; it ends
+in **`dialog::surface()`** rather than in `clear_under` — the wipe with the
+box's own `dialog_background` and `dialog_text` laid down over it, so that no
+cell of a dialog is left in whatever color the terminal draws with when nothing
+is asked for; and a click outside it dismisses it without the screen underneath
+acting on the click.
 `ui/dir_listing.*` and `dialog::bottomBar()` are shared the same way — the bottom
 rule carries the keys, and what went wrong in their place, rather than either
 taking a row.
@@ -1309,7 +1314,7 @@ taking a row.
   standing one under the next so their frames meet and the column reads as one
   list. Every button is `menu_buttons_width` wide, frame included — **the setting
   decides, not the labels**. The column stands clear of the box edge by
-  `kMarginX`/`kMarginY`, and `clear_under` wipes those margins with it.
+  `kMarginX`/`kMarginY`, and `dialog::surface()` fills those margins with it.
   - **A label is a glyph and a word, and `labelOf()` hands the two back apart** —
     `{"↗", "Fwd / Copy"}`, `{"⚲", "Nodelist"}`. The word is the half a
     translation replaces; the glyph says the same thing in every language.
@@ -1379,6 +1384,26 @@ taking a row.
   separate theme color type. It is a global **written once**, in `runApp()`
   before the screen opens, and only read afterwards; do not write to it anywhere
   else.
+- **Two fills, and the terminal's own is neither of them.** `app_shell` paints
+  `background` across the whole window with `text` on it, and every modal paints
+  `dialog_background` with `dialog_text` over the box it has just cleared
+  (`dialog::surface()`). A cell left in the default-constructed `term::Color` —
+  "whatever this terminal draws with when nothing is asked for" — is a bug: on a
+  light profile it is black on white in the middle of a dark screen.
+  `clear_under` is the only thing that produces one, and nothing calls it
+  without painting over it in the same breath.
+- **A box has a palette of its own, and a dialog draws from it and not from the
+  screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
+  `dialog_label`, `dialog_hint`, `dialog_field` and `dialog_flash`, plus
+  `menu_button`, which is only ever drawn inside one. A new dialog reaches for
+  those rather than for `text`, `table_header`, `header`,
+  `footer`/`dimmed`/`kludge`, `input_field` and `animated_button_text`, which
+  are the screen's counterparts and stay on the screen. The split is what lets
+  `themes/ged_classic.cfg` put a light grey DOS window with black in it over a
+  screen that is light on black: one role cannot be legible on both. A test
+  loads both shipped themes and checks that nothing a box draws with is the
+  color of the box — the fills it puts down over its own, `selection` and
+  `dialog_field`, and what is written on each of them included.
 - **A terminal with fewer colors than a theme asks for** gets the nearest it has
   (`nearestWithin`), and one already holding the entry gets it untouched — which
   is what makes `themes/ged_classic.cfg`, written in the sixteen ANSI colors,

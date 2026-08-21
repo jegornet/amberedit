@@ -16,7 +16,7 @@ namespace amberedit::ui::dialog {
 
 /// The top of the frame, with a label in the middle of it.
 [[nodiscard]] term::Element titleBar(const std::string& label, int width,
-                                     theme::Color tint = theme::palette.tableHeader);
+                                     theme::Color tint = theme::palette.dialogTitle);
 
 /// The bottom of it: the keys the dialog answers to, standing in the rule the
 /// way the title stands in the top one — and what went wrong **in their place**
@@ -34,6 +34,20 @@ namespace amberedit::ui::dialog {
 /// in the top one — for a box whose foot names a thing rather than listing the
 /// keys it answers to.
 [[nodiscard]] term::Element footerBar(const std::string& label, int width);
+
+/// The box over whatever is behind it: the screen underneath wiped out — the
+/// colors it was drawn in and the bold or the inversion with them — and the
+/// dialog's own fill put down in its place, `dialog_background` with
+/// `dialog_text` on it.
+///
+/// Every modal ends in this rather than in `clear_under` alone. A wipe on its
+/// own leaves the cells in whatever the terminal draws with when nothing is
+/// asked for, which is a color the theme never chose and, on a light profile,
+/// black text on white in the middle of a dark screen. Painting is the
+/// outermost thing a dialog does, so every color it asks for inside — a
+/// selected row, a field being typed into, a button lit for a click — still
+/// lands on top.
+[[nodiscard]] term::Element surface(term::Element box);
 
 /// One row of the box: the sides, and `content` between them.
 [[nodiscard]] term::Element framed(term::Element content);

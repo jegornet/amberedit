@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/theme.hpp"
 
@@ -13,21 +14,21 @@ using namespace term;
 namespace {
 
 /// One of the two answers. `pressed` is a click on it being shown before it is
-/// acted on — the label in the theme's `animated_button_text` for the length of
+/// acted on — the label in the theme's `dialog_flash` for the length of
 /// the click animation, whichever of the two it is and whether or not it was
 /// the selected one.
 Element button(const std::string& label, bool selected, bool pressed) {
     auto element = text("  " + label + "  ");
     // Innermost, so that it is the color that lands: a parent paints its whole
     // box and the child paints over it, which is what the fill below relies on.
-    if (pressed) element = std::move(element) | color(theme::palette.animatedButtonText);
+    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
     if (selected) {
         // The same fill as the current row in the lists: one color for
         // whatever Enter would act on, wherever the user is.
         return std::move(element) | bold | color(theme::palette.selectionText) |
                bgcolor(theme::palette.selection);
     }
-    return std::move(element) | color(theme::palette.text);
+    return std::move(element) | color(theme::palette.dialogText);
 }
 
 /// What each confirmation asks. One dialog serves them all: three of these
@@ -86,7 +87,7 @@ Element render(AppState& state, Element background) {
     };
 
     auto content = vbox({
-        text(question(state.confirm)) | bold | color(theme::palette.text) | center,
+        text(question(state.confirm)) | bold | color(theme::palette.dialogText) | center,
         text(""),
         hbox(std::move(buttons)) | center,
         text(""),
@@ -96,17 +97,18 @@ Element render(AppState& state, Element background) {
         text(state.confirm == AppState::Confirm::ProcessCopies
                  ? "←→ choose · Enter confirm · y/n · Esc ignores"
                  : "←→ choose · Enter confirm · y/n · Esc cancel") |
-            color(theme::palette.footer),
+            color(theme::palette.dialogHint),
     });
 
     // The frame is drawn round a padded box: without the margins the hint line
     // sets the width and ends up flush against the border.
-    auto dialog = hbox({text("  "), std::move(content), text("  ")}) | border |
-                  color(theme::palette.separator);
+    auto box = hbox({text("  "), std::move(content), text("  ")}) | border |
+               color(theme::palette.separator);
 
-    // clear_under wipes the screen behind the box, so the area list does not
-    // show through the dialog.
-    return dbox({std::move(background), dialog | clear_under | center});
+    // dialog::surface() wipes the screen behind the box and lays the dialog's
+    // own fill down in its place, so the area list neither shows through it nor
+    // colors it.
+    return dbox({std::move(background), dialog::surface(box) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

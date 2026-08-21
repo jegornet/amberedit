@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -51,9 +52,9 @@ Element button(const AppState::MenuView::Item& item, int inner, int icon,
     // A disabled button keeps its place and its label: what it says is what the
     // command would do, and leaving it out would move every button under it as
     // the user walks through an area.
-    theme::Color tint = theme::palette.dimmed;
+    theme::Color tint = theme::palette.dialogHint;
     if (pressed) {
-        tint = theme::palette.animatedButtonText;
+        tint = theme::palette.dialogFlash;
     } else if (selected && item.enabled) {
         tint = theme::palette.selectionText;
     } else if (item.enabled) {
@@ -187,9 +188,10 @@ Element render(AppState& state, Element background) {
     }
     for (int i = 0; i < kMarginY; ++i) rows.push_back(text(blank));
 
-    // clear_under wipes the screen behind the menu, so what it stands over does
-    // not show through its margins.
-    return dbox({std::move(background), vbox(std::move(rows)) | clear_under | center});
+    // dialog::surface() wipes the screen behind the menu and lays the dialog's
+    // own fill down in its place, so what it stands over neither shows through
+    // its margins nor colors them.
+    return dbox({std::move(background), dialog::surface(vbox(std::move(rows))) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {

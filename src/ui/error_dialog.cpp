@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -25,7 +26,7 @@ constexpr int kLineWidth = 56;
 /// shows one.
 Element button(bool pressed) {
     auto element = text("  OK  ");
-    if (pressed) element = std::move(element) | color(theme::palette.animatedButtonText);
+    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
     return std::move(element) | bold | color(theme::palette.selectionText) |
            bgcolor(theme::palette.selection);
 }
@@ -46,14 +47,14 @@ Element render(AppState& state, Element background) {
     Element ok = button(state.isPressed(AppState::Pressed::ErrorOk));
     content.push_back(std::move(ok) | reflect(state.errorOkBox) | center);
     content.push_back(text(""));
-    content.push_back(text("Enter · Esc") | color(theme::palette.footer) | center);
+    content.push_back(text("Enter · Esc") | color(theme::palette.dialogHint) | center);
 
     // The same frame round the same margins as the other two boxes: one of them
     // looking like the others is what makes any of them read as a box.
-    auto dialog = hbox({text("  "), vbox(std::move(content)), text("  ")}) | border |
-                  color(theme::palette.separator);
+    auto box = hbox({text("  "), vbox(std::move(content)), text("  ")}) | border |
+               color(theme::palette.separator);
 
-    return dbox({std::move(background), std::move(dialog) | clear_under | center});
+    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {

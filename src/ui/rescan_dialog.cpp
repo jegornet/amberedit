@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "ui/dialog_frame.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
@@ -33,19 +34,19 @@ Element render(const AppState& state, Element background) {
     const int width = std::max(1, std::min(kLineWidth, state.width - 6));
     auto content = vbox({
         text(truncateToWidth("Rescanning areas...", width)) | bold |
-            color(theme::palette.text) | center,
+            color(theme::palette.dialogText) | center,
         text(""),
         text(padRight(truncateToWidth(doing, width), width)) |
-            color(theme::palette.footer),
+            color(theme::palette.dialogHint),
     });
 
     // The same frame round the same margins as the confirmation: the two are the
     // only boxes drawn over a screen, and one of them looking like the other is
     // what makes either read as a box rather than as part of the list.
-    auto dialog = hbox({text("  "), std::move(content), text("  ")}) | border |
-                  color(theme::palette.separator);
+    auto box = hbox({text("  "), std::move(content), text("  ")}) | border |
+               color(theme::palette.separator);
 
-    return dbox({std::move(background), std::move(dialog) | clear_under | center});
+    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
 }
 
 }  // namespace amberedit::ui::rescan_dialog
