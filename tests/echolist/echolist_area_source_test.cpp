@@ -50,7 +50,8 @@ std::string compiledEcholist(const test::TempDir& dir) {
     source.state.spec = "echo50.lst";
     source.entries = {{"Ru.Linux", "what the echolist says"}, {"SU.MUSIC", "Музыка!"}};
     const std::string path = dir.path("echolist.db");
-    echolist::writeEcholistDb(path, {source}, 1);
+    static_cast<void>(
+        amberedit::test::valueOf(echolist::writeEcholistDb(path, {source}, 1)));
     return path;
 }
 

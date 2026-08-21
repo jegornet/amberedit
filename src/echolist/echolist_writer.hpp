@@ -7,6 +7,7 @@
 
 #include "echolist/echolist_parser.hpp"
 #include "echolist/echolist_source.hpp"
+#include "support/result.hpp"
 
 namespace amberedit::echolist {
 
@@ -31,8 +32,7 @@ struct WriteReport {
     size_t bytes{0};
 };
 
-/// Writes the compiled echolist. Throws std::runtime_error naming the file for
-/// anything that stops it.
+/// Writes the compiled echolist, naming the file for anything that stops it.
 ///
 /// Where two entries name one tag the earlier source wins, and inside one source
 /// the earlier entry does: the config's order of `echolist` lines is the only
@@ -42,7 +42,8 @@ struct WriteReport {
 /// opening the old one while this runs either goes on reading the whole of the
 /// old file or opens the whole of the new one. There is no moment at which the
 /// path names half an echolist.
-WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>& sources,
-                            std::time_t builtAt);
+[[nodiscard]] Result<WriteReport> writeEcholistDb(const std::string& path,
+                                                  const std::vector<DbSource>& sources,
+                                                  std::time_t builtAt);
 
 }  // namespace amberedit::echolist

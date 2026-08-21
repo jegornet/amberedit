@@ -6,7 +6,6 @@
 #include <filesystem>
 #include <fstream>
 #include <optional>
-#include <stdexcept>
 #include <string_view>
 #include <utility>
 
@@ -103,12 +102,12 @@ std::optional<std::string> newestMatch(const std::string& spec) {
     return best->path;
 }
 
-std::string readWholeFile(const std::string& path) {
+Result<std::string> readWholeFile(const std::string& path) {
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("cannot read the echolist: " + path);
+    if (!in) return failure("cannot read the echolist: " + path);
     std::string text(std::istreambuf_iterator<char>(in),
                      std::istreambuf_iterator<char>{});
-    if (in.bad()) throw std::runtime_error("cannot read the echolist: " + path);
+    if (in.bad()) return failure("cannot read the echolist: " + path);
     return text;
 }
 
@@ -162,15 +161,15 @@ EcholistSources::~EcholistSources() {
     for (const auto& path : unpacked_) fs::remove(path, ec);
 }
 
-EcholistSources::Loaded EcholistSources::read(const std::string& spec,
-                                              const std::string& charset) {
+Result<EcholistSources::Loaded> EcholistSources::read(const std::string& spec,
+                                                      const std::string& charset) {
     const SourceState state = stateOf(spec, charset);
     if (state.path.empty()) {
         if (!config::text::hasWildcard(fs::path(spec).filename().string())) {
-            throw std::runtime_error("echolist not found: " + spec);
+            return failure("echolist not found: " + spec);
         }
-        throw std::runtime_error("no echolist matching " + spec +
-                                 " — nothing in that directory is called that");
+        return failure("no echolist matching " + spec +
+                       " — nothing in that directory is called that");
     }
 
     // Asked of the file that was found and not of the line that found it: a
@@ -182,15 +181,17 @@ EcholistSources::Loaded EcholistSources::read(const std::string& spec,
     Part part;
     part.readFrom = state.path;
     part.name = fs::path(state.path).filename().string();
-    part.text = recoder.toUtf8(readWholeFile(state.path), charsetToReadIn(charset));
+    const auto text = readWholeFile(state.path);
+    if (!text) return tl::make_unexpected(text.error());
+    part.text = recoder.toUtf8(*text, charsetToReadIn(charset));
     Loaded loaded;
     loaded.state = state;
     loaded.parts.push_back(std::move(part));
     return loaded;
 }
 
-EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
-                                                     const std::string& charset) {
+Result<EcholistSources::Loaded> EcholistSources::readArchive(const SourceState& state,
+                                                             const std::string& charset) {
     const std::string& archivePath = state.path;
 
     // Made here and not when the sources were: a config with `tmpdir` in it and
@@ -199,13 +200,13 @@ EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
     // wanted for is ours, which is why the two are said together.
     const auto workDirMade = config::makeTempDir(tempDir_);
     if (!workDirMade) {
-        throw std::runtime_error(state.spec + " names a zipped echolist, and " +
-                                 workDirMade.error());
+        return failure(state.spec + " names a zipped echolist, and " +
+                       workDirMade.error());
     }
     const std::string& workDir = *workDirMade;
 
     const auto opened = archive::ZipArchive::open(archivePath);
-    if (!opened) throw std::runtime_error(opened.error());
+    if (!opened) return tl::make_unexpected(opened.error());
     const archive::ZipArchive& zip = *opened;
 
     // Only the echolists are unpacked. An echolist distribution carries reports,
@@ -217,8 +218,8 @@ EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
         if (isEcholistName(entry.baseName())) wanted.push_back(&entry);
     }
     if (wanted.empty()) {
-        throw std::runtime_error(archivePath +
-                                 " holds no echolist — nothing in it is a .lst or a .na");
+        return failure(archivePath +
+                       " holds no echolist — nothing in it is a .lst or a .na");
     }
 
     // By name, so that an archive read twice reads the same way twice: where two
@@ -248,12 +249,12 @@ EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
         const fs::path unpacked = fs::path(workDir) / entry->baseName();
         {
             std::ofstream out(unpacked, std::ios::binary | std::ios::trunc);
-            if (!out) throw std::runtime_error(cannotUnpack);
+            if (!out) return failure(cannotUnpack);
             const auto text = zip.read(*entry);
-            if (!text) throw std::runtime_error(text.error());
+            if (!text) return tl::make_unexpected(text.error());
             out.write(text->data(), static_cast<std::streamsize>(text->size()));
             out.close();
-            if (!out) throw std::runtime_error(cannotUnpack);
+            if (!out) return failure(cannotUnpack);
         }
         unpacked_.push_back(unpacked.string());
 
@@ -263,7 +264,9 @@ EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
         Part part;
         part.readFrom = unpacked.string();
         part.name = entry->baseName();
-        part.text = recoder.toUtf8(readWholeFile(part.readFrom), from);
+        const auto text = readWholeFile(part.readFrom);
+        if (!text) return tl::make_unexpected(text.error());
+        part.text = recoder.toUtf8(*text, from);
         loaded.parts.push_back(std::move(part));
     }
     return loaded;

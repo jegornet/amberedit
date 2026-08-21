@@ -5,6 +5,7 @@
 #include <string>
 
 #include "encoding/iconv_recoder.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
 

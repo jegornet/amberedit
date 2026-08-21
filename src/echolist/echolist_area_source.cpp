@@ -1,7 +1,5 @@
 #include "echolist/echolist_area_source.hpp"
 
-#include <exception>
-#include <optional>
 #include <utility>
 #include <vector>
 
@@ -24,13 +22,8 @@ Result<std::vector<domain::AreaConfig>> EcholistAreaSource::loadAreas() {
     // the areas keep the descriptions they came with. A compiled echolist that
     // is missing or was written by another version of the format is what a start
     // compiles again; a start that could not compile it has already said so.
-    std::optional<EcholistDb> db;
-    try {
-        db = EcholistDb::open(dbPath_);
-    } catch (const std::exception&) {
-        return areas;
-    }
-    if (db->empty()) return areas;
+    auto db = EcholistDb::open(dbPath_);
+    if (!db || db->empty()) return areas;
 
     for (auto& area : areas) {
         // Only a description that says something counts, on either side: the

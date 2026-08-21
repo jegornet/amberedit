@@ -11,6 +11,7 @@
 #include "echolist/echolist_db.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
 namespace fs = std::filesystem;
@@ -44,7 +45,7 @@ TEST_CASE("the echolists in testdata compile into one file [echolist]") {
     CHECK(report.written);
     CHECK(report.problems.empty());
 
-    const auto db = echolist::EcholistDb::open(options.dbPath);
+    const auto db = amberedit::test::valueOf(echolist::EcholistDb::open(options.dbPath));
     CHECK(db.size() == report.areas);
     REQUIRE(db.sources().size() == 2);
     CHECK(db.sources()[0].charset == "CP866");
@@ -115,7 +116,8 @@ TEST_CASE("a wildcard is recompiled when it comes to stand for a newer file "
     CHECK(echolist::refreshEcholist(options, false, nullptr).written);
     CHECK_FALSE(echolist::echolistNeedsCompiling(options));
     {
-        const auto db = echolist::EcholistDb::open(options.dbPath);
+        const auto db =
+            amberedit::test::valueOf(echolist::EcholistDb::open(options.dbPath));
         CHECK(db.descriptionOf("ru.linux") ==
               std::optional<std::string>("what December said"));
         // The compiled file records the pattern the config wrote and the file it
@@ -131,7 +133,7 @@ TEST_CASE("a wildcard is recompiled when it comes to stand for a newer file "
     CHECK(echolist::echolistNeedsCompiling(options));
     CHECK(echolist::refreshEcholist(options, false, nullptr).written);
 
-    const auto db = echolist::EcholistDb::open(options.dbPath);
+    const auto db = amberedit::test::valueOf(echolist::EcholistDb::open(options.dbPath));
     CHECK(db.descriptionOf("ru.linux") ==
           std::optional<std::string>("what January said"));
     CHECK(fs::path(db.sources()[0].path).filename() == "echo2601.lst");

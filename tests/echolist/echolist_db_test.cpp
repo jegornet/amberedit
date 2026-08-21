@@ -12,6 +12,7 @@
 #include "echolist/echolist_format.hpp"
 #include "echolist/echolist_writer.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
 
@@ -39,12 +40,13 @@ TEST_CASE("a compiled echolist reads back what was written into it [echolist]") 
                                 {"SU.MUSIC", "Музыка!"},
                                 {"AARP_FRAUD", "AARP Fraud Warning Network news"}})};
 
-    const auto written = echolist::writeEcholistDb(path, sources, 1234);
+    const auto written =
+        amberedit::test::valueOf(echolist::writeEcholistDb(path, sources, 1234));
     CHECK(written.areas == 3);
     CHECK(written.duplicates == 0);
     CHECK(written.bytes > 0);
 
-    const auto db = echolist::EcholistDb::open(path);
+    const auto db = amberedit::test::valueOf(echolist::EcholistDb::open(path));
     CHECK(db.size() == 3);
     CHECK(db.builtAt() == 1234);
     REQUIRE(db.sources().size() == 1);
@@ -77,11 +79,12 @@ TEST_CASE("the first echolist to name an echo is the one that keeps it [echolist
         sourceOf("second.na", {{"RU.LINUX", "from the second list"},
                                {"Ru.Unix", "only the second list has this"}})};
 
-    const auto written = echolist::writeEcholistDb(path, sources, 1);
+    const auto written =
+        amberedit::test::valueOf(echolist::writeEcholistDb(path, sources, 1));
     CHECK(written.areas == 2);
     CHECK(written.duplicates == 2);
 
-    const auto db = echolist::EcholistDb::open(path);
+    const auto db = amberedit::test::valueOf(echolist::EcholistDb::open(path));
     // The config's order of `echolist` lines is the only statement of
     // precedence anybody has made, and inside one file the first line wins.
     CHECK(db.descriptionOf("ru.linux") ==
@@ -101,10 +104,11 @@ TEST_CASE("an echolist that was not there is written as the nothing it was "
     missing.state.spec = "/ftn/echolist/gone.lst";
     missing.state.charset = "CP866";
 
-    const auto written = echolist::writeEcholistDb(path, {missing}, 7);
+    const auto written =
+        amberedit::test::valueOf(echolist::writeEcholistDb(path, {missing}, 7));
     CHECK(written.areas == 0);
 
-    const auto db = echolist::EcholistDb::open(path);
+    const auto db = amberedit::test::valueOf(echolist::EcholistDb::open(path));
     CHECK(db.empty());
     REQUIRE(db.sources().size() == 1);
     CHECK(db.sources()[0].spec == "/ftn/echolist/gone.lst");
@@ -115,25 +119,25 @@ TEST_CASE("an echolist that was not there is written as the nothing it was "
 TEST_CASE("a file that is not a compiled echolist is refused by name [echolist]") {
     test::TempDir dir;
 
-    CHECK_THROWS_AS(echolist::EcholistDb::open(dir.path("nothing.db")),
-                    std::runtime_error);
+    CHECK_FALSE(echolist::EcholistDb::open(dir.path("nothing.db")).has_value());
 
     const std::string wrong = dir.path("wrong.db");
     {
         std::ofstream out(wrong, std::ios::binary);
         out << "not an echolist at all, whatever else it may be";
     }
-    CHECK_THROWS_AS(echolist::EcholistDb::open(wrong), std::runtime_error);
+    CHECK_FALSE(echolist::EcholistDb::open(wrong).has_value());
 
     // A file written by another version of the format is refused too, which
     // `echolistNeedsCompiling` reads as "compile it again".
     const std::string path = dir.path("echolist.db");
-    echolist::writeEcholistDb(path, {sourceOf("a.lst", {{"Ru.Linux", "Linux"}})}, 1);
+    static_cast<void>(amberedit::test::valueOf(echolist::writeEcholistDb(
+        path, {sourceOf("a.lst", {{"Ru.Linux", "Linux"}})}, 1)));
     {
         std::fstream out(path, std::ios::binary | std::ios::in | std::ios::out);
         out.seekp(8);
         const char bumped[2] = {static_cast<char>(echolist::format::kVersion + 1), 0};
         out.write(bumped, sizeof(bumped));
     }
-    CHECK_THROWS_AS(echolist::EcholistDb::open(path), std::runtime_error);
+    CHECK_FALSE(echolist::EcholistDb::open(path).has_value());
 }
