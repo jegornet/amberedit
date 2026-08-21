@@ -148,7 +148,16 @@ Element document(AppState& state) {
     // The palette is painted across the whole screen rather than left to show
     // through: the theme's colors were chosen against its own background, and on
     // a light terminal the quiet greys would be unreadable.
-    return std::move(body) | bgcolor(theme::palette.background);
+    //
+    // The text color goes on with it, and for the same reason. A cell drawn in
+    // no color of its own — a plain column of either list — would otherwise keep
+    // whatever foreground the terminal uses when nothing is asked for, which on
+    // a profile like Terminal.app's own is black, and black on the theme's own
+    // background is what nothing else on the screen is. A decorator paints
+    // before its children, so every color asked for below still has the last
+    // word.
+    return std::move(body) | bgcolor(theme::palette.background) |
+           color(theme::palette.text);
 }
 
 }  // namespace

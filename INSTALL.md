@@ -53,7 +53,7 @@ distribution in its name because there is none in the package: the spec inside k
 `%{?dist}` unexpanded, so the rebuild stamps itself with wherever it is run.
 
 ```bash
-rpmbuild --rebuild amberedit-0.1.1-1.src.rpm
+rpmbuild --rebuild amberedit-<version>.src.rpm
 ```
 
 That builds for the system and the architecture at hand — aarch64, which the release
