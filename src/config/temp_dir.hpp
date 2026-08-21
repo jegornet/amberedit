@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include "support/result.hpp"
+
 namespace amberedit::config {
 
 /// The directory temporary work goes in, made if it was not there and handed
@@ -21,9 +23,9 @@ namespace amberedit::config {
 /// may write there is their business, not ours to second-guess.
 ///
 /// Called by whoever needs the directory, at the moment they need it: nothing is
-/// made by a config that merely mentions one. Throws std::runtime_error saying
-/// what is wrong with the directory and what to set instead — the caller is left
-/// to say what it wanted the directory for.
-[[nodiscard]] std::string makeTempDir(const std::string& configured);
+/// made by a config that merely mentions one. A failure says what is wrong with
+/// the directory and what to set instead — the caller is left to say what it
+/// wanted the directory for.
+[[nodiscard]] Result<std::string> makeTempDir(const std::string& configured);
 
 }  // namespace amberedit::config

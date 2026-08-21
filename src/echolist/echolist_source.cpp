@@ -197,15 +197,16 @@ EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
     // no zipped echolist under it should leave nothing behind, and most do. What
     // is wrong with the directory is `makeTempDir`'s to say and what it was
     // wanted for is ours, which is why the two are said together.
-    std::string workDir;
-    try {
-        workDir = config::makeTempDir(tempDir_);
-    } catch (const std::exception& e) {
+    const auto workDirMade = config::makeTempDir(tempDir_);
+    if (!workDirMade) {
         throw std::runtime_error(state.spec + " names a zipped echolist, and " +
-                                 e.what());
+                                 workDirMade.error());
     }
+    const std::string& workDir = *workDirMade;
 
-    const archive::ZipArchive zip = archive::ZipArchive::open(archivePath);
+    const auto opened = archive::ZipArchive::open(archivePath);
+    if (!opened) throw std::runtime_error(opened.error());
+    const archive::ZipArchive& zip = *opened;
 
     // Only the echolists are unpacked. An echolist distribution carries reports,
     // a rulebook and the rules and descriptions in archives of their own beside
@@ -248,8 +249,9 @@ EcholistSources::Loaded EcholistSources::readArchive(const SourceState& state,
         {
             std::ofstream out(unpacked, std::ios::binary | std::ios::trunc);
             if (!out) throw std::runtime_error(cannotUnpack);
-            const std::string text = zip.read(*entry);
-            out.write(text.data(), static_cast<std::streamsize>(text.size()));
+            const auto text = zip.read(*entry);
+            if (!text) throw std::runtime_error(text.error());
+            out.write(text->data(), static_cast<std::streamsize>(text->size()));
             out.close();
             if (!out) throw std::runtime_error(cannotUnpack);
         }
