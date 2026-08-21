@@ -4,6 +4,7 @@
 #include <string>
 
 #include "msgbase/raw_message.hpp"
+#include "support/result.hpp"
 
 namespace amberedit::msgbase {
 
@@ -32,7 +33,8 @@ public:
     /// @param defaultZone the zone a Fido *.msg header is read under, its two
     ///                    words of address carrying none. The area's own AKA,
     ///                    where the tosser config states one.
-    virtual bool open(const std::string& path, bool echo, uint16_t defaultZone) = 0;
+    [[nodiscard]] virtual Result<void> open(const std::string& path, bool echo,
+                                            uint16_t defaultZone) = 0;
     virtual void close() = 0;
 
     /// Creates an empty base at `path`: the files the format opens by reading,
@@ -50,16 +52,16 @@ public:
     /// Nothing that is already there is written over — every file is created
     /// exclusively — and a creation that fails half way takes back what it had
     /// already made, so there is nothing left for the next attempt to trip
-    /// over. false says why in lastError().
-    virtual bool create(const std::string& path) = 0;
+    /// over.
+    [[nodiscard]] virtual Result<void> create(const std::string& path) = 0;
 
     [[nodiscard]] virtual uint32_t count() const = 0;
 
     /// Reads message `index`. `withText` false stops at the header and the
     /// control lines, which is all a message list needs and, in every format,
     /// a good deal less to read.
-    [[nodiscard]] virtual bool read(uint32_t index, RawMessage& out,
-                                    bool withText) const = 0;
+    [[nodiscard]] virtual Result<void> read(uint32_t index, RawMessage& out,
+                                            bool withText) const = 0;
 
     /// What the format holds about message `index`: the stored header, the
     /// records around it and the bytes they are made of, as a report to be
@@ -80,12 +82,12 @@ public:
     [[nodiscard]] virtual uint32_t uidOf(uint32_t index) const = 0;
     [[nodiscard]] virtual uint32_t indexOfUid(uint32_t uid, bool exact) const = 0;
 
-    /// Appends a message and hands back its number, or 0 on failure.
+    /// Appends a message and hands back its number.
     ///
     /// **Every write takes the base's lock first and gives it back after**, the
     /// whole of it under `FileLock`: a tosser may be writing the same area
     /// between two keystrokes.
-    virtual uint32_t write(const RawDraft& draft) = 0;
+    [[nodiscard]] virtual Result<uint32_t> write(const RawDraft& draft) = 0;
 
     /// Puts `draft` where message `index` is, rather than beside it.
     ///
@@ -102,12 +104,12 @@ public:
     /// is copied up or down the base — a message changed at its head would cost
     /// the whole area otherwise.
     ///
-    /// Takes the lock like every other write. false leaves the message as it
-    /// was; see lastError() for why.
-    virtual bool replace(uint32_t index, const RawDraft& draft) = 0;
+    /// Takes the lock like every other write. A failure leaves the message as
+    /// it was and says why.
+    [[nodiscard]] virtual Result<void> replace(uint32_t index, const RawDraft& draft) = 0;
 
     /// Takes a message out. Everything after it moves up one.
-    virtual bool remove(uint32_t index) = 0;
+    [[nodiscard]] virtual Result<void> remove(uint32_t index) = 0;
 
     /// Marks message `index` as read, in the field the format keeps it in:
     /// JAM's `TimesRead` and the `times_read` word of a Fido *.msg go to 1,
@@ -118,22 +120,11 @@ public:
     /// the whole record and re-date it: nothing about the message has changed,
     /// only that somebody has now read it.
     ///
-    /// A message already marked is left exactly as it is and true comes back —
-    /// the count is a mark here and not a tally, so a message read twice is not
-    /// written twice. The lock is taken like any other write; false means the
-    /// mark was not made, which a read-only base is the ordinary reason for.
-    virtual bool markSeen(uint32_t index) = 0;
-
-    [[nodiscard]] const std::string& lastError() const { return lastError_; }
-
-protected:
-    void setError(std::string message) const { lastError_ = std::move(message); }
-    void clearError() const { lastError_.clear(); }
-
-private:
-    /// Mutable so that a failed read — a `const` operation as far as the caller
-    /// is concerned — can still say why it failed.
-    mutable std::string lastError_;
+    /// A message already marked is left exactly as it is and succeeds — the
+    /// count is a mark here and not a tally, so a message read twice is not
+    /// written twice. The lock is taken like any other write; a failure means
+    /// the mark was not made, which a read-only base is the ordinary reason for.
+    [[nodiscard]] virtual Result<void> markSeen(uint32_t index) = 0;
 };
 
 }  // namespace amberedit::msgbase

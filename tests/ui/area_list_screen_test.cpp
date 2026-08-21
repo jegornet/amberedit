@@ -194,7 +194,8 @@ TEST_CASE("The slash goes to the next area with unread messages [arealist][squis
     const AreaConfig middle = fixture.manager.areas()[1].config;
     const uint32_t total = fixture.manager.areas()[1].total;
     REQUIRE(total > 0);
-    amberedit::ports::IMsgBase* opened = fixture.manager.openArea(middle);
+    amberedit::ports::IMsgBase* opened =
+        amberedit::test::valueOf(fixture.manager.openArea(middle));
     REQUIRE(opened != nullptr);
     const uint32_t uid = opened->uidOf(total);
     REQUIRE(uid != 0);
@@ -600,8 +601,8 @@ TEST_CASE("A rescan brings the totals and the unread counts up to date "
 
     // The mark is a UID, so it has to be taken from the open base — which is
     // what a lastread file written by another reader would have held.
-    amberedit::ports::IMsgBase* opened =
-        fixture.manager.openArea(fixture.manager.areas()[0].config);
+    amberedit::ports::IMsgBase* opened = amberedit::test::valueOf(
+        fixture.manager.openArea(fixture.manager.areas()[0].config));
     REQUIRE(opened != nullptr);
     const uint32_t uid = opened->uidOf(total - 2);
     REQUIRE(uid != 0);

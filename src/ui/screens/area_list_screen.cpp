@@ -131,7 +131,8 @@ void openSelected(AppState& state) {
     const domain::AreaConfig area = entry.config;
     const bool wasUnavailable = !entry.isAvailable();
 
-    if (message_list::enterArea(state, area)) {
+    const auto entered = message_list::enterArea(state, area);
+    if (entered) {
         // An area that would not open at startup and opens now has had its base
         // made in between: the row saying it cannot be read is out of date, and
         // so are the two counts beside it.
@@ -141,9 +142,9 @@ void openSelected(AppState& state) {
 
     // Nothing was left half open — enterArea() goes on only once the base is
     // there — so saying why is the whole of what is left to do.
-    const std::string reason = state.manager.lastError();
-    state.errorMessage = "Cannot open the area: " +
-                         (reason.empty() ? "the base could not be opened" : reason);
+    state.errorMessage =
+        "Cannot open the area: " +
+        (entered.error().empty() ? "the base could not be opened" : entered.error());
 }
 
 /// The next area holding unread messages, starting below the cursor and going

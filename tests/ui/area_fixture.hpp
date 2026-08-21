@@ -13,6 +13,7 @@
 #include "ports/i_area_source.hpp"
 #include "ports/i_lastread_store.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 
 /// One area on a real Squish base, with the state the screens work on — what
@@ -86,7 +87,8 @@ struct AreaFixture {
 
 /// The UID of a message, which is what a lastread mark holds.
 inline uint32_t uidAt(AreaFixture& fixture, uint32_t number) {
-    ports::IMsgBase* base = fixture.manager.openArea(fixture.area);
+    ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.area));
     REQUIRE(base != nullptr);
     const uint32_t uid = base->uidOf(number);
     fixture.manager.closeCurrentArea();

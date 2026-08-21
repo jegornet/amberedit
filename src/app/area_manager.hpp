@@ -57,9 +57,8 @@ public:
 
     [[nodiscard]] const std::vector<AreaEntry>& areas() const { return areas_; }
 
-    /// Opens an area's base and returns it. nullptr means it did not open; the
-    /// reason is in lastError().
-    ports::IMsgBase* openArea(const domain::AreaConfig& area);
+    /// Opens an area's base and returns it, or says why it did not open.
+    [[nodiscard]] Result<ports::IMsgBase*> openArea(const domain::AreaConfig& area);
 
     /// Closes the currently open base, if there is one.
     void closeCurrentArea();
@@ -112,8 +111,6 @@ public:
     /// put it, which is the difference between the two ways out.
     void markUnread();
 
-    [[nodiscard]] const std::string& lastError() const { return lastError_; }
-
 private:
     /// Recomputes one area's unread count from a position within it.
     void updateUnread(const domain::AreaConfig& area, uint32_t readIndex);
@@ -132,7 +129,6 @@ private:
     /// The area currentBase_ was opened for. Marking a message read needs it,
     /// and the reader has no reason to hand it back on every keystroke.
     domain::AreaConfig currentArea_;
-    std::string lastError_;
 };
 
 /// Puts the list in the order `arealist_sort` asks for: the first criterion

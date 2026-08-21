@@ -154,7 +154,7 @@ struct CopyFixture {
     void enter(const std::string& tag) {
         const AreaConfig area = areaNamed(tag);
         state.setCurrentArea(area);
-        state.base = manager.openArea(area);
+        state.base = amberedit::test::valueOf(manager.openArea(area));
         REQUIRE(state.base != nullptr);
         state.messageCount = state.base->count();
     }
@@ -183,7 +183,8 @@ struct CopyFixture {
     }
 
     uint32_t countIn(const std::string& tag) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const uint32_t count = base->count();
         manager.closeCurrentArea();
@@ -191,7 +192,8 @@ struct CopyFixture {
     }
 
     amberedit::domain::MessageHeader headerIn(const std::string& tag, uint32_t number) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const auto header = base->header(number);
         manager.closeCurrentArea();
@@ -200,7 +202,8 @@ struct CopyFixture {
 
     /// What a message reads as, service lines left out.
     std::vector<std::string> textIn(const std::string& tag, uint32_t number) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const auto body = base->body(number);
         manager.closeCurrentArea();
@@ -215,7 +218,8 @@ struct CopyFixture {
     /// And the service lines of it, as the reader shows them — '@' where the
     /// stored byte is ^A.
     std::vector<std::string> kludgesIn(const std::string& tag, uint32_t number) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const auto body = base->body(number);
         manager.closeCurrentArea();

@@ -154,7 +154,7 @@ TEST_CASE("Opening an area on its lastread mark shows the messages after it "
     const uint32_t mark = total / 2;
     fixture.lastRead->set(uidAt(fixture, mark));
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // The area opens on the first message after the mark, that being the first
     // one not read yet.
@@ -176,7 +176,7 @@ TEST_CASE("The list comes up centred on the message being read "
     // has somewhere to go.
     const uint32_t mark = static_cast<uint32_t>(total) / 2 - 2;
     fixture.lastRead->set(uidAt(fixture, mark));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Reading on with → walks past the bottom of the window the area opened
     // with, which is the state the list would otherwise come up in.
@@ -245,7 +245,7 @@ TEST_CASE("Moving within the list scrolls a row at a time [messagelist][squish]"
 
     const uint32_t total = fixture.manager.areas()[0].total;
     fixture.lastRead->set(uidAt(fixture, total / 2));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     const int offset = fixture.state.messageOffset;
@@ -282,7 +282,7 @@ TEST_CASE("The table draws the columns msglist_format asks for "
                                                {MsgFieldKind::Subject, 0}}};
     fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
     fixture.state.width = 30;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     // The heading follows the format — no To and no Date asked for, neither
@@ -333,7 +333,7 @@ TEST_CASE("A Date column too narrow for the stamp drops its trailing parts "
     // The end of the area: the stamp being cut here is the four-part one the
     // newest messages carry, without a zone of their own.
     fixture.lastRead->set(uidAt(fixture, fixture.total()));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     const amberedit::domain::MessageHeader* msg = message_list::headerAt(
@@ -382,7 +382,7 @@ TEST_CASE(
                                              {MsgFieldKind::To, 8},
                                              {MsgFieldKind::Space, 1},
                                              {MsgFieldKind::Subject, 0}}};
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     // At the threshold and over, the wide format: all four columns, and the
@@ -434,7 +434,7 @@ TEST_CASE("A message format written on several lines draws a message on all of t
     fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
     fixture.state.width = 30;
     fixture.state.height = 10;  // seven lines: three whole rows, and one over
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     const auto rows = rowsOf(fixture);
@@ -468,7 +468,7 @@ TEST_CASE("A click on any line of a message row is a click on that message "
     fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
     fixture.state.width = 40;
     fixture.state.height = 24;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     const auto clickAt = [](int y) {
@@ -502,7 +502,7 @@ TEST_CASE("The selected message keeps its place when a row changes height "
     fixture.config.messageListFormatWide = {{{MsgFieldKind::From, 0}}};
     fixture.state.height = 15;  // twelve lines for the list
     REQUIRE(fixture.total() > 20);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
 
     // Narrow first, with the cursor on the bottom row of the six.
@@ -533,7 +533,7 @@ TEST_CASE("The message list draws the scrollbar where the area does not fit "
     AreaFixture fixture(base.path());
     fixture.state.width = 80;
     fixture.state.height = 24;  // twenty-one rows for more messages than that
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
     REQUIRE(static_cast<int>(fixture.state.messageCount) >
             fixture.state.messageListRows());
@@ -575,7 +575,7 @@ TEST_CASE("The message list's scrollbar beside tall rows counts messages, not li
     fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
     fixture.state.width = 40;
     fixture.state.height = 9;  // six lines: three messages of two lines each
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
     REQUIRE(fixture.state.messageListItems() == 3);
     REQUIRE(static_cast<int>(fixture.state.messageCount) > 3);
@@ -593,7 +593,7 @@ TEST_CASE("The message list draws no scrollbar for an area that fits "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.state.width = 80;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
     // A window tall enough for every message in the base and then some.
     fixture.state.height = static_cast<int>(fixture.state.messageCount) + 10;
@@ -617,7 +617,7 @@ TEST_CASE("The message list paints a message nobody has read yet "
     // A base as a tosser leaves one: nothing in it has been read, so every row
     // of the list starts out unread.
     fixture.lastRead->set(uidAt(fixture, total / 2));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Entering the area drops into the reader, and that is what marks a message
     // read — whichever one it landed on, the cursor is on it. The cursor is a
@@ -649,7 +649,7 @@ TEST_CASE("highlight_unread off leaves the message list as it was "
     const uint32_t total = fixture.manager.areas()[0].total;
     REQUIRE(total > 6);
     fixture.lastRead->set(uidAt(fixture, total / 2));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     const int read = fixture.state.messageCursor + 1;
     REQUIRE(read > 1);
@@ -682,7 +682,7 @@ TEST_CASE("A name of the user's own keeps its color on an unread row "
     const uint32_t total = fixture.manager.areas()[0].total;
     REQUIRE(total > 6);
     fixture.lastRead->set(uidAt(fixture, total / 2));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Off the message the reader opened on and off its neighbour, so the row
     // under test is neither read nor the current one.

@@ -111,14 +111,12 @@ MsgBaseType FtnMsgBase::probeType(const std::string& path) {
     return MsgBaseType::Unknown;
 }
 
-bool FtnMsgBase::open(const AreaConfig& area) {
+Result<void> FtnMsgBase::open(const AreaConfig& area) {
     close();
-    lastError_.clear();
     areaConfig_ = area;
 
     if (area.isPassthrough()) {
-        lastError_ = "area " + area.tag + " is passthrough: there is no base on disk";
-        return false;
+        return failure("area " + area.tag + " is passthrough: there is no base on disk");
     }
 
     // The tosser config need not state a type — work it out from the files.
@@ -131,25 +129,24 @@ bool FtnMsgBase::open(const AreaConfig& area) {
     // A base the tosser config names but that was never created is ordinary;
     // saying which format was looked for is the useful half of the message.
     if (probeType(area.path) != type) {
-        lastError_ = "no " + domain::nameOf(type) + " base at " + area.path;
-        return false;
+        return failure("no " + domain::nameOf(type) + " base at " + area.path);
     }
 
     std::unique_ptr<FormatDriver> driver = makeDriver(type);
     if (!driver) {
-        lastError_ = "cannot determine the base type for " + area.path;
-        return false;
+        return failure("cannot determine the base type for " + area.path);
     }
 
     // Fido *.msg headers carry no zone of their own; the area's AKA is what
     // its messages are read under.
     const uint16_t defaultZone = area.address.isValid() ? area.address.zone : 2;
-    if (!driver->open(area.path, area.kind != AreaKind::Netmail, defaultZone)) {
-        lastError_ = "cannot open base " + area.path + ": " + driver->lastError();
-        return false;
+    const auto opened =
+        driver->open(area.path, area.kind != AreaKind::Netmail, defaultZone);
+    if (!opened) {
+        return failure("cannot open base " + area.path + ": " + opened.error());
     }
     driver_ = std::move(driver);
-    return true;
+    return {};
 }
 
 bool FtnMsgBase::isAbsent(const AreaConfig& area) {
@@ -160,34 +157,26 @@ bool FtnMsgBase::isAbsent(const AreaConfig& area) {
     return probeType(area.path) == MsgBaseType::Unknown;
 }
 
-bool FtnMsgBase::create(const AreaConfig& area) {
+Result<void> FtnMsgBase::create(const AreaConfig& area) {
     close();
-    lastError_.clear();
 
     if (!isAbsent(area)) {
-        lastError_ = "there is already a base at " + area.path;
-        return false;
+        return failure("there is already a base at " + area.path);
     }
     std::unique_ptr<FormatDriver> driver = makeDriver(area.type);
     if (!driver) {
         // isAbsent() has already refused Unknown and Passthrough, so this is
         // a format added to the enum and not to makeDriver().
-        lastError_ = "cannot create a base of type " + domain::nameOf(area.type);
-        return false;
+        return failure("cannot create a base of type " + domain::nameOf(area.type));
     }
     // The driver's own words, unwrapped: it names the file it could not make
     // and why, which is the whole of what there is to say, and a prefix of ours
     // would only say "cannot create" a second time.
-    if (!driver->create(area.path)) {
-        lastError_ = driver->lastError();
-        return false;
-    }
-    return true;
+    return driver->create(area.path);
 }
 
 void FtnMsgBase::close() {
     driver_.reset();
-    lastError_.clear();
 }
 
 uint32_t FtnMsgBase::count() const {
@@ -201,11 +190,9 @@ MessageHeader FtnMsgBase::header(uint32_t index) const {
     if (!driver_ || index == 0 || index > driver_->count()) return out;
 
     RawMessage raw;
-    if (!driver_->read(index, raw, /*withText=*/false)) {
-        lastError_ =
-            "cannot read message " + std::to_string(index) + ": " + driver_->lastError();
-        return out;
-    }
+    // A message that cannot be read comes back empty, as the port says it does:
+    // this is drawn from a row at a time and there is nowhere to say more.
+    if (!driver_->read(index, raw, /*withText=*/false)) return out;
 
     // The names and the subject are in the same charset as the body, and the
     // CHRS kludge that says which is part of the message rather than of the
@@ -236,11 +223,7 @@ MessageBody FtnMsgBase::body(uint32_t index) const {
     if (!driver_ || index == 0 || index > driver_->count()) return out;
 
     RawMessage raw;
-    if (!driver_->read(index, raw, /*withText=*/true)) {
-        lastError_ =
-            "cannot read message " + std::to_string(index) + ": " + driver_->lastError();
-        return out;
-    }
+    if (!driver_->read(index, raw, /*withText=*/true)) return out;
 
     const std::string whole = raw.control + raw.text;
     splitBody(whole, out);
@@ -347,12 +330,8 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     return raw;
 }
 
-uint32_t FtnMsgBase::write(const domain::MessageDraft& draft) {
-    lastError_.clear();
-    if (!driver_) {
-        lastError_ = "no area is open";
-        return 0;
-    }
+Result<uint32_t> FtnMsgBase::write(const domain::MessageDraft& draft) {
+    if (!driver_) return failure("no area is open");
 
     RawDraft raw = encode(draft);
     // Written now, unless the draft carries a stamp of its own — a message
@@ -363,20 +342,13 @@ uint32_t FtnMsgBase::write(const domain::MessageDraft& draft) {
     raw.header.written = draft.written.isValid() ? draft.written : now;
     raw.header.arrived = now;
 
-    const uint32_t number = driver_->write(raw);
-    if (number == 0) {
-        lastError_ = "cannot write the message: " + driver_->lastError();
-        return 0;
-    }
-    return number;
+    const auto written = driver_->write(raw);
+    if (!written) return failure("cannot write the message: " + written.error());
+    return *written;
 }
 
-bool FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& draft) {
-    lastError_.clear();
-    if (!driver_) {
-        lastError_ = "no area is open";
-        return false;
-    }
+Result<void> FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& draft) {
+    if (!driver_) return failure("no area is open");
     // Stamped now, like any other message the editor writes: what a changed
     // message is dated by is when it was last written by hand. The stamp it
     // arrived here under is the driver's to keep — that one no rewriting
@@ -384,40 +356,32 @@ bool FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& draft) {
     RawDraft raw = encode(draft);
     raw.header.written = nowLocal();
 
-    if (!driver_->replace(index, raw)) {
-        lastError_ = "cannot change message " + std::to_string(index) + ": " +
-                     driver_->lastError();
-        return false;
+    const auto changed = driver_->replace(index, raw);
+    if (!changed) {
+        return failure("cannot change message " + std::to_string(index) + ": " +
+                       changed.error());
     }
-    return true;
+    return {};
 }
 
-bool FtnMsgBase::remove(uint32_t index) {
-    lastError_.clear();
-    if (!driver_) {
-        lastError_ = "no area is open";
-        return false;
+Result<void> FtnMsgBase::remove(uint32_t index) {
+    if (!driver_) return failure("no area is open");
+    const auto removed = driver_->remove(index);
+    if (!removed) {
+        return failure("cannot delete message " + std::to_string(index) + ": " +
+                       removed.error());
     }
-    if (!driver_->remove(index)) {
-        lastError_ = "cannot delete message " + std::to_string(index) + ": " +
-                     driver_->lastError();
-        return false;
-    }
-    return true;
+    return {};
 }
 
-bool FtnMsgBase::markSeen(uint32_t index) {
-    lastError_.clear();
-    if (!driver_) {
-        lastError_ = "no area is open";
-        return false;
+Result<void> FtnMsgBase::markSeen(uint32_t index) {
+    if (!driver_) return failure("no area is open");
+    const auto marked = driver_->markSeen(index);
+    if (!marked) {
+        return failure("cannot mark message " + std::to_string(index) +
+                       " read: " + marked.error());
     }
-    if (!driver_->markSeen(index)) {
-        lastError_ = "cannot mark message " + std::to_string(index) + " read: " +
-                     driver_->lastError();
-        return false;
-    }
-    return true;
+    return {};
 }
 
 }  // namespace amberedit::msgbase

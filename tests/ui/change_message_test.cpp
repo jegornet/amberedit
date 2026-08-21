@@ -67,7 +67,7 @@ private:
 /// The area opened on its first message, which is the one every test here
 /// changes.
 void openFirstMessage(AreaFixture& fixture) {
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     message_read::goToMessage(fixture.state, 1);
     REQUIRE(fixture.state.readHeader.has_value());
 }

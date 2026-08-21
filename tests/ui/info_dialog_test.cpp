@@ -70,7 +70,7 @@ int boxWidth(const std::vector<std::string>& rows) {
 
 /// The reader, opened on the newest message of the test base.
 void enterArea(AreaFixture& fixture) {
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 }
 
 }  // namespace

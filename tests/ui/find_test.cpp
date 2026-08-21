@@ -9,6 +9,7 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/find_dialog.hpp"
 #include "ui/screens/message_list_screen.hpp"
@@ -74,9 +75,10 @@ Letter about(const std::string& subject) {
 /// copies: a search is checked on which message it lands on, so the numbers
 /// have to be the test's own.
 void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(fixture.area);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.area));
     REQUIRE(base != nullptr);
-    while (base->count() > 0) REQUIRE(base->remove(1));
+    while (base->count() > 0) REQUIRE(base->remove(1).has_value());
 
     for (const Letter& letter : letters) {
         MessageDraft draft;
@@ -126,7 +128,7 @@ TEST_CASE("A search opens the first message from here that holds the words "
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"nothing"}), says({"the needle is here"}),
                           says({"the needle again"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(showing(fixture) == 1);
 
     CHECK(message_read::findMessage(fixture.state, "needle", SearchScope::HeaderAndText));
@@ -138,7 +140,7 @@ TEST_CASE("The search starts on the message in front of the user [find][squish]"
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"}), says({"nothing"}), says({"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // The message on screen is searched too, so a word standing in it is found
     // where it is rather than in the next message that also has it.
@@ -150,7 +152,7 @@ TEST_CASE("The same search again goes on from the next message [find][squish]") 
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"}), says({"needle"}), says({"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(
         message_read::findMessage(fixture.state, "needle", SearchScope::HeaderAndText));
@@ -172,7 +174,7 @@ TEST_CASE("Different words start again from where the reader stands [find][squis
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle and thread"}), says({"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(
         message_read::findMessage(fixture.state, "needle", SearchScope::HeaderAndText));
@@ -189,7 +191,7 @@ TEST_CASE("The header is searched, and the text only where it was asked for "
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {about("About cats"), from("Ivan Ivanov", {"cats everywhere"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Header only: the subject of the first message answers, and the body of
     // the second is not read at all.
@@ -207,7 +209,7 @@ TEST_CASE("The header block lights what a search found in it [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {about("About cats")});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::findMessage(fixture.state, "cats", SearchScope::Header));
 
     // Nothing in the body, so nothing among the rows — but the frame still
@@ -222,7 +224,7 @@ TEST_CASE("Moving to another message takes the highlight off [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"nothing"}), says({"needle"}), says({"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(
         message_read::findMessage(fixture.state, "needle", SearchScope::HeaderAndText));
     REQUIRE(showing(fixture) == 2);
@@ -240,7 +242,7 @@ TEST_CASE("Every occurrence in the message is lit [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle one", "and needle two", "no more"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(
         message_read::findMessage(fixture.state, "NEEDLE", SearchScope::HeaderAndText));
@@ -253,7 +255,7 @@ TEST_CASE("The reader scrolls to the occurrence [find][squish]") {
     std::vector<std::string> lines(80, "filler");
     lines.push_back("the needle at the end");
     putMessages(fixture, {says(lines)});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readScroll == 0);
 
     REQUIRE(
@@ -277,7 +279,7 @@ TEST_CASE("A search reads the charset the message declares [find][squish]") {
     // are found is what says the message was folded by its own charset.
     putMessages(fixture, {says({"nothing"}), saysIn("KOI8-R", {"Привет, мир"}),
                           saysIn("CP866", {"Привет, мир"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(
         message_read::findMessage(fixture.state, "ПРИВЕТ", SearchScope::HeaderAndText));
@@ -287,7 +289,7 @@ TEST_CASE("A search reads the charset the message declares [find][squish]") {
     // The Russian quirks are CP866's alone: a Latin p for the Cyrillic р finds
     // the CP866 message and steps over the KOI8-R one.
     AreaFixture other(base.path(), plain());
-    REQUIRE(message_list::enterArea(other.state, other.area));
+    REQUIRE(message_list::enterArea(other.state, other.area).has_value());
     REQUIRE(message_read::findMessage(other.state, "Пpивет", SearchScope::HeaderAndText));
     CHECK(other.state.readHeader->number == 3);
 }
@@ -306,7 +308,7 @@ TEST_CASE("A search steps over the twits the reader would step over "
     putMessages(fixture,
                 {from("Petr Petrov", {"nothing"}), from("Ivan Ivanov", {"needle"}),
                  from("Petr Petrov", {"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // `ignore` is navigation: the twit holding the word is walked past exactly
     // as → walks past it.
@@ -326,7 +328,7 @@ TEST_CASE("A twit blank is found and opens behind the notice [find][twit][squish
     AreaFixture fixture(base.path(), config);
     putMessages(fixture,
                 {from("Petr Petrov", {"nothing"}), from("Ivan Ivanov", {"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // `blank` is not navigation — the message is found, and what stands in
     // place of its text is the notice.
@@ -347,7 +349,7 @@ TEST_CASE("Words that are nowhere leave the reader as it was [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"nothing"}), says({"nothing either"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     CHECK_FALSE(
         message_read::findMessage(fixture.state, "needle", SearchScope::HeaderAndText));
@@ -363,7 +365,7 @@ TEST_CASE("f opens the find box on what was last looked for [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('f')));
     REQUIRE(fixture.state.findPicker);
@@ -390,7 +392,7 @@ TEST_CASE("The reader's menu offers Find [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"})});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Between Forward and Nodelist, which is where the default menu puts it.
     message_read::openMenu(fixture.state);
@@ -408,7 +410,7 @@ TEST_CASE("The reader's menu offers Find [find][squish]") {
 TEST_CASE("The find box refuses an empty query [find]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     find_dialog::open(fixture.state);
     REQUIRE(fixture.state.findPicker);
@@ -422,7 +424,7 @@ TEST_CASE("The find box refuses an empty query [find]") {
 TEST_CASE("The find box asks how much of a message to read [find]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     find_dialog::open(fixture.state);
     REQUIRE(fixture.state.findPicker);

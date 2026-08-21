@@ -71,23 +71,22 @@ bool hasKludge(const std::vector<std::string>& kludges, std::string_view name) {
 
 }  // namespace
 
-bool SdmBase::open(const std::string& path, bool echo, uint16_t defaultZone) {
+Result<void> SdmBase::open(const std::string& path, bool echo, uint16_t defaultZone) {
     close();
-    clearError();
     echo_ = echo;
     defaultZone_ = defaultZone != 0 ? defaultZone : 2;
 
     std::error_code ec;
     if (!fs::is_directory(path, ec)) {
-        setError(path + " is not a directory");
-        return false;
+        return failure(path + " is not a directory");
     }
     directory_ = path;
-    if (!scan()) {
+    if (auto scanned = scan(); !scanned) {
+        auto reason = std::move(scanned).error();
         close();
-        return false;
+        return failure(std::move(reason));
     }
-    return true;
+    return {};
 }
 
 void SdmBase::close() {
@@ -95,9 +94,8 @@ void SdmBase::close() {
     numbers_.clear();
 }
 
-bool SdmBase::create(const std::string& path) {
+Result<void> SdmBase::create(const std::string& path) {
     close();
-    clearError();
 
     // The base is the directory, and an empty directory is an empty base:
     // there is no header to write and no index to make. Any parent the path
@@ -105,22 +103,21 @@ bool SdmBase::create(const std::string& path) {
     // root would.
     std::error_code ec;
     if (fs::exists(path, ec)) {
-        setError("there is already something at " + path);
-        return false;
+        return failure("there is already something at " + path);
     }
     ec.clear();
     if (!fs::create_directories(path, ec)) {
-        setError("cannot create the directory " + path + (ec ? ": " + ec.message() : ""));
-        return false;
+        return failure("cannot create the directory " + path +
+                       (ec ? ": " + ec.message() : ""));
     }
-    return true;
+    return {};
 }
 
 std::string SdmBase::fileFor(uint32_t number) const {
     return (fs::path(directory_) / (std::to_string(number) + ".msg")).string();
 }
 
-bool SdmBase::scan() {
+Result<void> SdmBase::scan() {
     numbers_.clear();
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(directory_, ec)) {
@@ -128,11 +125,10 @@ bool SdmBase::scan() {
         if (number != 0) numbers_.push_back(number);
     }
     if (ec) {
-        setError("cannot list " + directory_);
-        return false;
+        return failure("cannot list " + directory_);
     }
     std::sort(numbers_.begin(), numbers_.end());
-    return true;
+    return {};
 }
 
 uint32_t SdmBase::uidOf(uint32_t index) const {
@@ -149,22 +145,19 @@ uint32_t SdmBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
-bool SdmBase::read(uint32_t index, RawMessage& out, bool withText) const {
+Result<void> SdmBase::read(uint32_t index, RawMessage& out, bool withText) const {
     if (index == 0 || index > count()) {
-        setError("message " + std::to_string(index) + " is not in the area");
-        return false;
+        return failure("message " + std::to_string(index) + " is not in the area");
     }
     const uint32_t number = numbers_[index - 1];
 
     BinaryFile file;
     if (!file.open(fileFor(number), false)) {
-        setError("cannot open " + fileFor(number));
-        return false;
+        return failure("cannot open " + fileFor(number));
     }
     std::array<unsigned char, kHeaderSize> raw{};
     if (!file.readAt(0, raw.data(), raw.size())) {
-        setError(fileFor(number) + " is shorter than a message header");
-        return false;
+        return failure(fileFor(number) + " is shorter than a message header");
     }
 
     out.header = RawHeader{};
@@ -206,8 +199,7 @@ bool SdmBase::read(uint32_t index, RawMessage& out, bool withText) const {
     if (size > static_cast<int64_t>(kHeaderSize)) {
         body.assign(static_cast<size_t>(size) - kHeaderSize, '\0');
         if (!file.readAt(kHeaderSize, &body[0], body.size())) {
-            setError("cannot read the text of " + fileFor(number));
-            return false;
+            return failure("cannot read the text of " + fileFor(number));
         }
         const size_t terminator = body.find('\0');
         if (terminator != std::string::npos) body.resize(terminator);
@@ -221,9 +213,7 @@ bool SdmBase::read(uint32_t index, RawMessage& out, bool withText) const {
     completeAddresses(out.header, out.control);
     if (out.header.origAddr.zone == 0) out.header.origAddr.zone = defaultZone_;
     if (out.header.destAddr.zone == 0) out.header.destAddr.zone = defaultZone_;
-
-    clearError();
-    return true;
+    return {};
 }
 
 domain::MessageInfo SdmBase::info(uint32_t index) const {
@@ -368,11 +358,9 @@ void SdmBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
                             : static_cast<uint16_t>(header.replies.front()));
 }
 
-uint32_t SdmBase::write(const RawDraft& draft) {
-    clearError();
+Result<uint32_t> SdmBase::write(const RawDraft& draft) {
     if (directory_.empty()) {
-        setError("no area is open");
-        return 0;
+        return failure("no area is open");
     }
 
     const std::string body = encodeBody(draft);
@@ -384,7 +372,8 @@ uint32_t SdmBase::write(const RawDraft& draft) {
     // race rescans — a tosser may have filled the number in between — and
     // takes the next.
     for (int attempt = 0; attempt < 8; ++attempt) {
-        if (!scan()) return 0;
+        const auto done = scan();
+        if (!done) return tl::make_unexpected(done.error());
         uint32_t number = numbers_.empty() ? 0 : numbers_.back();
         ++number;
         // In an echo area 1.msg is the high-water mark, not a message: the
@@ -395,51 +384,43 @@ uint32_t SdmBase::write(const RawDraft& draft) {
         if (!file.create(fileFor(number))) continue;
         if (!file.writeAt(0, raw.data(), raw.size()) ||
             !file.writeAt(kHeaderSize, body.data(), body.size())) {
-            setError("cannot write " + fileFor(number));
+            auto reason = "cannot write " + fileFor(number);
             file.close();
             std::error_code ec;
             fs::remove(fileFor(number), ec);  // half a message is worse than none
-            return 0;
+            return failure(std::move(reason));
         }
         numbers_.push_back(number);  // scan() sorted; the new number is highest
         return count();
     }
-    setError("cannot find a free message number in " + directory_);
-    return 0;
+    return failure("cannot find a free message number in " + directory_);
 }
 
-bool SdmBase::replace(uint32_t index, const RawDraft& draft) {
-    clearError();
+Result<void> SdmBase::replace(uint32_t index, const RawDraft& draft) {
     if (directory_.empty()) {
-        setError("no area is open");
-        return false;
+        return failure("no area is open");
     }
     if (index == 0 || index > count()) {
-        setError("message " + std::to_string(index) + " is not there to change");
-        return false;
+        return failure("message " + std::to_string(index) + " is not there to change");
     }
     const uint32_t number = numbers_[index - 1];
 
     BinaryFile file;
     if (!file.open(fileFor(number), true) || !file.writable()) {
-        setError("cannot write " + fileFor(number));
-        return false;
+        return failure("cannot write " + fileFor(number));
     }
     // The message file is the base as far as this message is concerned, so it
     // is what the change is serialised on. Writing a new message needs no lock
     // — O_EXCL settles who owns a number — but rewriting one does: a tosser
     // reading it meanwhile would otherwise get half of each.
     FileLock lock;
-    std::string reason;
-    if (!lock.acquire({&file}, &reason)) {
-        setError(reason + ": the message is busy");
-        return false;
+    if (const auto locked = lock.acquire({&file}); !locked) {
+        return failure(locked.error() + ": the message is busy");
     }
 
     std::array<unsigned char, kHeaderSize> was{};
     if (!file.readAt(0, was.data(), was.size())) {
-        setError(fileFor(number) + " is shorter than a message header");
-        return false;
+        return failure(fileFor(number) + " is shorter than a message header");
     }
 
     const std::string body = encodeBody(draft);
@@ -461,72 +442,59 @@ bool SdmBase::replace(uint32_t index, const RawDraft& draft) {
     if (!file.writeAt(0, raw.data(), raw.size()) ||
         !file.writeAt(kHeaderSize, body.data(), body.size()) ||
         !file.truncate(kHeaderSize + body.size())) {
-        setError("cannot write " + fileFor(number));
-        return false;
+        return failure("cannot write " + fileFor(number));
     }
-    return true;
+    return {};
 }
 
-bool SdmBase::remove(uint32_t index) {
-    clearError();
+Result<void> SdmBase::remove(uint32_t index) {
     if (directory_.empty()) {
-        setError("no area is open");
-        return false;
+        return failure("no area is open");
     }
     if (index == 0 || index > count()) {
-        setError("message " + std::to_string(index) + " is not there to delete");
-        return false;
+        return failure("message " + std::to_string(index) + " is not there to delete");
     }
     const uint32_t number = numbers_[index - 1];
     std::error_code ec;
     if (!fs::remove(fileFor(number), ec) || ec) {
-        setError("cannot delete " + fileFor(number));
-        return false;
+        return failure("cannot delete " + fileFor(number));
     }
     numbers_.erase(numbers_.begin() + static_cast<long>(index) - 1);
-    return true;
+    return {};
 }
 
-bool SdmBase::markSeen(uint32_t index) {
-    clearError();
+Result<void> SdmBase::markSeen(uint32_t index) {
     if (directory_.empty()) {
-        setError("no area is open");
-        return false;
+        return failure("no area is open");
     }
     if (index == 0 || index > count()) {
-        setError("message " + std::to_string(index) + " is not there to mark");
-        return false;
+        return failure("message " + std::to_string(index) + " is not there to mark");
     }
     const uint32_t number = numbers_[index - 1];
 
     BinaryFile file;
     if (!file.open(fileFor(number), true) || !file.writable()) {
-        setError("cannot write " + fileFor(number));
-        return false;
+        return failure("cannot write " + fileFor(number));
     }
     // The message file is the base as far as this message is concerned, and
     // replace() may be rewriting the whole of it — including the word this
     // patches, which it carries over from what it read.
     FileLock lock;
-    std::string reason;
-    if (!lock.acquire({&file}, &reason)) {
-        setError(reason + ": the message is busy");
-        return false;
+    if (const auto locked = lock.acquire({&file}); !locked) {
+        return failure(locked.error() + ": the message is busy");
     }
 
     std::array<unsigned char, 2> raw{};
     if (!file.readAt(kTimesReadOffset, raw.data(), raw.size())) {
-        setError(fileFor(number) + " is shorter than a message header");
-        return false;
+        return failure(fileFor(number) + " is shorter than a message header");
     }
-    if (readU16(raw.data()) != 0) return true;
+    if (readU16(raw.data()) != 0) return {};
 
     writeU16(raw.data(), 1);
     if (!file.writeAt(kTimesReadOffset, raw.data(), raw.size())) {
-        setError("cannot mark message " + std::to_string(index) + " read");
-        return false;
+        return failure("cannot mark message " + std::to_string(index) + " read");
     }
-    return true;
+    return {};
 }
 
 }  // namespace amberedit::msgbase

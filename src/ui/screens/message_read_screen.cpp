@@ -764,8 +764,6 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     state.readBody = state.base->body(msgNumber);
     state.readThread = state.base->thread(msgNumber);
 
-    const std::string error = state.base->lastError();
-
     // Opening a message is what "read" means here, so the mark moves with it
     // rather than waiting for the area to be left: a reader killed mid-area
     // should still come back where it was.
@@ -779,10 +777,11 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     // paints and not about what the base holds: the mark is the message's, and
     // GoldED reading the same area afterwards goes by it. Asked for only where
     // the message was not marked already, so reading back over an area takes no
-    // lock and writes nothing; a base that cannot be written says so in
-    // lastError() and nothing is made of it — the message is on the screen
-    // either way, and there is nothing the user could do about it.
-    if (state.readHeader && !state.readHeader->seen && state.base->markSeen(msgNumber)) {
+    // lock and writes nothing; a base that cannot be written is not worth
+    // saying anything about — the message is on the screen either way, and
+    // there is nothing the user could do about it.
+    if (state.readHeader && !state.readHeader->seen &&
+        state.base->markSeen(msgNumber).has_value()) {
         state.readHeader->seen = true;
         // The list's window is a copy, so the row behind this screen would go on
         // showing the message unread until the window happened to be re-read.
@@ -793,7 +792,7 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     }
 
     relayout(state);
-    return error.empty();
+    return true;
 }
 
 void showEmptyArea(AppState& state) {
@@ -1001,15 +1000,17 @@ bool storeInto(AppState& state, const domain::AreaConfig& target,
     // pointing at it in between.
     state.base = nullptr;
     uint32_t written = 0;
-    if (ports::IMsgBase* into = state.manager.openArea(target)) {
-        written = into->write(draft);
-        // The area list counts it while the base is still open — one message
-        // more in an area nobody has read, so one unread more as well.
-        if (written != 0) state.manager.refreshArea(target);
+    if (const auto into = state.manager.openArea(target)) {
+        if (const auto number = (*into)->write(draft)) {
+            written = *number;
+            // The area list counts it while the base is still open — one message
+            // more in an area nobody has read, so one unread more as well.
+            state.manager.refreshArea(target);
+        }
     }
 
     // Back where the user was, whether or not the message went in.
-    state.base = state.manager.openArea(source);
+    state.base = state.manager.openArea(source).value_or(nullptr);
     if (state.base == nullptr) {
         // The area that was open a moment ago will not open again: there is
         // nothing left underneath to come back to, and nothing to delete from.

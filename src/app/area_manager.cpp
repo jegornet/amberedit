@@ -147,7 +147,6 @@ AreaManager::AreaManager(std::unique_ptr<ports::IAreaConfigSource> areaSource,
 AreaManager::~AreaManager() = default;
 
 Result<void> AreaManager::reload(const ProgressFn& onArea) {
-    lastError_.clear();
     closeCurrentArea();
 
     // Built beside the list rather than into it, and put in place at the end.
@@ -199,8 +198,8 @@ Result<void> AreaManager::reload(const ProgressFn& onArea) {
         }
 
         msgbase::FtnMsgBase base(cfg.defaultCharset);
-        if (!base.open(entry.config)) {
-            entry.error = base.lastError();
+        if (const auto opened = base.open(entry.config); !opened) {
+            entry.error = opened.error();
             loaded.push_back(std::move(entry));
             continue;
         }
@@ -216,17 +215,14 @@ Result<void> AreaManager::reload(const ProgressFn& onArea) {
     return {};
 }
 
-ports::IMsgBase* AreaManager::openArea(const AreaConfig& area) {
-    lastError_.clear();
+Result<ports::IMsgBase*> AreaManager::openArea(const AreaConfig& area) {
     closeCurrentArea();
 
     // In the charset this area is read in, which an area group may have a word
     // about — the same answer reload() opened it with.
     auto base = std::make_unique<msgbase::FtnMsgBase>(
         appConfig_.effectiveFor(area).defaultCharset);
-    if (!base->open(area)) {
-        lastError_ = base->lastError();
-
+    if (auto opened = base->open(area); !opened) {
         // Nothing on disk at all is the ordinary state of an area the tosser
         // config declares and no tosser has yet written into: the base is made
         // here and opened again, so that the first message can be written from
@@ -237,12 +233,15 @@ ports::IMsgBase* AreaManager::openArea(const AreaConfig& area) {
         // A base that is half there or there and unreadable is reported as it
         // stands. An empty one written over it would take whatever it holds
         // with it, and that is not a reader's to do.
-        if (!msgbase::FtnMsgBase::isAbsent(area)) return nullptr;
-        if (!base->create(area) || !base->open(area)) {
-            lastError_ = base->lastError();
-            return nullptr;
+        if (!msgbase::FtnMsgBase::isAbsent(area)) {
+            return tl::make_unexpected(std::move(opened).error());
         }
-        lastError_.clear();
+        if (const auto made = base->create(area); !made) {
+            return tl::make_unexpected(made.error());
+        }
+        if (const auto again = base->open(area); !again) {
+            return tl::make_unexpected(again.error());
+        }
     }
     currentBase_ = std::move(base);
     currentArea_ = area;

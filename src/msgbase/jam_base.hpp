@@ -26,23 +26,24 @@ namespace amberedit::msgbase {
 /// BaseMsgNum rather than the records.
 class JamBase final : public FormatDriver {
 public:
-    bool open(const std::string& path, bool echo, uint16_t defaultZone) override;
+    [[nodiscard]] Result<void> open(const std::string& path, bool echo,
+                                    uint16_t defaultZone) override;
     void close() override;
-    bool create(const std::string& path) override;
+    [[nodiscard]] Result<void> create(const std::string& path) override;
 
     [[nodiscard]] uint32_t count() const override {
         return static_cast<uint32_t>(active_.size());
     }
-    [[nodiscard]] bool read(uint32_t index, RawMessage& out,
-                            bool withText) const override;
+    [[nodiscard]] Result<void> read(uint32_t index, RawMessage& out,
+                                    bool withText) const override;
     [[nodiscard]] domain::MessageInfo info(uint32_t index) const override;
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid, bool exact) const override;
 
-    uint32_t write(const RawDraft& draft) override;
-    bool replace(uint32_t index, const RawDraft& draft) override;
-    bool remove(uint32_t index) override;
-    bool markSeen(uint32_t index) override;
+    [[nodiscard]] Result<uint32_t> write(const RawDraft& draft) override;
+    [[nodiscard]] Result<void> replace(uint32_t index, const RawDraft& draft) override;
+    [[nodiscard]] Result<void> remove(uint32_t index) override;
+    [[nodiscard]] Result<void> markSeen(uint32_t index) override;
 
 private:
     /// The info block at offset 0 of the .jhr, in the fields we act on.
@@ -88,15 +89,15 @@ private:
         std::string data;
     };
 
-    [[nodiscard]] bool readInfo();
-    [[nodiscard]] bool writeInfo();
+    [[nodiscard]] Result<void> readInfo();
+    [[nodiscard]] Result<void> writeInfo();
     /// Builds the table of active messages from the index and the headers.
-    [[nodiscard]] bool loadActive();
-    [[nodiscard]] bool reload();
+    [[nodiscard]] Result<void> loadActive();
+    [[nodiscard]] Result<void> reload();
 
-    [[nodiscard]] bool readHeaderAt(uint32_t offset, Header& out) const;
-    [[nodiscard]] bool readSubfields(const ActiveMessage& message,
-                                     std::vector<Subfield>& out) const;
+    [[nodiscard]] Result<void> readHeaderAt(uint32_t offset, Header& out) const;
+    [[nodiscard]] Result<void> readSubfields(const ActiveMessage& message,
+                                             std::vector<Subfield>& out) const;
 
     /// Turns a draft into the two blocks JAM stores it as: the subfields —
     /// names, subject, addresses and the kludges the format keeps as data — and
@@ -107,12 +108,12 @@ private:
     void encodeDraft(const RawDraft& draft, Header& header, std::string& subfieldBlock,
                      std::string& text) const;
     /// Writes the fixed header and the subfields at `offset`.
-    [[nodiscard]] bool writeHeaderAt(uint32_t offset, const Header& header,
-                                     const std::string& subfields);
+    [[nodiscard]] Result<void> writeHeaderAt(uint32_t offset, const Header& header,
+                                             const std::string& subfields);
     /// Writes the index record of message number `record`: the CRC of the name
     /// the message is addressed to, and where its header is.
-    [[nodiscard]] bool writeIndexRecord(uint32_t record, const std::string& to,
-                                        uint32_t headerOffset);
+    [[nodiscard]] Result<void> writeIndexRecord(uint32_t record, const std::string& to,
+                                                uint32_t headerOffset);
 
     /// The UID of an active-table entry: its index record plus BaseMsgNum.
     [[nodiscard]] uint32_t uidOfEntry(const ActiveMessage& message) const;

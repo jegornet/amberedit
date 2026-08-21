@@ -115,11 +115,11 @@ void killTwits(AppState& state) {
     bool removed = false;
     for (uint32_t number = state.base->count(); number >= 1; --number) {
         if (!state.areaConfig.isTwit(state.base->header(number))) continue;
-        removed = state.base->remove(number) || removed;
+        removed = state.base->remove(number).has_value() || removed;
     }
-    // A base that will not be written says so in lastError() and nothing is made
-    // of it: the messages are still there, and `twitHidden` keeps them behind
-    // the notice rather than putting them on the screen unasked.
+    // A base that will not be written is not worth saying anything about: the
+    // messages are still there, and `twitHidden` keeps them behind the notice
+    // rather than putting them on the screen unasked.
     if (removed) state.manager.refreshArea(state.currentArea);
 }
 
@@ -240,10 +240,11 @@ const domain::MessageHeader* headerAt(const AppState& state, uint32_t msgNumber)
     return &state.headers[static_cast<size_t>(index)];
 }
 
-bool enterArea(AppState& state, const domain::AreaConfig& area) {
-    ports::IMsgBase* base = state.manager.openArea(area);
-    if (base == nullptr) return false;
+Result<void> enterArea(AppState& state, const domain::AreaConfig& area) {
+    auto opened = state.manager.openArea(area);
+    if (!opened) return tl::make_unexpected(std::move(opened).error());
 
+    ports::IMsgBase* base = *opened;
     state.base = base;
     // The area and the settings it is read under, together: setCurrentArea() is
     // the one place either is assigned. The twits are read off those settings,
@@ -266,7 +267,7 @@ bool enterArea(AppState& state, const domain::AreaConfig& area) {
     if (state.messageCount == 0) {
         message_read::showEmptyArea(state);
         state.navigator.push(app::ScreenId::MessageRead);
-        return true;
+        return {};
     }
     // Where the mark leaves the reading is a place in the area like any other,
     // so a twit standing there is walked past exactly as it is when the list
@@ -277,7 +278,7 @@ bool enterArea(AppState& state, const domain::AreaConfig& area) {
     centerCursor(state);
     ensureHeaders(state);
     state.navigator.push(app::ScreenId::MessageRead);
-    return true;
+    return {};
 }
 
 void leaveArea(AppState& state) {

@@ -147,7 +147,7 @@ TEST_CASE("An area group decides the charset its area is read in [areamanager]")
         "endgroup\n");
 
     auto grouped = makeManager({charsets}, config);
-    auto* base = grouped.openArea(charsets);
+    auto* base = amberedit::test::valueOf(grouped.openArea(charsets));
     REQUIRE(base != nullptr);
     CHECK(base->header(3).subject == expected);
 
@@ -156,7 +156,7 @@ TEST_CASE("An area group decides the charset its area is read in [areamanager]")
     AreaConfig outside = charsets;
     outside.tag = "ru.charsets";
     auto ungrouped = makeManager({outside}, config);
-    auto* plain = ungrouped.openArea(outside);
+    auto* plain = amberedit::test::valueOf(ungrouped.openArea(outside));
     REQUIRE(plain != nullptr);
     CHECK(plain->header(3).subject != expected);
 }
@@ -288,8 +288,7 @@ TEST_CASE("Entering an area with no base on disk makes one [areamanager][create]
     CHECK_FALSE(manager.areas()[0].isAvailable());
     CHECK_FALSE(std::filesystem::exists(area.path + ".sqd"));
 
-    REQUIRE(manager.openArea(area) != nullptr);
-    CHECK(manager.lastError().empty());
+    REQUIRE(manager.openArea(area).has_value());
     CHECK(std::filesystem::exists(area.path + ".sqd"));
 
     // And the row that said the area could not be read is brought up to date.
@@ -314,8 +313,9 @@ TEST_CASE("An area whose base cannot be created reports why [areamanager][create
     auto manager = makeManager({area}, configWithAddress("2:5020/1"));
     static_cast<void>(manager.reload());
 
-    CHECK(manager.openArea(area) == nullptr);
-    CHECK_FALSE(manager.lastError().empty());
+    const auto opened = manager.openArea(area);
+    CHECK_FALSE(opened.has_value());
+    CHECK_FALSE(opened.error().empty());
 }
 
 TEST_CASE("A base that is there and unreadable is never created over "
@@ -337,8 +337,9 @@ TEST_CASE("A base that is there and unreadable is never created over "
     auto manager = makeManager({area}, configWithAddress("2:5020/1"));
     static_cast<void>(manager.reload());
 
-    CHECK(manager.openArea(area) == nullptr);
-    CHECK_FALSE(manager.lastError().empty());
+    const auto opened = manager.openArea(area);
+    CHECK_FALSE(opened.has_value());
+    CHECK_FALSE(opened.error().empty());
     // Untouched: the file is exactly as long as it was.
     CHECK(std::filesystem::file_size(path + ".sqd") == 300);
 }

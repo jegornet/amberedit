@@ -10,6 +10,7 @@
 #include "temp_msg_bases.hpp"
 #include "temp_squish_base.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::text::startsWith;
 using amberedit::domain::AreaConfig;
@@ -126,7 +127,7 @@ TEST_CASE("The text in an info report is converted like any other [info][squish]
                MsgBaseType::Squish, "charsets");
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     REQUIRE(msgbase.count() == 3);
 
     for (uint32_t number = 1; number <= 2; ++number) {
