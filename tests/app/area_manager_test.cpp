@@ -29,7 +29,7 @@ namespace {
 class StubAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit StubAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    std::vector<AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -83,7 +83,7 @@ TEST_CASE("An area with no AKA of its own takes the user's address [areamanager]
     // areas.bbs can never state one, and in the other two formats the option is
     // optional, so this is the common case rather than the exception.
     auto manager = makeManager({areaNamed("no.aka")}, configWithAddress("2:5020/1"));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     REQUIRE(manager.areas().size() == 1);
     CHECK(manager.areas()[0].config.address.toString() == "2:5020/1");
@@ -94,7 +94,7 @@ TEST_CASE("An area that states its own AKA keeps it [areamanager]") {
     area.address = *FtnAddress::parse("192:168/1");
 
     auto manager = makeManager({area}, configWithAddress("2:5020/1"));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     REQUIRE(manager.areas().size() == 1);
     CHECK(manager.areas()[0].config.address.toString() == "192:168/1");
@@ -102,7 +102,7 @@ TEST_CASE("An area that states its own AKA keeps it [areamanager]") {
 
 TEST_CASE("With no address anywhere the AKA stays unset [areamanager]") {
     auto manager = makeManager({areaNamed("no.aka")}, configWithAddress(""));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     REQUIRE(manager.areas().size() == 1);
     CHECK_FALSE(manager.areas()[0].config.address.isValid());
@@ -123,7 +123,7 @@ TEST_CASE("An area group's address outranks the tosser's [areamanager]") {
                                                           "  member r50.sysop\n"
                                                           "  address 2:5020/9999\n"
                                                           "endgroup\n"));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     CHECK(entryFor(manager, "r50.sysop").config.address.toString() == "2:5020/9999");
     CHECK(entryFor(manager, "ru.linux").config.address.toString() == "192:168/1");
@@ -240,7 +240,7 @@ TEST_CASE("reload() sorts the list the config asks for [areamanager][sort]") {
     config.areaListSort = {{AreaSortKey::Echoid, true}};
 
     auto manager = makeManager({areaNamed("alt.test"), areaNamed("ru.linux")}, config);
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     CHECK(tagsOf(manager.areas()) == std::vector<std::string>{"ru.linux", "alt.test"});
 }
@@ -248,7 +248,7 @@ TEST_CASE("reload() sorts the list the config asks for [areamanager][sort]") {
 TEST_CASE("reload() lists every area, available or not [areamanager]") {
     auto manager =
         makeManager({areaNamed("one"), areaNamed("two")}, configWithAddress("2:5020/1"));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     REQUIRE(manager.areas().size() == 2);
     for (const auto& entry : manager.areas()) {
@@ -281,7 +281,7 @@ TEST_CASE("Entering an area with no base on disk makes one [areamanager][create]
     area.type = MsgBaseType::Squish;
 
     auto manager = makeManager({area}, configWithAddress("2:5020/1"));
-    manager.reload();
+    static_cast<void>(manager.reload());
     REQUIRE(manager.areas().size() == 1);
     // Nothing is created at startup: reload() opens every base there is, and a
     // rescan that wrote a spool would be a rescan nobody asked for.
@@ -312,7 +312,7 @@ TEST_CASE("An area whose base cannot be created reports why [areamanager][create
     area.type = MsgBaseType::Squish;
 
     auto manager = makeManager({area}, configWithAddress("2:5020/1"));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     CHECK(manager.openArea(area) == nullptr);
     CHECK_FALSE(manager.lastError().empty());
@@ -335,7 +335,7 @@ TEST_CASE("A base that is there and unreadable is never created over "
     area.type = MsgBaseType::Squish;
 
     auto manager = makeManager({area}, configWithAddress("2:5020/1"));
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     CHECK(manager.openArea(area) == nullptr);
     CHECK_FALSE(manager.lastError().empty());
@@ -360,10 +360,10 @@ TEST_CASE("An area declared in the config is read like any other [areamanager]")
                                                            "  default_charset UTF-8\n"
                                                            "endgroup\n"));
 
-    AreaManager manager(amberedit::app::makeAreaSource(config),
+    AreaManager manager(amberedit::test::valueOf(amberedit::app::makeAreaSource(config)),
                         std::make_unique<amberedit::msgbase::NullLastReadStore>(),
                         config);
-    manager.reload();
+    static_cast<void>(manager.reload());
 
     REQUIRE(manager.areas().size() == 1);
     const auto& entry = manager.areas().front();

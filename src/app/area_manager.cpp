@@ -118,17 +118,17 @@ std::unique_ptr<ports::IAreaConfigSource> makeTosserSource(const AppConfig& cfg)
     }
     // The format is stated explicitly in the config and validated while parsing
     // it, so getting here means someone added an enum value and forgot this.
-    throw std::runtime_error("unsupported tosser config format");
+    return nullptr;
 }
 
 }  // namespace
 
-std::unique_ptr<ports::IAreaConfigSource> makeAreaSource(const AppConfig& cfg) {
+Result<std::unique_ptr<ports::IAreaConfigSource>> makeAreaSource(const AppConfig& cfg) {
     auto tosser = makeTosserSource(cfg);
     // A config with neither is refused while it is read, so this is a config
     // built in code — and a null source would be a crash at the first reload.
     if (!tosser && cfg.manualAreas.empty()) {
-        throw std::runtime_error(
+        return failure(
             "the config names no tosser config and declares no areas of its own");
     }
     // Unwrapped where there is nothing to add: the common config declares no
@@ -146,7 +146,7 @@ AreaManager::AreaManager(std::unique_ptr<ports::IAreaConfigSource> areaSource,
 
 AreaManager::~AreaManager() = default;
 
-void AreaManager::reload(const ProgressFn& onArea) {
+Result<void> AreaManager::reload(const ProgressFn& onArea) {
     lastError_.clear();
     closeCurrentArea();
 
@@ -159,9 +159,12 @@ void AreaManager::reload(const ProgressFn& onArea) {
     // was rather than throwing it away.
     std::vector<AreaEntry> loaded;
 
-    // An exception escaping here means "the tosser config is unavailable",
+    // A failure coming back here means "the tosser config is unavailable",
     // which is fatal for startup. A failing individual area is not.
-    for (auto& config : areaSource_->loadAreas()) {
+    auto sourced = areaSource_->loadAreas();
+    if (!sourced) return tl::make_unexpected(sourced.error());
+
+    for (auto& config : *sourced) {
         AreaEntry entry;
         entry.config = std::move(config);
 
@@ -210,6 +213,7 @@ void AreaManager::reload(const ProgressFn& onArea) {
     // all known once every base has been opened.
     sortAreas(loaded, appConfig_.areaListSort);
     areas_ = std::move(loaded);
+    return {};
 }
 
 ports::IMsgBase* AreaManager::openArea(const AreaConfig& area) {

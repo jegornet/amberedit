@@ -166,13 +166,21 @@ int main(int argc, char* argv[]) {
         compileNodelists(appConfig, forceCompile);
         compileEcholists(appConfig, forceCompile);
 
+        auto source = amberedit::app::makeAreaSource(appConfig);
+        if (!source) {
+            std::cerr << "error: " << source.error() << "\n";
+            return 1;
+        }
+
         amberedit::app::AreaManager manager(
-            amberedit::echolist::withEcholistDescriptions(
-                amberedit::app::makeAreaSource(appConfig), appConfig),
+            amberedit::echolist::withEcholistDescriptions(std::move(*source), appConfig),
             std::make_unique<amberedit::msgbase::MsgBaseLastReadStore>(
                 appConfig.lastreadUser, appConfig.userName),
             appConfig);
-        manager.reload();
+        if (const auto read = manager.reload(); !read) {
+            std::cerr << "error: " << read.error() << "\n";
+            return 1;
+        }
 
         return amberedit::ui::runApp(manager, appConfig, keys);
     } catch (const std::exception& e) {

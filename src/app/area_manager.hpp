@@ -39,9 +39,9 @@ public:
     /// something to show meanwhile.
     using ProgressFn = std::function<void(const std::string& tag)>;
 
-    /// Reads the tosser config and computes statistics for every area.
-    /// Throws std::runtime_error only if the config itself is unavailable;
-    /// unavailable areas end up in the list with AreaEntry::error filled in.
+    /// Reads the tosser config and computes statistics for every area. It fails
+    /// only if the config itself is unavailable; unavailable areas end up in the
+    /// list with AreaEntry::error filled in.
     ///
     /// The new list replaces the old one at the end, in one step: until then
     /// areas() answers with what it did before, which is what the area list goes
@@ -53,7 +53,7 @@ public:
     /// enough that the screen has to say what it is doing. It is called from
     /// inside the loop, so whatever it does happens between two bases and not
     /// on a thread of its own.
-    void reload(const ProgressFn& onArea = {});
+    [[nodiscard]] Result<void> reload(const ProgressFn& onArea = {});
 
     [[nodiscard]] const std::vector<AreaEntry>& areas() const { return areas_; }
 
@@ -148,6 +148,7 @@ void sortAreas(std::vector<AreaEntry>& areas,
 
 /// Builds an area source from the app config, picking fidoconfig or areas.bbs
 /// according to the format stated there.
-std::unique_ptr<ports::IAreaConfigSource> makeAreaSource(const config::AppConfig& cfg);
+[[nodiscard]] Result<std::unique_ptr<ports::IAreaConfigSource>> makeAreaSource(
+    const config::AppConfig& cfg);
 
 }  // namespace amberedit::app

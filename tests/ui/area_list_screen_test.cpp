@@ -35,7 +35,7 @@ namespace {
 class MutableAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit MutableAreaSource(std::vector<AreaConfig>* areas) : areas_(areas) {}
-    std::vector<AreaConfig> loadAreas() override { return *areas_; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return *areas_; }
 
 private:
     std::vector<AreaConfig>* areas_;
@@ -117,7 +117,7 @@ struct Fixture {
           manager(std::make_unique<MutableAreaSource>(&areas),
                   std::unique_ptr<StubLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     /// The tosser config's own order, so that what a rescan does to the list is
@@ -198,7 +198,7 @@ TEST_CASE("The slash goes to the next area with unread messages [arealist][squis
     REQUIRE(uid != 0);
     fixture.manager.closeCurrentArea();
     fixture.lastRead->set("second", uid);
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 
     REQUIRE(fixture.manager.areas()[0].unread > 0);
     REQUIRE(fixture.manager.areas()[1].unread == 0);

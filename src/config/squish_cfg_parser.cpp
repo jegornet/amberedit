@@ -81,9 +81,9 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
 
 SquishCfgParser::SquishCfgParser(std::string path) : path_(std::move(path)) {}
 
-std::vector<AreaConfig> SquishCfgParser::loadAreas() {
+Result<std::vector<AreaConfig>> SquishCfgParser::loadAreas() {
     const auto content = text::readFile(path_);
-    if (!content) throw std::runtime_error(content.error());
+    if (!content) return tl::make_unexpected(content.error());
     return parseText(*content);
 }
 

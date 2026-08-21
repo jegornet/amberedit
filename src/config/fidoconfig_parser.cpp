@@ -52,8 +52,8 @@ std::string stripComment(std::string_view line) {
     return std::string(text::trim(line));
 }
 
-void parseInto(const std::string& content, std::vector<AreaConfig>& areas,
-               const std::filesystem::path& baseDir, int includeDepth);
+Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& areas,
+                       const std::filesystem::path& baseDir, int includeDepth);
 
 /// Parses a single area declaration line.
 std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
@@ -112,8 +112,8 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
     return area;
 }
 
-void parseInto(const std::string& content, std::vector<AreaConfig>& areas,
-               const std::filesystem::path& baseDir, int includeDepth) {
+Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& areas,
+                       const std::filesystem::path& baseDir, int includeDepth) {
     for (const auto& rawLine : text::splitLines(content)) {
         const std::string line = stripComment(rawLine);
         if (line.empty()) continue;
@@ -129,8 +129,10 @@ void parseInto(const std::string& content, std::vector<AreaConfig>& areas,
             std::error_code ec;
             if (!std::filesystem::exists(included, ec)) continue;
             const auto text = text::readFile(included.string());
-            if (!text) throw std::runtime_error(text.error());
-            parseInto(*text, areas, included.parent_path(), includeDepth - 1);
+            if (!text) return tl::make_unexpected(text.error());
+            const auto read =
+                parseInto(*text, areas, included.parent_path(), includeDepth - 1);
+            if (!read) return tl::make_unexpected(read.error());
             continue;
         }
 
@@ -139,24 +141,30 @@ void parseInto(const std::string& content, std::vector<AreaConfig>& areas,
                 areas.push_back(std::move(*area));
         }
     }
+    return {};
 }
 
 }  // namespace
 
 FidoconfigParser::FidoconfigParser(std::string path) : path_(std::move(path)) {}
 
-std::vector<AreaConfig> FidoconfigParser::loadAreas() {
+Result<std::vector<AreaConfig>> FidoconfigParser::loadAreas() {
     const auto content = text::readFile(path_);
-    if (!content) throw std::runtime_error(content.error());
+    if (!content) return tl::make_unexpected(content.error());
     std::vector<AreaConfig> areas;
-    parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
-              /*includeDepth=*/8);
+    const auto read =
+        parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
+                  /*includeDepth=*/8);
+    if (!read) return tl::make_unexpected(read.error());
     return areas;
 }
 
 std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content) {
     std::vector<AreaConfig> areas;
-    parseInto(content, areas, std::filesystem::current_path(), /*includeDepth=*/0);
+    // includeDepth 0, so the one thing parseInto can fail at — reading an
+    // include — cannot happen and the answer is nothing to check.
+    static_cast<void>(
+        parseInto(content, areas, std::filesystem::current_path(), /*includeDepth=*/0));
     return areas;
 }
 

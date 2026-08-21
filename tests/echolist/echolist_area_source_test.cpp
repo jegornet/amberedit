@@ -10,6 +10,7 @@
 #include "app/area_manager.hpp"
 #include "echolist/echolist_writer.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
 
@@ -22,7 +23,9 @@ public:
     explicit FixedAreas(std::vector<domain::AreaConfig> areas)
         : areas_(std::move(areas)) {}
 
-    std::vector<domain::AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<domain::AreaConfig>> loadAreas() override {
+        return areas_;
+    }
 
 private:
     std::vector<domain::AreaConfig> areas_;
@@ -58,7 +61,7 @@ TEST_CASE("with priority area the tosser's own description wins [echolist]") {
     echolist::EcholistAreaSource source(inner(), compiledEcholist(dir),
                                         config::DescriptionPriority::Area);
 
-    const auto areas = source.loadAreas();
+    const auto areas = amberedit::test::valueOf(source.loadAreas());
     REQUIRE(areas.size() == 3);
     CHECK(areas[0].description == "what the tosser says");
     // Only a description that says something counts: an echo the tosser config
@@ -73,7 +76,7 @@ TEST_CASE("with priority echolist the echolist's description wins [echolist]") {
     echolist::EcholistAreaSource source(inner(), compiledEcholist(dir),
                                         config::DescriptionPriority::Echolist);
 
-    const auto areas = source.loadAreas();
+    const auto areas = amberedit::test::valueOf(source.loadAreas());
     REQUIRE(areas.size() == 3);
     CHECK(areas[0].description == "what the echolist says");
     CHECK(areas[1].description == "Музыка!");
@@ -89,7 +92,7 @@ TEST_CASE("a compiled echolist that will not open leaves every area as it was "
     // echolist is missing" worth an area list without descriptions in it.
     echolist::EcholistAreaSource missing(inner(), dir.path("gone.db"),
                                          config::DescriptionPriority::Echolist);
-    const auto areas = missing.loadAreas();
+    const auto areas = amberedit::test::valueOf(missing.loadAreas());
     REQUIRE(areas.size() == 3);
     CHECK(areas[0].description == "what the tosser says");
     CHECK(areas[1].description.empty());
@@ -105,7 +108,8 @@ TEST_CASE("a config naming no compiled echolist is left unwrapped [echolist]") {
     cfg.areaDescriptionPriority = config::DescriptionPriority::Echolist;
     auto wrapped = echolist::withEcholistDescriptions(inner(), cfg);
     REQUIRE(dynamic_cast<echolist::EcholistAreaSource*>(wrapped.get()) != nullptr);
-    CHECK(wrapped->loadAreas()[0].description == "what the echolist says");
+    CHECK(amberedit::test::valueOf(wrapped->loadAreas())[0].description ==
+          "what the echolist says");
 }
 
 TEST_CASE("the area list main() builds carries the echolist's descriptions "
@@ -122,8 +126,9 @@ TEST_CASE("the area list main() builds carries the echolist's descriptions "
     cfg.manualAreas.push_back(described);
     cfg.echolistDbPath = compiledEcholist(dir);
 
-    auto source = echolist::withEcholistDescriptions(app::makeAreaSource(cfg), cfg);
-    const auto areas = source->loadAreas();
+    auto source = echolist::withEcholistDescriptions(
+        amberedit::test::valueOf(app::makeAreaSource(cfg)), cfg);
+    const auto areas = amberedit::test::valueOf(source->loadAreas());
     REQUIRE(areas.size() == 1);
     CHECK(areas[0].description == "Музыка!");
 }

@@ -23,7 +23,9 @@ namespace amberedit::test {
 class SingleAreaSource final : public ports::IAreaConfigSource {
 public:
     explicit SingleAreaSource(domain::AreaConfig area) : area_(std::move(area)) {}
-    std::vector<domain::AreaConfig> loadAreas() override { return {area_}; }
+    amberedit::Result<std::vector<domain::AreaConfig>> loadAreas() override {
+        return std::vector<domain::AreaConfig>{area_};
+    }
 
 private:
     domain::AreaConfig area_;
@@ -64,7 +66,7 @@ struct AreaFixture {
           manager(std::make_unique<SingleAreaSource>(area),
                   std::unique_ptr<StubLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     /// Where the cursor sits within the window on screen, as a row number.

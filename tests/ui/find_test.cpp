@@ -91,7 +91,7 @@ void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
     }
 
     fixture.manager.closeCurrentArea();
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 }
 
 /// Which message the reader is showing.

@@ -4,6 +4,7 @@
 
 #include "config/fidoconfig_parser.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::FidoconfigParser;
 using amberedit::domain::AreaConfig;
@@ -22,7 +23,7 @@ const AreaConfig* findArea(const std::vector<AreaConfig>& areas, const std::stri
 
 TEST_CASE("FidoconfigParser parses testdata/tossers/areas [fidoconfig]") {
     FidoconfigParser parser(amberedit::test::projectPath("testdata/tossers/areas"));
-    const auto areas = parser.loadAreas();
+    const auto areas = amberedit::test::valueOf(parser.loadAreas());
 
     REQUIRE(areas.size() == 6);
 
@@ -184,5 +185,5 @@ TEST_CASE("FidoconfigParser: an unstated base type stays Unknown [fidoconfig]") 
 
 TEST_CASE("FidoconfigParser throws on a missing file [fidoconfig]") {
     FidoconfigParser parser("/nonexistent/path/areas");
-    CHECK_THROWS(parser.loadAreas());
+    CHECK_FALSE(parser.loadAreas().has_value());
 }

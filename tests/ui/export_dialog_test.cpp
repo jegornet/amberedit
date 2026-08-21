@@ -54,7 +54,7 @@ Event clickAt(int x, int y) {
 
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    std::vector<AreaConfig> loadAreas() override { return {}; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
 };
 
 /// A message on the reader's screen and a directory to write it into.

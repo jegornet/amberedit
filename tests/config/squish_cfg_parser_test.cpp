@@ -4,6 +4,7 @@
 
 #include "config/squish_cfg_parser.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::SquishCfgParser;
 using amberedit::domain::AreaConfig;
@@ -22,7 +23,7 @@ const AreaConfig* findArea(const std::vector<AreaConfig>& areas, const std::stri
 
 TEST_CASE("SquishCfgParser parses testdata/tossers/squish.cfg [squishcfg]") {
     SquishCfgParser parser(amberedit::test::projectPath("testdata/tossers/squish.cfg"));
-    const auto areas = parser.loadAreas();
+    const auto areas = amberedit::test::valueOf(parser.loadAreas());
 
     REQUIRE(areas.size() == 7);
 
@@ -138,5 +139,5 @@ TEST_CASE("SquishCfgParser leaves the AKA unset when -p is absent [squishcfg]") 
 
 TEST_CASE("SquishCfgParser throws on a missing file [squishcfg]") {
     SquishCfgParser parser("/nonexistent/path/squish.cfg");
-    CHECK_THROWS(parser.loadAreas());
+    CHECK_FALSE(parser.loadAreas().has_value());
 }

@@ -62,7 +62,7 @@ void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
     }
 
     fixture.manager.closeCurrentArea();
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 }
 
 /// A config with a twit or two in it and nothing else to speak of. The user has

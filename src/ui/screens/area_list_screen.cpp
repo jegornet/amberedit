@@ -372,20 +372,18 @@ void rescan(AppState& state) {
     }
 
     // An unreadable tosser config, or one that has come to declare a tag an
-    // `area ... endarea` block declares too, are what reload() throws for, and
-    // it leaves the list as it was — so there is nothing to undo and, with no
+    // `area ... endarea` block declares too, are what reload() fails for, and it
+    // leaves the list as it was — so there is nothing to undo and, with no
     // status line to say it in, nothing to say. The cursor is settled below
     // either way.
-    try {
-        // Each area is named on the modal as it is reached, which is what the
-        // frame drawn from in here puts on the screen. The shell is blocked
-        // inside this call, so nothing else would draw one.
-        state.manager.reload([&state](const std::string& areaTag) {
-            state.rescanArea = areaTag;
-            state.redraw();
-        });
-    } catch (const std::exception&) {  // NOLINT(bugprone-empty-catch)
-    }
+    //
+    // Each area is named on the modal as it is reached, which is what the frame
+    // drawn from in here puts on the screen. The shell is blocked inside this
+    // call, so nothing else would draw one.
+    static_cast<void>(state.manager.reload([&state](const std::string& areaTag) {
+        state.rescanArea = areaTag;
+        state.redraw();
+    }));
 
     const auto& areas = state.manager.areas();
     if (!tag.empty()) {

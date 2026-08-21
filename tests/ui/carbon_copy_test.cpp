@@ -54,7 +54,7 @@ private:
 class ListedAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit ListedAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    std::vector<AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -85,7 +85,7 @@ struct CopyFixture {
           manager(std::make_unique<ListedAreaSource>(areaList()),
                   std::unique_ptr<PerAreaLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     [[nodiscard]] std::vector<AreaConfig> areaList() const {

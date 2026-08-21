@@ -47,7 +47,7 @@ namespace {
 /// asks the manager for nothing at all.
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    std::vector<AreaConfig> loadAreas() override { return {}; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
 };
 
 /// A state in one area, with no base under it — writing a message touches

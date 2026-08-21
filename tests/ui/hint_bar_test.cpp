@@ -37,7 +37,7 @@ term::Event clickAt(int x, int y) {
 
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    std::vector<AreaConfig> loadAreas() override { return {}; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
 };
 
 /// A state on whichever screen the test is about, and nothing else: the row is

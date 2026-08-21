@@ -41,7 +41,7 @@ void emptyTheArea(AreaFixture& fixture) {
     REQUIRE(base != nullptr);
     while (base->count() > 0) REQUIRE(base->remove(1));
     fixture.manager.closeCurrentArea();
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 }
 
 /// Draws the reader into a buffer of its own size, which is what fills the

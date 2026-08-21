@@ -5,6 +5,7 @@
 #include <exception>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "support/result.hpp"
 
@@ -52,7 +53,14 @@ std::string errorOf(const Result<T>& result) {
 ///
 /// REQUIRE and not CHECK: a test whose premise has broken stops there rather
 /// than going on to read a value that is not there. By value because the Result
-/// it comes out of is usually a temporary.
+/// it comes out of is usually a temporary — and moved out of where it is one,
+/// which is what lets a Result of a unique_ptr through at all.
+template <typename T>
+T valueOf(Result<T>&& result) {
+    REQUIRE_MESSAGE(result.has_value(), errorOf(result));
+    return std::move(*result);
+}
+
 template <typename T>
 T valueOf(const Result<T>& result) {
     REQUIRE_MESSAGE(result.has_value(), errorOf(result));

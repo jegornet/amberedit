@@ -14,8 +14,10 @@ EcholistAreaSource::EcholistAreaSource(std::unique_ptr<ports::IAreaConfigSource>
                                        config::DescriptionPriority priority)
     : inner_(std::move(inner)), dbPath_(std::move(dbPath)), priority_(priority) {}
 
-std::vector<domain::AreaConfig> EcholistAreaSource::loadAreas() {
-    std::vector<domain::AreaConfig> areas = inner_->loadAreas();
+Result<std::vector<domain::AreaConfig>> EcholistAreaSource::loadAreas() {
+    auto loaded = inner_->loadAreas();
+    if (!loaded) return tl::make_unexpected(loaded.error());
+    std::vector<domain::AreaConfig> areas = std::move(*loaded);
     if (dbPath_.empty()) return areas;
 
     // Opening it is the whole of what can go wrong here, and going wrong means

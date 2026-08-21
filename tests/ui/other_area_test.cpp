@@ -82,7 +82,9 @@ class TwoAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     TwoAreaSource(domain::AreaConfig first, domain::AreaConfig second)
         : areas_{std::move(first), std::move(second)} {}
-    std::vector<domain::AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<domain::AreaConfig>> loadAreas() override {
+        return areas_;
+    }
 
 private:
     std::vector<domain::AreaConfig> areas_;
@@ -155,7 +157,7 @@ struct TwoAreaFixture {
           manager(std::make_unique<TwoAreaSource>(source, target),
                   std::unique_ptr<PerAreaLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     /// The messages an area holds, read off a base opened for the purpose.
