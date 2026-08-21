@@ -1,6 +1,6 @@
 #include "echolist/echolist_db.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <fstream>
 #include <optional>
@@ -30,7 +30,7 @@ echolist::DbSource sourceOf(const std::string& spec,
 
 }  // namespace
 
-TEST_CASE("a compiled echolist reads back what was written into it", "[echolist]") {
+TEST_CASE("a compiled echolist reads back what was written into it [echolist]") {
     test::TempDir dir;
     const std::string path = dir.path("echolist.db");
 
@@ -67,7 +67,7 @@ TEST_CASE("a compiled echolist reads back what was written into it", "[echolist]
     CHECK(db.tagAt(2) == "SU.MUSIC");
 }
 
-TEST_CASE("the first echolist to name an echo is the one that keeps it", "[echolist]") {
+TEST_CASE("the first echolist to name an echo is the one that keeps it [echolist]") {
     test::TempDir dir;
     const std::string path = dir.path("echolist.db");
 
@@ -90,7 +90,7 @@ TEST_CASE("the first echolist to name an echo is the one that keeps it", "[echol
           std::optional<std::string>("only the second list has this"));
 }
 
-TEST_CASE("an echolist that was not there is written as the nothing it was",
+TEST_CASE("an echolist that was not there is written as the nothing it was "
           "[echolist]") {
     test::TempDir dir;
     const std::string path = dir.path("echolist.db");
@@ -112,7 +112,7 @@ TEST_CASE("an echolist that was not there is written as the nothing it was",
     CHECK(db.sources()[0].path.empty());
 }
 
-TEST_CASE("a file that is not a compiled echolist is refused by name", "[echolist]") {
+TEST_CASE("a file that is not a compiled echolist is refused by name [echolist]") {
     test::TempDir dir;
 
     CHECK_THROWS_AS(echolist::EcholistDb::open(dir.path("nothing.db")),

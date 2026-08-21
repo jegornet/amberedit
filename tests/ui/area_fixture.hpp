@@ -1,6 +1,6 @@
 #pragma once
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <memory>

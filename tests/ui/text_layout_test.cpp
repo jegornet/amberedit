@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -8,7 +8,7 @@
 
 using namespace amberedit::ui;
 
-TEST_CASE("displayWidth counts columns, not bytes or code points", "[layout]") {
+TEST_CASE("displayWidth counts columns, not bytes or code points [layout]") {
     CHECK(displayWidth("") == 0);
     CHECK(displayWidth("abc") == 3);
     // Twelve bytes, six code points, six columns.
@@ -21,7 +21,7 @@ TEST_CASE("displayWidth counts columns, not bytes or code points", "[layout]") {
     CHECK(displayWidth("e\u0301") == 1);
 }
 
-TEST_CASE("displayWidth agrees with what the renderer will draw", "[layout]") {
+TEST_CASE("displayWidth agrees with what the renderer will draw [layout]") {
     // The measuring here and the dividing the renderer does have to agree, or a
     // cell budgeted for is not a cell drawn. toGlyphs() hands back exactly one
     // entry per column it will occupy — the second cell of a wide glyph among
@@ -34,7 +34,7 @@ TEST_CASE("displayWidth agrees with what the renderer will draw", "[layout]") {
     }
 }
 
-TEST_CASE("truncateToWidth cuts on character boundaries", "[layout]") {
+TEST_CASE("truncateToWidth cuts on character boundaries [layout]") {
     CHECK(truncateToWidth("Привет", 10) == "Привет");
     CHECK(truncateToWidth("Привет", 6) == "Привет");
     CHECK(truncateToWidth("Привет", 4) == "При…");
@@ -42,7 +42,7 @@ TEST_CASE("truncateToWidth cuts on character boundaries", "[layout]") {
     CHECK(truncateToWidth("Привет", 0).empty());
 }
 
-TEST_CASE("truncateToWidth never leaves half a double-width glyph", "[layout]") {
+TEST_CASE("truncateToWidth never leaves half a double-width glyph [layout]") {
     // 日本語 is six columns. Cut to five, the budget is four after the ellipsis,
     // which is two whole ideographs — the third must not be half-drawn.
     CHECK(truncateToWidth("日本語", 6) == "日本語");
@@ -54,14 +54,14 @@ TEST_CASE("truncateToWidth never leaves half a double-width glyph", "[layout]") 
     CHECK(displayWidth(truncateToWidth("日本語", 5)) <= 5);
 }
 
-TEST_CASE("padRight pads to columns, not to code points", "[layout]") {
+TEST_CASE("padRight pads to columns, not to code points [layout]") {
     // Two ideographs are four columns, so eight columns need four spaces —
     // counting code points would have added six and pushed the row out.
     CHECK(displayWidth(padRight("日本", 8)) == 8);
     CHECK(padRight("日本", 8) == "日本    ");
 }
 
-TEST_CASE("padRight/padLeft align Cyrillic", "[layout]") {
+TEST_CASE("padRight/padLeft align Cyrillic [layout]") {
     // The whole point: the 6 characters of "Привет" occupy 12 bytes, and the
     // padding has to reach a width in characters or the columns drift apart.
     CHECK(padRight("Привет", 8) == "Привет  ");
@@ -70,14 +70,14 @@ TEST_CASE("padRight/padLeft align Cyrillic", "[layout]") {
     CHECK(displayWidth(padRight("ru.linux", 12)) == 12);
 }
 
-TEST_CASE("digitWidth counts digits", "[layout]") {
+TEST_CASE("digitWidth counts digits [layout]") {
     CHECK(digitWidth(0) == 1);
     CHECK(digitWidth(9) == 1);
     CHECK(digitWidth(10) == 2);
     CHECK(digitWidth(12345) == 5);
 }
 
-TEST_CASE("horizontalRule is as wide as asked, in characters", "[layout]") {
+TEST_CASE("horizontalRule is as wide as asked, in characters [layout]") {
     CHECK(displayWidth(horizontalRule(10)) == 10);
     CHECK(displayWidth(horizontalRule(1)) == 1);
     CHECK(horizontalRule(3) == "───");
@@ -86,14 +86,14 @@ TEST_CASE("horizontalRule is as wide as asked, in characters", "[layout]") {
     CHECK(displayWidth(horizontalRule(-5)) == 1);
 }
 
-TEST_CASE("quoteDepth counts the markers a quote opens with", "[quote]") {
+TEST_CASE("quoteDepth counts the markers a quote opens with [quote]") {
     CHECK(quoteDepth("> text") == 1);
     CHECK(quoteDepth(">> text") == 2);
     CHECK(quoteDepth(">>> text") == 3);
     CHECK(quoteDepth("> ") == 1);  // nothing quoted, but still a quote line
 }
 
-TEST_CASE("quoteDepth accepts optional initials", "[quote]") {
+TEST_CASE("quoteDepth accepts optional initials [quote]") {
     CHECK(quoteDepth("AB> text") == 1);
     CHECK(quoteDepth(" AB> text") == 1);
     CHECK(quoteDepth(" VP>>> text") == 3);
@@ -101,7 +101,7 @@ TEST_CASE("quoteDepth accepts optional initials", "[quote]") {
     CHECK(quoteDepth("ABCDEFG> text") == 0);  // seven is too many
 }
 
-TEST_CASE("quoteDepth accepts Cyrillic initials", "[quote]") {
+TEST_CASE("quoteDepth accepts Cyrillic initials [quote]") {
     // Russian echoes write initials in Cyrillic as a matter of course, so the
     // letters have to be counted in code points rather than bytes.
     CHECK(quoteDepth("ЕГ> текст") == 1);
@@ -110,13 +110,13 @@ TEST_CASE("quoteDepth accepts Cyrillic initials", "[quote]") {
     CHECK(quoteDepth("АБВГДЕЖ> текст") == 0);
 }
 
-TEST_CASE("quoteDepth allows up to two leading spaces", "[quote]") {
+TEST_CASE("quoteDepth allows up to two leading spaces [quote]") {
     CHECK(quoteDepth(" > text") == 1);
     CHECK(quoteDepth("  > text") == 1);
     CHECK(quoteDepth("   > text") == 0);  // three is indentation, not a quote
 }
 
-TEST_CASE("quoteDepth requires the space after the markers", "[quote]") {
+TEST_CASE("quoteDepth requires the space after the markers [quote]") {
     CHECK(quoteDepth(">text") == 0);
     CHECK(quoteDepth(">>>text") == 0);
     CHECK(quoteDepth("AB>text") == 0);
@@ -124,7 +124,7 @@ TEST_CASE("quoteDepth requires the space after the markers", "[quote]") {
     CHECK(quoteDepth(">>>") == 0);
 }
 
-TEST_CASE("quoteDepth reads the '->' QWK gateways quote with", "[quote]") {
+TEST_CASE("quoteDepth reads the '->' QWK gateways quote with [quote]") {
     CHECK(quoteDepth("-> text") == 1);
     CHECK(quoteDepth(" -> text") == 1);
     CHECK(quoteDepth("->> text") == 2);
@@ -133,7 +133,7 @@ TEST_CASE("quoteDepth reads the '->' QWK gateways quote with", "[quote]") {
     CHECK(quoteDepth("--> text") == 0);
 }
 
-TEST_CASE("quoteDepth rejects lines with no markers", "[quote]") {
+TEST_CASE("quoteDepth rejects lines with no markers [quote]") {
     CHECK(quoteDepth("") == 0);
     CHECK(quoteDepth("ordinary text") == 0);
     CHECK(quoteDepth("- not a quote") == 0);
@@ -141,7 +141,7 @@ TEST_CASE("quoteDepth rejects lines with no markers", "[quote]") {
     CHECK(quoteDepth(" * Origin: somewhere (2:5020/1)") == 0);
 }
 
-TEST_CASE("wrapText keeps short lines as they are", "[layout]") {
+TEST_CASE("wrapText keeps short lines as they are [layout]") {
     // Indentation and quoting must not be normalised away.
     const auto lines = wrapText("  AB> quoted with indent\nan ordinary line", 40);
     REQUIRE(lines.size() == 2);
@@ -149,20 +149,20 @@ TEST_CASE("wrapText keeps short lines as they are", "[layout]") {
     CHECK(lines[1] == "an ordinary line");
 }
 
-TEST_CASE("wrapText keeps blank lines", "[layout]") {
+TEST_CASE("wrapText keeps blank lines [layout]") {
     const auto lines = wrapText("first\n\nsecond", 40);
     REQUIRE(lines.size() == 3);
     CHECK(lines[1].empty());
 }
 
-TEST_CASE("wrapText breaks long lines on word boundaries", "[layout]") {
+TEST_CASE("wrapText breaks long lines on word boundaries [layout]") {
     const auto lines = wrapText("aaa bbb ccc ddd", 7);
     REQUIRE(lines.size() == 2);
     CHECK(lines[0] == "aaa bbb");
     CHECK(lines[1] == "ccc ddd");
 }
 
-TEST_CASE("wrapText keeps the indentation of a line it breaks", "[layout]") {
+TEST_CASE("wrapText keeps the indentation of a line it breaks [layout]") {
     // A quote that does not fit is wrapped, not shifted left: the space it
     // opens with is part of the line, not a separator to be skipped over.
     const auto lines = wrapText(" YG>> Mon Jul 27 01:18:52 CEST 2026", 20);
@@ -171,7 +171,7 @@ TEST_CASE("wrapText keeps the indentation of a line it breaks", "[layout]") {
     CHECK(lines[1] == "01:18:52 CEST 2026");
 }
 
-TEST_CASE("wrapText keeps the spacing inside a line it breaks", "[layout]") {
+TEST_CASE("wrapText keeps the spacing inside a line it breaks [layout]") {
     const auto lines = wrapText("--- tosser 1.0   + Origin: here (2:5020/1)", 20);
     REQUIRE(lines.size() == 3);
     CHECK(lines[0] == "--- tosser 1.0   +");
@@ -179,7 +179,7 @@ TEST_CASE("wrapText keeps the spacing inside a line it breaks", "[layout]") {
     CHECK(lines[2] == "(2:5020/1)");
 }
 
-TEST_CASE("wrapText splits a word longer than the width", "[layout]") {
+TEST_CASE("wrapText splits a word longer than the width [layout]") {
     const auto lines = wrapText("aaaaaaaaaa", 4);
     REQUIRE(lines.size() == 3);
     CHECK(lines[0] == "aaaa");
@@ -187,7 +187,7 @@ TEST_CASE("wrapText splits a word longer than the width", "[layout]") {
     CHECK(lines[2] == "aa");
 }
 
-TEST_CASE("wrapText does not exceed the width on Cyrillic", "[layout]") {
+TEST_CASE("wrapText does not exceed the width on Cyrillic [layout]") {
     const auto lines =
         wrapText("Съешь ещё этих мягких французских булок да выпей чаю", 12);
     REQUIRE_FALSE(lines.empty());
@@ -197,12 +197,12 @@ TEST_CASE("wrapText does not exceed the width on Cyrillic", "[layout]") {
     }
 }
 
-TEST_CASE("wrapText with a zero width returns nothing", "[layout]") {
+TEST_CASE("wrapText with a zero width returns nothing [layout]") {
     CHECK(wrapText("text", 0).empty());
     CHECK(wrapText("text", -5).empty());
 }
 
-TEST_CASE("softWrapOffsets divides a line rather than rewriting it", "[layout]") {
+TEST_CASE("softWrapOffsets divides a line rather than rewriting it [layout]") {
     using Offsets = std::vector<size_t>;
     // A line that fits is one row, beginning where it begins.
     CHECK(softWrapOffsets("aaa bbb", 7) == Offsets{0});
@@ -216,7 +216,7 @@ TEST_CASE("softWrapOffsets divides a line rather than rewriting it", "[layout]")
     CHECK(softWrapOffsets("text", 0) == Offsets{0});
 }
 
-TEST_CASE("softWrapOffsets does not exceed the width on Cyrillic", "[layout]") {
+TEST_CASE("softWrapOffsets does not exceed the width on Cyrillic [layout]") {
     const std::string line = "Съешь ещё этих мягких французских булок да выпей чаю";
     const auto starts = softWrapOffsets(line, 12);
     REQUIRE(starts.size() > 1);
@@ -245,7 +245,7 @@ std::vector<std::string> linksIn(const std::string& line) {
 
 }  // namespace
 
-TEST_CASE("findLinks picks out the schemes it knows", "[layout]") {
+TEST_CASE("findLinks picks out the schemes it knows [layout]") {
     CHECK(linksIn("see https://google.com for details") ==
           std::vector<std::string>{"https://google.com"});
     CHECK(linksIn("http://ftn.example/x?a=1&b=2") ==
@@ -254,12 +254,12 @@ TEST_CASE("findLinks picks out the schemes it knows", "[layout]") {
           std::vector<std::string>{"ftp://ftp.funet.fi/pub/"});
 }
 
-TEST_CASE("findLinks finds every link on a line", "[layout]") {
+TEST_CASE("findLinks finds every link on a line [layout]") {
     CHECK(linksIn("http://a.example and http://b.example") ==
           std::vector<std::string>{"http://a.example", "http://b.example"});
 }
 
-TEST_CASE("findLinks leaves the sentence's punctuation out of the link", "[layout]") {
+TEST_CASE("findLinks leaves the sentence's punctuation out of the link [layout]") {
     CHECK(linksIn("go to https://google.com.") ==
           std::vector<std::string>{"https://google.com"});
     CHECK(linksIn("(see http://x.example)") ==
@@ -271,7 +271,7 @@ TEST_CASE("findLinks leaves the sentence's punctuation out of the link", "[layou
           std::vector<std::string>{"http://wiki.example/Foo_(bar)"});
 }
 
-TEST_CASE("findLinks does not guess at addresses without a scheme", "[layout]") {
+TEST_CASE("findLinks does not guess at addresses without a scheme [layout]") {
     // Coloring these would mean coloring ordinary words: a message that
     // mentions google.com is not offering a link.
     CHECK(linksIn("google.com is a search engine").empty());
@@ -279,7 +279,7 @@ TEST_CASE("findLinks does not guess at addresses without a scheme", "[layout]") 
     CHECK(linksIn("mail me at user@example.org").empty());
 }
 
-TEST_CASE("findLinks needs the scheme to start a word", "[layout]") {
+TEST_CASE("findLinks needs the scheme to start a word [layout]") {
     CHECK(linksIn("xhttp://example.org").empty());
     // The scheme on its own is not an address.
     CHECK(linksIn("http:// and nothing after").empty());
@@ -300,7 +300,7 @@ std::vector<std::string> stylesIn(const std::string& line) {
 
 }  // namespace
 
-TEST_CASE("findStyleSpans picks out the three markers", "[layout]") {
+TEST_CASE("findStyleSpans picks out the three markers [layout]") {
     CHECK(stylesIn("say _this_ now") == std::vector<std::string>{"_:_this_"});
     CHECK(stylesIn("say *this* now") == std::vector<std::string>{"*:*this*"});
     CHECK(stylesIn("say /this/ now") == std::vector<std::string>{"/:/this/"});
@@ -309,14 +309,14 @@ TEST_CASE("findStyleSpans picks out the three markers", "[layout]") {
     CHECK(stylesIn("*a whole phrase*") == std::vector<std::string>{"*:*a whole phrase*"});
 }
 
-TEST_CASE("findStyleSpans finds every phrase on a line", "[layout]") {
+TEST_CASE("findStyleSpans finds every phrase on a line [layout]") {
     CHECK(stylesIn("*one* and _two_") ==
           std::vector<std::string>{"*:*one*", "_:_two_"});
     // The first marker to open wins; what its phrase holds is taken as written.
     CHECK(stylesIn("*_both_*") == std::vector<std::string>{"*:*_both_*"});
 }
 
-TEST_CASE("findStyleSpans needs the markers to stand outside words", "[layout]") {
+TEST_CASE("findStyleSpans needs the markers to stand outside words [layout]") {
     CHECK(stylesIn("snake_case_name").empty());
     CHECK(stylesIn("2*3*4").empty());
     CHECK(stylesIn("/usr/local/bin/gcc").empty());
@@ -328,13 +328,13 @@ TEST_CASE("findStyleSpans needs the markers to stand outside words", "[layout]")
     CHECK(stylesIn("**").empty());
 }
 
-TEST_CASE("findStyleSpans allows brackets and punctuation around a phrase",
+TEST_CASE("findStyleSpans allows brackets and punctuation around a phrase "
           "[layout]") {
     CHECK(stylesIn("(*bold*)") == std::vector<std::string>{"*:*bold*"});
     CHECK(stylesIn("well, _really_?") == std::vector<std::string>{"_:_really_"});
 }
 
-TEST_CASE("findStyleSpans closes a phrase at the first marker that ends a word",
+TEST_CASE("findStyleSpans closes a phrase at the first marker that ends a word "
           "[layout]") {
     CHECK(stylesIn("*one* two*") == std::vector<std::string>{"*:*one*"});
 }

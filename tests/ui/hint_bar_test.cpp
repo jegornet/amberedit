@@ -1,6 +1,6 @@
 #include "ui/hint_bar.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <memory>
 #include <string>
@@ -62,7 +62,7 @@ struct Fixture {
 
 }  // namespace
 
-TEST_CASE("The hint bar names the commands of the screen it stands under", "[hintbar]") {
+TEST_CASE("The hint bar names the commands of the screen it stands under [hintbar]") {
     CHECK(hint_bar::text(Fixture(ScreenId::AreaList).state) ==
           "/ next-unread  ctrl-r rescan");
     CHECK(hint_bar::text(Fixture(ScreenId::MessageRead).state) ==
@@ -73,7 +73,7 @@ TEST_CASE("The hint bar names the commands of the screen it stands under", "[hin
     CHECK(hint_bar::text(Fixture(ScreenId::MessageList).state).empty());
 }
 
-TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out",
+TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out "
           "[hintbar][keys]") {
     Fixture fixture(ScreenId::MessageRead);
     fixture.state.keys = KeyMap::parse(
@@ -87,7 +87,7 @@ TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out",
     CHECK(hint_bar::text(fixture.state) == "F4 reply  ctrl-e new  x list");
 }
 
-TEST_CASE("Where a command has several keys the shortest one is shown",
+TEST_CASE("Where a command has several keys the shortest one is shown "
           "[hintbar][keys]") {
     Fixture fixture(ScreenId::MessageRead);
 
@@ -107,7 +107,7 @@ TEST_CASE("Where a command has several keys the shortest one is shown",
     CHECK(hint_bar::text(fixture.state) == "q reply  alt-n new  ctrl-l list");
 }
 
-TEST_CASE("hint_bar decides whether the row is there at all", "[hintbar]") {
+TEST_CASE("hint_bar decides whether the row is there at all [hintbar]") {
     Fixture fixture(ScreenId::AreaList);
     fixture.config.adaptiveUiThreshold = 80;
 
@@ -136,7 +136,7 @@ TEST_CASE("hint_bar decides whether the row is there at all", "[hintbar]") {
     CHECK_FALSE(fixture.state.hintBarShown());
 }
 
-TEST_CASE("The row is the hints set into a rule", "[hintbar]") {
+TEST_CASE("The row is the hints set into a rule [hintbar]") {
     Fixture fixture(ScreenId::AreaList);
     fixture.state.width = 40;
 
@@ -166,7 +166,7 @@ TEST_CASE("The row is the hints set into a rule", "[hintbar]") {
     CHECK(screen.at(39, 0).bg == amberedit::ui::theme::Color{});
 }
 
-TEST_CASE("A click on a hint asks for the key it is written under", "[hintbar]") {
+TEST_CASE("A click on a hint asks for the key it is written under [hintbar]") {
     Fixture fixture(ScreenId::MessageRead);
     fixture.state.width = 80;
 
@@ -200,7 +200,7 @@ TEST_CASE("A click on a hint asks for the key it is written under", "[hintbar]")
     CHECK_FALSE(hint_bar::clicked(fixture.state, term::Event::Character('n')));
 }
 
-TEST_CASE("A screen with nothing to say leaves the rule whole", "[hintbar]") {
+TEST_CASE("A screen with nothing to say leaves the rule whole [hintbar]") {
     Fixture fixture(ScreenId::MessageList);
     fixture.state.width = 12;
 

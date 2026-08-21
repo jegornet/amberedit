@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <utility>
@@ -23,13 +23,13 @@ std::string rowText(const Screen& screen, int y) {
 
 }  // namespace
 
-TEST_CASE("hbox shares its width out and flex takes what is left", "[element]") {
+TEST_CASE("hbox shares its width out and flex takes what is left [element]") {
     Screen screen(20, 1);
     render(screen, hbox({text("ab"), flex(text("-")), text("yz")}));
     CHECK(rowText(screen, 0) == "ab-               yz");
 }
 
-TEST_CASE("vbox stacks its children a row each", "[element]") {
+TEST_CASE("vbox stacks its children a row each [element]") {
     Screen screen(6, 3);
     render(screen, vbox({text("one"), text("two")}));
     CHECK(rowText(screen, 0) == "one   ");
@@ -37,7 +37,7 @@ TEST_CASE("vbox stacks its children a row each", "[element]") {
     CHECK(rowText(screen, 2) == "      ");
 }
 
-TEST_CASE("border costs a row and a column on each side", "[element]") {
+TEST_CASE("border costs a row and a column on each side [element]") {
     Screen screen(7, 3);
     render(screen, border(text("hi")));
     CHECK(rowText(screen, 0) == "┌─────┐");
@@ -45,14 +45,14 @@ TEST_CASE("border costs a row and a column on each side", "[element]") {
     CHECK(rowText(screen, 2) == "└─────┘");
 }
 
-TEST_CASE("center places an element on both axes", "[element]") {
+TEST_CASE("center places an element on both axes [element]") {
     Screen screen(9, 3);
     render(screen, center(text("ab")));
     CHECK(rowText(screen, 0) == "         ");
     CHECK(rowText(screen, 1) == "   ab    ");
 }
 
-TEST_CASE("the innermost colour is the one that shows", "[element]") {
+TEST_CASE("the innermost colour is the one that shows [element]") {
     // Parents paint their whole box and then draw their children over it, so a
     // coloured run inside a coloured line wins. Every screen's colouring rests
     // on this: a URL in a quote keeps the link colour, the rest of the line
@@ -65,7 +65,7 @@ TEST_CASE("the innermost colour is the one that shows", "[element]") {
     CHECK(screen.at(1, 0).fg == outer);
 }
 
-TEST_CASE("a dialog wipes what it covers and nothing else", "[element]") {
+TEST_CASE("a dialog wipes what it covers and nothing else [element]") {
     // Composed the way the dialogs compose it — `dialog | clear_under | center`.
     // That order is what bounds the wipe: dbox hands every child the whole
     // screen, so it is the centring outside clear_under that keeps it to the
@@ -81,7 +81,7 @@ TEST_CASE("a dialog wipes what it covers and nothing else", "[element]") {
     CHECK(screen.at(4, 0).bg == Color{17});
 }
 
-TEST_CASE("reflect reports where an element was actually drawn", "[element]") {
+TEST_CASE("reflect reports where an element was actually drawn [element]") {
     // What the click handlers hit-test against. Computing the position a second
     // time instead is what lets a hit box drift away from what is on screen.
     Screen screen(11, 3);
@@ -96,13 +96,13 @@ TEST_CASE("reflect reports where an element was actually drawn", "[element]") {
     CHECK_FALSE(where.Contain(2, 1));
 }
 
-TEST_CASE("text longer than its box is cut, never overrun", "[element]") {
+TEST_CASE("text longer than its box is cut, never overrun [element]") {
     Screen screen(4, 1);
     render(screen, text("abcdefgh"));
     CHECK(rowText(screen, 0) == "abcd");
 }
 
-TEST_CASE("a double-width glyph occupies two cells", "[element]") {
+TEST_CASE("a double-width glyph occupies two cells [element]") {
     // The second cell is left empty rather than blanked: whoever writes the
     // frame out steps over it, so the glyph is not cut in half.
     Screen screen(4, 1);
@@ -112,7 +112,7 @@ TEST_CASE("a double-width glyph occupies two cells", "[element]") {
     CHECK(screen.at(2, 0).glyph == "x");
 }
 
-TEST_CASE("a palette number the terminal has is used untouched", "[element]") {
+TEST_CASE("a palette number the terminal has is used untouched [element]") {
     // The whole point of theming in palette numbers: what the theme wrote is
     // what the terminal is told, with nothing approximated in between.
     CHECK(nearestWithin(196, 256) == 196);
@@ -123,7 +123,7 @@ TEST_CASE("a palette number the terminal has is used untouched", "[element]") {
     CHECK(nearestWithin(15, 16) == 15);
 }
 
-TEST_CASE("a palette entry expands to the colour it stands for", "[element]") {
+TEST_CASE("a palette entry expands to the colour it stands for [element]") {
     // What a terminal in direct-colour mode is handed. It reads a colour number
     // as a triple rather than as an index, so an entry sent as it stands would
     // paint whatever its number happens to spell — 102 as #000066 instead of
@@ -135,7 +135,7 @@ TEST_CASE("a palette entry expands to the colour it stands for", "[element]") {
     CHECK(paletteRgb(15) == 0xffffffu);   // bright white among the ANSI sixteen
 }
 
-TEST_CASE("a palette number the terminal lacks falls back", "[element]") {
+TEST_CASE("a palette number the terminal lacks falls back [element]") {
     // Only when the terminal genuinely has fewer colours than the theme asks
     // for. Approximate matches, so these check the direction rather than an
     // exact index: bright red must not come out green.

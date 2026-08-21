@@ -1,6 +1,6 @@
 #include "echolist/echolist_parser.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
@@ -8,7 +8,7 @@
 
 using namespace amberedit;
 
-TEST_CASE("the extension says which of the two shapes an echolist is in", "[echolist]") {
+TEST_CASE("the extension says which of the two shapes an echolist is in [echolist]") {
     using echolist::EcholistFormat;
 
     CHECK(echolist::formatOf("echo50.lst") == EcholistFormat::Lst);
@@ -26,7 +26,7 @@ TEST_CASE("the extension says which of the two shapes an echolist is in", "[echo
     CHECK_FALSE(echolist::isEcholistName("FILE_ID.DIZ"));
 }
 
-TEST_CASE("a .lst echolist gives up its tags and descriptions", "[echolist]") {
+TEST_CASE("a .lst echolist gives up its tags and descriptions [echolist]") {
     const std::string text =
         "; [Status],Tag,Comment,Moderator's Name,Address,\r\n"
         ";\r\n"
@@ -48,7 +48,7 @@ TEST_CASE("a .lst echolist gives up its tags and descriptions", "[echolist]") {
     CHECK(parsed.entries[1].description == "Online role playing");
 }
 
-TEST_CASE("a .lst line that is not one is a warning against its number", "[echolist]") {
+TEST_CASE("a .lst line that is not one is a warning against its number [echolist]") {
     const std::string text =
         ",Ru.Linux,Linux,Some Body,2:5020/113,\n"
         "this line has no commas at all\n"
@@ -61,7 +61,7 @@ TEST_CASE("a .lst line that is not one is a warning against its number", "[echol
     CHECK(parsed.warnings[1].line == 3);
 }
 
-TEST_CASE("an echo an echolist says nothing about is not an entry", "[echolist]") {
+TEST_CASE("an echo an echolist says nothing about is not an entry [echolist]") {
     // Neither of the two shapes carries anything here, and neither is a mistake
     // anybody made: a list of tags with no descriptions is an ordinary file.
     const auto lst = echolist::parseEcholist(
@@ -77,7 +77,7 @@ TEST_CASE("an echo an echolist says nothing about is not an entry", "[echolist]"
     CHECK(na.warnings.empty());
 }
 
-TEST_CASE("a .na echolist splits the tag off the description at the blanks",
+TEST_CASE("a .na echolist splits the tag off the description at the blanks "
           "[echolist]") {
     const std::string text =
         "AARP_FRAUD                            AARP Fraud Warning Network news\n"
@@ -99,7 +99,7 @@ TEST_CASE("a .na echolist splits the tag off the description at the blanks",
     CHECK(parsed.entries[2].description == "Amateur Radio / Ham Radio");
 }
 
-TEST_CASE("a DOS end-of-file mark ends an echolist, and no echolist needs one",
+TEST_CASE("a DOS end-of-file mark ends an echolist, and no echolist needs one "
           "[echolist]") {
     // Where one stands, the bytes after it are not the echolist.
     const auto ended = echolist::parseEcholist(
@@ -131,7 +131,7 @@ TEST_CASE("a DOS end-of-file mark ends an echolist, and no echolist needs one",
     CHECK(unterminated.entries.size() == 1);
 }
 
-TEST_CASE("a .lst description is cut at the comma the format has no escape for",
+TEST_CASE("a .lst description is cut at the comma the format has no escape for "
           "[echolist]") {
     // The format has no quoting and no escape, so a comma is a separator
     // wherever it stands: a description written with one in it is a line whose
@@ -143,7 +143,7 @@ TEST_CASE("a .lst description is cut at the comma the format has no escape for",
     CHECK(parsed.entries[0].description == "Linux");
 }
 
-TEST_CASE("a warning quoting a line back does not cut a character in half",
+TEST_CASE("a warning quoting a line back does not cut a character in half "
           "[echolist]") {
     // The text has been decoded by the time the parser sees it, so a line
     // quoted back into a warning is UTF-8 — and a warning about a mangled line

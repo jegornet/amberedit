@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <string>
@@ -99,7 +99,7 @@ std::string dateCell(AreaFixture& fixture, int width) {
 
 }  // namespace
 
-TEST_CASE("centerCursor puts the current message halfway down the list",
+TEST_CASE("centerCursor puts the current message halfway down the list "
           "[messagelist]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -113,26 +113,26 @@ TEST_CASE("centerCursor puts the current message halfway down the list",
     CHECK(fixture.cursorRow() == 10);
 }
 
-TEST_CASE("centerCursor does not scroll past either end of the area",
+TEST_CASE("centerCursor does not scroll past either end of the area "
           "[messagelist]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.state.messageCount = 100;
     fixture.state.height = 24;
 
-    SECTION("near the start there is nothing above to scroll to") {
+    SUBCASE("near the start there is nothing above to scroll to") {
         fixture.state.messageCursor = 3;
         message_list::centerCursor(fixture.state);
         CHECK(fixture.state.messageOffset == 0);
         CHECK(fixture.cursorRow() == 3);
     }
-    SECTION("at the end the last row is as far as it goes") {
+    SUBCASE("at the end the last row is as far as it goes") {
         fixture.state.messageCursor = 99;
         message_list::centerCursor(fixture.state);
         CHECK(fixture.state.messageOffset == 79);
         CHECK(fixture.cursorRow() == 20);
     }
-    SECTION("an area that fits on one screen does not scroll at all") {
+    SUBCASE("an area that fits on one screen does not scroll at all") {
         fixture.state.messageCount = 5;
         fixture.state.messageCursor = 4;
         message_list::centerCursor(fixture.state);
@@ -140,7 +140,7 @@ TEST_CASE("centerCursor does not scroll past either end of the area",
     }
 }
 
-TEST_CASE("Opening an area on its lastread mark shows the messages after it",
+TEST_CASE("Opening an area on its lastread mark shows the messages after it "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -165,7 +165,7 @@ TEST_CASE("Opening an area on its lastread mark shows the messages after it",
     CHECK(fixture.cursorRow() < fixture.state.messageListRows() - 1);
 }
 
-TEST_CASE("The list comes up centred on the message being read",
+TEST_CASE("The list comes up centred on the message being read "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -197,7 +197,7 @@ TEST_CASE("The list comes up centred on the message being read",
     CHECK(fixture.cursorRow() == rows / 2);
 }
 
-TEST_CASE("PageUp goes to the top visible row first and pages only from there",
+TEST_CASE("PageUp goes to the top visible row first and pages only from there "
           "[messagelist]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -238,7 +238,7 @@ TEST_CASE("PageUp goes to the top visible row first and pages only from there",
     CHECK(fixture.state.messageOffset == 30);
 }
 
-TEST_CASE("Moving within the list scrolls a row at a time", "[messagelist][squish]") {
+TEST_CASE("Moving within the list scrolls a row at a time [messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.state.height = 24;
@@ -265,7 +265,7 @@ TEST_CASE("Moving within the list scrolls a row at a time", "[messagelist][squis
     CHECK(fixture.cursorRow() == rows - 1);
 }
 
-TEST_CASE("The table draws the columns msglist_format asks for",
+TEST_CASE("The table draws the columns msglist_format asks for "
           "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -310,7 +310,7 @@ TEST_CASE("The table draws the columns msglist_format asks for",
     CHECK(columnOf(rowsOf(fixture), "From") == 1 + 6 + 1);
 }
 
-TEST_CASE("A Date column too narrow for the stamp drops its trailing parts",
+TEST_CASE("A Date column too narrow for the stamp drops its trailing parts "
           "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -357,7 +357,7 @@ TEST_CASE("A Date column too narrow for the stamp drops its trailing parts",
 
 TEST_CASE(
     "The width the window has picks which of the two message formats a row "
-    "follows",
+    "follows "
     "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -419,7 +419,7 @@ TEST_CASE(
     CHECK(rowsOf(fixture)[1].find("To") != std::string::npos);
 }
 
-TEST_CASE("A message format written on several lines draws a message on all of them",
+TEST_CASE("A message format written on several lines draws a message on all of them "
           "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -457,7 +457,7 @@ TEST_CASE("A message format written on several lines draws a message on all of t
     CHECK(rows[9] == std::string(30, ' '));
 }
 
-TEST_CASE("A click on any line of a message row is a click on that message",
+TEST_CASE("A click on any line of a message row is a click on that message "
           "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -487,7 +487,7 @@ TEST_CASE("A click on any line of a message row is a click on that message",
     CHECK(fixture.state.messageCursor == offset + 1);
 }
 
-TEST_CASE("The selected message keeps its place when a row changes height",
+TEST_CASE("The selected message keeps its place when a row changes height "
           "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -527,7 +527,7 @@ TEST_CASE("The selected message keeps its place when a row changes height",
     CHECK(fixture.state.messageOffset == 5);
 }
 
-TEST_CASE("The message list draws the scrollbar where the area does not fit",
+TEST_CASE("The message list draws the scrollbar where the area does not fit "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -565,7 +565,7 @@ TEST_CASE("The message list draws the scrollbar where the area does not fit",
     CHECK(barShape(rows, 3, listRows) == std::string(static_cast<size_t>(listRows), ' '));
 }
 
-TEST_CASE("The message list's scrollbar beside tall rows counts messages, not lines",
+TEST_CASE("The message list's scrollbar beside tall rows counts messages, not lines "
           "[messagelist][squish]") {
     using amberedit::config::MsgFieldKind;
     TempSquishBase base;
@@ -588,7 +588,7 @@ TEST_CASE("The message list's scrollbar beside tall rows counts messages, not li
     CHECK(barShape(rowsOf(fixture), 3, 6) == "||||##");
 }
 
-TEST_CASE("The message list draws no scrollbar for an area that fits",
+TEST_CASE("The message list draws no scrollbar for an area that fits "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -606,7 +606,7 @@ TEST_CASE("The message list draws no scrollbar for an area that fits",
           std::string(static_cast<size_t>(listRows), ' '));
 }
 
-TEST_CASE("The message list paints a message nobody has read yet",
+TEST_CASE("The message list paints a message nobody has read yet "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -639,7 +639,7 @@ TEST_CASE("The message list paints a message nobody has read yet",
     CHECK(rowColor(fixture, read + 1) != theme::palette.msglistUnread);
 }
 
-TEST_CASE("highlight_unread off leaves the message list as it was",
+TEST_CASE("highlight_unread off leaves the message list as it was "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -672,7 +672,7 @@ TEST_CASE("highlight_unread off leaves the message list as it was",
     CHECK_FALSE(next->seen);
 }
 
-TEST_CASE("A name of the user's own keeps its color on an unread row",
+TEST_CASE("A name of the user's own keeps its color on an unread row "
           "[messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());

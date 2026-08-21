@@ -46,18 +46,11 @@ BuildRequires:  glibc-gconv-extra
 Requires:       glibc-gconv-extra
 %endif
 %if %{with check}
-# Header-only, so it is wanted at build time and never at run time. The tests are
-# written against the 2.13 series and the build refuses v3 by version, so the
-# package asked for is the one holding 2.13 — and which package that is moved.
-# EPEL 8 has the series as catch-devel; EPEL 9 and later, and Fedora, upgraded
-# catch to v3 and kept the old series beside it as catch2-devel. Getting this
-# wrong is not a missing dependency but a silent one: CMake would find v3, refuse
-# it, and fall back to fetching 2.13 over a network an rpmbuild does not have.
-%if 0%{?rhel} == 8
-BuildRequires:  catch-devel >= 2.13
-%else
-BuildRequires:  catch2-devel >= 2.13
-%endif
+# Header-only, so it is wanted at build time and never at run time. One name on
+# every release this builds on, EPEL 8 included — which is the whole reason the
+# tests are written against doctest and not Catch2, whose 2.13 and v3 series are
+# not source-compatible and are split across exactly these distributions.
+BuildRequires:  doctest-devel
 %endif
 
 %description
@@ -70,7 +63,7 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 
 %build
 # AMBEREDIT_BUILD_TESTS is stated either way: with --without check there is no
-# Catch2 installed to find, and the default would stop the configure.
+# doctest installed to find, and the default would stop the configure.
 %cmake -DAMBEREDIT_BUILD_TESTS:BOOL=%{?with_check:ON}%{!?with_check:OFF}
 %cmake_build
 

@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -83,7 +83,7 @@ MessageDraft netmailDraft() {
 
 }  // namespace
 
-TEST_CASE("A JAM base is written and read back", "[jam]") {
+TEST_CASE("A JAM base is written and read back [jam]") {
     TempDir dir;
     const std::string path = (dir.path() / "netmail").string();
     createEmptyJamBase(path);
@@ -132,7 +132,7 @@ TEST_CASE("A JAM base is written and read back", "[jam]") {
     CHECK(text == "Привет!||--- AmberEdit| * Origin: AmberEdit test (192:168/2)|");
 }
 
-TEST_CASE("A JAM message number survives deletions before it", "[jam]") {
+TEST_CASE("A JAM message number survives deletions before it [jam]") {
     TempDir dir;
     const std::string path = (dir.path() / "echo").string();
     createEmptyJamBase(path);
@@ -168,7 +168,7 @@ TEST_CASE("A JAM message number survives deletions before it", "[jam]") {
     CHECK(msgbase.indexOfUid(uidOfThird - 1) == 1);
 }
 
-TEST_CASE("JAM keeps SEEN-BY and PATH apart and puts them back", "[jam]") {
+TEST_CASE("JAM keeps SEEN-BY and PATH apart and puts them back [jam]") {
     TempDir dir;
     const std::string path = (dir.path() / "echo").string();
     createEmptyJamBase(path);
@@ -202,7 +202,7 @@ TEST_CASE("JAM keeps SEEN-BY and PATH apart and puts them back", "[jam]") {
     CHECK(body.text().find("SEEN-BY") == std::string::npos);
 }
 
-TEST_CASE("A changed JAM message keeps its number and its place", "[jam]") {
+TEST_CASE("A changed JAM message keeps its number and its place [jam]") {
     TempDir dir;
     const std::string path = (dir.path() / "echo").string();
     createEmptyJamBase(path);
@@ -225,7 +225,7 @@ TEST_CASE("A changed JAM message keeps its number and its place", "[jam]") {
     const uint32_t uid = msgbase.uidOf(2);
     const auto was = msgbase.header(2);
 
-    SECTION("the header stays where it is where the subfields still fit") {
+    SUBCASE("the header stays where it is where the subfields still fit") {
         const auto headers = fs::file_size(path + ".jhr");
         MessageDraft change = draft;
         change.subject = "two";  // the same subfields, so the same room
@@ -238,7 +238,7 @@ TEST_CASE("A changed JAM message keeps its number and its place", "[jam]") {
         CHECK(fs::file_size(path + ".jhr") == headers);
     }
 
-    SECTION("a subject of another length takes a header at the end of the file") {
+    SUBCASE("a subject of another length takes a header at the end of the file") {
         MessageDraft change = draft;
         change.subject = "two, with rather more to say for itself";
         change.lines = {"Changed."};
@@ -265,7 +265,7 @@ TEST_CASE("A changed JAM message keeps its number and its place", "[jam]") {
     CHECK(again.header(3).subject == "three");
 }
 
-TEST_CASE("A JAM message is marked read in TimesRead", "[jam]") {
+TEST_CASE("A JAM message is marked read in TimesRead [jam]") {
     TempDir dir;
     const std::string path = (dir.path() / "netmail").string();
     createEmptyJamBase(path);
@@ -303,7 +303,7 @@ TEST_CASE("A JAM message is marked read in TimesRead", "[jam]") {
     CHECK_FALSE(msgbase.markSeen(3));
 }
 
-TEST_CASE("A changed JAM message is still marked read", "[jam]") {
+TEST_CASE("A changed JAM message is still marked read [jam]") {
     TempDir dir;
     const std::string path = (dir.path() / "netmail").string();
     createEmptyJamBase(path);
@@ -327,7 +327,7 @@ TEST_CASE("A changed JAM message is still marked read", "[jam]") {
     CHECK(msgbase.header(1).seen);
 }
 
-TEST_CASE("A Fido *.msg message is marked read in times_read", "[sdm]") {
+TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
     TempDir dir;
     AreaConfig area;
     area.tag = "netmail";
@@ -368,7 +368,7 @@ TEST_CASE("A Fido *.msg message is marked read in times_read", "[sdm]") {
     CHECK_FALSE(msgbase.markSeen(3));
 }
 
-TEST_CASE("A Fido *.msg base is written and read back", "[sdm]") {
+TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
     TempDir dir;
     AreaConfig area;
     area.tag = "netmail";
@@ -415,7 +415,7 @@ TEST_CASE("A Fido *.msg base is written and read back", "[sdm]") {
     CHECK_FALSE(fs::exists(dir.path() / "1.msg"));
 }
 
-TEST_CASE("A changed *.msg message is rewritten in its own file", "[sdm]") {
+TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
     TempDir dir;
     AreaConfig area;
     area.tag = "netmail";
@@ -459,7 +459,7 @@ TEST_CASE("A changed *.msg message is rewritten in its own file", "[sdm]") {
     CHECK(again.body(1).text() == "One line.");
 }
 
-TEST_CASE("An echo *.msg area starts at 2.msg", "[sdm]") {
+TEST_CASE("An echo *.msg area starts at 2.msg [sdm]") {
     // 1.msg in an echo area is the high-water mark, not a message; the first
     // message written must not take its number.
     TempDir dir;
@@ -480,7 +480,7 @@ TEST_CASE("An echo *.msg area starts at 2.msg", "[sdm]") {
     CHECK(msgbase.uidOf(1) == 2);
 }
 
-TEST_CASE("The JAM index record keys by the recipient's name", "[jam]") {
+TEST_CASE("The JAM index record keys by the recipient's name [jam]") {
     // The CRC in the .jdx is what other JAM software finds messages by; a
     // wrong one is invisible corruption until somebody else's reader searches.
     TempDir dir;

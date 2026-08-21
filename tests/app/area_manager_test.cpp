@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <filesystem>
@@ -78,7 +78,7 @@ const amberedit::app::AreaEntry& entryFor(const AreaManager& manager,
 
 }  // namespace
 
-TEST_CASE("An area with no AKA of its own takes the user's address", "[areamanager]") {
+TEST_CASE("An area with no AKA of its own takes the user's address [areamanager]") {
     // areas.bbs can never state one, and in the other two formats the option is
     // optional, so this is the common case rather than the exception.
     auto manager = makeManager({areaNamed("no.aka")}, configWithAddress("2:5020/1"));
@@ -88,7 +88,7 @@ TEST_CASE("An area with no AKA of its own takes the user's address", "[areamanag
     CHECK(manager.areas()[0].config.address.toString() == "2:5020/1");
 }
 
-TEST_CASE("An area that states its own AKA keeps it", "[areamanager]") {
+TEST_CASE("An area that states its own AKA keeps it [areamanager]") {
     AreaConfig area = areaNamed("has.aka");
     area.address = *FtnAddress::parse("192:168/1");
 
@@ -99,7 +99,7 @@ TEST_CASE("An area that states its own AKA keeps it", "[areamanager]") {
     CHECK(manager.areas()[0].config.address.toString() == "192:168/1");
 }
 
-TEST_CASE("With no address anywhere the AKA stays unset", "[areamanager]") {
+TEST_CASE("With no address anywhere the AKA stays unset [areamanager]") {
     auto manager = makeManager({areaNamed("no.aka")}, configWithAddress(""));
     manager.reload();
 
@@ -107,7 +107,7 @@ TEST_CASE("With no address anywhere the AKA stays unset", "[areamanager]") {
     CHECK_FALSE(manager.areas()[0].config.address.isValid());
 }
 
-TEST_CASE("An area group's address outranks the tosser's", "[areamanager]") {
+TEST_CASE("An area group's address outranks the tosser's [areamanager]") {
     // Both areas are presented under the same AKA by the tosser config. The
     // group says otherwise about one of them, and a group is the answer written
     // about that area in particular.
@@ -128,7 +128,7 @@ TEST_CASE("An area group's address outranks the tosser's", "[areamanager]") {
     CHECK(entryFor(manager, "ru.linux").config.address.toString() == "192:168/1");
 }
 
-TEST_CASE("An area group decides the charset its area is read in", "[areamanager]") {
+TEST_CASE("An area group decides the charset its area is read in [areamanager]") {
     // testdata/msgbase/charsets holds "Привет" three times: in KOI8-R with a
     // matching CHRS, in CP866 with its own, and once with no CHRS at all. The
     // third message is the one a default has any say over.
@@ -187,7 +187,7 @@ std::vector<std::string> tagsOf(const std::vector<AreaEntry>& areas) {
 
 }  // namespace
 
-TEST_CASE("sortAreas orders the list by echoid", "[areamanager][sort]") {
+TEST_CASE("sortAreas orders the list by echoid [areamanager][sort]") {
     std::vector<AreaEntry> areas{entryOf("Ru.Linux"), entryOf("alt.test"),
                                  entryOf("ru.fido")};
 
@@ -198,7 +198,7 @@ TEST_CASE("sortAreas orders the list by echoid", "[areamanager][sort]") {
     CHECK(tagsOf(areas) == std::vector<std::string>{"Ru.Linux", "ru.fido", "alt.test"});
 }
 
-TEST_CASE("sortAreas orders the types net, echo, local", "[areamanager][sort]") {
+TEST_CASE("sortAreas orders the types net, echo, local [areamanager][sort]") {
     std::vector<AreaEntry> areas{
         entryOf("dupes", 0, AreaKind::Dupe), entryOf("local.notes", 0, AreaKind::Local),
         entryOf("ru.linux", 0, AreaKind::Echo), entryOf("netmail", 0, AreaKind::Netmail)};
@@ -208,7 +208,7 @@ TEST_CASE("sortAreas orders the types net, echo, local", "[areamanager][sort]") 
           std::vector<std::string>{"netmail", "ru.linux", "local.notes", "dupes"});
 }
 
-TEST_CASE("sortAreas breaks a tie with the next criterion", "[areamanager][sort]") {
+TEST_CASE("sortAreas breaks a tie with the next criterion [areamanager][sort]") {
     // "-u+e", the example the config documents: the unread areas first, and
     // alphabetical among those holding as much.
     std::vector<AreaEntry> areas{entryOf("ru.fido", 3), entryOf("alt.test", 0),
@@ -219,7 +219,7 @@ TEST_CASE("sortAreas breaks a tie with the next criterion", "[areamanager][sort]
           std::vector<std::string>{"ru.linux", "a.quiet.one", "ru.fido", "alt.test"});
 }
 
-TEST_CASE("sortAreas leaves areas the criteria cannot tell apart alone",
+TEST_CASE("sortAreas leaves areas the criteria cannot tell apart alone "
           "[areamanager][sort]") {
     // Every one of them is an ungrouped echo, so the config's own order stands.
     const std::vector<std::string> written{"ru.fido", "alt.test", "ru.linux"};
@@ -234,7 +234,7 @@ TEST_CASE("sortAreas leaves areas the criteria cannot tell apart alone",
     CHECK(tagsOf(areas) == written);
 }
 
-TEST_CASE("reload() sorts the list the config asks for", "[areamanager][sort]") {
+TEST_CASE("reload() sorts the list the config asks for [areamanager][sort]") {
     AppConfig config = configWithAddress("2:5020/1");
     config.areaListSort = {{AreaSortKey::Echoid, true}};
 
@@ -244,7 +244,7 @@ TEST_CASE("reload() sorts the list the config asks for", "[areamanager][sort]") 
     CHECK(tagsOf(manager.areas()) == std::vector<std::string>{"ru.linux", "alt.test"});
 }
 
-TEST_CASE("reload() lists every area, available or not", "[areamanager]") {
+TEST_CASE("reload() lists every area, available or not [areamanager]") {
     auto manager =
         makeManager({areaNamed("one"), areaNamed("two")}, configWithAddress("2:5020/1"));
     manager.reload();
@@ -258,7 +258,7 @@ TEST_CASE("reload() lists every area, available or not", "[areamanager]") {
     }
 }
 
-TEST_CASE("reload() names each area before it opens it", "[areamanager]") {
+TEST_CASE("reload() names each area before it opens it [areamanager]") {
     // What the rescan modal shows. The order is the config's, since the list is
     // only sorted once every base has been read.
     std::vector<std::string> reached;
@@ -269,7 +269,7 @@ TEST_CASE("reload() names each area before it opens it", "[areamanager]") {
     CHECK(reached == std::vector<std::string>{"one", "two"});
 }
 
-TEST_CASE("Entering an area with no base on disk makes one", "[areamanager][create]") {
+TEST_CASE("Entering an area with no base on disk makes one [areamanager][create]") {
     // The ordinary state of an area a tosser config has just declared: nothing
     // has written into it, so there is nothing to open. Entering it is what
     // brings the base into being, which is where the first message goes.
@@ -297,7 +297,7 @@ TEST_CASE("Entering an area with no base on disk makes one", "[areamanager][crea
     CHECK(manager.areas()[0].total == 0);
 }
 
-TEST_CASE("An area whose base cannot be created reports why", "[areamanager][create]") {
+TEST_CASE("An area whose base cannot be created reports why [areamanager][create]") {
     const TempDir dir;
     // A regular file where the base's directory would have to be.
     const std::string blocked = dir.path("a-file");
@@ -317,7 +317,7 @@ TEST_CASE("An area whose base cannot be created reports why", "[areamanager][cre
     CHECK_FALSE(manager.lastError().empty());
 }
 
-TEST_CASE("A base that is there and unreadable is never created over",
+TEST_CASE("A base that is there and unreadable is never created over "
           "[areamanager][create]") {
     // Half a base, or a broken one, holds something: an empty one written over
     // it would take that with it. Only "nothing at all is there" is answered by
@@ -342,7 +342,7 @@ TEST_CASE("A base that is there and unreadable is never created over",
     CHECK(std::filesystem::file_size(path + ".sqd") == 300);
 }
 
-TEST_CASE("An area declared in the config is read like any other", "[areamanager]") {
+TEST_CASE("An area declared in the config is read like any other [areamanager]") {
     // makeAreaSource() with no tosser config at all: the whole list is the
     // `area ... endarea` blocks, and everything reload() does to an area — the
     // AKA it fills in, the passthrough it marks, the group it resolves — it does

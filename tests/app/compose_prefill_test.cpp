@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
@@ -50,7 +50,7 @@ MessageHeader messageFrom(const std::string& name, const std::string& origAddr,
 
 }  // namespace
 
-TEST_CASE("A new netmail starts from the area's AKA", "[compose]") {
+TEST_CASE("A new netmail starts from the area's AKA [compose]") {
     const auto fields = amberedit::app::newMessage(
         editorConfig(), areaOf(AreaKind::Netmail, "192:168/2"));
 
@@ -65,7 +65,7 @@ TEST_CASE("A new netmail starts from the area's AKA", "[compose]") {
     CHECK(fields.subject.empty());
 }
 
-TEST_CASE("A new netmail falls back to the main address", "[compose]") {
+TEST_CASE("A new netmail falls back to the main address [compose]") {
     // A tosser config with no AKA for the area. AreaManager normally fills the
     // config's address in on the way through; this covers the case where it
     // has not, so the rule holds wherever the area came from.
@@ -74,7 +74,7 @@ TEST_CASE("A new netmail falls back to the main address", "[compose]") {
     CHECK(fields.fromAddr == "2:5020/9999.1");
 }
 
-TEST_CASE("A new echomail message is addressed to All", "[compose]") {
+TEST_CASE("A new echomail message is addressed to All [compose]") {
     const auto fields =
         amberedit::app::newMessage(editorConfig(), areaOf(AreaKind::Echo, "2:5020/736"));
 
@@ -87,7 +87,7 @@ TEST_CASE("A new echomail message is addressed to All", "[compose]") {
     CHECK(fields.toAddr.empty());
 }
 
-TEST_CASE("A message starts local, and netmail private as well", "[compose]") {
+TEST_CASE("A message starts local, and netmail private as well [compose]") {
     namespace attr = amberedit::domain::attr;
     const AppConfig cfg = editorConfig();
 
@@ -109,7 +109,7 @@ TEST_CASE("A message starts local, and netmail private as well", "[compose]") {
               .attributes == (attr::kLocal | attr::kPrivate));
 }
 
-TEST_CASE("A message being changed keeps its own fields, and stops being sent",
+TEST_CASE("A message being changed keeps its own fields, and stops being sent "
           "[compose]") {
     namespace attr = amberedit::domain::attr;
 
@@ -135,7 +135,7 @@ TEST_CASE("A message being changed keeps its own fields, and stops being sent",
     CHECK(fields.attributes == (attr::kLocal | attr::kPrivate | attr::kRead));
 }
 
-TEST_CASE("A netmail reply answers from the address it was sent to", "[compose]") {
+TEST_CASE("A netmail reply answers from the address it was sent to [compose]") {
     const auto header =
         messageFrom("Vasya Pupkin", "192:168/3.1", /*destAddr=*/"192:168/2");
     const AreaConfig netmail = areaOf(AreaKind::Netmail, "2:5020/736");
@@ -152,7 +152,7 @@ TEST_CASE("A netmail reply answers from the address it was sent to", "[compose]"
     CHECK(fields.subject == "test");
 }
 
-TEST_CASE("A netmail addressed elsewhere is answered from the [akamatch] AKA",
+TEST_CASE("A netmail addressed elsewhere is answered from the [akamatch] AKA "
           "[compose]") {
     // Routed netmail, or a base shared with another point: the address it was
     // sent to is not ours, and answering from it would be forging it. There is
@@ -173,14 +173,14 @@ TEST_CASE("A netmail addressed elsewhere is answered from the [akamatch] AKA",
     CHECK(uncovered.fromAddr == "2:5020/736");
 }
 
-TEST_CASE("A netmail reply with no destination address falls back", "[compose]") {
+TEST_CASE("A netmail reply with no destination address falls back [compose]") {
     const AreaConfig netmail = areaOf(AreaKind::Netmail, "2:5020/736");
     const auto header = messageFrom("Vasya Pupkin", "2:382/736.120", "");
     const auto fields = amberedit::app::reply(editorConfig(), netmail, netmail, header);
     CHECK(fields.fromAddr == "2:5020/736");
 }
 
-TEST_CASE("An echo answered into netmail picks the AKA off the recipient",
+TEST_CASE("An echo answered into netmail picks the AKA off the recipient "
           "[compose]") {
     // The reader's `reply_to` into the netmail area. The message was posted to
     // an echo and written to nobody, whatever its destination field holds — a
@@ -199,7 +199,7 @@ TEST_CASE("An echo answered into netmail picks the AKA off the recipient",
     CHECK(fields.toAddr == "192:200/1");
 }
 
-TEST_CASE("An echomail reply answers from the area's AKA", "[compose]") {
+TEST_CASE("An echomail reply answers from the area's AKA [compose]") {
     // The addresses in an echo's header belong to whoever wrote it and to the
     // link it arrived over; neither is anything to answer from or to.
     const auto header = messageFrom("Vasya Pupkin", "2:382/736.120", "192:168/2");
@@ -213,7 +213,7 @@ TEST_CASE("An echomail reply answers from the area's AKA", "[compose]") {
     CHECK(fields.subject == "test");
 }
 
-TEST_CASE("The destination decides which AKA a netmail goes out under", "[compose]") {
+TEST_CASE("The destination decides which AKA a netmail goes out under [compose]") {
     const auto config = editorConfig();
 
     const auto matched =

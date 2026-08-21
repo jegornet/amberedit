@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <fstream>
 #include <string>
@@ -65,7 +65,7 @@ std::string fileWith(const amberedit::test::TempDir& dir, const std::string& nam
 
 }  // namespace
 
-TEST_CASE("A command is the word the line begins with, whatever its case",
+TEST_CASE("A command is the word the line begins with, whatever its case "
           "[copy][commands]") {
     const std::vector<std::string> lines{
         "CC: Ivan Ivanov", "cc: Vasya Pupkin",      "Xc: ru.linux", "XP: ru.unix",
@@ -83,7 +83,7 @@ TEST_CASE("A command is the word the line begins with, whatever its case",
     CHECK(commands[3].line == 3);
 }
 
-TEST_CASE("Kludges, the closing pair and quotes carry no commands", "[copy][commands]") {
+TEST_CASE("Kludges, the closing pair and quotes carry no commands [copy][commands]") {
     const std::vector<std::string> lines{
         "\001CC: Ivan Ivanov", " IK> CC: Ivan Ivanov",       ">> CC: Ivan Ivanov",
         "--- CC: Ivan Ivanov", " * Origin: CC: Ivan Ivanov",
@@ -91,7 +91,7 @@ TEST_CASE("Kludges, the closing pair and quotes carry no commands", "[copy][comm
     CHECK(app::findCopyCommands(lines, "").empty());
 }
 
-TEST_CASE("A CC: line is separated by commas alone", "[copy][commands]") {
+TEST_CASE("A CC: line is separated by commas alone [copy][commands]") {
     // A name holds spaces and does not hold commas, so the comma is the only
     // thing that can end one.
     CHECK(tokensOf("CC: Ivan Ivanov, Vasya Pupkin") ==
@@ -100,12 +100,12 @@ TEST_CASE("A CC: line is separated by commas alone", "[copy][commands]") {
           std::vector<std::string>{"Ivan Ivanov", "Vasya Pupkin"});
 }
 
-TEST_CASE("An XC: line is separated by commas, spaces and tabs", "[copy][commands]") {
+TEST_CASE("An XC: line is separated by commas, spaces and tabs [copy][commands]") {
     CHECK(tokensOf("XC: ru.* ru.linux,\tde.talk") ==
           std::vector<std::string>{"ru.*", "ru.linux", "de.talk"});
 }
 
-TEST_CASE("A '#' hides what it stands in front of", "[copy][commands]") {
+TEST_CASE("A '#' hides what it stands in front of [copy][commands]") {
     const auto commands = app::findCopyCommands({"CC: #Ivan Ivanov, Vasya Pupkin"}, "");
     REQUIRE(commands.size() == 1);
     REQUIRE(commands.front().tokens.size() == 2);
@@ -114,7 +114,7 @@ TEST_CASE("A '#' hides what it stands in front of", "[copy][commands]") {
     CHECK_FALSE(commands.front().tokens[1].hidden);
 }
 
-TEST_CASE("The domain of a 5D address is dropped", "[copy][commands]") {
+TEST_CASE("The domain of a 5D address is dropped [copy][commands]") {
     // Nothing in a message base carries a domain, so there is nothing for one
     // to be matched against.
     CHECK(tokensOf("CC: 2:5020/1234@fidonet") == std::vector<std::string>{"2:5020/1234"});
@@ -123,7 +123,7 @@ TEST_CASE("The domain of a 5D address is dropped", "[copy][commands]") {
     CHECK(tokensOf("CC: Ivan Ivanov") == std::vector<std::string>{"Ivan Ivanov"});
 }
 
-TEST_CASE("A @file names the recipients instead of the line", "[copy][commands]") {
+TEST_CASE("A @file names the recipients instead of the line [copy][commands]") {
     amberedit::test::TempDir dir;
     fileWith(dir, "team.lst",
              "Ivan Ivanov, Vasya Pupkin\n"
@@ -147,7 +147,7 @@ TEST_CASE("A @file names the recipients instead of the line", "[copy][commands]"
     CHECK(commands.front().error.empty());
 }
 
-TEST_CASE("A @file that cannot be read is said so, not passed over", "[copy][commands]") {
+TEST_CASE("A @file that cannot be read is said so, not passed over [copy][commands]") {
     amberedit::test::TempDir dir;
     const auto commands = app::findCopyCommands({"CC: @nothing.lst"}, dir.path(""));
     REQUIRE(commands.size() == 1);
@@ -155,7 +155,7 @@ TEST_CASE("A @file that cannot be read is said so, not passed over", "[copy][com
     CHECK_FALSE(commands.front().error.empty());
 }
 
-TEST_CASE("A command is disarmed by its prefix, not by the whole line",
+TEST_CASE("A command is disarmed by its prefix, not by the whole line "
           "[copy][commands]") {
     // The defect this is written against: a line carrying recipients has to be
     // disarmed exactly as a bare one is.
@@ -174,7 +174,7 @@ TEST_CASE("A command is disarmed by its prefix, not by the whole line",
     CHECK(lines[0] == "!CC: Ivan");
 }
 
-TEST_CASE("An address written in part is finished from the area's own",
+TEST_CASE("An address written in part is finished from the area's own "
           "[copy][address]") {
     const FtnAddress area = *FtnAddress::parse("2:5020/9999.7");
 
@@ -196,7 +196,7 @@ TEST_CASE("An address written in part is finished from the area's own",
     CHECK_FALSE(app::completeAddress("/1234", FtnAddress{}));
 }
 
-TEST_CASE("A CC: token may name a person and their address both", "[copy][address]") {
+TEST_CASE("A CC: token may name a person and their address both [copy][address]") {
     const auto named = app::readRecipient("Ivan Ivanov 2:5020/1234");
     CHECK(named.name == "Ivan Ivanov");
     CHECK(named.address == "2:5020/1234");
@@ -215,7 +215,7 @@ TEST_CASE("A CC: token may name a person and their address both", "[copy][addres
     CHECK(partial.address == "/1234");
 }
 
-TEST_CASE("A mask covers every echo it matches, once", "[copy][crosspost]") {
+TEST_CASE("A mask covers every echo it matches, once [copy][crosspost]") {
     const std::vector<AreaConfig> areas{echoAt("ru.linux"), echoAt("ru.unix"),
                                         echoAt("de.talk"), [] {
                                             AreaConfig netmail = echoAt("netmail");
@@ -239,7 +239,7 @@ TEST_CASE("A mask covers every echo it matches, once", "[copy][crosspost]") {
     CHECK(app::addCrossposts({"*", false}, areas, current, every).added == 3);
 }
 
-TEST_CASE("A mask covering the area being written in adds nothing and says so",
+TEST_CASE("A mask covering the area being written in adds nothing and says so "
           "[copy][crosspost]") {
     const std::vector<AreaConfig> areas{echoAt("ru.linux"), echoAt("ru.talk")};
     const AreaConfig current = echoAt("ru.talk");
@@ -251,7 +251,7 @@ TEST_CASE("A mask covering the area being written in adds nothing and says so",
     CHECK(tagsOf(taken) == std::vector<std::string>{"ru.linux"});
 }
 
-TEST_CASE("The five shapes of a carbon copy list", "[copy][list]") {
+TEST_CASE("The five shapes of a carbon copy list [copy][list]") {
     const std::vector<CarbonCopy> copies{copyTo("Ivan Ivanov", "2:5020/1234"),
                                          copyTo("Vasya Pupkin", "2:5020/2345"),
                                          copyTo("Pyotr Petrov", "2:5020/3456", true)};
@@ -276,7 +276,7 @@ TEST_CASE("The five shapes of a carbon copy list", "[copy][list]") {
                                    "CC: Vasya Pupkin 2:5020/2345"});
 }
 
-TEST_CASE("A list of names too long for the line is wrapped under itself",
+TEST_CASE("A list of names too long for the line is wrapped under itself "
           "[copy][list]") {
     const std::vector<CarbonCopy> copies{copyTo("Ivan Ivanov", "2:5020/1"),
                                          copyTo("Vasya Pupkin", "2:5020/2"),
@@ -290,7 +290,7 @@ TEST_CASE("A list of names too long for the line is wrapped under itself",
     CHECK(lines[2] == "                   Anna Karenina");
 }
 
-TEST_CASE("The four shapes of a crosspost list", "[copy][list]") {
+TEST_CASE("The four shapes of a crosspost list [copy][list]") {
     AreaConfig linux = echoAt("ru.linux");
     AreaConfig unix = echoAt("ru.unix");
     AreaConfig quiet = echoAt("ru.quiet");
@@ -313,7 +313,7 @@ TEST_CASE("The four shapes of a crosspost list", "[copy][list]") {
           std::vector<std::string>{"* Crossposted in ru.linux, ru.unix"});
 }
 
-TEST_CASE("The lists stand where the first command line of their kind stood",
+TEST_CASE("The lists stand where the first command line of their kind stood "
           "[copy][list]") {
     const std::vector<std::string> lines{
         "CC: Ivan Ivanov", "Hello there.", "XC: ru.linux", "CC: Vasya Pupkin", "Bye.",
@@ -329,7 +329,7 @@ TEST_CASE("The lists stand where the first command line of their kind stood",
                                    "Hello there.", "* Crossposted in ru.linux", "Bye."});
 }
 
-TEST_CASE("A command line nobody could carry out stays in the message", "[copy][list]") {
+TEST_CASE("A command line nobody could carry out stays in the message [copy][list]") {
     const std::vector<std::string> lines{"CC: Ivan Ivanov", "CC: Nobody At All", "Bye."};
     const auto commands = app::findCopyCommands(lines, "");
 
@@ -342,7 +342,7 @@ TEST_CASE("A command line nobody could carry out stays in the message", "[copy][
                                                 "CC: Nobody At All", "Bye."});
 }
 
-TEST_CASE("The pair closing the message comes off a copy of it", "[copy][list]") {
+TEST_CASE("The pair closing the message comes off a copy of it [copy][list]") {
     const std::vector<std::string> lines{"Hello.", "", "--- AmberEdit/darwin 0.1",
                                          " * Origin: here (2:5020/1)", ""};
     CHECK(app::withoutTrailer(lines) == std::vector<std::string>{"Hello.", ""});

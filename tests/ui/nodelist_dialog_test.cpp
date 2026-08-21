@@ -1,6 +1,6 @@
 #include "ui/nodelist_dialog.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -141,7 +141,7 @@ struct Fixture {
 
 }  // namespace
 
-TEST_CASE("Ctrl-N opens the nodelist on whoever wrote the message", "[nodelist][ui]") {
+TEST_CASE("Ctrl-N opens the nodelist on whoever wrote the message [nodelist][ui]") {
     Fixture fixture;
 
     REQUIRE(message_read::handleEvent(fixture.area.state, kNodelistKey));
@@ -161,7 +161,7 @@ TEST_CASE("Ctrl-N opens the nodelist on whoever wrote the message", "[nodelist][
     CHECK_FALSE(anyRowHas(rows, "Z2DAILY.999"));
 }
 
-TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off",
+TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off "
           "[nodelist][ui]") {
     TempSquishBase base;
     TempDir dir;
@@ -194,7 +194,7 @@ TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off",
     CHECK(nodelist_dialog::currentNode(area.state)->system == "The Boss");
 }
 
-TEST_CASE("the list is the whole nodelist and the lookup is where the cursor goes",
+TEST_CASE("the list is the whole nodelist and the lookup is where the cursor goes "
           "[nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
@@ -220,7 +220,7 @@ TEST_CASE("the list is the whole nodelist and the lookup is where the cursor goe
     CHECK(anyRowHas(shown, "2:240/2188"));
 }
 
-TEST_CASE("a lookup takes an address whole or in part", "[nodelist][ui]") {
+TEST_CASE("a lookup takes an address whole or in part [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     auto& view = *fixture.area.state.nodelistView;
@@ -247,7 +247,7 @@ TEST_CASE("a lookup takes an address whole or in part", "[nodelist][ui]") {
     CHECK_FALSE(fixture.area.state.nodelistView->found);
 }
 
-TEST_CASE("a lookup takes any part of a sysop's name", "[nodelist][ui]") {
+TEST_CASE("a lookup takes any part of a sysop's name [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     auto& view = *fixture.area.state.nodelistView;
@@ -277,7 +277,7 @@ TEST_CASE("a lookup takes any part of a sysop's name", "[nodelist][ui]") {
     CHECK(cursorAddress(fixture.area) == "2:240/1120.8");
 }
 
-TEST_CASE("the first character typed replaces the address the box opened on",
+TEST_CASE("the first character typed replaces the address the box opened on "
           "[nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
@@ -296,7 +296,7 @@ TEST_CASE("the first character typed replaces the address the box opened on",
     CHECK(cursorAddress(fixture.area) == "2:222/0");
 }
 
-TEST_CASE("a line already edited is added to rather than replaced", "[nodelist][ui]") {
+TEST_CASE("a line already edited is added to rather than replaced [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     REQUIRE(fixture.area.state.nodelistView->lookup == fixture.sender);
@@ -316,7 +316,7 @@ TEST_CASE("a line already edited is added to rather than replaced", "[nodelist][
     CHECK(fixture.area.state.nodelistView->lookup == "K");
 }
 
-TEST_CASE("Enter walks through everything the lookup finds", "[nodelist][ui]") {
+TEST_CASE("Enter walks through everything the lookup finds [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     auto& view = *fixture.area.state.nodelistView;
@@ -338,7 +338,7 @@ TEST_CASE("Enter walks through everything the lookup finds", "[nodelist][ui]") {
     CHECK(cursorAddress(fixture.area) == "2:240/1120");
 }
 
-TEST_CASE("the head of the box is the node the cursor is on", "[nodelist][ui]") {
+TEST_CASE("the head of the box is the node the cursor is on [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     fixture.area.state.nodelistView->lookup.clear();
@@ -368,7 +368,7 @@ TEST_CASE("the head of the box is the node the cursor is on", "[nodelist][ui]") 
     CHECK(anyRowHas(moved, "Z2PNT.Z19"));
 }
 
-TEST_CASE("the box is a modal and not the whole window", "[nodelist][ui]") {
+TEST_CASE("the box is a modal and not the whole window [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
 
@@ -387,7 +387,7 @@ TEST_CASE("the box is a modal and not the whole window", "[nodelist][ui]") {
     CHECK(rows[top - 1].find_first_not_of(' ') != std::string::npos);
 }
 
-TEST_CASE("a box with no room for the station name shows none", "[nodelist][ui]") {
+TEST_CASE("a box with no room for the station name shows none [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     fixture.area.state.nodelistView->lookup.clear();
@@ -411,7 +411,7 @@ TEST_CASE("a box with no room for the station name shows none", "[nodelist][ui]"
     CHECK(anyRowHas(rowsOf(fixture.area), "Kruemel Boks!"));
 }
 
-TEST_CASE("a list longer than the box carries the reader's scrollbar", "[nodelist][ui]") {
+TEST_CASE("a list longer than the box carries the reader's scrollbar [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
 
@@ -434,7 +434,7 @@ TEST_CASE("a list longer than the box carries the reader's scrollbar", "[nodelis
     CHECK(bottom.front() == 2);
 }
 
-TEST_CASE("a box opened on a name shows what the name found and nothing else",
+TEST_CASE("a box opened on a name shows what the name found and nothing else "
           "[nodelist][ui]") {
     Fixture fixture;
     auto& state = fixture.area.state;
@@ -473,7 +473,7 @@ TEST_CASE("a box opened on a name shows what the name found and nothing else",
     CHECK(anyRowHas(rowsOf(fixture.area), "Christian von Busse"));
 }
 
-TEST_CASE("an address typed into a box opened on a name filters by it too",
+TEST_CASE("an address typed into a box opened on a name filters by it too "
           "[nodelist][ui]") {
     Fixture fixture;
     auto& state = fixture.area.state;
@@ -490,7 +490,7 @@ TEST_CASE("an address typed into a box opened on a name filters by it too",
     CHECK(state.nodelistView->matches.size() == 5);
 }
 
-TEST_CASE("Enter picks in a box opened to pick and walks in one opened to browse",
+TEST_CASE("Enter picks in a box opened to pick and walks in one opened to browse "
           "[nodelist][ui]") {
     Fixture fixture;
     auto& state = fixture.area.state;
@@ -517,7 +517,7 @@ TEST_CASE("Enter picks in a box opened to pick and walks in one opened to browse
           nodelist_dialog::Outcome::Ignored);
 }
 
-TEST_CASE("the arrows move the cursor and leave the lookup alone", "[nodelist][ui]") {
+TEST_CASE("the arrows move the cursor and leave the lookup alone [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);
     auto& view = *fixture.area.state.nodelistView;
@@ -535,7 +535,7 @@ TEST_CASE("the arrows move the cursor and leave the lookup alone", "[nodelist][u
     CHECK(view.cursor == 0);
 }
 
-TEST_CASE("Esc and the keys that opened it put the nodelist away", "[nodelist][ui]") {
+TEST_CASE("Esc and the keys that opened it put the nodelist away [nodelist][ui]") {
     Fixture fixture;
 
     nodelist_dialog::open(fixture.area.state);
@@ -565,7 +565,7 @@ TEST_CASE("Esc and the keys that opened it put the nodelist away", "[nodelist][u
     CHECK(fixture.area.state.nodelistView->lookup.empty());
 }
 
-TEST_CASE("with no nodelist the box opens and says so", "[nodelist][ui]") {
+TEST_CASE("with no nodelist the box opens and says so [nodelist][ui]") {
     TempSquishBase base;
     AreaFixture area(base.path());
     REQUIRE(message_list::enterArea(area.state, area.area));

@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -26,7 +26,7 @@ std::string quoted(const std::vector<std::string>& lines, const std::string& aut
 
 }  // namespace
 
-TEST_CASE("The quote prefix is the quote string with the initials in it", "[quoting]") {
+TEST_CASE("The quote prefix is the quote string with the initials in it [quoting]") {
     // The example from the configuration: F is the first name's letter, L the
     // last name's, M every name in between.
     CHECK(quotePrefixFor(" FL> ", "The Lord of the Rings") == " TR> ");
@@ -46,7 +46,7 @@ TEST_CASE("The quote prefix is the quote string with the initials in it", "[quot
     CHECK(quotePrefixFor(" FL>", "Vasya Pupkin") == " VP> ");
 }
 
-TEST_CASE("What we quote with is what our own reader reads back", "[quoting]") {
+TEST_CASE("What we quote with is what our own reader reads back [quoting]") {
     // The prefix has to satisfy ui::quoteDepth(), or a reply would go out
     // looking like a quote to nobody, AmberEdit included.
     CHECK(amberedit::ui::quoteDepth(quotePrefixFor(" FL> ", "Vasya Pupkin") + "text") ==
@@ -56,7 +56,7 @@ TEST_CASE("What we quote with is what our own reader reads back", "[quoting]") {
     CHECK(amberedit::ui::quoteDepth(quotePrefixFor(">", "Vasya Pupkin") + "text") == 1);
 }
 
-TEST_CASE("An existing quote gains a level and keeps its initials", "[quoting]") {
+TEST_CASE("An existing quote gains a level and keeps its initials [quoting]") {
     CHECK(quoted({" AB> hello"}, "Vasya Pupkin", " FL> ", 78) == " AB>> hello");
     CHECK(quoted({" AB>> hello"}, "Vasya Pupkin", " FL> ", 78) == " AB>>> hello");
     // The leading spaces are the quote string's, whatever the quoted line used.
@@ -64,14 +64,14 @@ TEST_CASE("An existing quote gains a level and keeps its initials", "[quoting]")
     CHECK(quoted({" AB> hello"}, "Vasya Pupkin", ">", 78) == "AB>> hello");
 }
 
-TEST_CASE("A line that is not a quote gets the author's initials", "[quoting]") {
+TEST_CASE("A line that is not a quote gets the author's initials [quoting]") {
     CHECK(quoted({"hello"}, "Vasya Pupkin", " FL> ", 78) == " VP> hello");
     // A '>' without the space after it is text, not a quote.
     CHECK(quoted({">8 lines follow"}, "Vasya Pupkin", " FL> ", 78) ==
           " VP> >8 lines follow");
 }
 
-TEST_CASE("A line with nothing on it is not quoted at all", "[quoting]") {
+TEST_CASE("A line with nothing on it is not quoted at all [quoting]") {
     // Nothing to answer, and a reply padded with empty quotes reads worse than
     // one without them.
     CHECK(quoted({""}, "Vasya Pupkin", " FL> ", 78).empty());
@@ -87,7 +87,7 @@ TEST_CASE("A line with nothing on it is not quoted at all", "[quoting]") {
           " VP> one| VP> two");
 }
 
-TEST_CASE("A quoted line is wrapped at the margin, prefix and all", "[quoting]") {
+TEST_CASE("A quoted line is wrapped at the margin, prefix and all [quoting]") {
     const std::string long_ = "aaa bbb ccc ddd eee fff";  // 23 characters
     // Prefix " VP> " is five, so a margin of 20 leaves fifteen — exactly what
     // the first four words take, and the line comes out 20 wide.
@@ -109,13 +109,13 @@ TEST_CASE("A quoted line is wrapped at the margin, prefix and all", "[quoting]")
           " VP> aaaaa");
 }
 
-TEST_CASE("A line that fits is quoted exactly as it stands", "[quoting]") {
+TEST_CASE("A line that fits is quoted exactly as it stands [quoting]") {
     // Indentation and columns are information; only what overflows is
     // rearranged.
     CHECK(quoted({"   a   b   c"}, "Vasya Pupkin", " FL> ", 78) == " VP>    a   b   c");
 }
 
-TEST_CASE("parseQuotePrefix reads what quoteDepth recognises", "[quoting]") {
+TEST_CASE("parseQuotePrefix reads what quoteDepth recognises [quoting]") {
     CHECK(parseQuotePrefix("hello").level == 0);
     CHECK(parseQuotePrefix(">8 lines").level == 0);
 
@@ -135,7 +135,7 @@ TEST_CASE("parseQuotePrefix reads what quoteDepth recognises", "[quoting]") {
     CHECK(bare.length == 2);
 }
 
-TEST_CASE("parseQuotePrefix reads the '->' of a QWK gateway", "[quoting]") {
+TEST_CASE("parseQuotePrefix reads the '->' of a QWK gateway [quoting]") {
     const auto gated = parseQuotePrefix("-> hello");
     CHECK(gated.level == 1);
     CHECK(gated.initials.empty());
@@ -145,7 +145,7 @@ TEST_CASE("parseQuotePrefix reads the '->' of a QWK gateway", "[quoting]") {
     CHECK(parseQuotePrefix("--> hello").level == 0);
 }
 
-TEST_CASE("A '->' quote deepens into a quote of our own shape", "[quoting]") {
+TEST_CASE("A '->' quote deepens into a quote of our own shape [quoting]") {
     // Text off a QWK gateway comes quoted with "-> ". Answering it gains a
     // level like any other quote, and what we write back is what our own
     // reader reads as one.

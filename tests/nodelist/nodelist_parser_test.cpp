@@ -1,6 +1,6 @@
 #include "nodelist/nodelist_parser.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include "config/text_util.hpp"
 #include "test_paths.hpp"
@@ -22,7 +22,7 @@ const nodelist::NodeEntry* at(const nodelist::ParseResult& parsed,
 
 }  // namespace
 
-TEST_CASE("a nodelist is addressed by the Zone, Region and Host lines above it",
+TEST_CASE("a nodelist is addressed by the Zone, Region and Host lines above it "
           "[nodelist]") {
     const std::string text =
         "Zone,1,North_America,Toronto,Nick_Andre,1-647-847-2083,9600,CM,XX\r\n"
@@ -63,7 +63,7 @@ TEST_CASE("a nodelist is addressed by the Zone, Region and Host lines above it",
     CHECK(at(parsed, "1:102/401")->keyword == NodeKeyword::Pvt);
 }
 
-TEST_CASE("the fields of a node are the line's, with the underscores read as spaces",
+TEST_CASE("the fields of a node are the line's, with the underscores read as spaces "
           "[nodelist]") {
     const std::string text =
         "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n"
@@ -96,7 +96,7 @@ TEST_CASE("the fields of a node are the line's, with the underscores read as spa
           "INA:bbs.example.org,IBN:24555,PING");
 }
 
-TEST_CASE("a Boss line makes the lines under it points of that node", "[nodelist]") {
+TEST_CASE("a Boss line makes the lines under it points of that node [nodelist]") {
     const std::string text =
         "Boss,2:221/6\r\n"
         ",66,FPoint,Ylojarvi,Tommi_Koivula,-Unpublished-,300,PING\r\n"
@@ -123,7 +123,7 @@ TEST_CASE("a Boss line makes the lines under it points of that node", "[nodelist
           "Pvt,13,Kruemel_Boks!_P13,Ober-Ramstadt,Joerg_Walther,-Unpublished-,300");
 }
 
-TEST_CASE("a Point line makes a point of the node above it", "[nodelist]") {
+TEST_CASE("a Point line makes a point of the node above it [nodelist]") {
     const std::string text =
         "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n"
         "Host,5020,Russia,Moscow,Nobody,-Unpublished-,300\r\n"
@@ -141,7 +141,7 @@ TEST_CASE("a Point line makes a point of the node above it", "[nodelist]") {
     REQUIRE(at(parsed, "2:5020/1000") != nullptr);
 }
 
-TEST_CASE("a line that cannot be read is named and left out", "[nodelist]") {
+TEST_CASE("a line that cannot be read is named and left out [nodelist]") {
     const std::string text =
         ",19,An_Orphan,Nowhere,Nobody,-Unpublished-,300\r\n"
         "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n"
@@ -163,7 +163,7 @@ TEST_CASE("a line that cannot be read is named and left out", "[nodelist]") {
     CHECK(at(parsed, "2:2/7")->speed == 0);
 }
 
-TEST_CASE("the real nodelists in testdata parse", "[nodelist]") {
+TEST_CASE("the real nodelists in testdata parse [nodelist]") {
     const auto text =
         config::text::readFile(test::projectPath("testdata/nodelist/Z2DAILY.225"));
     const auto parsed = nodelist::parseNodelist(text);

@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -123,7 +123,7 @@ std::vector<std::string> visibleLines(const amberedit::domain::MessageBody& body
 
 }  // namespace
 
-TEST_CASE("c opens the editor on the message itself", "[change][squish]") {
+TEST_CASE("c opens the editor on the message itself [change][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     openFirstMessage(fixture);
@@ -153,7 +153,7 @@ TEST_CASE("c opens the editor on the message itself", "[change][squish]") {
     CHECK_FALSE(textHas(fixture.state, "MSGID"));
 }
 
-TEST_CASE("F2 asks before changing a message that is not yours", "[change][squish]") {
+TEST_CASE("F2 asks before changing a message that is not yours [change][squish]") {
     TempSquishBase base;
     TempTemplate tpl;
     AppConfig config;
@@ -180,7 +180,7 @@ TEST_CASE("F2 asks before changing a message that is not yours", "[change][squis
     CHECK_FALSE(textHas(fixture.state, "A greeting for"));
 }
 
-TEST_CASE("The editor's Date row is the clock over a message being changed",
+TEST_CASE("The editor's Date row is the clock over a message being changed "
           "[change][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -207,7 +207,7 @@ TEST_CASE("The editor's Date row is the clock over a message being changed",
     CHECK(dateRow.find(was) == std::string::npos);
 }
 
-TEST_CASE("Esc puts the question away and changes nothing", "[change][squish]") {
+TEST_CASE("Esc puts the question away and changes nothing [change][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     openFirstMessage(fixture);
@@ -221,7 +221,7 @@ TEST_CASE("Esc puts the question away and changes nothing", "[change][squish]") 
     CHECK_FALSE(fixture.state.compose.changing);
 }
 
-TEST_CASE("A message of yours that has gone out is asked about too", "[change][squish]") {
+TEST_CASE("A message of yours that has gone out is asked about too [change][squish]") {
     TempSquishBase base;
     AppConfig config;
     config.userName = "Yegor Gluhov";
@@ -256,7 +256,7 @@ TEST_CASE("A message of yours that has gone out is asked about too", "[change][s
           (was & ~amberedit::domain::attr::kSent));
 }
 
-TEST_CASE("Saving a change writes over the message it came from", "[change][squish]") {
+TEST_CASE("Saving a change writes over the message it came from [change][squish]") {
     TempSquishBase base;
     AppConfig config;
     config.userName = "Yegor Gluhov";
@@ -349,7 +349,7 @@ TEST_CASE("Saving a change writes over the message it came from", "[change][squi
     CHECK(shown == expected);
 }
 
-TEST_CASE("Dropping a change leaves the message as it was", "[change][squish]") {
+TEST_CASE("Dropping a change leaves the message as it was [change][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     openFirstMessage(fixture);
@@ -373,7 +373,7 @@ TEST_CASE("Dropping a change leaves the message as it was", "[change][squish]") 
     CHECK(visibleLines(fixture.state.base->body(1)) == lines);
 }
 
-TEST_CASE("The header of a message being changed rewrites nothing under it",
+TEST_CASE("The header of a message being changed rewrites nothing under it "
           "[change][squish]") {
     TempSquishBase base;
     TempTemplate tpl;

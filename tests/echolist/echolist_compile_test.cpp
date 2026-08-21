@@ -1,6 +1,6 @@
 #include "echolist/echolist_compiler.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <filesystem>
 #include <fstream>
@@ -15,7 +15,7 @@
 using namespace amberedit;
 namespace fs = std::filesystem;
 
-TEST_CASE("the echolists in testdata compile into one file", "[echolist]") {
+TEST_CASE("the echolists in testdata compile into one file [echolist]") {
     test::TempDir dir;
 
     echolist::CompileOptions options;
@@ -60,7 +60,7 @@ TEST_CASE("the echolists in testdata compile into one file", "[echolist]") {
     CHECK(fs::is_empty(options.tempDir));
 }
 
-TEST_CASE("an echolist is compiled again only once it has changed", "[echolist]") {
+TEST_CASE("an echolist is compiled again only once it has changed [echolist]") {
     test::TempDir dir;
     const std::string list = dir.path("echo.lst");
     {
@@ -98,7 +98,7 @@ TEST_CASE("an echolist is compiled again only once it has changed", "[echolist]"
     CHECK(again.areas == 2);
 }
 
-TEST_CASE("a wildcard is recompiled when it comes to stand for a newer file",
+TEST_CASE("a wildcard is recompiled when it comes to stand for a newer file "
           "[echolist]") {
     test::TempDir dir;
     const auto write = [&dir](const std::string& name, const std::string& description) {
@@ -137,7 +137,7 @@ TEST_CASE("a wildcard is recompiled when it comes to stand for a newer file",
     CHECK(fs::path(db.sources()[0].path).filename() == "echo2601.lst");
 }
 
-TEST_CASE("an echolist that will not read stops nothing", "[echolist]") {
+TEST_CASE("an echolist that will not read stops nothing [echolist]") {
     test::TempDir dir;
 
     echolist::CompileOptions options;
@@ -162,7 +162,7 @@ TEST_CASE("an echolist that will not read stops nothing", "[echolist]") {
     CHECK(echolist::echolistNeedsCompiling(options));
 }
 
-TEST_CASE("an echolist with nowhere to compile it to is said out loud", "[echolist]") {
+TEST_CASE("an echolist with nowhere to compile it to is said out loud [echolist]") {
     echolist::CompileOptions options;
     options.sources = {{"/ftn/echolist/echo50.lst", ""}};
 

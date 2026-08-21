@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <fstream>
@@ -396,7 +396,7 @@ std::vector<std::string> visibleLines(const amberedit::ui::AppState& state) {
 
 }  // namespace
 
-TEST_CASE("n asks which area the reply goes into", "[other_area]") {
+TEST_CASE("n asks which area the reply goes into [other_area]") {
     TwoAreaFixture fixture;
     REQUIRE(message_list::enterArea(fixture.state, fixture.source));
     REQUIRE(fixture.state.navigator.current() == ScreenId::MessageRead);
@@ -420,7 +420,7 @@ TEST_CASE("n asks which area the reply goes into", "[other_area]") {
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
 }
 
-TEST_CASE("The picker searches by name, as the area list does", "[other_area]") {
+TEST_CASE("The picker searches by name, as the area list does [other_area]") {
     TwoAreaFixture fixture;
     REQUIRE(message_list::enterArea(fixture.state, fixture.source));
     message_read::handleEvent(fixture.state, Event::Character('n'));
@@ -436,7 +436,7 @@ TEST_CASE("The picker searches by name, as the area list does", "[other_area]") 
           area_dialog::Outcome::Picked);
 }
 
-TEST_CASE("A reply moved into another area is written there and read here",
+TEST_CASE("A reply moved into another area is written there and read here "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -500,7 +500,7 @@ TEST_CASE("A reply moved into another area is written there and read here",
     CHECK(fixture.countIn(fixture.target) == thereBefore + 1);
 }
 
-TEST_CASE("A moved reply is written under the settings of the area it goes into",
+TEST_CASE("A moved reply is written under the settings of the area it goes into "
           "[other_area]") {
     // The area on screen and the area the message goes into are in different
     // groups, so a message written under the reader's settings rather than the
@@ -557,7 +557,7 @@ TEST_CASE("A moved reply is written under the settings of the area it goes into"
     CHECK(found);
 }
 
-TEST_CASE("Writing and deleting keep the area list's counts honest", "[other_area]") {
+TEST_CASE("Writing and deleting keep the area list's counts honest [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -583,7 +583,7 @@ TEST_CASE("Writing and deleting keep the area list's counts honest", "[other_are
     CHECK(fixture.manager.areas()[static_cast<size_t>(row)].total == before);
 }
 
-TEST_CASE("Picking the area being read is a reply, not a move", "[other_area]") {
+TEST_CASE("Picking the area being read is a reply, not a move [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
     REQUIRE(message_list::enterArea(state, fixture.source));
@@ -605,7 +605,7 @@ TEST_CASE("Picking the area being read is a reply, not a move", "[other_area]") 
     CHECK(state.edit.lines[0].find("Answering a msg posted") == std::string::npos);
 }
 
-TEST_CASE("A moved reply dropped leaves both areas as they were", "[other_area]") {
+TEST_CASE("A moved reply dropped leaves both areas as they were [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -631,7 +631,7 @@ TEST_CASE("A moved reply dropped leaves both areas as they were", "[other_area]"
     CHECK(fixture.countIn(fixture.target) == thereBefore);
 }
 
-TEST_CASE("The reply_to button asks the same question the key does", "[other_area]") {
+TEST_CASE("The reply_to button asks the same question the key does [other_area]") {
     TwoAreaFixture fixture;
     fixture.config.readerMenu = {amberedit::config::MenuCommand::ReplyTo};
     REQUIRE(message_list::enterArea(fixture.state, fixture.source));
@@ -660,7 +660,7 @@ TEST_CASE("The reply_to button asks the same question the key does", "[other_are
     CHECK(fixture.state.areaPicker);
 }
 
-TEST_CASE("m asks what is to become of the message before asking where",
+TEST_CASE("m asks what is to become of the message before asking where "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -688,7 +688,7 @@ TEST_CASE("m asks what is to become of the message before asking where",
     CHECK(state.navigator.current() == ScreenId::MessageRead);
 }
 
-TEST_CASE("The area dialog says which of the three it is asking for",
+TEST_CASE("The area dialog says which of the three it is asking for "
           "[other_area]") {
     const std::vector<std::pair<Mode, std::string>> titles{
         {Mode::Forward, "Forward to area"},
@@ -710,7 +710,7 @@ TEST_CASE("The area dialog says which of the three it is asking for",
     }
 }
 
-TEST_CASE("The three answers are chosen by their initials as well", "[other_area]") {
+TEST_CASE("The three answers are chosen by their initials as well [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
     REQUIRE(message_list::enterArea(state, fixture.source));
@@ -728,7 +728,7 @@ TEST_CASE("The three answers are chosen by their initials as well", "[other_area
     CHECK(state.forwardPicker->mode == Mode::Copy);
 }
 
-TEST_CASE("A message forwarded into another area goes there as a new one",
+TEST_CASE("A message forwarded into another area goes there as a new one "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -805,7 +805,7 @@ TEST_CASE("A message forwarded into another area goes there as a new one",
         thereBefore + 1);
 }
 
-TEST_CASE("A forward dropped leaves both areas as they were", "[other_area]") {
+TEST_CASE("A forward dropped leaves both areas as they were [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -831,7 +831,7 @@ TEST_CASE("A forward dropped leaves both areas as they were", "[other_area]") {
 
 // --- move and copy -----------------------------------------------------------
 
-TEST_CASE("A message copied into another area stands in both", "[other_area]") {
+TEST_CASE("A message copied into another area stands in both [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -891,7 +891,7 @@ TEST_CASE("A message copied into another area stands in both", "[other_area]") {
     CHECK(copiedText == text);
 }
 
-TEST_CASE("A message moved into another area is gone from this one", "[other_area]") {
+TEST_CASE("A message moved into another area is gone from this one [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -938,7 +938,7 @@ TEST_CASE("A message moved into another area is gone from this one", "[other_are
     CHECK(movedText == text);
 }
 
-TEST_CASE("A move into an area that will not take it keeps the message",
+TEST_CASE("A move into an area that will not take it keeps the message "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -963,7 +963,7 @@ TEST_CASE("A move into an area that will not take it keeps the message",
     CHECK(state.readHeader->number == reading);
 }
 
-TEST_CASE("Moving a message into the area it is in does nothing", "[other_area]") {
+TEST_CASE("Moving a message into the area it is in does nothing [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -991,7 +991,7 @@ TEST_CASE("Moving a message into the area it is in does nothing", "[other_area]"
           hereBefore + 1);
 }
 
-TEST_CASE("The forward button asks the same question m does", "[other_area]") {
+TEST_CASE("The forward button asks the same question m does [other_area]") {
     TwoAreaFixture fixture;
     fixture.config.readerMenu = {amberedit::config::MenuCommand::Forward};
     REQUIRE(message_list::enterArea(fixture.state, fixture.source));
@@ -1021,7 +1021,7 @@ TEST_CASE("The forward button asks the same question m does", "[other_area]") {
     CHECK_FALSE(fixture.state.areaPicker);
 }
 
-TEST_CASE("The picker opens on the first area, not on the one being read",
+TEST_CASE("The picker opens on the first area, not on the one being read "
           "[other_area]") {
     // Descending by echoid, so the area being read below is the last of the two
     // and the first one is somebody else — with the default order the two would
@@ -1043,7 +1043,7 @@ TEST_CASE("The picker opens on the first area, not on the one being read",
     CHECK(fixture.state.areaPicker->cursor == 0);
 }
 
-TEST_CASE("reply_to_area is where the reply picker opens", "[other_area]") {
+TEST_CASE("reply_to_area is where the reply picker opens [other_area]") {
     TwoAreaFixture fixture;
     // Written in another case than the area carries, since an echoid names the
     // same echo however it is spelled.
@@ -1062,7 +1062,7 @@ TEST_CASE("reply_to_area is where the reply picker opens", "[other_area]") {
     CHECK(fixture.state.composeArea().tag == "test.other");
 }
 
-TEST_CASE("reply_to_area is the reply's alone, and only where it names an area",
+TEST_CASE("reply_to_area is the reply's alone, and only where it names an area "
           "[other_area]") {
     TwoAreaFixture fixture;
     fixture.config.replyToArea = "test.other";
@@ -1079,7 +1079,7 @@ TEST_CASE("reply_to_area is the reply's alone, and only where it names an area",
     }
 }
 
-TEST_CASE("A reply_to_area naming no area opens the picker where it always did",
+TEST_CASE("A reply_to_area naming no area opens the picker where it always did "
           "[other_area]") {
     // The areas come from the tosser config, which this setting cannot add to.
     // It is stated before the area is entered because that is when the settings
@@ -1093,7 +1093,7 @@ TEST_CASE("A reply_to_area naming no area opens the picker where it always did",
     CHECK(fixture.state.areaPicker->cursor == 0);
 }
 
-TEST_CASE("The picker lists the areas in the area list's own order", "[other_area]") {
+TEST_CASE("The picker lists the areas in the area list's own order [other_area]") {
     const std::vector<std::string> tags{"localnet", "test.other"};
 
     // `arealist_sort` orders one list, and both screens draw it: whatever it
@@ -1114,7 +1114,7 @@ TEST_CASE("The picker lists the areas in the area list's own order", "[other_are
 
 // --- areareplydirect ---------------------------------------------------------
 
-TEST_CASE("A reply follows the AREA: line the message begins with", "[other_area]") {
+TEST_CASE("A reply follows the AREA: line the message begins with [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -1158,7 +1158,7 @@ TEST_CASE("A reply follows the AREA: line the message begins with", "[other_area
     CHECK(fixture.countIn(fixture.target) == thereBefore + 1);
 }
 
-TEST_CASE("The AREA: line is service data, not a line of the message",
+TEST_CASE("The AREA: line is service data, not a line of the message "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -1185,7 +1185,7 @@ TEST_CASE("The AREA: line is service data, not a line of the message",
     }
 }
 
-TEST_CASE("A message changed keeps the AREA: line at its head", "[other_area]") {
+TEST_CASE("A message changed keeps the AREA: line at its head [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -1210,7 +1210,7 @@ TEST_CASE("A message changed keeps the AREA: line at its head", "[other_area]") 
     CHECK(amberedit::app::areaTagOf(*state.readBody) == "test.other");
 }
 
-TEST_CASE("The reader's title names the echo the message came from", "[other_area]") {
+TEST_CASE("The reader's title names the echo the message came from [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -1239,7 +1239,7 @@ TEST_CASE("The reader's title names the echo the message came from", "[other_are
     CHECK(readerRows(state)[0].find(" from ") == std::string::npos);
 }
 
-TEST_CASE("areareplydirect off leaves the answer where it was read", "[other_area]") {
+TEST_CASE("areareplydirect off leaves the answer where it was read [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
     fixture.config.areaReplyDirect = false;
@@ -1254,7 +1254,7 @@ TEST_CASE("areareplydirect off leaves the answer where it was read", "[other_are
     CHECK(state.composeArea().tag == "localnet");
 }
 
-TEST_CASE("A group decides whether replies follow the AREA: line", "[other_area]") {
+TEST_CASE("A group decides whether replies follow the AREA: line [other_area]") {
     // The setting is one an area group may state, so a base whose messages
     // carry the line can follow it while the rest of the config does not.
     TwoAreaFixture fixture({},
@@ -1274,7 +1274,7 @@ TEST_CASE("A group decides whether replies follow the AREA: line", "[other_area]
     CHECK(state.composeArea().tag == "localnet");
 }
 
-TEST_CASE("Only the first line of a message names the area to answer in",
+TEST_CASE("Only the first line of a message names the area to answer in "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -1292,7 +1292,7 @@ TEST_CASE("Only the first line of a message names the area to answer in",
     CHECK(state.composeArea().tag == "localnet");
 }
 
-TEST_CASE("An AREA: line naming no area of ours is answered where it was read",
+TEST_CASE("An AREA: line naming no area of ours is answered where it was read "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
@@ -1308,7 +1308,7 @@ TEST_CASE("An AREA: line naming no area of ours is answered where it was read",
     CHECK(state.composeArea().tag == "localnet");
 }
 
-TEST_CASE("An AREA: line naming the area being read moves nothing", "[other_area]") {
+TEST_CASE("An AREA: line naming the area being read moves nothing [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -1325,7 +1325,7 @@ TEST_CASE("An AREA: line naming the area being read moves nothing", "[other_area
     CHECK(state.edit.lines[0].find("Answering a msg posted") == std::string::npos);
 }
 
-TEST_CASE("An area picked by hand outranks the AREA: line", "[other_area]") {
+TEST_CASE("An area picked by hand outranks the AREA: line [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -1347,7 +1347,7 @@ TEST_CASE("An area picked by hand outranks the AREA: line", "[other_area]") {
     CHECK(state.composeArea().tag == "localnet");
 }
 
-TEST_CASE("An echo answered into netmail is written from the akamatch AKA",
+TEST_CASE("An echo answered into netmail is written from the akamatch AKA "
           "[other_area]") {
     // The reported case: a message out of a packet, answered with `reply_to`
     // into the netmail area. Nothing of ours was written to, so which AKA the
@@ -1383,7 +1383,7 @@ TEST_CASE("An echo answered into netmail is written from the akamatch AKA",
     CHECK(state.compose.fromAddr == "3:633/280");
 }
 
-TEST_CASE("A forward is not moved by the AREA: line", "[other_area]") {
+TEST_CASE("A forward is not moved by the AREA: line [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
 
@@ -1397,7 +1397,7 @@ TEST_CASE("A forward is not moved by the AREA: line", "[other_area]") {
     CHECK(state.navigator.current() == ScreenId::MessageRead);
 }
 
-TEST_CASE("A forward opens on the line the template positions the cursor on",
+TEST_CASE("A forward opens on the line the template positions the cursor on "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;

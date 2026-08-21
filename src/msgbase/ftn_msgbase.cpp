@@ -131,7 +131,7 @@ bool FtnMsgBase::open(const AreaConfig& area) {
     // A base the tosser config names but that was never created is ordinary;
     // saying which format was looked for is the useful half of the message.
     if (probeType(area.path) != type) {
-        lastError_ = "no " + domain::toString(type) + " base at " + area.path;
+        lastError_ = "no " + domain::nameOf(type) + " base at " + area.path;
         return false;
     }
 
@@ -172,7 +172,7 @@ bool FtnMsgBase::create(const AreaConfig& area) {
     if (!driver) {
         // isAbsent() has already refused Unknown and Passthrough, so this is
         // a format added to the enum and not to makeDriver().
-        lastError_ = "cannot create a base of type " + domain::toString(area.type);
+        lastError_ = "cannot create a base of type " + domain::nameOf(area.type);
         return false;
     }
     // The driver's own words, unwrapped: it names the file it could not make

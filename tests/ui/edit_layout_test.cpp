@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -35,7 +35,7 @@ std::vector<std::string> shownRows(const std::vector<std::string>& lines, int wi
 
 }  // namespace
 
-TEST_CASE("A line that fits takes one row", "[editlayout]") {
+TEST_CASE("A line that fits takes one row [editlayout]") {
     const std::vector<std::string> lines{"short", "", "also short"};
     const auto rows = layoutRows(bufferOf(lines, 0, 0), 20);
     REQUIRE(rows.size() == 3);
@@ -48,7 +48,7 @@ TEST_CASE("A line that fits takes one row", "[editlayout]") {
     CHECK(rows[2].end == lines[2].size());
 }
 
-TEST_CASE("A line wider than the window is shown over several rows", "[editlayout]") {
+TEST_CASE("A line wider than the window is shown over several rows [editlayout]") {
     const std::vector<std::string> lines{"aaa bbb ccc ddd"};
     // The blank a row breaks at stays on the row it closes: it draws nothing
     // against the right edge, and the bytes have to divide between the rows.
@@ -63,12 +63,12 @@ TEST_CASE("A line wider than the window is shown over several rows", "[editlayou
     CHECK(joined == lines[0]);
 }
 
-TEST_CASE("A word too long for the window is cut where the width falls", "[editlayout]") {
+TEST_CASE("A word too long for the window is cut where the width falls [editlayout]") {
     const std::vector<std::string> lines{"aaaa bbbbbbbbbb"};
     CHECK(shownRows(lines, 6) == std::vector<std::string>{"aaaa ", "bbbbbb", "bbbb"});
 }
 
-TEST_CASE("A row is never cut through a character", "[editlayout]") {
+TEST_CASE("A row is never cut through a character [editlayout]") {
     const std::vector<std::string> lines{"Съешь ещё этих мягких булок"};
     for (const auto& row : layoutRows(bufferOf(lines, 0, 0), 12)) {
         const std::string piece = lines[0].substr(row.begin, row.end - row.begin);
@@ -78,7 +78,7 @@ TEST_CASE("A row is never cut through a character", "[editlayout]") {
     }
 }
 
-TEST_CASE("The cursor stands on the row its character is drawn on", "[editlayout]") {
+TEST_CASE("The cursor stands on the row its character is drawn on [editlayout]") {
     const std::vector<std::string> lines{"aaa bbb ccc ddd"};
     const auto rows = layoutRows(bufferOf(lines, 0, 0), 7);
     REQUIRE(rows.size() == 2);
@@ -92,7 +92,7 @@ TEST_CASE("The cursor stands on the row its character is drawn on", "[editlayout
     CHECK(rowOfCursor(rows, 0, lines[0].size()) == 1);
 }
 
-TEST_CASE("A line filling the window breaks to leave the cursor a column",
+TEST_CASE("A line filling the window breaks to leave the cursor a column "
           "[editlayout]") {
     // Eleven characters in a window eleven wide, and the cursor at the end of
     // them: there is no twelfth column for it to stand in, so the last word
@@ -110,7 +110,7 @@ TEST_CASE("A line filling the window breaks to leave the cursor a column",
     CHECK(layoutRows(bufferOf(lines, 0, 4), 11).size() == 1);
 }
 
-TEST_CASE("A line broken at its very end leaves the cursor an empty row",
+TEST_CASE("A line broken at its very end leaves the cursor an empty row "
           "[editlayout]") {
     // Nothing to move down — the row ends where the line does — so the cursor
     // gets a row with no text on it, as every editor gives it.
@@ -122,7 +122,7 @@ TEST_CASE("A line broken at its very end leaves the cursor an empty row",
     CHECK(rowOfCursor(rows, 0, 4) == 1);
 }
 
-TEST_CASE("Up and down move by rows of the screen, not by lines", "[editlayout]") {
+TEST_CASE("Up and down move by rows of the screen, not by lines [editlayout]") {
     const std::vector<std::string> lines{"aaa bbb ccc ddd", "second"};
     TextBuffer buffer = bufferOf(lines, 0, 2);
     const auto rows = layoutRows(bufferOf(lines, 0, 0), 7);
@@ -149,7 +149,7 @@ TEST_CASE("Up and down move by rows of the screen, not by lines", "[editlayout]"
     CHECK(buffer.row == 1);
 }
 
-TEST_CASE("Coming down onto a row the line goes on past stops inside it",
+TEST_CASE("Coming down onto a row the line goes on past stops inside it "
           "[editlayout]") {
     // The byte one past the end of a row is the first of the row below, so a
     // cursor put there would look like it had moved two rows rather than one.

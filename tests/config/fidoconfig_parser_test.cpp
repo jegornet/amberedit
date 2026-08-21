@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 
@@ -20,13 +20,13 @@ const AreaConfig* findArea(const std::vector<AreaConfig>& areas, const std::stri
 
 }  // namespace
 
-TEST_CASE("FidoconfigParser parses testdata/tossers/areas", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser parses testdata/tossers/areas [fidoconfig]") {
     FidoconfigParser parser(amberedit::test::projectPath("testdata/tossers/areas"));
     const auto areas = parser.loadAreas();
 
     REQUIRE(areas.size() == 6);
 
-    SECTION("netmailarea of type msg") {
+    SUBCASE("netmailarea of type msg") {
         const auto* netmail = findArea(areas, "NETMAIL");
         REQUIRE(netmail != nullptr);
         CHECK(netmail->kind == AreaKind::Netmail);
@@ -35,7 +35,7 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas", "[fidoconfig]") {
         CHECK(netmail->group == "A");
     }
 
-    SECTION("localarea of type squish") {
+    SUBCASE("localarea of type squish") {
         const auto* personal = findArea(areas, "PERSONAL.MAIL");
         REQUIRE(personal != nullptr);
         CHECK(personal->kind == AreaKind::Local);
@@ -44,7 +44,7 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas", "[fidoconfig]") {
         CHECK(personal->group == "A");
     }
 
-    SECTION("badarea and dupearea are recognised by keyword") {
+    SUBCASE("badarea and dupearea are recognised by keyword") {
         REQUIRE(findArea(areas, "BAD") != nullptr);
         REQUIRE(findArea(areas, "DUPES") != nullptr);
         CHECK(findArea(areas, "BAD")->kind == AreaKind::Bad);
@@ -52,7 +52,7 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas", "[fidoconfig]") {
         CHECK(findArea(areas, "BAD")->group == "B");
     }
 
-    SECTION("-a gives the AKA, the bare addresses that follow are links") {
+    SUBCASE("-a gives the AKA, the bare addresses that follow are links") {
         const auto* localnet = findArea(areas, "localnet");
         REQUIRE(localnet != nullptr);
         CHECK(localnet->kind == AreaKind::Echo);
@@ -66,7 +66,7 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas", "[fidoconfig]") {
     }
 }
 
-TEST_CASE("FidoconfigParser does not mistake option arguments for links",
+TEST_CASE("FidoconfigParser does not mistake option arguments for links "
           "[fidoconfig]") {
     const auto areas = FidoconfigParser::parseText(
         "EchoArea ru.linux /ftn/ru.linux -b squish -dupehistory 14 -p 5 "
@@ -81,7 +81,7 @@ TEST_CASE("FidoconfigParser does not mistake option arguments for links",
     CHECK(areas[0].links[1].toString() == "2:5020/9999.1");
 }
 
-TEST_CASE("A boolean flag does not swallow the option after it", "[fidoconfig]") {
+TEST_CASE("A boolean flag does not swallow the option after it [fidoconfig]") {
     // husky's `-pack` clears a flag and takes no argument. Treating it as if it
     // did would eat `-b`, and the area would come back with no base type —
     // which is exactly what this parser used to do.
@@ -93,7 +93,7 @@ TEST_CASE("A boolean flag does not swallow the option after it", "[fidoconfig]")
     CHECK(areas[0].group == "A");
 }
 
-TEST_CASE("An option husky does not have is treated as a flag", "[fidoconfig]") {
+TEST_CASE("An option husky does not have is treated as a flag [fidoconfig]") {
     // The value list must hold value-taking options and nothing else. `-charset`
     // was invented by this parser and is gone; if it ever came back as a value
     // option, `-b` would be its argument and the type would be lost again.
@@ -104,7 +104,7 @@ TEST_CASE("An option husky does not have is treated as a flag", "[fidoconfig]") 
     CHECK(areas[0].type == MsgBaseType::Jam);
 }
 
-TEST_CASE("FidoconfigParser parses a quoted description", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser parses a quoted description [fidoconfig]") {
     const auto areas = FidoconfigParser::parseText(
         "EchoArea ru.linux /ftn/ru.linux -b jam -d \"Linux и всё вокруг\"\n");
 
@@ -113,7 +113,7 @@ TEST_CASE("FidoconfigParser parses a quoted description", "[fidoconfig]") {
     CHECK(areas[0].description == "Linux и всё вокруг");
 }
 
-TEST_CASE("FidoconfigParser reads the area group", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser reads the area group [fidoconfig]") {
     const auto areas = FidoconfigParser::parseText(
         "EchoArea a.one /ftn/one -b squish -g A\n"
         "EchoArea a.two /ftn/two -b squish -g Fidonet\n"
@@ -129,7 +129,7 @@ TEST_CASE("FidoconfigParser reads the area group", "[fidoconfig]") {
     CHECK(areas[3].group.empty());  // the option is optional
 }
 
-TEST_CASE("FidoconfigParser understands passthrough", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser understands passthrough [fidoconfig]") {
     const auto areas = FidoconfigParser::parseText(
         "EchoArea su.general passthrough -a 2:5020/1 2:5020/715\n");
 
@@ -142,7 +142,7 @@ TEST_CASE("FidoconfigParser understands passthrough", "[fidoconfig]") {
     CHECK(areas[0].links[0].toString() == "2:5020/715");
 }
 
-TEST_CASE("FidoconfigParser leaves the AKA unset when -a is absent", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser leaves the AKA unset when -a is absent [fidoconfig]") {
     const auto areas =
         FidoconfigParser::parseText("EchoArea a.one /ftn/one -b squish 2:5020/715\n");
 
@@ -152,7 +152,7 @@ TEST_CASE("FidoconfigParser leaves the AKA unset when -a is absent", "[fidoconfi
     CHECK(areas[0].links[0].toString() == "2:5020/715");
 }
 
-TEST_CASE("FidoconfigParser skips comments and unrelated directives", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser skips comments and unrelated directives [fidoconfig]") {
     const auto areas = FidoconfigParser::parseText(
         "# comment line\n"
         "Address 2:5020/9999.1\n"
@@ -165,7 +165,7 @@ TEST_CASE("FidoconfigParser skips comments and unrelated directives", "[fidoconf
     CHECK(areas[0].path == "/ftn/ru.perl");
 }
 
-TEST_CASE("FidoconfigParser: keywords are case-insensitive", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser: keywords are case-insensitive [fidoconfig]") {
     const auto areas = FidoconfigParser::parseText(
         "ECHOAREA a.one /ftn/one -b squish\n"
         "echoarea a.two /ftn/two -b squish\n"
@@ -174,7 +174,7 @@ TEST_CASE("FidoconfigParser: keywords are case-insensitive", "[fidoconfig]") {
     CHECK(areas.size() == 3);
 }
 
-TEST_CASE("FidoconfigParser: an unstated base type stays Unknown", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser: an unstated base type stays Unknown [fidoconfig]") {
     const auto areas = FidoconfigParser::parseText("EchoArea a.one /ftn/one\n");
 
     REQUIRE(areas.size() == 1);
@@ -182,7 +182,7 @@ TEST_CASE("FidoconfigParser: an unstated base type stays Unknown", "[fidoconfig]
     CHECK(areas[0].type == MsgBaseType::Unknown);
 }
 
-TEST_CASE("FidoconfigParser throws on a missing file", "[fidoconfig]") {
+TEST_CASE("FidoconfigParser throws on a missing file [fidoconfig]") {
     FidoconfigParser parser("/nonexistent/path/areas");
     CHECK_THROWS(parser.loadAreas());
 }

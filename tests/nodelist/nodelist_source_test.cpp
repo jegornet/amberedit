@@ -1,6 +1,6 @@
 #include "nodelist/nodelist_source.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -12,8 +12,11 @@
 #include "config/text_util.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 namespace fs = std::filesystem;
 
 namespace {
@@ -36,7 +39,7 @@ fs::file_time_type minutesAgo(int minutes) {
 
 }  // namespace
 
-TEST_CASE("a nodelist line says which of the three kinds of name it is", "[nodelist]") {
+TEST_CASE("a nodelist line says which of the three kinds of name it is [nodelist]") {
     using nodelist::NodelistSpec;
     using nodelist::SpecKind;
 
@@ -61,7 +64,7 @@ TEST_CASE("a nodelist line says which of the three kinds of name it is", "[nodel
     CHECK(NodelistSpec::of("nodelist").kind == SpecKind::Exact);
 }
 
-TEST_CASE("the two patterns may be written as wildcards instead", "[nodelist]") {
+TEST_CASE("the two patterns may be written as wildcards instead [nodelist]") {
     using nodelist::NodelistSpec;
     using nodelist::SpecKind;
 
@@ -88,7 +91,7 @@ TEST_CASE("the two patterns may be written as wildcards instead", "[nodelist]") 
     CHECK(whole.stem == "nodelist.n*");
 }
 
-TEST_CASE("a wildcard picks the newest file it covers", "[nodelist]") {
+TEST_CASE("a wildcard picks the newest file it covers [nodelist]") {
     test::TempDir dir;
 
     writeAt(dir.path("Z2DAILY.225"), minutesAgo(30));
@@ -124,23 +127,23 @@ TEST_CASE("a wildcard picks the newest file it covers", "[nodelist]") {
     CHECK(fs::path(*exact).filename() == "Z2DAILY.229");
 }
 
-TEST_CASE("a wildcard that covers nothing says what it was looking for", "[nodelist]") {
+TEST_CASE("a wildcard that covers nothing says what it was looking for [nodelist]") {
     test::TempDir dir;
     writeAt(dir.path("NODELIST.TXT"), minutesAgo(0));
 
     nodelist::NodelistSources sources(dir.path("tmp"));
-    CHECK_THROWS_WITH(sources.read(dir.path("nodelist.*")),
-                      Catch::Matchers::Contains("001 to 366"));
-    CHECK_THROWS_WITH(sources.read(dir.path("nodelist.z*")),
-                      Catch::Matchers::Contains("Z and two digits"));
+    const std::string error = errorFrom([&] { sources.read(dir.path("nodelist.*")); });
+    CHECK_MESSAGE(contains(error, "001 to 366"), error);
+    const std::string error2 = errorFrom([&] { sources.read(dir.path("nodelist.z*")); });
+    CHECK_MESSAGE(contains(error2, "Z and two digits"), error2);
     // A glob over a whole filename has no kind to describe, so it says only
     // that nothing answered to it — and never "nodelist not found", which
     // would name a file nobody wrote.
-    CHECK_THROWS_WITH(sources.read(dir.path("nothing*.ndl")),
-                      Catch::Matchers::Contains("no nodelist matching"));
+    const std::string error3 = errorFrom([&] { sources.read(dir.path("nothing*.ndl")); });
+    CHECK_MESSAGE(contains(error3, "no nodelist matching"), error3);
 }
 
-TEST_CASE("the newest of the files a pattern covers is the one taken", "[nodelist]") {
+TEST_CASE("the newest of the files a pattern covers is the one taken [nodelist]") {
     test::TempDir dir;
 
     writeAt(dir.path("NODELIST.225"), minutesAgo(30));
@@ -170,20 +173,20 @@ TEST_CASE("the newest of the files a pattern covers is the one taken", "[nodelis
     CHECK(fs::path(*tied).filename() == "NODELIST.229");
 }
 
-TEST_CASE("a pattern that covers nothing says what it was looking for", "[nodelist]") {
+TEST_CASE("a pattern that covers nothing says what it was looking for [nodelist]") {
     test::TempDir dir;
     writeAt(dir.path("NODELIST.TXT"), minutesAgo(0));
 
     nodelist::NodelistSources sources(dir.path("tmp"));
-    CHECK_THROWS_WITH(sources.read(dir.path("NODELIST.999")),
-                      Catch::Matchers::Contains("001 to 366"));
-    CHECK_THROWS_WITH(sources.read(dir.path("NODELIST.Z99")),
-                      Catch::Matchers::Contains("Z and two digits"));
-    CHECK_THROWS_WITH(sources.read(dir.path("nowhere.ndl")),
-                      Catch::Matchers::Contains("nodelist not found"));
+    const std::string error = errorFrom([&] { sources.read(dir.path("NODELIST.999")); });
+    CHECK_MESSAGE(contains(error, "001 to 366"), error);
+    const std::string error2 = errorFrom([&] { sources.read(dir.path("NODELIST.Z99")); });
+    CHECK_MESSAGE(contains(error2, "Z and two digits"), error2);
+    const std::string error3 = errorFrom([&] { sources.read(dir.path("nowhere.ndl")); });
+    CHECK_MESSAGE(contains(error3, "nodelist not found"), error3);
 }
 
-TEST_CASE("a nodelist named by its own name is read as it stands", "[nodelist]") {
+TEST_CASE("a nodelist named by its own name is read as it stands [nodelist]") {
     test::TempDir dir;
     nodelist::NodelistSources sources(dir.path("tmp"));
 
@@ -192,7 +195,7 @@ TEST_CASE("a nodelist named by its own name is read as it stands", "[nodelist]")
     CHECK(config::text::startsWith(loaded.text, ";A FidoNet Nodelist"));
 }
 
-TEST_CASE("a day-number pattern finds the nodelist in testdata", "[nodelist]") {
+TEST_CASE("a day-number pattern finds the nodelist in testdata [nodelist]") {
     test::TempDir dir;
     nodelist::NodelistSources sources(dir.path("tmp"));
 
@@ -202,7 +205,7 @@ TEST_CASE("a day-number pattern finds the nodelist in testdata", "[nodelist]") {
     CHECK(config::text::startsWith(loaded.text, ";A FidoNet Nodelist"));
 }
 
-TEST_CASE("a zipped pointlist is unpacked without paths and taken away again",
+TEST_CASE("a zipped pointlist is unpacked without paths and taken away again "
           "[nodelist]") {
     test::TempDir dir;
     const std::string temporary = dir.path("tmp");
@@ -234,7 +237,7 @@ TEST_CASE("a zipped pointlist is unpacked without paths and taken away again",
     CHECK(fs::is_empty(temporary));
 }
 
-TEST_CASE("the wildcard spellings find the same files in testdata", "[nodelist]") {
+TEST_CASE("the wildcard spellings find the same files in testdata [nodelist]") {
     test::TempDir dir;
     nodelist::NodelistSources sources(dir.path("tmp"));
 
@@ -258,7 +261,7 @@ TEST_CASE("the wildcard spellings find the same files in testdata", "[nodelist]"
     CHECK(fs::path(globbed.readFrom).filename() == "Z2PNT.219");
 }
 
-TEST_CASE("a config naming no tmpdir unpacks under the system's temporary directory",
+TEST_CASE("a config naming no tmpdir unpacks under the system's temporary directory "
           "[nodelist]") {
     // The system's own temporary directory is what `tmpdir` falls back on, and
     // $TMPDIR is what says where that is — so pointing it at a directory of the
@@ -286,7 +289,7 @@ TEST_CASE("a config naming no tmpdir unpacks under the system's temporary direct
     CHECK(fs::is_empty(expected));
 }
 
-TEST_CASE("a directory that cannot be worked in says what it was wanted for",
+TEST_CASE("a directory that cannot be worked in says what it was wanted for "
           "[nodelist]") {
     // What is wrong with the directory is `makeTempDir`'s to say — the cases are
     // its own tests — and which nodelist wanted one is what the message would be
@@ -298,12 +301,12 @@ TEST_CASE("a directory that cannot be worked in says what it was wanted for",
     const std::string archive = test::projectPath("testdata/nodelist/Z2PNT.Z99");
 
     nodelist::NodelistSources sources("");
-    CHECK_THROWS_WITH(sources.read(archive),
-                      Catch::Matchers::Contains(archive + " names a zipped nodelist") &&
-                          Catch::Matchers::Contains("tmpdir has to name one"));
+    const std::string error = errorFrom([&] { sources.read(archive); });
+    CHECK_MESSAGE(contains(error, archive + " names a zipped nodelist"), error);
+    CHECK_MESSAGE(contains(error, "tmpdir has to name one"), error);
 }
 
-TEST_CASE("a tmpdir with no zipped nodelist under it is left unmade", "[nodelist]") {
+TEST_CASE("a tmpdir with no zipped nodelist under it is left unmade [nodelist]") {
     // The directory is made where an archive is unpacked and nowhere else: a
     // config naming one it never needs should leave nothing on the disk.
     test::TempDir dir;

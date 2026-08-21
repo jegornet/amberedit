@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <fstream>
 #include <string>
@@ -6,12 +6,14 @@
 
 #include "app/import_file.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using amberedit::app::importFile;
 using amberedit::app::ImportMode;
 using amberedit::app::ImportRequest;
 using amberedit::app::uuencode;
 using amberedit::test::TempDir;
+using amberedit::test::contains;
 
 namespace {
 
@@ -66,7 +68,7 @@ std::string uudecode(const std::vector<std::string>& lines) {
 
 }  // namespace
 
-TEST_CASE("importFile reads text in its own charset", "[import]") {
+TEST_CASE("importFile reads text in its own charset [import]") {
     const TempDir dir;
     const std::string path = write(dir, "note.txt", kPrivetCp866 + "\nsecond line\n");
 
@@ -76,7 +78,7 @@ TEST_CASE("importFile reads text in its own charset", "[import]") {
                                                    "second line", "=== Cut ==="});
 }
 
-TEST_CASE("importFile understands the FTN spelling of a charset", "[import]") {
+TEST_CASE("importFile understands the FTN spelling of a charset [import]") {
     const TempDir dir;
     // +7_FIDO is CP866 under the name FTN gave it, and a user typing it into
     // the dialog means by it what a CHRS kludge means by it.
@@ -87,7 +89,7 @@ TEST_CASE("importFile understands the FTN spelling of a charset", "[import]") {
           std::vector<std::string>{"=== Cut ===", kPrivetUtf8, "=== Cut ==="});
 }
 
-TEST_CASE("importFile writes no cut line the config leaves empty", "[import]") {
+TEST_CASE("importFile writes no cut line the config leaves empty [import]") {
     const TempDir dir;
     const std::string path = write(dir, "note.txt", "one\n");
 
@@ -99,7 +101,7 @@ TEST_CASE("importFile writes no cut line the config leaves empty", "[import]") {
     CHECK(result.lines == std::vector<std::string>{"one"});
 }
 
-TEST_CASE("importFile makes a text file safe to carry", "[import]") {
+TEST_CASE("importFile makes a text file safe to carry [import]") {
     const TempDir dir;
     // A tab is opened out to the next stop, a CRLF is one line ending like any
     // other, and the control bytes go: a NUL among them would end the message
@@ -111,7 +113,7 @@ TEST_CASE("importFile makes a text file safe to carry", "[import]") {
           std::vector<std::string>{"=== Cut ===", "a       b", "cd", "=== Cut ==="});
 }
 
-TEST_CASE("importFile disarms the commands a file carries", "[import]") {
+TEST_CASE("importFile disarms the commands a file carries [import]") {
     const TempDir dir;
     // A `CC:` line in a file being read into the message was written by
     // whoever wrote the file, and carrying it out would send copies the writer
@@ -123,13 +125,13 @@ TEST_CASE("importFile disarms the commands a file carries", "[import]") {
                                                    "plain", "=== Cut ==="});
 }
 
-TEST_CASE("importFile says what it could not read", "[import]") {
+TEST_CASE("importFile says what it could not read [import]") {
     const TempDir dir;
 
     const auto missing = importFile(textRequest(dir.path("nothing.txt"), "UTF-8"));
     CHECK_FALSE(missing.ok());
     CHECK(missing.lines.empty());
-    CHECK_THAT(missing.error, Catch::Matchers::Contains("nothing.txt"));
+    CHECK_MESSAGE(contains(missing.error, "nothing.txt"), missing.error);
 
     // A charset iconv does not know is an error rather than the bytes handed
     // back as they stand: the name was typed a moment ago, and mojibake in the
@@ -137,10 +139,10 @@ TEST_CASE("importFile says what it could not read", "[import]") {
     const auto unknown =
         importFile(textRequest(write(dir, "note.txt", kPrivetCp866), "CP8666"));
     CHECK_FALSE(unknown.ok());
-    CHECK_THAT(unknown.error, Catch::Matchers::Contains("CP8666"));
+    CHECK_MESSAGE(contains(unknown.error, "CP8666"), unknown.error);
 }
 
-TEST_CASE("uuencode writes a block uudecode reads back", "[import]") {
+TEST_CASE("uuencode writes a block uudecode reads back [import]") {
     std::string bytes;
     // Two full lines and a part of a third, so that the length character and
     // the padding of an incomplete group are both exercised.
@@ -157,7 +159,7 @@ TEST_CASE("uuencode writes a block uudecode reads back", "[import]") {
     CHECK(uudecode(lines) == bytes);
 }
 
-TEST_CASE("uuencode writes a zero as a backquote", "[import]") {
+TEST_CASE("uuencode writes a zero as a backquote [import]") {
     // A space would be stripped off the end of a line somewhere between here
     // and whoever decodes it, and the line would come out a byte short.
     const std::vector<std::string> lines = uuencode(std::string(3, '\0'), "zero.bin");
@@ -166,7 +168,7 @@ TEST_CASE("uuencode writes a zero as a backquote", "[import]") {
     CHECK(uudecode(lines) == std::string(3, '\0'));
 }
 
-TEST_CASE("importFile as UUE carries the file and no cut lines", "[import]") {
+TEST_CASE("importFile as UUE carries the file and no cut lines [import]") {
     const TempDir dir;
     const std::string bytes(
         "GIF89a\0\xFF"
@@ -186,7 +188,7 @@ TEST_CASE("importFile as UUE carries the file and no cut lines", "[import]") {
     CHECK(uudecode(result.lines) == bytes);
 }
 
-TEST_CASE("importFile as UUE takes an empty file", "[import]") {
+TEST_CASE("importFile as UUE takes an empty file [import]") {
     const TempDir dir;
     const auto result = importFile(
         ImportRequest{write(dir, "empty.bin", ""), ImportMode::Uue, "", "", ""});

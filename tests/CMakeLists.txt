@@ -80,11 +80,11 @@ target_link_libraries(amberedit_tests PRIVATE
   # the whole terminal layer also drags in ncurses, which the tests never call —
   # cheap enough, and much simpler than splitting the library to avoid it.
   amberedit_term
-  Catch2::Catch2
+  doctest::doctest
 )
 target_include_directories(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src
-  ${CMAKE_CURRENT_SOURCE_DIR}   # for test_paths.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}   # for test_paths.hpp and test_strings.hpp
 )
 
 # The tests read fixtures from testdata/. The repository root is passed in as a
@@ -133,6 +133,6 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/screens/compose_screen.cpp
 )
 
-# Catch.cmake, from wherever the root CMakeLists found Catch2.
-include(Catch)
-catch_discover_tests(amberedit_tests)
+# doctest.cmake, from beside the package config the root CMakeLists found.
+include(doctest)
+doctest_discover_tests(amberedit_tests)

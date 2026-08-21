@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -56,7 +56,7 @@ std::string rowOf(const std::string& format, int width, const AreaEntry& entry,
 
 }  // namespace
 
-TEST_CASE("The area list's flexible fields share what the fixed ones leave",
+TEST_CASE("The area list's flexible fields share what the fixed ones leave "
           "[arealist][format]") {
     // "e c un": 4 + 4 + 1 for the counts and the star, two spaces between them,
     // so the name takes the other fourteen of the twenty-five.
@@ -82,7 +82,7 @@ TEST_CASE("The area list's flexible fields share what the fixed ones leave",
     CHECK(cramped[0].width == 0);
 }
 
-TEST_CASE("Each line of a multi-line format is laid out on its own",
+TEST_CASE("Each line of a multi-line format is laid out on its own "
           "[arealist][format]") {
     // A row of two lines is two layouts: the counts are on the first line, so
     // the name has what they leave of the twenty-five, and the description on
@@ -104,7 +104,7 @@ TEST_CASE("Each line of a multi-line format is laid out on its own",
     CHECK(fixedAndFlexible[1][0].width == 20);
 }
 
-TEST_CASE("The area list's row for a line of the format is that line alone",
+TEST_CASE("The area list's row for a line of the format is that line alone "
           "[arealist][format]") {
     const AreaEntry entry = areaEntry("ru.linux", 120, 7);
     const auto rows = area_format::layout(fields("e c u\\nd n"), 25);
@@ -115,7 +115,7 @@ TEST_CASE("The area list's row for a line of the format is that line alone",
           "no description          *");
 }
 
-TEST_CASE("The area list's heading stands over the format's own columns",
+TEST_CASE("The area list's heading stands over the format's own columns "
           "[arealist][format]") {
     CHECK(headerOf("e c un", 25) == "Area           Msgs  New ");
     // A heading is cut to its column rather than truncated with an ellipsis:
@@ -127,7 +127,7 @@ TEST_CASE("The area list's heading stands over the format's own columns",
     CHECK(headerOf("e c u\\nd n", 25) == "Area            Msgs  New");
 }
 
-TEST_CASE("An area list row is laid out by the format", "[arealist][format]") {
+TEST_CASE("An area list row is laid out by the format [arealist][format]") {
     const AreaEntry entry = areaEntry("ru.linux", 120, 7);
 
     CHECK(rowOf("e c un", 25, entry) == "ru.linux        120    7*");
@@ -140,7 +140,7 @@ TEST_CASE("An area list row is laid out by the format", "[arealist][format]") {
     CHECK(rowOf("e8 c4", 13, areaEntry("ru.comp.os.linux", 5, 0)) == "ru.comp…    5");
 }
 
-TEST_CASE("An area nothing describes shows the default description",
+TEST_CASE("An area nothing describes shows the default description "
           "[arealist][format]") {
     AreaEntry entry = areaEntry("ru.linux", 3, 0);
 
@@ -157,14 +157,14 @@ TEST_CASE("An area nothing describes shows the default description",
     CHECK(rowOf("e8 d4", 13, entry, 1, "no idea") == "ru.linux no …");
 }
 
-TEST_CASE("An area that would not open shows no counts", "[arealist][format]") {
+TEST_CASE("An area that would not open shows no counts [arealist][format]") {
     AreaEntry broken = areaEntry("ru.broken", 0, 0);
     broken.error = "no such base";
 
     CHECK(rowOf("e c un", 25, broken) == "ru.broken         —    — ");
 }
 
-TEST_CASE("A count too wide for its column is shortened, not cut", "[arealist][format]") {
+TEST_CASE("A count too wide for its column is shortened, not cut [arealist][format]") {
     CHECK(area_format::countText(120, 4) == "120");
     CHECK(area_format::countText(1234, 4) == "1234");
 

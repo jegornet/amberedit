@@ -7,9 +7,9 @@ macOS on both architectures. Building it yourself is the rest of this file.
 
 ## What it needs
 
-CMake ≥ 3.16, a C++17 compiler (GCC 8, Clang 7, Apple Clang 11), git, iconv (in
-libc or libiconv), zlib and the wide-character ncurses. Catch2 2.13 is used if it
-is installed and fetched during the build if it is not. There are no other
+CMake ≥ 3.16, a C++17 compiler (GCC 8, Clang 7, Apple Clang 11), iconv (in libc
+or libiconv), zlib and the wide-character ncurses, plus doctest if the tests are
+to be built. Nothing is downloaded during the build. There are no other
 dependencies.
 
 That floor is chosen so that RHEL 8 and its rebuilds build AmberEdit out of the
@@ -18,8 +18,10 @@ box with nothing but the stock toolchain — no devtoolset, no newer CMake.
 ## Building
 
 ```bash
-sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel        # RHEL 8 / Rocky / Alma
-sudo apt install g++ cmake git libncurses-dev zlib1g-dev           # Debian / Ubuntu
+# doctest is only for the tests; on RHEL and its rebuilds it comes from EPEL.
+sudo dnf install epel-release                                              # RHEL / Rocky / Alma
+sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel doctest-devel  # RHEL / Fedora
+sudo apt install g++ cmake git libncurses-dev zlib1g-dev doctest-dev       # Debian / Ubuntu
 
 git clone https://github.com/jegornet/amberedit && cd amberedit
 
@@ -44,8 +46,9 @@ message reads as mojibake, and three of the tests fail. The RPM depends on it; a
 build from source has no way to ask. Debian, Ubuntu and macOS all carry the full
 set.
 
-**On a small VPS**, build with `-DAMBEREDIT_BUILD_TESTS=OFF`. Catch2 is by a wide
-margin the heaviest thing in the build, and nothing but the tests needs it.
+**Without doctest**, build with `-DAMBEREDIT_BUILD_TESTS=OFF`; nothing but the
+tests needs it, and on a small VPS they are by a wide margin the heaviest thing
+in the build.
 
 **The release carries the sources as a package too**, `amberedit-<version>-1.src.rpm`
 — the spec file and that exact tarball, and nothing else in it. There is no
@@ -65,8 +68,8 @@ The ncurses Apple ships is 5.7 and has no wide characters at all, so a newer one
 is needed:
 
 ```bash
-brew install ncurses
-cmake -S . -B build -DCMAKE_PREFIX_PATH=$(brew --prefix ncurses)
+brew install ncurses doctest
+cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix doctest)"
 ```
 
 ## Running it

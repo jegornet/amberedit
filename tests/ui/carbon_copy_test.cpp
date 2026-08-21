@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -241,7 +241,7 @@ bool holds(const std::vector<std::string>& lines, const std::string& what) {
 
 }  // namespace
 
-TEST_CASE("A CC: line writes a copy to everybody it names", "[copy][compose]") {
+TEST_CASE("A CC: line writes a copy to everybody it names [copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -276,7 +276,7 @@ TEST_CASE("A CC: line writes a copy to everybody it names", "[copy][compose]") {
     }
 }
 
-TEST_CASE("A recipient written with a '#' gets the copy and is not named",
+TEST_CASE("A recipient written with a '#' gets the copy and is not named "
           "[copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
@@ -294,7 +294,7 @@ TEST_CASE("A recipient written with a '#' gets the copy and is not named",
     CHECK_FALSE(holds(text, "Ivan Ivanov"));
 }
 
-TEST_CASE("Nobody is sent the same message twice", "[copy][compose]") {
+TEST_CASE("Nobody is sent the same message twice [copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -313,7 +313,7 @@ TEST_CASE("Nobody is sent the same message twice", "[copy][compose]") {
     CHECK(holds(fixture.textIn("netmail", 1), "* Carbon copied to Vasya Pupkin"));
 }
 
-TEST_CASE("A CC: line may name an address, whole or in part", "[copy][compose]") {
+TEST_CASE("A CC: line may name an address, whole or in part [copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -339,7 +339,7 @@ TEST_CASE("A CC: line may name an address, whole or in part", "[copy][compose]")
     CHECK(fixture.headerIn("netmail", 5).destAddr.toString() == "2:5020/4567");
 }
 
-TEST_CASE("A CC: line may name a file of recipients", "[copy][compose]") {
+TEST_CASE("A CC: line may name a file of recipients [copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     {
@@ -363,7 +363,7 @@ TEST_CASE("A CC: line may name a file of recipients", "[copy][compose]") {
     CHECK(fixture.headerIn("netmail", 3).to == "Vasya Pupkin");
 }
 
-TEST_CASE("A recipient nobody can find loses no copy and no words", "[copy][compose]") {
+TEST_CASE("A recipient nobody can find loses no copy and no words [copy][compose]") {
     // No nodelist at all: there is nothing to look a name up in, and nothing to
     // ask the user about either.
     CopyFixture fixture;
@@ -385,7 +385,7 @@ TEST_CASE("A recipient nobody can find loses no copy and no words", "[copy][comp
     CHECK_FALSE(fixture.state.errorEndsScreen);
 }
 
-TEST_CASE("A name several nodes answer to is asked about", "[copy][compose][nodelist]") {
+TEST_CASE("A name several nodes answer to is asked about [copy][compose][nodelist]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -414,7 +414,7 @@ TEST_CASE("A name several nodes answer to is asked about", "[copy][compose][node
     CHECK(fixture.state.errorMessage.empty());
 }
 
-TEST_CASE("A box closed without picking anybody makes no copy",
+TEST_CASE("A box closed without picking anybody makes no copy "
           "[copy][compose][nodelist]") {
     CopyFixture fixture;
     fixture.giveNodelist();
@@ -436,7 +436,7 @@ TEST_CASE("A box closed without picking anybody makes no copy",
     CHECK(fixture.state.errorMessage.find("Sergey") != std::string::npos);
 }
 
-TEST_CASE("Ignore stores the message with its commands as text", "[copy][compose]") {
+TEST_CASE("Ignore stores the message with its commands as text [copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -451,7 +451,7 @@ TEST_CASE("Ignore stores the message with its commands as text", "[copy][compose
     CHECK(holds(fixture.textIn("netmail", 1), "CC: Ivan Ivanov"));
 }
 
-TEST_CASE("An echo whose answers go nowhere leaves its CC: lines alone",
+TEST_CASE("An echo whose answers go nowhere leaves its CC: lines alone "
           "[copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
@@ -466,7 +466,7 @@ TEST_CASE("An echo whose answers go nowhere leaves its CC: lines alone",
     CHECK(fixture.countIn("netmail") == 0);
 }
 
-TEST_CASE("An echo that says where its answers belong copies them there",
+TEST_CASE("An echo that says where its answers belong copies them there "
           "[copy][compose]") {
     CopyFixture fixture(
         "group\n"
@@ -486,7 +486,7 @@ TEST_CASE("An echo that says where its answers belong copies them there",
     CHECK(holds(fixture.textIn("ru.talk", 1), "* Carbon copied to Ivan Ivanov"));
 }
 
-TEST_CASE("A local area is no place to write copies from", "[copy][compose]") {
+TEST_CASE("A local area is no place to write copies from [copy][compose]") {
     CopyFixture fixture(
         "group\n"
         "  member notes\n"
@@ -501,7 +501,7 @@ TEST_CASE("A local area is no place to write copies from", "[copy][compose]") {
     CHECK(fixture.countIn("netmail") == 0);
 }
 
-TEST_CASE("An XC: line posts the message in every echo its masks name",
+TEST_CASE("An XC: line posts the message in every echo its masks name "
           "[copy][crosspost][compose]") {
     CopyFixture fixture;
     fixture.enter("ru.talk");
@@ -532,7 +532,7 @@ TEST_CASE("An XC: line posts the message in every echo its masks name",
     CHECK(fixture.kludgesIn("ru.linux", 1) != fixture.kludgesIn("ru.unix", 1));
 }
 
-TEST_CASE("A '#' on the echo being written in leaves 'Originally in' unsaid",
+TEST_CASE("A '#' on the echo being written in leaves 'Originally in' unsaid "
           "[copy][crosspost][compose]") {
     CopyFixture fixture;
     fixture.enter("ru.talk");
@@ -546,7 +546,7 @@ TEST_CASE("A '#' on the echo being written in leaves 'Originally in' unsaid",
     CHECK(holds(text, "* Crossposted in ru.linux"));
 }
 
-TEST_CASE("XP: is XC: under another name", "[copy][crosspost][compose]") {
+TEST_CASE("XP: is XC: under another name [copy][crosspost][compose]") {
     CopyFixture fixture;
     fixture.enter("ru.talk");
 
@@ -557,7 +557,7 @@ TEST_CASE("XP: is XC: under another name", "[copy][crosspost][compose]") {
     CHECK(holds(fixture.textIn("ru.talk", 1), "* Crossposted in ru.linux"));
 }
 
-TEST_CASE("A mask that names no echo at all keeps its line", "[copy][crosspost]") {
+TEST_CASE("A mask that names no echo at all keeps its line [copy][crosspost]") {
     CopyFixture fixture;
     fixture.enter("ru.talk");
 
@@ -568,7 +568,7 @@ TEST_CASE("A mask that names no echo at all keeps its line", "[copy][crosspost]"
     CHECK(fixture.state.errorMessage.find("no.such.echo") != std::string::npos);
 }
 
-TEST_CASE("What the message keeps of its CC: line is compose_cc_list's",
+TEST_CASE("What the message keeps of its CC: line is compose_cc_list's "
           "[copy][compose][list]") {
     const auto textWith = [](CarbonList mode) {
         CopyFixture fixture;
@@ -605,7 +605,7 @@ TEST_CASE("What the message keeps of its CC: line is compose_cc_list's",
     CHECK(holds(hidden.second, "@CC: Ivan Ivanov 2:5020/1234"));
 }
 
-TEST_CASE("What it keeps of its XC: line is compose_xc_list's",
+TEST_CASE("What it keeps of its XC: line is compose_xc_list's "
           "[copy][crosspost][list]") {
     const auto textWith = [](CrosspostList mode) {
         CopyFixture fixture;
@@ -633,7 +633,7 @@ TEST_CASE("What it keeps of its XC: line is compose_xc_list's",
     CHECK_FALSE(holds(none, "Originally"));
 }
 
-TEST_CASE("A quoted command is not a command", "[copy][compose]") {
+TEST_CASE("A quoted command is not a command [copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");

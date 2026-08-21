@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <string>
@@ -110,7 +110,7 @@ Event pressOn(const AppState::MenuView::Item& item) {
 
 }  // namespace
 
-TEST_CASE("→ on the last message leaves the area", "[messageread][squish]") {
+TEST_CASE("→ on the last message leaves the area [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
 
@@ -136,7 +136,7 @@ TEST_CASE("→ on the last message leaves the area", "[messageread][squish]") {
     CHECK(fixture.state.discardTypeahead);
 }
 
-TEST_CASE("← on the first message leaves the area", "[messageread][squish]") {
+TEST_CASE("← on the first message leaves the area [messageread][squish]") {
     TempSquishBase base;
     // A mark on the first message opens the area on the second one by default,
     // so the setting that does that is off here: what is being tested is the
@@ -155,7 +155,7 @@ TEST_CASE("← on the first message leaves the area", "[messageread][squish]") {
     CHECK(fixture.state.base == nullptr);
 }
 
-TEST_CASE("Walking off the front of an area leaves it unread whole",
+TEST_CASE("Walking off the front of an area leaves it unread whole "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -183,7 +183,7 @@ TEST_CASE("Walking off the front of an area leaves it unread whole",
     CHECK(fixture.manager.areas()[0].unread == total);
 }
 
-TEST_CASE("Coming back into an area walked off the front of starts it over",
+TEST_CASE("Coming back into an area walked off the front of starts it over "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -205,7 +205,7 @@ TEST_CASE("Coming back into an area walked off the front of starts it over",
     CHECK(fixture.state.readHeader->number == 1);
 }
 
-TEST_CASE("Esc on the first message leaves the mark on it", "[messageread][squish]") {
+TEST_CASE("Esc on the first message leaves the mark on it [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     const uint32_t total = fixture.total();
@@ -227,7 +227,7 @@ TEST_CASE("Esc on the first message leaves the mark on it", "[messageread][squis
     CHECK(fixture.manager.areas()[0].unread == total - 1);
 }
 
-TEST_CASE("An area of one message is both its first and its last",
+TEST_CASE("An area of one message is both its first and its last "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -236,13 +236,17 @@ TEST_CASE("An area of one message is both its first and its last",
     fixture.state.messageCount = 1;
     fixture.state.messageCursor = 0;
 
-    const Event key = GENERATE(Event::ArrowLeft, Event::ArrowRight);
+    // Either arrow, and the same answer from both.
+    Event key = Event::ArrowLeft;
+    SUBCASE("left") {}
+    SUBCASE("right") { key = Event::ArrowRight; }
+
     REQUIRE(message_read::handleEvent(fixture.state, key));
 
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
 }
 
-TEST_CASE("An empty area is left by either arrow too", "[messageread][squish]") {
+TEST_CASE("An empty area is left by either arrow too [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     emptyTheArea(fixture);
@@ -253,13 +257,17 @@ TEST_CASE("An empty area is left by either arrow too", "[messageread][squish]") 
     // There is no message in either direction, so both keys walk off an end.
     // `e` is still how a first message is written, up until one of them is
     // pressed.
-    const Event key = GENERATE(Event::ArrowLeft, Event::ArrowRight);
+    // Either arrow, and the same answer from both.
+    Event key = Event::ArrowLeft;
+    SUBCASE("left") {}
+    SUBCASE("right") { key = Event::ArrowRight; }
+
     REQUIRE(message_read::handleEvent(fixture.state, key));
 
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
 }
 
-TEST_CASE("With reader_edge_exit off the ends of an area are a dead end",
+TEST_CASE("With reader_edge_exit off the ends of an area are a dead end "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -284,7 +292,7 @@ TEST_CASE("With reader_edge_exit off the ends of an area are a dead end",
     CHECK(fixture.state.readHeader->number == total);
 }
 
-TEST_CASE("The header gives each stamp a row of its own",
+TEST_CASE("The header gives each stamp a row of its own "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -315,7 +323,7 @@ TEST_CASE("The header gives each stamp a row of its own",
     CHECK(rows[5].find(" | ") == std::string::npos);
 }
 
-TEST_CASE("A stamp widens its column rather than being cut at a name's width",
+TEST_CASE("A stamp widens its column rather than being cut at a name's width "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -345,7 +353,7 @@ TEST_CASE("A stamp widens its column rather than being cut at a name's width",
     CHECK(rows[2].find(address) >= 8 + written.size());
 }
 
-TEST_CASE("%z writes the zone the message states, and only on the row it dates",
+TEST_CASE("%z writes the zone the message states, and only on the row it dates "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -372,7 +380,7 @@ TEST_CASE("%z writes the zone the message states, and only on the row it dates",
     CHECK(rows[6].find("+0300") == std::string::npos);
 }
 
-TEST_CASE("show_recd_date is what puts the Recd row up, and it is off by default",
+TEST_CASE("show_recd_date is what puts the Recd row up, and it is off by default "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -396,7 +404,7 @@ TEST_CASE("show_recd_date is what puts the Recd row up, and it is off by default
     CHECK(fixture.state.readRows() == bodyRows - 1);
 }
 
-TEST_CASE("show_recd_date when_wide follows the width of the window",
+TEST_CASE("show_recd_date when_wide follows the width of the window "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -417,7 +425,7 @@ TEST_CASE("show_recd_date when_wide follows the width of the window",
     CHECK(startsWith(rowsOf(fixture)[6], " Recd : "));
 }
 
-TEST_CASE("The Recd row is drawn in the color the Date row is",
+TEST_CASE("The Recd row is drawn in the color the Date row is "
           "[messageread][header][squish]") {
     namespace theme = amberedit::ui::theme;
 
@@ -445,7 +453,7 @@ TEST_CASE("The Recd row is drawn in the color the Date row is",
     }
 }
 
-TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank",
+TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -464,7 +472,7 @@ TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank",
     CHECK(rows[6].find_first_not_of(' ', 8) == std::string::npos);
 }
 
-TEST_CASE("The Subj row runs to the edge of the block rather than to the columns",
+TEST_CASE("The Subj row runs to the edge of the block rather than to the columns "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -484,7 +492,7 @@ TEST_CASE("The Subj row runs to the edge of the block rather than to the columns
     CHECK(rows[4].find(subject) == 8);
 }
 
-TEST_CASE("A window too narrow for both stamps keeps the one that dates the message",
+TEST_CASE("A window too narrow for both stamps keeps the one that dates the message "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -510,7 +518,7 @@ TEST_CASE("A window too narrow for both stamps keeps the one that dates the mess
     CHECK(rows[5].find(written.substr(0, 8)) != std::string::npos);
 }
 
-TEST_CASE("The subject runs the width of the header block and the attributes close it",
+TEST_CASE("The subject runs the width of the header block and the attributes close it "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -534,7 +542,7 @@ TEST_CASE("The subject runs the width of the header block and the attributes clo
     CHECK(rows[5].find("[Pvt]") == address);
 }
 
-TEST_CASE("The header block keeps its four rows at any width",
+TEST_CASE("The header block keeps its four rows at any width "
           "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -552,7 +560,7 @@ TEST_CASE("The header block keeps its four rows at any width",
     }
 }
 
-TEST_CASE("An empty area shows none of the thread the area before it had",
+TEST_CASE("An empty area shows none of the thread the area before it had "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -573,7 +581,7 @@ TEST_CASE("An empty area shows none of the thread the area before it had",
     CHECK(title.find("+21") == std::string::npos);
 }
 
-TEST_CASE("Deleting the last message of an area takes its thread with it",
+TEST_CASE("Deleting the last message of an area takes its thread with it "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -590,7 +598,7 @@ TEST_CASE("Deleting the last message of an area takes its thread with it",
     CHECK(rowsOf(fixture)[0].find("-19") == std::string::npos);
 }
 
-TEST_CASE("An empty area leaves the reader's menu with only New and Nodelist live",
+TEST_CASE("An empty area leaves the reader's menu with only New and Nodelist live "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -612,7 +620,7 @@ TEST_CASE("An empty area leaves the reader's menu with only New and Nodelist liv
     CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
 }
 
-TEST_CASE("The corner opens the menu and a click in it runs the command",
+TEST_CASE("The corner opens the menu and a click in it runs the command "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -642,7 +650,7 @@ TEST_CASE("The corner opens the menu and a click in it runs the command",
     CHECK(fixture.state.navigator.current() == ScreenId::MessageList);
 }
 
-TEST_CASE("A click on a dimmed menu button does nothing at all",
+TEST_CASE("A click on a dimmed menu button does nothing at all "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -662,7 +670,7 @@ TEST_CASE("A click on a dimmed menu button does nothing at all",
     CHECK(fixture.state.menuView);
 }
 
-TEST_CASE("menu_button off leaves the corner to the title",
+TEST_CASE("menu_button off leaves the corner to the title "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -687,7 +695,7 @@ TEST_CASE("menu_button off leaves the corner to the title",
     CHECK_FALSE(fixture.state.readerMenuShown());
 }
 
-TEST_CASE("menu_button when_narrow follows the width of the window",
+TEST_CASE("menu_button when_narrow follows the width of the window "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -707,7 +715,7 @@ TEST_CASE("menu_button when_narrow follows the width of the window",
     CHECK(fixture.state.readRows() == wideRows);
 }
 
-TEST_CASE("when_wide is the same line read from the other side",
+TEST_CASE("when_wide is the same line read from the other side "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -726,7 +734,7 @@ TEST_CASE("when_wide is the same line read from the other side",
     CHECK_FALSE(fixture.state.backButtonShown());
 }
 
-TEST_CASE("adaptive_ui_threshold moves the width the two cross at",
+TEST_CASE("adaptive_ui_threshold moves the width the two cross at "
           "[messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -752,7 +760,7 @@ TEST_CASE("adaptive_ui_threshold moves the width the two cross at",
     CHECK_FALSE(fixture.state.backButtonShown());
 }
 
-TEST_CASE("back_button when_narrow follows the width of the window too",
+TEST_CASE("back_button when_narrow follows the width of the window too "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -777,7 +785,7 @@ TEST_CASE("back_button when_narrow follows the width of the window too",
     CHECK(fixture.state.backButtonShown());
 }
 
-TEST_CASE("The arrow keys still move between messages", "[messageread][squish]") {
+TEST_CASE("The arrow keys still move between messages [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
 
@@ -798,7 +806,7 @@ TEST_CASE("The arrow keys still move between messages", "[messageread][squish]")
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
 }
 
-TEST_CASE("w opens the export dialog", "[messageread][squish]") {
+TEST_CASE("w opens the export dialog [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area));
@@ -811,7 +819,7 @@ TEST_CASE("w opens the export dialog", "[messageread][squish]") {
           amberedit::ui::AppState::ExportPicker::Focus::Name);
 }
 
-TEST_CASE("The export button is offered but not given", "[messageread][menu][squish]") {
+TEST_CASE("The export button is offered but not given [messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area));
@@ -834,7 +842,7 @@ TEST_CASE("The export button is offered but not given", "[messageread][menu][squ
     CHECK(fixture.state.exportPicker);
 }
 
-TEST_CASE("An empty area has nothing to export", "[messageread][menu][squish]") {
+TEST_CASE("An empty area has nothing to export [messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.readerMenu = {MenuCommand::Export};
@@ -885,7 +893,7 @@ int rowOf(const AreaFixture& fixture, term::Screen& screen, const std::string& t
 
 }  // namespace
 
-TEST_CASE("The reader draws the pipe codes rather than showing them",
+TEST_CASE("The reader draws the pipe codes rather than showing them "
           "[messageread][bbs][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -912,7 +920,7 @@ TEST_CASE("The reader draws the pipe codes rather than showing them",
     CHECK(screen.at(6, row).bg == term::Color{4});
 }
 
-TEST_CASE("A color the message set stops at the end of its line",
+TEST_CASE("A color the message set stops at the end of its line "
           "[messageread][bbs][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -935,7 +943,7 @@ TEST_CASE("A color the message set stops at the end of its line",
     CHECK(screen.at(0, quote).fg == amberedit::ui::theme::palette.quoteOdd);
 }
 
-TEST_CASE("A color does cross a wrap the window made", "[messageread][bbs][squish]") {
+TEST_CASE("A color does cross a wrap the window made [messageread][bbs][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.bbsCodesRenegade = true;
@@ -953,7 +961,7 @@ TEST_CASE("A color does cross a wrap the window made", "[messageread][bbs][squis
     CHECK(screen.at(0, second).fg == term::Color{10});
 }
 
-TEST_CASE("The pipe codes are left as text where the area did not ask for them",
+TEST_CASE("The pipe codes are left as text where the area did not ask for them "
           "[messageread][bbs][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1028,7 +1036,7 @@ std::string closingRule(AreaFixture& fixture) {
 
 }  // namespace
 
-TEST_CASE("The rule under the header says where the message was written",
+TEST_CASE("The rule under the header says where the message was written "
           "[messageread][nodelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1061,7 +1069,7 @@ TEST_CASE("The rule under the header says where the message was written",
     CHECK(screen.at(at, rule).fg == amberedit::ui::theme::palette.kludge);
 }
 
-TEST_CASE("A point nobody lists is placed where its boss is",
+TEST_CASE("A point nobody lists is placed where its boss is "
           "[messageread][nodelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1089,7 +1097,7 @@ TEST_CASE("A point nobody lists is placed where its boss is",
     CHECK(closingRule(fixture).find("Belgrade") != std::string::npos);
 }
 
-TEST_CASE("With show_location off the rule is a rule",
+TEST_CASE("With show_location off the rule is a rule "
           "[messageread][nodelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1102,7 +1110,7 @@ TEST_CASE("With show_location off the rule is a rule",
     CHECK(closingRule(fixture).find("Belgrade") == std::string::npos);
 }
 
-TEST_CASE("The rule under the header says how much message there is",
+TEST_CASE("The rule under the header says how much message there is "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1135,7 +1143,7 @@ TEST_CASE("The rule under the header says how much message there is",
     CHECK(screen.at(1, at).fg == amberedit::ui::theme::palette.kludge);
 }
 
-TEST_CASE("Without reader_show_message_size the rule keeps its left end",
+TEST_CASE("Without reader_show_message_size the rule keeps its left end "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1147,7 +1155,7 @@ TEST_CASE("Without reader_show_message_size the rule keeps its left end",
     CHECK_FALSE(startsWith(closingRule(fixture), " "));
 }
 
-TEST_CASE("The size and the location share the closing rule",
+TEST_CASE("The size and the location share the closing rule "
           "[messageread][nodelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1173,7 +1181,7 @@ TEST_CASE("The size and the location share the closing rule",
           columnOf(fixture, screen, from, sender));
 }
 
-TEST_CASE("A sender no nodelist holds is said nothing about",
+TEST_CASE("A sender no nodelist holds is said nothing about "
           "[messageread][nodelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1199,7 +1207,7 @@ TEST_CASE("A sender no nodelist holds is said nothing about",
     CHECK(closingRule(fixture).find("Heringen") == std::string::npos);
 }
 
-TEST_CASE("w asks first where the message carries a file", "[messageread][uue][squish]") {
+TEST_CASE("w asks first where the message carries a file [messageread][uue][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     showBody(fixture, {"Here it is.", "begin 644 report.zip", "#0V%T", "`", "end"});
@@ -1220,7 +1228,7 @@ TEST_CASE("w asks first where the message carries a file", "[messageread][uue][s
     CHECK(picker.mode == amberedit::ui::AppState::ExportPicker::Mode::Uue);
 }
 
-TEST_CASE("The function keys answer beside the letters they double",
+TEST_CASE("The function keys answer beside the letters they double "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -1244,7 +1252,7 @@ TEST_CASE("The function keys answer beside the letters they double",
     REQUIRE(fixture.state.nodelistView);
 }
 
-TEST_CASE("The reader answers the layout it was given", "[messageread][keys]") {
+TEST_CASE("The reader answers the layout it was given [messageread][keys]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area));

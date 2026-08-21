@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 
@@ -28,19 +28,19 @@ std::vector<std::string> attributesOf(uint32_t attributes) {
 
 }  // namespace
 
-TEST_CASE("messageAttributes shows nothing for a message with no attributes",
+TEST_CASE("messageAttributes shows nothing for a message with no attributes "
           "[message]") {
     // Not an empty pair of brackets: a message that carries no attributes has
     // nothing to say about itself.
     CHECK(attributesOf(0).empty());
 }
 
-TEST_CASE("messageAttributes names the attributes that are set", "[message]") {
+TEST_CASE("messageAttributes names the attributes that are set [message]") {
     CHECK(attributesOf(kRead | kPrivate) == std::vector<std::string>{"Rcv", "Pvt"});
     CHECK(attributesOf(kCrash) == std::vector<std::string>{"Cra"});
 }
 
-TEST_CASE("isUnsent is local without sent", "[message]") {
+TEST_CASE("isUnsent is local without sent [message]") {
     const auto unsent = [](uint32_t attributes) {
         MessageHeader header;
         header.attributes = attributes;
@@ -54,7 +54,7 @@ TEST_CASE("isUnsent is local without sent", "[message]") {
     CHECK_FALSE(unsent(0));
 }
 
-TEST_CASE("messageAttributes calls an unsent local message unsent", "[message]") {
+TEST_CASE("messageAttributes calls an unsent local message unsent [message]") {
     // The base has no bit for it — it is the absence of one — but it is the
     // first thing worth knowing about a message of one's own.
     CHECK(attributesOf(kLocal) == std::vector<std::string>{"Uns", "Loc"});
@@ -64,7 +64,7 @@ TEST_CASE("messageAttributes calls an unsent local message unsent", "[message]")
     CHECK(attributesOf(kRead) == std::vector<std::string>{"Rcv"});
 }
 
-TEST_CASE("MessageDate writes itself out as a strftime format asks", "[message]") {
+TEST_CASE("MessageDate writes itself out as a strftime format asks [message]") {
     const MessageDate date{2026, 8, 10, 21, 19, 36};
 
     CHECK(date.format("%d %b %y %H:%M") == "10 Aug 26 21:19");
@@ -93,7 +93,7 @@ TEST_CASE("MessageDate writes itself out as a strftime format asks", "[message]"
     CHECK(broken.format("%m %H") == "12 23");
 }
 
-TEST_CASE("MessageDate writes the zone it is given for %z", "[message]") {
+TEST_CASE("MessageDate writes the zone it is given for %z [message]") {
     const MessageDate date{2026, 8, 10, 21, 19, 36};
 
     // The offset is the message's own — its TZUTC's — rather than anything
@@ -119,7 +119,7 @@ TEST_CASE("MessageDate writes the zone it is given for %z", "[message]") {
     CHECK(date.format("%H%", "+0300") == "21%");
 }
 
-TEST_CASE("MessageDate trims the stamp it writes", "[message]") {
+TEST_CASE("MessageDate trims the stamp it writes [message]") {
     const MessageDate date{2026, 8, 10, 21, 19, 36};
 
     // Both ends, and whatever put the blank there — a specifier that wrote
@@ -134,13 +134,13 @@ TEST_CASE("MessageDate trims the stamp it writes", "[message]") {
     CHECK(date.format("   ").empty());
 }
 
-TEST_CASE("isTearline recognises the FTS-0004 tearline", "[message]") {
+TEST_CASE("isTearline recognises the FTS-0004 tearline [message]") {
     CHECK(isTearline("---"));
     CHECK(isTearline("--- GoldED+/LNX 1.1.5-b20250409"));
     CHECK(isTearline("--- "));
 }
 
-TEST_CASE("isTearline rejects lines that merely start with hyphens", "[message]") {
+TEST_CASE("isTearline rejects lines that merely start with hyphens [message]") {
     CHECK_FALSE(isTearline("----"));
     CHECK_FALSE(isTearline("--"));
     CHECK_FALSE(isTearline("---text"));
@@ -148,7 +148,7 @@ TEST_CASE("isTearline rejects lines that merely start with hyphens", "[message]"
     CHECK_FALSE(isTearline(""));
 }
 
-TEST_CASE("isOriginLine accepts whatever stands in the parentheses", "[message]") {
+TEST_CASE("isOriginLine accepts whatever stands in the parentheses [message]") {
     // The address may be plain 4D, carry a domain, or name the network. None of
     // that is parsed, so all of it must be accepted.
     CHECK(isOriginLine(" * Origin: Somewhere (2:382/736)"));
@@ -158,7 +158,7 @@ TEST_CASE("isOriginLine accepts whatever stands in the parentheses", "[message]"
     CHECK(isOriginLine(" * Origin:"));
 }
 
-TEST_CASE("isOriginLine rejects near misses", "[message]") {
+TEST_CASE("isOriginLine rejects near misses [message]") {
     CHECK_FALSE(isOriginLine("* Origin: no leading space (2:1/1)"));
     CHECK_FALSE(isOriginLine("  * Origin: two leading spaces (2:1/1)"));
     CHECK_FALSE(isOriginLine(" * origin: lowercase (2:1/1)"));
@@ -178,13 +178,13 @@ std::vector<bool> trailerFlags(std::vector<amberedit::domain::MessageLine> lines
 
 }  // namespace
 
-TEST_CASE("markTrailer flags the closing tearline and origin", "[message]") {
+TEST_CASE("markTrailer flags the closing tearline and origin [message]") {
     CHECK(
         trailerFlags({{"Hello All!"}, {""}, {"--- GoldED+"}, {" * Origin: x (2:1/1)"}}) ==
         std::vector<bool>{false, false, true, true});
 }
 
-TEST_CASE("markTrailer steps over the kludges that follow the origin", "[message]") {
+TEST_CASE("markTrailer steps over the kludges that follow the origin [message]") {
     // SEEN-BY and PATH are stored after the origin, so the walk back has to
     // ignore them or it would never reach it.
     CHECK(trailerFlags({{"Hello All!"},
@@ -195,13 +195,13 @@ TEST_CASE("markTrailer steps over the kludges that follow the origin", "[message
           std::vector<bool>{false, true, true, false, false});
 }
 
-TEST_CASE("markTrailer accepts a tearline with no origin", "[message]") {
+TEST_CASE("markTrailer accepts a tearline with no origin [message]") {
     // Netmail and local areas routinely carry one without the other.
     CHECK(trailerFlags({{"Hello All!"}, {"--- GoldED+"}}) ==
           std::vector<bool>{false, true});
 }
 
-TEST_CASE("markTrailer leaves a mid-message separator alone", "[message]") {
+TEST_CASE("markTrailer leaves a mid-message separator alone [message]") {
     // This is the whole point of walking from the end: authors use '---' as a
     // separator, and only the one closing the message is a tearline.
     CHECK(trailerFlags({{"Hello All!"},
@@ -215,12 +215,12 @@ TEST_CASE("markTrailer leaves a mid-message separator alone", "[message]") {
           std::vector<bool>{false, false});
 }
 
-TEST_CASE("markTrailer flags nothing when a message has no trailer", "[message]") {
+TEST_CASE("markTrailer flags nothing when a message has no trailer [message]") {
     CHECK(trailerFlags({{"Hello All!"}, {"Yegor"}}) == std::vector<bool>{false, false});
     CHECK(trailerFlags({}).empty());
 }
 
-TEST_CASE("MessageBody keeps text and kludges apart but in order", "[message]") {
+TEST_CASE("MessageBody keeps text and kludges apart but in order [message]") {
     MessageBody body;
     body.lines = {
         {"@MSGID: 2:1/1 abcd1234", true},

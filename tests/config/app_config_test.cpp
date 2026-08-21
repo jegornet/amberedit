@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdlib>
 #include <filesystem>
@@ -11,10 +11,13 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::AppConfig;
 using amberedit::config::TosserConfigFormat;
 using amberedit::domain::FtnAddress;
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 
 namespace {
 
@@ -33,7 +36,7 @@ AppConfig with(const std::string& body) {
 
 }  // namespace
 
-TEST_CASE("AppConfig parses a complete config", "[app_config]") {
+TEST_CASE("AppConfig parses a complete config [app_config]") {
     const auto cfg = AppConfig::loadFromString(R"(
     tosser_config /etc/husky/areas
     tosser_config_format fidoconfig
@@ -55,7 +58,7 @@ TEST_CASE("AppConfig parses a complete config", "[app_config]") {
     CHECK(cfg.userAddress->toString() == "2:5020/9999.1");
 }
 
-TEST_CASE("AppConfig: minimal config and defaults", "[app_config]") {
+TEST_CASE("AppConfig: minimal config and defaults [app_config]") {
     const auto cfg = AppConfig::loadFromString(
         "tosser_config /etc/husky/areas.bbs\n"
         "tosser_config_format areas.bbs\n"
@@ -68,28 +71,33 @@ TEST_CASE("AppConfig: minimal config and defaults", "[app_config]") {
     CHECK_FALSE(cfg.userAddress.has_value());
 }
 
-TEST_CASE("AppConfig requires both charsets", "[app_config]") {
+TEST_CASE("AppConfig requires both charsets [app_config]") {
     // Neither stands in for the other, and neither is guessed: what the echoes
     // one reads are written in says nothing about what one wants to write in,
     // and a default would mojibake silently in whichever direction it got
     // wrong. So each is named in the message that asks for it.
     const std::string base = "tosser_config a\ntosser_config_format hpt\n";
-    CHECK_THROWS_WITH(AppConfig::loadFromString(base),
-                      Catch::Matchers::Contains("default_charset is not set"));
-    CHECK_THROWS_WITH(AppConfig::loadFromString(base + "default_charset CP866\n"),
-                      Catch::Matchers::Contains("compose_charset is not set"));
-    CHECK_THROWS_WITH(AppConfig::loadFromString(base + "compose_charset CP866\n"),
-                      Catch::Matchers::Contains("default_charset is not set"));
+    const std::string error = errorFrom([&] { AppConfig::loadFromString(base); });
+    CHECK_MESSAGE(contains(error, "default_charset is not set"), error);
+    const std::string error2 = errorFrom([&] {
+        AppConfig::loadFromString(base + "default_charset CP866\n");
+    });
+    CHECK_MESSAGE(contains(error2, "compose_charset is not set"), error2);
+    const std::string error3 = errorFrom([&] {
+        AppConfig::loadFromString(base + "compose_charset CP866\n");
+    });
+    CHECK_MESSAGE(contains(error3, "default_charset is not set"), error3);
     CHECK_NOTHROW(AppConfig::loadFromString(
         base + "default_charset CP866\ncompose_charset UTF-8\n"));
 
     // An empty value is not a way to leave one out either.
-    CHECK_THROWS_WITH(
-        AppConfig::loadFromString(base + "default_charset \"\"\ncompose_charset CP866\n"),
-        Catch::Matchers::Contains("default_charset is not set"));
+    const std::string error4 = errorFrom([&] {
+        AppConfig::loadFromString(base + "default_charset \"\"\ncompose_charset CP866\n");
+    });
+    CHECK_MESSAGE(contains(error4, "default_charset is not set"), error4);
 }
 
-TEST_CASE("A value is quoted only when it has to be", "[app_config]") {
+TEST_CASE("A value is quoted only when it has to be [app_config]") {
     // A name is several words and needs no quotes for it; quotes are what a
     // value whose own spaces matter is written in.
     CHECK(with("name Vasya Pupkin\n").userName == "Vasya Pupkin");
@@ -102,10 +110,11 @@ TEST_CASE("A value is quoted only when it has to be", "[app_config]") {
     CHECK(with("name \"Vasya #1\"\n").userName == "Vasya #1");
     CHECK(with("theme a#b.cfg\n").themePath == "a#b.cfg");
 
-    CHECK_THROWS_WITH(with("name \"Vasya\n"), Catch::Matchers::Contains("never closed"));
+    const std::string error = errorFrom([&] { with("name \"Vasya\n"); });
+    CHECK_MESSAGE(contains(error, "never closed"), error);
 }
 
-TEST_CASE("AppConfig accepts format aliases", "[app_config]") {
+TEST_CASE("AppConfig accepts format aliases [app_config]") {
     const auto format = [](const std::string& name) {
         return AppConfig::loadFromString(
                    "tosser_config a\ntosser_config_format " + name +
@@ -121,56 +130,56 @@ TEST_CASE("AppConfig accepts format aliases", "[app_config]") {
     CHECK(format("Fidoconfig") == TosserConfigFormat::Fidoconfig);
 }
 
-TEST_CASE("AppConfig reads the link underline setting", "[app_config]") {
+TEST_CASE("AppConfig reads the link underline setting [app_config]") {
     CHECK(with("").underlineLinks);  // underlined unless the config says otherwise
     CHECK(with("reader_underline_links on\n").underlineLinks);
     CHECK_FALSE(with("reader_underline_links off\n").underlineLinks);
     CHECK_THROWS(with("reader_underline_links 1\n"));
 }
 
-TEST_CASE("AppConfig reads the style codes setting", "[app_config]") {
+TEST_CASE("AppConfig reads the style codes setting [app_config]") {
     CHECK_FALSE(with("").styleCodes);  // off unless the config asks for it
     CHECK(with("reader_stylecodes on\n").styleCodes);
     CHECK_FALSE(with("reader_stylecodes off\n").styleCodes);
     CHECK_THROWS(with("reader_stylecodes 1\n"));
 }
 
-TEST_CASE("AppConfig reads the BBS color codes setting", "[app_config]") {
+TEST_CASE("AppConfig reads the BBS color codes setting [app_config]") {
     CHECK_FALSE(with("").bbsCodesRenegade);  // off unless the config asks for it
     CHECK(with("bbs_codes_renegade on\n").bbsCodesRenegade);
     CHECK_FALSE(with("bbs_codes_renegade off\n").bbsCodesRenegade);
     CHECK_THROWS(with("bbs_codes_renegade 1\n"));
 }
 
-TEST_CASE("AppConfig reads the sender location setting", "[app_config]") {
+TEST_CASE("AppConfig reads the sender location setting [app_config]") {
     CHECK(with("").showLocation);  // shown unless the config says otherwise
     CHECK(with("show_location on\n").showLocation);
     CHECK_FALSE(with("show_location off\n").showLocation);
     CHECK_THROWS(with("show_location 1\n"));
 }
 
-TEST_CASE("AppConfig reads the message size setting", "[app_config]") {
+TEST_CASE("AppConfig reads the message size setting [app_config]") {
     CHECK_FALSE(with("").readerShowMessageSize);  // not shown unless asked for
     CHECK(with("reader_show_message_size on\n").readerShowMessageSize);
     CHECK_FALSE(with("reader_show_message_size off\n").readerShowMessageSize);
     CHECK_THROWS(with("reader_show_message_size 1\n"));
 }
 
-TEST_CASE("AppConfig reads the unread highlight setting", "[app_config]") {
+TEST_CASE("AppConfig reads the unread highlight setting [app_config]") {
     CHECK(with("").highlightUnread);  // unread rows stand out unless told not to
     CHECK(with("highlight_unread on\n").highlightUnread);
     CHECK_FALSE(with("highlight_unread off\n").highlightUnread);
     CHECK_THROWS(with("highlight_unread 1\n"));
 }
 
-TEST_CASE("AppConfig reads the edge exit setting", "[app_config]") {
+TEST_CASE("AppConfig reads the edge exit setting [app_config]") {
     CHECK(with("").edgeExit);  // the ends leave the area unless the config says not
     CHECK(with("reader_edge_exit on\n").edgeExit);
     CHECK_FALSE(with("reader_edge_exit off\n").edgeExit);
     CHECK_THROWS(with("reader_edge_exit 1\n"));
 }
 
-TEST_CASE("AppConfig reads the direct area reply setting", "[app_config]") {
+TEST_CASE("AppConfig reads the direct area reply setting [app_config]") {
     CHECK(with("").areaReplyDirect);  // followed unless the config says otherwise
     CHECK(with("areareplydirect on\n").areaReplyDirect);
     CHECK_FALSE(with("areareplydirect off\n").areaReplyDirect);
@@ -180,7 +189,7 @@ TEST_CASE("AppConfig reads the direct area reply setting", "[app_config]") {
     CHECK_FALSE(with("AreaReplyDirect off\n").areaReplyDirect);
 }
 
-TEST_CASE("AppConfig reads the reply area setting", "[app_config]") {
+TEST_CASE("AppConfig reads the reply area setting [app_config]") {
     CHECK(with("").replyToArea.empty());  // no area named unless the config names one
     CHECK(with("reply_to_area NETMAIL\n").replyToArea == "NETMAIL");
     // A tag as it is written, checked against nothing: the area list does not
@@ -188,7 +197,7 @@ TEST_CASE("AppConfig reads the reply area setting", "[app_config]") {
     CHECK(with("reply_to_area no.such.area\n").replyToArea == "no.such.area");
 }
 
-TEST_CASE("AppConfig reads the two carbon copy list settings", "[app_config]") {
+TEST_CASE("AppConfig reads the two carbon copy list settings [app_config]") {
     using amberedit::config::CarbonList;
     using amberedit::config::CrosspostList;
 
@@ -199,8 +208,8 @@ TEST_CASE("AppConfig reads the two carbon copy list settings", "[app_config]") {
     CHECK(with("compose_cc_list VISIBLE\n").carbonList == CarbonList::Visible);
     CHECK(with("compose_cc_list hidden\n").carbonList == CarbonList::Hidden);
     CHECK(with("compose_cc_list remove\n").carbonList == CarbonList::Remove);
-    CHECK_THROWS_WITH(with("compose_cc_list yes\n"),
-                      Catch::Matchers::Contains("compose_cc_list"));
+    const std::string error = errorFrom([&] { with("compose_cc_list yes\n"); });
+    CHECK_MESSAGE(contains(error, "compose_cc_list"), error);
 
     // The `XC:` list is spelled the way GoldED spells it, which is why the two
     // are not one enumeration with a value taken away.
@@ -208,18 +217,18 @@ TEST_CASE("AppConfig reads the two carbon copy list settings", "[app_config]") {
     CHECK(with("compose_xc_list raw\n").crosspostList == CrosspostList::Raw);
     CHECK(with("compose_xc_list yes\n").crosspostList == CrosspostList::Yes);
     CHECK(with("compose_xc_list none\n").crosspostList == CrosspostList::None);
-    CHECK_THROWS_WITH(with("compose_xc_list hidden\n"),
-                      Catch::Matchers::Contains("compose_xc_list"));
+    const std::string error2 = errorFrom([&] { with("compose_xc_list hidden\n"); });
+    CHECK_MESSAGE(contains(error2, "compose_xc_list"), error2);
 }
 
-TEST_CASE("AppConfig reads the lastread auto next setting", "[app_config]") {
+TEST_CASE("AppConfig reads the lastread auto next setting [app_config]") {
     CHECK(with("").lastreadAutoNext);  // after the mark unless the config says otherwise
     CHECK(with("reader_lastread_auto_next on\n").lastreadAutoNext);
     CHECK_FALSE(with("reader_lastread_auto_next off\n").lastreadAutoNext);
     CHECK_THROWS(with("reader_lastread_auto_next 1\n"));
 }
 
-TEST_CASE("AppConfig reads the scrollbar setting", "[app_config]") {
+TEST_CASE("AppConfig reads the scrollbar setting [app_config]") {
     CHECK(with("").showScrollbar);  // shown unless the config says otherwise
     CHECK(with("reader_scrollbar on\n").showScrollbar);
     CHECK_FALSE(with("reader_scrollbar off\n").showScrollbar);
@@ -227,7 +236,7 @@ TEST_CASE("AppConfig reads the scrollbar setting", "[app_config]") {
     CHECK_THROWS(with("reader_scrollbar 1\n"));
 }
 
-TEST_CASE("AppConfig reads the list scrollbar settings", "[app_config]") {
+TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     // Each answers for its own screen: the message list shows the bar unless the
     // config says otherwise, the area list only where it is asked for.
     CHECK_FALSE(with("").areaListScrollbar);
@@ -242,7 +251,7 @@ TEST_CASE("AppConfig reads the list scrollbar settings", "[app_config]") {
     CHECK_THROWS(with("msglist_scrollbar 1\n"));
 }
 
-TEST_CASE("AppConfig reads the lastread user number", "[app_config]") {
+TEST_CASE("AppConfig reads the lastread user number [app_config]") {
     CHECK(with("").lastreadUser == 0);  // the single-user default
     CHECK(with("lastread_user 3\n").lastreadUser == 3);
     CHECK(with("lastread_user 65535\n").lastreadUser == 65535);
@@ -253,14 +262,14 @@ TEST_CASE("AppConfig reads the lastread user number", "[app_config]") {
     CHECK_THROWS(with("lastread_user zero\n"));
 }
 
-TEST_CASE("AppConfig knows nothing of a header layout", "[app_config]") {
+TEST_CASE("AppConfig knows nothing of a header layout [app_config]") {
     // The header block has one layout now, so the setting that chose between
     // them is gone rather than accepted and ignored: a config still carrying it
     // says the reader is being asked for something it no longer does.
     CHECK_THROWS(with("reader_header narrow\n"));
 }
 
-TEST_CASE("AppConfig reads the adaptive UI threshold", "[app_config]") {
+TEST_CASE("AppConfig reads the adaptive UI threshold [app_config]") {
     // Eighty is the width a terminal has always had, so it is what a config
     // saying nothing gets; stating it is what moves the line `when_narrow` and
     // `when_wide` are read against.
@@ -276,7 +285,7 @@ TEST_CASE("AppConfig reads the adaptive UI threshold", "[app_config]") {
     CHECK_THROWS(with("adaptive_ui_threshold 80 100\n"));
 }
 
-TEST_CASE("AppConfig reads the hint bar setting", "[app_config]") {
+TEST_CASE("AppConfig reads the hint bar setting [app_config]") {
     using amberedit::config::Visibility;
 
     // `when_wide` unless the config says otherwise: the row is not cut short to
@@ -292,7 +301,7 @@ TEST_CASE("AppConfig reads the hint bar setting", "[app_config]") {
     CHECK_THROWS(with("hint_bar on off\n"));
 }
 
-TEST_CASE("AppConfig reads the back button setting", "[app_config]") {
+TEST_CASE("AppConfig reads the back button setting [app_config]") {
     using amberedit::config::Visibility;
 
     // The window decides unless the config says otherwise, as it does for the
@@ -313,7 +322,7 @@ TEST_CASE("AppConfig reads the back button setting", "[app_config]") {
     CHECK_THROWS(with("back_button adaptive\n"));
 }
 
-TEST_CASE("AppConfig reads whether the header block carries the Recd row",
+TEST_CASE("AppConfig reads whether the header block carries the Recd row "
           "[app_config]") {
     using amberedit::config::Visibility;
 
@@ -332,7 +341,7 @@ TEST_CASE("AppConfig reads whether the header block carries the Recd row",
     CHECK_THROWS(with("show_recd_date on off\n"));
 }
 
-TEST_CASE("AppConfig reads the menus", "[app_config]") {
+TEST_CASE("AppConfig reads the menus [app_config]") {
     using amberedit::config::MenuCommand;
 
     const auto defaults = with("");
@@ -362,8 +371,8 @@ TEST_CASE("AppConfig reads the menus", "[app_config]") {
     // `none` was how a toolbar used to be taken away, and the menus took the
     // toolbars' place: the message says where the setting went rather than
     // leaving it to read as a typo.
-    REQUIRE_THROWS_WITH(with("reader_menu none\n"),
-                        Catch::Matchers::Contains("menu_button off"));
+    const std::string error = errorFrom([&] { with("reader_menu none\n"); });
+    REQUIRE_MESSAGE(contains(error, "menu_button off"), error);
     CHECK_THROWS(with("compose_menu none\n"));
     CHECK_THROWS(with("reader_menu none list\n"));
 
@@ -374,13 +383,15 @@ TEST_CASE("AppConfig reads the menus", "[app_config]") {
     CHECK_THROWS(with("compose_menu reply\n"));
     CHECK_THROWS(with("reader_menu list list\n"));
     CHECK_THROWS(with("reader_menu\n"));
-    REQUIRE_THROWS_WITH(
-        with("reader_menu quit\n"),
-        Catch::Matchers::Contains(
-            "list, reply, reply_to, new, forward, find, change, info, export, nodelist"));
+    const std::string error2 = errorFrom([&] { with("reader_menu quit\n"); });
+    REQUIRE_MESSAGE(
+        contains(
+            error2,
+            "list, reply, reply_to, new, forward, find, change, info, export, nodelist"),
+        error2);
 }
 
-TEST_CASE("AppConfig reads whether the menu button is shown", "[app_config]") {
+TEST_CASE("AppConfig reads whether the menu button is shown [app_config]") {
     using amberedit::config::Visibility;
 
     // It follows the window unless the config says otherwise, exactly as the
@@ -398,7 +409,7 @@ TEST_CASE("AppConfig reads whether the menu button is shown", "[app_config]") {
     CHECK_THROWS(with("menu_button\n"));
 }
 
-TEST_CASE("AppConfig reads how wide the menu's buttons stand", "[app_config]") {
+TEST_CASE("AppConfig reads how wide the menu's buttons stand [app_config]") {
     // Fifteen columns, frame and all, which is what the longest label the two
     // menus offer asks for.
     CHECK(with("").menuButtonsWidth == 20);
@@ -413,7 +424,7 @@ TEST_CASE("AppConfig reads how wide the menu's buttons stand", "[app_config]") {
     CHECK_THROWS(with("menu_buttons_width\n"));
 }
 
-TEST_CASE("AppConfig reads how long a click is shown", "[app_config]") {
+TEST_CASE("AppConfig reads how long a click is shown [app_config]") {
     CHECK(with("").clickAnimationMs == 100);
     CHECK(with("click_animation_ms 350\n").clickAnimationMs == 350);
     // Zero is a setting rather than a mistake: it is how the animation is
@@ -425,7 +436,7 @@ TEST_CASE("AppConfig reads how long a click is shown", "[app_config]") {
     CHECK_THROWS(with("click_animation_ms briefly\n"));
 }
 
-TEST_CASE("AppConfig reads what a row of the area list holds", "[app_config]") {
+TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     using amberedit::config::AreaFieldKind;
     using amberedit::config::AreaListFormat;
     using Line = amberedit::config::AreaListLine;
@@ -536,37 +547,44 @@ TEST_CASE("AppConfig reads what a row of the area list holds", "[app_config]") {
                          Line{{AreaFieldKind::Space, 1}},
                          Line{{AreaFieldKind::Description, 0}}});
 
-    CHECK_THROWS_WITH(with("arealist_format\n"),
-                      Catch::Matchers::Contains("needs the fields"));
+    const std::string error = errorFrom([&] { with("arealist_format\n"); });
+    CHECK_MESSAGE(contains(error, "needs the fields"), error);
     // A gap is written inside the quotes: three values are three formats, and
     // there is no third window to give one to.
-    CHECK_THROWS_WITH(formatOf("e c un"),
-                      Catch::Matchers::Contains("one format, or two"));
-    CHECK_THROWS_WITH(formatOf("\"e x\""), Catch::Matchers::Contains("is not a field"));
+    const std::string error2 = errorFrom([&] { formatOf("e c un"); });
+    CHECK_MESSAGE(contains(error2, "one format, or two"), error2);
+    const std::string error3 = errorFrom([&] { formatOf("\"e x\""); });
+    CHECK_MESSAGE(contains(error3, "is not a field"), error3);
     // A width with no letter in front of it belongs to nothing.
-    CHECK_THROWS_WITH(formatOf("\"3e\""), Catch::Matchers::Contains("is not a field"));
-    CHECK_THROWS_WITH(formatOf("e300"), Catch::Matchers::Contains("255 columns"));
+    const std::string error4 = errorFrom([&] { formatOf("\"3e\""); });
+    CHECK_MESSAGE(contains(error4, "is not a field"), error4);
+    const std::string error5 = errorFrom([&] { formatOf("e300"); });
+    CHECK_MESSAGE(contains(error5, "255 columns"), error5);
     // A backslash that begins no \n is not a field either, at the end of the
     // format as anywhere else.
-    CHECK_THROWS_WITH(formatOf("\"e\\td\""), Catch::Matchers::Contains("is not a field"));
-    CHECK_THROWS_WITH(formatOf("\"ed\\\""), Catch::Matchers::Contains("is not a field"));
+    const std::string error6 = errorFrom([&] { formatOf("\"e\\td\""); });
+    CHECK_MESSAGE(contains(error6, "is not a field"), error6);
+    const std::string error7 = errorFrom([&] { formatOf("\"ed\\\""); });
+    CHECK_MESSAGE(contains(error7, "is not a field"), error7);
     // An empty line holds no fields, wherever in the row it stands — a trailing
     // \n costs a line and says nothing.
-    CHECK_THROWS_WITH(formatOf("\"e c\\n\""),
-                      Catch::Matchers::Contains("holds no fields"));
-    CHECK_THROWS_WITH(formatOf("\"\\ne\""), Catch::Matchers::Contains("holds no fields"));
-    CHECK_THROWS_WITH(formatOf("\"e\\n\\nd\""),
-                      Catch::Matchers::Contains("holds no fields"));
+    const std::string error8 = errorFrom([&] { formatOf("\"e c\\n\""); });
+    CHECK_MESSAGE(contains(error8, "holds no fields"), error8);
+    const std::string error9 = errorFrom([&] { formatOf("\"\\ne\""); });
+    CHECK_MESSAGE(contains(error9, "holds no fields"), error9);
+    const std::string error10 = errorFrom([&] { formatOf("\"e\\n\\nd\""); });
+    CHECK_MESSAGE(contains(error10, "holds no fields"), error10);
     // A row taller than any format worth writing is a \n typed once too often.
-    CHECK_THROWS_WITH(
-        formatOf("\"e\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\""),
-        Catch::Matchers::Contains("more than 16 lines"));
+    const std::string error11 = errorFrom([&] {
+        formatOf("\"e\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\"");
+    });
+    CHECK_MESSAGE(contains(error11, "more than 16 lines"), error11);
     // The wide format is read as closely as the narrow one.
-    CHECK_THROWS_WITH(formatOf("\"e c un\" \"e x\""),
-                      Catch::Matchers::Contains("is not a field"));
+    const std::string error12 = errorFrom([&] { formatOf("\"e c un\" \"e x\""); });
+    CHECK_MESSAGE(contains(error12, "is not a field"), error12);
 }
 
-TEST_CASE("AppConfig reads what a row of the message list holds", "[app_config]") {
+TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
     using amberedit::config::kAutoWidth;
     using amberedit::config::MsgFieldKind;
     using amberedit::config::MsgListFormat;
@@ -640,16 +658,19 @@ TEST_CASE("AppConfig reads what a row of the message list holds", "[app_config]"
     // The complaints are the area list's, in the message list's own words: the
     // two settings are read by the same code and say the same things about a
     // value that will not do.
-    CHECK_THROWS_WITH(with("msglist_format\n"),
-                      Catch::Matchers::Contains("msglist_format needs the fields"));
-    CHECK_THROWS_WITH(formatOf("a f s"), Catch::Matchers::Contains("one format, or two"));
-    CHECK_THROWS_WITH(formatOf("\"a e\""), Catch::Matchers::Contains("is not a field"));
-    CHECK_THROWS_WITH(formatOf("f300"), Catch::Matchers::Contains("255 columns"));
-    CHECK_THROWS_WITH(formatOf("\"a f\\n\""),
-                      Catch::Matchers::Contains("holds no fields"));
+    const std::string error = errorFrom([&] { with("msglist_format\n"); });
+    CHECK_MESSAGE(contains(error, "msglist_format needs the fields"), error);
+    const std::string error2 = errorFrom([&] { formatOf("a f s"); });
+    CHECK_MESSAGE(contains(error2, "one format, or two"), error2);
+    const std::string error3 = errorFrom([&] { formatOf("\"a e\""); });
+    CHECK_MESSAGE(contains(error3, "is not a field"), error3);
+    const std::string error4 = errorFrom([&] { formatOf("f300"); });
+    CHECK_MESSAGE(contains(error4, "255 columns"), error4);
+    const std::string error5 = errorFrom([&] { formatOf("\"a f\\n\""); });
+    CHECK_MESSAGE(contains(error5, "holds no fields"), error5);
 }
 
-TEST_CASE("AppConfig reads the area list order", "[app_config]") {
+TEST_CASE("AppConfig reads the area list order [app_config]") {
     using amberedit::config::AreaSortCriterion;
     using amberedit::config::AreaSortKey;
     using Order = std::vector<AreaSortCriterion>;
@@ -682,41 +703,47 @@ TEST_CASE("AppConfig reads the area list order", "[app_config]") {
     // An empty value is the one way to ask for the tosser config's own order,
     // so it has to be written out rather than left off the line.
     CHECK(sortOf("\"\"").empty());
-    CHECK_THROWS_WITH(with("arealist_sort\n"),
-                      Catch::Matchers::Contains("needs the letters"));
+    const std::string error = errorFrom([&] { with("arealist_sort\n"); });
+    CHECK_MESSAGE(contains(error, "needs the letters"), error);
 
-    CHECK_THROWS_WITH(sortOf("x"), Catch::Matchers::Contains("not a sort criterion"));
-    CHECK_THROWS_WITH(sortOf("ee"), Catch::Matchers::Contains("named twice"));
-    CHECK_THROWS_WITH(sortOf("e-E"), Catch::Matchers::Contains("named twice"));
-    CHECK_THROWS_WITH(sortOf("+-e"), Catch::Matchers::Contains("no criterion between"));
-    CHECK_THROWS_WITH(sortOf("e-"), Catch::Matchers::Contains("trailing +/-"));
+    const std::string error2 = errorFrom([&] { sortOf("x"); });
+    CHECK_MESSAGE(contains(error2, "not a sort criterion"), error2);
+    const std::string error3 = errorFrom([&] { sortOf("ee"); });
+    CHECK_MESSAGE(contains(error3, "named twice"), error3);
+    const std::string error4 = errorFrom([&] { sortOf("e-E"); });
+    CHECK_MESSAGE(contains(error4, "named twice"), error4);
+    const std::string error5 = errorFrom([&] { sortOf("+-e"); });
+    CHECK_MESSAGE(contains(error5, "no criterion between"), error5);
+    const std::string error6 = errorFrom([&] { sortOf("e-"); });
+    CHECK_MESSAGE(contains(error6, "trailing +/-"), error6);
 }
 
-TEST_CASE("AppConfig reads the message template", "[app_config]") {
+TEST_CASE("AppConfig reads the message template [app_config]") {
     CHECK(with("").templatePath.empty());  // nothing to compose with
     CHECK(with("template /etc/amberedit/msg.tpl\n").templatePath ==
           "/etc/amberedit/msg.tpl");
-    CHECK_THROWS_WITH(with("template\n"), Catch::Matchers::Contains("template"));
+    const std::string error = errorFrom([&] { with("template\n"); });
+    CHECK_MESSAGE(contains(error, "template"), error);
 }
 
-TEST_CASE("AppConfig reads the quote string", "[app_config]") {
+TEST_CASE("AppConfig reads the quote string [app_config]") {
     CHECK(with("").quoteString == " FL> ");  // GoldED's, and ours by default
     CHECK(with("quote_string \"XX> \"\n").quoteString == "XX> ");
     CHECK(with("quote_string >\n").quoteString == ">");
 
     // Exactly one '>': none and the line is not a quote to any reader, two and
     // a first-level quote goes out looking like a second-level one.
-    CHECK_THROWS_WITH(with("quote_string \" FL \"\n"),
-                      Catch::Matchers::Contains("exactly one '>'"));
-    CHECK_THROWS_WITH(with("quote_string \"\"\n"),
-                      Catch::Matchers::Contains("exactly one '>'"));
-    CHECK_THROWS_WITH(with("quote_string \" FL>> \"\n"),
-                      Catch::Matchers::Contains("exactly one '>'"));
-    CHECK_THROWS_WITH(with("quote_string \"> FL> \"\n"),
-                      Catch::Matchers::Contains("exactly one '>'"));
+    const std::string error = errorFrom([&] { with("quote_string \" FL \"\n"); });
+    CHECK_MESSAGE(contains(error, "exactly one '>'"), error);
+    const std::string error2 = errorFrom([&] { with("quote_string \"\"\n"); });
+    CHECK_MESSAGE(contains(error2, "exactly one '>'"), error2);
+    const std::string error3 = errorFrom([&] { with("quote_string \" FL>> \"\n"); });
+    CHECK_MESSAGE(contains(error3, "exactly one '>'"), error3);
+    const std::string error4 = errorFrom([&] { with("quote_string \"> FL> \"\n"); });
+    CHECK_MESSAGE(contains(error4, "exactly one '>'"), error4);
 }
 
-TEST_CASE("AppConfig reads the quote margin", "[app_config]") {
+TEST_CASE("AppConfig reads the quote margin [app_config]") {
     CHECK(with("").quoteMargin == 78);  // inside the 79 FTN has always used
     CHECK(with("quote_margin 72\n").quoteMargin == 72);
     CHECK(with("quote_margin 20\n").quoteMargin == 20);
@@ -729,7 +756,7 @@ TEST_CASE("AppConfig reads the quote margin", "[app_config]") {
     CHECK_THROWS(with("quote_margin seventy\n"));
 }
 
-TEST_CASE("AppConfig reads the date and time formats", "[app_config]") {
+TEST_CASE("AppConfig reads the date and time formats [app_config]") {
     // The reader's header shows one string, so its date and time are one
     // setting; a template writes the two through tokens of their own, so they
     // are two.
@@ -759,25 +786,27 @@ TEST_CASE("AppConfig reads the date and time formats", "[app_config]") {
     // Nothing at all is a mistake rather than a way of asking for no stamp:
     // there is no way to ask for one, and a silently blank column would look
     // like a message with no date.
-    CHECK_THROWS_WITH(with("reader_datetime_format \"\"\n"),
-                      Catch::Matchers::Contains("needs a strftime format"));
-    CHECK_THROWS_WITH(with("template_date_format\n"),
-                      Catch::Matchers::Contains("needs a value"));
+    const std::string error = errorFrom([&] { with("reader_datetime_format \"\"\n"); });
+    CHECK_MESSAGE(contains(error, "needs a strftime format"), error);
+    const std::string error2 = errorFrom([&] { with("template_date_format\n"); });
+    CHECK_MESSAGE(contains(error2, "needs a value"), error2);
     // Blank is that same mistake spelled differently: the stamp is trimmed, so
     // a format of spaces writes nothing at all.
-    CHECK_THROWS_WITH(with("reader_datetime_format \"   \"\n"),
-                      Catch::Matchers::Contains("writes no stamp at all"));
+    const std::string error3 = errorFrom([&] { with("reader_datetime_format \" \"\n"); });
+    CHECK_MESSAGE(contains(error3, "writes no stamp at all"), error3);
     // A format that writes an offset and nothing else is not blank, though it
     // is blank for a message stating no zone: it is judged on the message that
     // states one.
     CHECK(with("reader_datetime_format %z\n").readerDateTimeFormat == "%z");
     // A stamp stands in one cell of the header table, so it has to be one line:
     // %n and %t are the only two specifiers that are not.
-    CHECK_THROWS_WITH(with("reader_datetime_format \"%d%n%H\"\n"),
-                      Catch::Matchers::Contains("more than one line"));
+    const std::string error4 = errorFrom([&] {
+        with("reader_datetime_format \"%d%n%H\"\n");
+    });
+    CHECK_MESSAGE(contains(error4, "more than one line"), error4);
 }
 
-TEST_CASE("AppConfig reads the tearline and the origin", "[app_config]") {
+TEST_CASE("AppConfig reads the tearline and the origin [app_config]") {
     // The default names the program through the template's own tokens, so that
     // the version is written down in one place and not here.
     CHECK(with("").tearline == "@longpid @version");
@@ -788,7 +817,7 @@ TEST_CASE("AppConfig reads the tearline and the origin", "[app_config]") {
     CHECK(with("tearline \"\"\n").tearline.empty());  // "---" with nothing after it
 }
 
-TEST_CASE("AppConfig reads the import cut lines", "[app_config]") {
+TEST_CASE("AppConfig reads the import cut lines [app_config]") {
     // What FTN mail has always fenced an enclosed file off with, and the same
     // line at both ends unless the config says otherwise.
     CHECK(with("").importBegin == "=== Cut ===");
@@ -822,7 +851,7 @@ TEST_CASE("AppConfig reads the import cut lines", "[app_config]") {
     CHECK(grouped.effectiveFor(other).importEnd == "=== Cut ===");
 }
 
-TEST_CASE("AppConfig expands ~ in the template path", "[app_config]") {
+TEST_CASE("AppConfig expands ~ in the template path [app_config]") {
     // The same treatment the theme gets: a path in a config is written the way
     // it is typed in a shell.
     const auto cfg = with("template ~/msg.tpl\n");
@@ -831,7 +860,7 @@ TEST_CASE("AppConfig expands ~ in the template path", "[app_config]") {
     CHECK(cfg.templatePath == std::string(home) + "/msg.tpl");
 }
 
-TEST_CASE("AppConfig reads the nodelist lines in the order they were written",
+TEST_CASE("AppConfig reads the nodelist lines in the order they were written "
           "[app_config]") {
     // The order is the precedence: the first nodelist to name an address is the
     // one that keeps it, so the list must come back as the file wrote it.
@@ -854,7 +883,7 @@ TEST_CASE("AppConfig reads the nodelist lines in the order they were written",
     CHECK(cfg.tempDirPath == at + "/ftn/tmp");
 }
 
-TEST_CASE("AppConfig has no nodelist unless one is named", "[app_config]") {
+TEST_CASE("AppConfig has no nodelist unless one is named [app_config]") {
     const auto cfg = with("");
     CHECK(cfg.nodelistSources.empty());
     CHECK(cfg.nodelistDbPath.empty());
@@ -865,23 +894,28 @@ TEST_CASE("AppConfig has no nodelist unless one is named", "[app_config]") {
     CHECK(with("nodelist_db /ftn/nodelist.db\n").nodelistDbPath == "/ftn/nodelist.db");
 }
 
-TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to", "[app_config]") {
-    CHECK_THROWS_WITH(with("nodelist /ftn/nodelist/nodelist.ndl\n"),
-                      Catch::Matchers::Contains("nodelist_db is not set"));
-    CHECK_THROWS_WITH(with("nodelist\n"), Catch::Matchers::Contains("needs a value"));
+TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_config]") {
+    const std::string error = errorFrom([&] {
+        with("nodelist /ftn/nodelist/nodelist.ndl\n");
+    });
+    CHECK_MESSAGE(contains(error, "nodelist_db is not set"), error);
+    const std::string error2 = errorFrom([&] { with("nodelist\n"); });
+    CHECK_MESSAGE(contains(error2, "needs a value"), error2);
     // An empty path is not a path, and it would otherwise read back as the
     // setting never having been written.
-    CHECK_THROWS_WITH(with("nodelist_db \"\"\n"),
-                      Catch::Matchers::Contains("needs the path"));
+    const std::string error3 = errorFrom([&] { with("nodelist_db \"\"\n"); });
+    CHECK_MESSAGE(contains(error3, "needs the path"), error3);
     // Two of them is the point of the key; two of anything else is still a
     // contradiction.
-    CHECK_THROWS_WITH(with("nodelist_db /a\nnodelist_db /b\n"),
-                      Catch::Matchers::Contains("set twice"));
-    CHECK_THROWS_WITH(with("tmpdir /a\ntmpdir /b\n"),
-                      Catch::Matchers::Contains("set twice"));
+    const std::string error4 = errorFrom([&] {
+        with("nodelist_db /a\nnodelist_db /b\n");
+    });
+    CHECK_MESSAGE(contains(error4, "set twice"), error4);
+    const std::string error5 = errorFrom([&] { with("tmpdir /a\ntmpdir /b\n"); });
+    CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
-TEST_CASE("AppConfig reads the echolist lines in the order they were written",
+TEST_CASE("AppConfig reads the echolist lines in the order they were written "
           "[app_config]") {
     // The order is the precedence here too: the first echolist to name an echo
     // is the one that describes it.
@@ -907,7 +941,7 @@ TEST_CASE("AppConfig reads the echolist lines in the order they were written",
     CHECK(cfg.echolistDbPath == at + "/ftn/amberecho.db");
 }
 
-TEST_CASE("AppConfig has no echolist unless one is named", "[app_config]") {
+TEST_CASE("AppConfig has no echolist unless one is named [app_config]") {
     const auto cfg = with("");
     CHECK(cfg.echolistSources.empty());
     CHECK(cfg.echolistDbPath.empty());
@@ -918,20 +952,25 @@ TEST_CASE("AppConfig has no echolist unless one is named", "[app_config]") {
     CHECK(with("echolist_db /ftn/amberecho.db\n").echolistDbPath == "/ftn/amberecho.db");
 }
 
-TEST_CASE("AppConfig refuses an echolist with nowhere to compile it to", "[app_config]") {
-    CHECK_THROWS_WITH(with("echolist /ftn/echolist/echo50.lst\n"),
-                      Catch::Matchers::Contains("echolist_db is not set"));
-    CHECK_THROWS_WITH(with("echolist\n"), Catch::Matchers::Contains("takes the path"));
+TEST_CASE("AppConfig refuses an echolist with nowhere to compile it to [app_config]") {
+    const std::string error = errorFrom([&] {
+        with("echolist /ftn/echolist/echo50.lst\n");
+    });
+    CHECK_MESSAGE(contains(error, "echolist_db is not set"), error);
+    const std::string error2 = errorFrom([&] { with("echolist\n"); });
+    CHECK_MESSAGE(contains(error2, "takes the path"), error2);
     // The path and the charset, and nothing after them.
-    CHECK_THROWS_WITH(with("echolist /a.lst CP866 KOI8-R\n"),
-                      Catch::Matchers::Contains("takes the path"));
-    CHECK_THROWS_WITH(with("echolist \"\"\n"),
-                      Catch::Matchers::Contains("needs the path"));
-    CHECK_THROWS_WITH(with("echolist_db /a\necholist_db /b\n"),
-                      Catch::Matchers::Contains("set twice"));
+    const std::string error3 = errorFrom([&] { with("echolist /a.lst CP866 KOI8-R\n"); });
+    CHECK_MESSAGE(contains(error3, "takes the path"), error3);
+    const std::string error4 = errorFrom([&] { with("echolist \"\"\n"); });
+    CHECK_MESSAGE(contains(error4, "needs the path"), error4);
+    const std::string error5 = errorFrom([&] {
+        with("echolist_db /a\necholist_db /b\n");
+    });
+    CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
-TEST_CASE("AppConfig reads which description an area with two is shown by",
+TEST_CASE("AppConfig reads which description an area with two is shown by "
           "[app_config]") {
     using amberedit::config::DescriptionPriority;
 
@@ -940,11 +979,13 @@ TEST_CASE("AppConfig reads which description an area with two is shown by",
     // Read without regard to case, as every word-valued setting is.
     CHECK(with("arealist_description_priority AREA\n").areaDescriptionPriority ==
           DescriptionPriority::Area);
-    CHECK_THROWS_WITH(with("arealist_description_priority tosser\n"),
-                      Catch::Matchers::Contains("expected area | echolist"));
+    const std::string error = errorFrom([&] {
+        with("arealist_description_priority tosser\n");
+    });
+    CHECK_MESSAGE(contains(error, "expected area | echolist"), error);
 }
 
-TEST_CASE("AppConfig reads what stands in for a missing description", "[app_config]") {
+TEST_CASE("AppConfig reads what stands in for a missing description [app_config]") {
     // Words unless the config says otherwise: the column says the description
     // is missing rather than reading as an unfinished row.
     CHECK(with("").areaDescriptionDefault == "no description");
@@ -954,68 +995,77 @@ TEST_CASE("AppConfig reads what stands in for a missing description", "[app_conf
     CHECK(with("arealist_description_default \"\"\n").areaDescriptionDefault.empty());
     // A line with no value at all is the one shape that is refused: the blank
     // column is worth saying out loud.
-    CHECK_THROWS_WITH(with("arealist_description_default\n"),
-                      Catch::Matchers::Contains("needs the text to show"));
+    const std::string error = errorFrom([&] { with("arealist_description_default\n"); });
+    CHECK_MESSAGE(contains(error, "needs the text to show"), error);
 }
 
-TEST_CASE("AppConfig keeps the nodelist out of an area group", "[app_config]") {
+TEST_CASE("AppConfig keeps the nodelist out of an area group [app_config]") {
     // The nodelist is the whole config's, as the tosser config is: an area is
     // not read against a nodelist of its own.
-    CHECK_THROWS_WITH(with("group\nmember *\nnodelist /a\nendgroup\n"),
-                      Catch::Matchers::Contains("not for one area"));
+    const std::string error = errorFrom([&] {
+        with("group\nmember *\nnodelist /a\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error, "not for one area"), error);
 }
 
-TEST_CASE("AppConfig refuses a setting it does not know", "[app_config]") {
+TEST_CASE("AppConfig refuses a setting it does not know [app_config]") {
     // A misspelled key would otherwise go back to its default in silence, which
     // is a hard thing to notice and a harder one to explain.
-    CHECK_THROWS_WITH(with("scrollbar false\n"),
-                      Catch::Matchers::Contains("unknown setting"));
-    CHECK_THROWS_WITH(with("group_width 12\n"),
-                      Catch::Matchers::Contains("unknown setting"));
+    const std::string error = errorFrom([&] { with("scrollbar false\n"); });
+    CHECK_MESSAGE(contains(error, "unknown setting"), error);
+    const std::string error2 = errorFrom([&] { with("group_width 12\n"); });
+    CHECK_MESSAGE(contains(error2, "unknown setting"), error2);
 }
 
-TEST_CASE("AppConfig refuses a setting written twice", "[app_config]") {
+TEST_CASE("AppConfig refuses a setting written twice [app_config]") {
     // Which of the two was meant is not ours to guess, and the one that lost
     // would be an invisible line in the file.
-    CHECK_THROWS_WITH(with("quote_margin 70\nquote_margin 72\n"),
-                      Catch::Matchers::Contains("set twice"));
+    const std::string error = errorFrom([&] {
+        with("quote_margin 70\nquote_margin 72\n");
+    });
+    CHECK_MESSAGE(contains(error, "set twice"), error);
 }
 
-TEST_CASE("AppConfig names the line a mistake is on", "[app_config]") {
-    CHECK_THROWS_WITH(AppConfig::loadFromString("tosser_config a\n"
-                                                "tosser_config_format hpt\n"
-                                                "quote_margin nine\n",
-                                                "amberedit.cfg"),
-                      Catch::Matchers::Contains("amberedit.cfg:3"));
+TEST_CASE("AppConfig names the line a mistake is on [app_config]") {
+    const std::string error = errorFrom([&] {
+        AppConfig::loadFromString("tosser_config a\n"
+                                  "tosser_config_format hpt\n"
+                                  "quote_margin nine\n", "amberedit.cfg");
+    });
+    CHECK_MESSAGE(contains(error, "amberedit.cfg:3"), error);
 }
 
-TEST_CASE("AppConfig says what a toml config has left in it", "[app_config]") {
+TEST_CASE("AppConfig says what a toml config has left in it [app_config]") {
     // The format the file used to be written in, kept apart from "unknown
     // setting" so that a config from an older AmberEdit explains itself.
-    CHECK_THROWS_WITH(AppConfig::loadFromString("[general]\n"),
-                      Catch::Matchers::Contains("[section]"));
-    CHECK_THROWS_WITH(AppConfig::loadFromString("tosser_config = \"a\"\n"),
-                      Catch::Matchers::Contains("old toml spelling"));
+    const std::string error = errorFrom([&] {
+        AppConfig::loadFromString("[general]\n");
+    });
+    CHECK_MESSAGE(contains(error, "[section]"), error);
+    const std::string error2 = errorFrom([&] {
+        AppConfig::loadFromString("tosser_config = \"a\"\n");
+    });
+    CHECK_MESSAGE(contains(error2, "old toml spelling"), error2);
 }
 
-TEST_CASE("AppConfig requires tosser_config", "[app_config]") {
+TEST_CASE("AppConfig requires tosser_config [app_config]") {
     CHECK_THROWS(AppConfig::loadFromString("tosser_config_format fidoconfig\n"));
     CHECK_THROWS(AppConfig::loadFromString(""));
 }
 
-TEST_CASE("AppConfig requires an explicit tosser_config_format", "[app_config]") {
+TEST_CASE("AppConfig requires an explicit tosser_config_format [app_config]") {
     // AmberEdit must not guess the format from the file contents.
     CHECK_THROWS(AppConfig::loadFromString("tosser_config /etc/husky/areas\n"));
     CHECK_THROWS(AppConfig::loadFromString("tosser_config a\ntosser_config_format\n"));
     CHECK_THROWS(AppConfig::loadFromString("tosser_config a\ntosser_config_format auto"));
 }
 
-TEST_CASE("AppConfig complains about an unknown format", "[app_config]") {
+TEST_CASE("AppConfig complains about an unknown format [app_config]") {
     CHECK_THROWS(
         AppConfig::loadFromString("tosser_config a\ntosser_config_format golded"));
 }
 
-TEST_CASE("AppConfig complains about a malformed FTN address", "[app_config]") {
+TEST_CASE("AppConfig complains about a malformed FTN address [app_config]") {
     CHECK_THROWS(with("address не_адрес\n"));
 }
 
@@ -1045,7 +1095,7 @@ std::string akaFor(const AppConfig& cfg, const std::string& dest) {
 
 }  // namespace
 
-TEST_CASE("AppConfig reads the aka and akamatch lines", "[app_config]") {
+TEST_CASE("AppConfig reads the aka and akamatch lines [app_config]") {
     const auto cfg = withAkas(kExample);
 
     REQUIRE(cfg.akaMatches.size() == 3);
@@ -1064,7 +1114,7 @@ TEST_CASE("AppConfig reads the aka and akamatch lines", "[app_config]") {
     CHECK(cfg.userAddress->toString() == "2:5020/9999.1");
 }
 
-TEST_CASE("An AKA declared on its own can be given patterns later", "[app_config]") {
+TEST_CASE("An AKA declared on its own can be given patterns later [app_config]") {
     // The two keys write into one list: an `aka` line says which addresses are
     // ours, an `akamatch` line what each of them is used for.
     const auto cfg = withAkas(
@@ -1077,7 +1127,7 @@ TEST_CASE("An AKA declared on its own can be given patterns later", "[app_config
     CHECK(akaFor(cfg, "172:16/1") == "192:168/2");
 }
 
-TEST_CASE("AppConfig picks the AKA whose pattern says the most", "[app_config]") {
+TEST_CASE("AppConfig picks the AKA whose pattern says the most [app_config]") {
     const auto cfg = withAkas(kExample);
 
     CHECK(akaFor(cfg, "192:168/9") == "192:168/2");   // zone 192
@@ -1091,7 +1141,7 @@ TEST_CASE("AppConfig picks the AKA whose pattern says the most", "[app_config]")
     CHECK(akaFor(cfg, "255:255/255") == "2:5020/9999.1");
 }
 
-TEST_CASE("AppConfig: a more specific pattern beats a wider one", "[app_config]") {
+TEST_CASE("AppConfig: a more specific pattern beats a wider one [app_config]") {
     const auto cfg = withAkas(
         "akamatch 2:5020/736.1 2:*\n"
         "akamatch 2:382/736.120 2:382/736.*\n");
@@ -1100,28 +1150,32 @@ TEST_CASE("AppConfig: a more specific pattern beats a wider one", "[app_config]"
     CHECK(akaFor(cfg, "2:382/737.1") == "2:5020/736.1");
 }
 
-TEST_CASE("AppConfig refuses a malformed akamatch line", "[app_config]") {
+TEST_CASE("AppConfig refuses a malformed akamatch line [app_config]") {
     // A dropped entry would show up as netmail from the wrong address, so every
     // one of these stops AmberEdit rather than being skipped.
-    CHECK_THROWS_WITH(withAkas("akamatch\n"), Catch::Matchers::Contains("needs an AKA"));
-    CHECK_THROWS_WITH(withAkas("akamatch \"not an address\" 2:*\n"),
-                      Catch::Matchers::Contains("not an address"));
-    CHECK_THROWS_WITH(withAkas("akamatch 2:5020/1\n"),
-                      Catch::Matchers::Contains("address patterns"));
-    CHECK_THROWS_WITH(withAkas("akamatch 2:5020/1 2:382/\n"),
-                      Catch::Matchers::Contains("2:382/"));
+    const std::string error = errorFrom([&] { withAkas("akamatch\n"); });
+    CHECK_MESSAGE(contains(error, "needs an AKA"), error);
+    const std::string error2 = errorFrom([&] {
+        withAkas("akamatch \"not an address\" 2:*\n");
+    });
+    CHECK_MESSAGE(contains(error2, "not an address"), error2);
+    const std::string error3 = errorFrom([&] { withAkas("akamatch 2:5020/1\n"); });
+    CHECK_MESSAGE(contains(error3, "address patterns"), error3);
+    const std::string error4 = errorFrom([&] { withAkas("akamatch 2:5020/1 2:382/\n"); });
+    CHECK_MESSAGE(contains(error4, "2:382/"), error4);
     // An AKA is one address; the destinations belong on an akamatch line.
-    CHECK_THROWS_WITH(withAkas("aka 2:5020/1 2:*\n"),
-                      Catch::Matchers::Contains("aka takes one address"));
+    const std::string error5 = errorFrom([&] { withAkas("aka 2:5020/1 2:*\n"); });
+    CHECK_MESSAGE(contains(error5, "aka takes one address"), error5);
 }
 
-TEST_CASE("AppConfig: akamatch needs a main address to fall back to", "[app_config]") {
-    CHECK_THROWS_WITH(with(kExample), Catch::Matchers::Contains("address line"));
+TEST_CASE("AppConfig: akamatch needs a main address to fall back to [app_config]") {
+    const std::string error = errorFrom([&] { with(kExample); });
+    CHECK_MESSAGE(contains(error, "address line"), error);
     // An AKA that is only named asks for nothing and so needs nothing.
     CHECK(with("aka 255:255/255.0\n").akaMatches.size() == 1);
 }
 
-TEST_CASE("The example config is one AmberEdit reads", "[app_config]") {
+TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     // It ships as the thing to copy, so a setting renamed here and not there
     // would hand every new user a config that stops at startup. The paths in it
     // point at a system that is not this one, so only the parsing is checked.
@@ -1143,7 +1197,7 @@ TEST_CASE("The example config is one AmberEdit reads", "[app_config]") {
     CHECK(cfg.akaMatches.empty());
 }
 
-TEST_CASE("The example config's AKA lines parse once uncommented", "[app_config]") {
+TEST_CASE("The example config's AKA lines parse once uncommented [app_config]") {
     // Being commented out, nothing in the example itself reads them — a user
     // uncommenting them would be the first to find out whether they still
     // parse. So they are written out here, as the example has them, and read.
@@ -1165,7 +1219,7 @@ TEST_CASE("The example config's AKA lines parse once uncommented", "[app_config]
     CHECK(akaFor(cfg, "2:5020/1") == "2:5020/9999.1");
 }
 
-TEST_CASE("AppConfig reads the address_macro lines", "[app_config]") {
+TEST_CASE("AppConfig reads the address_macro lines [app_config]") {
     // The example from the documentation, which is also the shape the feature
     // was asked for in.
     const auto cfg = with(
@@ -1204,7 +1258,7 @@ TEST_CASE("AppConfig reads the address_macro lines", "[app_config]") {
     CHECK_FALSE(boss->attributes.has_value());
 }
 
-TEST_CASE("An address macro is found whole and without regard to case", "[app_config]") {
+TEST_CASE("An address macro is found whole and without regard to case [app_config]") {
     const auto cfg = with("address_macro AF,AreaFix,2:382/736\n");
 
     CHECK(cfg.addressMacroFor("af") != nullptr);
@@ -1218,7 +1272,7 @@ TEST_CASE("An address macro is found whole and without regard to case", "[app_co
     CHECK(cfg.addressMacroFor("") == nullptr);
 }
 
-TEST_CASE("An address macro may name attributes without a subject", "[app_config]") {
+TEST_CASE("An address macro may name attributes without a subject [app_config]") {
     // The empty field between the commas: nothing was said about the subject,
     // and what the message already carries is left alone.
     const auto cfg = with("address_macro af,AreaFix,2:382/736,,k/s\n");
@@ -1230,35 +1284,48 @@ TEST_CASE("An address macro may name attributes without a subject", "[app_config
     CHECK(*macro->attributes == amberedit::domain::attr::kKillSent);
 }
 
-TEST_CASE("AppConfig refuses a malformed address_macro line", "[app_config]") {
-    CHECK_THROWS_WITH(with("address_macro af,AreaFix\n"),
-                      Catch::Matchers::Contains("a macro, a name and an address"));
-    CHECK_THROWS_WITH(with("address_macro af,AreaFix,2:382/736,subj,k/s,extra\n"),
-                      Catch::Matchers::Contains("a macro, a name and an address"));
-    CHECK_THROWS_WITH(with("address_macro ,AreaFix,2:382/736\n"),
-                      Catch::Matchers::Contains("the word that is typed"));
-    CHECK_THROWS_WITH(with("address_macro af,,2:382/736\n"),
-                      Catch::Matchers::Contains("the name the message is addressed to"));
-    CHECK_THROWS_WITH(with("address_macro af,AreaFix,not_an_address\n"),
-                      Catch::Matchers::Contains("not an FTN address"));
-    CHECK_THROWS_WITH(with("address_macro af,AreaFix,2:382/736,PWD,nonsense\n"),
-                      Catch::Matchers::Contains("not a message attribute"));
+TEST_CASE("AppConfig refuses a malformed address_macro line [app_config]") {
+    const std::string error = errorFrom([&] { with("address_macro af,AreaFix\n"); });
+    CHECK_MESSAGE(contains(error, "a macro, a name and an address"), error);
+    const std::string error2 = errorFrom([&] {
+        with("address_macro af,AreaFix,2:382/736,subj,k/s,extra\n");
+    });
+    CHECK_MESSAGE(contains(error2, "a macro, a name and an address"), error2);
+    const std::string error3 = errorFrom([&] {
+        with("address_macro ,AreaFix,2:382/736\n");
+    });
+    CHECK_MESSAGE(contains(error3, "the word that is typed"), error3);
+    const std::string error4 = errorFrom([&] { with("address_macro af,,2:382/736\n"); });
+    CHECK_MESSAGE(contains(error4, "the name the message is addressed to"), error4);
+    const std::string error5 = errorFrom([&] {
+        with("address_macro af,AreaFix,not_an_address\n");
+    });
+    CHECK_MESSAGE(contains(error5, "not an FTN address"), error5);
+    const std::string error6 = errorFrom([&] {
+        with("address_macro af,AreaFix,2:382/736,PWD,nonsense\n");
+    });
+    CHECK_MESSAGE(contains(error6, "not a message attribute"), error6);
     // The one word that looks like an attribute and is none.
-    CHECK_THROWS_WITH(with("address_macro af,AreaFix,2:382/736,PWD,uns\n"),
-                      Catch::Matchers::Contains("Loc set with Snt clear"));
+    const std::string error7 = errorFrom([&] {
+        with("address_macro af,AreaFix,2:382/736,PWD,uns\n");
+    });
+    CHECK_MESSAGE(contains(error7, "Loc set with Snt clear"), error7);
     // Two lines may name two macros, but not the same one twice: the line that
     // lost would be an invisible one.
-    CHECK_THROWS_WITH(with("address_macro af,AreaFix,2:382/736\n"
-                           "address_macro AF,AreaFix,2:5020/1\n"),
-                      Catch::Matchers::Contains("defined twice"));
+    const std::string error8 = errorFrom([&] {
+        with("address_macro af,AreaFix,2:382/736\n"
+             "address_macro AF,AreaFix,2:5020/1\n");
+    });
+    CHECK_MESSAGE(contains(error8, "defined twice"), error8);
     // It addresses a node, and an area group covers areas: the setting belongs
     // outside one.
-    CHECK_THROWS_WITH(with("group\nmember netmail\naddress_macro af,A,2:382/736\n"
-                           "endgroup\n"),
-                      Catch::Matchers::Contains("not for one area"));
+    const std::string error9 = errorFrom([&] {
+        with("group\nmember netmail\naddress_macro af,A,2:382/736\n" "endgroup\n");
+    });
+    CHECK_MESSAGE(contains(error9, "not for one area"), error9);
 }
 
-TEST_CASE("The example config's address_macro lines parse once uncommented",
+TEST_CASE("The example config's address_macro lines parse once uncommented "
           "[app_config]") {
     // They ship commented out, as the AKA lines do and for the same reason —
     // they name addresses belonging to nobody who copies the file — so nothing
@@ -1277,11 +1344,11 @@ TEST_CASE("The example config's address_macro lines parse once uncommented",
     CHECK(cfg.addressMacroFor("boss") != nullptr);
 }
 
-TEST_CASE("AppConfig throws on a missing file", "[app_config]") {
+TEST_CASE("AppConfig throws on a missing file [app_config]") {
     CHECK_THROWS(AppConfig::loadFromFile("/nonexistent/amberedit.cfg"));
 }
 
-TEST_CASE("Startup insists on a template that can be read", "[app_config]") {
+TEST_CASE("Startup insists on a template that can be read [app_config]") {
     // Both halves are checked as the program starts rather than when the editor
     // is first reached: a config that cannot compose should say so before
     // anyone sits down to write, and a path in a config says nothing about a
@@ -1327,7 +1394,7 @@ amberedit::domain::AreaConfig area(const std::string& tag) {
 
 }  // namespace
 
-TEST_CASE("A group gives its areas settings of their own", "[app_config]") {
+TEST_CASE("A group gives its areas settings of their own [app_config]") {
     const auto cfg = with(
         "group\n"
         "  member esp.*\n"
@@ -1349,7 +1416,7 @@ TEST_CASE("A group gives its areas settings of their own", "[app_config]") {
     CHECK(cfg.effectiveFor(area("esp.argentina")).userName == cfg.userName);
 }
 
-TEST_CASE("Groups are laid over one another one setting at a time", "[app_config]") {
+TEST_CASE("Groups are laid over one another one setting at a time [app_config]") {
     const auto cfg = with(
         "origin Somewhere\n"
         "group\n"
@@ -1380,7 +1447,7 @@ TEST_CASE("Groups are laid over one another one setting at a time", "[app_config
     CHECK(cfg.effectiveFor(area("ru.linux")).composeCharset == "CP866");
 }
 
-TEST_CASE("A group may say whether replies follow the AREA: line", "[app_config]") {
+TEST_CASE("A group may say whether replies follow the AREA: line [app_config]") {
     // It is a per-area setting: whether a base's messages carry an AREA: line
     // worth following is a question about that base and not about the config.
     const auto cfg = with(
@@ -1394,7 +1461,7 @@ TEST_CASE("A group may say whether replies follow the AREA: line", "[app_config]
     CHECK_FALSE(cfg.effectiveFor(area("dupes")).areaReplyDirect);
 }
 
-TEST_CASE("A group may turn the BBS color codes on for its areas", "[app_config]") {
+TEST_CASE("A group may turn the BBS color codes on for its areas [app_config]") {
     // Which is the only way anybody sensibly turns them on: an echo written in
     // pipe codes is a particular echo, and `|` elsewhere is a character.
     const auto cfg = with(
@@ -1408,7 +1475,7 @@ TEST_CASE("A group may turn the BBS color codes on for its areas", "[app_config]
     CHECK(cfg.effectiveFor(area("fsx.bbs")).bbsCodesRenegade);
 }
 
-TEST_CASE("An address a group states is the area's, and one of ours", "[app_config]") {
+TEST_CASE("An address a group states is the area's, and one of ours [app_config]") {
     const auto cfg = with(
         "address 2:5020/9999.1\n"
         "group\n"
@@ -1427,46 +1494,70 @@ TEST_CASE("An address a group states is the area's, and one of ours", "[app_conf
     CHECK_FALSE(cfg.groupsFor(area("r50.sysop")).front()->states("origin"));
 }
 
-TEST_CASE("A group block is refused when it is malformed", "[app_config]") {
-    CHECK_THROWS_WITH(with("group esp\n  member esp.*\n  origin x\nendgroup\n"),
-                      Catch::Matchers::Contains("group takes no values"));
-    CHECK_THROWS_WITH(with("group\n  group\n  endgroup\nendgroup\n"),
-                      Catch::Matchers::Contains("do not nest"));
-    CHECK_THROWS_WITH(with("endgroup\n"), Catch::Matchers::Contains("no group above it"));
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  origin x\nendgroup all\n"),
-                      Catch::Matchers::Contains("endgroup takes no values"));
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  origin x\n"),
-                      Catch::Matchers::Contains("never closed"));
-    CHECK_THROWS_WITH(with("member esp.*\n"),
-                      Catch::Matchers::Contains("only written inside a group"));
-    CHECK_THROWS_WITH(with("group\n  origin x\nendgroup\n"),
-                      Catch::Matchers::Contains("no member line"));
-    CHECK_THROWS_WITH(with("group\n  member esp.*\nendgroup\n"),
-                      Catch::Matchers::Contains("sets nothing"));
-    CHECK_THROWS_WITH(with("group\n  member\n  origin x\nendgroup\n"),
-                      Catch::Matchers::Contains("member needs an area tag"));
+TEST_CASE("A group block is refused when it is malformed [app_config]") {
+    const std::string error = errorFrom([&] {
+        with("group esp\n member esp.*\n origin x\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error, "group takes no values"), error);
+    const std::string error2 = errorFrom([&] {
+        with("group\n group\n endgroup\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error2, "do not nest"), error2);
+    const std::string error3 = errorFrom([&] { with("endgroup\n"); });
+    CHECK_MESSAGE(contains(error3, "no group above it"), error3);
+    const std::string error4 = errorFrom([&] {
+        with("group\n member esp.*\n origin x\nendgroup all\n");
+    });
+    CHECK_MESSAGE(contains(error4, "endgroup takes no values"), error4);
+    const std::string error5 = errorFrom([&] {
+        with("group\n member esp.*\n origin x\n");
+    });
+    CHECK_MESSAGE(contains(error5, "never closed"), error5);
+    const std::string error6 = errorFrom([&] { with("member esp.*\n"); });
+    CHECK_MESSAGE(contains(error6, "only written inside a group"), error6);
+    const std::string error7 = errorFrom([&] { with("group\n origin x\nendgroup\n"); });
+    CHECK_MESSAGE(contains(error7, "no member line"), error7);
+    const std::string error8 = errorFrom([&] {
+        with("group\n member esp.*\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error8, "sets nothing"), error8);
+    const std::string error9 = errorFrom([&] {
+        with("group\n member\n origin x\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error9, "member needs an area tag"), error9);
 }
 
-TEST_CASE("A group states settings, and only the ones it may", "[app_config]") {
+TEST_CASE("A group states settings, and only the ones it may [app_config]") {
     // Layout is the whole config's, and saying so is worth its own message: a
     // theme in a group is a mistake about what a group is for, not a typo.
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  theme dark.cfg\nendgroup\n"),
-                      Catch::Matchers::Contains("for the whole config"));
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  arealist_sort ue\nendgroup\n"),
-                      Catch::Matchers::Contains("for the whole config"));
-    CHECK_THROWS_WITH(
-        with("group\n  member esp.*\n  tosser_config /etc/areas\nendgroup\n"),
-        Catch::Matchers::Contains("for the whole config"));
+    const std::string error = errorFrom([&] {
+        with("group\n member esp.*\n theme dark.cfg\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error, "for the whole config"), error);
+    const std::string error2 = errorFrom([&] {
+        with("group\n member esp.*\n arealist_sort ue\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error2, "for the whole config"), error2);
+    const std::string error3 = errorFrom([&] {
+        with("group\n member esp.*\n tosser_config /etc/areas\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error3, "for the whole config"), error3);
     // A key nobody knows gets the message it gets anywhere else.
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  orgin x\nendgroup\n"),
-                      Catch::Matchers::Contains("unknown setting"));
+    const std::string error4 = errorFrom([&] {
+        with("group\n member esp.*\n orgin x\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error4, "unknown setting"), error4);
     // And a global-only key is named as one whether or not its value would
     // also have been refused: where it belongs is the first thing to say.
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  theme\nendgroup\n"),
-                      Catch::Matchers::Contains("for the whole config"));
+    const std::string error5 = errorFrom([&] {
+        with("group\n member esp.*\n theme\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error5, "for the whole config"), error5);
     // Twice in one group is the contradiction it is anywhere else...
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  origin a\n  origin b\nendgroup\n"),
-                      Catch::Matchers::Contains("set twice in this group"));
+    const std::string error6 = errorFrom([&] {
+        with("group\n member esp.*\n origin a\n origin b\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error6, "set twice in this group"), error6);
     // ...but the same key outside it is a different setting entirely, and two
     // groups saying it are two answers to two questions.
     CHECK_NOTHROW(
@@ -1475,7 +1566,7 @@ TEST_CASE("A group states settings, and only the ones it may", "[app_config]") {
              "group\n  member pt.*\n  origin c\nendgroup\n"));
 }
 
-TEST_CASE("A group may say where an echo's answers and copies belong", "[app_config]") {
+TEST_CASE("A group may say where an echo's answers and copies belong [app_config]") {
     // The three settings a `CC:` line is read under: where its copies go, and
     // what the message keeps of the two commands. All three are worth stating
     // per echo, and none of them is a layout setting.
@@ -1495,19 +1586,25 @@ TEST_CASE("A group may say where an echo's answers and copies belong", "[app_con
     CHECK(cfg.effectiveFor(area("de.talk")).replyToArea.empty());
 }
 
-TEST_CASE("A value a group cannot be read from stops AmberEdit at startup",
+TEST_CASE("A value a group cannot be read from stops AmberEdit at startup "
           "[app_config]") {
     // Read once while the config is, over a copy that is thrown away, so that a
     // mistake in a group is found at startup and not at the area it covers.
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  quote_margin 5\nendgroup\n"),
-                      Catch::Matchers::Contains("quote_margin"));
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  quote_string \">>\"\nendgroup\n"),
-                      Catch::Matchers::Contains("exactly one '>'"));
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  address 2:382/\nendgroup\n"),
-                      Catch::Matchers::Contains("not an FTN address"));
+    const std::string error = errorFrom([&] {
+        with("group\n member esp.*\n quote_margin 5\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error, "quote_margin"), error);
+    const std::string error2 = errorFrom([&] {
+        with("group\n member esp.*\n quote_string \">>\"\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error2, "exactly one '>'"), error2);
+    const std::string error3 = errorFrom([&] {
+        with("group\n member esp.*\n address 2:382/\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error3, "not an FTN address"), error3);
 }
 
-TEST_CASE("The example config's group blocks parse once uncommented", "[app_config]") {
+TEST_CASE("The example config's group blocks parse once uncommented [app_config]") {
     // They ship commented out — they name echoes nobody who copies the file
     // subscribes to — so a user uncommenting them would be the first to find
     // out whether they still parse. They are written out here as the example
@@ -1532,18 +1629,22 @@ TEST_CASE("The example config's group blocks parse once uncommented", "[app_conf
     CHECK_FALSE(cfg.areaGroups.front().specificityFor("ru.linux").has_value());
 }
 
-TEST_CASE("Two groups that cannot be told apart are refused", "[app_config]") {
+TEST_CASE("Two groups that cannot be told apart are refused [app_config]") {
     // The same pattern twice is the typo the check is mostly there for: both
     // groups cover the same areas and both set the same thing, and there is no
     // answer to which of them wins.
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  origin a\nendgroup\n"
-                           "group\n  member esp.*\n  origin b\nendgroup\n"),
-                      Catch::Matchers::Contains("neither pattern is the more"));
+    const std::string error = errorFrom([&] {
+        with("group\n member esp.*\n origin a\nendgroup\n"
+             "group\n member esp.*\n origin b\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error, "neither pattern is the more"), error);
     // Two spellings that say exactly as much and still cover esp.argentina
     // between them.
-    CHECK_THROWS_WITH(with("group\n  member esp.*\n  origin a\nendgroup\n"
-                           "group\n  member esp.?*\n  origin b\nendgroup\n"),
-                      Catch::Matchers::Contains("neither pattern is the more"));
+    const std::string error2 = errorFrom([&] {
+        with("group\n member esp.*\n origin a\nendgroup\n"
+             "group\n member esp.?*\n origin b\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error2, "neither pattern is the more"), error2);
 
     // The same two settling different things are two answers to two questions.
     CHECK_NOTHROW(
@@ -1577,7 +1678,7 @@ amberedit::domain::MessageHeader letter(const std::string& from, const std::stri
 
 }  // namespace
 
-TEST_CASE("AppConfig reads the twit lines", "[app_config]") {
+TEST_CASE("AppConfig reads the twit lines [app_config]") {
     const auto cfg = with(
         "twit \"Ivan Ivanov\"\n"
         "twit Petr Petrov\n"
@@ -1604,7 +1705,7 @@ TEST_CASE("AppConfig reads the twit lines", "[app_config]") {
     CHECK(cfg.twitMode == amberedit::config::TwitMode::Skip);
 }
 
-TEST_CASE("A config says nothing about twits unless it says so", "[app_config]") {
+TEST_CASE("A config says nothing about twits unless it says so [app_config]") {
     const auto cfg = with("");
     CHECK(cfg.twits.empty());
     CHECK(cfg.twitSubjects.empty());
@@ -1615,7 +1716,7 @@ TEST_CASE("A config says nothing about twits unless it says so", "[app_config]")
     CHECK_FALSE(cfg.isTwit(letter("Ivan Ivanov", "All", "Anything")));
 }
 
-TEST_CASE("A twit name is matched whole and with wildcards", "[app_config]") {
+TEST_CASE("A twit name is matched whole and with wildcards [app_config]") {
     const auto cfg = with("twit \"Ivan Ivanov\"\ntwit \"*Spammer*\"\n");
 
     CHECK(cfg.isTwit(letter("Ivan Ivanov", "All", "x")));
@@ -1627,7 +1728,7 @@ TEST_CASE("A twit name is matched whole and with wildcards", "[app_config]") {
     CHECK(cfg.isTwit(letter("A Spammer Of Note", "All", "x")));
 }
 
-TEST_CASE("A twit line covers both ends of a message, unless twit_to is off",
+TEST_CASE("A twit line covers both ends of a message, unless twit_to is off "
           "[app_config]") {
     const auto both = with("twit \"Ivan Ivanov\"\n");
     CHECK(both.isTwit(letter("Petr Petrov", "Ivan Ivanov", "x")));
@@ -1643,7 +1744,7 @@ TEST_CASE("A twit line covers both ends of a message, unless twit_to is off",
     CHECK(subjects.isTwit(letter("Petr Petrov", "All", "Everything on SALE")));
 }
 
-TEST_CASE("Any one twit line is enough to make a message one", "[app_config]") {
+TEST_CASE("Any one twit line is enough to make a message one [app_config]") {
     // The lines are a list of things not worth reading, not a description of
     // one thing: a message matching any of them is a twit.
     const auto cfg = with("twit \"Ivan Ivanov\"\ntwit_subj \"*sale*\"\n");
@@ -1652,7 +1753,7 @@ TEST_CASE("Any one twit line is enough to make a message one", "[app_config]") {
     CHECK_FALSE(cfg.isTwit(letter("Petr Petrov", "All", "Something worth reading")));
 }
 
-TEST_CASE("A twit address is a pattern over the four numbers", "[app_config]") {
+TEST_CASE("A twit address is a pattern over the four numbers [app_config]") {
     const auto cfg = with("twit 2:5030/*\n");
 
     CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:5030/1042")));
@@ -1663,7 +1764,7 @@ TEST_CASE("A twit address is a pattern over the four numbers", "[app_config]") {
     CHECK_FALSE(cfg.isTwit(letter("Petr Petrov", "All", "x")));
 }
 
-TEST_CASE("A twit line that is no address is a name", "[app_config]") {
+TEST_CASE("A twit line that is no address is a name [app_config]") {
     // A '*' on its own is the name glob it was written as rather than "every
     // address there is": an address states a zone, and this states nothing.
     const auto everyone = with("twit *\n");
@@ -1678,21 +1779,25 @@ TEST_CASE("A twit line that is no address is a name", "[app_config]") {
     CHECK(oddity.twits[0].name == "Ivan: the second");
 }
 
-TEST_CASE("AppConfig refuses a malformed twit line", "[app_config]") {
-    CHECK_THROWS_WITH(with("twit\n"), Catch::Matchers::Contains("twit needs a name"));
-    CHECK_THROWS_WITH(with("twit_subj\n"),
-                      Catch::Matchers::Contains("twit_subj needs a subject"));
-    CHECK_THROWS_WITH(with("twit_mode quietly\n"),
-                      Catch::Matchers::Contains("show | blank | skip | ignore | kill"));
-    CHECK_THROWS_WITH(with("twit_to sometimes\n"), Catch::Matchers::Contains("on"));
+TEST_CASE("AppConfig refuses a malformed twit line [app_config]") {
+    const std::string error = errorFrom([&] { with("twit\n"); });
+    CHECK_MESSAGE(contains(error, "twit needs a name"), error);
+    const std::string error2 = errorFrom([&] { with("twit_subj\n"); });
+    CHECK_MESSAGE(contains(error2, "twit_subj needs a subject"), error2);
+    const std::string error3 = errorFrom([&] { with("twit_mode quietly\n"); });
+    CHECK_MESSAGE(contains(error3, "show | blank | skip | ignore | kill"), error3);
+    const std::string error4 = errorFrom([&] { with("twit_to sometimes\n"); });
+    CHECK_MESSAGE(contains(error4, "on"), error4);
     // The two that are a list may be written as often as one likes; the two
     // that are an answer may not.
     CHECK_NOTHROW(with("twit a\ntwit b\ntwit_subj x\ntwit_subj y\n"));
-    CHECK_THROWS_WITH(with("twit_mode skip\ntwit_mode blank\n"),
-                      Catch::Matchers::Contains("set twice"));
+    const std::string error5 = errorFrom([&] {
+        with("twit_mode skip\ntwit_mode blank\n");
+    });
+    CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
-TEST_CASE("A group adds twits of its own", "[app_config]") {
+TEST_CASE("A group adds twits of its own [app_config]") {
     const auto cfg = with(
         "twit \"Ivan Ivanov\"\n"
         "group\n"
@@ -1717,7 +1822,7 @@ TEST_CASE("A group adds twits of its own", "[app_config]") {
     CHECK(elsewhere.twitMode == amberedit::config::TwitMode::Blank);
 }
 
-TEST_CASE("A group may turn the twits off for its areas", "[app_config]") {
+TEST_CASE("A group may turn the twits off for its areas [app_config]") {
     // `show` is the one thing that says "not here": a group cannot take a twit
     // line off the list, and it does not need to.
     const auto cfg = with(
@@ -1734,7 +1839,7 @@ TEST_CASE("A group may turn the twits off for its areas", "[app_config]") {
           amberedit::config::TwitMode::Skip);
 }
 
-TEST_CASE("The example config's twit lines parse once uncommented", "[app_config]") {
+TEST_CASE("The example config's twit lines parse once uncommented [app_config]") {
     // They ship commented out — there is nobody AmberEdit would name for a user
     // who copies the file — so nothing in the example itself reads them. The
     // four spellings it shows are written out here as it has them, and read.
@@ -1754,7 +1859,7 @@ TEST_CASE("The example config's twit lines parse once uncommented", "[app_config
 
 // --- areas declared by hand --------------------------------------------------
 
-TEST_CASE("An area ... endarea block declares an area of its own", "[app_config]") {
+TEST_CASE("An area ... endarea block declares an area of its own [app_config]") {
     const auto cfg = with(
         "area ru.linux\n"
         "  path        /ftn/msg/ru.linux\n"
@@ -1784,7 +1889,7 @@ TEST_CASE("An area ... endarea block declares an area of its own", "[app_config]
     CHECK(area.links[2].toString() == "2:5030/1042");
 }
 
-TEST_CASE("What an area block leaves out", "[app_config]") {
+TEST_CASE("What an area block leaves out [app_config]") {
     const auto cfg = with(
         "area NOTES\n"
         "  path ~/ftn/msg/notes\n"
@@ -1813,7 +1918,7 @@ TEST_CASE("What an area block leaves out", "[app_config]") {
     CHECK(passthrough.isPassthrough());
 }
 
-TEST_CASE("An area block's kinds and types are the words the tosser configs use",
+TEST_CASE("An area block's kinds and types are the words the tosser configs use "
           "[app_config]") {
     const auto cfg = with(
         "area NETMAIL\n"
@@ -1834,7 +1939,7 @@ TEST_CASE("An area block's kinds and types are the words the tosser configs use"
     CHECK(cfg.manualAreas[1].area.kind == amberedit::domain::AreaKind::Bad);
 }
 
-TEST_CASE("An area's own address is an AKA of ours", "[app_config]") {
+TEST_CASE("An area's own address is an AKA of ours [app_config]") {
     // The same answer a group's `address` gets: a message written under it is
     // still the user's own, and nothing picks it by destination.
     const auto cfg = with(
@@ -1848,57 +1953,81 @@ TEST_CASE("An area's own address is an AKA of ours", "[app_config]") {
     CHECK_FALSE(cfg.akaMatching(*FtnAddress::parse("2:5020/715")).has_value());
 }
 
-TEST_CASE("An area block is refused for what it gets wrong", "[app_config]") {
-    CHECK_THROWS_WITH(with("area\nendarea\n"),
-                      Catch::Matchers::Contains("area takes the echotag"));
-    CHECK_THROWS_WITH(with("area a b\nendarea\n"),
-                      Catch::Matchers::Contains("area takes the echotag"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n"),
-                      Catch::Matchers::Contains("never closed"));
-    CHECK_THROWS_WITH(with("endarea\n"), Catch::Matchers::Contains("no area above it"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\nendgroup\n"),
-                      Catch::Matchers::Contains("write endarea"));
-    CHECK_THROWS_WITH(with("group\n  member *\n  origin x\nendarea\n"),
-                      Catch::Matchers::Contains("write endgroup"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  group\nendarea\n"),
-                      Catch::Matchers::Contains("do not nest"));
-    CHECK_THROWS_WITH(with("group\n  area x\nendgroup\n"),
-                      Catch::Matchers::Contains("do not nest"));
+TEST_CASE("An area block is refused for what it gets wrong [app_config]") {
+    const std::string error = errorFrom([&] { with("area\nendarea\n"); });
+    CHECK_MESSAGE(contains(error, "area takes the echotag"), error);
+    const std::string error2 = errorFrom([&] { with("area a b\nendarea\n"); });
+    CHECK_MESSAGE(contains(error2, "area takes the echotag"), error2);
+    const std::string error3 = errorFrom([&] { with("area ru.linux\n path /a\n"); });
+    CHECK_MESSAGE(contains(error3, "never closed"), error3);
+    const std::string error4 = errorFrom([&] { with("endarea\n"); });
+    CHECK_MESSAGE(contains(error4, "no area above it"), error4);
+    const std::string error5 = errorFrom([&] {
+        with("area ru.linux\n path /a\nendgroup\n");
+    });
+    CHECK_MESSAGE(contains(error5, "write endarea"), error5);
+    const std::string error6 = errorFrom([&] {
+        with("group\n member *\n origin x\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error6, "write endgroup"), error6);
+    const std::string error7 = errorFrom([&] {
+        with("area ru.linux\n group\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error7, "do not nest"), error7);
+    const std::string error8 = errorFrom([&] { with("group\n area x\nendgroup\n"); });
+    CHECK_MESSAGE(contains(error8, "do not nest"), error8);
 
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  path /b\nendarea\n"),
-                      Catch::Matchers::Contains("path is set twice in this area"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  type squisj\nendarea\n"),
-                      Catch::Matchers::Contains("is not a base type"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  kind echomail\nendarea\n"),
-                      Catch::Matchers::Contains("is not an area kind"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  address x\nendarea\n"),
-                      Catch::Matchers::Contains("not an FTN address"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  link\nendarea\n"),
-                      Catch::Matchers::Contains("link needs the address"));
+    const std::string error9 = errorFrom([&] {
+        with("area ru.linux\n path /a\n path /b\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error9, "path is set twice in this area"), error9);
+    const std::string error10 = errorFrom([&] {
+        with("area ru.linux\n path /a\n type squisj\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error10, "is not a base type"), error10);
+    const std::string error11 = errorFrom([&] {
+        with("area ru.linux\n path /a\n kind echomail\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error11, "is not an area kind"), error11);
+    const std::string error12 = errorFrom([&] {
+        with("area ru.linux\n path /a\n address x\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error12, "not an FTN address"), error12);
+    const std::string error13 = errorFrom([&] {
+        with("area ru.linux\n path /a\n link\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error13, "link needs the address"), error13);
 
     // A path is the one field an area cannot do without, and a passthrough is
     // the one area that cannot have one.
-    CHECK_THROWS_WITH(with("area ru.linux\nendarea\n"),
-                      Catch::Matchers::Contains("states no path"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  type passthrough\nendarea\n"),
-                      Catch::Matchers::Contains("is passthrough and names a path"));
+    const std::string error14 = errorFrom([&] { with("area ru.linux\nendarea\n"); });
+    CHECK_MESSAGE(contains(error14, "states no path"), error14);
+    const std::string error15 = errorFrom([&] {
+        with("area ru.linux\n path /a\n type passthrough\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error15, "is passthrough and names a path"), error15);
 
     // A setting is a group's to state, and anything else is a misspelling.
-    CHECK_THROWS_WITH(
-        with("area ru.linux\n  path /a\n  default_charset KOI8-R\nendarea\n"),
-        Catch::Matchers::Contains("is a setting and not a field of an area"));
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\n  desc x\nendarea\n"),
-                      Catch::Matchers::Contains("unknown area field 'desc'"));
-    CHECK_THROWS_WITH(
-        with("area ru.linux\n  path /a\n  group_label A\n  group_label B\nendarea\n"),
-        Catch::Matchers::Contains("group_label is set twice"));
+    const std::string error16 = errorFrom([&] {
+        with("area ru.linux\n path /a\n default_charset KOI8-R\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error16, "is a setting and not a field of an area"), error16);
+    const std::string error17 = errorFrom([&] {
+        with("area ru.linux\n path /a\n desc x\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error17, "unknown area field 'desc'"), error17);
+    const std::string error18 = errorFrom([&] {
+        with("area ru.linux\n path /a\n group_label A\n group_label B\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error18, "group_label is set twice"), error18);
 
-    CHECK_THROWS_WITH(with("area ru.linux\n  path /a\nendarea\n"
-                           "area RU.LINUX\n  path /b\nendarea\n"),
-                      Catch::Matchers::Contains("is declared twice"));
+    const std::string error19 = errorFrom([&] {
+        with("area ru.linux\n path /a\nendarea\n" "area RU.LINUX\n path /b\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error19, "is declared twice"), error19);
 }
 
-TEST_CASE("The area list comes from the tosser config, from blocks, or from both",
+TEST_CASE("The area list comes from the tosser config, from blocks, or from both "
           "[app_config]") {
     const char* const charsets = "default_charset CP866\ncompose_charset CP866\n";
 
@@ -1909,20 +2038,23 @@ TEST_CASE("The area list comes from the tosser config, from blocks, or from both
     CHECK(own.manualAreas.size() == 1);
 
     // Neither is a config that would open on an empty screen.
-    CHECK_THROWS_WITH(AppConfig::loadFromString(charsets),
-                      Catch::Matchers::Contains("there is no area list"));
+    const std::string error = errorFrom([&] { AppConfig::loadFromString(charsets); });
+    CHECK_MESSAGE(contains(error, "there is no area list"), error);
     // A format is still required as soon as a tosser config is named...
-    CHECK_THROWS_WITH(
-        AppConfig::loadFromString(std::string(charsets) + "tosser_config a\n"),
-        Catch::Matchers::Contains("tosser_config_format is not set"));
+    const std::string error2 = errorFrom([&] {
+        AppConfig::loadFromString(std::string(charsets) + "tosser_config a\n");
+    });
+    CHECK_MESSAGE(contains(error2, "tosser_config_format is not set"), error2);
     // ...and names nothing without one.
-    CHECK_THROWS_WITH(AppConfig::loadFromString(std::string(charsets) +
-                                                "tosser_config_format hpt\n"
-                                                "area NOTES\n  path /a\nendarea\n"),
-                      Catch::Matchers::Contains("a config that is not set"));
+    const std::string error3 = errorFrom([&] {
+        AppConfig::loadFromString(std::string(charsets) +
+                                  "tosser_config_format hpt\n"
+                                  "area NOTES\n path /a\nendarea\n");
+    });
+    CHECK_MESSAGE(contains(error3, "a config that is not set"), error3);
 }
 
-TEST_CASE("A group covers an area declared by hand like any other", "[app_config]") {
+TEST_CASE("A group covers an area declared by hand like any other [app_config]") {
     const auto cfg = with(
         "area NOTES\n"
         "  path /ftn/msg/notes\n"

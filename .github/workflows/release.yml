@@ -85,17 +85,16 @@ jobs:
           - name: el8
             image: rockylinux:8
             srpm: true
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel catch-devel
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel doctest-devel
           # EPEL 9 and later carry the 2.13 series the tests want as
-          # catch2-devel rather than catch-devel; amberedit.spec's BuildRequires
           # makes the same distinction, so these two lines and the spec have to
           # agree.
           - name: el9
             image: rockylinux:9
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel catch2-devel glibc-gconv-extra
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel doctest-devel glibc-gconv-extra
           - name: fedora
             image: fedora:latest
-            deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel catch2-devel glibc-gconv-extra
+            deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel doctest-devel glibc-gconv-extra
     steps:
       - uses: actions/checkout@v4
         with:
@@ -183,7 +182,7 @@ jobs:
           docker run --rm -v "$PWD":/src -e DEBIAN_FRONTEND=noninteractive "$IMAGE" sh -c '
             set -eu
             apt-get update
-            apt-get -y install --no-install-recommends build-essential devscripts debhelper cmake pkg-config libncurses-dev zlib1g-dev ca-certificates
+            apt-get -y install --no-install-recommends build-essential devscripts debhelper cmake pkg-config libncurses-dev zlib1g-dev doctest-dev
             mkdir -p /build/amberedit && cp -a /src/. /build/amberedit/
             rm -rf /build/amberedit/build /build/amberedit/cmake-build-debug /build/amberedit/out
             cd /build/amberedit

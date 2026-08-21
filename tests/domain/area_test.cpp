@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include "domain/area.hpp"
 
@@ -19,7 +19,7 @@ AreaConfig areaOfKind(AreaKind kind) {
 
 }  // namespace
 
-TEST_CASE("Only netmail addresses an actual recipient", "[area]") {
+TEST_CASE("Only netmail addresses an actual recipient [area]") {
     CHECK(areaOfKind(AreaKind::Netmail).hasAddressedRecipient());
 
     // Echomail is broadcast to the area, so its destination address names
@@ -30,7 +30,7 @@ TEST_CASE("Only netmail addresses an actual recipient", "[area]") {
     CHECK_FALSE(areaOfKind(AreaKind::Dupe).hasAddressedRecipient());
 }
 
-TEST_CASE("An area with no path is passthrough whatever its type", "[area]") {
+TEST_CASE("An area with no path is passthrough whatever its type [area]") {
     AreaConfig area = areaOfKind(AreaKind::Echo);
     CHECK_FALSE(area.isPassthrough());
 
@@ -42,13 +42,13 @@ TEST_CASE("An area with no path is passthrough whatever its type", "[area]") {
     CHECK(area.isPassthrough());
 }
 
-TEST_CASE("Base and area kinds render as their config spellings", "[area]") {
-    CHECK(toString(MsgBaseType::Squish) == "squish");
-    CHECK(toString(MsgBaseType::Jam) == "jam");
-    CHECK(toString(MsgBaseType::Sdm) == "msg");
-    CHECK(toString(MsgBaseType::Passthrough) == "passthrough");
-    CHECK(toString(MsgBaseType::Unknown) == "unknown");
+TEST_CASE("Base and area kinds render as their config spellings [area]") {
+    CHECK(nameOf(MsgBaseType::Squish) == "squish");
+    CHECK(nameOf(MsgBaseType::Jam) == "jam");
+    CHECK(nameOf(MsgBaseType::Sdm) == "msg");
+    CHECK(nameOf(MsgBaseType::Passthrough) == "passthrough");
+    CHECK(nameOf(MsgBaseType::Unknown) == "unknown");
 
-    CHECK(toString(AreaKind::Echo) == "echo");
-    CHECK(toString(AreaKind::Netmail) == "netmail");
+    CHECK(nameOf(AreaKind::Echo) == "echo");
+    CHECK(nameOf(AreaKind::Netmail) == "netmail");
 }

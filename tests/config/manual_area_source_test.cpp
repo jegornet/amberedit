@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <memory>
 #include <stdexcept>
@@ -6,11 +6,14 @@
 #include <vector>
 
 #include "config/manual_area_source.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::ManualArea;
 using amberedit::config::ManualAreaSource;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::MsgBaseType;
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 
 namespace {
 
@@ -48,7 +51,7 @@ ManualArea declared(const std::string& tag, const std::string& path, int line) {
 
 }  // namespace
 
-TEST_CASE("ManualAreaSource puts the declared areas after the tosser's",
+TEST_CASE("ManualAreaSource puts the declared areas after the tosser's "
           "[manual_area]") {
     auto tosser = std::make_unique<FakeTosser>(
         std::vector<AreaConfig>{area("NETMAIL", "/ftn/msg/netmail"),
@@ -65,7 +68,7 @@ TEST_CASE("ManualAreaSource puts the declared areas after the tosser's",
     CHECK(areas[2].type == MsgBaseType::Jam);
 }
 
-TEST_CASE("ManualAreaSource works with no tosser at all", "[manual_area]") {
+TEST_CASE("ManualAreaSource works with no tosser at all [manual_area]") {
     ManualAreaSource source({declared("NOTES", "/ftn/msg/notes", 4)}, nullptr);
 
     const auto areas = source.loadAreas();
@@ -73,19 +76,21 @@ TEST_CASE("ManualAreaSource works with no tosser at all", "[manual_area]") {
     CHECK(areas.front().tag == "NOTES");
 }
 
-TEST_CASE("A tag declared twice over is refused, naming the line", "[manual_area]") {
+TEST_CASE("A tag declared twice over is refused, naming the line [manual_area]") {
     auto tosser =
         std::make_unique<FakeTosser>(std::vector<AreaConfig>{area("RU.LINUX", "/ftn/a")});
     ManualAreaSource source({declared("ru.linux", "/ftn/b", 17)}, std::move(tosser));
 
     // Case-insensitively: an echotag is the same tag whichever case it is
     // written in, here as in a group's member pattern.
-    CHECK_THROWS_WITH(source.loadAreas(), Catch::Matchers::Contains("line 17"));
+    const std::string error = errorFrom([&] { source.loadAreas(); });
+    CHECK_MESSAGE(contains(error, "line 17"), error);
 }
 
-TEST_CASE("An unreadable tosser config still stops the load", "[manual_area]") {
+TEST_CASE("An unreadable tosser config still stops the load [manual_area]") {
     auto tosser = std::make_unique<FakeTosser>(std::string("cannot read /etc/areas"));
     ManualAreaSource source({declared("NOTES", "/ftn/msg/notes", 4)}, std::move(tosser));
 
-    CHECK_THROWS_WITH(source.loadAreas(), Catch::Matchers::Contains("cannot read"));
+    const std::string error = errorFrom([&] { source.loadAreas(); });
+    CHECK_MESSAGE(contains(error, "cannot read"), error);
 }

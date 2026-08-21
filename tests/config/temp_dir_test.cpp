@@ -1,6 +1,6 @@
 #include "config/temp_dir.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -9,8 +9,11 @@
 #include <string>
 
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 namespace fs = std::filesystem;
 
 namespace {
@@ -24,7 +27,7 @@ std::string oursUnder(const std::string& system) {
 
 }  // namespace
 
-TEST_CASE("a config naming no tmpdir works under the system's own", "[temp_dir]") {
+TEST_CASE("a config naming no tmpdir works under the system's own [temp_dir]") {
     // $TMPDIR is what says where the system's temporary directory is, so
     // pointing it at a directory of the test's own is the whole of standing in
     // for a machine here.
@@ -47,7 +50,7 @@ TEST_CASE("a config naming no tmpdir works under the system's own", "[temp_dir]"
     CHECK(config::makeTempDir("") == made);
 }
 
-TEST_CASE("a tmpdir the config names is used as the user made it", "[temp_dir]") {
+TEST_CASE("a tmpdir the config names is used as the user made it [temp_dir]") {
     test::TempDir dir;
     const std::string named = dir.path("work");
     fs::create_directories(named);
@@ -69,7 +72,7 @@ TEST_CASE("a tmpdir the config names is used as the user made it", "[temp_dir]")
     CHECK(fs::is_directory(deeper));
 }
 
-TEST_CASE("a temporary directory of ours that is not ours is refused", "[temp_dir]") {
+TEST_CASE("a temporary directory of ours that is not ours is refused [temp_dir]") {
     // Somebody else got to the name first. A link is the case that matters —
     // working through it would write wherever it points — and it is the case a
     // test can make without a second user to make it with.
@@ -79,21 +82,21 @@ TEST_CASE("a temporary directory of ours that is not ours is refused", "[temp_di
     test::WithTempDirEnv env(dir.path("system"));
     fs::create_directory_symlink(dir.path("elsewhere"), oursUnder(dir.path("system")));
 
-    CHECK_THROWS_WITH(config::makeTempDir(""),
-                      Catch::Matchers::Contains("symbolic link"));
+    const std::string error = errorFrom([&] { config::makeTempDir(""); });
+    CHECK_MESSAGE(contains(error, "symbolic link"), error);
 }
 
-TEST_CASE("a machine with no temporary directory at all says so", "[temp_dir]") {
+TEST_CASE("a machine with no temporary directory at all says so [temp_dir]") {
     // $TMPDIR pointing at something that is not a directory leaves the system
     // with no answer to give, and then only the config can name one.
     test::TempDir dir;
     test::WithTempDirEnv env(dir.path("not-a-directory"));
 
-    CHECK_THROWS_WITH(config::makeTempDir(""),
-                      Catch::Matchers::Contains("tmpdir has to name one"));
+    const std::string error = errorFrom([&] { config::makeTempDir(""); });
+    CHECK_MESSAGE(contains(error, "tmpdir has to name one"), error);
 }
 
-TEST_CASE("a tmpdir that cannot be made says which one", "[temp_dir]") {
+TEST_CASE("a tmpdir that cannot be made says which one [temp_dir]") {
     test::TempDir dir;
     {
         std::ofstream out(dir.path("file"));
@@ -101,7 +104,8 @@ TEST_CASE("a tmpdir that cannot be made says which one", "[temp_dir]") {
     }
 
     const std::string under = dir.path("file/under-a-file");
-    CHECK_THROWS_WITH(config::makeTempDir(under),
-                      Catch::Matchers::Contains("not one that can be made"));
-    CHECK_THROWS_WITH(config::makeTempDir(under), Catch::Matchers::Contains(under));
+    const std::string error = errorFrom([&] { config::makeTempDir(under); });
+    CHECK_MESSAGE(contains(error, "not one that can be made"), error);
+    const std::string error2 = errorFrom([&] { config::makeTempDir(under); });
+    CHECK_MESSAGE(contains(error2, under), error2);
 }

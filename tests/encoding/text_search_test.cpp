@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -22,7 +22,7 @@ std::vector<std::string> hits(const TextSearch& search, const std::string& text)
 
 }  // namespace
 
-TEST_CASE("A search finds what it was given, wherever it stands", "[text_search]") {
+TEST_CASE("A search finds what it was given, wherever it stands [text_search]") {
     const TextSearch search("dog", "CP437");
     CHECK(search.contains("the dog"));
     CHECK(search.contains("dogged"));
@@ -31,7 +31,7 @@ TEST_CASE("A search finds what it was given, wherever it stands", "[text_search]
     CHECK_FALSE(search.contains(""));
 }
 
-TEST_CASE("An empty query matches nothing at all", "[text_search]") {
+TEST_CASE("An empty query matches nothing at all [text_search]") {
     // Not everything: a search for no words has not been asked for, and a
     // scan answering "yes" for every message would stop on the one it started
     // from.
@@ -41,7 +41,7 @@ TEST_CASE("An empty query matches nothing at all", "[text_search]") {
     CHECK(search.findAll("anything").empty());
 }
 
-TEST_CASE("Case is folded, in ASCII and in Cyrillic alike", "[text_search]") {
+TEST_CASE("Case is folded, in ASCII and in Cyrillic alike [text_search]") {
     CHECK(TextSearch("HELLO", "CP437").contains("hello there"));
     CHECK(TextSearch("hello", "CP437").contains("HELLO THERE"));
     // Привет / ПРИВЕТ — the fold has to reach the Cyrillic block, since
@@ -53,7 +53,7 @@ TEST_CASE("Case is folded, in ASCII and in Cyrillic alike", "[text_search]") {
     CHECK(TextSearch("ёлка", "CP866").contains("Ёлка"));
 }
 
-TEST_CASE("The offsets name the characters that matched", "[text_search]") {
+TEST_CASE("The offsets name the characters that matched [text_search]") {
     const TextSearch search("МИР", "CP866");
     CHECK(hits(search, "привет, мир!") == std::vector<std::string>{"мир"});
 
@@ -62,7 +62,7 @@ TEST_CASE("The offsets name the characters that matched", "[text_search]") {
     CHECK(hits(aa, "aaaa") == std::vector<std::string>{"aa", "aa"});
 }
 
-TEST_CASE("CP866 folds the letters a Russian keyboard confuses", "[text_search]") {
+TEST_CASE("CP866 folds the letters a Russian keyboard confuses [text_search]") {
     // Н/H, р/p and у/y are the same glyph on a DOS screen and one layout apart
     // on the keyboard, so a word spelled half in each is ordinary.
     const TextSearch search("Нужно", "CP866");
@@ -78,7 +78,7 @@ TEST_CASE("CP866 folds the letters a Russian keyboard confuses", "[text_search]"
     CHECK(TextSearch("привет", "CP866").contains("пpивет"));  // Latin p
 }
 
-TEST_CASE("Only CP866 carries those quirks", "[text_search]") {
+TEST_CASE("Only CP866 carries those quirks [text_search]") {
     // In a western area they are six different letters, and folding them would
     // make "Hello" find "Нello".
     CHECK_FALSE(TextSearch("Нужно", "KOI8-R").contains("Hужно"));
@@ -87,7 +87,7 @@ TEST_CASE("Only CP866 carries those quirks", "[text_search]") {
     CHECK(TextSearch("Нужно", "cp866").contains("Hужно"));
 }
 
-TEST_CASE("The charset can be changed under a standing query", "[text_search]") {
+TEST_CASE("The charset can be changed under a standing query [text_search]") {
     // What a scan over an area does: the words are typed once and the charset
     // is the message's, which most areas never change.
     TextSearch search("Нужно", "KOI8-R");
@@ -99,7 +99,7 @@ TEST_CASE("The charset can be changed under a standing query", "[text_search]") 
     CHECK_FALSE(search.contains("Hужно"));
 }
 
-TEST_CASE("Bytes that are no UTF-8 stand for themselves", "[text_search]") {
+TEST_CASE("Bytes that are no UTF-8 stand for themselves [text_search]") {
     // A message stating a charset iconv does not know comes through with its
     // bytes untouched. Nothing may match across them by accident, and nothing
     // may spin.

@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -12,6 +12,7 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using amberedit::app::exportedLines;
 using amberedit::app::exportMessage;
@@ -25,6 +26,7 @@ using amberedit::domain::MessageDate;
 using amberedit::domain::MessageHeader;
 using amberedit::domain::MessageLine;
 using amberedit::test::TempDir;
+using amberedit::test::contains;
 
 namespace {
 
@@ -88,7 +90,7 @@ MessageBody bodyOf(const std::vector<std::string>& lines) {
 
 }  // namespace
 
-TEST_CASE("exportedLines writes the header the reader draws", "[export]") {
+TEST_CASE("exportedLines writes the header the reader draws [export]") {
     const auto lines = exportedLines(header(), body(), kFormat);
 
     REQUIRE(lines.size() >= 5);
@@ -110,7 +112,7 @@ TEST_CASE("exportedLines writes the header the reader draws", "[export]") {
     CHECK(lines.size() == 8);
 }
 
-TEST_CASE("exportMessage writes the file in the charset it is given", "[export]") {
+TEST_CASE("exportMessage writes the file in the charset it is given [export]") {
     const TempDir dir;
     const std::string path = dir.path("out.txt");
 
@@ -121,11 +123,11 @@ TEST_CASE("exportMessage writes the file in the charset it is given", "[export]"
     const std::string written = amberedit::config::text::readFile(path);
     // Above the adapter everything is UTF-8; what lands on disk is the charset
     // the file is to be read in.
-    CHECK_THAT(written, Catch::Matchers::Contains("Subj : " + kPrivetCp866));
-    CHECK_THAT(written, Catch::Matchers::Contains("Hello, All!\n"));
+    CHECK_MESSAGE(contains(written, "Subj : " + kPrivetCp866), written);
+    CHECK_MESSAGE(contains(written, "Hello, All!\n"), written);
 }
 
-TEST_CASE("exportMessage adds to a file rather than writing over it", "[export]") {
+TEST_CASE("exportMessage adds to a file rather than writing over it [export]") {
     const TempDir dir;
     const std::string path = dir.path("out.txt");
     const ExportRequest request{path, "UTF-8", kFormat};
@@ -144,7 +146,7 @@ TEST_CASE("exportMessage adds to a file rather than writing over it", "[export]"
     CHECK(lines[10] == "Subj : And another thing");
 }
 
-TEST_CASE("uueFiles takes the file back out of the message", "[export][uue]") {
+TEST_CASE("uueFiles takes the file back out of the message [export][uue]") {
     const std::string bytes = binary();
     const auto files = uueFiles(bodyOf(messageCarrying(bytes, "report.zip")));
 
@@ -155,7 +157,7 @@ TEST_CASE("uueFiles takes the file back out of the message", "[export][uue]") {
     CHECK(files[0].bytes == bytes);
 }
 
-TEST_CASE("uueFiles finds every file in one message", "[export][uue]") {
+TEST_CASE("uueFiles finds every file in one message [export][uue]") {
     std::vector<std::string> lines = messageCarrying("first", "one.txt");
     for (const auto& line : messageCarrying("second", "two.txt")) lines.push_back(line);
 
@@ -167,7 +169,7 @@ TEST_CASE("uueFiles finds every file in one message", "[export][uue]") {
     CHECK(files[1].bytes == "second");
 }
 
-TEST_CASE("uueFiles finds nothing in an ordinary message", "[export][uue]") {
+TEST_CASE("uueFiles finds nothing in an ordinary message [export][uue]") {
     // Words that begin a line and mean nothing of the kind: the block is a
     // shape, not a word, and a message about beginnings is not a file.
     CHECK(uueFilesIn({"begin at the beginning", "end of story", "beginning 644 x"})
@@ -175,7 +177,7 @@ TEST_CASE("uueFiles finds nothing in an ordinary message", "[export][uue]") {
     CHECK(uueFiles(body()).empty());
 }
 
-TEST_CASE("uueFiles refuses a file that is not all here", "[export][uue]") {
+TEST_CASE("uueFiles refuses a file that is not all here [export][uue]") {
     // One section of a file split across several messages: there is no `end`,
     // and half a file decoded into a whole one is a file that will not open.
     std::vector<std::string> lines = messageCarrying("something", "part.zip");
@@ -189,7 +191,7 @@ TEST_CASE("uueFiles refuses a file that is not all here", "[export][uue]") {
     CHECK(uueFilesIn(broken).empty());
 }
 
-TEST_CASE("uueFiles takes the name and not the path", "[export][uue]") {
+TEST_CASE("uueFiles takes the name and not the path [export][uue]") {
     // What stands in the message came off somebody else's machine: a `../` in it
     // would write outside the directory the user picked, and a DOS path is what
     // FTN mail has carried names as since there was FTN mail.
@@ -205,7 +207,7 @@ TEST_CASE("uueFiles takes the name and not the path", "[export][uue]") {
     CHECK(uueFilesIn(messageCarrying("x", "..")).empty());
 }
 
-TEST_CASE("uueFiles decodes what the mail stripped", "[export][uue]") {
+TEST_CASE("uueFiles decodes what the mail stripped [export][uue]") {
     // The encoding this reader writes puts a backquote where a zero goes, but
     // mail carries what other encoders wrote: a space, which whatever moved the
     // message has since taken off the end of the line. The bytes are zeros
@@ -216,7 +218,7 @@ TEST_CASE("uueFiles decodes what the mail stripped", "[export][uue]") {
     CHECK(files[0].bytes == std::string(45, '\0'));
 }
 
-TEST_CASE("saveUueFiles writes each file whole", "[export][uue]") {
+TEST_CASE("saveUueFiles writes each file whole [export][uue]") {
     const TempDir dir;
     const std::string bytes = binary();
     const auto files = uueFilesIn(messageCarrying(bytes, "report.zip"));
@@ -225,7 +227,7 @@ TEST_CASE("saveUueFiles writes each file whole", "[export][uue]") {
     CHECK(amberedit::config::text::readFile(dir.path("report.zip")) == bytes);
 }
 
-TEST_CASE("saveUueFiles writes over nothing", "[export][uue]") {
+TEST_CASE("saveUueFiles writes over nothing [export][uue]") {
     const TempDir dir;
     {
         std::ofstream standing(dir.path("report.zip"), std::ios::binary);
@@ -242,18 +244,18 @@ TEST_CASE("saveUueFiles writes over nothing", "[export][uue]") {
     // before anything is written, rather than leaving the directory half filled.
     const auto result = saveUueFiles(dir.path(""), files);
     CHECK_FALSE(result.ok());
-    CHECK_THAT(result.error, Catch::Matchers::Contains("report.zip"));
+    CHECK_MESSAGE(contains(result.error, "report.zip"), result.error);
     CHECK(amberedit::config::text::readFile(dir.path("report.zip")) ==
           "something of the user's own");
     CHECK_FALSE(std::filesystem::exists(dir.path("one.txt")));
 }
 
-TEST_CASE("exportMessage says where it could not write", "[export]") {
+TEST_CASE("exportMessage says where it could not write [export]") {
     const TempDir dir;
     // A directory that is not there: the name was given a moment ago and the
     // dialog is still up to be given another.
     const auto result = exportMessage(
         ExportRequest{dir.path("nowhere/out.txt"), "UTF-8", kFormat}, header(), body());
     CHECK_FALSE(result.ok());
-    CHECK_THAT(result.error, Catch::Matchers::Contains("out.txt"));
+    CHECK_MESSAGE(contains(result.error, "out.txt"), result.error);
 }

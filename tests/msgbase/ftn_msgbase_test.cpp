@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -47,7 +47,7 @@ std::string today() {
 
 }  // namespace
 
-TEST_CASE("tzutcOffsetOf reads the zone a message states", "[msgbase]") {
+TEST_CASE("tzutcOffsetOf reads the zone a message states [msgbase]") {
     using amberedit::msgbase::tzutcOffsetOf;
 
     // The control block as a driver hands it back: a ^A in front of each line
@@ -78,7 +78,7 @@ TEST_CASE("tzutcOffsetOf reads the zone a message states", "[msgbase]") {
     CHECK(tzutcOffsetOf("\001TZUTCINFO: MSK\r\001TZUTC: 0300\r") == "+0300");
 }
 
-TEST_CASE("completeAddresses reads what the header left to the kludges", "[msgbase]") {
+TEST_CASE("completeAddresses reads what the header left to the kludges [msgbase]") {
     using amberedit::msgbase::completeAddresses;
     using amberedit::msgbase::RawHeader;
 
@@ -132,12 +132,12 @@ TEST_CASE("completeAddresses reads what the header left to the kludges", "[msgba
     CHECK(bare.destAddr.point == 0);
 }
 
-TEST_CASE("The Squish test base is present in the repository", "[squish]") {
+TEST_CASE("The Squish test base is present in the repository [squish]") {
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/localnet.sqd")));
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/localnet.sqi")));
 }
 
-TEST_CASE("FtnMsgBase opens a Squish base and counts messages", "[squish]") {
+TEST_CASE("FtnMsgBase opens a Squish base and counts messages [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
 
@@ -151,7 +151,7 @@ TEST_CASE("FtnMsgBase opens a Squish base and counts messages", "[squish]") {
     CHECK(msgbase.count() == 0);
 }
 
-TEST_CASE("FtnMsgBase reads the headers of every message", "[squish]") {
+TEST_CASE("FtnMsgBase reads the headers of every message [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -172,7 +172,7 @@ TEST_CASE("FtnMsgBase reads the headers of every message", "[squish]") {
     }
 }
 
-TEST_CASE("FtnMsgBase reads message bodies as UTF-8", "[squish]") {
+TEST_CASE("FtnMsgBase reads message bodies as UTF-8 [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -193,7 +193,7 @@ TEST_CASE("FtnMsgBase reads message bodies as UTF-8", "[squish]") {
     CHECK(sawText);
 }
 
-TEST_CASE("FtnMsgBase keeps kludges out of the text", "[squish]") {
+TEST_CASE("FtnMsgBase keeps kludges out of the text [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -209,7 +209,7 @@ TEST_CASE("FtnMsgBase keeps kludges out of the text", "[squish]") {
     CHECK(sawKludges);
 }
 
-TEST_CASE("FtnMsgBase keeps the body lines in base order", "[squish]") {
+TEST_CASE("FtnMsgBase keeps the body lines in base order [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -234,7 +234,7 @@ TEST_CASE("FtnMsgBase keeps the body lines in base order", "[squish]") {
     CHECK(std::distance(body.lines.begin(), firstText) > 0);
 }
 
-TEST_CASE("The AREA: line a packet carries is service data", "[squish]") {
+TEST_CASE("The AREA: line a packet carries is service data [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -267,7 +267,7 @@ TEST_CASE("The AREA: line a packet carries is service data", "[squish]") {
     CHECK_FALSE(inText->kludge);
 }
 
-TEST_CASE("FtnMsgBase adds no marker to lines that carry none", "[squish]") {
+TEST_CASE("FtnMsgBase adds no marker to lines that carry none [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -285,7 +285,7 @@ TEST_CASE("FtnMsgBase adds no marker to lines that carry none", "[squish]") {
     CHECK(sawSeenBy);
 }
 
-TEST_CASE("FtnMsgBase: out-of-range indexes are safe", "[squish]") {
+TEST_CASE("FtnMsgBase: out-of-range indexes are safe [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -298,21 +298,21 @@ TEST_CASE("FtnMsgBase: out-of-range indexes are safe", "[squish]") {
     CHECK(msgbase.body(total + 1000).text().empty());
 }
 
-TEST_CASE("FtnMsgBase: reading before open() does not crash", "[squish]") {
+TEST_CASE("FtnMsgBase: reading before open() does not crash [squish]") {
     FtnMsgBase msgbase;
     CHECK(msgbase.count() == 0);
     CHECK(msgbase.header(1).from.empty());
     CHECK(msgbase.body(1).text().empty());
 }
 
-TEST_CASE("FtnMsgBase reports a missing base", "[squish]") {
+TEST_CASE("FtnMsgBase reports a missing base [squish]") {
     FtnMsgBase msgbase;
     CHECK_FALSE(msgbase.open(localnetArea("/nonexistent/path/area")));
     CHECK_FALSE(msgbase.lastError().empty());
     CHECK_FALSE(msgbase.isOpen());
 }
 
-TEST_CASE("FtnMsgBase refuses a base that is not there", "[squish]") {
+TEST_CASE("FtnMsgBase refuses a base that is not there [squish]") {
     // A tosser config naming an area that was never created is ordinary, and
     // the error should say which format was looked for.
     AreaConfig area;
@@ -332,7 +332,7 @@ TEST_CASE("FtnMsgBase refuses a base that is not there", "[squish]") {
     CHECK_FALSE(msgbase.lastError().empty());
 }
 
-TEST_CASE("FtnMsgBase opens a base on a long path", "[squish]") {
+TEST_CASE("FtnMsgBase opens a base on a long path [squish]") {
     // smapi used to overrun a fixed 78-byte buffer on a path this long, so the
     // adapter refused it. The native drivers have no such buffer: a deep spool
     // directory is an ordinary place for a base.
@@ -357,7 +357,7 @@ TEST_CASE("FtnMsgBase opens a base on a long path", "[squish]") {
     fs::remove_all(dir.parent_path(), ec);
 }
 
-TEST_CASE("FtnMsgBase refuses to open a passthrough area", "[squish]") {
+TEST_CASE("FtnMsgBase refuses to open a passthrough area [squish]") {
     AreaConfig area;
     area.tag = "su.general";
     area.type = MsgBaseType::Passthrough;
@@ -367,14 +367,14 @@ TEST_CASE("FtnMsgBase refuses to open a passthrough area", "[squish]") {
     CHECK_FALSE(msgbase.lastError().empty());
 }
 
-TEST_CASE("FtnMsgBase::probeType works the format out from the files", "[squish]") {
+TEST_CASE("FtnMsgBase::probeType works the format out from the files [squish]") {
     TempSquishBase base;
     CHECK(FtnMsgBase::probeType(base.path()) == MsgBaseType::Squish);
     CHECK(FtnMsgBase::probeType("/nonexistent/path/area") == MsgBaseType::Unknown);
     CHECK(FtnMsgBase::probeType("") == MsgBaseType::Unknown);
 }
 
-TEST_CASE("Squish marks a message read and keeps it so", "[squish]") {
+TEST_CASE("Squish marks a message read and keeps it so [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -405,7 +405,7 @@ TEST_CASE("Squish marks a message read and keeps it so", "[squish]") {
     CHECK_FALSE(msgbase.markSeen(msgbase.count() + 1));
 }
 
-TEST_CASE("A changed Squish message is still marked read", "[squish]") {
+TEST_CASE("A changed Squish message is still marked read [squish]") {
     // The mark belongs to this system rather than to the message: rewriting the
     // message's words does not unmake the fact that somebody has read it.
     TempSquishBase base;
@@ -425,7 +425,7 @@ TEST_CASE("A changed Squish message is still marked read", "[squish]") {
     CHECK(msgbase.header(1).seen);
 }
 
-TEST_CASE("FtnMsgBase opens a base with no stated type", "[squish]") {
+TEST_CASE("FtnMsgBase opens a base with no stated type [squish]") {
     TempSquishBase base;
     AreaConfig area = localnetArea(base.path());
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
@@ -435,7 +435,7 @@ TEST_CASE("FtnMsgBase opens a base with no stated type", "[squish]") {
     CHECK(msgbase.count() > 0);
 }
 
-TEST_CASE("FtnMsgBase can be reopened", "[squish]") {
+TEST_CASE("FtnMsgBase can be reopened [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
 
@@ -446,7 +446,7 @@ TEST_CASE("FtnMsgBase can be reopened", "[squish]") {
     CHECK(msgbase.count() == first);
 }
 
-TEST_CASE("FtnMsgBase converts between positions and UIDs", "[squish]") {
+TEST_CASE("FtnMsgBase converts between positions and UIDs [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -468,7 +468,7 @@ TEST_CASE("FtnMsgBase converts between positions and UIDs", "[squish]") {
     CHECK(msgbase.indexOfUid(0) == 0);
 }
 
-TEST_CASE("A UID from before the base lands on nothing", "[squish]") {
+TEST_CASE("A UID from before the base lands on nothing [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -479,7 +479,7 @@ TEST_CASE("A UID from before the base lands on nothing", "[squish]") {
     CHECK(msgbase.indexOfUid(msgbase.uidOf(1) - 1) == 0);
 }
 
-TEST_CASE("A message's own CHRS decides its header, not the default", "[squish]") {
+TEST_CASE("A message's own CHRS decides its header, not the default [squish]") {
     // The names and the subject live in the header, but the CHRS kludge that
     // says what charset they are in lives in the body. Reading a header on its
     // own used to fall back to `default_charset`, so an area whose messages
@@ -525,12 +525,12 @@ TEST_CASE("A message's own CHRS decides its header, not the default", "[squish]"
     CHECK(isValidUtf8(asKoi8.header(3).subject));
 }
 
-TEST_CASE("The charset test base is present in the repository", "[squish]") {
+TEST_CASE("The charset test base is present in the repository [squish]") {
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/charsets.sqd")));
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/charsets.sqi")));
 }
 
-TEST_CASE("FtnMsgBase writes a message and reads it back", "[squish]") {
+TEST_CASE("FtnMsgBase writes a message and reads it back [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -589,7 +589,7 @@ TEST_CASE("FtnMsgBase writes a message and reads it back", "[squish]") {
     CHECK(body.charset == "CP866");
 }
 
-TEST_CASE("A draft naming no charset is written in the area's own", "[squish]") {
+TEST_CASE("A draft naming no charset is written in the area's own [squish]") {
     // A draft carries no charset only where the body it was made of could not
     // be read — copyOf() and buildChange() pass on what the base said, and a
     // base that read nothing said nothing. The message still has to land on
@@ -630,7 +630,7 @@ TEST_CASE("A draft naming no charset is written in the area's own", "[squish]") 
     CHECK(text == "Привет!|");
 }
 
-TEST_CASE("A Squish header short of a zone is read out of its kludges", "[squish]") {
+TEST_CASE("A Squish header short of a zone is read out of its kludges [squish]") {
     // What a tosser writes into a Squish base: the XMSG address words carry a
     // net and a node, the zone and the point are left at zero, and INTL, FMPT
     // and TOPT — which the message goes out with anyway — say the rest.
@@ -658,7 +658,7 @@ TEST_CASE("A Squish header short of a zone is read out of its kludges", "[squish
     CHECK(header.destAddr.toString() == "192:168/3.1");
 }
 
-TEST_CASE("A changed message is written over the one it was", "[squish]") {
+TEST_CASE("A changed message is written over the one it was [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -708,7 +708,7 @@ TEST_CASE("A changed message is written over the one it was", "[squish]") {
     CHECK(again.header(2).subject == second);
 }
 
-TEST_CASE("A changed message that has outgrown its frame moves to another", "[squish]") {
+TEST_CASE("A changed message that has outgrown its frame moves to another [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -761,7 +761,7 @@ TEST_CASE("A changed message that has outgrown its frame moves to another", "[sq
     CHECK(fs::file_size(base.path() + ".sqd") == grown);
 }
 
-TEST_CASE("FtnMsgBase deletes a message", "[squish]") {
+TEST_CASE("FtnMsgBase deletes a message [squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())));
@@ -787,7 +787,7 @@ TEST_CASE("FtnMsgBase deletes a message", "[squish]") {
     CHECK_FALSE(msgbase.remove(0));
 }
 
-TEST_CASE("FtnMsgBase reads the thread links, and nothing where there are none",
+TEST_CASE("FtnMsgBase reads the thread links, and nothing where there are none "
           "[squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase;

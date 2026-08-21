@@ -20,13 +20,13 @@ enum class MsgBaseType {
     Passthrough,  ///< no base on disk
 };
 
-std::string toString(MsgBaseType type);
+std::string nameOf(MsgBaseType type);
 
 /// The base type a word names, or nothing where it names none of them. The
-/// words `toString` writes, read without regard to case, and the two aliases a
+/// words `nameOf` writes, read without regard to case, and the two aliases a
 /// tosser config may spell the Fido *.msg base with — `sdm` and `fido`.
 ///
-/// Beside `toString` because it is its inverse: the one place that knows what a
+/// Beside `nameOf` because it is its inverse: the one place that knows what a
 /// base type is called, so that a word AmberEdit's own config accepts is a word
 /// it can also print back.
 std::optional<MsgBaseType> parseMsgBaseType(std::string_view word);
@@ -40,10 +40,10 @@ enum class AreaKind {
     Dupe,
 };
 
-std::string toString(AreaKind kind);
+std::string nameOf(AreaKind kind);
 
 /// The area kind a word names, or nothing where it names none of them — the
-/// words `toString` writes, read without regard to case.
+/// words `nameOf` writes, read without regard to case.
 std::optional<AreaKind> parseAreaKind(std::string_view word);
 
 /// An area as described by the tosser config. This is the unit of work for

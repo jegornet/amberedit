@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <fstream>
@@ -138,7 +138,7 @@ struct Fixture {
 
 }  // namespace
 
-TEST_CASE("Ctrl-R asks for a rescan rather than typing into the quick search",
+TEST_CASE("Ctrl-R asks for a rescan rather than typing into the quick search "
           "[arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
 
@@ -148,7 +148,7 @@ TEST_CASE("Ctrl-R asks for a rescan rather than typing into the quick search",
     CHECK(fixture.state.areaSearch.empty());
 }
 
-TEST_CASE("The bare letter still types into the quick search", "[arealist]") {
+TEST_CASE("The bare letter still types into the quick search [arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
 
     REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
@@ -158,7 +158,7 @@ TEST_CASE("The bare letter still types into the quick search", "[arealist]") {
     CHECK(fixture.state.areaCursor == 1);
 }
 
-TEST_CASE("A letter a layout has made a command stops typing into the search",
+TEST_CASE("A letter a layout has made a command stops typing into the search "
           "[arealist][keys]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.state.keys = amberedit::ui::KeyMap::parse("t arealist.rescan\n", "keys");
@@ -177,7 +177,7 @@ TEST_CASE("A letter a layout has made a command stops typing into the search",
     CHECK_FALSE(fixture.state.rescanning);
 }
 
-TEST_CASE("The slash goes to the next area with unread messages", "[arealist][squish]") {
+TEST_CASE("The slash goes to the next area with unread messages [arealist][squish]") {
     const TempSquishBase first;
     const TempSquishBase second;
     const TempSquishBase third;
@@ -217,7 +217,7 @@ TEST_CASE("The slash goes to the next area with unread messages", "[arealist][sq
     CHECK(fixture.state.areaCursor == 0);
 }
 
-TEST_CASE("The slash leaves the cursor where it is when nothing is unread",
+TEST_CASE("The slash leaves the cursor where it is when nothing is unread "
           "[arealist]") {
     // Passthrough areas hold nothing and can hold nothing unread: the key is
     // still the list's — it is swallowed rather than typed — and the cursor
@@ -230,7 +230,7 @@ TEST_CASE("The slash leaves the cursor where it is when nothing is unread",
     CHECK(fixture.state.areaSearch.empty());
 }
 
-TEST_CASE("The area list draws the columns arealist_format asks for", "[arealist]") {
+TEST_CASE("The area list draws the columns arealist_format asks for [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
@@ -249,7 +249,7 @@ TEST_CASE("The area list draws the columns arealist_format asks for", "[arealist
     CHECK(rowText(screen, 3) == "   2 two            ");
 }
 
-TEST_CASE("The width the window has picks which of the two formats a row follows",
+TEST_CASE("The width the window has picks which of the two formats a row follows "
           "[arealist]") {
     using amberedit::config::AreaFieldKind;
     AreaConfig described = passthroughArea("one");
@@ -279,7 +279,7 @@ TEST_CASE("The width the window has picks which of the two formats a row follows
     CHECK(rowText(wide, 2) == " one      The first area      ");
 }
 
-TEST_CASE("A format written on several lines draws an area on all of them",
+TEST_CASE("A format written on several lines draws an area on all of them "
           "[arealist]") {
     using amberedit::config::AreaFieldKind;
     AreaConfig first = passthroughArea("one");
@@ -311,7 +311,7 @@ TEST_CASE("A format written on several lines draws an area on all of them",
     CHECK(rowText(screen, 8) == "                    ");
 }
 
-TEST_CASE("A window too short for a whole row still shows an area", "[arealist]") {
+TEST_CASE("A window too short for a whole row still shows an area [arealist]") {
     using amberedit::config::AreaFieldKind;
     AreaConfig first = passthroughArea("one");
     first.description = "The first area";
@@ -330,7 +330,7 @@ TEST_CASE("A window too short for a whole row still shows an area", "[arealist]"
     CHECK(rowText(screen, 2) == " one                ");
 }
 
-TEST_CASE("A click on any line of a row is a click on that area", "[arealist]") {
+TEST_CASE("A click on any line of a row is a click on that area [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(6));
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
@@ -358,7 +358,7 @@ TEST_CASE("A click on any line of a row is a click on that area", "[arealist]") 
     CHECK(fixture.state.areaCursor == 1);
 }
 
-TEST_CASE("The selected area keeps its place on the screen when a row changes height",
+TEST_CASE("The selected area keeps its place on the screen when a row changes height "
           "[arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(20));
@@ -397,7 +397,7 @@ TEST_CASE("The selected area keeps its place on the screen when a row changes he
     CHECK(fixture.state.areaOffset == 5);
 }
 
-TEST_CASE("The scrollbar beside tall rows counts areas, not lines", "[arealist]") {
+TEST_CASE("The scrollbar beside tall rows counts areas, not lines [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(20));
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
@@ -422,7 +422,7 @@ TEST_CASE("The scrollbar beside tall rows counts areas, not lines", "[arealist]"
     CHECK(barColumn(screen, 2, 6) == "││││██");
 }
 
-TEST_CASE("The description column is drawn quiet, the area's own words and all",
+TEST_CASE("The description column is drawn quiet, the area's own words and all "
           "[arealist][squish]") {
     using amberedit::config::AreaFieldKind;
     namespace theme = amberedit::ui::theme;
@@ -464,7 +464,7 @@ TEST_CASE("The description column is drawn quiet, the area's own words and all",
     CHECK(screen.at(1, 4).fg != theme::palette.dimmed);
 }
 
-TEST_CASE("The area list draws the scrollbar where the list does not fit", "[arealist]") {
+TEST_CASE("The area list draws the scrollbar where the list does not fit [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(20));
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
@@ -495,7 +495,7 @@ TEST_CASE("The area list draws the scrollbar where the list does not fit", "[are
     CHECK(barColumn(screen, 2, 6) == "│││││█");
 }
 
-TEST_CASE("The area list draws no scrollbar for a list that fits", "[arealist]") {
+TEST_CASE("The area list draws no scrollbar for a list that fits [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(6));
     fixture.config.areaListScrollbar = true;
@@ -513,7 +513,7 @@ TEST_CASE("The area list draws no scrollbar for a list that fits", "[arealist]")
     CHECK(barColumn(screen, 2, 6) == "      ");
 }
 
-TEST_CASE("arealist_scrollbar off leaves the rows the whole width", "[arealist]") {
+TEST_CASE("arealist_scrollbar off leaves the rows the whole width [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(20));
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
@@ -531,7 +531,7 @@ TEST_CASE("arealist_scrollbar off leaves the rows the whole width", "[arealist]"
     CHECK(rowText(screen, 2) == "   1 area1          ");
 }
 
-TEST_CASE("A rescan reads the tosser config again", "[arealist]") {
+TEST_CASE("A rescan reads the tosser config again [arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     REQUIRE(fixture.manager.areas().size() == 2);
 
@@ -542,7 +542,7 @@ TEST_CASE("A rescan reads the tosser config again", "[arealist]") {
     CHECK(fixture.manager.areas()[2].config.tag == "three");
 }
 
-TEST_CASE("A rescan names each area on the modal as it reaches it", "[arealist]") {
+TEST_CASE("A rescan names each area on the modal as it reaches it [arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
 
     // What the shell's callback does with a terminal to draw on: every frame
@@ -560,7 +560,7 @@ TEST_CASE("A rescan names each area on the modal as it reaches it", "[arealist]"
     CHECK(fixture.state.rescanArea.empty());
 }
 
-TEST_CASE("A rescan keeps the cursor on the area it was on", "[arealist]") {
+TEST_CASE("A rescan keeps the cursor on the area it was on [arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.state.areaCursor = 1;
 
@@ -574,7 +574,7 @@ TEST_CASE("A rescan keeps the cursor on the area it was on", "[arealist]") {
     CHECK(fixture.manager.areas()[fixture.state.areaCursor].config.tag == "two");
 }
 
-TEST_CASE("A rescan puts the cursor back in bounds when its area is gone", "[arealist]") {
+TEST_CASE("A rescan puts the cursor back in bounds when its area is gone [arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.state.areaCursor = 1;
 
@@ -585,7 +585,7 @@ TEST_CASE("A rescan puts the cursor back in bounds when its area is gone", "[are
     CHECK(fixture.state.areaCursor == 0);
 }
 
-TEST_CASE("A rescan brings the totals and the unread counts up to date",
+TEST_CASE("A rescan brings the totals and the unread counts up to date "
           "[arealist][squish]") {
     TempSquishBase base;
     Fixture fixture({squishArea("localnet", base.path())});
@@ -615,7 +615,7 @@ TEST_CASE("A rescan brings the totals and the unread counts up to date",
     CHECK(fixture.manager.areas()[0].unread == 2);
 }
 
-TEST_CASE("Entering an area with no base on disk makes one and reads it",
+TEST_CASE("Entering an area with no base on disk makes one and reads it "
           "[arealist][create]") {
     // The row is dimmed — at startup there was nothing to open — and Enter on it
     // works all the same: what the tosser config declares is an area, and the
@@ -637,7 +637,7 @@ TEST_CASE("Entering an area with no base on disk makes one and reads it",
     CHECK(fixture.manager.areas()[0].isAvailable());
 }
 
-TEST_CASE("An area that will not open says so in the error box", "[arealist][create]") {
+TEST_CASE("An area that will not open says so in the error box [arealist][create]") {
     const amberedit::test::TempDir dir;
     // A regular file where the base's directory would have to be: nothing can
     // be opened there and nothing can be made there either.
@@ -661,7 +661,7 @@ TEST_CASE("An area that will not open says so in the error box", "[arealist][cre
     CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::AreaList);
 }
 
-TEST_CASE("A passthrough area is entered and refused like any other",
+TEST_CASE("A passthrough area is entered and refused like any other "
           "[arealist][create]") {
     // There is no base on disk and none to make: the area is a name the tosser
     // routes through. Enter says that rather than doing nothing at all.
@@ -673,7 +673,7 @@ TEST_CASE("A passthrough area is entered and refused like any other",
     CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::AreaList);
 }
 
-TEST_CASE("The error box draws what went wrong and a button to dismiss it",
+TEST_CASE("The error box draws what went wrong and a button to dismiss it "
           "[arealist][create]") {
     namespace term = amberedit::ui::term;
     Fixture fixture({passthroughArea("one")});

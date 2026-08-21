@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 #include <memory>
@@ -118,7 +118,7 @@ Event pressAt(int x, int y) {
 
 }  // namespace
 
-TEST_CASE("the menu button is drawn plainly until it is clicked", "[menu]") {
+TEST_CASE("the menu button is drawn plainly until it is clicked [menu]") {
     const auto rowOf = [](const Element& element) {
         Screen screen(menu_button::kWidth, 1);
         render(screen, element);
@@ -136,7 +136,7 @@ TEST_CASE("the menu button is drawn plainly until it is clicked", "[menu]") {
     CHECK(menu_button::colorOf(false) == theme::palette.footer);
 }
 
-TEST_CASE("the menu button is clicked in the top-right corner", "[menu]") {
+TEST_CASE("the menu button is clicked in the top-right corner [menu]") {
     constexpr int kWidth = 80;
     CHECK(menu_button::clicked(pressAt(kWidth - menu_button::kWidth, 0), kWidth));
     CHECK(menu_button::clicked(pressAt(kWidth - 1, 1), kWidth));
@@ -158,7 +158,7 @@ TEST_CASE("the menu button is clicked in the top-right corner", "[menu]") {
     CHECK_FALSE(menu_button::clicked(Event::Mouse(release), kWidth));
 }
 
-TEST_CASE("the menu is a column of buttons of one stated width", "[menu]") {
+TEST_CASE("the menu is a column of buttons of one stated width [menu]") {
     Fixture fixture;
     REQUIRE(fixture.config.menuButtonsWidth == 20);
     menu_dialog::open(fixture.state,
@@ -195,7 +195,7 @@ TEST_CASE("the menu is a column of buttons of one stated width", "[menu]") {
     CHECK(drawn.at(second.y_min + 1, second.x_min, 20) == "│ ⚲ Nodelist       │");
 }
 
-TEST_CASE("every label the menus offer fits the default width", "[menu]") {
+TEST_CASE("every label the menus offer fits the default width [menu]") {
     // Nothing in either menu is cut at the default width until the user narrows
     // the buttons or the window, and there is room left over for a longer
     // wording of any of them.
@@ -225,7 +225,7 @@ TEST_CASE("every label the menus offer fits the default width", "[menu]") {
     }
 }
 
-TEST_CASE("a label is a glyph and a word, kept apart", "[menu]") {
+TEST_CASE("a label is a glyph and a word, kept apart [menu]") {
     // What a translation replaces is the word on its own — the glyph in front
     // says the same thing in every language, and is not part of what is written
     // down for translating.
@@ -254,7 +254,7 @@ TEST_CASE("a label is a glyph and a word, kept apart", "[menu]") {
     CHECK(displayWidth(menu_dialog::labelLine({label.icon, "Список узлов"}, 12)) <= 12);
 }
 
-TEST_CASE("menu_buttons_width is what the buttons are cut to", "[menu]") {
+TEST_CASE("menu_buttons_width is what the buttons are cut to [menu]") {
     Fixture fixture;
     fixture.config.menuButtonsWidth = 8;
     menu_dialog::open(fixture.state,
@@ -278,7 +278,7 @@ TEST_CASE("menu_buttons_width is what the buttons are cut to", "[menu]") {
     CHECK(items[0].box.x_max - items[0].box.x_min + 1 == 6);
 }
 
-TEST_CASE("the column stands clear of the edges of the box", "[menu]") {
+TEST_CASE("the column stands clear of the edges of the box [menu]") {
     Fixture fixture;
     menu_dialog::open(fixture.state, itemsOf({{MenuCommand::List}}));
     REQUIRE(fixture.state.menuView);
@@ -295,7 +295,7 @@ TEST_CASE("the column stands clear of the edges of the box", "[menu]") {
     CHECK(drawn.at(box.y_max + 1, box.x_min - 2, 19) == std::string(19, ' '));
 }
 
-TEST_CASE("the cursor opens on the first command that can be run", "[menu]") {
+TEST_CASE("the cursor opens on the first command that can be run [menu]") {
     Fixture fixture;
     menu_dialog::open(fixture.state, itemsOf({{MenuCommand::Reply, false},
                                               {MenuCommand::List, false},
@@ -312,7 +312,7 @@ TEST_CASE("the cursor opens on the first command that can be run", "[menu]") {
     CHECK(fixture.state.menuView->cursor == 2);
 }
 
-TEST_CASE("the arrows walk the menu as a ring", "[menu]") {
+TEST_CASE("the arrows walk the menu as a ring [menu]") {
     Fixture fixture;
     menu_dialog::open(
         fixture.state,
@@ -334,7 +334,7 @@ TEST_CASE("the arrows walk the menu as a ring", "[menu]") {
     CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
 }
 
-TEST_CASE("a disabled button is drawn quietly and the cursor's is filled", "[menu]") {
+TEST_CASE("a disabled button is drawn quietly and the cursor's is filled [menu]") {
     Fixture fixture;
     menu_dialog::open(fixture.state,
                       itemsOf({{MenuCommand::List}, {MenuCommand::Reply, false}}));
@@ -358,7 +358,7 @@ TEST_CASE("a disabled button is drawn quietly and the cursor's is filled", "[men
     CHECK(cell(items[1].box).first == theme::palette.dimmed);
 }
 
-TEST_CASE("a click answers with the button it landed on", "[menu]") {
+TEST_CASE("a click answers with the button it landed on [menu]") {
     Fixture fixture;
     menu_dialog::open(
         fixture.state,
@@ -381,7 +381,7 @@ TEST_CASE("a click answers with the button it landed on", "[menu]") {
     CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
 }
 
-TEST_CASE("Esc and a click outside put the menu away", "[menu]") {
+TEST_CASE("Esc and a click outside put the menu away [menu]") {
     Fixture fixture;
     const auto items = itemsOf({{MenuCommand::List}, {MenuCommand::New}});
 
@@ -401,7 +401,7 @@ TEST_CASE("Esc and a click outside put the menu away", "[menu]") {
     CHECK_FALSE(fixture.state.menuView);
 }
 
-TEST_CASE("a menu with no commands in it does not open at all", "[menu]") {
+TEST_CASE("a menu with no commands in it does not open at all [menu]") {
     Fixture fixture;
     menu_dialog::open(fixture.state, {});
     CHECK_FALSE(fixture.state.menuView);

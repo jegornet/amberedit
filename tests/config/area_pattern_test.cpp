@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
@@ -33,7 +33,7 @@ bool meets(const std::string& a, const std::string& b) {
 
 }  // namespace
 
-TEST_CASE("A member pattern matches the tags it covers", "[area_pattern]") {
+TEST_CASE("A member pattern matches the tags it covers [area_pattern]") {
     CHECK(hits("esp.argentina", "esp.argentina"));
     CHECK_FALSE(hits("esp.argentina", "esp.argentin"));
     CHECK_FALSE(hits("esp.argentina", "esp.argentinaa"));
@@ -55,7 +55,7 @@ TEST_CASE("A member pattern matches the tags it covers", "[area_pattern]") {
     CHECK_FALSE(hits("r50.sysop?", "r50.sysopus"));
 }
 
-TEST_CASE("A member pattern folds case for ASCII and nothing else", "[area_pattern]") {
+TEST_CASE("A member pattern folds case for ASCII and nothing else [area_pattern]") {
     CHECK(hits("ESP.*", "esp.argentina"));
     CHECK(hits("esp.*", "ESP.ARGENTINA"));
 
@@ -66,7 +66,7 @@ TEST_CASE("A member pattern folds case for ASCII and nothing else", "[area_patte
     CHECK_FALSE(hits("ру.тест", "РУ.ТЕСТ"));
 }
 
-TEST_CASE("The more particular member pattern outranks the wider one", "[area_pattern]") {
+TEST_CASE("The more particular member pattern outranks the wider one [area_pattern]") {
     CHECK(beats("esp.argentina", "esp.*"));
     CHECK(beats("esp.*.libre", "esp.*"));
     CHECK(beats("esp.*", "*.sysop"));
@@ -82,7 +82,7 @@ TEST_CASE("The more particular member pattern outranks the wider one", "[area_pa
     CHECK_FALSE(beats("pt2.*", "esp.*"));
 }
 
-TEST_CASE("Two member patterns overlap when some tag matches both", "[area_pattern]") {
+TEST_CASE("Two member patterns overlap when some tag matches both [area_pattern]") {
     CHECK(meets("esp.*", "esp.*"));
     CHECK(meets("esp.*", "*.argentina"));
     CHECK(meets("esp.*", "*"));
@@ -97,7 +97,7 @@ TEST_CASE("Two member patterns overlap when some tag matches both", "[area_patte
     CHECK_FALSE(meets("*.sysop", "*.talk"));
 }
 
-TEST_CASE("An empty member pattern is not a pattern", "[area_pattern]") {
+TEST_CASE("An empty member pattern is not a pattern [area_pattern]") {
     CHECK_FALSE(AreaTagPattern::parse(""));
     CHECK(AreaTagPattern::parse("*"));
 }

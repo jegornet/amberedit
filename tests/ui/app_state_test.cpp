@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <memory>
 #include <vector>
@@ -60,7 +60,7 @@ struct StateWithConfig {
 
 }  // namespace
 
-TEST_CASE("isOwnName recognises the user's own name", "[appstate]") {
+TEST_CASE("isOwnName recognises the user's own name [appstate]") {
     StateWithManager owner("Yegor Gluhov");
     CHECK(owner.state.isOwnName("Yegor Gluhov"));
     CHECK_FALSE(owner.state.isOwnName("Areafix robot"));
@@ -69,13 +69,13 @@ TEST_CASE("isOwnName recognises the user's own name", "[appstate]") {
     CHECK_FALSE(owner.state.isOwnName(""));
 }
 
-TEST_CASE("isOwnName ignores case in ASCII", "[appstate]") {
+TEST_CASE("isOwnName ignores case in ASCII [appstate]") {
     StateWithManager owner("Yegor Gluhov");
     CHECK(owner.state.isOwnName("YEGOR GLUHOV"));
     CHECK(owner.state.isOwnName("yegor gluhov"));
 }
 
-TEST_CASE("isOwnName matches a Cyrillic name exactly", "[appstate]") {
+TEST_CASE("isOwnName matches a Cyrillic name exactly [appstate]") {
     // Case folding is ASCII-only, so a Cyrillic name has to be spelled the same
     // way. That is the safe direction: the worst that happens is the name stays
     // in the ordinary color.
@@ -84,13 +84,13 @@ TEST_CASE("isOwnName matches a Cyrillic name exactly", "[appstate]") {
     CHECK_FALSE(owner.state.isOwnName("ЕГОР ГЛУХОВ"));
 }
 
-TEST_CASE("isOwnName matches nothing when the config names nobody", "[appstate]") {
+TEST_CASE("isOwnName matches nothing when the config names nobody [appstate]") {
     StateWithManager anonymous("");
     CHECK_FALSE(anonymous.state.isOwnName(""));
     CHECK_FALSE(anonymous.state.isOwnName("Yegor Gluhov"));
 }
 
-TEST_CASE("a click is shown on the button before it acts", "[appstate]") {
+TEST_CASE("a click is shown on the button before it acts [appstate]") {
     StateWithConfig clicked(200);
 
     // What the shell would draw: the frame is held while the button is pressed,
@@ -113,7 +113,7 @@ TEST_CASE("a click is shown on the button before it acts", "[appstate]") {
     CHECK_FALSE(clicked.state.isPressed(AppState::Pressed::Back));
 }
 
-TEST_CASE("a thread marker is pressed by the message it names", "[appstate]") {
+TEST_CASE("a thread marker is pressed by the message it names [appstate]") {
     StateWithConfig clicked(200);
     clicked.state.holdFrame = [&] {
         CHECK(clicked.state.isPressed(AppState::Pressed::ThreadLink, 42));
@@ -125,7 +125,7 @@ TEST_CASE("a thread marker is pressed by the message it names", "[appstate]") {
     CHECK(clicked.state.pressedLink == 0);
 }
 
-TEST_CASE("a click in a list holds the frame with no button pressed", "[appstate]") {
+TEST_CASE("a click in a list holds the frame with no button pressed [appstate]") {
     // What the lists ask for: the cursor has been moved onto the row that was
     // clicked, and the animation is that row being on screen as the current one
     // before it opens. There is no button to invert.
@@ -139,7 +139,7 @@ TEST_CASE("a click in a list holds the frame with no button pressed", "[appstate
     CHECK(frames == 1);
 }
 
-TEST_CASE("click_animation_ms 0 turns the animation off", "[appstate]") {
+TEST_CASE("click_animation_ms 0 turns the animation off [appstate]") {
     StateWithConfig instant(0);
     CHECK(instant.state.clickAnimationMs == 0);
 
@@ -153,7 +153,7 @@ TEST_CASE("click_animation_ms 0 turns the animation off", "[appstate]") {
     CHECK(instant.state.pressed == AppState::Pressed::None);
 }
 
-TEST_CASE("showClick does nothing without a terminal to draw on", "[appstate]") {
+TEST_CASE("showClick does nothing without a terminal to draw on [appstate]") {
     // Which is how every test but these ones runs: the screens can be driven
     // through a click without a shell underneath them.
     StateWithConfig headless(200);

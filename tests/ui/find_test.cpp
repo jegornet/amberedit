@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <string>
@@ -120,7 +120,7 @@ AppConfig plain() {
 
 }  // namespace
 
-TEST_CASE("A search opens the first message from here that holds the words",
+TEST_CASE("A search opens the first message from here that holds the words "
           "[find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
@@ -134,7 +134,7 @@ TEST_CASE("A search opens the first message from here that holds the words",
     CHECK(highlighted(fixture) == std::vector<std::string>{"needle"});
 }
 
-TEST_CASE("The search starts on the message in front of the user", "[find][squish]") {
+TEST_CASE("The search starts on the message in front of the user [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"}), says({"nothing"}), says({"needle"})});
@@ -146,7 +146,7 @@ TEST_CASE("The search starts on the message in front of the user", "[find][squis
     CHECK(showing(fixture) == 1);
 }
 
-TEST_CASE("The same search again goes on from the next message", "[find][squish]") {
+TEST_CASE("The same search again goes on from the next message [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"}), says({"needle"}), says({"needle"})});
@@ -168,7 +168,7 @@ TEST_CASE("The same search again goes on from the next message", "[find][squish]
     CHECK(showing(fixture) == 3);
 }
 
-TEST_CASE("Different words start again from where the reader stands", "[find][squish]") {
+TEST_CASE("Different words start again from where the reader stands [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle and thread"}), says({"needle"})});
@@ -184,7 +184,7 @@ TEST_CASE("Different words start again from where the reader stands", "[find][sq
     CHECK(showing(fixture) == 1);
 }
 
-TEST_CASE("The header is searched, and the text only where it was asked for",
+TEST_CASE("The header is searched, and the text only where it was asked for "
           "[find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
@@ -203,7 +203,7 @@ TEST_CASE("The header is searched, and the text only where it was asked for",
     CHECK(message_read::findMessage(fixture.state, "2:5020/1042", SearchScope::Header));
 }
 
-TEST_CASE("The header block lights what a search found in it", "[find][squish]") {
+TEST_CASE("The header block lights what a search found in it [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {about("About cats")});
@@ -218,7 +218,7 @@ TEST_CASE("The header block lights what a search found in it", "[find][squish]")
     CHECK(fixture.state.findHighlight == "cats");
 }
 
-TEST_CASE("Moving to another message takes the highlight off", "[find][squish]") {
+TEST_CASE("Moving to another message takes the highlight off [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"nothing"}), says({"needle"}), says({"needle"})});
@@ -236,7 +236,7 @@ TEST_CASE("Moving to another message takes the highlight off", "[find][squish]")
     CHECK(highlighted(fixture).empty());
 }
 
-TEST_CASE("Every occurrence in the message is lit", "[find][squish]") {
+TEST_CASE("Every occurrence in the message is lit [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle one", "and needle two", "no more"})});
@@ -247,7 +247,7 @@ TEST_CASE("Every occurrence in the message is lit", "[find][squish]") {
     CHECK(highlighted(fixture) == std::vector<std::string>{"needle", "needle"});
 }
 
-TEST_CASE("The reader scrolls to the occurrence", "[find][squish]") {
+TEST_CASE("The reader scrolls to the occurrence [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     std::vector<std::string> lines(80, "filler");
@@ -268,7 +268,7 @@ TEST_CASE("The reader scrolls to the occurrence", "[find][squish]") {
     CHECK(visible);
 }
 
-TEST_CASE("A search reads the charset the message declares", "[find][squish]") {
+TEST_CASE("A search reads the charset the message declares [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     fixture.config.defaultCharset = "CP866";
@@ -292,7 +292,7 @@ TEST_CASE("A search reads the charset the message declares", "[find][squish]") {
     CHECK(other.state.readHeader->number == 3);
 }
 
-TEST_CASE("A search steps over the twits the reader would step over",
+TEST_CASE("A search steps over the twits the reader would step over "
           "[find][twit][squish]") {
     TempSquishBase base;
     AppConfig config = plain();
@@ -315,7 +315,7 @@ TEST_CASE("A search steps over the twits the reader would step over",
     CHECK(showing(fixture) == 3);
 }
 
-TEST_CASE("A twit blank is found and opens behind the notice", "[find][twit][squish]") {
+TEST_CASE("A twit blank is found and opens behind the notice [find][twit][squish]") {
     TempSquishBase base;
     AppConfig config = plain();
     config.twitMode = TwitMode::Blank;
@@ -343,7 +343,7 @@ TEST_CASE("A twit blank is found and opens behind the notice", "[find][twit][squ
     CHECK(highlighted(fixture) == std::vector<std::string>{"needle"});
 }
 
-TEST_CASE("Words that are nowhere leave the reader as it was", "[find][squish]") {
+TEST_CASE("Words that are nowhere leave the reader as it was [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"nothing"}), says({"nothing either"})});
@@ -359,7 +359,7 @@ TEST_CASE("Words that are nowhere leave the reader as it was", "[find][squish]")
         message_read::findMessage(fixture.state, "   ", SearchScope::HeaderAndText));
 }
 
-TEST_CASE("f opens the find box on what was last looked for", "[find][squish]") {
+TEST_CASE("f opens the find box on what was last looked for [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"})});
@@ -386,7 +386,7 @@ TEST_CASE("f opens the find box on what was last looked for", "[find][squish]") 
     CHECK(fixture.state.findPicker->cursor == 6);
 }
 
-TEST_CASE("The reader's menu offers Find", "[find][squish]") {
+TEST_CASE("The reader's menu offers Find [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"})});
@@ -405,7 +405,7 @@ TEST_CASE("The reader's menu offers Find", "[find][squish]") {
     CHECK(fixture.state.findPicker);
 }
 
-TEST_CASE("The find box refuses an empty query", "[find]") {
+TEST_CASE("The find box refuses an empty query [find]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area));
@@ -419,7 +419,7 @@ TEST_CASE("The find box refuses an empty query", "[find]") {
     CHECK(fixture.state.findPicker);
 }
 
-TEST_CASE("The find box asks how much of a message to read", "[find]") {
+TEST_CASE("The find box asks how much of a message to read [find]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area));

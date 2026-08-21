@@ -34,8 +34,6 @@ endif()
 
 option(AMBEREDIT_BUILD_TESTS "Build AmberEdit unit tests" ON)
 
-include(FetchContent)
-
 # --- ncursesw ----------------------------------------------------------------
 # The wide-character ncurses, which every distribution ships and none of them
 # agrees on the spelling of. Three things have to be established, and none can be
@@ -372,50 +370,35 @@ install(DIRECTORY themes/ DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit/themes
 
 # --- tests -------------------------------------------------------------------
 if(AMBEREDIT_BUILD_TESTS)
-  # An installed Catch2 is preferred over a fetched one. Distributions package
-  # this very series — EPEL 8's catch-devel is 2.13.8, the tag pinned below —
-  # and an rpmbuild has no network to fetch with, so the package is the only
-  # way the tests get built there at all.
+  # doctest from the distribution, like every other dependency: nothing is
+  # fetched, so the tests build the same way with a network and without one,
+  # and an rpmbuild or a sbuild gets them too.
   #
-  # The 2.13 series and no other: v3 moved the headers and dropped
-  # CATCH_CONFIG_MAIN, so it is not a drop-in and a bare version floor would
-  # let it through. Only Catch2::Catch2 is used — see tests/main.cpp for why
-  # not Catch2::Catch2WithMain.
-  find_package(Catch2 QUIET)
-  if(Catch2_FOUND AND (Catch2_VERSION VERSION_LESS 2.13 OR
-                       Catch2_VERSION VERSION_GREATER_EQUAL 3))
-    message(STATUS
-      "Catch2 ${Catch2_VERSION} is installed, but the tests are written against "
-      "the 2.13 series; fetching that instead")
-    set(Catch2_FOUND FALSE)
-  endif()
+  # doctest and not Catch2 because it is the only one of the two that every
+  # target packages under a single API. Catch2 has no such version: EPEL 8 —
+  # the compiler floor — carries only the 2.13 series, while trixie, noble and
+  # Homebrew carry only v3, and the two are not source-compatible. doctest is
+  # 2.4.8 on EPEL and jammy and 2.5.x on Fedora and Homebrew, and the macros the
+  # tests use are spelled the same in all of them.
+  #
+  # Not REQUIRED: its stock "could not find a package configuration file" says
+  # nothing about which package to install or that the tests can simply be
+  # turned off, and both are worth saying.
+  find_package(doctest QUIET)
 
-  if(Catch2_FOUND)
-    message(STATUS "Catch2 ${Catch2_VERSION} from the system")
-    # catch_discover_tests lives in Catch.cmake, installed beside the package
-    # config; CMake does not put that directory on the module path itself.
-    list(APPEND CMAKE_MODULE_PATH "${Catch2_DIR}")
-  else()
-    # EXCLUDE_FROM_ALL keeps Catch2's own install and packaging targets out of
-    # the default build, but FetchContent_Declare only learned the keyword in
-    # CMake 3.28 and older CMake passes it down to ExternalProject_Add, which
-    # rejects it. RHEL 8 is well below 3.28, so it is added only where it is
-    # understood.
-    set(amberedit_catch2_args "")
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
-      set(amberedit_catch2_args EXCLUDE_FROM_ALL)
-    endif()
-    FetchContent_Declare(
-      Catch2
-      GIT_REPOSITORY https://github.com/catchorg/Catch2
-      GIT_TAG v2.13.8
-      GIT_SHALLOW TRUE
-      ${amberedit_catch2_args}
+  if(NOT doctest_FOUND)
+    message(FATAL_ERROR
+      "doctest was not found. Install it — doctest-devel on RHEL and Fedora "
+      "(from EPEL on RHEL), doctest-dev on Debian and Ubuntu, `brew install "
+      "doctest` on macOS — or build without the tests: "
+      "-DAMBEREDIT_BUILD_TESTS=OFF."
     )
-    FetchContent_MakeAvailable(Catch2)
-    # The same module, which a clone keeps in contrib/ instead.
-    list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/contrib")
   endif()
+  message(STATUS "doctest ${doctest_VERSION} from the system")
+
+  # doctest_discover_tests lives in doctest.cmake, installed beside the package
+  # config; CMake does not put that directory on the module path itself.
+  list(APPEND CMAKE_MODULE_PATH "${doctest_DIR}")
 
   enable_testing()
   add_subdirectory(tests)

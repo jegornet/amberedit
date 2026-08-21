@@ -1,6 +1,6 @@
 #include "nodelist/nodelist_compiler.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <filesystem>
 #include <fstream>
@@ -9,11 +9,13 @@
 #include "nodelist/nodelist_db.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
+using amberedit::test::contains;
 namespace fs = std::filesystem;
 
-TEST_CASE("the nodelist and the pointlist in testdata compile into one file",
+TEST_CASE("the nodelist and the pointlist in testdata compile into one file "
           "[nodelist]") {
     test::TempDir dir;
 
@@ -91,7 +93,7 @@ TEST_CASE("the nodelist and the pointlist in testdata compile into one file",
     CHECK(written.find("pointlist") != std::string::npos);
 }
 
-TEST_CASE("a nodelist that is not there is said out loud and never thrown",
+TEST_CASE("a nodelist that is not there is said out loud and never thrown "
           "[nodelist]") {
     test::TempDir dir;
 
@@ -108,9 +110,11 @@ TEST_CASE("a nodelist that is not there is said out loud and never thrown",
     CHECK(report.written);
     CHECK(report.nodes > 1000);
     REQUIRE(report.problems.size() == 1);
-    CHECK_THAT(report.problems[0], Catch::Matchers::Contains("nodelist not found"));
+    CHECK_MESSAGE(contains(report.problems[0], "nodelist not found"), report.problems[0]);
     REQUIRE(report.sources.size() == 2);
-    CHECK_THAT(report.sources[0].problem, Catch::Matchers::Contains("not found"));
+    CHECK_MESSAGE(contains(report.sources[0].problem,
+                           "not found"),
+                  report.sources[0].problem);
     CHECK(report.sources[0].state.path.empty());
     CHECK(report.sources[1].problem.empty());
 
@@ -123,7 +127,7 @@ TEST_CASE("a nodelist that is not there is said out loud and never thrown",
     CHECK_FALSE(nodelist::nodelistNeedsCompiling(options));
 }
 
-TEST_CASE("a config with nowhere to compile to says so and writes nothing",
+TEST_CASE("a config with nowhere to compile to says so and writes nothing "
           "[nodelist]") {
     test::TempDir dir;
 
@@ -133,7 +137,9 @@ TEST_CASE("a config with nowhere to compile to says so and writes nothing",
     const auto report = nodelist::compileNodelists(options, nullptr);
     CHECK_FALSE(report.written);
     REQUIRE(report.problems.size() == 1);
-    CHECK_THAT(report.problems[0], Catch::Matchers::Contains("nodelist_db is not set"));
+    CHECK_MESSAGE(contains(report.problems[0],
+                           "nodelist_db is not set"),
+                  report.problems[0]);
 
     // And a config naming no nodelist at all is not a mistake: it is what most
     // configs are, and there is nothing for it to say.
@@ -145,7 +151,7 @@ TEST_CASE("a config with nowhere to compile to says so and writes nothing",
     CHECK_FALSE(nodelist::nodelistNeedsCompiling(none));
 }
 
-TEST_CASE("the nodelists are compiled again when, and only when, they change",
+TEST_CASE("the nodelists are compiled again when, and only when, they change "
           "[nodelist]") {
     test::TempDir dir;
     const std::string nodelistPath = dir.path("NODELIST.225");
@@ -209,7 +215,7 @@ TEST_CASE("the nodelists are compiled again when, and only when, they change",
     CHECK(nodelist::nodelistNeedsCompiling(options));
 }
 
-TEST_CASE("a compiled nodelist that cannot be read is compiled again", "[nodelist]") {
+TEST_CASE("a compiled nodelist that cannot be read is compiled again [nodelist]") {
     test::TempDir dir;
 
     nodelist::CompileOptions options;

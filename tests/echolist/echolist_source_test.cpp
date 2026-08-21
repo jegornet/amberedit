@@ -1,6 +1,6 @@
 #include "echolist/echolist_source.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <chrono>
 #include <filesystem>
@@ -10,11 +10,14 @@
 
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 namespace fs = std::filesystem;
 
-TEST_CASE("a .zip is an archive of echolists and anything else is one echolist",
+TEST_CASE("a .zip is an archive of echolists and anything else is one echolist "
           "[echolist]") {
     CHECK(echolist::isArchiveName("/ftn/echolist/elst2601.zip"));
     // The archives come spelled both ways.
@@ -24,7 +27,7 @@ TEST_CASE("a .zip is an archive of echolists and anything else is one echolist",
     CHECK_FALSE(echolist::isArchiveName("echolist"));
 }
 
-TEST_CASE("the state of an echolist is a stat and nothing more", "[echolist]") {
+TEST_CASE("the state of an echolist is a stat and nothing more [echolist]") {
     test::TempDir dir;
     const std::string path = dir.path("echo.lst");
 
@@ -50,7 +53,7 @@ TEST_CASE("the state of an echolist is a stat and nothing more", "[echolist]") {
     CHECK(echolist::stateOf(path, "KOI8-R") != present);
 }
 
-TEST_CASE("an echolist is read in the charset the line states", "[echolist]") {
+TEST_CASE("an echolist is read in the charset the line states [echolist]") {
     test::TempDir dir;
     const std::string path = dir.path("echo.lst");
     {
@@ -69,7 +72,7 @@ TEST_CASE("an echolist is read in the charset the line states", "[echolist]") {
     CHECK(loaded.parts[0].text.find("Музыка!") != std::string::npos);
 }
 
-TEST_CASE("a zipped echolist is unpacked without paths and taken away again",
+TEST_CASE("a zipped echolist is unpacked without paths and taken away again "
           "[echolist]") {
     test::TempDir dir;
     const std::string workDir = dir.path("tmp");
@@ -103,7 +106,7 @@ TEST_CASE("a zipped echolist is unpacked without paths and taken away again",
     CHECK(fs::is_empty(workDir));
 }
 
-TEST_CASE("a wildcard picks the newest echolist it covers", "[echolist]") {
+TEST_CASE("a wildcard picks the newest echolist it covers [echolist]") {
     test::TempDir dir;
 
     const auto write = [&dir](const std::string& name, int minutesAgo) {
@@ -150,7 +153,7 @@ TEST_CASE("a wildcard picks the newest echolist it covers", "[echolist]") {
           "echo2601.lst");
 }
 
-TEST_CASE("a wildcard reads whichever kind of file it landed on", "[echolist]") {
+TEST_CASE("a wildcard reads whichever kind of file it landed on [echolist]") {
     test::TempDir dir;
     echolist::EcholistSources sources(dir.path("tmp"));
 
@@ -182,16 +185,18 @@ TEST_CASE("a wildcard reads whichever kind of file it landed on", "[echolist]") 
     CHECK(list.parts[0].name == "echo50.lst");
 }
 
-TEST_CASE("an echolist that is not there says so", "[echolist]") {
+TEST_CASE("an echolist that is not there says so [echolist]") {
     test::TempDir dir;
     echolist::EcholistSources sources(dir.path("tmp"));
 
-    CHECK_THROWS_WITH(sources.read(dir.path("gone.lst"), ""),
-                      Catch::Matchers::Contains("echolist not found"));
+    const std::string error = errorFrom([&] { sources.read(dir.path("gone.lst"), ""); });
+    CHECK_MESSAGE(contains(error, "echolist not found"), error);
     // A pattern that covers nothing names the pattern rather than a file, since
     // no file of that name was ever written down.
-    CHECK_THROWS_WITH(sources.read(dir.path("gone*.lst"), ""),
-                      Catch::Matchers::Contains("no echolist matching"));
+    const std::string error2 = errorFrom([&] {
+        sources.read(dir.path("gone*.lst"), "");
+    });
+    CHECK_MESSAGE(contains(error2, "no echolist matching"), error2);
 
     // An archive holding no echolist at all is the same kind of nothing, said
     // in its own words.

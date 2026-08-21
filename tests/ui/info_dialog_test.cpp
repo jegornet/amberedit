@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -75,7 +75,7 @@ void enterArea(AreaFixture& fixture) {
 
 }  // namespace
 
-TEST_CASE("i opens the info box over the reader", "[info][messageread]") {
+TEST_CASE("i opens the info box over the reader [info][messageread]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     enterArea(fixture);
@@ -103,7 +103,7 @@ TEST_CASE("i opens the info box over the reader", "[info][messageread]") {
     CHECK(fixture.state.readHeader.has_value());
 }
 
-TEST_CASE("The info box is eighty columns at most", "[info][messageread]") {
+TEST_CASE("The info box is eighty columns at most [info][messageread]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     enterArea(fixture);
@@ -134,7 +134,7 @@ TEST_CASE("The info box is eighty columns at most", "[info][messageread]") {
     CHECK(anyRowHas(narrow, "0008   "));
 }
 
-TEST_CASE("The info box scrolls through the report", "[info][messageread]") {
+TEST_CASE("The info box scrolls through the report [info][messageread]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     enterArea(fixture);
@@ -167,7 +167,7 @@ TEST_CASE("The info box scrolls through the report", "[info][messageread]") {
     CHECK(fixture.state.infoView->scroll == last - 1);
 }
 
-TEST_CASE("The info button in the menu opens the same box", "[info][messageread][menu]") {
+TEST_CASE("The info button in the menu opens the same box [info][messageread][menu]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     // The button is not in the default menu — the config is what puts it there.

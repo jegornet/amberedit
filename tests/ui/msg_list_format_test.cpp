@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -55,7 +55,7 @@ msg_format::Line line(const std::string& format, int width, uint32_t messageCoun
 
 }  // namespace
 
-TEST_CASE("The message list's number column is as wide as the numbers in it",
+TEST_CASE("The message list's number column is as wide as the numbers in it "
           "[msglist][format]") {
     const MessageHeader header = message("Vasya", "All", "Hello");
     const std::vector<msg_format::Row> shown{row(header, 1)};
@@ -82,7 +82,7 @@ TEST_CASE("The message list's number column is as wide as the numbers in it",
     CHECK(line("a0 s", 40, 150402, shown)[2].width == 19);
 }
 
-TEST_CASE("The message list's Date column takes what the stamps need",
+TEST_CASE("The message list's Date column takes what the stamps need "
           "[msglist][format]") {
     const MessageHeader header = message("Vasya", "All", "Hello");
     const std::vector<msg_format::Row> shown{row(header, 1, "15 Aug 26 20:28"),
@@ -118,7 +118,7 @@ TEST_CASE("The message list's Date column takes what the stamps need",
     CHECK(line("a3 s d9", 60, 999, shown)[4].width == 9);
 }
 
-TEST_CASE("A stamp too wide for its column drops its trailing parts",
+TEST_CASE("A stamp too wide for its column drops its trailing parts "
           "[msglist][format]") {
     // At the spaces and never mid-word: a stamp cut mid-word would read as a
     // different date.
@@ -136,7 +136,7 @@ TEST_CASE("A stamp too wide for its column drops its trailing parts",
     CHECK(msg_format::fitDate(full, 0).empty());
 }
 
-TEST_CASE("Each line of a multi-line message format is laid out on its own",
+TEST_CASE("Each line of a multi-line message format is laid out on its own "
           "[msglist][format]") {
     const MessageHeader header = message("Vasya", "All", "Hello");
     const std::vector<msg_format::Row> shown{row(header, 1, "15 Aug 26 20:28")};
@@ -157,7 +157,7 @@ TEST_CASE("Each line of a multi-line message format is laid out on its own",
     CHECK(rows[1][0].width == 50);
 }
 
-TEST_CASE("The message list's heading stands over the format's own columns",
+TEST_CASE("The message list's heading stands over the format's own columns "
           "[msglist][format]") {
     const MessageHeader header = message("Vasya", "All", "Hello");
     const std::vector<msg_format::Row> shown{row(header, 1, "15 Aug 26 20:28")};
@@ -172,7 +172,7 @@ TEST_CASE("The message list's heading stands over the format's own columns",
           "   # From    ");
 }
 
-TEST_CASE("A message list row is laid out by the format", "[msglist][format]") {
+TEST_CASE("A message list row is laid out by the format [msglist][format]") {
     const MessageHeader header = message("Vasya Pupkin", "All", "About the weather");
     const auto columns = line("a4 f8 s d", 40, 999, {row(header, 12, "15 Aug 26")});
 
@@ -180,7 +180,7 @@ TEST_CASE("A message list row is laid out by the format", "[msglist][format]") {
           "  12 Vasya P… About the weath… 15 Aug 26");
 }
 
-TEST_CASE("The subject is the run of a message row that is drawn quiet",
+TEST_CASE("The subject is the run of a message row that is drawn quiet "
           "[msglist][format]") {
     using amberedit::ui::msg_format::Ink;
     const MessageHeader header = message("Vasya", "All", "Hello");
@@ -211,7 +211,7 @@ TEST_CASE("The subject is the run of a message row that is drawn quiet",
     CHECK(runs[4].ink == Ink::Plain);
 }
 
-TEST_CASE("A message row with no header read yet is drawn blank", "[msglist][format]") {
+TEST_CASE("A message row with no header read yet is drawn blank [msglist][format]") {
     const MessageHeader header = message("Vasya", "All", "Hello");
     const auto columns = line("a3 f8 s d", 40, 999, {row(header, 1, "15 Aug 26")});
 

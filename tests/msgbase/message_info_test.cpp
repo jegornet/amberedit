@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <string>
@@ -62,7 +62,7 @@ std::string valueOf(const MessageInfo& info, const std::string& label) {
 
 }  // namespace
 
-TEST_CASE("A Squish message says what the base holds about it", "[info][squish]") {
+TEST_CASE("A Squish message says what the base holds about it [info][squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Squish, "localnet")));
@@ -104,7 +104,7 @@ TEST_CASE("A Squish message says what the base holds about it", "[info][squish]"
     CHECK(text->title.find(std::to_string(text->bytes.size())) != std::string::npos);
 }
 
-TEST_CASE("An info report is only ever of a message that is there", "[info][squish]") {
+TEST_CASE("An info report is only ever of a message that is there [info][squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Squish, "localnet")));
@@ -117,7 +117,7 @@ TEST_CASE("An info report is only ever of a message that is there", "[info][squi
     CHECK(closed.info(1).empty());
 }
 
-TEST_CASE("The text in an info report is converted like any other", "[info][squish]") {
+TEST_CASE("The text in an info report is converted like any other [info][squish]") {
     // The charsets fixture: "Привет" as the subject, in KOI8-R and in CP866.
     // Above the message-base port there are no single-byte charsets, and a
     // report is above it like everything else.
@@ -140,7 +140,7 @@ TEST_CASE("The text in an info report is converted like any other", "[info][squi
     }
 }
 
-TEST_CASE("A JAM message says what its subfields hold", "[info][jam]") {
+TEST_CASE("A JAM message says what its subfields hold [info][jam]") {
     TempJamBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Jam, "area2")));
@@ -178,7 +178,7 @@ TEST_CASE("A JAM message says what its subfields hold", "[info][jam]") {
     CHECK(text->bytes.size() == std::stoul(valueOf(info, "TxtLen")));
 }
 
-TEST_CASE("A Fido *.msg message says which file it is", "[info][sdm]") {
+TEST_CASE("A Fido *.msg message says which file it is [info][sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Sdm, "netmail")));

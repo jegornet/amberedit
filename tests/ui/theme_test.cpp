@@ -1,10 +1,13 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 #include "ui/theme.hpp"
 
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 using amberedit::ui::theme::Palette;
 using amberedit::ui::theme::parsePalette;
 using amberedit::ui::theme::Color;
@@ -15,7 +18,7 @@ bool same(Color a, Color b) { return a == b; }
 
 }  // namespace
 
-TEST_CASE("An empty theme file is the built-in palette", "[theme]") {
+TEST_CASE("An empty theme file is the built-in palette [theme]") {
     const Palette loaded = parsePalette("");
     const Palette builtIn;
     CHECK(same(loaded.background, builtIn.background));
@@ -23,7 +26,7 @@ TEST_CASE("An empty theme file is the built-in palette", "[theme]") {
     CHECK(same(loaded.warning, builtIn.warning));
 }
 
-TEST_CASE("A theme file states only what it changes", "[theme]") {
+TEST_CASE("A theme file states only what it changes [theme]") {
     // The point of the defaults: a file with one line is a valid theme, and
     // everything it says nothing about keeps the color it had.
     const Palette loaded = parsePalette("text 33\n");
@@ -32,7 +35,7 @@ TEST_CASE("A theme file states only what it changes", "[theme]") {
     CHECK(same(loaded.background, builtIn.background));
 }
 
-TEST_CASE("Roles the built-in palette shares can be taken apart", "[theme]") {
+TEST_CASE("Roles the built-in palette shares can be taken apart [theme]") {
     // kludge, footer, dimmed and scroll_thumb are one color by default; naming
     // one of them moves that one alone.
     const Palette loaded = parsePalette("kludge 196\n");
@@ -41,21 +44,21 @@ TEST_CASE("Roles the built-in palette shares can be taken apart", "[theme]") {
     CHECK(same(loaded.footer, builtIn.footer));
 }
 
-TEST_CASE("Colors are palette numbers, across the whole range", "[theme]") {
+TEST_CASE("Colors are palette numbers, across the whole range [theme]") {
     CHECK(same(parsePalette("text 0").text, Color{0}));      // ANSI black
     CHECK(same(parsePalette("text 15").text, Color{15}));    // bright white
     CHECK(same(parsePalette("text 196").text, Color{196}));  // in the cube
     CHECK(same(parsePalette("text 255").text, Color{255}));  // the grey ramp
 }
 
-TEST_CASE("A key that is not a color is refused", "[theme]") {
+TEST_CASE("A key that is not a color is refused [theme]") {
     // Silently ignoring it would leave a typo looking like a color that does
     // not work.
-    REQUIRE_THROWS_WITH(parsePalette("txet 33", "theme.cfg"),
-                        Catch::Matchers::Contains("txet"));
+    const std::string error = errorFrom([&] { parsePalette("txet 33", "theme.cfg"); });
+    REQUIRE_MESSAGE(contains(error, "txet"), error);
 }
 
-TEST_CASE("A value that is not a palette number is refused", "[theme]") {
+TEST_CASE("A value that is not a palette number is refused [theme]") {
     CHECK_THROWS(parsePalette("text 256"));  // past the end of the palette
     CHECK_THROWS(parsePalette("text -1"));
     CHECK_THROWS(parsePalette("text 1.5"));
@@ -63,14 +66,16 @@ TEST_CASE("A value that is not a palette number is refused", "[theme]") {
     CHECK_THROWS(parsePalette("text 33 34"));  // a role is one color
 }
 
-TEST_CASE("The old #rrggbb spelling is refused by name", "[theme]") {
+TEST_CASE("The old #rrggbb spelling is refused by name [theme]") {
     // What a file predating palette numbers still has in it. Saying only "not an
     // integer" would leave the user to work out what happened.
-    REQUIRE_THROWS_WITH(parsePalette("text \"#1c1e2a\"", "theme.cfg"),
-                        Catch::Matchers::Contains("256-color palette"));
+    const std::string error = errorFrom([&] {
+        parsePalette("text \"#1c1e2a\"", "theme.cfg");
+    });
+    REQUIRE_MESSAGE(contains(error, "256-color palette"), error);
 }
 
-TEST_CASE("The example theme is the built-in palette, written out", "[theme]") {
+TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     // It ships as the thing to copy and edit, so the two drifting apart would
     // hand every new theme a wrong starting point. Reading it also proves every
     // role has a key: a field the file cannot name would fail this comparison.
@@ -106,7 +111,7 @@ TEST_CASE("The example theme is the built-in palette, written out", "[theme]") {
     CHECK(same(loaded.animatedButtonText, builtIn.animatedButtonText));
 }
 
-TEST_CASE("The GoldED Classic theme loads and states every role", "[theme]") {
+TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     // A shipped theme has to parse, and a sixteen-color palette has to reach
     // every role: one left at its default would put a default-palette color in
     // the middle of a DOS screen. Which color each role gets is the theme's
@@ -149,10 +154,10 @@ TEST_CASE("The GoldED Classic theme loads and states every role", "[theme]") {
     CHECK_FALSE(same(loaded.animatedButtonText, builtIn.animatedButtonText));
 }
 
-TEST_CASE("A broken theme is refused with the file and line named", "[theme]") {
-    REQUIRE_THROWS_WITH(parsePalette("\ntext\n", "theme.cfg"),
-                        Catch::Matchers::Contains("theme.cfg:2"));
+TEST_CASE("A broken theme is refused with the file and line named [theme]") {
+    const std::string error = errorFrom([&] { parsePalette("\ntext\n", "theme.cfg"); });
+    REQUIRE_MESSAGE(contains(error, "theme.cfg:2"), error);
     // What a theme file written for the toml AmberEdit used to read has in it.
-    REQUIRE_THROWS_WITH(parsePalette("text = 33", "theme.cfg"),
-                        Catch::Matchers::Contains("old toml spelling"));
+    const std::string error2 = errorFrom([&] { parsePalette("text = 33", "theme.cfg"); });
+    REQUIRE_MESSAGE(contains(error2, "old toml spelling"), error2);
 }

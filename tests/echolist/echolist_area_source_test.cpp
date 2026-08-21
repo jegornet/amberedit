@@ -1,6 +1,6 @@
 #include "echolist/echolist_area_source.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <memory>
 #include <string>
@@ -53,7 +53,7 @@ std::string compiledEcholist(const test::TempDir& dir) {
 
 }  // namespace
 
-TEST_CASE("with priority area the tosser's own description wins", "[echolist]") {
+TEST_CASE("with priority area the tosser's own description wins [echolist]") {
     test::TempDir dir;
     echolist::EcholistAreaSource source(inner(), compiledEcholist(dir),
                                         config::DescriptionPriority::Area);
@@ -68,7 +68,7 @@ TEST_CASE("with priority area the tosser's own description wins", "[echolist]") 
     CHECK(areas[2].description == "a base no echolist knows");
 }
 
-TEST_CASE("with priority echolist the echolist's description wins", "[echolist]") {
+TEST_CASE("with priority echolist the echolist's description wins [echolist]") {
     test::TempDir dir;
     echolist::EcholistAreaSource source(inner(), compiledEcholist(dir),
                                         config::DescriptionPriority::Echolist);
@@ -81,7 +81,7 @@ TEST_CASE("with priority echolist the echolist's description wins", "[echolist]"
     CHECK(areas[2].description == "a base no echolist knows");
 }
 
-TEST_CASE("a compiled echolist that will not open leaves every area as it was",
+TEST_CASE("a compiled echolist that will not open leaves every area as it was "
           "[echolist]") {
     test::TempDir dir;
 
@@ -95,7 +95,7 @@ TEST_CASE("a compiled echolist that will not open leaves every area as it was",
     CHECK(areas[1].description.empty());
 }
 
-TEST_CASE("a config naming no compiled echolist is left unwrapped", "[echolist]") {
+TEST_CASE("a config naming no compiled echolist is left unwrapped [echolist]") {
     config::AppConfig cfg;
     auto source = echolist::withEcholistDescriptions(inner(), cfg);
     CHECK(dynamic_cast<echolist::EcholistAreaSource*>(source.get()) == nullptr);
@@ -108,7 +108,7 @@ TEST_CASE("a config naming no compiled echolist is left unwrapped", "[echolist]"
     CHECK(wrapped->loadAreas()[0].description == "what the echolist says");
 }
 
-TEST_CASE("the area list main() builds carries the echolist's descriptions",
+TEST_CASE("the area list main() builds carries the echolist's descriptions "
           "[echolist]") {
     // The chain as `main()` puts it together: whatever the areas came from,
     // wrapped in this. Areas declared here rather than in a tosser config, so

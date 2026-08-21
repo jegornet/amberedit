@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 #include <array>
@@ -17,6 +17,7 @@
 #include "msgbase/null_lastread_store.hpp"
 #include "ports/i_area_source.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/input_field.hpp"
@@ -30,6 +31,7 @@ using amberedit::config::AppConfig;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
 using amberedit::test::TempDir;
+using amberedit::test::contains;
 using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
@@ -186,7 +188,7 @@ struct ImportFixture {
 
 }  // namespace
 
-TEST_CASE("The import dialog lists a directory", "[import_dialog]") {
+TEST_CASE("The import dialog lists a directory [import_dialog]") {
     ImportFixture fixture;
     fixture.write("beta.txt", "b");
     fixture.write("Alpha.txt", "a");
@@ -203,7 +205,7 @@ TEST_CASE("The import dialog lists a directory", "[import_dialog]") {
     CHECK(fixture.state.importMode == ImportMode::Text);
 }
 
-TEST_CASE("The import dialog walks in and out of a directory", "[import_dialog]") {
+TEST_CASE("The import dialog walks in and out of a directory [import_dialog]") {
     ImportFixture fixture;
     fixture.makeDirectory("sub");
     const std::string top = fixture.state.importDirectory;
@@ -219,7 +221,7 @@ TEST_CASE("The import dialog walks in and out of a directory", "[import_dialog]"
           std::filesystem::path(top).lexically_normal());
 }
 
-TEST_CASE("The import dialog reads a text file into the message", "[import_dialog]") {
+TEST_CASE("The import dialog reads a text file into the message [import_dialog]") {
     ImportFixture fixture;
     fixture.write("note.txt", "one\ntwo\n");
     fixture.state.edit.lines = {"first", "second"};
@@ -241,7 +243,7 @@ TEST_CASE("The import dialog reads a text file into the message", "[import_dialo
     CHECK(fixture.state.edit.col == 0);
 }
 
-TEST_CASE("An import lands after the line the cursor is in", "[import_dialog]") {
+TEST_CASE("An import lands after the line the cursor is in [import_dialog]") {
     ImportFixture fixture;
     fixture.write("note.txt", "read me\n");
     fixture.state.edit.lines = {"half a sentence", "and the rest"};
@@ -260,7 +262,7 @@ TEST_CASE("An import lands after the line the cursor is in", "[import_dialog]") 
     CHECK(fixture.state.edit.row == 4);
 }
 
-TEST_CASE("An import at the end of the message keeps the cursor in it",
+TEST_CASE("An import at the end of the message keeps the cursor in it "
           "[import_dialog]") {
     ImportFixture fixture;
     fixture.write("note.txt", "last word\n");
@@ -278,7 +280,7 @@ TEST_CASE("An import at the end of the message keeps the cursor in it",
     CHECK(fixture.state.edit.col == fixture.state.edit.line().size());
 }
 
-TEST_CASE("The import dialog reads a file as UUE", "[import_dialog]") {
+TEST_CASE("The import dialog reads a file as UUE [import_dialog]") {
     ImportFixture fixture;
     fixture.write("blob.bin", "abc");
     fixture.state.edit.lines = {""};
@@ -298,7 +300,7 @@ TEST_CASE("The import dialog reads a file as UUE", "[import_dialog]") {
           std::vector<std::string>{"begin 644 blob.bin", "#86)C", "`", "end", ""});
 }
 
-TEST_CASE("The import dialog reads text in the locale's charset", "[import_dialog]") {
+TEST_CASE("The import dialog reads text in the locale's charset [import_dialog]") {
     ImportFixture fixture;
     // The file as this machine would hold it: whatever the locale is being
     // written in, which is the charset the dialog reads a text file out of.
@@ -316,7 +318,7 @@ TEST_CASE("The import dialog reads text in the locale's charset", "[import_dialo
     CHECK(fixture.state.edit.lines[1] == kPrivet);
 }
 
-TEST_CASE("The import dialog says what it could not read", "[import_dialog]") {
+TEST_CASE("The import dialog says what it could not read [import_dialog]") {
     ImportFixture fixture;
     fixture.write("note.txt", "one\n");
 
@@ -331,14 +333,16 @@ TEST_CASE("The import dialog says what it could not read", "[import_dialog]") {
 
     // The dialog stays up with the reason along its bottom frame.
     REQUIRE(fixture.state.importPicker);
-    CHECK_THAT(fixture.state.importPicker->error, Catch::Matchers::Contains("note.txt"));
+    CHECK_MESSAGE(contains(fixture.state.importPicker->error,
+                           "note.txt"),
+                  fixture.state.importPicker->error);
     // As much of it as the frame has room for — a path longer than the box is
     // cut at the right edge like every other thing that will not fit.
-    CHECK_THAT(fixture.rowText(fixture.draw().bottom),
-               Catch::Matchers::Contains("cannot open"));
+    const std::string row = fixture.rowText(fixture.draw().bottom);
+    CHECK_MESSAGE(contains(row, "cannot open"), row);
 }
 
-TEST_CASE("The import dialog searches by name", "[import_dialog]") {
+TEST_CASE("The import dialog searches by name [import_dialog]") {
     ImportFixture fixture;
     fixture.write("alpha.txt", "a");
     fixture.write("beta.txt", "b");
@@ -358,7 +362,7 @@ TEST_CASE("The import dialog searches by name", "[import_dialog]") {
     CHECK_FALSE(fixture.state.importPicker);
 }
 
-TEST_CASE("The import dialog remembers where it was", "[import_dialog]") {
+TEST_CASE("The import dialog remembers where it was [import_dialog]") {
     ImportFixture fixture;
     fixture.makeDirectory("sub");
 
@@ -374,7 +378,7 @@ TEST_CASE("The import dialog remembers where it was", "[import_dialog]") {
     CHECK(fixture.state.importDirectory == inside);
 }
 
-TEST_CASE("The import dialog is drawn where it says it is", "[import_dialog]") {
+TEST_CASE("The import dialog is drawn where it says it is [import_dialog]") {
     ImportFixture fixture;
     fixture.write("note.txt", "one\n");
 
@@ -395,7 +399,7 @@ TEST_CASE("The import dialog is drawn where it says it is", "[import_dialog]") {
     CHECK(picker.uueModeBox.x_min > picker.textModeBox.x_max);
 }
 
-TEST_CASE("The import dialog keeps its size", "[import_dialog]") {
+TEST_CASE("The import dialog keeps its size [import_dialog]") {
     ImportFixture fixture;
     fixture.makeDirectory("sub");
     for (int i = 0; i < 6; ++i) {
@@ -425,7 +429,7 @@ TEST_CASE("The import dialog keeps its size", "[import_dialog]") {
     CHECK(fixture.draw().height() == crowded.height() - 4);
 }
 
-TEST_CASE("The import dialog shows a size and a date", "[import_dialog]") {
+TEST_CASE("The import dialog shows a size and a date [import_dialog]") {
     ImportFixture fixture;
     fixture.write("small.txt", std::string(12, 'x'));
     fixture.write("big.bin", std::string(400000, 'x'));
@@ -438,14 +442,14 @@ TEST_CASE("The import dialog shows a size and a date", "[import_dialog]") {
     const std::string bigRow = fixture.rowText(frame.top + 5);
     const std::string smallRow = fixture.rowText(frame.top + 6);
 
-    CHECK_THAT(dirRow, Catch::Matchers::Contains("sub/"));
+    CHECK_MESSAGE(contains(dirRow, "sub/"), dirRow);
     // A directory says what it is where a size would be; a file says how big it
     // is, shortened the way every other count in the interface is.
-    CHECK_THAT(dirRow, Catch::Matchers::Contains("<dir>"));
-    CHECK_THAT(bigRow, Catch::Matchers::Contains("big.bin"));
-    CHECK_THAT(bigRow, Catch::Matchers::Contains("400k"));
-    CHECK_THAT(smallRow, Catch::Matchers::Contains("small.txt"));
-    CHECK_THAT(smallRow, Catch::Matchers::Contains("12"));
+    CHECK_MESSAGE(contains(dirRow, "<dir>"), dirRow);
+    CHECK_MESSAGE(contains(bigRow, "big.bin"), bigRow);
+    CHECK_MESSAGE(contains(bigRow, "400k"), bigRow);
+    CHECK_MESSAGE(contains(smallRow, "small.txt"), smallRow);
+    CHECK_MESSAGE(contains(smallRow, "12"), smallRow);
 
     // And the stamp beside it is this year's, written the way every other stamp
     // in the interface is — `reader_datetime_format`, which the file was just
@@ -455,10 +459,10 @@ TEST_CASE("The import dialog shows a size and a date", "[import_dialog]") {
     localtime_r(&now, &broken);
     std::array<char, 8> year{};
     std::strftime(year.data(), year.size(), "%y", &broken);
-    CHECK_THAT(smallRow, Catch::Matchers::Contains(year.data()));
+    CHECK_MESSAGE(contains(smallRow, year.data()), smallRow);
 }
 
-TEST_CASE("The path box walks into what it names", "[import_dialog]") {
+TEST_CASE("The path box walks into what it names [import_dialog]") {
     ImportFixture fixture;
     fixture.makeDirectory("sub");
     fixture.write("sub/inner.txt", "read me\n");
@@ -490,7 +494,7 @@ TEST_CASE("The path box walks into what it names", "[import_dialog]") {
           std::vector<std::string>{"=== Cut ===", "read me", "=== Cut ===", ""});
 }
 
-TEST_CASE("The path box says when the path is not there", "[import_dialog]") {
+TEST_CASE("The path box says when the path is not there [import_dialog]") {
     ImportFixture fixture;
     import_dialog::open(fixture.state);
     const std::string where = fixture.state.importDirectory;
@@ -504,8 +508,8 @@ TEST_CASE("The path box says when the path is not there", "[import_dialog]") {
     REQUIRE(fixture.state.importPicker);
     CHECK(fixture.state.importPicker->error == "Path not found");
     CHECK(fixture.state.importDirectory == where);
-    CHECK_THAT(fixture.rowText(fixture.draw().bottom),
-               Catch::Matchers::Contains("Path not found"));
+    const std::string row = fixture.rowText(fixture.draw().bottom);
+    CHECK_MESSAGE(contains(row, "Path not found"), row);
 
     // Esc puts the directory back into the box before it puts the box away.
     CHECK(fixture.answer(Event::Escape) == import_dialog::Outcome::Ignored);
@@ -513,7 +517,7 @@ TEST_CASE("The path box says when the path is not there", "[import_dialog]") {
     CHECK(fixture.answer(Event::Escape) == import_dialog::Outcome::Dismissed);
 }
 
-TEST_CASE("The path box takes a name as it is typed", "[import_dialog]") {
+TEST_CASE("The path box takes a name as it is typed [import_dialog]") {
     ImportFixture fixture;
     import_dialog::open(fixture.state);
     fixture.state.importPicker->focus = AppState::ImportPicker::Focus::Path;
@@ -528,18 +532,18 @@ TEST_CASE("The path box takes a name as it is typed", "[import_dialog]") {
     CHECK(fixture.state.importPicker->path == "/tmp/Мои файл");
 }
 
-TEST_CASE("The import dialog keys stand in the bottom of the frame", "[import_dialog]") {
+TEST_CASE("The import dialog keys stand in the bottom of the frame [import_dialog]") {
     ImportFixture fixture;
     import_dialog::open(fixture.state);
 
     const auto frame = fixture.draw();
-    CHECK_THAT(fixture.rowText(frame.bottom),
-               Catch::Matchers::Contains("Enter open · Tab move · Esc close"));
+    const std::string row = fixture.rowText(frame.bottom);
+    CHECK_MESSAGE(contains(row, "Enter open · Tab move · Esc close"), row);
     // And the rule they stand in ends where the one at the top of the box does.
     CHECK(frame.right == frame.topRight);
 }
 
-TEST_CASE("The import dialog answers the pointer", "[import_dialog][mouse]") {
+TEST_CASE("The import dialog answers the pointer [import_dialog][mouse]") {
     ImportFixture fixture;
     fixture.write("note.txt", "one\n");
     fixture.state.edit.lines = {""};

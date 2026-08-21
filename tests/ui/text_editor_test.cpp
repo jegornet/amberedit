@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
@@ -41,7 +41,7 @@ TextBuffer bufferOf(std::vector<std::string> lines, int row, size_t col) {
 
 }  // namespace
 
-TEST_CASE("Typing inserts at the cursor", "[editor]") {
+TEST_CASE("Typing inserts at the cursor [editor]") {
     TextBuffer buffer;
     const EditOptions options{78};
 
@@ -57,7 +57,7 @@ TEST_CASE("Typing inserts at the cursor", "[editor]") {
     CHECK(shown(buffer) == "ab^");
 }
 
-TEST_CASE("A line the user writes is not wrapped at the margin", "[editor]") {
+TEST_CASE("A line the user writes is not wrapped at the margin [editor]") {
     // The margin is the quote margin: it says how quoted text is laid out and
     // nothing about how long a line of one's own may be.
     TextBuffer buffer = bufferOf({"aaa bbb ccc"}, 0, 11);
@@ -68,7 +68,7 @@ TEST_CASE("A line the user writes is not wrapped at the margin", "[editor]") {
     CHECK(shown(buffer) == "aaa bbb ccc d^");
 }
 
-TEST_CASE("A quoted line wraps under its own prefix", "[editor]") {
+TEST_CASE("A quoted line wraps under its own prefix [editor]") {
     // What wraps under " AB> " has to come out as " AB> " as well, or the
     // second half of a quoted sentence reads as the answer to it.
     TextBuffer buffer = bufferOf({" AB> aaa bbb ccc"}, 0, 16);
@@ -79,7 +79,7 @@ TEST_CASE("A quoted line wraps under its own prefix", "[editor]") {
     CHECK(shown(buffer) == " AB> aaa bbb ccc| AB> d^");
 }
 
-TEST_CASE("A quoted word with nowhere to break is cut at the margin", "[editor]") {
+TEST_CASE("A quoted word with nowhere to break is cut at the margin [editor]") {
     TextBuffer buffer = bufferOf({"A> aaaaaaa"}, 0, 10);
     const EditOptions options{7};
 
@@ -87,7 +87,7 @@ TEST_CASE("A quoted word with nowhere to break is cut at the margin", "[editor]"
     CHECK(shown(buffer) == "A> aaaa|A> aaab^");
 }
 
-TEST_CASE("Enter carries the quote prefix onto the new line", "[editor]") {
+TEST_CASE("Enter carries the quote prefix onto the new line [editor]") {
     TextBuffer buffer = bufferOf({" AB> hello world"}, 0, 10);
     insertNewline(buffer);
     CHECK(shown(buffer) == " AB> hello| AB> ^ world");
@@ -98,7 +98,7 @@ TEST_CASE("Enter carries the quote prefix onto the new line", "[editor]") {
     CHECK(shown(plain) == "hello|^ world");
 }
 
-TEST_CASE("Enter at the start of a quote puts a line above it", "[editor]") {
+TEST_CASE("Enter at the start of a quote puts a line above it [editor]") {
     // The tail carries the prefix already; a second one would quote the quote.
     TextBuffer buffer = bufferOf({" AB> hello"}, 0, 0);
     insertNewline(buffer);
@@ -115,7 +115,7 @@ TEST_CASE("Enter at the start of a quote puts a line above it", "[editor]") {
     CHECK(shown(after) == " AB> | AB> ^hello");
 }
 
-TEST_CASE("Enter at the end of a quote leaves the new line empty", "[editor]") {
+TEST_CASE("Enter at the end of a quote leaves the new line empty [editor]") {
     // Nothing is split off, so there is nothing for the prefix to carry: the
     // answer to the quote starts on a line of its own.
     TextBuffer buffer = bufferOf({" PL> but it conflicts"}, 0, 21);
@@ -133,7 +133,7 @@ TEST_CASE("Enter at the end of a quote leaves the new line empty", "[editor]") {
     CHECK(shown(plain) == "hello|^");
 }
 
-TEST_CASE("Backspace and Delete join lines at their ends", "[editor]") {
+TEST_CASE("Backspace and Delete join lines at their ends [editor]") {
     TextBuffer buffer = bufferOf({"one", "two"}, 1, 0);
     deleteBefore(buffer);
     CHECK(shown(buffer) == "one^two");
@@ -148,7 +148,7 @@ TEST_CASE("Backspace and Delete join lines at their ends", "[editor]") {
     CHECK(shown(first) == "^one");
 }
 
-TEST_CASE("Ctrl-Y takes the whole line", "[editor]") {
+TEST_CASE("Ctrl-Y takes the whole line [editor]") {
     TextBuffer buffer = bufferOf({"one", "two", "three"}, 1, 2);
     deleteLine(buffer);
     CHECK(shown(buffer) == "one|^three");
@@ -160,7 +160,7 @@ TEST_CASE("Ctrl-Y takes the whole line", "[editor]") {
     CHECK(shown(single) == "^");
 }
 
-TEST_CASE("Ctrl-W takes the word before the cursor", "[editor]") {
+TEST_CASE("Ctrl-W takes the word before the cursor [editor]") {
     using amberedit::ui::deleteWordBefore;
 
     TextBuffer buffer = bufferOf({"one two three"}, 0, 13);
@@ -194,14 +194,14 @@ TEST_CASE("Ctrl-W takes the word before the cursor", "[editor]") {
     CHECK(shown(cyrillic) == "AB> ^ мир");
 }
 
-TEST_CASE("What is saved has no blank lines trailing it", "[editor]") {
+TEST_CASE("What is saved has no blank lines trailing it [editor]") {
     const TextBuffer buffer = bufferOf({"text", "", "  ", ""}, 0, 0);
     const auto lines = trimmedLines(buffer);
     REQUIRE(lines.size() == 1);
     CHECK(lines[0] == "text");
 }
 
-TEST_CASE("Alt+F and Alt+B move a word at a time", "[editor]") {
+TEST_CASE("Alt+F and Alt+B move a word at a time [editor]") {
     using amberedit::ui::moveWordLeft;
     using amberedit::ui::moveWordRight;
 
@@ -226,7 +226,7 @@ TEST_CASE("Alt+F and Alt+B move a word at a time", "[editor]") {
     CHECK(shown(buffer) == "^one two three");
 }
 
-TEST_CASE("A word is what is left once the punctuation is stepped over", "[editor]") {
+TEST_CASE("A word is what is left once the punctuation is stepped over [editor]") {
     using amberedit::ui::moveWordLeft;
     using amberedit::ui::moveWordRight;
 
@@ -244,7 +244,7 @@ TEST_CASE("A word is what is left once the punctuation is stepped over", "[edito
     CHECK(shown(buffer) == " AB> Привет, ^мир");
 }
 
-TEST_CASE("A word move carries on to the next line", "[editor]") {
+TEST_CASE("A word move carries on to the next line [editor]") {
     using amberedit::ui::moveWordLeft;
     using amberedit::ui::moveWordRight;
 
@@ -258,7 +258,7 @@ TEST_CASE("A word move carries on to the next line", "[editor]") {
     CHECK(shown(buffer) == "^one||two");
 }
 
-TEST_CASE("Ctrl-D takes out the quote the cursor stands in", "[editor]") {
+TEST_CASE("Ctrl-D takes out the quote the cursor stands in [editor]") {
     using amberedit::ui::deleteQuote;
 
     // Down to the first line that is neither a quote nor blank, which stays.
@@ -273,7 +273,7 @@ TEST_CASE("Ctrl-D takes out the quote the cursor stands in", "[editor]") {
     CHECK(shown(trailing) == "^--- AmberEdit");
 }
 
-TEST_CASE("Ctrl-D on an answer does nothing", "[editor]") {
+TEST_CASE("Ctrl-D on an answer does nothing [editor]") {
     using amberedit::ui::deleteQuote;
 
     // There is no block to take out here, and taking the answer out instead of
@@ -283,7 +283,7 @@ TEST_CASE("Ctrl-D on an answer does nothing", "[editor]") {
     CHECK(shown(buffer) == " AB> one|my^ answer| AB> two");
 }
 
-TEST_CASE("Ctrl-D on the last quote leaves a line to write on", "[editor]") {
+TEST_CASE("Ctrl-D on the last quote leaves a line to write on [editor]") {
     using amberedit::ui::deleteQuote;
 
     TextBuffer buffer = bufferOf({" AB> one", " AB> two"}, 0, 0);

@@ -1,13 +1,16 @@
 #include "nodelist/nodelist_db.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <fstream>
 
 #include "nodelist/nodelist_writer.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 
 namespace {
 
@@ -46,7 +49,7 @@ std::vector<size_t> bySysop(const nodelist::NodelistDb& db, const std::string& q
 
 }  // namespace
 
-TEST_CASE("a compiled nodelist reads back what went into it", "[nodelist]") {
+TEST_CASE("a compiled nodelist reads back what went into it [nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
 
@@ -80,7 +83,7 @@ TEST_CASE("a compiled nodelist reads back what went into it", "[nodelist]") {
     CHECK(entry.flags == "CM,IBN:24554");
 }
 
-TEST_CASE("a node is found by its whole address and by any part of one", "[nodelist]") {
+TEST_CASE("a node is found by its whole address and by any part of one [nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
 
@@ -127,7 +130,7 @@ TEST_CASE("a node is found by its whole address and by any part of one", "[nodel
     CHECK(range("2:221/") == range("2:221"));
 }
 
-TEST_CASE("a node is found by the whole of a sysop's name or by part of one",
+TEST_CASE("a node is found by the whole of a sysop's name or by part of one "
           "[nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
@@ -177,7 +180,7 @@ TEST_CASE("a node is found by the whole of a sysop's name or by part of one",
     CHECK(db.findBySysop("o", 2).size() == 2);
 }
 
-TEST_CASE("a point nobody lists is answered for by its boss", "[nodelist]") {
+TEST_CASE("a point nobody lists is answered for by its boss [nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
 
@@ -214,7 +217,7 @@ TEST_CASE("a point nobody lists is answered for by its boss", "[nodelist]") {
     CHECK_FALSE(db.find(*domain::FtnAddress::parse("2:5020/999.2")));
 }
 
-TEST_CASE("a sysop search can answer closest first", "[nodelist]") {
+TEST_CASE("a sysop search can answer closest first [nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
 
@@ -253,7 +256,7 @@ TEST_CASE("a sysop search can answer closest first", "[nodelist]") {
               .front() == "2:1/5");
 }
 
-TEST_CASE("the first nodelist to name an address is the one that keeps it",
+TEST_CASE("the first nodelist to name an address is the one that keeps it "
           "[nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
@@ -277,20 +280,20 @@ TEST_CASE("the first nodelist to name an address is the one that keeps it",
     CHECK(db.findBySysop("Second Op").empty());
 }
 
-TEST_CASE("a compiled nodelist that is not one is refused by name", "[nodelist]") {
+TEST_CASE("a compiled nodelist that is not one is refused by name [nodelist]") {
     test::TempDir dir;
 
     const std::string missing = dir.path("nothing.db");
-    CHECK_THROWS_WITH(nodelist::NodelistDb::open(missing),
-                      Catch::Matchers::Contains(missing));
+    const std::string error = errorFrom([&] { nodelist::NodelistDb::open(missing); });
+    CHECK_MESSAGE(contains(error, missing), error);
 
     const std::string wrong = dir.path("wrong.db");
     {
         std::ofstream out(wrong, std::ios::binary);
         out << "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n";
     }
-    CHECK_THROWS_WITH(nodelist::NodelistDb::open(wrong),
-                      Catch::Matchers::Contains("not a compiled nodelist"));
+    const std::string error2 = errorFrom([&] { nodelist::NodelistDb::open(wrong); });
+    CHECK_MESSAGE(contains(error2, "not a compiled nodelist"), error2);
 
     // The version marker is what a file compiled by another AmberEdit is caught
     // by, and the complaint says what to do about it.
@@ -302,11 +305,11 @@ TEST_CASE("a compiled nodelist that is not one is refused by name", "[nodelist]"
         const char version[2] = {0x63, 0x00};
         out.write(version, 2);
     }
-    CHECK_THROWS_WITH(nodelist::NodelistDb::open(old),
-                      Catch::Matchers::Contains("format version 99"));
+    const std::string error3 = errorFrom([&] { nodelist::NodelistDb::open(old); });
+    CHECK_MESSAGE(contains(error3, "format version 99"), error3);
 }
 
-TEST_CASE("an empty nodelist compiles and answers nothing", "[nodelist]") {
+TEST_CASE("an empty nodelist compiles and answers nothing [nodelist]") {
     test::TempDir dir;
     const std::string path = dir.path("nodelist.db");
     nodelist::writeNodelistDb(path, {{{"nodelist"}, {}}}, 0);
@@ -320,7 +323,7 @@ TEST_CASE("an empty nodelist compiles and answers nothing", "[nodelist]") {
     CHECK(db.findRange(*prefix) == std::pair<size_t, size_t>{0, 0});
 }
 
-TEST_CASE("what is not the beginning of an address is not a prefix", "[nodelist]") {
+TEST_CASE("what is not the beginning of an address is not a prefix [nodelist]") {
     CHECK_FALSE(nodelist::AddressPrefix::parse(""));
     CHECK_FALSE(nodelist::AddressPrefix::parse("Vasiliy"));
     CHECK_FALSE(nodelist::AddressPrefix::parse(":5020"));

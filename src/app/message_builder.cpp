@@ -184,7 +184,7 @@ TemplateContext contextFor(const BuildRequest& request) {
     context.longpid = std::string(kLongProgramName);
     context.areaname = request.area.tag;
     context.areapath = request.area.path;
-    context.areatype = domain::toString(request.area.type);
+    context.areatype = domain::nameOf(request.area.type);
 
     // A forward carries the message it passes on, so it has an `original` like
     // a reply — and is a new message in every other respect, which is what the

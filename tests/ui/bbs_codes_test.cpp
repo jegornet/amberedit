@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -25,7 +25,7 @@ std::vector<std::string> runsOf(const std::vector<bbs::ColorRun>& runs) {
 
 }  // namespace
 
-TEST_CASE("stripRenegade takes the codes out of the text", "[bbs]") {
+TEST_CASE("stripRenegade takes the codes out of the text [bbs]") {
     const bbs::CodedLine coded = bbs::stripRenegade("|10hello |12world");
     CHECK(coded.text == "hello world");
     // Bright green, then bright red — the DOS numbering, not the terminal's, so
@@ -33,7 +33,7 @@ TEST_CASE("stripRenegade takes the codes out of the text", "[bbs]") {
     CHECK(runsOf(coded.runs) == std::vector<std::string>{"0:10/-1", "6:9/-1"});
 }
 
-TEST_CASE("stripRenegade reads a foreground and a background apart", "[bbs]") {
+TEST_CASE("stripRenegade reads a foreground and a background apart [bbs]") {
     // The example from the format's own documentation: high intensity white on
     // a blue background.
     const bbs::CodedLine coded = bbs::stripRenegade("|15|17text");
@@ -42,7 +42,7 @@ TEST_CASE("stripRenegade reads a foreground and a background apart", "[bbs]") {
     CHECK(runsOf(coded.runs) == std::vector<std::string>{"0:15/4"});
 }
 
-TEST_CASE("stripRenegade maps the DOS color order onto the terminal's", "[bbs]") {
+TEST_CASE("stripRenegade maps the DOS color order onto the terminal's [bbs]") {
     const auto colorOf = [](const std::string& code) {
         return bbs::stripRenegade(code + "x").runs.front().color;
     };
@@ -69,7 +69,7 @@ TEST_CASE("stripRenegade maps the DOS color order onto the terminal's", "[bbs]")
     CHECK(colorOf("|15").bg == -1);
 }
 
-TEST_CASE("stripRenegade leaves a pipe that opens no code alone", "[bbs]") {
+TEST_CASE("stripRenegade leaves a pipe that opens no code alone [bbs]") {
     const auto textOf = [](const std::string& line) {
         return bbs::stripRenegade(line).text;
     };
@@ -81,7 +81,7 @@ TEST_CASE("stripRenegade leaves a pipe that opens no code alone", "[bbs]") {
     CHECK(bbs::stripRenegade("a|b").runs.empty());
 }
 
-TEST_CASE("A color reaches the end of its line and no further", "[bbs]") {
+TEST_CASE("A color reaches the end of its line and no further [bbs]") {
     // Each line is read on its own, so a code left open on the line before is
     // not something a line can be handed: the reader colors this one from the
     // theme until a code of its own says otherwise.
@@ -94,7 +94,7 @@ TEST_CASE("A color reaches the end of its line and no further", "[bbs]") {
     CHECK(ending.runs.empty());
 }
 
-TEST_CASE("runsForRows opens every wrapped row in its own color", "[bbs]") {
+TEST_CASE("runsForRows opens every wrapped row in its own color [bbs]") {
     const bbs::CodedLine coded = bbs::stripRenegade("|10aaa bbb |12ccc ddd");
     const std::vector<std::string> rows = wrapText(coded.text, 7);
     REQUIRE(rows == std::vector<std::string>{"aaa bbb", "ccc ddd"});
@@ -107,7 +107,7 @@ TEST_CASE("runsForRows opens every wrapped row in its own color", "[bbs]") {
     CHECK(runsOf(runs[1]) == std::vector<std::string>{"0:9/-1"});
 }
 
-TEST_CASE("runsForRows keeps a run's offset within its own row", "[bbs]") {
+TEST_CASE("runsForRows keeps a run's offset within its own row [bbs]") {
     const bbs::CodedLine coded = bbs::stripRenegade("aaa bbb |12ccc ddd");
     const std::vector<std::string> rows = wrapText(coded.text, 11);
     REQUIRE(rows == std::vector<std::string>{"aaa bbb ccc", "ddd"});
@@ -119,7 +119,7 @@ TEST_CASE("runsForRows keeps a run's offset within its own row", "[bbs]") {
     CHECK(runsOf(runs[1]) == std::vector<std::string>{"0:9/-1"});
 }
 
-TEST_CASE("runsForRows leaves an uncolored line alone", "[bbs]") {
+TEST_CASE("runsForRows leaves an uncolored line alone [bbs]") {
     const bbs::CodedLine coded = bbs::stripRenegade("nothing to color here");
     const auto runs = bbs::runsForRows(coded, wrapText(coded.text, 10));
     for (const auto& row : runs) CHECK(row.empty());

@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
@@ -10,7 +10,7 @@ namespace {
 constexpr char kSoh = '\x01';
 }
 
-TEST_CASE("CharsetDetector normalises Fidonet charset names", "[charset]") {
+TEST_CASE("CharsetDetector normalises Fidonet charset names [charset]") {
     CHECK(CharsetDetector::normalize("CP866 2") == "CP866");
     CHECK(CharsetDetector::normalize("+7_FIDO 2") == "CP866");
     CHECK(CharsetDetector::normalize("LATIN-1 2") == "ISO-8859-1");
@@ -20,12 +20,12 @@ TEST_CASE("CharsetDetector normalises Fidonet charset names", "[charset]") {
     CHECK(CharsetDetector::normalize("cp866") == "CP866");
 }
 
-TEST_CASE("CharsetDetector passes an unknown name through", "[charset]") {
+TEST_CASE("CharsetDetector passes an unknown name through [charset]") {
     CHECK(CharsetDetector::normalize("CP1125 2") == "CP1125");
     CHECK(CharsetDetector::normalize("") == "");
 }
 
-TEST_CASE("CharsetDetector: IBMPC names no particular code page", "[charset]") {
+TEST_CASE("CharsetDetector: IBMPC names no particular code page [charset]") {
     // FTS-5003 keeps IBMPC as an obsolete name for "some IBM PC code page":
     // CP866 here, CP437 or CP850 elsewhere. It cannot be mapped to one of them.
     CHECK(CharsetDetector::normalize("IBMPC 2") == "");
@@ -34,7 +34,7 @@ TEST_CASE("CharsetDetector: IBMPC names no particular code page", "[charset]") {
     CHECK(CharsetDetector::namesSpecificCharset("CP866 2"));
 }
 
-TEST_CASE("CharsetDetector: IBMPC falls back to the default", "[charset]") {
+TEST_CASE("CharsetDetector: IBMPC falls back to the default [charset]") {
     const std::string body = std::string(1, kSoh) + "CHRS: IBMPC 2\rтекст\r";
 
     CHECK(CharsetDetector("CP866").detect(body) == "CP866");
@@ -42,7 +42,7 @@ TEST_CASE("CharsetDetector: IBMPC falls back to the default", "[charset]") {
     CHECK(CharsetDetector("CP437").detect(body) == "CP437");
 }
 
-TEST_CASE("CharsetDetector: the default is the area's own", "[charset]") {
+TEST_CASE("CharsetDetector: the default is the area's own [charset]") {
     // A detector belongs to one open base, and the base is built with the
     // charset that area is read in — the config's, or an area group's where one
     // covers the tag. So the per-area answer is simply the one it was built
@@ -57,7 +57,7 @@ TEST_CASE("CharsetDetector: the default is the area's own", "[charset]") {
     CHECK(detector.detect(std::string(1, kSoh) + "CHRS: KOI8-R 2\rtext\r") == "KOI8-R");
 }
 
-TEST_CASE("CharsetDetector: a default that names nothing usable", "[charset]") {
+TEST_CASE("CharsetDetector: a default that names nothing usable [charset]") {
     // `default_charset = "IBMPC"` in the config is no better an answer than the
     // kludge is; iconv_open() would fail on an empty name, so CP866 stands in.
     CHECK(CharsetDetector("IBMPC").defaultCharset() == "CP866");
@@ -66,14 +66,14 @@ TEST_CASE("CharsetDetector: a default that names nothing usable", "[charset]") {
     CHECK(CharsetDetector("windows-1251").defaultCharset() == "CP1251");
 }
 
-TEST_CASE("CharsetDetector finds the CHRS kludge", "[charset]") {
+TEST_CASE("CharsetDetector finds the CHRS kludge [charset]") {
     const std::string body = std::string(1, kSoh) + "MSGID: 2:5020/715 12345678\r" +
                              std::string(1, kSoh) + "CHRS: CP866 2\r" + "Привет!\r";
 
     CHECK(CharsetDetector::extractChrsKludge(body) == "CP866 2");
 }
 
-TEST_CASE("CharsetDetector understands the older CHARSET and CODEPAGE kludges",
+TEST_CASE("CharsetDetector understands the older CHARSET and CODEPAGE kludges "
           "[charset]") {
     CHECK(CharsetDetector::extractChrsKludge(std::string(1, kSoh) +
                                              "CHARSET: LATIN-1 2\r") == "LATIN-1 2");
@@ -81,19 +81,19 @@ TEST_CASE("CharsetDetector understands the older CHARSET and CODEPAGE kludges",
           "866");
 }
 
-TEST_CASE("CharsetDetector does not mistake CHRS in the text for a kludge", "[charset]") {
+TEST_CASE("CharsetDetector does not mistake CHRS in the text for a kludge [charset]") {
     // Without a leading ^A this is an ordinary line of text, not a kludge.
     CHECK(CharsetDetector::extractChrsKludge("CHRS: KOI8-R 2\nтекст\n").empty());
 }
 
-TEST_CASE("CharsetDetector: CHRS outranks the default", "[charset]") {
+TEST_CASE("CharsetDetector: CHRS outranks the default [charset]") {
     const CharsetDetector detector("CP866");
     const std::string body = std::string(1, kSoh) + "CHRS: KOI8-R 2\r текст";
 
     CHECK(detector.detect(body) == "KOI8-R");
 }
 
-TEST_CASE("CharsetDetector: no CHRS falls back to the default", "[charset]") {
+TEST_CASE("CharsetDetector: no CHRS falls back to the default [charset]") {
     const CharsetDetector detector("KOI8-R");
     CHECK(detector.detect("plain text with no kludges") == "KOI8-R");
 

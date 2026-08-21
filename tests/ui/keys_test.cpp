@@ -1,6 +1,6 @@
 #include "ui/keys.hpp"
 
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <fstream>
 #include <string>
@@ -8,8 +8,11 @@
 #include "config/text_util.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 #include "ui/term/event.hpp"
 
+using amberedit::test::contains;
+using amberedit::test::errorFrom;
 using amberedit::ui::KeyCommand;
 using amberedit::ui::KeyMap;
 using amberedit::ui::keyNamed;
@@ -28,7 +31,7 @@ Event alt(char letter) {
 
 }  // namespace
 
-TEST_CASE("The defaults are the layout AmberEdit has always had", "[keys]") {
+TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     const KeyMap keys = KeyMap::defaults();
 
     CHECK(keys.is(Event::Character('l'), KeyCommand::ReaderList));
@@ -59,7 +62,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had", "[keys]") {
     CHECK(keys.altLetters() == "bf");
 }
 
-TEST_CASE("amberkeys.cfg.example is the defaults, written out", "[keys]") {
+TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {
     // The example is what a user copies to start from, so a default it has
     // fallen behind on would be a layout that quietly changes as it is adopted.
     const std::string text = amberedit::config::text::readFile(
@@ -74,7 +77,7 @@ TEST_CASE("amberkeys.cfg.example is the defaults, written out", "[keys]") {
     }
 }
 
-TEST_CASE("A layout is the whole of the layout", "[keys]") {
+TEST_CASE("A layout is the whole of the layout [keys]") {
     const KeyMap keys = KeyMap::parse(
         "# what this system is used to\n"
         "\n"
@@ -93,7 +96,7 @@ TEST_CASE("A layout is the whole of the layout", "[keys]") {
     CHECK(keys.is(Event::F3, KeyCommand::ComposeSave));
 }
 
-TEST_CASE("A key is read the way it is written", "[keys]") {
+TEST_CASE("A key is read the way it is written [keys]") {
     // Case tells two letters apart, and does not tell two spellings of a
     // modifier apart.
     CHECK(keyNamed("g") == Event::Character('g'));
@@ -123,7 +126,7 @@ TEST_CASE("A key is read the way it is written", "[keys]") {
     }
 }
 
-TEST_CASE("The keys that move about cannot be bound", "[keys]") {
+TEST_CASE("The keys that move about cannot be bound [keys]") {
     for (const char* spelling :
          {"Esc", "escape", "Enter", "Return", "Tab", "Backspace", "Space", "Home", "End",
           "PgUp", "PageDown", "Up", "Down", "Left", "Right"}) {
@@ -134,31 +137,40 @@ TEST_CASE("The keys that move about cannot be bound", "[keys]") {
     // Bare only: Alt-Left is how a word is walked over.
     CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Left"));
 
-    CHECK_THROWS_WITH(KeyMap::parse("Esc reader.list", "keys"),
-                      Catch::Matchers::Contains("cannot be bound"));
+    const std::string error = errorFrom([&] {
+        KeyMap::parse("Esc reader.list", "keys");
+    });
+    CHECK_MESSAGE(contains(error, "cannot be bound"), error);
 }
 
-TEST_CASE("A layout that cannot be read says which line is wrong", "[keys]") {
-    CHECK_THROWS_WITH(
-        KeyMap::parse("l reader.lst", "keys"),
-        Catch::Matchers::Contains("keys:1: no command is called reader.lst"));
-    CHECK_THROWS_WITH(KeyMap::parse("\nF13 reader.list", "keys"),
-                      Catch::Matchers::Contains("keys:2: no key is called F13"));
-    CHECK_THROWS_WITH(KeyMap::parse("l\n", "keys"),
-                      Catch::Matchers::Contains("a line is a key and a command"));
-    CHECK_THROWS_WITH(KeyMap::parse("l reader.list now\n", "keys"),
-                      Catch::Matchers::Contains("a line is a key and a command"));
+TEST_CASE("A layout that cannot be read says which line is wrong [keys]") {
+    const std::string error = errorFrom([&] { KeyMap::parse("l reader.lst", "keys"); });
+    CHECK_MESSAGE(contains(error, "keys:1: no command is called reader.lst"), error);
+    const std::string error2 = errorFrom([&] {
+        KeyMap::parse("\nF13 reader.list", "keys");
+    });
+    CHECK_MESSAGE(contains(error2, "keys:2: no key is called F13"), error2);
+    const std::string error3 = errorFrom([&] { KeyMap::parse("l\n", "keys"); });
+    CHECK_MESSAGE(contains(error3, "a line is a key and a command"), error3);
+    const std::string error4 = errorFrom([&] {
+        KeyMap::parse("l reader.list now\n", "keys");
+    });
+    CHECK_MESSAGE(contains(error4, "a line is a key and a command"), error4);
 
     // One screen may not have a key twice, and the message names what it is
     // already doing.
-    CHECK_THROWS_WITH(KeyMap::parse("l reader.list\nl reader.find\n", "keys"),
-                      Catch::Matchers::Contains("l is already reader.list"));
+    const std::string error5 = errorFrom([&] {
+        KeyMap::parse("l reader.list\nl reader.find\n", "keys");
+    });
+    CHECK_MESSAGE(contains(error5, "l is already reader.list"), error5);
     // Quitting is answered before every screen, so it shares with nothing.
-    CHECK_THROWS_WITH(KeyMap::parse("x app.quit\nx compose.save\n", "keys"),
-                      Catch::Matchers::Contains("x is already app.quit"));
+    const std::string error6 = errorFrom([&] {
+        KeyMap::parse("x app.quit\nx compose.save\n", "keys");
+    });
+    CHECK_MESSAGE(contains(error6, "x is already app.quit"), error6);
 }
 
-TEST_CASE("A layout is read from the file the config names", "[keys]") {
+TEST_CASE("A layout is read from the file the config names [keys]") {
     amberedit::test::TempDir dir;
     const std::string path = dir.path("amberkeys.cfg");
     {
@@ -173,8 +185,10 @@ TEST_CASE("A layout is read from the file the config names", "[keys]") {
     // The terminal is told about the letters this layout uses and no others.
     CHECK(keys.altLetters() == "j");
 
-    CHECK_THROWS_WITH(KeyMap::loadFromFile(dir.path("gone.cfg")),
-                      Catch::Matchers::Contains("keys file not found"));
+    const std::string error = errorFrom([&] {
+        KeyMap::loadFromFile(dir.path("gone.cfg"));
+    });
+    CHECK_MESSAGE(contains(error, "keys file not found"), error);
 
     // The file's own name is what a mistake in it is reported against, since
     // that is what the reader of the message has to go and open.
@@ -183,5 +197,6 @@ TEST_CASE("A layout is read from the file the config names", "[keys]") {
         std::ofstream out(bad);
         out << "F3 reader.find\nEsc reader.list\n";
     }
-    CHECK_THROWS_WITH(KeyMap::loadFromFile(bad), Catch::Matchers::Contains(bad + ":2: "));
+    const std::string error2 = errorFrom([&] { KeyMap::loadFromFile(bad); });
+    CHECK_MESSAGE(contains(error2, bad + ":2: "), error2);
 }

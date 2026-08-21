@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -50,7 +50,7 @@ Event pressAt(int x, int y) {
 
 }  // namespace
 
-TEST_CASE("the back button is drawn plainly until it is clicked", "[back_button]") {
+TEST_CASE("the back button is drawn plainly until it is clicked [back_button]") {
     const Rendered top = rowOf(back_button::topRow(), back_button::kWidth);
     const Rendered bottom = rowOf(back_button::bottomRow(), back_button::kWidth);
 
@@ -60,7 +60,7 @@ TEST_CASE("the back button is drawn plainly until it is clicked", "[back_button]
     for (const Color& color : bottom.fg) CHECK(color == theme::palette.footer);
 }
 
-TEST_CASE("a click recolors the whole back button", "[back_button]") {
+TEST_CASE("a click recolors the whole back button [back_button]") {
     // The frame with the label, and both rows though they are laid out a screen
     // apart: five columns of arrow are a small thing to catch in a tenth of a
     // second. The glyphs are untouched — what a click changes is the color they
@@ -80,7 +80,7 @@ TEST_CASE("a click recolors the whole back button", "[back_button]") {
     CHECK_FALSE(bottom.anyInverted);
 }
 
-TEST_CASE("the back button is clicked anywhere in its two rows", "[back_button]") {
+TEST_CASE("the back button is clicked anywhere in its two rows [back_button]") {
     CHECK(back_button::clicked(pressAt(0, 0)));
     CHECK(back_button::clicked(pressAt(back_button::kWidth - 1, 1)));
 

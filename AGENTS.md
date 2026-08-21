@@ -50,10 +50,15 @@ cmake --build build -j
 ```
 
 Both must be clean before anything is called done, and the whole thing must
-build from a fresh clone — the `FetchContent` dependencies (Catch2, and only for
-the tests) are the only external inputs. The build produces one binary; the
-external inputs are the wide ncurses, iconv and — for the zipped nodelists and
-echolists AmberEdit unpacks itself — zlib, all found and none of them fetched.
+build from a fresh clone with no network. The build produces one binary; the
+external inputs are the wide ncurses, iconv, zlib — for the zipped nodelists and
+echolists AmberEdit unpacks itself — and doctest for the tests, all of them found
+on the system and none of them fetched.
+
+Test cases carry their tags inside the name — `TEST_CASE("... [nodelist][ui]")` —
+because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
+with `-tc`, which matches the whole name by wildcard:
+`./build/bin/amberedit_tests -tc="*[squish]*"`.
 
 The code is C++17 and wants GCC 8, Clang 7 or Apple Clang 11 at the least;
 `CMakeLists.txt` refuses anything older by name, because an older compiler
@@ -113,11 +118,9 @@ archive.
   release with them in libc, so the dependency is conditional; Debian, Ubuntu and
   macOS all carry the full set. The CI and release matrices install it too, or
   `%check` fails three charset tests and nothing says why.
-- `debian/` — deb, built for Debian stable and Ubuntu 22.04 and 24.04. The tests
-  are off there (`debian/rules`), and deliberately: Catch2 is found before it is
-  fetched and only the 2.13 series will do, the newer distributions package v3,
-  and a package build has no network to fetch the right one with. The CI matrix
-  runs the tests on those same distributions, where it does.
+- `debian/` — deb, built for Debian stable and Ubuntu 22.04 and 24.04. `dh` runs
+  the tests as part of the build; `doctest-dev` is the build dependency and is
+  spelled the same on all four.
 - `.github/workflows/release.yml` — everything a `v*` tag produces. It checks the
   tag against `project(AmberEdit VERSION ...)` before building anything: a tag
   disagreeing with the source is a release nobody can rebuild.
@@ -134,25 +137,34 @@ Three things in the build follow from the same floor:
 - GCC 8 keeps `std::filesystem` in a separate `libstdc++fs`. `CMakeLists.txt`
   finds out by linking, not by version, and puts the result in the
   `amberedit_filesystem` interface target that `amberedit_core` exports.
-- `FetchContent_Declare`'s `EXCLUDE_FROM_ALL` only exists in CMake 3.28 and
-  older CMake passes it down to `ExternalProject_Add`, which rejects it. It is
-  added only where it is understood.
-- **Catch2 is found before it is fetched.** `amberedit.spec` builds an RPM and an
-  rpmbuild has no network, so an installed Catch2 has to be usable — EPEL 8's
-  `catch-devel` is 2.13.8, the version the fetch pins. The packaged one exports
-  only `Catch2::Catch2`, never `Catch2::Catch2WithMain`; hence `tests/main.cpp`,
-  one file expanding `CATCH_CONFIG_MAIN`, and hence linking `Catch2::Catch2` in
-  both cases. The version is bounded above as well: Catch2 v3 moved the headers
-  and dropped `CATCH_CONFIG_MAIN`.
+- **The tests are on doctest, and that is a packaging decision rather than a
+  taste.** Nothing is fetched, so a package build — which has no network — gets
+  the tests too, and doctest is the only framework every target packages under
+  one API: `doctest-devel` on EPEL 8 and 9 and Fedora, `doctest-dev` on bookworm,
+  trixie, jammy and noble, `doctest` in Homebrew, 2.4.8 through 2.5.x and source-
+  compatible across all of them. Catch2 has no such version — EPEL 8 carries only
+  the 2.13 series and trixie, noble and Homebrew carry only v3, and the two are
+  not source-compatible — so it would need a compatibility header forever.
 
-  **Which package holds the 2.13 series depends on the distribution, and that is
-  a trap rather than a detail.** EPEL 8 has it as `catch-devel` (2.13.8); EPEL 9
-  and later, and every current Fedora, upgraded `catch` to v3 and kept the old
-  series beside it as `catch2-devel` (2.13.10). Asking for the wrong one does not
-  fail as a missing dependency: CMake finds v3, refuses it by version, and falls
-  back to fetching over a network the rpmbuild has not got. `amberedit.spec`
-  splits on `%{rhel}` for exactly this, and the CI and release matrices have to
-  name the same packages it does.
+  What doctest does not have is matchers. A substring assertion is therefore an
+  ordinary predicate, `amberedit::test::contains` from `tests/test_strings.hpp`,
+  paired with `CHECK_MESSAGE` so a failure still prints the string that was
+  searched. `CHECK_THROWS_WITH` compares a whole message and nothing less, which
+  none of these assertions want, so `errorFrom` from the same header catches the
+  message and `contains` is put to it.
+
+- **Never give a type a free `toString()`, and this is a build error rather than
+  a preference.** To print what a failing `CHECK(a == b)` compared, doctest calls
+  an unqualified `toString(a)`, and ADL hands it any free function of that name
+  in the type's own namespace. doctest 2.4 needs one returning `doctest::String`
+  and gets `std::string`, so the test file will not compile; 2.5 wraps the
+  result and compiles fine. Since Fedora and Homebrew are on 2.5 and EPEL,
+  Debian and Ubuntu are all on 2.4, that is a break which passes on a developer's
+  Mac and fails every packaging platform. `domain::nameOf(MsgBaseType)` and
+  `domain::nameOf(AreaKind)` are so named for this reason and no other — the
+  spelling matches `ui::nameOf(KeyCommand)`, which came first. A member
+  `.toString()`, as FtnAddress and AddressPattern have, is not found by ADL and
+  is not affected.
 
 To exercise the app itself against the checked-in base:
 
@@ -231,7 +243,7 @@ Rules that hold the design together:
 - C++17. Formatting follows `.clang-format` (Google style, 90 columns), linting
   `.clang-tidy`. **The project is clean under its own lint config — keep it that
   way.** `tests/.clang-tidy` inherits the root config and drops the two checks
-  that only fire on Catch2's macros. Every disabled check carries a comment
+  that only fire on doctest's macros. Every disabled check carries a comment
   saying why; adding one means adding the reason with it.
 - Const member functions that only compute a value are `[[nodiscard]]`.
 - **Everything in the repository is written in English** — comments, UI strings,

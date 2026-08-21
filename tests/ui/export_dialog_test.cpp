@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -16,6 +16,7 @@
 #include "msgbase/null_lastread_store.hpp"
 #include "ports/i_area_source.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
@@ -31,6 +32,7 @@ using amberedit::domain::MessageDate;
 using amberedit::domain::MessageHeader;
 using amberedit::domain::MessageLine;
 using amberedit::test::TempDir;
+using amberedit::test::contains;
 using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
@@ -185,7 +187,7 @@ struct ExportFixture {
 
 }  // namespace
 
-TEST_CASE("The export dialog shows directories and nothing else", "[export_dialog]") {
+TEST_CASE("The export dialog shows directories and nothing else [export_dialog]") {
     ExportFixture fixture;
     fixture.makeDirectory("archive");
     fixture.makeDirectory("drafts");
@@ -203,7 +205,7 @@ TEST_CASE("The export dialog shows directories and nothing else", "[export_dialo
     CHECK(fixture.state.exportPicker->focus == AppState::ExportPicker::Focus::Name);
 }
 
-TEST_CASE("The export dialog opens on nothing where there is no message",
+TEST_CASE("The export dialog opens on nothing where there is no message "
           "[export_dialog]") {
     ExportFixture fixture;
     fixture.state.readHeader.reset();
@@ -215,7 +217,7 @@ TEST_CASE("The export dialog opens on nothing where there is no message",
     CHECK_FALSE(fixture.state.exportPicker);
 }
 
-TEST_CASE("The export dialog writes the message", "[export_dialog]") {
+TEST_CASE("The export dialog writes the message [export_dialog]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state);
     fixture.type("localnet-44.txt");
@@ -224,14 +226,14 @@ TEST_CASE("The export dialog writes the message", "[export_dialog]") {
     CHECK_FALSE(fixture.state.exportPicker);
 
     const std::string written = fixture.fileText("localnet-44.txt");
-    CHECK_THAT(written, Catch::Matchers::Contains("From : Ivan Ivanov"));
-    CHECK_THAT(written, Catch::Matchers::Contains("Subj : About the weather"));
-    CHECK_THAT(written, Catch::Matchers::Contains("Hello, All!"));
+    CHECK_MESSAGE(contains(written, "From : Ivan Ivanov"), written);
+    CHECK_MESSAGE(contains(written, "Subj : About the weather"), written);
+    CHECK_MESSAGE(contains(written, "Hello, All!"), written);
     // The service lines are left out, as the reader leaves them out.
-    CHECK_THAT(written, !Catch::Matchers::Contains("MSGID"));
+    CHECK_FALSE_MESSAGE(contains(written, "MSGID"), written);
 }
 
-TEST_CASE("The export dialog writes under the name it is given", "[export_dialog]") {
+TEST_CASE("The export dialog writes under the name it is given [export_dialog]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state);
 
@@ -240,11 +242,11 @@ TEST_CASE("The export dialog writes under the name it is given", "[export_dialog
     CHECK(fixture.state.exportName == "Мои письма.txt");
 
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Written);
-    CHECK_THAT(fixture.fileText("Мои письма.txt"),
-               Catch::Matchers::Contains("Hello, All!"));
+    const std::string text = fixture.fileText("Мои письма.txt");
+    CHECK_MESSAGE(contains(text, "Hello, All!"), text);
 }
 
-TEST_CASE("The export dialog invents no name", "[export_dialog]") {
+TEST_CASE("The export dialog invents no name [export_dialog]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state);
 
@@ -266,7 +268,7 @@ TEST_CASE("The export dialog invents no name", "[export_dialog]") {
     CHECK(fixture.state.exportName.empty());
 }
 
-TEST_CASE("A name of the user's own outlives the message", "[export_dialog]") {
+TEST_CASE("A name of the user's own outlives the message [export_dialog]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state);
 
@@ -289,11 +291,11 @@ TEST_CASE("A name of the user's own outlives the message", "[export_dialog]") {
 
     // Both messages are in the one file, the second added to the first.
     const std::string written = fixture.fileText("digest.txt");
-    CHECK_THAT(written, Catch::Matchers::Contains("Subj : About the weather"));
-    CHECK_THAT(written, Catch::Matchers::Contains("Subj : And another thing"));
+    CHECK_MESSAGE(contains(written, "Subj : About the weather"), written);
+    CHECK_MESSAGE(contains(written, "Subj : And another thing"), written);
 }
 
-TEST_CASE("The export dialog walks into a directory", "[export_dialog]") {
+TEST_CASE("The export dialog walks into a directory [export_dialog]") {
     ExportFixture fixture;
     fixture.makeDirectory("archive");
     const std::string top = fixture.state.exportDirectory;
@@ -319,7 +321,7 @@ TEST_CASE("The export dialog walks into a directory", "[export_dialog]") {
     CHECK(std::filesystem::path(fixture.state.exportDirectory).filename() == "archive");
 }
 
-TEST_CASE("The export path box takes a directory and a file alike", "[export_dialog]") {
+TEST_CASE("The export path box takes a directory and a file alike [export_dialog]") {
     ExportFixture fixture;
     fixture.makeDirectory("archive");
     const std::string top = fixture.state.exportDirectory;
@@ -350,7 +352,7 @@ TEST_CASE("The export path box takes a directory and a file alike", "[export_dia
     CHECK(std::filesystem::exists(std::filesystem::path(top) / "keep.txt"));
 }
 
-TEST_CASE("The export dialog says what went wrong", "[export_dialog]") {
+TEST_CASE("The export dialog says what went wrong [export_dialog]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state);
 
@@ -361,8 +363,8 @@ TEST_CASE("The export dialog says what went wrong", "[export_dialog]") {
     fixture.type("/no/such/place/at/all");
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Ignored);
     CHECK(fixture.state.exportPicker->error == "Path not found");
-    CHECK_THAT(fixture.rowText(fixture.draw().bottom),
-               Catch::Matchers::Contains("Path not found"));
+    const std::string row = fixture.rowText(fixture.draw().bottom);
+    CHECK_MESSAGE(contains(row, "Path not found"), row);
 
     // And a name that is no name at all: the message has to be called
     // something, and the box says so rather than writing a file named nothing.
@@ -372,7 +374,7 @@ TEST_CASE("The export dialog says what went wrong", "[export_dialog]") {
     CHECK(fixture.state.exportPicker->error == "No file name");
 }
 
-TEST_CASE("The keys stand in the bottom of the frame", "[export_dialog]") {
+TEST_CASE("The keys stand in the bottom of the frame [export_dialog]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state);
 
@@ -380,7 +382,7 @@ TEST_CASE("The keys stand in the bottom of the frame", "[export_dialog]") {
     const std::string bottom = fixture.rowText(frame.bottom);
     // In the rule that closes the box rather than on a row of its own — and the
     // rule still ends where the one at the top of the box does.
-    CHECK_THAT(bottom, Catch::Matchers::Contains("Enter write · Tab move · Esc close"));
+    CHECK_MESSAGE(contains(bottom, "Enter write · Tab move · Esc close"), bottom);
     CHECK(frame.right == frame.topRight);
 
     // What went wrong takes their place: it is the more urgent of the two, and
@@ -389,12 +391,12 @@ TEST_CASE("The keys stand in the bottom of the frame", "[export_dialog]") {
     const auto complaining = fixture.draw();
     CHECK(complaining == frame);
     const std::string said = fixture.rowText(complaining.bottom);
-    CHECK_THAT(said, Catch::Matchers::Contains("Path not found"));
-    CHECK_THAT(said, !Catch::Matchers::Contains("Tab move"));
+    CHECK_MESSAGE(contains(said, "Path not found"), said);
+    CHECK_FALSE_MESSAGE(contains(said, "Tab move"), said);
     CHECK(complaining.right == complaining.topRight);
 }
 
-TEST_CASE("The export dialog keeps its size", "[export_dialog]") {
+TEST_CASE("The export dialog keeps its size [export_dialog]") {
     ExportFixture fixture;
     for (int i = 0; i < 5; ++i) fixture.makeDirectory("dir" + std::to_string(i));
 
@@ -410,7 +412,7 @@ TEST_CASE("The export dialog keeps its size", "[export_dialog]") {
     CHECK(fixture.draw() == crowded);
 }
 
-TEST_CASE("The export dialog answers the pointer", "[export_dialog][mouse]") {
+TEST_CASE("The export dialog answers the pointer [export_dialog][mouse]") {
     ExportFixture fixture;
     fixture.makeDirectory("archive");
 
@@ -438,7 +440,7 @@ TEST_CASE("The export dialog answers the pointer", "[export_dialog][mouse]") {
     CHECK(picker.nameCursor == 3);
 }
 
-TEST_CASE("The export dialog writes the files the message carries",
+TEST_CASE("The export dialog writes the files the message carries "
           "[export_dialog][uue]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state,
@@ -452,8 +454,10 @@ TEST_CASE("The export dialog writes the files the message carries",
     // be said, and it already says where.
     CHECK(picker.focus == AppState::ExportPicker::Focus::Name);
     const auto frame = fixture.draw();
-    CHECK_THAT(fixture.rowText(frame.top), Catch::Matchers::Contains("Export files"));
-    CHECK_THAT(fixture.rowText(frame.bottom), Catch::Matchers::Contains("Enter save"));
+    const std::string row = fixture.rowText(frame.top);
+    CHECK_MESSAGE(contains(row, "Export files"), row);
+    const std::string row2 = fixture.rowText(frame.bottom);
+    CHECK_MESSAGE(contains(row2, "Enter save"), row2);
 
     // Nothing types over them: they are the message's names, and a file renamed
     // on its way out of one is not the file that was sent.
@@ -466,7 +470,7 @@ TEST_CASE("The export dialog writes the files the message carries",
     CHECK(fixture.fileText("note.txt") == "hi");
 }
 
-TEST_CASE("The export dialog lists the files it is to write", "[export_dialog][uue]") {
+TEST_CASE("The export dialog lists the files it is to write [export_dialog][uue]") {
     ExportFixture fixture;
     std::vector<UueFile> files;
     files.reserve(9);
@@ -478,14 +482,15 @@ TEST_CASE("The export dialog lists the files it is to write", "[export_dialog][u
     // The names are a label, and the button that writes them stands under it —
     // the last row of the box before the rule that closes it.
     const auto frame = fixture.draw();
-    CHECK_THAT(fixture.rowText(frame.bottom - 6),
-               Catch::Matchers::Contains("Files: part0.zip"));
+    const std::string row2 = fixture.rowText(frame.bottom - 6);
+    CHECK_MESSAGE(contains(row2, "Files: part0.zip"), row2);
     // Five rows of names and no more, whatever the message carries: a box that
     // grew a row per file would walk off a short window, and the last of them
     // counts what is left.
-    CHECK_THAT(fixture.rowText(frame.bottom - 2),
-               Catch::Matchers::Contains("… and 5 more"));
-    CHECK_THAT(fixture.rowText(frame.bottom - 1), Catch::Matchers::Contains("Save"));
+    const std::string row3 = fixture.rowText(frame.bottom - 2);
+    CHECK_MESSAGE(contains(row3, "… and 5 more"), row3);
+    const std::string row4 = fixture.rowText(frame.bottom - 1);
+    CHECK_MESSAGE(contains(row4, "Save"), row4);
 
     // The label is not a stop in the ring: there is nothing to type over it and
     // nothing to pick among the names, so Tab walks the path, the listing and
@@ -493,7 +498,7 @@ TEST_CASE("The export dialog lists the files it is to write", "[export_dialog][u
     CHECK(fixture.state.exportPicker->focus == AppState::ExportPicker::Focus::Name);
 }
 
-TEST_CASE("A decoded file is written over nothing", "[export_dialog][uue]") {
+TEST_CASE("A decoded file is written over nothing [export_dialog][uue]") {
     ExportFixture fixture;
     fixture.write("report.zip", "something of the user's own");
     export_dialog::open(fixture.state, {UueFile{"report.zip", "PK"}});
@@ -502,12 +507,13 @@ TEST_CASE("A decoded file is written over nothing", "[export_dialog][uue]") {
     // file whose name was never the user's is not written over at all.
     CHECK(fixture.answer(Event::Return) == export_dialog::Outcome::Ignored);
     REQUIRE(fixture.state.exportPicker);
-    CHECK_THAT(fixture.state.exportPicker->error,
-               Catch::Matchers::Contains("report.zip"));
+    CHECK_MESSAGE(contains(fixture.state.exportPicker->error,
+                           "report.zip"),
+                  fixture.state.exportPicker->error);
     CHECK(fixture.fileText("report.zip") == "something of the user's own");
 }
 
-TEST_CASE("The export dialog walks into a directory to write files into",
+TEST_CASE("The export dialog walks into a directory to write files into "
           "[export_dialog][uue]") {
     ExportFixture fixture;
     fixture.makeDirectory("incoming");
@@ -525,7 +531,7 @@ TEST_CASE("The export dialog walks into a directory to write files into",
         std::filesystem::exists(std::filesystem::path(top) / "incoming" / "report.zip"));
 }
 
-TEST_CASE("The export question is asked before the where", "[export_dialog][uue]") {
+TEST_CASE("The export question is asked before the where [export_dialog][uue]") {
     ExportFixture fixture;
     const std::vector<UueFile> files{UueFile{"report.zip", "PK"}};
 
@@ -539,9 +545,8 @@ TEST_CASE("The export question is asked before the where", "[export_dialog][uue]
     for (int y = 0; y < fixture.state.height; ++y) {
         for (int x = 0; x < fixture.state.width; ++x) drawn += screen.at(x, y).glyph;
     }
-    CHECK_THAT(drawn,
-               Catch::Matchers::Contains("The message contains UUE-encoded file(s):"));
-    CHECK_THAT(drawn, Catch::Matchers::Contains("report.zip"));
+    CHECK_MESSAGE(contains(drawn, "The message contains UUE-encoded file(s):"), drawn);
+    CHECK_MESSAGE(contains(drawn, "report.zip"), drawn);
 
     // The initials answer outright, the way y and n answer a confirmation.
     CHECK(export_mode_dialog::handleEvent(fixture.state, Event::Character('t')) ==
@@ -557,7 +562,7 @@ TEST_CASE("The export question is asked before the where", "[export_dialog][uue]
     CHECK_FALSE(fixture.state.exportPicker);
 }
 
-TEST_CASE("The text answer writes the message and not the file", "[export_dialog][uue]") {
+TEST_CASE("The text answer writes the message and not the file [export_dialog][uue]") {
     ExportFixture fixture;
     export_mode_dialog::open(fixture.state, {UueFile{"report.zip", "PK"}});
     REQUIRE(export_mode_dialog::handleEvent(fixture.state, Event::Character('t')) ==
@@ -571,12 +576,13 @@ TEST_CASE("The text answer writes the message and not the file", "[export_dialog
     CHECK(fixture.state.exportPicker->mode == AppState::ExportPicker::Mode::Text);
     fixture.type("digest.txt");
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Written);
-    CHECK_THAT(fixture.fileText("digest.txt"), Catch::Matchers::Contains("Hello, All!"));
+    const std::string text2 = fixture.fileText("digest.txt");
+    CHECK_MESSAGE(contains(text2, "Hello, All!"), text2);
     CHECK_FALSE(std::filesystem::exists(
         std::filesystem::path(fixture.state.exportDirectory) / "report.zip"));
 }
 
-TEST_CASE("The export question answers the pointer", "[export_dialog][uue][mouse]") {
+TEST_CASE("The export question answers the pointer [export_dialog][uue][mouse]") {
     ExportFixture fixture;
     export_mode_dialog::open(fixture.state, {UueFile{"report.zip", "PK"}});
 
@@ -605,7 +611,7 @@ std::string boxText(ExportFixture& fixture) {
 
 }  // namespace
 
-TEST_CASE("A file already there is a question", "[export_dialog][exists]") {
+TEST_CASE("A file already there is a question [export_dialog][exists]") {
     ExportFixture fixture;
     fixture.write("digest.txt", "what was there before\n");
     export_dialog::open(fixture.state);
@@ -619,8 +625,8 @@ TEST_CASE("A file already there is a question", "[export_dialog][exists]") {
     CHECK(fixture.state.exportPicker->existing->answer ==
           AppState::ExportPicker::Existing::Answer::Append);
     const std::string drawn = boxText(fixture);
-    CHECK_THAT(drawn, Catch::Matchers::Contains("File exists:"));
-    CHECK_THAT(drawn, Catch::Matchers::Contains("digest.txt"));
+    CHECK_MESSAGE(contains(drawn, "File exists:"), drawn);
+    CHECK_MESSAGE(contains(drawn, "digest.txt"), drawn);
 
     // Esc is neither, and it leaves the dialog exactly as it was: the name is
     // still in its box, to be typed over or written under after all.
@@ -631,7 +637,7 @@ TEST_CASE("A file already there is a question", "[export_dialog][exists]") {
     CHECK(fixture.fileText("digest.txt") == "what was there before\n");
 }
 
-TEST_CASE("The export writes over a file when told to", "[export_dialog][exists]") {
+TEST_CASE("The export writes over a file when told to [export_dialog][exists]") {
     ExportFixture fixture;
     fixture.write("digest.txt", "what was there before\n");
     export_dialog::open(fixture.state);
@@ -641,11 +647,11 @@ TEST_CASE("The export writes over a file when told to", "[export_dialog][exists]
     // The initials answer outright, the way y and n answer a confirmation.
     REQUIRE(fixture.answer(Event::Character('o')) == export_dialog::Outcome::Written);
     const std::string written = fixture.fileText("digest.txt");
-    CHECK_THAT(written, Catch::Matchers::Contains("Subj : About the weather"));
-    CHECK_THAT(written, !Catch::Matchers::Contains("what was there before"));
+    CHECK_MESSAGE(contains(written, "Subj : About the weather"), written);
+    CHECK_FALSE_MESSAGE(contains(written, "what was there before"), written);
 }
 
-TEST_CASE("The question about a file answers the pointer",
+TEST_CASE("The question about a file answers the pointer "
           "[export_dialog][exists][mouse]") {
     ExportFixture fixture;
     fixture.write("digest.txt", "what was there before\n");
@@ -659,11 +665,11 @@ TEST_CASE("The question about a file answers the pointer",
     const Event click =
         clickAt(existing.overwriteBox.x_min + 1, existing.overwriteBox.y_min);
     CHECK(fixture.answer(click) == export_dialog::Outcome::Written);
-    CHECK_THAT(fixture.fileText("digest.txt"),
-               !Catch::Matchers::Contains("what was there before"));
+    const std::string text = fixture.fileText("digest.txt");
+    CHECK_FALSE_MESSAGE(contains(text, "what was there before"), text);
 }
 
-TEST_CASE("The files a message carries are written by a button",
+TEST_CASE("The files a message carries are written by a button "
           "[export_dialog][uue][mouse]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state, {UueFile{"report.zip", "PK"}});

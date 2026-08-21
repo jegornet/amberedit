@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 #include <vector>
@@ -38,7 +38,7 @@ Rendered rowOf(const Element& element) {
 
 }  // namespace
 
-TEST_CASE("the delete-line button is a box with a cross in it",
+TEST_CASE("the delete-line button is a box with a cross in it "
           "[delete_line_button]") {
     CHECK(rowOf(delete_line_button::topRow()).text == "┌─┐");
     CHECK(rowOf(delete_line_button::labelRow()).text == "│☓│");
@@ -49,7 +49,7 @@ TEST_CASE("the delete-line button is a box with a cross in it",
     }
 }
 
-TEST_CASE("every row of the delete-line button is exactly its width",
+TEST_CASE("every row of the delete-line button is exactly its width "
           "[delete_line_button]") {
     // The columns it stands in are columns the text is laid out without, so a
     // cross the terminal drew two cells wide would push the message over by one
@@ -59,7 +59,7 @@ TEST_CASE("every row of the delete-line button is exactly its width",
     CHECK(stringWidth("└─┘") == delete_line_button::kWidth);
 }
 
-TEST_CASE("a click recolors the whole delete-line button",
+TEST_CASE("a click recolors the whole delete-line button "
           "[delete_line_button]") {
     // Every row of it, though they are laid out a screen apart: three columns
     // of box are a small thing to catch in a tenth of a second. The glyphs are

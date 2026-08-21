@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -96,7 +96,7 @@ private:
 
 }  // namespace
 
-TEST_CASE("A MSGID serial number is the time in eight hex digits", "[builder]") {
+TEST_CASE("A MSGID serial number is the time in eight hex digits [builder]") {
     // FTS-0009 asks for eight hexadecimal characters unique to the system for
     // three years; seconds since the epoch are unique for a great deal longer.
     CHECK(serialNumber(0) == "00000000");
@@ -104,7 +104,7 @@ TEST_CASE("A MSGID serial number is the time in eight hex digits", "[builder]") 
     CHECK(serialNumber(0x68A1B2C3) == "68a1b2c3");
 }
 
-TEST_CASE("TZUTC states the offset in four digits", "[builder]") {
+TEST_CASE("TZUTC states the offset in four digits [builder]") {
     CHECK(tzutcOffset(0) == "0000");
     CHECK(tzutcOffset(120) == "0200");
     CHECK(tzutcOffset(180) == "0300");
@@ -115,7 +115,7 @@ TEST_CASE("TZUTC states the offset in four digits", "[builder]") {
     CHECK(tzutcOffset(780) == "1300");
 }
 
-TEST_CASE("An offset is read back the way it was written", "[builder]") {
+TEST_CASE("An offset is read back the way it was written [builder]") {
     // What a header carries — strftime's `%z` spelling, a sign and four digits
     // — turned back into the minutes a base stores.
     CHECK(tzutcMinutes("+0000") == 0);
@@ -133,7 +133,7 @@ TEST_CASE("An offset is read back the way it was written", "[builder]") {
     CHECK(tzutcMinutes("+03o0") == 0);
 }
 
-TEST_CASE("A message copied into another area is the same message", "[builder]") {
+TEST_CASE("A message copied into another area is the same message [builder]") {
     namespace attr = amberedit::domain::attr;
 
     MessageHeader header;
@@ -184,7 +184,7 @@ TEST_CASE("A message copied into another area is the same message", "[builder]")
                                                   "\x01PATH: 5020/1042"});
 }
 
-TEST_CASE("CHRS names the charset and its level", "[builder]") {
+TEST_CASE("CHRS names the charset and its level [builder]") {
     CHECK(charsetLevel("ASCII") == 1);
     CHECK(charsetLevel("us-ascii") == 1);
     CHECK(charsetLevel("UTF-8") == 4);
@@ -197,7 +197,7 @@ TEST_CASE("CHRS names the charset and its level", "[builder]") {
     CHECK(charsetIdentifier("CP866") == "CP866");
 }
 
-TEST_CASE("A netmail carries INTL, FMPT and TOPT", "[builder]") {
+TEST_CASE("A netmail carries INTL, FMPT and TOPT [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Netmail);
     const BuildRequest request{cfg,     area,    netmailFields(), nullptr,
@@ -218,7 +218,7 @@ TEST_CASE("A netmail carries INTL, FMPT and TOPT", "[builder]") {
     CHECK(draft.destAddr.toString() == "2:5015/46.120");
 }
 
-TEST_CASE("The draft carries the attributes the header screen set", "[builder]") {
+TEST_CASE("The draft carries the attributes the header screen set [builder]") {
     namespace attr = amberedit::domain::attr;
 
     const AppConfig cfg = config();
@@ -236,7 +236,7 @@ TEST_CASE("The draft carries the attributes the header screen set", "[builder]")
     CHECK(buildDraft(request, {"hello"}).attributes == (attr::kLocal | attr::kCrash));
 }
 
-TEST_CASE("A point only appears where there is one", "[builder]") {
+TEST_CASE("A point only appears where there is one [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Netmail);
 
@@ -253,7 +253,7 @@ TEST_CASE("A point only appears where there is one", "[builder]") {
           "CHRS: CP866 2|");
 }
 
-TEST_CASE("Echomail is not addressed, so it carries no INTL", "[builder]") {
+TEST_CASE("Echomail is not addressed, so it carries no INTL [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
 
@@ -270,7 +270,7 @@ TEST_CASE("Echomail is not addressed, so it carries no INTL", "[builder]") {
           "CHRS: CP866 2|");
 }
 
-TEST_CASE("The area a message names is read off its first line only", "[builder]") {
+TEST_CASE("The area a message names is read off its first line only [builder]") {
     const auto tagOf = [](std::vector<amberedit::domain::MessageLine> lines) {
         MessageBody body;
         body.lines = std::move(lines);
@@ -299,7 +299,7 @@ TEST_CASE("The area a message names is read off its first line only", "[builder]
     CHECK(tagOf({{"AREA:", false}}).empty());
 }
 
-TEST_CASE("A reply carries REPLY, and only when there is a MSGID to copy", "[builder]") {
+TEST_CASE("A reply carries REPLY, and only when there is a MSGID to copy [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
     ComposeFields fields = netmailFields();
@@ -357,7 +357,7 @@ BuildRequest echoRequest(const AppConfig& cfg, const AreaConfig& area,
 
 }  // namespace
 
-TEST_CASE("The tearline and the origin say what the config asks them to", "[builder]") {
+TEST_CASE("The tearline and the origin say what the config asks them to [builder]") {
     AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
     ComposeFields fields = netmailFields();
@@ -395,7 +395,7 @@ TEST_CASE("The tearline and the origin say what the config asks them to", "[buil
     CHECK(textOf(buildDraft(request, {"hi"})) == "hi|---| * Origin:  (2:382/736.1)");
 }
 
-TEST_CASE("A message ends with the tearline and the origin", "[builder]") {
+TEST_CASE("A message ends with the tearline and the origin [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
     ComposeFields fields = netmailFields();
@@ -404,7 +404,7 @@ TEST_CASE("A message ends with the tearline and the origin", "[builder]") {
     CHECK(textOf(buildDraft(request, {"hello", "world"})) == "hello|world|" + kClosing);
 }
 
-TEST_CASE("The tearline the editor already carries is not written twice", "[builder]") {
+TEST_CASE("The tearline the editor already carries is not written twice [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
     ComposeFields fields = netmailFields();
@@ -421,7 +421,7 @@ TEST_CASE("The tearline the editor already carries is not written twice", "[buil
     CHECK(textOf(buildDraft(request, padded)) == "hello|" + kClosing);
 }
 
-TEST_CASE("A tearline in the middle of a message is invalidated", "[builder]") {
+TEST_CASE("A tearline in the middle of a message is invalidated [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
     ComposeFields fields = netmailFields();
@@ -447,7 +447,7 @@ TEST_CASE("A tearline in the middle of a message is invalidated", "[builder]") {
     CHECK(textOf(buildDraft(request, {"hello", "---"})) == "hello|-+-|" + kClosing);
 }
 
-TEST_CASE("The editor opens with the message already closed", "[builder]") {
+TEST_CASE("The editor opens with the message already closed [builder]") {
     AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
     ComposeFields fields = netmailFields();
@@ -465,7 +465,7 @@ TEST_CASE("The editor opens with the message already closed", "[builder]") {
     CHECK(text.cursorLine == 0);
 }
 
-TEST_CASE("The editor opens on the template, quote and all", "[builder]") {
+TEST_CASE("The editor opens on the template, quote and all [builder]") {
     const TempFile tpl(
         "; a comment\n"
         "@quoted@odate @otime, @oname wrote to @tname:\n"
@@ -506,7 +506,7 @@ TEST_CASE("The editor opens on the template, quote and all", "[builder]") {
     CHECK(text.cursorLine == 1);
 }
 
-TEST_CASE("A reply moved into another area opens on the template's @moved lines",
+TEST_CASE("A reply moved into another area opens on the template's @moved lines "
           "[builder]") {
     const TempFile tpl(
         "@moved*** Answering a msg posted in area @OEcho.\n"
@@ -549,7 +549,7 @@ TEST_CASE("A reply moved into another area opens on the template's @moved lines"
     CHECK(plain.lines[0] == "Vasya Pupkin wrote:");
 }
 
-TEST_CASE("A forward carries the message rather than answering it", "[builder]") {
+TEST_CASE("A forward carries the message rather than answering it [builder]") {
     const TempFile tpl(
         "@forward* Forwarded by @CName\n"
         "@forward* Area : @OEcho\n"
@@ -599,7 +599,7 @@ TEST_CASE("A forward carries the message rather than answering it", "[builder]")
           "CHRS: CP866 2|");
 }
 
-TEST_CASE("A forward carries a CC: line as text and not as a command", "[builder]") {
+TEST_CASE("A forward carries a CC: line as text and not as a command [builder]") {
     const TempFile tpl("@message\n");
 
     AppConfig cfg = config();
@@ -629,7 +629,7 @@ TEST_CASE("A forward carries a CC: line as text and not as a command", "[builder
     CHECK(text.lines[2] == "hello there");
 }
 
-TEST_CASE("A message read with its kludges showing is quoted and forwarded with them",
+TEST_CASE("A message read with its kludges showing is quoted and forwarded with them "
           "[builder]") {
     const TempFile tpl(
         "@forward* Forwarded by @CName\n"
@@ -696,7 +696,7 @@ TEST_CASE("A message read with its kludges showing is quoted and forwarded with 
     CHECK(plain.lines[1] == "hello there");
 }
 
-TEST_CASE("A forward starts on the bare @position, above the signature",
+TEST_CASE("A forward starts on the bare @position, above the signature "
           "[builder]") {
     // The shipped template's shape: a `@position` every message honours, a
     // `@quoted@position` only a reply reaches, and a signature under both.
@@ -740,7 +740,7 @@ TEST_CASE("A forward starts on the bare @position, above the signature",
     CHECK(text.lines[6] == kOrigin);
 }
 
-TEST_CASE("A changed message keeps what the base already held", "[builder]") {
+TEST_CASE("A changed message keeps what the base already held [builder]") {
     MessageBody body;
     body.charset = "KOI8-R";
     // The order every format keeps: the control lines before the message, the
@@ -801,7 +801,7 @@ TEST_CASE("A changed message keeps what the base already held", "[builder]") {
           "CHRS: CP866 2|");
 }
 
-TEST_CASE("A template that cannot be read still leaves a message to write", "[builder]") {
+TEST_CASE("A template that cannot be read still leaves a message to write [builder]") {
     AppConfig cfg = config();
     cfg.templatePath = "/nonexistent/amberedit.tpl";
     const AreaConfig area = areaOf(AreaKind::Echo);
@@ -826,7 +826,7 @@ TEST_CASE("A template that cannot be read still leaves a message to write", "[bu
     CHECK(text.lines[1] == kTearline);
 }
 
-TEST_CASE("A message carries the settings of the area group it is written in",
+TEST_CASE("A message carries the settings of the area group it is written in "
           "[builder]") {
     // The builder reads everything off the config it is handed, so a per-area
     // setting reaches it by the config being resolved for that area first. This

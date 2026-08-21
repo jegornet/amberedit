@@ -7,7 +7,10 @@ Build-Depends: debhelper-compat (= 13),
                g++ (>= 4:8),
                pkg-config,
                libncurses-dev,
-               zlib1g-dev
+               zlib1g-dev,
+# doctest for the test suite, which dh_auto_test runs. One package name on
+# bookworm, trixie, jammy and noble alike — unlike catch2, which trixie renamed.
+               doctest-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/jegornet/amberedit
 Rules-Requires-Root: no

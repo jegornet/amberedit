@@ -20,7 +20,7 @@ bool sameWord(std::string_view word, std::string_view name) {
 
 }  // namespace
 
-std::string toString(MsgBaseType type) {
+std::string nameOf(MsgBaseType type) {
     switch (type) {
         case MsgBaseType::Squish: return "squish";
         case MsgBaseType::Jam: return "jam";
@@ -34,7 +34,7 @@ std::string toString(MsgBaseType type) {
 std::optional<MsgBaseType> parseMsgBaseType(std::string_view word) {
     if (sameWord(word, "squish")) return MsgBaseType::Squish;
     if (sameWord(word, "jam")) return MsgBaseType::Jam;
-    // Three spellings of one thing: `msg` is what toString writes, and a tosser
+    // Three spellings of one thing: `msg` is what nameOf writes, and a tosser
     // config is as likely to have been written with either of the other two.
     if (sameWord(word, "msg") || sameWord(word, "sdm") || sameWord(word, "fido"))
         return MsgBaseType::Sdm;
@@ -42,7 +42,7 @@ std::optional<MsgBaseType> parseMsgBaseType(std::string_view word) {
     return std::nullopt;
 }
 
-std::string toString(AreaKind kind) {
+std::string nameOf(AreaKind kind) {
     switch (kind) {
         case AreaKind::Echo: return "echo";
         case AreaKind::Netmail: return "netmail";

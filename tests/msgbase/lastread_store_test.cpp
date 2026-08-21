@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <unistd.h>
 
@@ -82,7 +82,7 @@ std::vector<unsigned char> readFile(const std::string& path) {
 
 }  // namespace
 
-TEST_CASE("The JAM name CRC matches the published algorithm", "[lastread]") {
+TEST_CASE("The JAM name CRC matches the published algorithm [lastread]") {
     // CRC-32 with the edb88320H polynomial seeded with ffffffffH and left
     // uninverted — the check value of the usual CRC-32 is cbf43926H, and this
     // is its complement.
@@ -93,7 +93,7 @@ TEST_CASE("The JAM name CRC matches the published algorithm", "[lastread]") {
     CHECK(lastread_file::nameCrc32("all") == 0xc4e78e22u);
 }
 
-TEST_CASE("Squish marks go to <base>.sql at the user's index", "[lastread]") {
+TEST_CASE("Squish marks go to <base>.sql at the user's index [lastread]") {
     TempDir temp;
     const AreaConfig area = areaAt(temp.basePath(), MsgBaseType::Squish);
 
@@ -121,7 +121,7 @@ TEST_CASE("Squish marks go to <base>.sql at the user's index", "[lastread]") {
     CHECK(user2.getLastRead(area) == 0x11223344);
 }
 
-TEST_CASE("A cleared Squish record reads as unread", "[lastread]") {
+TEST_CASE("A cleared Squish record reads as unread [lastread]") {
     TempDir temp;
     const AreaConfig area = areaAt(temp.basePath(), MsgBaseType::Squish);
 
@@ -130,7 +130,7 @@ TEST_CASE("A cleared Squish record reads as unread", "[lastread]") {
     CHECK(store.getLastRead(area) == 0);
 }
 
-TEST_CASE("Fido marks go to a lastread file in the area directory", "[lastread]") {
+TEST_CASE("Fido marks go to a lastread file in the area directory [lastread]") {
     TempDir temp;
     const std::string dir = (temp.dir() / "netmail").string();
     fs::create_directories(dir);
@@ -149,7 +149,7 @@ TEST_CASE("Fido marks go to a lastread file in the area directory", "[lastread]"
     CHECK(lastread_file::readU16(bytes.data() + 2) == 4242);
 }
 
-TEST_CASE("A Fido mark past 16 bits is dropped rather than wrapped", "[lastread]") {
+TEST_CASE("A Fido mark past 16 bits is dropped rather than wrapped [lastread]") {
     TempDir temp;
     const std::string dir = (temp.dir() / "big").string();
     fs::create_directories(dir);
@@ -161,7 +161,7 @@ TEST_CASE("A Fido mark past 16 bits is dropped rather than wrapped", "[lastread]
     CHECK(store.getLastRead(area) == 1000);
 }
 
-TEST_CASE("JAM records are found by the CRC of the user's name", "[lastread]") {
+TEST_CASE("JAM records are found by the CRC of the user's name [lastread]") {
     TempDir temp;
     const AreaConfig area = areaAt(temp.basePath(), MsgBaseType::Jam);
 
@@ -191,7 +191,7 @@ TEST_CASE("JAM records are found by the CRC of the user's name", "[lastread]") {
     CHECK(maria.getLastRead(area) == 200);
 }
 
-TEST_CASE("The JAM high-read mark only ever moves forward", "[lastread]") {
+TEST_CASE("The JAM high-read mark only ever moves forward [lastread]") {
     TempDir temp;
     const AreaConfig area = areaAt(temp.basePath(), MsgBaseType::Jam);
     JamLastReadStore store(0, "Ivan Petrov");
@@ -205,7 +205,7 @@ TEST_CASE("The JAM high-read mark only ever moves forward", "[lastread]") {
     CHECK(lastread_file::readU32(bytes.data() + 12) == 500u);  // HighReadMsg does not
 }
 
-TEST_CASE("JAM without a user name in the config stores nothing", "[lastread]") {
+TEST_CASE("JAM without a user name in the config stores nothing [lastread]") {
     // There is no key to search the file on, and the CRC of the empty string
     // would claim whichever record happens to carry it.
     TempDir temp;
@@ -217,7 +217,7 @@ TEST_CASE("JAM without a user name in the config stores nothing", "[lastread]") 
     CHECK_FALSE(fs::exists(JamLastReadStore::pathFor(area)));
 }
 
-TEST_CASE("The dispatcher writes each base type to its own file", "[lastread]") {
+TEST_CASE("The dispatcher writes each base type to its own file [lastread]") {
     TempDir temp;
     MsgBaseLastReadStore store(0, "Ivan Petrov");
 
@@ -240,7 +240,7 @@ TEST_CASE("The dispatcher writes each base type to its own file", "[lastread]") 
     CHECK(store.getLastRead(sdm) == 33);
 }
 
-TEST_CASE("A passthrough area keeps no marks", "[lastread]") {
+TEST_CASE("A passthrough area keeps no marks [lastread]") {
     TempDir temp;
     MsgBaseLastReadStore store(0, "Ivan Petrov");
 
@@ -252,7 +252,7 @@ TEST_CASE("A passthrough area keeps no marks", "[lastread]") {
 
 // --- end to end, on the Squish base in the repository ------------------------
 
-TEST_CASE("Reading a message leaves a mark the next run resumes from",
+TEST_CASE("Reading a message leaves a mark the next run resumes from "
           "[lastread][squish]") {
     amberedit::test::TempSquishBase base;
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
@@ -295,7 +295,7 @@ TEST_CASE("Reading a message leaves a mark the next run resumes from",
     CHECK(manager.startingMessage(area, total) == total - 1);
 }
 
-TEST_CASE("Where an area resumes is reader_lastread_auto_next's",
+TEST_CASE("Where an area resumes is reader_lastread_auto_next's "
           "[lastread][squish]") {
     amberedit::test::TempSquishBase base;
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
@@ -341,7 +341,7 @@ TEST_CASE("Where an area resumes is reader_lastread_auto_next's",
     }
 }
 
-TEST_CASE("An area with no mark opens at its first message",
+TEST_CASE("An area with no mark opens at its first message "
           "[lastread][squish]") {
     amberedit::test::TempSquishBase base;
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
@@ -353,7 +353,8 @@ TEST_CASE("An area with no mark opens at its first message",
     config.tosserConfigPath = "/dev/null";
     // Nothing read is nothing read whichever way this stands: there is no
     // marked message to open on, and no message before the first one either.
-    config.lastreadAutoNext = GENERATE(true, false);
+    SUBCASE("with lastread_auto_next on") { config.lastreadAutoNext = true; }
+    SUBCASE("and with it off") { config.lastreadAutoNext = false; }
 
     std::vector<AreaConfig> areas{area};
     amberedit::app::AreaManager manager(
@@ -371,7 +372,7 @@ TEST_CASE("An area with no mark opens at its first message",
     CHECK(manager.areas().front().unread == total);
 }
 
-TEST_CASE("A mark is stored as a UID, not as a position", "[lastread][squish]") {
+TEST_CASE("A mark is stored as a UID, not as a position [lastread][squish]") {
     // What is on disk has to survive the base being packed, so it must be the
     // message's UID — and for this base the two differ.
     amberedit::test::TempSquishBase base;

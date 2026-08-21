@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <cstdint>
 #include <string>
@@ -110,7 +110,7 @@ std::string frameOf(AreaFixture& fixture) {
 
 }  // namespace
 
-TEST_CASE("blank puts a notice in place of a twit's text", "[twit][squish]") {
+TEST_CASE("blank puts a notice in place of a twit's text [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Blank, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}});
@@ -134,7 +134,7 @@ TEST_CASE("blank puts a notice in place of a twit's text", "[twit][squish]") {
     CHECK(frame.find("Message number 1.") == std::string::npos);
 }
 
-TEST_CASE("Space shows a blanked twit after all", "[twit][squish]") {
+TEST_CASE("Space shows a blanked twit after all [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Blank, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}});
@@ -149,7 +149,7 @@ TEST_CASE("Space shows a blanked twit after all", "[twit][squish]") {
     CHECK(bodyOf(fixture).find("Message number 1.") != std::string::npos);
 }
 
-TEST_CASE("A twit shown once is hidden again on the next message", "[twit][squish]") {
+TEST_CASE("A twit shown once is hidden again on the next message [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Blank, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}, {"Ivan Ivanov"}});
@@ -166,7 +166,7 @@ TEST_CASE("A twit shown once is hidden again on the next message", "[twit][squis
     CHECK(bodyOf(fixture) == kNotice);
 }
 
-TEST_CASE("show leaves the twits alone", "[twit][squish]") {
+TEST_CASE("show leaves the twits alone [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Show, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}});
@@ -177,7 +177,7 @@ TEST_CASE("show leaves the twits alone", "[twit][squish]") {
     CHECK(bodyOf(fixture).find("Message number 1.") != std::string::npos);
 }
 
-TEST_CASE("skip walks forward past a run of twits", "[twit][squish]") {
+TEST_CASE("skip walks forward past a run of twits [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
@@ -192,7 +192,7 @@ TEST_CASE("skip walks forward past a run of twits", "[twit][squish]") {
     CHECK(fixture.state.messageCursor == 3);
 }
 
-TEST_CASE("skip walks back past a run of twits", "[twit][squish]") {
+TEST_CASE("skip walks back past a run of twits [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
@@ -206,7 +206,7 @@ TEST_CASE("skip walks back past a run of twits", "[twit][squish]") {
     CHECK(showing(fixture) == 1);
 }
 
-TEST_CASE("skip spares a twit written to the user themselves", "[twit][squish]") {
+TEST_CASE("skip spares a twit written to the user themselves [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
@@ -222,7 +222,7 @@ TEST_CASE("skip spares a twit written to the user themselves", "[twit][squish]")
     CHECK(bodyOf(fixture).find("Message number 2.") != std::string::npos);
 }
 
-TEST_CASE("ignore walks past a twit written to the user", "[twit][squish]") {
+TEST_CASE("ignore walks past a twit written to the user [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Ignore, {"Ivan Ivanov"}));
     putMessages(fixture,
@@ -234,7 +234,7 @@ TEST_CASE("ignore walks past a twit written to the user", "[twit][squish]") {
     CHECK(showing(fixture) == 3);
 }
 
-TEST_CASE("Entering an area lands past the twits standing at its front",
+TEST_CASE("Entering an area lands past the twits standing at its front "
           "[twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
@@ -246,7 +246,7 @@ TEST_CASE("Entering an area lands past the twits standing at its front",
     CHECK(fixture.state.messageCursor == 2);
 }
 
-TEST_CASE("An area of nothing but twits is read as blank reads", "[twit][squish]") {
+TEST_CASE("An area of nothing but twits is read as blank reads [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Ivan Ivanov"}});
@@ -263,7 +263,7 @@ TEST_CASE("An area of nothing but twits is read as blank reads", "[twit][squish]
     CHECK(bodyOf(fixture).find("Message number 1.") != std::string::npos);
 }
 
-TEST_CASE("A twit picked out of the list opens the message after it", "[twit][squish]") {
+TEST_CASE("A twit picked out of the list opens the message after it [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
@@ -278,7 +278,7 @@ TEST_CASE("A twit picked out of the list opens the message after it", "[twit][sq
     CHECK(showing(fixture) == 4);
 }
 
-TEST_CASE("A run of twits at the end of an area is the end of it", "[twit][squish]") {
+TEST_CASE("A run of twits at the end of an area is the end of it [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Petr Petrov"}, {"Ivan Ivanov"}, {"Ivan Ivanov"}});
@@ -292,7 +292,7 @@ TEST_CASE("A run of twits at the end of an area is the end of it", "[twit][squis
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
 }
 
-TEST_CASE("kill takes the twits out of the area as it opens", "[twit][squish]") {
+TEST_CASE("kill takes the twits out of the area as it opens [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Kill, {"Ivan Ivanov"}));
     putMessages(fixture,
@@ -307,7 +307,7 @@ TEST_CASE("kill takes the twits out of the area as it opens", "[twit][squish]") 
     CHECK(fixture.manager.areas()[0].total == 2);
 }
 
-TEST_CASE("kill on an area of nothing but twits empties it", "[twit][squish]") {
+TEST_CASE("kill on an area of nothing but twits empties it [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Kill, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Ivan Ivanov"}});
@@ -321,7 +321,7 @@ TEST_CASE("kill on an area of nothing but twits empties it", "[twit][squish]") {
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
 }
 
-TEST_CASE("A twit is one by its subject as well", "[twit][squish]") {
+TEST_CASE("A twit is one by its subject as well [twit][squish]") {
     TempSquishBase base;
     AppConfig config = twitting(TwitMode::Skip, {});
     config.twitSubjects.emplace_back("*sale*");
@@ -337,7 +337,7 @@ TEST_CASE("A twit is one by its subject as well", "[twit][squish]") {
     CHECK(showing(fixture) == 3);
 }
 
-TEST_CASE("A twit is one by the address it was written from", "[twit][squish]") {
+TEST_CASE("A twit is one by the address it was written from [twit][squish]") {
     TempSquishBase base;
     AppConfig config = twitting(TwitMode::Skip, {});
     amberedit::config::TwitRule rule;

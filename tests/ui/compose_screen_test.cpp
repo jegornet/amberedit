@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <algorithm>
 #include <ctime>
@@ -212,7 +212,7 @@ bool textHas(const amberedit::ui::AppState& state, const std::string& what) {
 
 }  // namespace
 
-TEST_CASE("A new message opens in the header, over the text it will be", "[compose]") {
+TEST_CASE("A new message opens in the header, over the text it will be [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -228,7 +228,7 @@ TEST_CASE("A new message opens in the header, over the text it will be", "[compo
     CHECK(textHas(state, " * Origin:"));
 }
 
-TEST_CASE("Enter off the subject hands the typing down to the text", "[compose]") {
+TEST_CASE("Enter off the subject hands the typing down to the text [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -243,7 +243,7 @@ TEST_CASE("Enter off the subject hands the typing down to the text", "[compose]"
     CHECK(textHas(state, "x"));
 }
 
-TEST_CASE("Ctrl-U goes back up into the header, onto the field left behind",
+TEST_CASE("Ctrl-U goes back up into the header, onto the field left behind "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -271,7 +271,7 @@ TEST_CASE("Ctrl-U goes back up into the header, onto the field left behind",
     CHECK(state.composeField == compose::kFromName);
 }
 
-TEST_CASE("Tab walks the whole ring: every field of the header, then the text",
+TEST_CASE("Tab walks the whole ring: every field of the header, then the text "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -300,7 +300,7 @@ TEST_CASE("Tab walks the whole ring: every field of the header, then the text",
     CHECK(state.composeField == compose::kFromAddr);
 }
 
-TEST_CASE("Shift-Tab walks the same ring the other way round", "[compose]") {
+TEST_CASE("Shift-Tab walks the same ring the other way round [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -327,7 +327,7 @@ TEST_CASE("Shift-Tab walks the same ring the other way round", "[compose]") {
     CHECK(state.composeField == compose::kToName);
 }
 
-TEST_CASE("Enter walks the fields and goes past the button into the message",
+TEST_CASE("Enter walks the fields and goes past the button into the message "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -352,7 +352,7 @@ TEST_CASE("Enter walks the fields and goes past the button into the message",
     CHECK(state.attributePicker);
 }
 
-TEST_CASE("Leaving the To address picks the AKA whichever way the cursor goes",
+TEST_CASE("Leaving the To address picks the AKA whichever way the cursor goes "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -375,7 +375,7 @@ TEST_CASE("Leaving the To address picks the AKA whichever way the cursor goes",
     CHECK(state.compose.fromAddr == "3:633/280");
 }
 
-TEST_CASE("The arrows walk the block and stop at its top", "[compose]") {
+TEST_CASE("The arrows walk the block and stop at its top [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -391,7 +391,7 @@ TEST_CASE("The arrows walk the block and stop at its top", "[compose]") {
     CHECK(state.composeField == compose::kFromName);
 }
 
-TEST_CASE("A reply opens on its quote, the header already filled in", "[compose]") {
+TEST_CASE("A reply opens on its quote, the header already filled in [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -414,7 +414,7 @@ TEST_CASE("A reply opens on its quote, the header already filled in", "[compose]
     CHECK(state.composeField == compose::kSubject);
 }
 
-TEST_CASE("A message is not stored without a sender address", "[compose]") {
+TEST_CASE("A message is not stored without a sender address [compose]") {
     // Neither the area nor the config names an address, so prefill has nothing
     // to put in the From row.
     ComposeFixture fixture(AreaKind::Echo, "");
@@ -444,7 +444,7 @@ TEST_CASE("A message is not stored without a sender address", "[compose]") {
     CHECK(state.confirm == amberedit::ui::AppState::Confirm::SaveMessage);
 }
 
-TEST_CASE("In netmail the recipient's address is wanted as well", "[compose]") {
+TEST_CASE("In netmail the recipient's address is wanted as well [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
 
@@ -466,7 +466,7 @@ TEST_CASE("In netmail the recipient's address is wanted as well", "[compose]") {
     CHECK(state.confirm == amberedit::ui::AppState::Confirm::SaveMessage);
 }
 
-TEST_CASE("Echomail is addressed to the area, so it needs no address for it",
+TEST_CASE("Echomail is addressed to the area, so it needs no address for it "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -480,7 +480,7 @@ TEST_CASE("Echomail is addressed to the area, so it needs no address for it",
     CHECK(state.confirm == amberedit::ui::AppState::Confirm::SaveMessage);
 }
 
-TEST_CASE("The template is expanded again for a header still being filled in",
+TEST_CASE("The template is expanded again for a header still being filled in "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -506,7 +506,7 @@ TEST_CASE("The template is expanded again for a header still being filled in",
     CHECK(textHas(state, "!"));
 }
 
-TEST_CASE("A trip through an unchanged header leaves the cursor where it was",
+TEST_CASE("A trip through an unchanged header leaves the cursor where it was "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -526,7 +526,7 @@ TEST_CASE("A trip through an unchanged header leaves the cursor where it was",
     CHECK(state.edit.row == row);
 }
 
-TEST_CASE("A message begins with the attributes its area asks for", "[compose]") {
+TEST_CASE("A message begins with the attributes its area asks for [compose]") {
     namespace attr = amberedit::domain::attr;
 
     ComposeFixture echo(AreaKind::Echo, "2:5020/1");
@@ -540,7 +540,7 @@ TEST_CASE("A message begins with the attributes its area asks for", "[compose]")
     CHECK(netmail.state.compose.attributes == (attr::kLocal | attr::kPrivate));
 }
 
-TEST_CASE("The header shows the message's attributes under the addresses",
+TEST_CASE("The header shows the message's attributes under the addresses "
           "[compose]") {
     namespace attr = amberedit::domain::attr;
 
@@ -572,7 +572,7 @@ TEST_CASE("The header shows the message's attributes under the addresses",
     }
 }
 
-TEST_CASE("The editor's header block closes with the reader's Date row", "[compose]") {
+TEST_CASE("The editor's header block closes with the reader's Date row [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -612,7 +612,7 @@ TEST_CASE("The editor's header block closes with the reader's Date row", "[compo
     CHECK(shows(screenRowsOf(state), stamp));
 }
 
-TEST_CASE("The editor's Recd row is the clock too, where one is asked for", "[compose]") {
+TEST_CASE("The editor's Recd row is the clock too, where one is asked for [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -654,7 +654,7 @@ TEST_CASE("The editor's Recd row is the clock too, where one is asked for", "[co
     CHECK(static_cast<int>(recd.find(stamp)) == columnOf(rows, "Yegor Gluhov"));
 }
 
-TEST_CASE("The Recd row is no field, and the typing walks past where it stands",
+TEST_CASE("The Recd row is no field, and the typing walks past where it stands "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -668,7 +668,7 @@ TEST_CASE("The Recd row is no field, and the typing walks past where it stands",
     CHECK(shows(screenRowsOf(state), " Recd : "));
 }
 
-TEST_CASE("The editor's Date row answers %z with the clock here", "[compose]") {
+TEST_CASE("The editor's Date row answers %z with the clock here [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
     fixture.config.readerDateTimeFormat = "%H:%M %z";
@@ -693,7 +693,7 @@ TEST_CASE("The editor's Date row answers %z with the clock here", "[compose]") {
     CHECK(date->find(zone) != std::string::npos);
 }
 
-TEST_CASE("The attributes stay on offer once the typing has gone into the text",
+TEST_CASE("The attributes stay on offer once the typing has gone into the text "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -718,7 +718,7 @@ TEST_CASE("The attributes stay on offer once the typing has gone into the text",
     CHECK(state.composeField == compose::kAttributes);
 }
 
-TEST_CASE("The attributes button is lit when the typing is on it, and plain when not",
+TEST_CASE("The attributes button is lit when the typing is on it, and plain when not "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -760,7 +760,7 @@ TEST_CASE("The attributes button is lit when the typing is on it, and plain when
     for (const auto& cell : buttonCells()) CHECK(cell.bg.defaulted);
 }
 
-TEST_CASE("The fields that are typed into are drawn as boxes that take typing",
+TEST_CASE("The fields that are typed into are drawn as boxes that take typing "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -801,7 +801,7 @@ TEST_CASE("The fields that are typed into are drawn as boxes that take typing",
     CHECK(screen.at(1, focused.y_min).bg.defaulted);
 }
 
-TEST_CASE("The date is shown like the rest of the block, on no fill", "[compose]") {
+TEST_CASE("The date is shown like the rest of the block, on no fill [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -840,7 +840,7 @@ TEST_CASE("The date is shown like the rest of the block, on no fill", "[compose]
     }
 }
 
-TEST_CASE("A message carrying no attributes says so on the button", "[compose]") {
+TEST_CASE("A message carrying no attributes says so on the button [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -859,7 +859,7 @@ TEST_CASE("A message carrying no attributes says so on the button", "[compose]")
     CHECK(state.attributePicker);
 }
 
-TEST_CASE("Every confirmation has two answers and no third way out",
+TEST_CASE("Every confirmation has two answers and no third way out "
           "[compose][confirm]") {
     using amberedit::ui::AppState;
 
@@ -906,7 +906,7 @@ TEST_CASE("Every confirmation has two answers and no third way out",
     CHECK(shows(dropRows, "y/n ·"));
 }
 
-TEST_CASE("The attributes dialog opens from the compose screen, by key and by click",
+TEST_CASE("The attributes dialog opens from the compose screen, by key and by click "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -926,7 +926,7 @@ TEST_CASE("The attributes dialog opens from the compose screen, by key and by cl
     CHECK(state.attributePicker);
 }
 
-TEST_CASE("Ctrl-W takes the word before the cursor out of the message",
+TEST_CASE("Ctrl-W takes the word before the cursor out of the message "
           "[compose][keys]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -950,7 +950,7 @@ TEST_CASE("Ctrl-W takes the word before the cursor out of the message",
     CHECK(state.edit.lines[0] == "one ");
 }
 
-TEST_CASE("The dialog turns attributes over by chord, by Space and by click",
+TEST_CASE("The dialog turns attributes over by chord, by Space and by click "
           "[compose]") {
     namespace attr = amberedit::domain::attr;
 
@@ -996,7 +996,7 @@ TEST_CASE("The dialog turns attributes over by chord, by Space and by click",
     CHECK(state.compose.attributes == 0);
 }
 
-TEST_CASE("Enter keeps what the dialog did and Esc puts it back", "[compose]") {
+TEST_CASE("Enter keeps what the dialog did and Esc puts it back [compose]") {
     namespace attr = amberedit::domain::attr;
 
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
@@ -1021,7 +1021,7 @@ TEST_CASE("Enter keeps what the dialog did and Esc puts it back", "[compose]") {
     CHECK(state.compose.attributes == (started | attr::kKillSent));
 }
 
-TEST_CASE("The dialog lists every attribute with the chord that sets it",
+TEST_CASE("The dialog lists every attribute with the chord that sets it "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -1036,7 +1036,7 @@ TEST_CASE("The dialog lists every attribute with the chord that sets it",
     CHECK(shows(rows, "Done"));
 }
 
-TEST_CASE("A Ctrl chord is not typed into the field it was pressed in", "[compose]") {
+TEST_CASE("A Ctrl chord is not typed into the field it was pressed in [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1052,7 +1052,7 @@ TEST_CASE("A Ctrl chord is not typed into the field it was pressed in", "[compos
     CHECK(state.compose.subject == "x");
 }
 
-TEST_CASE("A name stops at 35 characters and the subject at 71", "[compose]") {
+TEST_CASE("A name stops at 35 characters and the subject at 71 [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -1094,7 +1094,7 @@ TEST_CASE("A name stops at 35 characters and the subject at 71", "[compose]") {
     CHECK(state.compose.subject == std::string(70, 'c') + "z");
 }
 
-TEST_CASE("The limit is in characters, not in bytes", "[compose]") {
+TEST_CASE("The limit is in characters, not in bytes [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -1112,7 +1112,7 @@ TEST_CASE("The limit is in characters, not in bytes", "[compose]") {
     CHECK(state.compose.toName == expected);
 }
 
-TEST_CASE("The subject box is no wider than what it will hold", "[compose]") {
+TEST_CASE("The subject box is no wider than what it will hold [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
     state.width = 140;
@@ -1127,7 +1127,7 @@ TEST_CASE("The subject box is no wider than what it will hold", "[compose]") {
     CHECK(subject.x_max - subject.x_min + 1 == 72);
 }
 
-TEST_CASE("Esc asks before dropping the message, wherever the cursor is", "[compose]") {
+TEST_CASE("Esc asks before dropping the message, wherever the cursor is [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1145,7 +1145,7 @@ TEST_CASE("Esc asks before dropping the message, wherever the cursor is", "[comp
     CHECK(state.confirm == amberedit::ui::AppState::Confirm::DropMessage);
 }
 
-TEST_CASE("The editor's menu offers Save and Import, wherever the typing is",
+TEST_CASE("The editor's menu offers Save and Import, wherever the typing is "
           "[compose][menu]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1194,7 +1194,7 @@ TEST_CASE("The editor's menu offers Save and Import, wherever the typing is",
     CHECK(state.importPicker);
 }
 
-TEST_CASE("An imported file goes into the message from the header too", "[compose]") {
+TEST_CASE("An imported file goes into the message from the header too [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1211,7 +1211,7 @@ TEST_CASE("An imported file goes into the message from the header too", "[compos
     CHECK(state.edit.lines[1] == "a file");
 }
 
-TEST_CASE("A click on a header field takes the typing up to it", "[compose][mouse]") {
+TEST_CASE("A click on a header field takes the typing up to it [compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1250,7 +1250,7 @@ TEST_CASE("A click on a header field takes the typing up to it", "[compose][mous
     CHECK(state.composeCursor == state.compose.fromName.size());
 }
 
-TEST_CASE("Ctrl-A and Ctrl-E stand for Home and End", "[compose]") {
+TEST_CASE("Ctrl-A and Ctrl-E stand for Home and End [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1280,7 +1280,7 @@ TEST_CASE("Ctrl-A and Ctrl-E stand for Home and End", "[compose]") {
     CHECK(state.edit.col == 0);
 }
 
-TEST_CASE("A click in the text brings the typing back down to it", "[compose][mouse]") {
+TEST_CASE("A click in the text brings the typing back down to it [compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1317,7 +1317,7 @@ TEST_CASE("A click in the text brings the typing back down to it", "[compose][mo
     CHECK(state.edit.row == 1);
 }
 
-TEST_CASE("A line too wide for the window is shown wrapped and stays one line",
+TEST_CASE("A line too wide for the window is shown wrapped and stays one line "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1349,7 +1349,7 @@ TEST_CASE("A line too wide for the window is shown wrapped and stays one line",
     CHECK(carrying == 2);
 }
 
-TEST_CASE("A line filling the window sends its last word down, not the line sideways",
+TEST_CASE("A line filling the window sends its last word down, not the line sideways "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1383,7 +1383,7 @@ TEST_CASE("A line filling the window sends its last word down, not the line side
     CHECK(rows[static_cast<size_t>(at) + 1].substr(0, 5) == "tests");
 }
 
-TEST_CASE("A click on a wrapped row lands in the line it continues", "[compose][mouse]") {
+TEST_CASE("A click on a wrapped row lands in the line it continues [compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1429,7 +1429,7 @@ TEST_CASE("A click on a wrapped row lands in the line it continues", "[compose][
     CHECK(state.edit.col == 0);
 }
 
-TEST_CASE("The arrows walk the rows of the screen, not the lines", "[compose]") {
+TEST_CASE("The arrows walk the rows of the screen, not the lines [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1457,7 +1457,7 @@ TEST_CASE("The arrows walk the rows of the screen, not the lines", "[compose]") 
     CHECK(state.edit.col == 0);
 }
 
-TEST_CASE("A click lands on a character, not on a byte", "[compose][mouse]") {
+TEST_CASE("A click lands on a character, not on a byte [compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1478,7 +1478,7 @@ TEST_CASE("A click lands on a character, not on a byte", "[compose][mouse]") {
     CHECK(state.compose.subject == "ПриЪвет мир");
 }
 
-TEST_CASE("A field the row does not carry answers no click", "[compose][mouse]") {
+TEST_CASE("A field the row does not carry answers no click [compose][mouse]") {
     ComposeFixture echo(AreaKind::Echo, "2:5020/1");
     compose::startNew(echo.state);
     screenRowsOf(echo.state);
@@ -1498,7 +1498,7 @@ TEST_CASE("A field the row does not carry answers no click", "[compose][mouse]")
     CHECK(state.composeField == compose::kToAddr);
 }
 
-TEST_CASE("Clicking off the To address still picks the AKA to write from",
+TEST_CASE("Clicking off the To address still picks the AKA to write from "
           "[compose][mouse]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
@@ -1527,7 +1527,7 @@ TEST_CASE("Clicking off the To address still picks the AKA to write from",
     CHECK(state.compose.fromAddr == "3:633/280");
 }
 
-TEST_CASE("The editor's scrollbar is drawn only over a message that overflows",
+TEST_CASE("The editor's scrollbar is drawn only over a message that overflows "
           "[compose][scrollbar]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1548,7 +1548,7 @@ TEST_CASE("The editor's scrollbar is drawn only over a message that overflows",
     CHECK(holds(column, "│"));
 }
 
-TEST_CASE("The reader's scrollbar setting says nothing about the editor's",
+TEST_CASE("The reader's scrollbar setting says nothing about the editor's "
           "[compose][scrollbar]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1562,7 +1562,7 @@ TEST_CASE("The reader's scrollbar setting says nothing about the editor's",
     CHECK(holds(rightColumnOf(state), "█"));
 }
 
-TEST_CASE("The scrollbar costs the text the column it stands in",
+TEST_CASE("The scrollbar costs the text the column it stands in "
           "[compose][scrollbar]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1581,7 +1581,7 @@ TEST_CASE("The scrollbar costs the text the column it stands in",
     CHECK_FALSE(shows(rows, toTheBar + "a"));
 }
 
-TEST_CASE("The wheel scrolls the message being written, the cursor coming along",
+TEST_CASE("The wheel scrolls the message being written, the cursor coming along "
           "[compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -1612,7 +1612,7 @@ TEST_CASE("The wheel scrolls the message being written, the cursor coming along"
     CHECK(state.edit.row == std::min(9, rows - 1));
 }
 
-TEST_CASE("The wheel stops at the ends of the message", "[compose][mouse]") {
+TEST_CASE("The wheel stops at the ends of the message [compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -1680,7 +1680,7 @@ void pickNode(amberedit::ui::AppState& state) {
 
 }  // namespace
 
-TEST_CASE("Enter on a named recipient with no address asks the nodelist for one",
+TEST_CASE("Enter on a named recipient with no address asks the nodelist for one "
           "[compose][nodelist]") {
     amberedit::test::TempDir dir;
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
@@ -1719,7 +1719,7 @@ TEST_CASE("Enter on a named recipient with no address asks the nodelist for one"
     CHECK(state.composeField == compose::kSubject);
 }
 
-TEST_CASE("Enter on an address with no name asks the nodelist whose it is",
+TEST_CASE("Enter on an address with no name asks the nodelist whose it is "
           "[compose][nodelist]") {
     amberedit::test::TempDir dir;
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
@@ -1748,7 +1748,7 @@ TEST_CASE("Enter on an address with no name asks the nodelist whose it is",
     CHECK(state.composeField == compose::kSubject);
 }
 
-TEST_CASE("The node picked is what the To row ends up addressed to",
+TEST_CASE("The node picked is what the To row ends up addressed to "
           "[compose][nodelist]") {
     amberedit::test::TempDir dir;
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
@@ -1770,7 +1770,7 @@ TEST_CASE("The node picked is what the To row ends up addressed to",
     CHECK(state.compose.toName == "Ulrich Schroeter");
 }
 
-TEST_CASE("A To row with nothing to look up walks on as Enter always did",
+TEST_CASE("A To row with nothing to look up walks on as Enter always did "
           "[compose][nodelist]") {
     amberedit::test::TempDir dir;
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
@@ -1820,7 +1820,7 @@ void giveAreaFixMacro(ComposeFixture& fixture) {
 
 }  // namespace
 
-TEST_CASE("Enter on an address macro fills the whole recipient in", "[compose][macro]") {
+TEST_CASE("Enter on an address macro fills the whole recipient in [compose][macro]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     giveAreaFixMacro(fixture);
     auto& state = fixture.state;
@@ -1843,7 +1843,7 @@ TEST_CASE("Enter on an address macro fills the whole recipient in", "[compose][m
     CHECK(state.composeField == compose::kSubject);
 }
 
-TEST_CASE("An address macro is not looked up in the nodelist", "[compose][macro]") {
+TEST_CASE("An address macro is not looked up in the nodelist [compose][macro]") {
     amberedit::test::TempDir dir;
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     giveNodelist(fixture, dir);
@@ -1865,7 +1865,7 @@ TEST_CASE("An address macro is not looked up in the nodelist", "[compose][macro]
     CHECK(state.nodelistView);
 }
 
-TEST_CASE("An address macro says nothing it was not written with", "[compose][macro]") {
+TEST_CASE("An address macro says nothing it was not written with [compose][macro]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     amberedit::config::AddressMacro macro;
     macro.macro = "boss";
@@ -1888,7 +1888,7 @@ TEST_CASE("An address macro says nothing it was not written with", "[compose][ma
     CHECK(state.compose.attributes == started);
 }
 
-TEST_CASE("An address macro is netmail's alone", "[compose][macro]") {
+TEST_CASE("An address macro is netmail's alone [compose][macro]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     giveAreaFixMacro(fixture);
     auto& state = fixture.state;
@@ -1903,7 +1903,7 @@ TEST_CASE("An address macro is netmail's alone", "[compose][macro]") {
     CHECK(state.compose.subject.empty());
 }
 
-TEST_CASE("The delete-line button closes round the row the cursor is on",
+TEST_CASE("The delete-line button closes round the row the cursor is on "
           "[compose][delete_line]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     fixture.config.composeDeleteLineButton = amberedit::config::Visibility::On;
@@ -1943,7 +1943,7 @@ TEST_CASE("The delete-line button closes round the row the cursor is on",
     CHECK_FALSE(shows(rows, "\u2514\u2500\u2518"));
 }
 
-TEST_CASE("The delete-line button costs the text three columns on every row",
+TEST_CASE("The delete-line button costs the text three columns on every row "
           "[compose][delete_line]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     fixture.config.composeDeleteLineButton = amberedit::config::Visibility::On;
@@ -1969,7 +1969,7 @@ TEST_CASE("The delete-line button costs the text three columns on every row",
     CHECK_FALSE(shows(rows, bToTheButton + "b"));
 }
 
-TEST_CASE("The delete-line button stands over the scrollbar rather than beside it",
+TEST_CASE("The delete-line button stands over the scrollbar rather than beside it "
           "[compose][delete_line][scrollbar]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     fixture.config.composeDeleteLineButton = amberedit::config::Visibility::On;
@@ -1996,7 +1996,7 @@ TEST_CASE("The delete-line button stands over the scrollbar rather than beside i
     CHECK(holds(column, "\u2518"));
 }
 
-TEST_CASE("Clicking the delete-line button takes the line out, as Ctrl-Y does",
+TEST_CASE("Clicking the delete-line button takes the line out, as Ctrl-Y does "
           "[compose][delete_line][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     fixture.config.composeDeleteLineButton = amberedit::config::Visibility::On;
@@ -2025,7 +2025,7 @@ TEST_CASE("Clicking the delete-line button takes the line out, as Ctrl-Y does",
     CHECK_FALSE(textHas(state, "line 3"));
 }
 
-TEST_CASE("The delete-line button off leaves the text the whole window",
+TEST_CASE("The delete-line button off leaves the text the whole window "
           "[compose][delete_line]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     fixture.config.composeDeleteLineButton = amberedit::config::Visibility::Off;
@@ -2042,7 +2042,7 @@ TEST_CASE("The delete-line button off leaves the text the whole window",
     CHECK(state.composeDeleteLine.label.IsEmpty());
 }
 
-TEST_CASE("The delete-line button follows the window, as when_narrow says",
+TEST_CASE("The delete-line button follows the window, as when_narrow says "
           "[compose][delete_line]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;

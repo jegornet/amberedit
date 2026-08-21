@@ -1,4 +1,4 @@
-#include <catch2/catch.hpp>
+#include <doctest/doctest.h>
 
 #include <string>
 
@@ -53,7 +53,7 @@ std::string expanded(const std::string& text, const TemplateContext& context) {
 
 }  // namespace
 
-TEST_CASE("A template's comments and conditionals decide what appears", "[template]") {
+TEST_CASE("A template's comments and conditionals decide what appears [template]") {
     const auto context = replyContext();
 
     CHECK(expanded("; a comment\nplain", context) == "plain");
@@ -74,7 +74,7 @@ TEST_CASE("A template's comments and conditionals decide what appears", "[templa
     CHECK(expanded("@movedmoved", context).empty());
 }
 
-TEST_CASE("The @Changed lines are taken out of a template on their own", "[template]") {
+TEST_CASE("The @Changed lines are taken out of a template on their own [template]") {
     // What a message being changed gets: those lines and nothing else of the
     // template, since the editor opens on the message itself rather than on a
     // template with the message inside it.
@@ -108,7 +108,7 @@ TEST_CASE("The @Changed lines are taken out of a template on their own", "[templ
     CHECK(amberedit::app::conditionalLines("Hello @pseudo!", "changed", context).empty());
 }
 
-TEST_CASE("A forward puts the message in where @message stands", "[template]") {
+TEST_CASE("A forward puts the message in where @message stands [template]") {
     auto context = replyContext();
     context.isReply = false;
     context.isQuoted = false;
@@ -127,7 +127,7 @@ TEST_CASE("A forward puts the message in where @message stands", "[template]") {
     CHECK(expanded("@quote", reply) == " VP> hello| VP> world");
 }
 
-TEST_CASE("A moved reply names the area it was answering", "[template]") {
+TEST_CASE("A moved reply names the area it was answering [template]") {
     auto context = replyContext();
     context.isMoved = true;
     // Where it is being written, and where the message it answers was read.
@@ -141,7 +141,7 @@ TEST_CASE("A moved reply names the area it was answering", "[template]") {
     CHECK(expanded("@OEcho", replyContext()) == "test.echo");
 }
 
-TEST_CASE("A template substitutes what it names", "[template]") {
+TEST_CASE("A template substitutes what it names [template]") {
     const auto context = replyContext();
 
     // @tname is who this message is going to; @dname is who the one being
@@ -167,7 +167,7 @@ TEST_CASE("A template substitutes what it names", "[template]") {
     CHECK(expanded("@nosuchtoken", context) == "@nosuchtoken");
 }
 
-TEST_CASE("Name tokens take their {mine}{theirs} parameters", "[template]") {
+TEST_CASE("Name tokens take their {mine}{theirs} parameters [template]") {
     auto context = replyContext();
 
     CHECK(expanded("@oname{I}{you} wrote to @dname{me}{you}:", context) ==
@@ -182,7 +182,7 @@ TEST_CASE("Name tokens take their {mine}{theirs} parameters", "[template]") {
     CHECK(expanded("to @dname{me}{you}{everyone}:", context) == "to everyone:");
 }
 
-TEST_CASE("A third party keeps their name where {mine}{theirs} does not fit",
+TEST_CASE("A third party keeps their name where {mine}{theirs} does not fit "
           "[template]") {
     // Answering a message somebody else wrote to a third person. The two
     // parameters are mine and my opponent's — the one I am writing to — and
@@ -221,7 +221,7 @@ TEST_CASE("A third party keeps their name where {mine}{theirs} does not fit",
     CHECK(expanded("@areaname{x}", context) == "test.echo{x}");
 }
 
-TEST_CASE("Insert tokens replace the line they stand on", "[template]") {
+TEST_CASE("Insert tokens replace the line they stand on [template]") {
     const auto context = replyContext();
 
     CHECK(expanded("before\n@quote ignored text\nafter", context) ==
@@ -236,7 +236,7 @@ TEST_CASE("Insert tokens replace the line they stand on", "[template]") {
     CHECK(expanded("@random\n@attrib CRA", context).empty());
 }
 
-TEST_CASE("A template says where the cursor starts and what the header holds",
+TEST_CASE("A template says where the cursor starts and what the header holds "
           "[template]") {
     const auto context = replyContext();
 
