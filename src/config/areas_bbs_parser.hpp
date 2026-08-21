@@ -22,7 +22,7 @@ class AreasBbsParser final : public ports::IAreaConfigSource {
 public:
     explicit AreasBbsParser(std::string path);
 
-    std::vector<domain::AreaConfig> loadAreas() override;
+    [[nodiscard]] Result<std::vector<domain::AreaConfig>> loadAreas() override;
 
     /// Parsing from a string — the entry point for tests.
     static std::vector<domain::AreaConfig> parseText(const std::string& content);

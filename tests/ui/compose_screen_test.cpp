@@ -15,9 +15,10 @@
 #include "nodelist/nodelist_writer.hpp"
 #include "ports/i_area_source.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
-#include "ui/confirm_dialog.hpp"
 #include "ui/attributes_dialog.hpp"
+#include "ui/confirm_dialog.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -47,7 +48,7 @@ namespace {
 /// asks the manager for nothing at all.
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    std::vector<AreaConfig> loadAreas() override { return {}; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
 };
 
 /// A state in one area, with no base under it — writing a message touches
@@ -943,7 +944,8 @@ TEST_CASE("Ctrl-W takes the word before the cursor out of the message "
 
     // On the layout rather than on the chord: a file that has moved it moves it
     // here too, and the key it was on is a key this screen no longer knows.
-    state.keys = amberedit::ui::KeyMap::parse("F6 compose.delete-word\n", "keys");
+    state.keys = amberedit::test::valueOf(
+        amberedit::ui::KeyMap::parse("F6 compose.delete-word\n", "keys"));
     REQUIRE(compose::handleEvent(state, Event::F6));
     CHECK(state.edit.lines[0] == "one ");
     CHECK_FALSE(compose::handleEvent(state, ctrl('w')));
@@ -1662,7 +1664,7 @@ void giveNodelist(ComposeFixture& fixture, const amberedit::test::TempDir& dir) 
         nodeOf("2:240/1200", "Hub Sued", "Ulrich Schroeter jr"),
         nodeOf("2:240/2188", "Kruemel Boks!", "Christian von Busse"),
     };
-    nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
 }
 

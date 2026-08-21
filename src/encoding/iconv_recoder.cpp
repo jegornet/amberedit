@@ -73,8 +73,7 @@ IconvRecoder::IconvRecoder(IconvRecoder&& other) noexcept
     : descriptor_(std::exchange(other.descriptor_, nullptr)),
       currentFrom_(std::move(other.currentFrom_)),
       outDescriptor_(std::exchange(other.outDescriptor_, nullptr)),
-      currentTo_(std::move(other.currentTo_)),
-      lastError_(std::move(other.lastError_)) {}
+      currentTo_(std::move(other.currentTo_)) {}
 
 IconvRecoder& IconvRecoder::operator=(IconvRecoder&& other) noexcept {
     if (this != &other) {
@@ -84,7 +83,6 @@ IconvRecoder& IconvRecoder::operator=(IconvRecoder&& other) noexcept {
         currentFrom_ = std::move(other.currentFrom_);
         outDescriptor_ = std::exchange(other.outDescriptor_, nullptr);
         currentTo_ = std::move(other.currentTo_);
-        lastError_ = std::move(other.lastError_);
     }
     return *this;
 }
@@ -97,20 +95,19 @@ void IconvRecoder::closeDescriptor() {
     currentFrom_.clear();
 }
 
-bool IconvRecoder::ensureDescriptor(const std::string& fromCharset) {
-    if (descriptor_ != nullptr && currentFrom_ == fromCharset) return true;
+Result<void> IconvRecoder::ensureDescriptor(const std::string& fromCharset) {
+    if (descriptor_ != nullptr && currentFrom_ == fromCharset) return {};
     closeDescriptor();
 
     // //TRANSLIT keeps characters missing from the target (there are none for
     // UTF-8, but the rule is general) from aborting the conversion.
     const iconv_t cd = iconv_open("UTF-8//TRANSLIT", fromCharset.c_str());
     if (cd == invalidDescriptor()) {
-        lastError_ = "iconv does not know the charset '" + fromCharset + "'";
-        return false;
+        return failure("iconv does not know the charset '" + fromCharset + "'");
     }
     descriptor_ = reinterpret_cast<void*>(cd);
     currentFrom_ = fromCharset;
-    return true;
+    return {};
 }
 
 void IconvRecoder::closeOutDescriptor() {
@@ -121,8 +118,8 @@ void IconvRecoder::closeOutDescriptor() {
     currentTo_.clear();
 }
 
-bool IconvRecoder::ensureOutDescriptor(const std::string& toCharset) {
-    if (outDescriptor_ != nullptr && currentTo_ == toCharset) return true;
+Result<void> IconvRecoder::ensureOutDescriptor(const std::string& toCharset) {
+    if (outDescriptor_ != nullptr && currentTo_ == toCharset) return {};
     closeOutDescriptor();
 
     // //TRANSLIT lets a character the target has no room for come out as
@@ -130,21 +127,20 @@ bool IconvRecoder::ensureOutDescriptor(const std::string& toCharset) {
     // mark or an error.
     const iconv_t cd = iconv_open((toCharset + "//TRANSLIT").c_str(), "UTF-8");
     if (cd == invalidDescriptor()) {
-        lastError_ = "iconv does not know the charset '" + toCharset + "'";
-        return false;
+        return failure("iconv does not know the charset '" + toCharset + "'");
     }
     outDescriptor_ = reinterpret_cast<void*>(cd);
     currentTo_ = toCharset;
-    return true;
+    return {};
 }
 
-std::string IconvRecoder::fromUtf8(std::string_view text, const std::string& toCharset) {
-    lastError_.clear();
-    if (text.empty()) return {};
+Result<std::string> IconvRecoder::intoCharset(std::string_view text,
+                                              const std::string& toCharset) {
+    if (text.empty()) return std::string{};
 
     if (toCharset == "UTF-8" || toCharset == "UTF8") return std::string(text);
-    if (!ensureOutDescriptor(toCharset)) {
-        return std::string(text);  // better an odd charset than no message
+    if (const auto opened = ensureOutDescriptor(toCharset); !opened) {
+        return tl::make_unexpected(opened.error());
     }
     iconv(asIconv(outDescriptor_), nullptr, nullptr, nullptr, nullptr);
 
@@ -182,15 +178,14 @@ std::string IconvRecoder::fromUtf8(std::string_view text, const std::string& toC
             inLeft -= skip;
             continue;
         }
-        lastError_ = "conversion to '" + toCharset + "' failed";
-        break;
+        return failure("conversion to '" + toCharset + "' failed");
     }
     return out;
 }
 
-std::string IconvRecoder::toUtf8(std::string_view text, const std::string& fromCharset) {
-    lastError_.clear();
-    if (text.empty()) return {};
+Result<std::string> IconvRecoder::intoUtf8(std::string_view text,
+                                           const std::string& fromCharset) {
+    if (text.empty()) return std::string{};
 
     // Already UTF-8 — nothing to convert; this also rescues messages carrying
     // an incorrect CHRS kludge.
@@ -198,8 +193,8 @@ std::string IconvRecoder::toUtf8(std::string_view text, const std::string& fromC
         if (isValidUtf8(text)) return std::string(text);
     }
 
-    if (!ensureDescriptor(fromCharset)) {
-        return std::string(text);  // hand it back as-is rather than lose the message
+    if (const auto opened = ensureDescriptor(fromCharset); !opened) {
+        return tl::make_unexpected(opened.error());
     }
 
     // Reset the converter's state before a new string.
@@ -234,8 +229,7 @@ std::string IconvRecoder::toUtf8(std::string_view text, const std::string& fromC
             --inLeft;
             continue;
         }
-        lastError_ = "conversion from '" + fromCharset + "' failed";
-        break;
+        return failure("conversion from '" + fromCharset + "' failed");
     }
     return out;
 }

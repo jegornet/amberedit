@@ -17,7 +17,6 @@ using amberedit::config::AppConfig;
 using amberedit::config::TosserConfigFormat;
 using amberedit::domain::FtnAddress;
 using amberedit::test::contains;
-using amberedit::test::errorFrom;
 
 namespace {
 
@@ -31,13 +30,23 @@ const char* const kRequired =
 
 /// A config with the given body on top of the settings every config needs.
 AppConfig with(const std::string& body) {
-    return AppConfig::loadFromString(kRequired + std::string(body));
+    return amberedit::test::valueOf(AppConfig::loadFromString(kRequired + body));
+}
+
+/// Why the same config would not load. Empty means it loaded.
+std::string errorWith(const std::string& body) {
+    return amberedit::test::errorOf(AppConfig::loadFromString(kRequired + body));
+}
+
+/// Whether it loaded at all, for the assertions that only say that much.
+bool loads(const std::string& body) {
+    return AppConfig::loadFromString(kRequired + body).has_value();
 }
 
 }  // namespace
 
 TEST_CASE("AppConfig parses a complete config [app_config]") {
-    const auto cfg = AppConfig::loadFromString(R"(
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(R"(
     tosser_config /etc/husky/areas
     tosser_config_format fidoconfig
     default_charset KOI8-R
@@ -45,7 +54,7 @@ TEST_CASE("AppConfig parses a complete config [app_config]") {
 
     name Иван Петров
     address 2:5020/9999.1
-  )");
+  )"));
 
     CHECK(cfg.tosserConfigPath == "/etc/husky/areas");
     CHECK(cfg.tosserConfigFormat == TosserConfigFormat::Fidoconfig);
@@ -59,11 +68,11 @@ TEST_CASE("AppConfig parses a complete config [app_config]") {
 }
 
 TEST_CASE("AppConfig: minimal config and defaults [app_config]") {
-    const auto cfg = AppConfig::loadFromString(
-        "tosser_config /etc/husky/areas.bbs\n"
-        "tosser_config_format areas.bbs\n"
-        "default_charset CP866\n"
-        "compose_charset CP866\n");
+    const auto cfg = amberedit::test::valueOf(
+        AppConfig::loadFromString("tosser_config /etc/husky/areas.bbs\n"
+                                  "tosser_config_format areas.bbs\n"
+                                  "default_charset CP866\n"
+                                  "compose_charset CP866\n"));
 
     CHECK(cfg.tosserConfigPath == "/etc/husky/areas.bbs");
     CHECK(cfg.tosserConfigFormat == TosserConfigFormat::AreasBbs);
@@ -77,23 +86,20 @@ TEST_CASE("AppConfig requires both charsets [app_config]") {
     // and a default would mojibake silently in whichever direction it got
     // wrong. So each is named in the message that asks for it.
     const std::string base = "tosser_config a\ntosser_config_format hpt\n";
-    const std::string error = errorFrom([&] { AppConfig::loadFromString(base); });
+    const auto reason = [&base](const std::string& rest) {
+        return amberedit::test::errorOf(AppConfig::loadFromString(base + rest));
+    };
+
+    const std::string error = reason("");
     CHECK_MESSAGE(contains(error, "default_charset is not set"), error);
-    const std::string error2 = errorFrom([&] {
-        AppConfig::loadFromString(base + "default_charset CP866\n");
-    });
+    const std::string error2 = reason("default_charset CP866\n");
     CHECK_MESSAGE(contains(error2, "compose_charset is not set"), error2);
-    const std::string error3 = errorFrom([&] {
-        AppConfig::loadFromString(base + "compose_charset CP866\n");
-    });
+    const std::string error3 = reason("compose_charset CP866\n");
     CHECK_MESSAGE(contains(error3, "default_charset is not set"), error3);
-    CHECK_NOTHROW(AppConfig::loadFromString(
-        base + "default_charset CP866\ncompose_charset UTF-8\n"));
+    CHECK(reason("default_charset CP866\ncompose_charset UTF-8\n").empty());
 
     // An empty value is not a way to leave one out either.
-    const std::string error4 = errorFrom([&] {
-        AppConfig::loadFromString(base + "default_charset \"\"\ncompose_charset CP866\n");
-    });
+    const std::string error4 = reason("default_charset \"\"\ncompose_charset CP866\n");
     CHECK_MESSAGE(contains(error4, "default_charset is not set"), error4);
 }
 
@@ -110,15 +116,17 @@ TEST_CASE("A value is quoted only when it has to be [app_config]") {
     CHECK(with("name \"Vasya #1\"\n").userName == "Vasya #1");
     CHECK(with("theme a#b.cfg\n").themePath == "a#b.cfg");
 
-    const std::string error = errorFrom([&] { with("name \"Vasya\n"); });
+    const std::string error = errorWith("name \"Vasya\n");
     CHECK_MESSAGE(contains(error, "never closed"), error);
 }
 
 TEST_CASE("AppConfig accepts format aliases [app_config]") {
     const auto format = [](const std::string& name) {
-        return AppConfig::loadFromString(
-                   "tosser_config a\ntosser_config_format " + name +
-                   "\ndefault_charset CP866\ncompose_charset CP866\n")
+        return amberedit::test::valueOf(
+                   AppConfig::loadFromString("tosser_config a\ntosser_config_format " +
+                                             name +
+                                             "\ndefault_charset CP866\n"
+                                             "compose_charset CP866\n"))
             .tosserConfigFormat;
     };
     CHECK(format("areas.bbs") == TosserConfigFormat::AreasBbs);
@@ -134,56 +142,56 @@ TEST_CASE("AppConfig reads the link underline setting [app_config]") {
     CHECK(with("").underlineLinks);  // underlined unless the config says otherwise
     CHECK(with("reader_underline_links on\n").underlineLinks);
     CHECK_FALSE(with("reader_underline_links off\n").underlineLinks);
-    CHECK_THROWS(with("reader_underline_links 1\n"));
+    CHECK_FALSE(loads("reader_underline_links 1\n"));
 }
 
 TEST_CASE("AppConfig reads the style codes setting [app_config]") {
     CHECK_FALSE(with("").styleCodes);  // off unless the config asks for it
     CHECK(with("reader_stylecodes on\n").styleCodes);
     CHECK_FALSE(with("reader_stylecodes off\n").styleCodes);
-    CHECK_THROWS(with("reader_stylecodes 1\n"));
+    CHECK_FALSE(loads("reader_stylecodes 1\n"));
 }
 
 TEST_CASE("AppConfig reads the BBS color codes setting [app_config]") {
     CHECK_FALSE(with("").bbsCodesRenegade);  // off unless the config asks for it
     CHECK(with("bbs_codes_renegade on\n").bbsCodesRenegade);
     CHECK_FALSE(with("bbs_codes_renegade off\n").bbsCodesRenegade);
-    CHECK_THROWS(with("bbs_codes_renegade 1\n"));
+    CHECK_FALSE(loads("bbs_codes_renegade 1\n"));
 }
 
 TEST_CASE("AppConfig reads the sender location setting [app_config]") {
     CHECK(with("").showLocation);  // shown unless the config says otherwise
     CHECK(with("show_location on\n").showLocation);
     CHECK_FALSE(with("show_location off\n").showLocation);
-    CHECK_THROWS(with("show_location 1\n"));
+    CHECK_FALSE(loads("show_location 1\n"));
 }
 
 TEST_CASE("AppConfig reads the message size setting [app_config]") {
     CHECK_FALSE(with("").readerShowMessageSize);  // not shown unless asked for
     CHECK(with("reader_show_message_size on\n").readerShowMessageSize);
     CHECK_FALSE(with("reader_show_message_size off\n").readerShowMessageSize);
-    CHECK_THROWS(with("reader_show_message_size 1\n"));
+    CHECK_FALSE(loads("reader_show_message_size 1\n"));
 }
 
 TEST_CASE("AppConfig reads the unread highlight setting [app_config]") {
     CHECK(with("").highlightUnread);  // unread rows stand out unless told not to
     CHECK(with("highlight_unread on\n").highlightUnread);
     CHECK_FALSE(with("highlight_unread off\n").highlightUnread);
-    CHECK_THROWS(with("highlight_unread 1\n"));
+    CHECK_FALSE(loads("highlight_unread 1\n"));
 }
 
 TEST_CASE("AppConfig reads the edge exit setting [app_config]") {
     CHECK(with("").edgeExit);  // the ends leave the area unless the config says not
     CHECK(with("reader_edge_exit on\n").edgeExit);
     CHECK_FALSE(with("reader_edge_exit off\n").edgeExit);
-    CHECK_THROWS(with("reader_edge_exit 1\n"));
+    CHECK_FALSE(loads("reader_edge_exit 1\n"));
 }
 
 TEST_CASE("AppConfig reads the direct area reply setting [app_config]") {
     CHECK(with("").areaReplyDirect);  // followed unless the config says otherwise
     CHECK(with("areareplydirect on\n").areaReplyDirect);
     CHECK_FALSE(with("areareplydirect off\n").areaReplyDirect);
-    CHECK_THROWS(with("areareplydirect 1\n"));
+    CHECK_FALSE(loads("areareplydirect 1\n"));
     // Keys are read whatever case they are written in, and this one is usually
     // written the way GoldED writes it.
     CHECK_FALSE(with("AreaReplyDirect off\n").areaReplyDirect);
@@ -208,7 +216,7 @@ TEST_CASE("AppConfig reads the two carbon copy list settings [app_config]") {
     CHECK(with("compose_cc_list VISIBLE\n").carbonList == CarbonList::Visible);
     CHECK(with("compose_cc_list hidden\n").carbonList == CarbonList::Hidden);
     CHECK(with("compose_cc_list remove\n").carbonList == CarbonList::Remove);
-    const std::string error = errorFrom([&] { with("compose_cc_list yes\n"); });
+    const std::string error = errorWith("compose_cc_list yes\n");
     CHECK_MESSAGE(contains(error, "compose_cc_list"), error);
 
     // The `XC:` list is spelled the way GoldED spells it, which is why the two
@@ -217,7 +225,7 @@ TEST_CASE("AppConfig reads the two carbon copy list settings [app_config]") {
     CHECK(with("compose_xc_list raw\n").crosspostList == CrosspostList::Raw);
     CHECK(with("compose_xc_list yes\n").crosspostList == CrosspostList::Yes);
     CHECK(with("compose_xc_list none\n").crosspostList == CrosspostList::None);
-    const std::string error2 = errorFrom([&] { with("compose_xc_list hidden\n"); });
+    const std::string error2 = errorWith("compose_xc_list hidden\n");
     CHECK_MESSAGE(contains(error2, "compose_xc_list"), error2);
 }
 
@@ -225,15 +233,15 @@ TEST_CASE("AppConfig reads the lastread auto next setting [app_config]") {
     CHECK(with("").lastreadAutoNext);  // after the mark unless the config says otherwise
     CHECK(with("reader_lastread_auto_next on\n").lastreadAutoNext);
     CHECK_FALSE(with("reader_lastread_auto_next off\n").lastreadAutoNext);
-    CHECK_THROWS(with("reader_lastread_auto_next 1\n"));
+    CHECK_FALSE(loads("reader_lastread_auto_next 1\n"));
 }
 
 TEST_CASE("AppConfig reads the scrollbar setting [app_config]") {
     CHECK(with("").showScrollbar);  // shown unless the config says otherwise
     CHECK(with("reader_scrollbar on\n").showScrollbar);
     CHECK_FALSE(with("reader_scrollbar off\n").showScrollbar);
-    CHECK_THROWS(with("reader_scrollbar yes\n"));
-    CHECK_THROWS(with("reader_scrollbar 1\n"));
+    CHECK_FALSE(loads("reader_scrollbar yes\n"));
+    CHECK_FALSE(loads("reader_scrollbar 1\n"));
 }
 
 TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
@@ -247,8 +255,8 @@ TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     CHECK(with("msglist_scrollbar on\n").messageListScrollbar);
     CHECK_FALSE(with("msglist_scrollbar off\n").messageListScrollbar);
     CHECK(with("msglist_scrollbar off\narealist_scrollbar on\n").areaListScrollbar);
-    CHECK_THROWS(with("arealist_scrollbar yes\n"));
-    CHECK_THROWS(with("msglist_scrollbar 1\n"));
+    CHECK_FALSE(loads("arealist_scrollbar yes\n"));
+    CHECK_FALSE(loads("msglist_scrollbar 1\n"));
 }
 
 TEST_CASE("AppConfig reads the lastread user number [app_config]") {
@@ -257,16 +265,16 @@ TEST_CASE("AppConfig reads the lastread user number [app_config]") {
     CHECK(with("lastread_user 65535\n").lastreadUser == 65535);
     // The number indexes an array grown by seeking past its end, so a wrong one
     // would quietly make a large sparse file rather than fail.
-    CHECK_THROWS(with("lastread_user -1\n"));
-    CHECK_THROWS(with("lastread_user 65536\n"));
-    CHECK_THROWS(with("lastread_user zero\n"));
+    CHECK_FALSE(loads("lastread_user -1\n"));
+    CHECK_FALSE(loads("lastread_user 65536\n"));
+    CHECK_FALSE(loads("lastread_user zero\n"));
 }
 
 TEST_CASE("AppConfig knows nothing of a header layout [app_config]") {
     // The header block has one layout now, so the setting that chose between
     // them is gone rather than accepted and ignored: a config still carrying it
     // says the reader is being asked for something it no longer does.
-    CHECK_THROWS(with("reader_header narrow\n"));
+    CHECK_FALSE(loads("reader_header narrow\n"));
 }
 
 TEST_CASE("AppConfig reads the adaptive UI threshold [app_config]") {
@@ -278,11 +286,11 @@ TEST_CASE("AppConfig reads the adaptive UI threshold [app_config]") {
     CHECK(with("adaptive_ui_threshold 20\n").adaptiveUiThreshold == 20);
 
     // A width no window is, either way round, is a mistyped one.
-    CHECK_THROWS(with("adaptive_ui_threshold 19\n"));
-    CHECK_THROWS(with("adaptive_ui_threshold 1001\n"));
-    CHECK_THROWS(with("adaptive_ui_threshold wide\n"));
-    CHECK_THROWS(with("adaptive_ui_threshold\n"));
-    CHECK_THROWS(with("adaptive_ui_threshold 80 100\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold 19\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold 1001\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold wide\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold 80 100\n"));
 }
 
 TEST_CASE("AppConfig reads the hint bar setting [app_config]") {
@@ -296,9 +304,9 @@ TEST_CASE("AppConfig reads the hint bar setting [app_config]") {
     CHECK(with("hint_bar when_narrow\n").hintBar == Visibility::WhenNarrow);
     CHECK(with("hint_bar when_wide\n").hintBar == Visibility::WhenWide);
 
-    CHECK_THROWS(with("hint_bar 1\n"));
-    CHECK_THROWS(with("hint_bar\n"));
-    CHECK_THROWS(with("hint_bar on off\n"));
+    CHECK_FALSE(loads("hint_bar 1\n"));
+    CHECK_FALSE(loads("hint_bar\n"));
+    CHECK_FALSE(loads("hint_bar on off\n"));
 }
 
 TEST_CASE("AppConfig reads the back button setting [app_config]") {
@@ -313,13 +321,13 @@ TEST_CASE("AppConfig reads the back button setting [app_config]") {
     CHECK(with("back_button when_narrow\n").backButton == Visibility::WhenNarrow);
     CHECK(with("back_button when_wide\n").backButton == Visibility::WhenWide);
 
-    CHECK_THROWS(with("back_button 1\n"));
-    CHECK_THROWS(with("back_button none\n"));
-    CHECK_THROWS(with("back_button on off\n"));
-    CHECK_THROWS(with("back_button\n"));
+    CHECK_FALSE(loads("back_button 1\n"));
+    CHECK_FALSE(loads("back_button none\n"));
+    CHECK_FALSE(loads("back_button on off\n"));
+    CHECK_FALSE(loads("back_button\n"));
     // `adaptive` was what `when_narrow` was called; a config still saying it is
     // one whose author has not been told which way round it now goes.
-    CHECK_THROWS(with("back_button adaptive\n"));
+    CHECK_FALSE(loads("back_button adaptive\n"));
 }
 
 TEST_CASE("AppConfig reads whether the header block carries the Recd row "
@@ -335,10 +343,10 @@ TEST_CASE("AppConfig reads whether the header block carries the Recd row "
     CHECK(with("show_recd_date when_narrow\n").showRecdDate == Visibility::WhenNarrow);
     CHECK(with("show_recd_date when_wide\n").showRecdDate == Visibility::WhenWide);
 
-    CHECK_THROWS(with("show_recd_date 1\n"));
-    CHECK_THROWS(with("show_recd_date yes\n"));
-    CHECK_THROWS(with("show_recd_date\n"));
-    CHECK_THROWS(with("show_recd_date on off\n"));
+    CHECK_FALSE(loads("show_recd_date 1\n"));
+    CHECK_FALSE(loads("show_recd_date yes\n"));
+    CHECK_FALSE(loads("show_recd_date\n"));
+    CHECK_FALSE(loads("show_recd_date on off\n"));
 }
 
 TEST_CASE("AppConfig reads the menus [app_config]") {
@@ -371,19 +379,19 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     // `none` was how a toolbar used to be taken away, and the menus took the
     // toolbars' place: the message says where the setting went rather than
     // leaving it to read as a typo.
-    const std::string error = errorFrom([&] { with("reader_menu none\n"); });
+    const std::string error = errorWith("reader_menu none\n");
     REQUIRE_MESSAGE(contains(error, "menu_button off"), error);
-    CHECK_THROWS(with("compose_menu none\n"));
-    CHECK_THROWS(with("reader_menu none list\n"));
+    CHECK_FALSE(loads("compose_menu none\n"));
+    CHECK_FALSE(loads("reader_menu none list\n"));
 
     // Each key knows its own commands: the editor's are not the reader's, and a
     // button that would do nothing is a mistake in the config rather than one
     // on the screen.
-    CHECK_THROWS(with("reader_menu save\n"));
-    CHECK_THROWS(with("compose_menu reply\n"));
-    CHECK_THROWS(with("reader_menu list list\n"));
-    CHECK_THROWS(with("reader_menu\n"));
-    const std::string error2 = errorFrom([&] { with("reader_menu quit\n"); });
+    CHECK_FALSE(loads("reader_menu save\n"));
+    CHECK_FALSE(loads("compose_menu reply\n"));
+    CHECK_FALSE(loads("reader_menu list list\n"));
+    CHECK_FALSE(loads("reader_menu\n"));
+    const std::string error2 = errorWith("reader_menu quit\n");
     REQUIRE_MESSAGE(
         contains(
             error2,
@@ -402,11 +410,11 @@ TEST_CASE("AppConfig reads whether the menu button is shown [app_config]") {
     CHECK(with("menu_button when_narrow\n").menuButton == Visibility::WhenNarrow);
     CHECK(with("menu_button when_wide\n").menuButton == Visibility::WhenWide);
 
-    CHECK_THROWS(with("menu_button none\n"));
-    CHECK_THROWS(with("menu_button yes\n"));
-    CHECK_THROWS(with("menu_button adaptive\n"));
-    CHECK_THROWS(with("menu_button on off\n"));
-    CHECK_THROWS(with("menu_button\n"));
+    CHECK_FALSE(loads("menu_button none\n"));
+    CHECK_FALSE(loads("menu_button yes\n"));
+    CHECK_FALSE(loads("menu_button adaptive\n"));
+    CHECK_FALSE(loads("menu_button on off\n"));
+    CHECK_FALSE(loads("menu_button\n"));
 }
 
 TEST_CASE("AppConfig reads how wide the menu's buttons stand [app_config]") {
@@ -418,10 +426,10 @@ TEST_CASE("AppConfig reads how wide the menu's buttons stand [app_config]") {
 
     // The floor is a frame with a column of label left inside it, under which a
     // button says nothing at all.
-    CHECK_THROWS(with("menu_buttons_width 3\n"));
-    CHECK_THROWS(with("menu_buttons_width 101\n"));
-    CHECK_THROWS(with("menu_buttons_width wide\n"));
-    CHECK_THROWS(with("menu_buttons_width\n"));
+    CHECK_FALSE(loads("menu_buttons_width 3\n"));
+    CHECK_FALSE(loads("menu_buttons_width 101\n"));
+    CHECK_FALSE(loads("menu_buttons_width wide\n"));
+    CHECK_FALSE(loads("menu_buttons_width\n"));
 }
 
 TEST_CASE("AppConfig reads how long a click is shown [app_config]") {
@@ -431,9 +439,9 @@ TEST_CASE("AppConfig reads how long a click is shown [app_config]") {
     // turned off, and a click then acts the moment it is read.
     CHECK(with("click_animation_ms 0\n").clickAnimationMs == 0);
 
-    CHECK_THROWS(with("click_animation_ms 1001\n"));
-    CHECK_THROWS(with("click_animation_ms -1\n"));
-    CHECK_THROWS(with("click_animation_ms briefly\n"));
+    CHECK_FALSE(loads("click_animation_ms 1001\n"));
+    CHECK_FALSE(loads("click_animation_ms -1\n"));
+    CHECK_FALSE(loads("click_animation_ms briefly\n"));
 }
 
 TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
@@ -443,6 +451,9 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
 
     const auto formatOf = [](const std::string& value) {
         return with("arealist_format " + value + "\n").areaListFormatNarrow;
+    };
+    const auto formatError = [](const std::string& value) {
+        return errorWith("arealist_format " + value + "\n");
     };
     const auto wideFormatOf = [](const std::string& value) {
         return with("arealist_format " + value + "\n").areaListFormatWide;
@@ -547,40 +558,39 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
                          Line{{AreaFieldKind::Space, 1}},
                          Line{{AreaFieldKind::Description, 0}}});
 
-    const std::string error = errorFrom([&] { with("arealist_format\n"); });
+    const std::string error = errorWith("arealist_format\n");
     CHECK_MESSAGE(contains(error, "needs the fields"), error);
     // A gap is written inside the quotes: three values are three formats, and
     // there is no third window to give one to.
-    const std::string error2 = errorFrom([&] { formatOf("e c un"); });
+    const std::string error2 = formatError("e c un");
     CHECK_MESSAGE(contains(error2, "one format, or two"), error2);
-    const std::string error3 = errorFrom([&] { formatOf("\"e x\""); });
+    const std::string error3 = formatError("\"e x\"");
     CHECK_MESSAGE(contains(error3, "is not a field"), error3);
     // A width with no letter in front of it belongs to nothing.
-    const std::string error4 = errorFrom([&] { formatOf("\"3e\""); });
+    const std::string error4 = formatError("\"3e\"");
     CHECK_MESSAGE(contains(error4, "is not a field"), error4);
-    const std::string error5 = errorFrom([&] { formatOf("e300"); });
+    const std::string error5 = formatError("e300");
     CHECK_MESSAGE(contains(error5, "255 columns"), error5);
     // A backslash that begins no \n is not a field either, at the end of the
     // format as anywhere else.
-    const std::string error6 = errorFrom([&] { formatOf("\"e\\td\""); });
+    const std::string error6 = formatError("\"e\\td\"");
     CHECK_MESSAGE(contains(error6, "is not a field"), error6);
-    const std::string error7 = errorFrom([&] { formatOf("\"ed\\\""); });
+    const std::string error7 = formatError("\"ed\\\"");
     CHECK_MESSAGE(contains(error7, "is not a field"), error7);
     // An empty line holds no fields, wherever in the row it stands — a trailing
     // \n costs a line and says nothing.
-    const std::string error8 = errorFrom([&] { formatOf("\"e c\\n\""); });
+    const std::string error8 = formatError("\"e c\\n\"");
     CHECK_MESSAGE(contains(error8, "holds no fields"), error8);
-    const std::string error9 = errorFrom([&] { formatOf("\"\\ne\""); });
+    const std::string error9 = formatError("\"\\ne\"");
     CHECK_MESSAGE(contains(error9, "holds no fields"), error9);
-    const std::string error10 = errorFrom([&] { formatOf("\"e\\n\\nd\""); });
+    const std::string error10 = formatError("\"e\\n\\nd\"");
     CHECK_MESSAGE(contains(error10, "holds no fields"), error10);
     // A row taller than any format worth writing is a \n typed once too often.
-    const std::string error11 = errorFrom([&] {
-        formatOf("\"e\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\"");
-    });
+    const std::string error11 = formatError(
+        "\"e\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\"");
     CHECK_MESSAGE(contains(error11, "more than 16 lines"), error11);
     // The wide format is read as closely as the narrow one.
-    const std::string error12 = errorFrom([&] { formatOf("\"e c un\" \"e x\""); });
+    const std::string error12 = formatError("\"e c un\" \"e x\"");
     CHECK_MESSAGE(contains(error12, "is not a field"), error12);
 }
 
@@ -592,6 +602,9 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
 
     const auto formatOf = [](const std::string& value) {
         return with("msglist_format " + value + "\n").messageListFormatNarrow;
+    };
+    const auto formatError = [](const std::string& value) {
+        return errorWith("msglist_format " + value + "\n");
     };
     const auto wideFormatOf = [](const std::string& value) {
         return with("msglist_format " + value + "\n").messageListFormatWide;
@@ -658,15 +671,15 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
     // The complaints are the area list's, in the message list's own words: the
     // two settings are read by the same code and say the same things about a
     // value that will not do.
-    const std::string error = errorFrom([&] { with("msglist_format\n"); });
+    const std::string error = errorWith("msglist_format\n");
     CHECK_MESSAGE(contains(error, "msglist_format needs the fields"), error);
-    const std::string error2 = errorFrom([&] { formatOf("a f s"); });
+    const std::string error2 = formatError("a f s");
     CHECK_MESSAGE(contains(error2, "one format, or two"), error2);
-    const std::string error3 = errorFrom([&] { formatOf("\"a e\""); });
+    const std::string error3 = formatError("\"a e\"");
     CHECK_MESSAGE(contains(error3, "is not a field"), error3);
-    const std::string error4 = errorFrom([&] { formatOf("f300"); });
+    const std::string error4 = formatError("f300");
     CHECK_MESSAGE(contains(error4, "255 columns"), error4);
-    const std::string error5 = errorFrom([&] { formatOf("\"a f\\n\""); });
+    const std::string error5 = formatError("\"a f\\n\"");
     CHECK_MESSAGE(contains(error5, "holds no fields"), error5);
 }
 
@@ -677,6 +690,9 @@ TEST_CASE("AppConfig reads the area list order [app_config]") {
 
     const auto sortOf = [](const std::string& value) {
         return with("arealist_sort " + value + "\n").areaListSort;
+    };
+    const auto sortError = [](const std::string& value) {
+        return errorWith("arealist_sort " + value + "\n");
     };
     const Order ascending{{AreaSortKey::Address, false},
                           {AreaSortKey::Echoid, false},
@@ -703,18 +719,18 @@ TEST_CASE("AppConfig reads the area list order [app_config]") {
     // An empty value is the one way to ask for the tosser config's own order,
     // so it has to be written out rather than left off the line.
     CHECK(sortOf("\"\"").empty());
-    const std::string error = errorFrom([&] { with("arealist_sort\n"); });
+    const std::string error = errorWith("arealist_sort\n");
     CHECK_MESSAGE(contains(error, "needs the letters"), error);
 
-    const std::string error2 = errorFrom([&] { sortOf("x"); });
+    const std::string error2 = sortError("x");
     CHECK_MESSAGE(contains(error2, "not a sort criterion"), error2);
-    const std::string error3 = errorFrom([&] { sortOf("ee"); });
+    const std::string error3 = sortError("ee");
     CHECK_MESSAGE(contains(error3, "named twice"), error3);
-    const std::string error4 = errorFrom([&] { sortOf("e-E"); });
+    const std::string error4 = sortError("e-E");
     CHECK_MESSAGE(contains(error4, "named twice"), error4);
-    const std::string error5 = errorFrom([&] { sortOf("+-e"); });
+    const std::string error5 = sortError("+-e");
     CHECK_MESSAGE(contains(error5, "no criterion between"), error5);
-    const std::string error6 = errorFrom([&] { sortOf("e-"); });
+    const std::string error6 = sortError("e-");
     CHECK_MESSAGE(contains(error6, "trailing +/-"), error6);
 }
 
@@ -722,7 +738,7 @@ TEST_CASE("AppConfig reads the message template [app_config]") {
     CHECK(with("").templatePath.empty());  // nothing to compose with
     CHECK(with("template /etc/amberedit/msg.tpl\n").templatePath ==
           "/etc/amberedit/msg.tpl");
-    const std::string error = errorFrom([&] { with("template\n"); });
+    const std::string error = errorWith("template\n");
     CHECK_MESSAGE(contains(error, "template"), error);
 }
 
@@ -733,13 +749,13 @@ TEST_CASE("AppConfig reads the quote string [app_config]") {
 
     // Exactly one '>': none and the line is not a quote to any reader, two and
     // a first-level quote goes out looking like a second-level one.
-    const std::string error = errorFrom([&] { with("quote_string \" FL \"\n"); });
+    const std::string error = errorWith("quote_string \" FL \"\n");
     CHECK_MESSAGE(contains(error, "exactly one '>'"), error);
-    const std::string error2 = errorFrom([&] { with("quote_string \"\"\n"); });
+    const std::string error2 = errorWith("quote_string \"\"\n");
     CHECK_MESSAGE(contains(error2, "exactly one '>'"), error2);
-    const std::string error3 = errorFrom([&] { with("quote_string \" FL>> \"\n"); });
+    const std::string error3 = errorWith("quote_string \" FL>> \"\n");
     CHECK_MESSAGE(contains(error3, "exactly one '>'"), error3);
-    const std::string error4 = errorFrom([&] { with("quote_string \"> FL> \"\n"); });
+    const std::string error4 = errorWith("quote_string \"> FL> \"\n");
     CHECK_MESSAGE(contains(error4, "exactly one '>'"), error4);
 }
 
@@ -749,11 +765,11 @@ TEST_CASE("AppConfig reads the quote margin [app_config]") {
     CHECK(with("quote_margin 20\n").quoteMargin == 20);
     CHECK(with("quote_margin 255\n").quoteMargin == 255);
 
-    CHECK_THROWS(with("quote_margin 19\n"));
-    CHECK_THROWS(with("quote_margin 0\n"));
-    CHECK_THROWS(with("quote_margin -1\n"));
-    CHECK_THROWS(with("quote_margin 256\n"));
-    CHECK_THROWS(with("quote_margin seventy\n"));
+    CHECK_FALSE(loads("quote_margin 19\n"));
+    CHECK_FALSE(loads("quote_margin 0\n"));
+    CHECK_FALSE(loads("quote_margin -1\n"));
+    CHECK_FALSE(loads("quote_margin 256\n"));
+    CHECK_FALSE(loads("quote_margin seventy\n"));
 }
 
 TEST_CASE("AppConfig reads the date and time formats [app_config]") {
@@ -786,13 +802,13 @@ TEST_CASE("AppConfig reads the date and time formats [app_config]") {
     // Nothing at all is a mistake rather than a way of asking for no stamp:
     // there is no way to ask for one, and a silently blank column would look
     // like a message with no date.
-    const std::string error = errorFrom([&] { with("reader_datetime_format \"\"\n"); });
+    const std::string error = errorWith("reader_datetime_format \"\"\n");
     CHECK_MESSAGE(contains(error, "needs a strftime format"), error);
-    const std::string error2 = errorFrom([&] { with("template_date_format\n"); });
+    const std::string error2 = errorWith("template_date_format\n");
     CHECK_MESSAGE(contains(error2, "needs a value"), error2);
     // Blank is that same mistake spelled differently: the stamp is trimmed, so
     // a format of spaces writes nothing at all.
-    const std::string error3 = errorFrom([&] { with("reader_datetime_format \" \"\n"); });
+    const std::string error3 = errorWith("reader_datetime_format \" \"\n");
     CHECK_MESSAGE(contains(error3, "writes no stamp at all"), error3);
     // A format that writes an offset and nothing else is not blank, though it
     // is blank for a message stating no zone: it is judged on the message that
@@ -800,9 +816,7 @@ TEST_CASE("AppConfig reads the date and time formats [app_config]") {
     CHECK(with("reader_datetime_format %z\n").readerDateTimeFormat == "%z");
     // A stamp stands in one cell of the header table, so it has to be one line:
     // %n and %t are the only two specifiers that are not.
-    const std::string error4 = errorFrom([&] {
-        with("reader_datetime_format \"%d%n%H\"\n");
-    });
+    const std::string error4 = errorWith("reader_datetime_format \"%d%n%H\"\n");
     CHECK_MESSAGE(contains(error4, "more than one line"), error4);
 }
 
@@ -895,23 +909,19 @@ TEST_CASE("AppConfig has no nodelist unless one is named [app_config]") {
 }
 
 TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_config]") {
-    const std::string error = errorFrom([&] {
-        with("nodelist /ftn/nodelist/nodelist.ndl\n");
-    });
+    const std::string error = errorWith("nodelist /ftn/nodelist/nodelist.ndl\n");
     CHECK_MESSAGE(contains(error, "nodelist_db is not set"), error);
-    const std::string error2 = errorFrom([&] { with("nodelist\n"); });
+    const std::string error2 = errorWith("nodelist\n");
     CHECK_MESSAGE(contains(error2, "needs a value"), error2);
     // An empty path is not a path, and it would otherwise read back as the
     // setting never having been written.
-    const std::string error3 = errorFrom([&] { with("nodelist_db \"\"\n"); });
+    const std::string error3 = errorWith("nodelist_db \"\"\n");
     CHECK_MESSAGE(contains(error3, "needs the path"), error3);
     // Two of them is the point of the key; two of anything else is still a
     // contradiction.
-    const std::string error4 = errorFrom([&] {
-        with("nodelist_db /a\nnodelist_db /b\n");
-    });
+    const std::string error4 = errorWith("nodelist_db /a\nnodelist_db /b\n");
     CHECK_MESSAGE(contains(error4, "set twice"), error4);
-    const std::string error5 = errorFrom([&] { with("tmpdir /a\ntmpdir /b\n"); });
+    const std::string error5 = errorWith("tmpdir /a\ntmpdir /b\n");
     CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
@@ -953,20 +963,16 @@ TEST_CASE("AppConfig has no echolist unless one is named [app_config]") {
 }
 
 TEST_CASE("AppConfig refuses an echolist with nowhere to compile it to [app_config]") {
-    const std::string error = errorFrom([&] {
-        with("echolist /ftn/echolist/echo50.lst\n");
-    });
+    const std::string error = errorWith("echolist /ftn/echolist/echo50.lst\n");
     CHECK_MESSAGE(contains(error, "echolist_db is not set"), error);
-    const std::string error2 = errorFrom([&] { with("echolist\n"); });
+    const std::string error2 = errorWith("echolist\n");
     CHECK_MESSAGE(contains(error2, "takes the path"), error2);
     // The path and the charset, and nothing after them.
-    const std::string error3 = errorFrom([&] { with("echolist /a.lst CP866 KOI8-R\n"); });
+    const std::string error3 = errorWith("echolist /a.lst CP866 KOI8-R\n");
     CHECK_MESSAGE(contains(error3, "takes the path"), error3);
-    const std::string error4 = errorFrom([&] { with("echolist \"\"\n"); });
+    const std::string error4 = errorWith("echolist \"\"\n");
     CHECK_MESSAGE(contains(error4, "needs the path"), error4);
-    const std::string error5 = errorFrom([&] {
-        with("echolist_db /a\necholist_db /b\n");
-    });
+    const std::string error5 = errorWith("echolist_db /a\necholist_db /b\n");
     CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
@@ -979,9 +985,7 @@ TEST_CASE("AppConfig reads which description an area with two is shown by "
     // Read without regard to case, as every word-valued setting is.
     CHECK(with("arealist_description_priority AREA\n").areaDescriptionPriority ==
           DescriptionPriority::Area);
-    const std::string error = errorFrom([&] {
-        with("arealist_description_priority tosser\n");
-    });
+    const std::string error = errorWith("arealist_description_priority tosser\n");
     CHECK_MESSAGE(contains(error, "expected area | echolist"), error);
 }
 
@@ -995,78 +999,76 @@ TEST_CASE("AppConfig reads what stands in for a missing description [app_config]
     CHECK(with("arealist_description_default \"\"\n").areaDescriptionDefault.empty());
     // A line with no value at all is the one shape that is refused: the blank
     // column is worth saying out loud.
-    const std::string error = errorFrom([&] { with("arealist_description_default\n"); });
+    const std::string error = errorWith("arealist_description_default\n");
     CHECK_MESSAGE(contains(error, "needs the text to show"), error);
 }
 
 TEST_CASE("AppConfig keeps the nodelist out of an area group [app_config]") {
     // The nodelist is the whole config's, as the tosser config is: an area is
     // not read against a nodelist of its own.
-    const std::string error = errorFrom([&] {
-        with("group\nmember *\nnodelist /a\nendgroup\n");
-    });
+    const std::string error = errorWith("group\nmember *\nnodelist /a\nendgroup\n");
     CHECK_MESSAGE(contains(error, "not for one area"), error);
 }
 
 TEST_CASE("AppConfig refuses a setting it does not know [app_config]") {
     // A misspelled key would otherwise go back to its default in silence, which
     // is a hard thing to notice and a harder one to explain.
-    const std::string error = errorFrom([&] { with("scrollbar false\n"); });
+    const std::string error = errorWith("scrollbar false\n");
     CHECK_MESSAGE(contains(error, "unknown setting"), error);
-    const std::string error2 = errorFrom([&] { with("group_width 12\n"); });
+    const std::string error2 = errorWith("group_width 12\n");
     CHECK_MESSAGE(contains(error2, "unknown setting"), error2);
 }
 
 TEST_CASE("AppConfig refuses a setting written twice [app_config]") {
     // Which of the two was meant is not ours to guess, and the one that lost
     // would be an invisible line in the file.
-    const std::string error = errorFrom([&] {
-        with("quote_margin 70\nquote_margin 72\n");
-    });
+    const std::string error = errorWith("quote_margin 70\nquote_margin 72\n");
     CHECK_MESSAGE(contains(error, "set twice"), error);
 }
 
 TEST_CASE("AppConfig names the line a mistake is on [app_config]") {
-    const std::string error = errorFrom([&] {
-        AppConfig::loadFromString("tosser_config a\n"
-                                  "tosser_config_format hpt\n"
-                                  "quote_margin nine\n", "amberedit.cfg");
-    });
+    const std::string error =
+        amberedit::test::errorOf(AppConfig::loadFromString("tosser_config a\n"
+                                                           "tosser_config_format hpt\n"
+                                                           "quote_margin nine\n",
+                                                           "amberedit.cfg"));
     CHECK_MESSAGE(contains(error, "amberedit.cfg:3"), error);
 }
 
 TEST_CASE("AppConfig says what a toml config has left in it [app_config]") {
     // The format the file used to be written in, kept apart from "unknown
     // setting" so that a config from an older AmberEdit explains itself.
-    const std::string error = errorFrom([&] {
-        AppConfig::loadFromString("[general]\n");
-    });
+    const std::string error =
+        amberedit::test::errorOf(AppConfig::loadFromString("[general]\n"));
     CHECK_MESSAGE(contains(error, "[section]"), error);
-    const std::string error2 = errorFrom([&] {
-        AppConfig::loadFromString("tosser_config = \"a\"\n");
-    });
+    const std::string error2 =
+        amberedit::test::errorOf(AppConfig::loadFromString("tosser_config = \"a\"\n"));
     CHECK_MESSAGE(contains(error2, "old toml spelling"), error2);
 }
 
 TEST_CASE("AppConfig requires tosser_config [app_config]") {
-    CHECK_THROWS(AppConfig::loadFromString("tosser_config_format fidoconfig\n"));
-    CHECK_THROWS(AppConfig::loadFromString(""));
+    CHECK_FALSE(
+        AppConfig::loadFromString("tosser_config_format fidoconfig\n").has_value());
+    CHECK_FALSE(AppConfig::loadFromString("").has_value());
 }
 
 TEST_CASE("AppConfig requires an explicit tosser_config_format [app_config]") {
     // AmberEdit must not guess the format from the file contents.
-    CHECK_THROWS(AppConfig::loadFromString("tosser_config /etc/husky/areas\n"));
-    CHECK_THROWS(AppConfig::loadFromString("tosser_config a\ntosser_config_format\n"));
-    CHECK_THROWS(AppConfig::loadFromString("tosser_config a\ntosser_config_format auto"));
+    CHECK_FALSE(
+        AppConfig::loadFromString("tosser_config /etc/husky/areas\n").has_value());
+    CHECK_FALSE(
+        AppConfig::loadFromString("tosser_config a\ntosser_config_format\n").has_value());
+    CHECK_FALSE(AppConfig::loadFromString("tosser_config a\ntosser_config_format auto")
+                    .has_value());
 }
 
 TEST_CASE("AppConfig complains about an unknown format [app_config]") {
-    CHECK_THROWS(
-        AppConfig::loadFromString("tosser_config a\ntosser_config_format golded"));
+    CHECK_FALSE(AppConfig::loadFromString("tosser_config a\ntosser_config_format golded")
+                    .has_value());
 }
 
 TEST_CASE("AppConfig complains about a malformed FTN address [app_config]") {
-    CHECK_THROWS(with("address не_адрес\n"));
+    CHECK_FALSE(loads("address не_адрес\n"));
 }
 
 namespace {
@@ -1075,6 +1077,11 @@ namespace {
 /// address for the akamatch lines to fall back to.
 AppConfig withAkas(const std::string& body) {
     return with("name Vasya\naddress 2:5020/9999.1\n" + body);
+}
+
+/// Why the same AKA lines would not load. Empty means they loaded.
+std::string akasError(const std::string& body) {
+    return errorWith("name Vasya\naddress 2:5020/9999.1\n" + body);
 }
 
 /// The example from the documentation, which is also the shape the feature was
@@ -1153,23 +1160,21 @@ TEST_CASE("AppConfig: a more specific pattern beats a wider one [app_config]") {
 TEST_CASE("AppConfig refuses a malformed akamatch line [app_config]") {
     // A dropped entry would show up as netmail from the wrong address, so every
     // one of these stops AmberEdit rather than being skipped.
-    const std::string error = errorFrom([&] { withAkas("akamatch\n"); });
+    const std::string error = akasError("akamatch\n");
     CHECK_MESSAGE(contains(error, "needs an AKA"), error);
-    const std::string error2 = errorFrom([&] {
-        withAkas("akamatch \"not an address\" 2:*\n");
-    });
+    const std::string error2 = akasError("akamatch \"not an address\" 2:*\n");
     CHECK_MESSAGE(contains(error2, "not an address"), error2);
-    const std::string error3 = errorFrom([&] { withAkas("akamatch 2:5020/1\n"); });
+    const std::string error3 = akasError("akamatch 2:5020/1\n");
     CHECK_MESSAGE(contains(error3, "address patterns"), error3);
-    const std::string error4 = errorFrom([&] { withAkas("akamatch 2:5020/1 2:382/\n"); });
+    const std::string error4 = akasError("akamatch 2:5020/1 2:382/\n");
     CHECK_MESSAGE(contains(error4, "2:382/"), error4);
     // An AKA is one address; the destinations belong on an akamatch line.
-    const std::string error5 = errorFrom([&] { withAkas("aka 2:5020/1 2:*\n"); });
+    const std::string error5 = akasError("aka 2:5020/1 2:*\n");
     CHECK_MESSAGE(contains(error5, "aka takes one address"), error5);
 }
 
 TEST_CASE("AppConfig: akamatch needs a main address to fall back to [app_config]") {
-    const std::string error = errorFrom([&] { with(kExample); });
+    const std::string error = errorWith(kExample);
     CHECK_MESSAGE(contains(error, "address line"), error);
     // An AKA that is only named asks for nothing and so needs nothing.
     CHECK(with("aka 255:255/255.0\n").akaMatches.size() == 1);
@@ -1180,8 +1185,8 @@ TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     // would hand every new user a config that stops at startup. The paths in it
     // point at a system that is not this one, so only the parsing is checked.
     const auto path = amberedit::test::projectPath("amberedit.cfg.example");
-    const auto cfg =
-        AppConfig::loadFromString(amberedit::config::text::readFile(path), path);
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(
+        amberedit::test::valueOf(amberedit::config::text::readFile(path)), path));
 
     CHECK(cfg.tosserConfigFormat == TosserConfigFormat::Fidoconfig);
     CHECK(cfg.userName == "Vasya Pupkin");
@@ -1285,43 +1290,34 @@ TEST_CASE("An address macro may name attributes without a subject [app_config]")
 }
 
 TEST_CASE("AppConfig refuses a malformed address_macro line [app_config]") {
-    const std::string error = errorFrom([&] { with("address_macro af,AreaFix\n"); });
+    const std::string error = errorWith("address_macro af,AreaFix\n");
     CHECK_MESSAGE(contains(error, "a macro, a name and an address"), error);
-    const std::string error2 = errorFrom([&] {
-        with("address_macro af,AreaFix,2:382/736,subj,k/s,extra\n");
-    });
+    const std::string error2 =
+        errorWith("address_macro af,AreaFix,2:382/736,subj,k/s,extra\n");
     CHECK_MESSAGE(contains(error2, "a macro, a name and an address"), error2);
-    const std::string error3 = errorFrom([&] {
-        with("address_macro ,AreaFix,2:382/736\n");
-    });
+    const std::string error3 = errorWith("address_macro ,AreaFix,2:382/736\n");
     CHECK_MESSAGE(contains(error3, "the word that is typed"), error3);
-    const std::string error4 = errorFrom([&] { with("address_macro af,,2:382/736\n"); });
+    const std::string error4 = errorWith("address_macro af,,2:382/736\n");
     CHECK_MESSAGE(contains(error4, "the name the message is addressed to"), error4);
-    const std::string error5 = errorFrom([&] {
-        with("address_macro af,AreaFix,not_an_address\n");
-    });
+    const std::string error5 = errorWith("address_macro af,AreaFix,not_an_address\n");
     CHECK_MESSAGE(contains(error5, "not an FTN address"), error5);
-    const std::string error6 = errorFrom([&] {
-        with("address_macro af,AreaFix,2:382/736,PWD,nonsense\n");
-    });
+    const std::string error6 =
+        errorWith("address_macro af,AreaFix,2:382/736,PWD,nonsense\n");
     CHECK_MESSAGE(contains(error6, "not a message attribute"), error6);
     // The one word that looks like an attribute and is none.
-    const std::string error7 = errorFrom([&] {
-        with("address_macro af,AreaFix,2:382/736,PWD,uns\n");
-    });
+    const std::string error7 = errorWith("address_macro af,AreaFix,2:382/736,PWD,uns\n");
     CHECK_MESSAGE(contains(error7, "Loc set with Snt clear"), error7);
     // Two lines may name two macros, but not the same one twice: the line that
     // lost would be an invisible one.
-    const std::string error8 = errorFrom([&] {
-        with("address_macro af,AreaFix,2:382/736\n"
-             "address_macro AF,AreaFix,2:5020/1\n");
-    });
+    const std::string error8 = errorWith(
+        "address_macro af,AreaFix,2:382/736\n"
+        "address_macro AF,AreaFix,2:5020/1\n");
     CHECK_MESSAGE(contains(error8, "defined twice"), error8);
     // It addresses a node, and an area group covers areas: the setting belongs
     // outside one.
-    const std::string error9 = errorFrom([&] {
-        with("group\nmember netmail\naddress_macro af,A,2:382/736\n" "endgroup\n");
-    });
+    const std::string error9 = errorWith(
+        "group\nmember netmail\naddress_macro af,A,2:382/736\n"
+        "endgroup\n");
     CHECK_MESSAGE(contains(error9, "not for one area"), error9);
 }
 
@@ -1345,7 +1341,7 @@ TEST_CASE("The example config's address_macro lines parse once uncommented "
 }
 
 TEST_CASE("AppConfig throws on a missing file [app_config]") {
-    CHECK_THROWS(AppConfig::loadFromFile("/nonexistent/amberedit.cfg"));
+    CHECK_FALSE(AppConfig::loadFromFile("/nonexistent/amberedit.cfg").has_value());
 }
 
 TEST_CASE("Startup insists on a template that can be read [app_config]") {
@@ -1369,13 +1365,14 @@ TEST_CASE("Startup insists on a template that can be read [app_config]") {
         "compose_charset CP866\n";
 
     write(configPath, base);
-    CHECK_THROWS(AppConfig::loadFromFile(configPath.string()));  // none named
+    CHECK_FALSE(AppConfig::loadFromFile(configPath.string()).has_value());  // none named
 
     write(configPath, base + "template \"" + templatePath.string() + "\"\n");
-    CHECK_THROWS(AppConfig::loadFromFile(configPath.string()));  // named, not there
+    CHECK_FALSE(
+        AppConfig::loadFromFile(configPath.string()).has_value());  // named, not there
 
     write(templatePath, "@newHello.\n");
-    CHECK_NOTHROW(AppConfig::loadFromFile(configPath.string()));
+    CHECK(AppConfig::loadFromFile(configPath.string()).has_value());
 
     std::filesystem::remove(configPath);
     std::filesystem::remove(templatePath);
@@ -1495,75 +1492,57 @@ TEST_CASE("An address a group states is the area's, and one of ours [app_config]
 }
 
 TEST_CASE("A group block is refused when it is malformed [app_config]") {
-    const std::string error = errorFrom([&] {
-        with("group esp\n member esp.*\n origin x\nendgroup\n");
-    });
+    const std::string error =
+        errorWith("group esp\n member esp.*\n origin x\nendgroup\n");
     CHECK_MESSAGE(contains(error, "group takes no values"), error);
-    const std::string error2 = errorFrom([&] {
-        with("group\n group\n endgroup\nendgroup\n");
-    });
+    const std::string error2 = errorWith("group\n group\n endgroup\nendgroup\n");
     CHECK_MESSAGE(contains(error2, "do not nest"), error2);
-    const std::string error3 = errorFrom([&] { with("endgroup\n"); });
+    const std::string error3 = errorWith("endgroup\n");
     CHECK_MESSAGE(contains(error3, "no group above it"), error3);
-    const std::string error4 = errorFrom([&] {
-        with("group\n member esp.*\n origin x\nendgroup all\n");
-    });
+    const std::string error4 =
+        errorWith("group\n member esp.*\n origin x\nendgroup all\n");
     CHECK_MESSAGE(contains(error4, "endgroup takes no values"), error4);
-    const std::string error5 = errorFrom([&] {
-        with("group\n member esp.*\n origin x\n");
-    });
+    const std::string error5 = errorWith("group\n member esp.*\n origin x\n");
     CHECK_MESSAGE(contains(error5, "never closed"), error5);
-    const std::string error6 = errorFrom([&] { with("member esp.*\n"); });
+    const std::string error6 = errorWith("member esp.*\n");
     CHECK_MESSAGE(contains(error6, "only written inside a group"), error6);
-    const std::string error7 = errorFrom([&] { with("group\n origin x\nendgroup\n"); });
+    const std::string error7 = errorWith("group\n origin x\nendgroup\n");
     CHECK_MESSAGE(contains(error7, "no member line"), error7);
-    const std::string error8 = errorFrom([&] {
-        with("group\n member esp.*\nendgroup\n");
-    });
+    const std::string error8 = errorWith("group\n member esp.*\nendgroup\n");
     CHECK_MESSAGE(contains(error8, "sets nothing"), error8);
-    const std::string error9 = errorFrom([&] {
-        with("group\n member\n origin x\nendgroup\n");
-    });
+    const std::string error9 = errorWith("group\n member\n origin x\nendgroup\n");
     CHECK_MESSAGE(contains(error9, "member needs an area tag"), error9);
 }
 
 TEST_CASE("A group states settings, and only the ones it may [app_config]") {
     // Layout is the whole config's, and saying so is worth its own message: a
     // theme in a group is a mistake about what a group is for, not a typo.
-    const std::string error = errorFrom([&] {
-        with("group\n member esp.*\n theme dark.cfg\nendgroup\n");
-    });
+    const std::string error =
+        errorWith("group\n member esp.*\n theme dark.cfg\nendgroup\n");
     CHECK_MESSAGE(contains(error, "for the whole config"), error);
-    const std::string error2 = errorFrom([&] {
-        with("group\n member esp.*\n arealist_sort ue\nendgroup\n");
-    });
+    const std::string error2 =
+        errorWith("group\n member esp.*\n arealist_sort ue\nendgroup\n");
     CHECK_MESSAGE(contains(error2, "for the whole config"), error2);
-    const std::string error3 = errorFrom([&] {
-        with("group\n member esp.*\n tosser_config /etc/areas\nendgroup\n");
-    });
+    const std::string error3 =
+        errorWith("group\n member esp.*\n tosser_config /etc/areas\nendgroup\n");
     CHECK_MESSAGE(contains(error3, "for the whole config"), error3);
     // A key nobody knows gets the message it gets anywhere else.
-    const std::string error4 = errorFrom([&] {
-        with("group\n member esp.*\n orgin x\nendgroup\n");
-    });
+    const std::string error4 = errorWith("group\n member esp.*\n orgin x\nendgroup\n");
     CHECK_MESSAGE(contains(error4, "unknown setting"), error4);
     // And a global-only key is named as one whether or not its value would
     // also have been refused: where it belongs is the first thing to say.
-    const std::string error5 = errorFrom([&] {
-        with("group\n member esp.*\n theme\nendgroup\n");
-    });
+    const std::string error5 = errorWith("group\n member esp.*\n theme\nendgroup\n");
     CHECK_MESSAGE(contains(error5, "for the whole config"), error5);
     // Twice in one group is the contradiction it is anywhere else...
-    const std::string error6 = errorFrom([&] {
-        with("group\n member esp.*\n origin a\n origin b\nendgroup\n");
-    });
+    const std::string error6 =
+        errorWith("group\n member esp.*\n origin a\n origin b\nendgroup\n");
     CHECK_MESSAGE(contains(error6, "set twice in this group"), error6);
     // ...but the same key outside it is a different setting entirely, and two
     // groups saying it are two answers to two questions.
-    CHECK_NOTHROW(
-        with("origin a\n"
-             "group\n  member esp.*\n  origin b\nendgroup\n"
-             "group\n  member pt.*\n  origin c\nendgroup\n"));
+    CHECK(
+        loads("origin a\n"
+              "group\n  member esp.*\n  origin b\nendgroup\n"
+              "group\n  member pt.*\n  origin c\nendgroup\n"));
 }
 
 TEST_CASE("A group may say where an echo's answers and copies belong [app_config]") {
@@ -1590,17 +1569,14 @@ TEST_CASE("A value a group cannot be read from stops AmberEdit at startup "
           "[app_config]") {
     // Read once while the config is, over a copy that is thrown away, so that a
     // mistake in a group is found at startup and not at the area it covers.
-    const std::string error = errorFrom([&] {
-        with("group\n member esp.*\n quote_margin 5\nendgroup\n");
-    });
+    const std::string error =
+        errorWith("group\n member esp.*\n quote_margin 5\nendgroup\n");
     CHECK_MESSAGE(contains(error, "quote_margin"), error);
-    const std::string error2 = errorFrom([&] {
-        with("group\n member esp.*\n quote_string \">>\"\nendgroup\n");
-    });
+    const std::string error2 =
+        errorWith("group\n member esp.*\n quote_string \">>\"\nendgroup\n");
     CHECK_MESSAGE(contains(error2, "exactly one '>'"), error2);
-    const std::string error3 = errorFrom([&] {
-        with("group\n member esp.*\n address 2:382/\nendgroup\n");
-    });
+    const std::string error3 =
+        errorWith("group\n member esp.*\n address 2:382/\nendgroup\n");
     CHECK_MESSAGE(contains(error3, "not an FTN address"), error3);
 }
 
@@ -1633,31 +1609,29 @@ TEST_CASE("Two groups that cannot be told apart are refused [app_config]") {
     // The same pattern twice is the typo the check is mostly there for: both
     // groups cover the same areas and both set the same thing, and there is no
     // answer to which of them wins.
-    const std::string error = errorFrom([&] {
-        with("group\n member esp.*\n origin a\nendgroup\n"
-             "group\n member esp.*\n origin b\nendgroup\n");
-    });
+    const std::string error = errorWith(
+        "group\n member esp.*\n origin a\nendgroup\n"
+        "group\n member esp.*\n origin b\nendgroup\n");
     CHECK_MESSAGE(contains(error, "neither pattern is the more"), error);
     // Two spellings that say exactly as much and still cover esp.argentina
     // between them.
-    const std::string error2 = errorFrom([&] {
-        with("group\n member esp.*\n origin a\nendgroup\n"
-             "group\n member esp.?*\n origin b\nendgroup\n");
-    });
+    const std::string error2 = errorWith(
+        "group\n member esp.*\n origin a\nendgroup\n"
+        "group\n member esp.?*\n origin b\nendgroup\n");
     CHECK_MESSAGE(contains(error2, "neither pattern is the more"), error2);
 
     // The same two settling different things are two answers to two questions.
-    CHECK_NOTHROW(
-        with("group\n  member esp.*\n  origin a\nendgroup\n"
-             "group\n  member esp.*\n  tearline b\nendgroup\n"));
+    CHECK(
+        loads("group\n  member esp.*\n  origin a\nendgroup\n"
+              "group\n  member esp.*\n  tearline b\nendgroup\n"));
     // One that says more than the other is the whole point of the feature.
-    CHECK_NOTHROW(
-        with("group\n  member esp.*\n  origin a\nendgroup\n"
-             "group\n  member esp.argentina\n  origin b\nendgroup\n"));
+    CHECK(
+        loads("group\n  member esp.*\n  origin a\nendgroup\n"
+              "group\n  member esp.argentina\n  origin b\nendgroup\n"));
     // And two that could never cover one area cannot clash over it.
-    CHECK_NOTHROW(
-        with("group\n  member esp.*\n  origin a\nendgroup\n"
-             "group\n  member pt.*\n  origin b\nendgroup\n"));
+    CHECK(
+        loads("group\n  member esp.*\n  origin a\nendgroup\n"
+              "group\n  member pt.*\n  origin b\nendgroup\n"));
 }
 
 // --- twits -------------------------------------------------------------------
@@ -1780,20 +1754,18 @@ TEST_CASE("A twit line that is no address is a name [app_config]") {
 }
 
 TEST_CASE("AppConfig refuses a malformed twit line [app_config]") {
-    const std::string error = errorFrom([&] { with("twit\n"); });
+    const std::string error = errorWith("twit\n");
     CHECK_MESSAGE(contains(error, "twit needs a name"), error);
-    const std::string error2 = errorFrom([&] { with("twit_subj\n"); });
+    const std::string error2 = errorWith("twit_subj\n");
     CHECK_MESSAGE(contains(error2, "twit_subj needs a subject"), error2);
-    const std::string error3 = errorFrom([&] { with("twit_mode quietly\n"); });
+    const std::string error3 = errorWith("twit_mode quietly\n");
     CHECK_MESSAGE(contains(error3, "show | blank | skip | ignore | kill"), error3);
-    const std::string error4 = errorFrom([&] { with("twit_to sometimes\n"); });
+    const std::string error4 = errorWith("twit_to sometimes\n");
     CHECK_MESSAGE(contains(error4, "on"), error4);
     // The two that are a list may be written as often as one likes; the two
     // that are an answer may not.
-    CHECK_NOTHROW(with("twit a\ntwit b\ntwit_subj x\ntwit_subj y\n"));
-    const std::string error5 = errorFrom([&] {
-        with("twit_mode skip\ntwit_mode blank\n");
-    });
+    CHECK(loads("twit a\ntwit b\ntwit_subj x\ntwit_subj y\n"));
+    const std::string error5 = errorWith("twit_mode skip\ntwit_mode blank\n");
     CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
@@ -1954,76 +1926,58 @@ TEST_CASE("An area's own address is an AKA of ours [app_config]") {
 }
 
 TEST_CASE("An area block is refused for what it gets wrong [app_config]") {
-    const std::string error = errorFrom([&] { with("area\nendarea\n"); });
+    const std::string error = errorWith("area\nendarea\n");
     CHECK_MESSAGE(contains(error, "area takes the echotag"), error);
-    const std::string error2 = errorFrom([&] { with("area a b\nendarea\n"); });
+    const std::string error2 = errorWith("area a b\nendarea\n");
     CHECK_MESSAGE(contains(error2, "area takes the echotag"), error2);
-    const std::string error3 = errorFrom([&] { with("area ru.linux\n path /a\n"); });
+    const std::string error3 = errorWith("area ru.linux\n path /a\n");
     CHECK_MESSAGE(contains(error3, "never closed"), error3);
-    const std::string error4 = errorFrom([&] { with("endarea\n"); });
+    const std::string error4 = errorWith("endarea\n");
     CHECK_MESSAGE(contains(error4, "no area above it"), error4);
-    const std::string error5 = errorFrom([&] {
-        with("area ru.linux\n path /a\nendgroup\n");
-    });
+    const std::string error5 = errorWith("area ru.linux\n path /a\nendgroup\n");
     CHECK_MESSAGE(contains(error5, "write endarea"), error5);
-    const std::string error6 = errorFrom([&] {
-        with("group\n member *\n origin x\nendarea\n");
-    });
+    const std::string error6 = errorWith("group\n member *\n origin x\nendarea\n");
     CHECK_MESSAGE(contains(error6, "write endgroup"), error6);
-    const std::string error7 = errorFrom([&] {
-        with("area ru.linux\n group\nendarea\n");
-    });
+    const std::string error7 = errorWith("area ru.linux\n group\nendarea\n");
     CHECK_MESSAGE(contains(error7, "do not nest"), error7);
-    const std::string error8 = errorFrom([&] { with("group\n area x\nendgroup\n"); });
+    const std::string error8 = errorWith("group\n area x\nendgroup\n");
     CHECK_MESSAGE(contains(error8, "do not nest"), error8);
 
-    const std::string error9 = errorFrom([&] {
-        with("area ru.linux\n path /a\n path /b\nendarea\n");
-    });
+    const std::string error9 = errorWith("area ru.linux\n path /a\n path /b\nendarea\n");
     CHECK_MESSAGE(contains(error9, "path is set twice in this area"), error9);
-    const std::string error10 = errorFrom([&] {
-        with("area ru.linux\n path /a\n type squisj\nendarea\n");
-    });
+    const std::string error10 =
+        errorWith("area ru.linux\n path /a\n type squisj\nendarea\n");
     CHECK_MESSAGE(contains(error10, "is not a base type"), error10);
-    const std::string error11 = errorFrom([&] {
-        with("area ru.linux\n path /a\n kind echomail\nendarea\n");
-    });
+    const std::string error11 =
+        errorWith("area ru.linux\n path /a\n kind echomail\nendarea\n");
     CHECK_MESSAGE(contains(error11, "is not an area kind"), error11);
-    const std::string error12 = errorFrom([&] {
-        with("area ru.linux\n path /a\n address x\nendarea\n");
-    });
+    const std::string error12 =
+        errorWith("area ru.linux\n path /a\n address x\nendarea\n");
     CHECK_MESSAGE(contains(error12, "not an FTN address"), error12);
-    const std::string error13 = errorFrom([&] {
-        with("area ru.linux\n path /a\n link\nendarea\n");
-    });
+    const std::string error13 = errorWith("area ru.linux\n path /a\n link\nendarea\n");
     CHECK_MESSAGE(contains(error13, "link needs the address"), error13);
 
     // A path is the one field an area cannot do without, and a passthrough is
     // the one area that cannot have one.
-    const std::string error14 = errorFrom([&] { with("area ru.linux\nendarea\n"); });
+    const std::string error14 = errorWith("area ru.linux\nendarea\n");
     CHECK_MESSAGE(contains(error14, "states no path"), error14);
-    const std::string error15 = errorFrom([&] {
-        with("area ru.linux\n path /a\n type passthrough\nendarea\n");
-    });
+    const std::string error15 =
+        errorWith("area ru.linux\n path /a\n type passthrough\nendarea\n");
     CHECK_MESSAGE(contains(error15, "is passthrough and names a path"), error15);
 
     // A setting is a group's to state, and anything else is a misspelling.
-    const std::string error16 = errorFrom([&] {
-        with("area ru.linux\n path /a\n default_charset KOI8-R\nendarea\n");
-    });
+    const std::string error16 =
+        errorWith("area ru.linux\n path /a\n default_charset KOI8-R\nendarea\n");
     CHECK_MESSAGE(contains(error16, "is a setting and not a field of an area"), error16);
-    const std::string error17 = errorFrom([&] {
-        with("area ru.linux\n path /a\n desc x\nendarea\n");
-    });
+    const std::string error17 = errorWith("area ru.linux\n path /a\n desc x\nendarea\n");
     CHECK_MESSAGE(contains(error17, "unknown area field 'desc'"), error17);
-    const std::string error18 = errorFrom([&] {
-        with("area ru.linux\n path /a\n group_label A\n group_label B\nendarea\n");
-    });
+    const std::string error18 =
+        errorWith("area ru.linux\n path /a\n group_label A\n group_label B\nendarea\n");
     CHECK_MESSAGE(contains(error18, "group_label is set twice"), error18);
 
-    const std::string error19 = errorFrom([&] {
-        with("area ru.linux\n path /a\nendarea\n" "area RU.LINUX\n path /b\nendarea\n");
-    });
+    const std::string error19 = errorWith(
+        "area ru.linux\n path /a\nendarea\n"
+        "area RU.LINUX\n path /b\nendarea\n");
     CHECK_MESSAGE(contains(error19, "is declared twice"), error19);
 }
 
@@ -2032,25 +1986,26 @@ TEST_CASE("The area list comes from the tosser config, from blocks, or from both
     const char* const charsets = "default_charset CP866\ncompose_charset CP866\n";
 
     // No tosser at all is a config of nothing but blocks.
-    const auto own = AppConfig::loadFromString(
-        std::string(charsets) + "area NOTES\n  path /ftn/msg/notes\nendarea\n");
+    const auto own = amberedit::test::valueOf(AppConfig::loadFromString(
+        std::string(charsets) + "area NOTES\n  path /ftn/msg/notes\nendarea\n"));
     CHECK(own.tosserConfigPath.empty());
     CHECK(own.manualAreas.size() == 1);
 
     // Neither is a config that would open on an empty screen.
-    const std::string error = errorFrom([&] { AppConfig::loadFromString(charsets); });
+    const auto reason = [charsets](const std::string& rest) {
+        return amberedit::test::errorOf(
+            AppConfig::loadFromString(std::string(charsets) + rest));
+    };
+
+    const std::string error = reason("");
     CHECK_MESSAGE(contains(error, "there is no area list"), error);
     // A format is still required as soon as a tosser config is named...
-    const std::string error2 = errorFrom([&] {
-        AppConfig::loadFromString(std::string(charsets) + "tosser_config a\n");
-    });
+    const std::string error2 = reason("tosser_config a\n");
     CHECK_MESSAGE(contains(error2, "tosser_config_format is not set"), error2);
     // ...and names nothing without one.
-    const std::string error3 = errorFrom([&] {
-        AppConfig::loadFromString(std::string(charsets) +
-                                  "tosser_config_format hpt\n"
-                                  "area NOTES\n path /a\nendarea\n");
-    });
+    const std::string error3 = reason(
+        "tosser_config_format hpt\n"
+        "area NOTES\n path /a\nendarea\n");
     CHECK_MESSAGE(contains(error3, "a config that is not set"), error3);
 }
 

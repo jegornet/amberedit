@@ -1050,13 +1050,13 @@ struct AppConfig {
     /// spelling in the config.
     [[nodiscard]] bool isOwnAddress(const domain::FtnAddress& addr) const;
 
-    /// Reads a config file. Throws std::runtime_error with a clear message if
-    /// the file cannot be read or parsed, or if a required field is missing.
-    static AppConfig loadFromFile(const std::string& path);
+    /// Reads a config file, or says why it could not be read or parsed, or
+    /// which required field is missing.
+    [[nodiscard]] static Result<AppConfig> loadFromFile(const std::string& path);
 
     /// Parses a config from a string — the entry point used by the tests.
-    static AppConfig loadFromString(const std::string& text,
-                                    const std::string& originName = "<string>");
+    [[nodiscard]] static Result<AppConfig> loadFromString(
+        const std::string& text, const std::string& originName = "<string>");
 
     /// Paths searched when no config is given on the command line:
     /// $AMBEREDIT_CONFIG, ./amberedit.cfg, ~/.ambereditrc.

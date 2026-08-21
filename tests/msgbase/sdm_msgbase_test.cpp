@@ -11,6 +11,7 @@
 #include "msgbase/raw_message.hpp"
 #include "temp_msg_bases.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::text::startsWith;
 using amberedit::domain::AreaConfig;
@@ -100,7 +101,6 @@ TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
     REQUIRE(msgbase.open(netmailArea(base.path())));
     CHECK(msgbase.isOpen());
     CHECK(msgbase.count() == 1);
-    CHECK(msgbase.lastError().empty());
 
     msgbase.close();
     CHECK_FALSE(msgbase.isOpen());
@@ -200,7 +200,7 @@ TEST_CASE("FtnMsgBase opens a *.msg base with no stated type [sdm]") {
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 1);
 }
 
@@ -255,9 +255,8 @@ TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [sdm]")
     draft.lines = {"Привет!", "", "--- AmberEdit",
                    " * Origin: AmberEdit test (192:168/2)"};
 
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number == before + 1);
-    CHECK(msgbase.lastError().empty());
     CHECK(msgbase.count() == before + 1);
 
     // The message landed in the next numbered file after 198.msg.
@@ -303,7 +302,7 @@ TEST_CASE("A *.msg written here dates itself where the header has the date [sdm]
     draft.kludges = {"CHRS: CP866 2"};
     draft.lines = {"Hello."};
 
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number != 0);
     CHECK(msgbase.header(number).subject == draft.subject);
 
@@ -363,7 +362,7 @@ TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {
     draft.charset = "CP866";
     draft.kludges = {"CHRS: CP866 2"};
     draft.lines = {"A shorter message."};
-    REQUIRE(msgbase.replace(1, draft));
+    REQUIRE(msgbase.replace(1, draft).has_value());
 
     const std::string raw = storedHeader(base.dir() / "198.msg");
     REQUIRE(raw.size() == kHeaderSize);
@@ -383,13 +382,13 @@ TEST_CASE("FtnMsgBase deletes a message from a *.msg base [sdm]") {
     const uint32_t before = msgbase.count();
     REQUIRE(before > 0);
 
-    REQUIRE(msgbase.remove(1));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.remove(1).has_value());
     CHECK(msgbase.count() == before - 1);
     // The delete is the file going away.
     CHECK_FALSE(fs::exists(base.dir() / "198.msg"));
 
-    CHECK_FALSE(msgbase.remove(before + 1));
-    CHECK_FALSE(msgbase.lastError().empty());
-    CHECK_FALSE(msgbase.remove(0));
+    const auto removed = msgbase.remove(before + 1);
+    CHECK_FALSE(removed.has_value());
+    CHECK_FALSE(removed.error().empty());
+    CHECK_FALSE(msgbase.remove(0).has_value());
 }

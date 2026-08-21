@@ -1,11 +1,11 @@
 #include "archive/zip_reader.hpp"
+#include "config/text_util.hpp"
 
 #include <zlib.h>
 
 #include <cstring>
 #include <fstream>
 #include <iterator>
-#include <stdexcept>
 
 #include "msgbase/byte_order.hpp"
 
@@ -47,8 +47,11 @@ std::time_t dosTime(uint16_t date, uint16_t time) {
     return stamp == static_cast<std::time_t>(-1) ? 0 : stamp;
 }
 
-[[noreturn]] void fail(const std::string& path, const std::string& what) {
-    throw std::runtime_error(path + ": " + what);
+/// The complaint with the archive's name in front of it, ready to be returned:
+/// `return fail(path, "is not a zip archive")`.
+[[nodiscard]] tl::unexpected<std::string> fail(const std::string& path,
+                                               const std::string& what) {
+    return failure(path + ": " + what);
 }
 
 }  // namespace
@@ -58,19 +61,22 @@ std::string ZipEntry::baseName() const {
     return cut == std::string::npos ? name : name.substr(cut + 1);
 }
 
-ZipArchive ZipArchive::open(const std::string& path) {
+Result<ZipArchive> ZipArchive::open(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("cannot read the archive: " + path);
+    if (!in) return failure("cannot read the archive: " + path);
 
     ZipArchive archive;
     archive.path_ = path;
     archive.data_.assign(std::istreambuf_iterator<char>(in),
                          std::istreambuf_iterator<char>());
-    if (in.bad()) throw std::runtime_error("cannot read the archive: " + path);
+    if (in.bad()) return failure("cannot read the archive: " + path);
 
     const auto* raw = archive.data_.data();
     const size_t size = archive.data_.size();
-    if (size < kEndOfDirectorySize) fail(path, "too short to be a zip archive");
+    if (size < kEndOfDirectorySize) return fail(path, "too short to be a zip archive");
 
     // The end record stands last but for the archive comment, so it is looked
     // for backwards from the end.
@@ -85,36 +91,37 @@ ZipArchive ZipArchive::open(const std::string& path) {
         }
         if (at == lowest) break;
     }
-    if (end == std::string::npos) fail(path, "is not a zip archive");
+    if (end == std::string::npos) return fail(path, "is not a zip archive");
 
     const uint16_t count = readU16(raw + end + 10);
     const uint32_t directorySize = readU32(raw + end + 12);
     const uint32_t directoryOffset = readU32(raw + end + 16);
     if (count == 0xffff || directoryOffset == 0xffffffffu ||
         directorySize == 0xffffffffu) {
-        fail(path,
-             "is a zip64 archive, which AmberEdit does not read — a nodelist or an "
-             "echolist archive is never one");
+        return fail(
+            path,
+            "is a zip64 archive, which AmberEdit does not read — a nodelist or an "
+            "echolist archive is never one");
     }
     if (readU16(raw + end + 4) != 0 || readU16(raw + end + 6) != 0) {
-        fail(path, "is one part of a multi-part zip archive");
+        return fail(path, "is one part of a multi-part zip archive");
     }
     if (static_cast<uint64_t>(directoryOffset) + directorySize > size) {
-        fail(path, "is a truncated zip archive");
+        return fail(path, "is a truncated zip archive");
     }
 
     size_t at = directoryOffset;
     archive.entries_.reserve(count);
     for (uint16_t i = 0; i < count; ++i) {
         if (at + kDirectoryEntrySize > size || readU32(raw + at) != kDirectoryEntry) {
-            fail(path, "is a damaged zip archive");
+            return fail(path, "is a damaged zip archive");
         }
         const uint16_t flags = readU16(raw + at + 8);
         const uint16_t nameLength = readU16(raw + at + 28);
         const uint16_t extraLength = readU16(raw + at + 30);
         const uint16_t commentLength = readU16(raw + at + 32);
         if (at + kDirectoryEntrySize + nameLength + extraLength + commentLength > size) {
-            fail(path, "is a truncated zip archive");
+            return fail(path, "is a truncated zip archive");
         }
 
         ZipEntry entry;
@@ -141,13 +148,14 @@ ZipArchive ZipArchive::open(const std::string& path) {
     return archive;
 }
 
-std::string ZipArchive::read(const ZipEntry& entry) const {
+Result<std::string> ZipArchive::read(const ZipEntry& entry) const {
     const auto* raw = data_.data();
     const size_t size = data_.size();
 
     if (entry.localHeaderOffset + kLocalHeaderSize > size ||
         readU32(raw + entry.localHeaderOffset) != kLocalHeader) {
-        fail(path_, "has no data where its directory says '" + entry.name + "' is");
+        return fail(path_,
+                    "has no data where its directory says '" + entry.name + "' is");
     }
     // The local header's own name and extra fields are the only thing read from
     // it: its sizes may be zero where a data descriptor carries them instead,
@@ -157,21 +165,21 @@ std::string ZipArchive::read(const ZipEntry& entry) const {
     const uint64_t start = static_cast<uint64_t>(entry.localHeaderOffset) +
                            kLocalHeaderSize + nameLength + extraLength;
     if (start + entry.compressedSize > size) {
-        fail(path_, "is truncated inside '" + entry.name + "'");
+        return fail(path_, "is truncated inside '" + entry.name + "'");
     }
 
     std::string out;
     if (entry.method != kMethodStore && entry.method != kMethodDeflate) {
-        fail(path_, "packs '" + entry.name + "' with compression method " +
-                        std::to_string(entry.method) +
-                        ", which AmberEdit does not unpack");
+        return fail(path_, "packs '" + entry.name + "' with compression method " +
+                               std::to_string(entry.method) +
+                               ", which AmberEdit does not unpack");
     }
 
     if (entry.uncompressedSize == 0) {
         // Nothing to unpack, and nothing for zlib to be given a null buffer of.
     } else if (entry.method == kMethodStore) {
         if (entry.compressedSize != entry.uncompressedSize) {
-            fail(path_, "stores '" + entry.name + "' with two different sizes");
+            return fail(path_, "stores '" + entry.name + "' with two different sizes");
         }
         out.assign(reinterpret_cast<const char*>(raw + start), entry.compressedSize);
     } else {
@@ -182,7 +190,7 @@ std::string ZipArchive::read(const ZipEntry& entry) const {
         // holds, without the zlib header a .gz or a .z would have in front of
         // it.
         if (inflateInit2(&stream, -MAX_WBITS) != Z_OK) {
-            fail(path_, "cannot be unpacked: zlib would not start");
+            return fail(path_, "cannot be unpacked: zlib would not start");
         }
         stream.next_in = const_cast<Bytef*>(raw + start);
         stream.avail_in = entry.compressedSize;
@@ -192,7 +200,7 @@ std::string ZipArchive::read(const ZipEntry& entry) const {
         const uLong written = stream.total_out;
         inflateEnd(&stream);
         if (status != Z_STREAM_END || written != entry.uncompressedSize) {
-            fail(path_, "is damaged inside '" + entry.name + "'");
+            return fail(path_, "is damaged inside '" + entry.name + "'");
         }
     }
 
@@ -200,7 +208,8 @@ std::string ZipArchive::read(const ZipEntry& entry) const {
         ::crc32(::crc32(0, nullptr, 0), reinterpret_cast<const Bytef*>(out.data()),
                 static_cast<uInt>(out.size()));
     if (static_cast<uint32_t>(sum) != entry.crc32) {
-        fail(path_, "is damaged: '" + entry.name + "' does not match its checksum");
+        return fail(path_,
+                    "is damaged: '" + entry.name + "' does not match its checksum");
     }
     return out;
 }

@@ -9,6 +9,7 @@
 #include "msgbase/ftn_msgbase.hpp"
 #include "temp_msg_bases.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::text::startsWith;
 using amberedit::domain::AreaConfig;
@@ -45,7 +46,6 @@ TEST_CASE("FtnMsgBase opens a JAM base and counts messages [jam]") {
     REQUIRE(msgbase.open(jamArea(base.path())));
     CHECK(msgbase.isOpen());
     CHECK(msgbase.count() == 1);
-    CHECK(msgbase.lastError().empty());
 
     msgbase.close();
     CHECK_FALSE(msgbase.isOpen());
@@ -136,7 +136,7 @@ TEST_CASE("FtnMsgBase opens a JAM base with no stated type [jam]") {
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 1);
 }
 
@@ -192,9 +192,8 @@ TEST_CASE("FtnMsgBase writes a message into a JAM base and reads it back [jam]")
     draft.lines = {"Привет, All!", "", "--- AmberEdit",
                    " * Origin: AmberEdit test (192:168/2)"};
 
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number == before + 1);
-    CHECK(msgbase.lastError().empty());
     CHECK(msgbase.count() == before + 1);
 
     // The header comes back as it went in, converted both ways: what was
@@ -228,13 +227,13 @@ TEST_CASE("FtnMsgBase deletes a message from a JAM base [jam]") {
     const uint32_t before = msgbase.count();
     REQUIRE(before > 0);
 
-    REQUIRE(msgbase.remove(1));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.remove(1).has_value());
     CHECK(msgbase.count() == before - 1);
 
     // There is nothing past the end to delete, and saying so is not the same
     // as deleting.
-    CHECK_FALSE(msgbase.remove(before + 1));
-    CHECK_FALSE(msgbase.lastError().empty());
-    CHECK_FALSE(msgbase.remove(0));
+    const auto removed = msgbase.remove(before + 1);
+    CHECK_FALSE(removed.has_value());
+    CHECK_FALSE(removed.error().empty());
+    CHECK_FALSE(msgbase.remove(0).has_value());
 }

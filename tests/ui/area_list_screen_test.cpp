@@ -11,6 +11,7 @@
 #include "app/area_manager.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
@@ -35,7 +36,7 @@ namespace {
 class MutableAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit MutableAreaSource(std::vector<AreaConfig>* areas) : areas_(areas) {}
-    std::vector<AreaConfig> loadAreas() override { return *areas_; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return *areas_; }
 
 private:
     std::vector<AreaConfig>* areas_;
@@ -117,7 +118,7 @@ struct Fixture {
           manager(std::make_unique<MutableAreaSource>(&areas),
                   std::unique_ptr<StubLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     /// The tosser config's own order, so that what a rescan does to the list is
@@ -161,7 +162,8 @@ TEST_CASE("The bare letter still types into the quick search [arealist]") {
 TEST_CASE("A letter a layout has made a command stops typing into the search "
           "[arealist][keys]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
-    fixture.state.keys = amberedit::ui::KeyMap::parse("t arealist.rescan\n", "keys");
+    fixture.state.keys = amberedit::test::valueOf(
+        amberedit::ui::KeyMap::parse("t arealist.rescan\n", "keys"));
 
     // What a bare letter costs when it is bound here: the command is answered
     // before the search, so the letter is no longer one an area can be found by.
@@ -192,13 +194,14 @@ TEST_CASE("The slash goes to the next area with unread messages [arealist][squis
     const AreaConfig middle = fixture.manager.areas()[1].config;
     const uint32_t total = fixture.manager.areas()[1].total;
     REQUIRE(total > 0);
-    amberedit::ports::IMsgBase* opened = fixture.manager.openArea(middle);
+    amberedit::ports::IMsgBase* opened =
+        amberedit::test::valueOf(fixture.manager.openArea(middle));
     REQUIRE(opened != nullptr);
     const uint32_t uid = opened->uidOf(total);
     REQUIRE(uid != 0);
     fixture.manager.closeCurrentArea();
     fixture.lastRead->set("second", uid);
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 
     REQUIRE(fixture.manager.areas()[0].unread > 0);
     REQUIRE(fixture.manager.areas()[1].unread == 0);
@@ -598,8 +601,8 @@ TEST_CASE("A rescan brings the totals and the unread counts up to date "
 
     // The mark is a UID, so it has to be taken from the open base — which is
     // what a lastread file written by another reader would have held.
-    amberedit::ports::IMsgBase* opened =
-        fixture.manager.openArea(fixture.manager.areas()[0].config);
+    amberedit::ports::IMsgBase* opened = amberedit::test::valueOf(
+        fixture.manager.openArea(fixture.manager.areas()[0].config));
     REQUIRE(opened != nullptr);
     const uint32_t uid = opened->uidOf(total - 2);
     REQUIRE(uid != 0);

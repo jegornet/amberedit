@@ -137,6 +137,81 @@ else()
   set(amberedit_zlib_lib ZLIB::ZLIB)
 endif()
 
+# --- tl::expected ------------------------------------------------------------
+# Every fallible operation in AmberEdit answers with tl::expected<T, std::string>,
+# so this is not optional and no part of the code has a path around its absence.
+# std::expected does the same job and is C++23; the floor is RHEL 8 and GCC 8, so
+# it is not on the table and will not be.
+#
+# Found and never fetched, like everything else: expected-devel on RHEL and
+# Fedora, from EPEL on RHEL as doctest is; libexpected-dev on Debian and Ubuntu,
+# in universe on the two Ubuntu LTS releases; tl-expected in Homebrew. All of
+# them install <tl/expected.hpp> and a CMake package called tl-expected — but
+# bookworm and jammy carry 1.0.0, whose CMake package predates the rewrite of it
+# in 1.1.0 and does not always export the target the later ones do. So both are
+# asked, and a plain search for the header answers where neither does.
+if(PkgConfig_FOUND)
+  pkg_check_modules(TL_EXPECTED QUIET IMPORTED_TARGET tl-expected)
+endif()
+
+if(NOT TL_EXPECTED_FOUND)
+  find_package(tl-expected QUIET CONFIG)
+endif()
+
+# What a header-only library comes down to is the directory its header is in,
+# and having it as a directory rather than a target is also what lets the probe
+# below run: a try_compile is a project of its own and cannot see a target this
+# one defines.
+set(amberedit_expected_includes "")
+if(TL_EXPECTED_FOUND)
+  set(amberedit_expected_includes ${TL_EXPECTED_INCLUDE_DIRS})
+elseif(TARGET tl::expected)
+  get_target_property(amberedit_expected_includes tl::expected
+                      INTERFACE_INCLUDE_DIRECTORIES)
+endif()
+
+if(NOT amberedit_expected_includes)
+  find_path(TL_EXPECTED_INCLUDE_DIR NAMES tl/expected.hpp)
+  set(amberedit_expected_includes ${TL_EXPECTED_INCLUDE_DIR})
+endif()
+
+add_library(amberedit_expected INTERFACE)
+if(amberedit_expected_includes)
+  target_include_directories(amberedit_expected
+                             INTERFACE ${amberedit_expected_includes})
+endif()
+
+# Only the 1.0.0 API is exercised, here and in the code: no transform, no
+# transform_error, and tl::unexpected written out with make_unexpected rather
+# than deduced. bookworm and jammy carry 1.0.0 and both have to build.
+set(amberedit_expected_probe "
+  #include <string>
+  #include <tl/expected.hpp>
+  tl::expected<int, std::string> ok() { return 42; }
+  tl::expected<void, std::string> bad() {
+    return tl::make_unexpected(std::string(\"no\"));
+  }
+  int main() {
+    if (!ok().has_value() || bad().has_value()) return 1;
+    if (ok().value_or(0) != 42 || bad().error() != \"no\") return 1;
+    return 0;
+  }
+")
+
+cmake_push_check_state()
+set(CMAKE_REQUIRED_INCLUDES ${amberedit_expected_includes})
+check_cxx_source_compiles("${amberedit_expected_probe}" AMBEREDIT_HAVE_TL_EXPECTED)
+cmake_pop_check_state()
+
+if(NOT AMBEREDIT_HAVE_TL_EXPECTED)
+  message(FATAL_ERROR
+    "AmberEdit needs tl::expected (<tl/expected.hpp>). Install expected-devel "
+    "on RHEL and Fedora, from EPEL on RHEL; libexpected-dev on Debian and "
+    "Ubuntu; `brew install tl-expected` on macOS, where it also wants "
+    "-DCMAKE_PREFIX_PATH=$(brew --prefix tl-expected)."
+  )
+endif()
+
 # --- std::filesystem ---------------------------------------------------------
 # GCC 8 — RHEL 8's compiler — ships std::filesystem in a separate libstdc++fs
 # that has to be named on the link line; the header compiles either way, so the
@@ -229,6 +304,9 @@ target_link_libraries(amberedit_core
   # PUBLIC because everything linking the core — the executable and the tests —
   # uses std::filesystem too, and on GCC 8 that is an extra -l rather than free.
   PUBLIC amberedit_filesystem
+  # PUBLIC because Result<T> stands in the core's own headers, so the nodelist,
+  # the echolist, the zip reader, the UI and the tests all include it too.
+  PUBLIC amberedit_expected
 )
 
 # --- zip archives ------------------------------------------------------------

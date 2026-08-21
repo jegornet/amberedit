@@ -47,9 +47,10 @@ FileLock::~FileLock() {
     release();
 }
 
-bool FileLock::acquire(const std::vector<BinaryFile*>& files, std::string* error) {
+Result<void> FileLock::acquire(const std::vector<BinaryFile*>& files) {
     release();
 
+    std::string reason;
     for (int attempt = 0; attempt < kAttempts; ++attempt) {
         if (attempt != 0) waitABit();
 
@@ -57,19 +58,16 @@ bool FileLock::acquire(const std::vector<BinaryFile*>& files, std::string* error
         for (BinaryFile* file : files) {
             if (file == nullptr || !file->isOpen()) continue;
             if (!lockWholeFile(file->descriptor(), true)) {
-                if (error != nullptr) *error = "cannot lock " + file->path();
+                reason = "cannot lock " + file->path();
                 gotAll = false;
                 break;
             }
             locked_.push_back(file->descriptor());
         }
-        if (gotAll) {
-            if (error != nullptr) error->clear();
-            return true;
-        }
+        if (gotAll) return {};
         release();
     }
-    return false;
+    return failure(std::move(reason));
 }
 
 void FileLock::release() {

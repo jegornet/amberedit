@@ -12,7 +12,8 @@
 #include "ui/term/event.hpp"
 
 using amberedit::test::contains;
-using amberedit::test::errorFrom;
+using amberedit::test::errorOf;
+using amberedit::test::valueOf;
 using amberedit::ui::KeyCommand;
 using amberedit::ui::KeyMap;
 using amberedit::ui::keyNamed;
@@ -65,9 +66,9 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {
     // The example is what a user copies to start from, so a default it has
     // fallen behind on would be a layout that quietly changes as it is adopted.
-    const std::string text = amberedit::config::text::readFile(
-        amberedit::test::projectPath("amberkeys.cfg.example"));
-    const KeyMap written = KeyMap::parse(text, "amberkeys.cfg.example");
+    const std::string text = amberedit::test::valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("amberkeys.cfg.example")));
+    const KeyMap written = valueOf(KeyMap::parse(text, "amberkeys.cfg.example"));
     const KeyMap defaults = KeyMap::defaults();
 
     for (size_t i = 0; i < amberedit::ui::kKeyCommandCount; ++i) {
@@ -78,12 +79,12 @@ TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {
 }
 
 TEST_CASE("A layout is the whole of the layout [keys]") {
-    const KeyMap keys = KeyMap::parse(
-        "# what this system is used to\n"
-        "\n"
-        "F3   reader.find\n"
-        "F3   compose.save\n",
-        "keys");
+    const KeyMap keys =
+        valueOf(KeyMap::parse("# what this system is used to\n"
+                              "\n"
+                              "F3   reader.find\n"
+                              "F3   compose.save\n",
+                              "keys"));
 
     CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
     // The letter the default layout had is gone with the rest of it: a file is
@@ -137,36 +138,28 @@ TEST_CASE("The keys that move about cannot be bound [keys]") {
     // Bare only: Alt-Left is how a word is walked over.
     CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Left"));
 
-    const std::string error = errorFrom([&] {
-        KeyMap::parse("Esc reader.list", "keys");
-    });
+    const std::string error = errorOf(KeyMap::parse("Esc reader.list", "keys"));
     CHECK_MESSAGE(contains(error, "cannot be bound"), error);
 }
 
 TEST_CASE("A layout that cannot be read says which line is wrong [keys]") {
-    const std::string error = errorFrom([&] { KeyMap::parse("l reader.lst", "keys"); });
+    const std::string error = errorOf(KeyMap::parse("l reader.lst", "keys"));
     CHECK_MESSAGE(contains(error, "keys:1: no command is called reader.lst"), error);
-    const std::string error2 = errorFrom([&] {
-        KeyMap::parse("\nF13 reader.list", "keys");
-    });
+    const std::string error2 = errorOf(KeyMap::parse("\nF13 reader.list", "keys"));
     CHECK_MESSAGE(contains(error2, "keys:2: no key is called F13"), error2);
-    const std::string error3 = errorFrom([&] { KeyMap::parse("l\n", "keys"); });
+    const std::string error3 = errorOf(KeyMap::parse("l\n", "keys"));
     CHECK_MESSAGE(contains(error3, "a line is a key and a command"), error3);
-    const std::string error4 = errorFrom([&] {
-        KeyMap::parse("l reader.list now\n", "keys");
-    });
+    const std::string error4 = errorOf(KeyMap::parse("l reader.list now\n", "keys"));
     CHECK_MESSAGE(contains(error4, "a line is a key and a command"), error4);
 
     // One screen may not have a key twice, and the message names what it is
     // already doing.
-    const std::string error5 = errorFrom([&] {
-        KeyMap::parse("l reader.list\nl reader.find\n", "keys");
-    });
+    const std::string error5 =
+        errorOf(KeyMap::parse("l reader.list\nl reader.find\n", "keys"));
     CHECK_MESSAGE(contains(error5, "l is already reader.list"), error5);
     // Quitting is answered before every screen, so it shares with nothing.
-    const std::string error6 = errorFrom([&] {
-        KeyMap::parse("x app.quit\nx compose.save\n", "keys");
-    });
+    const std::string error6 =
+        errorOf(KeyMap::parse("x app.quit\nx compose.save\n", "keys"));
     CHECK_MESSAGE(contains(error6, "x is already app.quit"), error6);
 }
 
@@ -180,14 +173,12 @@ TEST_CASE("A layout is read from the file the config names [keys]") {
         out << "Alt-J compose.word-left\n";
     }
 
-    const KeyMap keys = KeyMap::loadFromFile(path);
+    const KeyMap keys = valueOf(KeyMap::loadFromFile(path));
     CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
     // The terminal is told about the letters this layout uses and no others.
     CHECK(keys.altLetters() == "j");
 
-    const std::string error = errorFrom([&] {
-        KeyMap::loadFromFile(dir.path("gone.cfg"));
-    });
+    const std::string error = errorOf(KeyMap::loadFromFile(dir.path("gone.cfg")));
     CHECK_MESSAGE(contains(error, "keys file not found"), error);
 
     // The file's own name is what a mistake in it is reported against, since
@@ -197,6 +188,6 @@ TEST_CASE("A layout is read from the file the config names [keys]") {
         std::ofstream out(bad);
         out << "F3 reader.find\nEsc reader.list\n";
     }
-    const std::string error2 = errorFrom([&] { KeyMap::loadFromFile(bad); });
+    const std::string error2 = errorOf(KeyMap::loadFromFile(bad));
     CHECK_MESSAGE(contains(error2, bad + ":2: "), error2);
 }

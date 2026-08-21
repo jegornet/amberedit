@@ -10,6 +10,7 @@
 #include "config/text_util.hpp"
 #include "msgbase/ftn_msgbase.hpp"
 #include "msgbase/jam_crc32.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::text::startsWith;
 using amberedit::domain::AreaConfig;
@@ -96,12 +97,11 @@ TEST_CASE("A JAM base is written and read back [jam]") {
     area.kind = AreaKind::Netmail;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 0);
 
-    const uint32_t number = msgbase.write(netmailDraft());
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(netmailDraft()));
     REQUIRE(number == 1);
-    CHECK(msgbase.lastError().empty());
     CHECK(msgbase.count() == 1);
 
     // The header comes back as it went in, converted both ways: what was
@@ -144,7 +144,7 @@ TEST_CASE("A JAM message number survives deletions before it [jam]") {
     area.kind = AreaKind::Echo;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
 
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
@@ -157,7 +157,7 @@ TEST_CASE("A JAM message number survives deletions before it [jam]") {
     // The UID is the JAM message number, which nothing renumbers: deleting the
     // first message moves the positions but not the numbers.
     const uint32_t uidOfThird = msgbase.uidOf(3);
-    REQUIRE(msgbase.remove(1));
+    REQUIRE(msgbase.remove(1).has_value());
     CHECK(msgbase.count() == 2);
     CHECK(msgbase.header(2).subject == "three");
     CHECK(msgbase.uidOf(2) == uidOfThird);
@@ -180,7 +180,7 @@ TEST_CASE("JAM keeps SEEN-BY and PATH apart and puts them back [jam]") {
     area.kind = AreaKind::Echo;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
 
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
@@ -214,7 +214,7 @@ TEST_CASE("A changed JAM message keeps its number and its place [jam]") {
     area.kind = AreaKind::Echo;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
 
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
@@ -230,7 +230,7 @@ TEST_CASE("A changed JAM message keeps its number and its place [jam]") {
         MessageDraft change = draft;
         change.subject = "two";  // the same subfields, so the same room
         change.lines = {"A shorter message."};
-        REQUIRE(msgbase.replace(2, change));
+        REQUIRE(msgbase.replace(2, change).has_value());
 
         CHECK(msgbase.count() == 3);
         CHECK(msgbase.uidOf(2) == uid);
@@ -242,7 +242,7 @@ TEST_CASE("A changed JAM message keeps its number and its place [jam]") {
         MessageDraft change = draft;
         change.subject = "two, with rather more to say for itself";
         change.lines = {"Changed."};
-        REQUIRE(msgbase.replace(2, change));
+        REQUIRE(msgbase.replace(2, change).has_value());
 
         CHECK(msgbase.count() == 3);
         CHECK(msgbase.uidOf(2) == uid);
@@ -258,7 +258,7 @@ TEST_CASE("A changed JAM message keeps its number and its place [jam]") {
 
     // Whichever way round, a base opened afresh reads what was written.
     FtnMsgBase again("CP866");
-    REQUIRE(again.open(area));
+    REQUIRE(again.open(area).has_value());
     CHECK(again.count() == 3);
     CHECK(again.uidOf(2) == uid);
     CHECK(again.header(1).subject == "one");
@@ -277,30 +277,29 @@ TEST_CASE("A JAM message is marked read in TimesRead [jam]") {
     area.kind = AreaKind::Netmail;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     REQUIRE(msgbase.write(netmailDraft()) == 1);
     REQUIRE(msgbase.write(netmailDraft()) == 2);
 
     // A message JAM has just been given has been read no times at all.
     CHECK_FALSE(msgbase.header(1).seen);
 
-    REQUIRE(msgbase.markSeen(1));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.markSeen(1).has_value());
     CHECK(msgbase.header(1).seen);
     CHECK_FALSE(msgbase.header(2).seen);
 
     // TimesRead is a mark here and not a tally: reading a message twice writes
     // once, and a base that already counts several reads is left as it is.
-    REQUIRE(msgbase.markSeen(1));
+    REQUIRE(msgbase.markSeen(1).has_value());
     CHECK(msgbase.header(1).seen);
 
     FtnMsgBase again("CP866");
-    REQUIRE(again.open(area));
+    REQUIRE(again.open(area).has_value());
     CHECK(again.header(1).seen);
     CHECK_FALSE(again.header(2).seen);
 
-    CHECK_FALSE(msgbase.markSeen(0));
-    CHECK_FALSE(msgbase.markSeen(3));
+    CHECK_FALSE(msgbase.markSeen(0).has_value());
+    CHECK_FALSE(msgbase.markSeen(3).has_value());
 }
 
 TEST_CASE("A changed JAM message is still marked read [jam]") {
@@ -315,13 +314,13 @@ TEST_CASE("A changed JAM message is still marked read [jam]") {
     area.kind = AreaKind::Netmail;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     REQUIRE(msgbase.write(netmailDraft()) == 1);
-    REQUIRE(msgbase.markSeen(1));
+    REQUIRE(msgbase.markSeen(1).has_value());
 
     MessageDraft draft = netmailDraft();
     draft.subject = "Rewritten";
-    REQUIRE(msgbase.replace(1, draft));
+    REQUIRE(msgbase.replace(1, draft).has_value());
 
     CHECK(msgbase.header(1).subject == "Rewritten");
     CHECK(msgbase.header(1).seen);
@@ -337,7 +336,7 @@ TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
     area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     REQUIRE(msgbase.write(netmailDraft()) == 1);
     REQUIRE(msgbase.write(netmailDraft()) == 2);
 
@@ -345,14 +344,14 @@ TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
     // go in it and the read count is what says this instead.
     CHECK_FALSE(msgbase.header(1).seen);
 
-    REQUIRE(msgbase.markSeen(1));
+    REQUIRE(msgbase.markSeen(1).has_value());
     CHECK(msgbase.header(1).seen);
     CHECK_FALSE(msgbase.header(2).seen);
-    REQUIRE(msgbase.markSeen(1));
+    REQUIRE(msgbase.markSeen(1).has_value());
     CHECK(msgbase.header(1).seen);
 
     FtnMsgBase again("CP866");
-    REQUIRE(again.open(area));
+    REQUIRE(again.open(area).has_value());
     CHECK(again.header(1).seen);
     CHECK_FALSE(again.header(2).seen);
 
@@ -360,12 +359,12 @@ TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
     // over from what it read.
     MessageDraft draft = netmailDraft();
     draft.subject = "Rewritten";
-    REQUIRE(msgbase.replace(1, draft));
+    REQUIRE(msgbase.replace(1, draft).has_value());
     CHECK(msgbase.header(1).subject == "Rewritten");
     CHECK(msgbase.header(1).seen);
 
-    CHECK_FALSE(msgbase.markSeen(0));
-    CHECK_FALSE(msgbase.markSeen(3));
+    CHECK_FALSE(msgbase.markSeen(0).has_value());
+    CHECK_FALSE(msgbase.markSeen(3).has_value());
 }
 
 TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
@@ -379,7 +378,7 @@ TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
     area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 0);
 
     MessageDraft draft = netmailDraft();
@@ -387,7 +386,7 @@ TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
     // them, the two-byte header fields having no room for a zone or a point.
     draft.destAddr = *amberedit::domain::FtnAddress::parse("5:5/5.1");
     draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number == 1);
     CHECK(fs::exists(dir.path() / "1.msg"));
 
@@ -410,7 +409,7 @@ TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
     CHECK(kludges.find("@MSGID: 192:168/2 68a1b2c3|") != std::string::npos);
     CHECK(body.text().find("Привет!") != std::string::npos);
 
-    REQUIRE(msgbase.remove(1));
+    REQUIRE(msgbase.remove(1).has_value());
     CHECK(msgbase.count() == 0);
     CHECK_FALSE(fs::exists(dir.path() / "1.msg"));
 }
@@ -425,7 +424,7 @@ TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
     area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     REQUIRE(msgbase.write(netmailDraft()) == 1);
     REQUIRE(msgbase.write(netmailDraft()) == 2);
     const auto was = msgbase.header(1);
@@ -433,8 +432,7 @@ TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
     MessageDraft change = netmailDraft();
     change.subject = "Changed";
     change.lines = {"One line."};
-    REQUIRE(msgbase.replace(1, change));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.replace(1, change).has_value());
 
     // Its own file and no other: the number is the file name, so a message that
     // has grown or shrunk still answers to it.
@@ -454,7 +452,7 @@ TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
     CHECK(fs::file_size(dir.path() / "1.msg") < fs::file_size(dir.path() / "2.msg"));
 
     FtnMsgBase again("CP866");
-    REQUIRE(again.open(area));
+    REQUIRE(again.open(area).has_value());
     CHECK(again.header(1).subject == "Changed");
     CHECK(again.body(1).text() == "One line.");
 }
@@ -470,7 +468,7 @@ TEST_CASE("An echo *.msg area starts at 2.msg [sdm]") {
     area.kind = AreaKind::Echo;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
 
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
@@ -494,7 +492,7 @@ TEST_CASE("The JAM index record keys by the recipient's name [jam]") {
     area.kind = AreaKind::Echo;
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
     draft.to = "All";

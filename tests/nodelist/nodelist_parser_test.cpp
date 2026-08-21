@@ -4,6 +4,7 @@
 
 #include "config/text_util.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using namespace amberedit;
 using nodelist::NodeKeyword;
@@ -164,8 +165,8 @@ TEST_CASE("a line that cannot be read is named and left out [nodelist]") {
 }
 
 TEST_CASE("the real nodelists in testdata parse [nodelist]") {
-    const auto text =
-        config::text::readFile(test::projectPath("testdata/nodelist/Z2DAILY.225"));
+    const auto text = test::valueOf(
+        config::text::readFile(test::projectPath("testdata/nodelist/Z2DAILY.225")));
     const auto parsed = nodelist::parseNodelist(text);
 
     CHECK_FALSE(parsed.pointList);

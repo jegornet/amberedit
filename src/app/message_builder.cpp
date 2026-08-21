@@ -355,13 +355,11 @@ StartingText startingText(const BuildRequest& request) {
         // No template configured: a reply still opens on the quote, which is
         // the one thing it cannot be written without.
         haveTemplate = false;
+    } else if (const auto read = config::text::readFile(request.config.templatePath)) {
+        templateText = *read;
     } else {
-        try {
-            templateText = config::text::readFile(request.config.templatePath);
-        } catch (const std::exception& e) {
-            out.error = std::string("template: ") + e.what();
-            haveTemplate = false;
-        }
+        out.error = "template: " + read.error();
+        haveTemplate = false;
     }
 
     if (haveTemplate) {
@@ -521,15 +519,11 @@ std::vector<std::string> changeNotice(const BuildRequest& request) {
         context.c3daddr = threeDimensional(*parsed);
     }
 
-    try {
-        return conditionalLines(config::text::readFile(request.config.templatePath),
-                                "changed", context);
-    } catch (const std::exception&) {
-        // The same template the editor would have opened on, and the same
-        // silence: a notice that cannot be read is no reason to refuse the
-        // change.
-        return {};
-    }
+    const auto text = config::text::readFile(request.config.templatePath);
+    // The same template the editor would have opened on, and the same silence:
+    // a notice that cannot be read is no reason to refuse the change.
+    if (!text) return {};
+    return conditionalLines(*text, "changed", context);
 }
 
 domain::MessageDraft buildDraft(const BuildRequest& request,

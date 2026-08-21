@@ -10,12 +10,13 @@
 
 #include "app/area_manager.hpp"
 #include "msgbase/fido_lastread_store.hpp"
+#include "msgbase/ftn_msgbase.hpp"
 #include "msgbase/jam_lastread_store.hpp"
 #include "msgbase/lastread_file.hpp"
 #include "msgbase/msgbase_lastread_store.hpp"
-#include "msgbase/ftn_msgbase.hpp"
 #include "msgbase/squish_lastread_store.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 
 using amberedit::domain::AreaConfig;
 using amberedit::domain::MsgBaseType;
@@ -58,7 +59,7 @@ private:
 class StubAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit StubAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    std::vector<AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -270,8 +271,9 @@ TEST_CASE("Reading a message leaves a mark the next run resumes from "
     uint32_t total = 0;
     {
         auto manager = makeManager();
-        manager.reload();
-        amberedit::ports::IMsgBase* msgbase = manager.openArea(area);
+        static_cast<void>(manager.reload());
+        amberedit::ports::IMsgBase* msgbase =
+            amberedit::test::valueOf(manager.openArea(area));
         REQUIRE(msgbase != nullptr);
         total = msgbase->count();
         REQUIRE(total >= 3);
@@ -286,10 +288,10 @@ TEST_CASE("Reading a message leaves a mark the next run resumes from "
 
     // A second run, reading the mark back off disk rather than out of memory.
     auto manager = makeManager();
-    manager.reload();
+    static_cast<void>(manager.reload());
     CHECK(manager.areas().front().unread == 2);
 
-    REQUIRE(manager.openArea(area) != nullptr);
+    REQUIRE(manager.openArea(area).has_value());
     // The mark is on total - 2 and the reader resumes on the message after it,
     // that being the first one not read yet.
     CHECK(manager.startingMessage(area, total) == total - 1);
@@ -314,8 +316,9 @@ TEST_CASE("Where an area resumes is reader_lastread_auto_next's "
     uint32_t total = 0;
     {
         auto manager = makeManager(true);
-        manager.reload();
-        amberedit::ports::IMsgBase* msgbase = manager.openArea(area);
+        static_cast<void>(manager.reload());
+        amberedit::ports::IMsgBase* msgbase =
+            amberedit::test::valueOf(manager.openArea(area));
         REQUIRE(msgbase != nullptr);
         total = msgbase->count();
         REQUIRE(total >= 3);
@@ -325,8 +328,8 @@ TEST_CASE("Where an area resumes is reader_lastread_auto_next's "
     {
         // Off, the area opens on the message the mark names — the last one read.
         auto manager = makeManager(false);
-        manager.reload();
-        REQUIRE(manager.openArea(area) != nullptr);
+        static_cast<void>(manager.reload());
+        REQUIRE(manager.openArea(area).has_value());
         CHECK(manager.startingMessage(area, total) == total - 2);
     }
 
@@ -334,8 +337,8 @@ TEST_CASE("Where an area resumes is reader_lastread_auto_next's "
     // settings open the area there.
     {
         auto manager = makeManager(true);
-        manager.reload();
-        REQUIRE(manager.openArea(area) != nullptr);
+        static_cast<void>(manager.reload());
+        REQUIRE(manager.openArea(area).has_value());
         manager.markRead(total);
         CHECK(manager.startingMessage(area, total) == total);
     }
@@ -360,9 +363,10 @@ TEST_CASE("An area with no mark opens at its first message "
     amberedit::app::AreaManager manager(
         std::make_unique<StubAreaSource>(std::move(areas)),
         std::make_unique<MsgBaseLastReadStore>(0, "Ivan Petrov"), config);
-    manager.reload();
+    static_cast<void>(manager.reload());
 
-    amberedit::ports::IMsgBase* msgbase = manager.openArea(area);
+    amberedit::ports::IMsgBase* msgbase =
+        amberedit::test::valueOf(manager.openArea(area));
     REQUIRE(msgbase != nullptr);
     const uint32_t total = msgbase->count();
     REQUIRE(total >= 3);
@@ -391,8 +395,8 @@ TEST_CASE("A mark is stored as a UID, not as a position [lastread][squish]") {
     amberedit::app::AreaManager manager(
         std::make_unique<StubAreaSource>(std::move(areas)),
         std::make_unique<MsgBaseLastReadStore>(0, "Ivan Petrov"), config);
-    manager.reload();
-    REQUIRE(manager.openArea(area) != nullptr);
+    static_cast<void>(manager.reload());
+    REQUIRE(manager.openArea(area).has_value());
     manager.markRead(total - 1);
     manager.closeCurrentArea();
 

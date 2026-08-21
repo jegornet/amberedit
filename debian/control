@@ -8,6 +8,11 @@ Build-Depends: debhelper-compat (= 13),
                pkg-config,
                libncurses-dev,
                zlib1g-dev,
+# tl::expected, which every fallible operation in AmberEdit answers with.
+# Header-only, so it is a build dependency and never a runtime one. In universe
+# on jammy and noble, which the official Ubuntu images enable and a minimal
+# chroot does not — std::expected would need C++23 and the floor is g++ 8.
+               libexpected-dev,
 # doctest for the test suite, which dh_auto_test runs. One package name on
 # bookworm, trixie, jammy and noble alike — unlike catch2, which trixie renamed.
                doctest-dev

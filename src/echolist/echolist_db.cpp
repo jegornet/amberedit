@@ -1,8 +1,8 @@
 #include "echolist/echolist_db.hpp"
+#include "config/text_util.hpp"
 
 #include <cstring>
 #include <fstream>
-#include <stdexcept>
 #include <utility>
 
 #include "echolist/echolist_format.hpp"
@@ -28,31 +28,34 @@ using msgbase::bytes::readU32;
 
 }  // namespace
 
-EcholistDb EcholistDb::open(const std::string& path) {
+Result<EcholistDb> EcholistDb::open(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("compiled echolist not found: " + path);
+    if (!in) return failure("compiled echolist not found: " + path);
 
     EcholistDb db;
     db.path_ = path;
     db.data_.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-    if (in.bad()) throw std::runtime_error("cannot read the compiled echolist: " + path);
+    if (in.bad()) return failure("cannot read the compiled echolist: " + path);
 
     const auto* raw = db.data_.data();
     const uint64_t size = db.data_.size();
     if (size < format::kHeaderSize ||
         std::memcmp(raw, format::kMagic, sizeof(format::kMagic)) != 0) {
-        throw std::runtime_error(path +
-                                 " is not a compiled echolist — echolist_db names the "
-                                 "file AmberEdit compiles them into, not an echolist "
-                                 "itself");
+        return failure(path +
+                       " is not a compiled echolist — echolist_db names the "
+                       "file AmberEdit compiles them into, not an echolist "
+                       "itself");
     }
 
     const uint16_t version = readU16(raw + 8);
     if (version != format::kVersion) {
-        throw std::runtime_error(
-            path + " was compiled as format version " + std::to_string(version) +
-            ", and this AmberEdit reads version " + std::to_string(format::kVersion) +
-            " — amberedit --compile writes it again");
+        return failure(path + " was compiled as format version " +
+                       std::to_string(version) + ", and this AmberEdit reads version " +
+                       std::to_string(format::kVersion) +
+                       " — amberedit --compile writes it again");
     }
 
     db.areaCount_ = readU32(raw + 12);
@@ -71,31 +74,28 @@ EcholistDb EcholistDb::open(const std::string& path) {
                static_cast<uint64_t>(db.areaCount_) * format::kIndexEntrySize, size) &&
         within(db.recordsOffset_, db.recordsSize_, size) && within(sourceOffset, 0, size);
     if (!sane) {
-        throw std::runtime_error("the compiled echolist is truncated or damaged: " +
-                                 path + " — amberedit --compile writes it again");
+        return failure("the compiled echolist is truncated or damaged: " + path +
+                       " — amberedit --compile writes it again");
     }
 
     uint64_t at = sourceOffset;
     db.sources_.reserve(sourceCount);
+    // Answers whether it could read, the complaint being the same one for every
+    // way it could not: a lambda cannot return out of open() on its behalf.
     const auto readString = [&](std::string& out) {
-        if (!within(at, 2, size)) {
-            throw std::runtime_error("the compiled echolist is truncated: " + path);
-        }
+        if (!within(at, 2, size)) return false;
         const uint16_t length = readU16(raw + at);
         at += 2;
-        if (!within(at, length, size)) {
-            throw std::runtime_error("the compiled echolist is truncated: " + path);
-        }
+        if (!within(at, length, size)) return false;
         out.assign(reinterpret_cast<const char*>(raw + at), length);
         at += length;
+        return true;
     };
     for (uint32_t i = 0; i < sourceCount; ++i) {
         SourceState state;
-        readString(state.spec);
-        readString(state.charset);
-        readString(state.path);
-        if (!within(at, 16, size)) {
-            throw std::runtime_error("the compiled echolist is truncated: " + path);
+        if (!readString(state.spec) || !readString(state.charset) ||
+            !readString(state.path) || !within(at, 16, size)) {
+            return failure("the compiled echolist is truncated: " + path);
         }
         state.modified = readU64(raw + at);
         state.size = readU64(raw + at + 8);
@@ -111,15 +111,15 @@ EcholistDb EcholistDb::open(const std::string& path) {
             readU32(raw + db.indexOffset_ + (i * format::kIndexEntrySize));
         if (offset > db.recordsSize_ ||
             db.recordsSize_ - offset < format::kRecordFixedSize) {
-            throw std::runtime_error("the compiled echolist is damaged: " + path +
-                                     " — amberedit --compile writes it again");
+            return failure("the compiled echolist is damaged: " + path +
+                           " — amberedit --compile writes it again");
         }
         const unsigned char* record = raw + db.recordsOffset_ + offset;
         const uint64_t length = static_cast<uint64_t>(format::kRecordFixedSize) +
                                 readU16(record) + readU16(record + 2);
         if (length > db.recordsSize_ - offset) {
-            throw std::runtime_error("the compiled echolist is damaged: " + path +
-                                     " — amberedit --compile writes it again");
+            return failure("the compiled echolist is damaged: " + path +
+                           " — amberedit --compile writes it again");
         }
     }
 
@@ -127,10 +127,6 @@ EcholistDb EcholistDb::open(const std::string& path) {
 }
 
 uint32_t EcholistDb::recordOffsetAt(size_t index) const {
-    if (index >= areaCount_) {
-        throw std::runtime_error("the compiled echolist has no entry " +
-                                 std::to_string(index) + ": " + path_);
-    }
     return readU32(data_.data() + indexOffset_ + (index * format::kIndexEntrySize));
 }
 

@@ -116,7 +116,7 @@ struct Fixture {
     std::string sender;
 
     Fixture() {
-        REQUIRE(message_list::enterArea(area.state, area.area));
+        REQUIRE(message_list::enterArea(area.state, area.area).has_value());
         REQUIRE(area.state.readHeader);
         sender = area.state.readHeader->origAddr.toString();
 
@@ -134,7 +134,7 @@ struct Fixture {
         nodelist::DbSource points{
             {"~/ftn/nodelist/Z2PNT.Z99", "/home/user/ftn/nodelist/Z2PNT.Z19", 3, 4},
             {node("2:240/1120.8", "Point #8", "Werner Krammer", "Dieburg")}};
-        nodelist::writeNodelistDb(dir.path("nodelist.db"), {nodes, points}, 0);
+        REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {nodes, points}, 0).has_value());
         area.config.nodelistDbPath = dir.path("nodelist.db");
     }
 };
@@ -166,7 +166,7 @@ TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off "
     TempSquishBase base;
     TempDir dir;
     AreaFixture area{base.path()};
-    REQUIRE(message_list::enterArea(area.state, area.area));
+    REQUIRE(message_list::enterArea(area.state, area.area).has_value());
     REQUIRE(area.state.readHeader);
 
     // The message is from a point of a node the nodelist has, and the point
@@ -181,7 +181,7 @@ TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off "
     nodelist::DbSource source{
         {"nodelist", "/home/user/ftn/nodelist/NODELIST.225", 1, 2},
         {node(boss.toString(), "The Boss", "Some Sysop", "Nowhere")}};
-    nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     area.config.nodelistDbPath = dir.path("nodelist.db");
 
     nodelist_dialog::open(area.state);
@@ -568,7 +568,7 @@ TEST_CASE("Esc and the keys that opened it put the nodelist away [nodelist][ui]"
 TEST_CASE("with no nodelist the box opens and says so [nodelist][ui]") {
     TempSquishBase base;
     AreaFixture area(base.path());
-    REQUIRE(message_list::enterArea(area.state, area.area));
+    REQUIRE(message_list::enterArea(area.state, area.area).has_value());
 
     // A config naming no nodelist at all: Ctrl-N is still a key, and the box is
     // the only place there is to say why it has nothing to show.

@@ -34,28 +34,29 @@ jobs:
           # The floor, and the whole reason the project is C++17: stock GCC 8.5
           # and the CMake the release ships, no gcc-toolset. It is also the
           # reason the tests are on doctest: EPEL 8 has no Catch2 v3 at all.
+          # EPEL supplies expected-devel here too, and Fedora carries its own.
           - name: Rocky Linux 8 (GCC 8, the floor)
             image: rockylinux:8
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel doctest-devel
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel
           - name: Rocky Linux 9
             image: rockylinux:9
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
           # Newest GCC, which is where a warning or a tightened header shows up
           # years before it reaches an LTS.
           - name: Fedora latest (newest GCC)
             image: fedora:latest
-            deps: dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
           # doctest-dev is one name across all three of these, and across the
           # two RHEL rebuilds above under doctest-devel.
           - name: Debian stable
             image: debian:stable
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
           - name: Ubuntu 22.04
             image: ubuntu:22.04
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
           - name: Ubuntu 24.04
             image: ubuntu:24.04
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
     steps:
       - uses: actions/checkout@v4
 
@@ -93,13 +94,13 @@ jobs:
       # Homebrew one is asked for by prefix. This pair of jobs is also the only
       # coverage the two CMake branches that are dead on glibc get: iconv as a
       # separate library, and the header under ncursesw/.
-      - name: Install ncurses and doctest
-        run: brew install ncurses doctest
+      - name: Install ncurses, tl-expected and doctest
+        run: brew install ncurses tl-expected doctest
 
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix doctest)"
+                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest)"
 
       - name: Build
         run: cmake --build build -j"$(sysctl -n hw.ncpu)"

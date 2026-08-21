@@ -1,7 +1,6 @@
 #include "ui/keys.hpp"
 
 #include <algorithm>
-#include <stdexcept>
 
 #include "config/text_util.hpp"
 
@@ -249,7 +248,7 @@ KeyMap KeyMap::defaults() {
     return map;
 }
 
-KeyMap KeyMap::parse(std::string_view text, const std::string& origin) {
+Result<KeyMap> KeyMap::parse(std::string_view text, const std::string& origin) {
     KeyMap map;
     // What each key is already doing, to answer for a key written twice. The
     // command is kept rather than only the key: what makes the second line
@@ -267,24 +266,24 @@ KeyMap KeyMap::parse(std::string_view text, const std::string& origin) {
 
         const std::vector<std::string> tokens = config::text::tokenize(line);
         if (tokens.size() != 2) {
-            throw std::runtime_error(where +
-                                     "a line is a key and a command, and nothing else "
-                                     "— as in `l reader.list`");
+            return failure(where +
+                           "a line is a key and a command, and nothing else "
+                           "— as in `l reader.list`");
         }
 
         const auto command = commandNamed(tokens[1]);
         if (!command) {
-            throw std::runtime_error(where + "no command is called " + tokens[1]);
+            return failure(where + "no command is called " + tokens[1]);
         }
         if (isReservedKey(tokens[0])) {
-            throw std::runtime_error(
+            return failure(
                 where + tokens[0] +
                 " moves about and cannot be bound — the arrows, PgUp and PgDn, Home "
                 "and End, Space, Enter, Esc, Backspace and Tab mean the same thing on "
                 "every screen");
         }
         const auto key = keyNamed(tokens[0]);
-        if (!key) throw std::runtime_error(where + "no key is called " + tokens[0]);
+        if (!key) return failure(where + "no key is called " + tokens[0]);
 
         for (const auto& [earlier, other] : taken) {
             if (!(earlier == *key)) continue;
@@ -292,7 +291,7 @@ KeyMap KeyMap::parse(std::string_view text, const std::string& origin) {
             const KeyScreen a = screenOf(*command);
             const KeyScreen b = screenOf(other);
             if (a != b && a != KeyScreen::Anywhere && b != KeyScreen::Anywhere) continue;
-            throw std::runtime_error(where + tokens[0] + " is already " + nameOf(other));
+            return failure(where + tokens[0] + " is already " + nameOf(other));
         }
 
         taken.emplace_back(*key, *command);
@@ -301,14 +300,10 @@ KeyMap KeyMap::parse(std::string_view text, const std::string& origin) {
     return map;
 }
 
-KeyMap KeyMap::loadFromFile(const std::string& path) {
-    std::string text;
-    try {
-        text = config::text::readFile(path);
-    } catch (const std::exception&) {
-        throw std::runtime_error("keys file not found: " + path);
-    }
-    return parse(text, path);
+Result<KeyMap> KeyMap::loadFromFile(const std::string& path) {
+    const auto text = config::text::readFile(path);
+    if (!text) return failure("keys file not found: " + path);
+    return parse(*text, path);
 }
 
 void KeyMap::bind(KeyCommand command, Event key) {

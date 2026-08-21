@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "support/result.hpp"
+
 namespace amberedit::msgbase {
 
 class BinaryFile;
@@ -42,10 +44,9 @@ public:
     /// A file already locked by somebody else is waited for and tried again a
     /// few times, everything held so far being let go between attempts: two
     /// writers coming at the same base from opposite ends of the list would
-    /// otherwise hold one file each and wait for the other for ever. False
-    /// means the base is busy — `error` says which file — and the caller must
-    /// not write.
-    [[nodiscard]] bool acquire(const std::vector<BinaryFile*>& files, std::string* error);
+    /// otherwise hold one file each and wait for the other for ever. A failure
+    /// means the base is busy and names the file, and the caller must not write.
+    [[nodiscard]] Result<void> acquire(const std::vector<BinaryFile*>& files);
 
     void release();
 

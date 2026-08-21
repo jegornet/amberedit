@@ -19,7 +19,7 @@ class FidoconfigParser final : public ports::IAreaConfigSource {
 public:
     explicit FidoconfigParser(std::string path);
 
-    std::vector<domain::AreaConfig> loadAreas() override;
+    [[nodiscard]] Result<std::vector<domain::AreaConfig>> loadAreas() override;
 
     /// Parsing from a string — the entry point for tests and include files.
     static std::vector<domain::AreaConfig> parseText(const std::string& content);

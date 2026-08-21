@@ -18,8 +18,8 @@ std::string quoted(std::string_view format) {
 
 }  // namespace
 
-ListFormatRow parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
-                              const std::string& value) {
+Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
+                                      const std::string& value) {
     const std::string setting(spec.setting);
     ListFormatRow lines{ListFormatLine{}};
 
@@ -32,8 +32,8 @@ ListFormatRow parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
         if (value[i] == '\\' && i + 1 < value.size() &&
             text::asciiLower(value[i + 1]) == 'n') {
             if (static_cast<int>(lines.size()) >= kMaxFormatLines) {
-                entry.fail(setting + ": a row is asked for more than " +
-                           std::to_string(kMaxFormatLines) + " lines");
+                return entry.fail(setting + ": a row is asked for more than " +
+                                  std::to_string(kMaxFormatLines) + " lines");
             }
             lines.emplace_back();
             i += 2;
@@ -45,10 +45,10 @@ ListFormatRow parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
             spec.letters.begin(), spec.letters.end(),
             [letter](const ListFormatLetter& name) { return name.letter == letter; });
         if (found == spec.letters.end()) {
-            entry.fail(setting + ": '" + std::string(1, value[i]) + "' is not a field (" +
-                       std::string(spec.fields) +
-                       "), a width is written after the letter it belongs to, and "
-                       "\\n begins the next line of the row");
+            return entry.fail(setting + ": '" + std::string(1, value[i]) +
+                              "' is not a field (" + std::string(spec.fields) +
+                              "), a width is written after the letter it belongs to, and "
+                              "\\n begins the next line of the row");
         }
         ++i;
 
@@ -61,9 +61,9 @@ ListFormatRow parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
             while (i < value.size() && value[i] >= '0' && value[i] <= '9') {
                 width = (width * 10) + (value[i] - '0');
                 if (width > kMaxFieldWidth) {
-                    entry.fail(setting + ": '" + std::string(1, letter) +
-                               "' is asked for more than " +
-                               std::to_string(kMaxFieldWidth) + " columns");
+                    return entry.fail(setting + ": '" + std::string(1, letter) +
+                                      "' is asked for more than " +
+                                      std::to_string(kMaxFieldWidth) + " columns");
                 }
                 ++i;
             }
@@ -82,34 +82,42 @@ ListFormatRow parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
             what += setting;
             what += " ";
             what += quoted(spec.example);
-            entry.fail(what);
+            return entry.fail(what);
         }
         std::string what = setting;
         what += ": a line of the format holds no fields — a blank line in a row ";
         what += "is written as a space";
-        entry.fail(what);
+        return entry.fail(what);
     }
     return lines;
 }
 
-ListFormats parseListFormats(const CfgEntry& entry, const ListFormatSpec& spec) {
+Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec& spec) {
     const std::string setting(spec.setting);
     if (entry.values.empty()) {
-        entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +
-                   quoted(spec.example) + " — there is no way to ask for an empty row");
+        return entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +
+                          quoted(spec.example) +
+                          " — there is no way to ask for an empty row");
     }
     if (entry.values.size() > 2) {
-        entry.fail(setting +
-                   " takes one format, or two — the narrow window's and the wide "
-                   "one's; a format with a space in it is written in quotes, e.g. " +
-                   setting + " " + quoted(spec.example) + " " + quoted(spec.wideExample));
+        return entry.fail(
+            setting + " takes one format, or two — the narrow window's and the wide " +
+            "one's; a format with a space in it is written in quotes, e.g. " + setting +
+            " " + quoted(spec.example) + " " + quoted(spec.wideExample));
     }
 
+    const auto narrow = parseListFormat(entry, spec, entry.values.front());
+    if (!narrow) return tl::make_unexpected(narrow.error());
+
     ListFormats formats;
-    formats.narrow = parseListFormat(entry, spec, entry.values.front());
-    formats.wide = entry.values.size() == 2
-                       ? parseListFormat(entry, spec, entry.values.back())
-                       : formats.narrow;
+    formats.narrow = *narrow;
+    if (entry.values.size() != 2) {
+        formats.wide = formats.narrow;
+        return formats;
+    }
+    const auto wide = parseListFormat(entry, spec, entry.values.back());
+    if (!wide) return tl::make_unexpected(wide.error());
+    formats.wide = *wide;
     return formats;
 }
 

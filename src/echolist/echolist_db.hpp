@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "echolist/echolist_source.hpp"
+#include "support/result.hpp"
 
 namespace amberedit::echolist {
 
@@ -26,11 +27,14 @@ namespace amberedit::echolist {
 /// area on every rescan.
 class EcholistDb {
 public:
-    /// Opens a compiled echolist. Throws std::runtime_error naming the file for
-    /// one that is not there, is not a compiled echolist, or was written by
-    /// another version of the format. `echolistNeedsCompiling` reads every one
-    /// of those as "compile it again", which is the whole of the answer to them.
-    [[nodiscard]] static EcholistDb open(const std::string& path);
+    /// Opens a compiled echolist, naming the file for one that is not there, is
+    /// not a compiled echolist, was written by another version of the format, or
+    /// is damaged. `echolistNeedsCompiling` reads every one of those as "compile
+    /// it again", which is the whole of the answer to them.
+    ///
+    /// Every record is checked here, through the index that reaches it, which is
+    /// what lets the two accessors below be total.
+    [[nodiscard]] static Result<EcholistDb> open(const std::string& path);
 
     [[nodiscard]] size_t size() const { return areaCount_; }
     [[nodiscard]] bool empty() const { return areaCount_ == 0; }
@@ -43,8 +47,8 @@ public:
     [[nodiscard]] const std::vector<SourceState>& sources() const { return sources_; }
 
     /// The tag and the description at an index, both as the echolist spelled
-    /// them. Throws std::runtime_error if the file is damaged in a way the
-    /// header could not show.
+    /// them. An index no area has answers with the empty string, `open()` having
+    /// refused everything else that could make a bounded index unreadable.
     [[nodiscard]] std::string tagAt(size_t index) const;
     [[nodiscard]] std::string descriptionAt(size_t index) const;
 

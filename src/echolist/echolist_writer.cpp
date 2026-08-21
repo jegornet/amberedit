@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
 
 #include "echolist/echolist_format.hpp"
 #include "msgbase/byte_order.hpp"
@@ -50,20 +49,21 @@ struct Pending {
 /// A tag or a description as the record writes it. Both lengths are written in
 /// two bytes, and a truncated one would be read back as a record boundary in the
 /// wrong place — so a field no echolist has is refused rather than cut.
-uint16_t fieldLength(const std::string& field, const char* what,
-                     const std::string& path) {
+Result<uint16_t> fieldLength(const std::string& field, const char* what,
+                             const std::string& path) {
     if (field.size() > 0xffff) {
-        throw std::runtime_error(path + ": an echolist line has a " + what + " of " +
-                                 std::to_string(field.size()) +
-                                 " bytes, which no echolist line has");
+        return failure(path + ": an echolist line has a " + what + " of " +
+                       std::to_string(field.size()) +
+                       " bytes, which no echolist line has");
     }
     return static_cast<uint16_t>(field.size());
 }
 
 }  // namespace
 
-WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>& sources,
-                            std::time_t builtAt) {
+Result<WriteReport> writeEcholistDb(const std::string& path,
+                                    const std::vector<DbSource>& sources,
+                                    std::time_t builtAt) {
     std::vector<Pending> pending;
     size_t total = 0;
     for (const auto& source : sources) total += source.entries.size();
@@ -97,11 +97,17 @@ WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>
         lastKey = &item.key;
 
         if (records.size() > 0xffffffffu) {
-            throw std::runtime_error(path + ": the echolists do not fit in one file");
+            return failure(path + ": the echolists do not fit in one file");
         }
+        const auto tagLength = fieldLength(item.entry->tag, "tag", path);
+        if (!tagLength) return tl::make_unexpected(tagLength.error());
+        const auto descriptionLength =
+            fieldLength(item.entry->description, "description", path);
+        if (!descriptionLength) return tl::make_unexpected(descriptionLength.error());
+
         appendU32(index, static_cast<uint32_t>(records.size()));
-        appendU16(records, fieldLength(item.entry->tag, "tag", path));
-        appendU16(records, fieldLength(item.entry->description, "description", path));
+        appendU16(records, *tagLength);
+        appendU16(records, *descriptionLength);
         records += item.entry->tag;
         records += item.entry->description;
         ++report.areas;
@@ -128,7 +134,7 @@ WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>
     const uint64_t fileSize =
         static_cast<uint64_t>(recordsOffset) + static_cast<uint64_t>(records.size());
     if (fileSize > 0xffffffffu) {
-        throw std::runtime_error(path + ": the echolists do not fit in one file");
+        return failure(path + ": the echolists do not fit in one file");
     }
 
     std::string header;
@@ -154,8 +160,7 @@ WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>
     {
         std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
         if (!out) {
-            throw std::runtime_error("cannot write the compiled echolist: " +
-                                     temporary.string());
+            return failure("cannot write the compiled echolist: " + temporary.string());
         }
         out.write(header.data(), static_cast<std::streamsize>(header.size()));
         out.write(index.data(), static_cast<std::streamsize>(index.size()));
@@ -165,8 +170,7 @@ WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>
         if (!out) {
             std::error_code ec;
             fs::remove(temporary, ec);
-            throw std::runtime_error("cannot write the compiled echolist: " +
-                                     temporary.string());
+            return failure("cannot write the compiled echolist: " + temporary.string());
         }
     }
 
@@ -174,8 +178,8 @@ WriteReport writeEcholistDb(const std::string& path, const std::vector<DbSource>
     fs::rename(temporary, destination, ec);
     if (ec) {
         fs::remove(temporary, ec);
-        throw std::runtime_error("cannot put the compiled echolist at " + path + ": " +
-                                 ec.message());
+        return failure("cannot put the compiled echolist at " + path + ": " +
+                       ec.message());
     }
 
     report.bytes = static_cast<size_t>(fileSize);

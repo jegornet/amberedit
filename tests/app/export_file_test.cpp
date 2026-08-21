@@ -118,9 +118,11 @@ TEST_CASE("exportMessage writes the file in the charset it is given [export]") {
 
     MessageHeader head = header();
     head.subject = kPrivetUtf8;
-    REQUIRE(exportMessage(ExportRequest{path, "CP866", kFormat}, head, body()).ok());
+    REQUIRE(
+        exportMessage(ExportRequest{path, "CP866", kFormat}, head, body()).has_value());
 
-    const std::string written = amberedit::config::text::readFile(path);
+    const std::string written =
+        amberedit::test::valueOf(amberedit::config::text::readFile(path));
     // Above the adapter everything is UTF-8; what lands on disk is the charset
     // the file is to be read in.
     CHECK_MESSAGE(contains(written, "Subj : " + kPrivetCp866), written);
@@ -132,15 +134,15 @@ TEST_CASE("exportMessage adds to a file rather than writing over it [export]") {
     const std::string path = dir.path("out.txt");
     const ExportRequest request{path, "UTF-8", kFormat};
 
-    REQUIRE(exportMessage(request, header(), body()).ok());
+    REQUIRE(exportMessage(request, header(), body()).has_value());
     MessageHeader second = header();
     second.subject = "And another thing";
-    REQUIRE(exportMessage(request, second, body()).ok());
+    REQUIRE(exportMessage(request, second, body()).has_value());
 
     // Exporting one message after another into one file is what an export is
     // usually for, so the second is added to the first rather than losing it.
-    const auto lines =
-        amberedit::config::text::splitLines(amberedit::config::text::readFile(path));
+    const auto lines = amberedit::config::text::splitLines(
+        amberedit::test::valueOf(amberedit::config::text::readFile(path)));
     CHECK(lines.size() == 16);
     CHECK(lines[2] == "Subj : About the weather");
     CHECK(lines[10] == "Subj : And another thing");
@@ -223,8 +225,9 @@ TEST_CASE("saveUueFiles writes each file whole [export][uue]") {
     const std::string bytes = binary();
     const auto files = uueFilesIn(messageCarrying(bytes, "report.zip"));
 
-    REQUIRE(saveUueFiles(dir.path(""), files).ok());
-    CHECK(amberedit::config::text::readFile(dir.path("report.zip")) == bytes);
+    REQUIRE(saveUueFiles(dir.path(""), files).has_value());
+    CHECK(amberedit::test::valueOf(
+              amberedit::config::text::readFile(dir.path("report.zip"))) == bytes);
 }
 
 TEST_CASE("saveUueFiles writes over nothing [export][uue]") {
@@ -243,10 +246,10 @@ TEST_CASE("saveUueFiles writes over nothing [export][uue]") {
     // to change one, so a name already taken stops the export — and stops it
     // before anything is written, rather than leaving the directory half filled.
     const auto result = saveUueFiles(dir.path(""), files);
-    CHECK_FALSE(result.ok());
-    CHECK_MESSAGE(contains(result.error, "report.zip"), result.error);
-    CHECK(amberedit::config::text::readFile(dir.path("report.zip")) ==
-          "something of the user's own");
+    CHECK_FALSE(result.has_value());
+    CHECK_MESSAGE(contains(result.error(), "report.zip"), result.error());
+    CHECK(amberedit::test::valueOf(amberedit::config::text::readFile(
+              dir.path("report.zip"))) == "something of the user's own");
     CHECK_FALSE(std::filesystem::exists(dir.path("one.txt")));
 }
 
@@ -256,6 +259,6 @@ TEST_CASE("exportMessage says where it could not write [export]") {
     // dialog is still up to be given another.
     const auto result = exportMessage(
         ExportRequest{dir.path("nowhere/out.txt"), "UTF-8", kFormat}, header(), body());
-    CHECK_FALSE(result.ok());
-    CHECK_MESSAGE(contains(result.error, "out.txt"), result.error);
+    CHECK_FALSE(result.has_value());
+    CHECK_MESSAGE(contains(result.error(), "out.txt"), result.error());
 }

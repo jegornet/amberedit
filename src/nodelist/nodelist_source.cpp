@@ -4,7 +4,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -101,12 +100,15 @@ bool newerThan(const Candidate& a, const Candidate& b) {
     return a.name > b.name;
 }
 
-std::string readWholeFile(const std::string& path) {
+Result<std::string> readWholeFile(const std::string& path) {
+    const auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(isFile.error());
+
     std::ifstream in(path, std::ios::binary);
-    if (!in) throw std::runtime_error("cannot read the nodelist: " + path);
+    if (!in) return failure("cannot read the nodelist: " + path);
     std::string text(std::istreambuf_iterator<char>(in),
                      std::istreambuf_iterator<char>{});
-    if (in.bad()) throw std::runtime_error("cannot read the nodelist: " + path);
+    if (in.bad()) return failure("cannot read the nodelist: " + path);
     return text;
 }
 
@@ -224,24 +226,24 @@ NodelistSources::~NodelistSources() {
     for (const auto& path : unpacked_) fs::remove(path, ec);
 }
 
-NodelistSources::Loaded NodelistSources::read(const std::string& spec) {
+Result<NodelistSources::Loaded> NodelistSources::read(const std::string& spec) {
     const NodelistSpec pattern = NodelistSpec::of(spec);
     const auto found = newestMatch(pattern);
     if (!found) {
         if (pattern.kind == SpecKind::Exact) {
             if (!config::text::hasWildcard(pattern.stem)) {
-                throw std::runtime_error("nodelist not found: " + spec);
+                return failure("nodelist not found: " + spec);
             }
-            throw std::runtime_error("no nodelist matching " + spec +
-                                     " — nothing in that directory is called '" +
-                                     pattern.stem + "'");
+            return failure("no nodelist matching " + spec +
+                           " — nothing in that directory is called '" + pattern.stem +
+                           "'");
         }
         const char* what = pattern.kind == SpecKind::DayNumber
                                ? "a day number from 001 to 366"
                                : "Z and two digits";
-        throw std::runtime_error("no nodelist matching " + spec +
-                                 " — nothing in that directory is called '" +
-                                 pattern.stem + "' with " + what + " after it");
+        return failure("no nodelist matching " + spec +
+                       " — nothing in that directory is called '" + pattern.stem +
+                       "' with " + what + " after it");
     }
 
     // Taken here rather than by asking `stateOf` again: this is the file that is
@@ -255,25 +257,29 @@ NodelistSources::Loaded NodelistSources::read(const std::string& spec) {
     }
 
     if (pattern.kind == SpecKind::ZipArchive) return readArchive(pattern, state);
-    return Loaded{state, *found, {}, readWholeFile(*found)};
+    auto text = readWholeFile(*found);
+    if (!text) return tl::make_unexpected(text.error());
+    return Loaded{state, *found, {}, std::move(*text)};
 }
 
-NodelistSources::Loaded NodelistSources::readArchive(const NodelistSpec& spec,
-                                                     const SourceState& state) {
+Result<NodelistSources::Loaded> NodelistSources::readArchive(const NodelistSpec& spec,
+                                                             const SourceState& state) {
     const std::string& archivePath = state.path;
 
     // Made here and not when the sources were: a config with `tmpdir` in it and
     // no zipped nodelist under it should leave nothing behind, and most do. What
     // is wrong with the directory is `makeTempDir`'s to say and what it was
     // wanted for is ours, which is why the two are said together.
-    std::string workDir;
-    try {
-        workDir = config::makeTempDir(tempDir_);
-    } catch (const std::exception& e) {
-        throw std::runtime_error(spec.spec + " names a zipped nodelist, and " + e.what());
+    const auto workDirMade = config::makeTempDir(tempDir_);
+    if (!workDirMade) {
+        return failure(spec.spec + " names a zipped nodelist, and " +
+                       workDirMade.error());
     }
+    const std::string& workDir = *workDirMade;
 
-    const archive::ZipArchive zip = archive::ZipArchive::open(archivePath);
+    const auto opened = archive::ZipArchive::open(archivePath);
+    if (!opened) return tl::make_unexpected(opened.error());
+    const archive::ZipArchive& zip = *opened;
 
     // The nodelist inside is the archive's own name with a day number after it,
     // and the newest of them where an archive holds several. Only that entry is
@@ -299,8 +305,8 @@ NodelistSources::Loaded NodelistSources::readArchive(const NodelistSpec& spec,
         }
     }
     if (best == nullptr) {
-        throw std::runtime_error(archivePath + " holds no '" + innerStem +
-                                 "' with a day number after it");
+        return failure(archivePath + " holds no '" + innerStem +
+                       "' with a day number after it");
     }
 
     // Without paths: the name the entry is unpacked under is its last component
@@ -310,23 +316,21 @@ NodelistSources::Loaded NodelistSources::readArchive(const NodelistSpec& spec,
     const fs::path unpacked = fs::path(workDir) / best->baseName();
     {
         std::ofstream out(unpacked, std::ios::binary | std::ios::trunc);
-        if (!out) {
-            throw std::runtime_error("cannot unpack " + archivePath + " into " + workDir);
-        }
-        const std::string text = zip.read(*best);
-        out.write(text.data(), static_cast<std::streamsize>(text.size()));
+        if (!out) return failure("cannot unpack " + archivePath + " into " + workDir);
+        const auto text = zip.read(*best);
+        if (!text) return tl::make_unexpected(text.error());
+        out.write(text->data(), static_cast<std::streamsize>(text->size()));
         out.close();
-        if (!out) {
-            throw std::runtime_error("cannot unpack " + archivePath + " into " + workDir);
-        }
+        if (!out) return failure("cannot unpack " + archivePath + " into " + workDir);
     }
     unpacked_.push_back(unpacked.string());
 
     // Read back from the file that was written rather than from what was
     // unpacked in memory: what the compiler reads is then the file that is
     // there, and a temporary directory that cannot hold it says so now.
-    return Loaded{state, unpacked.string(), archivePath,
-                  readWholeFile(unpacked.string())};
+    auto text = readWholeFile(unpacked.string());
+    if (!text) return tl::make_unexpected(text.error());
+    return Loaded{state, unpacked.string(), archivePath, std::move(*text)};
 }
 
 }  // namespace amberedit::nodelist

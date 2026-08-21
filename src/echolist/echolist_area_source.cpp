@@ -1,7 +1,5 @@
 #include "echolist/echolist_area_source.hpp"
 
-#include <exception>
-#include <optional>
 #include <utility>
 #include <vector>
 
@@ -14,21 +12,18 @@ EcholistAreaSource::EcholistAreaSource(std::unique_ptr<ports::IAreaConfigSource>
                                        config::DescriptionPriority priority)
     : inner_(std::move(inner)), dbPath_(std::move(dbPath)), priority_(priority) {}
 
-std::vector<domain::AreaConfig> EcholistAreaSource::loadAreas() {
-    std::vector<domain::AreaConfig> areas = inner_->loadAreas();
+Result<std::vector<domain::AreaConfig>> EcholistAreaSource::loadAreas() {
+    auto loaded = inner_->loadAreas();
+    if (!loaded) return tl::make_unexpected(loaded.error());
+    std::vector<domain::AreaConfig> areas = std::move(*loaded);
     if (dbPath_.empty()) return areas;
 
     // Opening it is the whole of what can go wrong here, and going wrong means
     // the areas keep the descriptions they came with. A compiled echolist that
     // is missing or was written by another version of the format is what a start
     // compiles again; a start that could not compile it has already said so.
-    std::optional<EcholistDb> db;
-    try {
-        db = EcholistDb::open(dbPath_);
-    } catch (const std::exception&) {
-        return areas;
-    }
-    if (db->empty()) return areas;
+    auto db = EcholistDb::open(dbPath_);
+    if (!db || db->empty()) return areas;
 
     for (auto& area : areas) {
         // Only a description that says something counts, on either side: the

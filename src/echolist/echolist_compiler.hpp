@@ -68,12 +68,14 @@ struct CompileReport {
 
 /// Reads every echolist the options name and writes the compiled file.
 ///
-/// **Nothing here throws.** An echolist that is missing, unreadable or not an
-/// echolist at all becomes a line in `problems` and an empty source in the
-/// compiled file; a compiled file that cannot be written becomes a line in
-/// `problems` and `written` staying false. That is the whole contract: this
-/// runs at every start, and a mail reader that would not open because an
-/// echolist had gone would be worse than one without any descriptions.
+/// **Nothing here fails as a whole.** An echolist that is missing, unreadable
+/// or not an echolist at all becomes a line in `problems` and an empty source in
+/// the compiled file; a compiled file that cannot be written becomes a line in
+/// `problems` and `written` staying false. That is why the answer is a report
+/// and not a Result: several sources are read and each has an outcome of its
+/// own, and the ones that worked are the point. This runs at every start, and a
+/// mail reader that would not open because an echolist had gone would be worse
+/// than one without any descriptions.
 ///
 /// `log` takes a line per echolist as it goes and may be null.
 CompileReport compileEcholists(const CompileOptions& options, std::ostream* log);

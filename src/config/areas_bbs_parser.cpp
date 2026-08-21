@@ -1,6 +1,7 @@
 #include "config/areas_bbs_parser.hpp"
 
 #include <optional>
+#include <stdexcept>
 #include <utility>
 
 #include "config/text_util.hpp"
@@ -59,8 +60,10 @@ std::optional<AreaConfig> parseLine(const std::string& rawLine) {
 
 AreasBbsParser::AreasBbsParser(std::string path) : path_(std::move(path)) {}
 
-std::vector<AreaConfig> AreasBbsParser::loadAreas() {
-    return parseText(text::readFile(path_));
+Result<std::vector<AreaConfig>> AreasBbsParser::loadAreas() {
+    const auto content = text::readFile(path_);
+    if (!content) return tl::make_unexpected(content.error());
+    return parseText(*content);
 }
 
 std::vector<AreaConfig> AreasBbsParser::parseText(const std::string& content) {

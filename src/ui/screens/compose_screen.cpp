@@ -692,15 +692,17 @@ bool storeElsewhere(AppState& state, const domain::MessageDraft& draft) {
     // pointing at it in between.
     state.base = nullptr;
     uint32_t written = 0;
-    if (ports::IMsgBase* into = state.manager.openArea(target)) {
-        written = into->write(draft);
-        // The area list counts it while the base is still open — one message
-        // more in an area nobody has read, so one unread more as well.
-        if (written != 0) state.manager.refreshArea(target);
+    if (const auto into = state.manager.openArea(target)) {
+        if (const auto number = (*into)->write(draft)) {
+            written = *number;
+            // The area list counts it while the base is still open — one message
+            // more in an area nobody has read, so one unread more as well.
+            state.manager.refreshArea(target);
+        }
     }
 
     // Back where the user was, whether or not the message went in.
-    state.base = state.manager.openArea(source);
+    state.base = state.manager.openArea(source).value_or(nullptr);
     if (state.base == nullptr) {
         // The area that was open a moment ago will not open again. There is
         // nothing left underneath to come back to, so this ends on the area
@@ -1080,9 +1082,9 @@ bool writeCopies(AppState& state, const std::vector<std::string>& text) {
 
     const auto writeInto = [&state](const domain::AreaConfig& target,
                                     const domain::MessageDraft& draft) {
-        ports::IMsgBase* into = state.manager.openArea(target);
-        if (into == nullptr) return;
-        if (into->write(draft) != 0) state.manager.refreshArea(target);
+        const auto into = state.manager.openArea(target);
+        if (!into) return;
+        if ((*into)->write(draft)) state.manager.refreshArea(target);
     };
 
     // The base of the area being read is closed by opening another, so nothing
@@ -1104,7 +1106,7 @@ bool writeCopies(AppState& state, const std::vector<std::string>& text) {
                             crosspostFields(state, config, post.area), body, at++));
     }
 
-    state.base = state.manager.openArea(source);
+    state.base = state.manager.openArea(source).value_or(nullptr);
     return state.base != nullptr;
 }
 
@@ -2052,10 +2054,11 @@ void saveMessage(AppState& state) {
         return;
     }
 
-    const uint32_t number = state.base->write(draft);
     // A base that would not take it keeps the editor open on the message, which
     // is the one thing that must not be lost here.
-    if (number == 0) return;
+    const auto written = state.base->write(draft);
+    if (!written) return;
+    const uint32_t number = *written;
 
     // And then the copies of it, into whatever areas they are for.
     if (copying && !writeCopies(state, text)) {

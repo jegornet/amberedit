@@ -79,9 +79,9 @@ struct ListFormatSpec {
 /// The letters are read case-insensitively, as `arealist_sort`'s are. A field
 /// written twice is not refused: a format is a layout, and there is no reason
 /// the same number may not stand at both ends of a row.
-[[nodiscard]] ListFormatRow parseListFormat(const CfgEntry& entry,
-                                            const ListFormatSpec& spec,
-                                            const std::string& value);
+[[nodiscard]] Result<ListFormatRow> parseListFormat(const CfgEntry& entry,
+                                                    const ListFormatSpec& spec,
+                                                    const std::string& value);
 
 /// A row stands at most this many lines tall. Well past any format worth
 /// writing, and short enough that a `\n` typed once too often is caught while
@@ -103,7 +103,7 @@ struct ListFormats {
     ListFormatRow wide;
 };
 
-[[nodiscard]] ListFormats parseListFormats(const CfgEntry& entry,
-                                           const ListFormatSpec& spec);
+[[nodiscard]] Result<ListFormats> parseListFormats(const CfgEntry& entry,
+                                                   const ListFormatSpec& spec);
 
 }  // namespace amberedit::config

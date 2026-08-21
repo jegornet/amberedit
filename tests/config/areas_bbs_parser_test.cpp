@@ -4,6 +4,7 @@
 
 #include "config/areas_bbs_parser.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::AreasBbsParser;
 using amberedit::domain::AreaConfig;
@@ -21,7 +22,7 @@ const AreaConfig* findArea(const std::vector<AreaConfig>& areas, const std::stri
 
 TEST_CASE("AreasBbsParser parses testdata/tossers/areas.bbs [areasbbs]") {
     AreasBbsParser parser(amberedit::test::projectPath("testdata/tossers/areas.bbs"));
-    const auto areas = parser.loadAreas();
+    const auto areas = amberedit::test::valueOf(parser.loadAreas());
 
     REQUIRE(areas.size() == 4);
 
@@ -109,5 +110,5 @@ TEST_CASE("AreasBbsParser: junk tokens do not become links [areasbbs]") {
 
 TEST_CASE("AreasBbsParser throws on a missing file [areasbbs]") {
     AreasBbsParser parser("/nonexistent/path/areas.bbs");
-    CHECK_THROWS(parser.loadAreas());
+    CHECK_FALSE(parser.loadAreas().has_value());
 }

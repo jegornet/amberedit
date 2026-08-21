@@ -52,8 +52,9 @@ cmake --build build -j
 Both must be clean before anything is called done, and the whole thing must
 build from a fresh clone with no network. The build produces one binary; the
 external inputs are the wide ncurses, iconv, zlib — for the zipped nodelists and
-echolists AmberEdit unpacks itself — and doctest for the tests, all of them found
-on the system and none of them fetched.
+echolists AmberEdit unpacks itself — tl::expected, which every fallible operation
+answers with, and doctest for the tests, all of them found on the system and none
+of them fetched.
 
 Test cases carry their tags inside the name — `TEST_CASE("... [nodelist][ui]")` —
 because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
@@ -120,7 +121,8 @@ archive.
   `%check` fails three charset tests and nothing says why.
 - `debian/` — deb, built for Debian stable and Ubuntu 22.04 and 24.04. `dh` runs
   the tests as part of the build; `doctest-dev` is the build dependency and is
-  spelled the same on all four.
+  spelled the same on all four. `libexpected-dev` is in *universe* on jammy and
+  noble — the official images enable it and a minimal chroot does not.
 - `.github/workflows/release.yml` — everything a `v*` tag produces. It checks the
   tag against `project(AmberEdit VERSION ...)` before building anything: a tag
   disagreeing with the source is a release nobody can rebuild.
@@ -132,11 +134,23 @@ So C++20 does not go back in. The three corners that keep wanting to:
 map or set (use `count(k) != 0`). `.clang-tidy` leaves out the three checks that
 would argue for the C++20 spellings for exactly that reason.
 
-Three things in the build follow from the same floor:
+Four things in the build follow from the same floor:
 
 - GCC 8 keeps `std::filesystem` in a separate `libstdc++fs`. `CMakeLists.txt`
   finds out by linking, not by version, and puts the result in the
   `amberedit_filesystem` interface target that `amberedit_core` exports.
+- **`Result<T>` is `tl::expected` and not `std::expected`, and that too is the
+  floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
+  library is the only way the project gets the type at all — and it is packaged
+  on every target under one header and one CMake package: `expected-devel` on
+  EPEL 8 and 9 and Fedora, `libexpected-dev` on bookworm, trixie, jammy and
+  noble, `tl-expected` in Homebrew. **What may be used of it is the 1.0.0 API
+  and no more**, because bookworm and jammy carry 1.0.0: `has_value()`,
+  `operator bool`, `operator*`, `error()`, `value_or()` and `tl::make_unexpected`.
+  Not `transform`, not `transform_error`, and not the deduced `tl::unexpected` —
+  all three are newer, all three compile on Fedora and on a developer's Mac, and
+  all three fail the two oldest debs. `support/result.hpp` says the same thing
+  where the type is declared.
 - **The tests are on doctest, and that is a packaging decision rather than a
   taste.** Nothing is fetched, so a package build — which has no network — gets
   the tests too, and doctest is the only framework every target packages under
@@ -210,6 +224,9 @@ Domain (Area, Message, FtnAddress) + Ports (IMsgBase, ILastReadStore, IAreaConfi
 Adapters (FtnMsgBase over the msgbase/ format drivers, AppConfig,
           FidoconfigParser, AreasBbsParser, CharsetDetector, IconvRecoder,
           MsgBaseLastReadStore)
+
+Support (Result) — the bottom. It includes nothing of the project and
+                   every layer above may include it.
 ```
 
 `nodelist/` and `echolist/` stand beside the adapters and lean on the domain, on
@@ -259,15 +276,33 @@ Rules that hold the design together:
   "flags": FTS-0001 calls them attributes. "Flag" is left for a boolean on a
   struct, a command-line option, or a bit in someone else's format
   (`NodeEntry::flags` are FTS-5001's node flags and stay that).
+- **Everything that can fail answers with `Result<T>`** — `tl::expected<T,
+  std::string>` from `support/result.hpp` — and the error is the sentence a
+  person reads, already complete. Nothing throws, nothing keeps a `lastError()`
+  to be asked afterwards, and no bool means "look somewhere else for why".
+  `std::optional` still means *absence* and is not a failure, `std::error_code`
+  with the non-throwing `std::filesystem` overloads is still how the filesystem
+  is asked, and a function answering a plain question — `isOpen()`, `count()` —
+  is still a bool. A Result is read through `*` after being checked, never
+  through `value()`.
 - Errors a user can act on **before** the screen opens — a config, a theme, a
-  template — are a thrown `std::runtime_error` naming the file, printed by
-  `main()`. Once the interface is up there is nowhere to say anything: there is
-  no status line, and a screen that cannot do what was asked simply does not do
-  it, having said so by drawing its menu button dimmed. The UI still catches
-  exceptions per frame and per keystroke: a broken area must never take the
-  application down. The one exception is `ui/error_dialog.cpp`, for an area that
-  will not open — asked for by a key that had every reason to work. A second use
-  for it wants an argument first.
+  template, a keyboard layout — come back out to `main()`, which names the file
+  and prints them. Once the interface is up there is nowhere to say anything:
+  there is no status line, and a screen that cannot do what was asked simply
+  does not do it, having said so by drawing its menu button dimmed. The one
+  exception is `ui/error_dialog.cpp`, for an area that will not open — asked for
+  by a key that had every reason to work. A second use for it wants an argument
+  first.
+- **`main()` and the UI's per-frame and per-keystroke handlers still catch**, and
+  those three are the only places that do. Not for AmberEdit's own errors, which
+  are values, but for what the standard library throws underneath: `bad_alloc`,
+  `std::stoll`, the `std::filesystem` overloads that take no `error_code`. A
+  broken area must never take the application down.
+- **A diagnostic per item is a field and not a `Result`.** A list where one
+  member is broken and the rest are fine — `AreaEntry::error`,
+  `CompileReport::problems`, `CopyCommand::error`, `StartingText::error` — is a
+  report to be shown beside the things that worked, and a Result there would
+  throw the answer away to keep the complaint.
 - There is no toolbar and no status line, and no bottom bar goes back in: the
   rows one would take are the message's. What a screen offers is in the menu
   behind its top-right corner.
@@ -1399,7 +1434,7 @@ taking a row.
   `compose_charset` is what a new message is encoded in and what its CHRS
   announces, and it is the only thing `message_builder.cpp` reads. Neither has a
   default: a guess would be a silent mojibake in whichever direction it guessed
-  wrong, so `fromEntries()` throws when either is missing, alongside the check
+  wrong, so `fromEntries()` fails when either is missing, alongside the check
   that there is an area list at all — `tosser_config`, `area ... endarea`
   blocks, or both.
 - **`IBMPC` is not CP866**, however often it is one in practice. FTS-5003 keeps
@@ -1451,8 +1486,8 @@ taking a row.
   `config/cfg_file`: a line is a key and the values after it, double quotes round
   a value whose spaces matter, a `#` starting a word ending the line. No
   sections, and no types beyond what reading a key asks for —
-  `CfgEntry::text/one/number/numberIn/flag`, each throwing with the file and line
-  named. Adding a setting is a branch in `fromEntries()`
+  `CfgEntry::text/one/number/numberIn/flag`, each answering with a `Result` that
+  names the file and the line. Adding a setting is a branch in `fromEntries()`
   (`config/app_config.cpp`), and a key not in it is refused rather than passed
   over: a misspelling should be a message and not a setting quietly back at its
   default. Keys are lowercased on the way in, values never. The two shapes a file
@@ -1483,7 +1518,8 @@ taking a row.
     edit rather than a field, a parse and an apply that drift apart. It also
     means a group is *applied once while the config is read*, over a copy that is
     thrown away, so a bad value stops AmberEdit at startup and `effectiveFor()`
-    can never throw.
+    can never fail — which is why it discards the answer rather than passing it
+    on, and why its 43 call sites have nothing to check.
   - **What a group may say is a whitelist** (`isGroupSetting()`), not a list of
     what it may not: a setting added to the chain and not to the table comes out
     as "not a per-area setting", where the other way round it would come out as a
@@ -1800,9 +1836,9 @@ time and the length, written into the file as a `SourceState` per line. A listin
 and a stat per line, nothing read and no archive unpacked. `--compile` compiles
 anyway.
 
-**Nothing in the compiling throws.** A nodelist that is missing or will not read
-is a line in `CompileReport::problems`, and its `SourceState` is written into the
-compiled file as the nothing it was — which is what stops every start from trying
+**Nothing in the compiling fails as a whole.** A nodelist that is missing or will
+not read is a line in `CompileReport::problems`, and its `SourceState` is
+written into the compiled file as the nothing it was — which is what stops every start from trying
 it again. A compiled file that cannot be written leaves `written` false. That
 contract is the reason `compileNodelists` catches around each source and around
 the write: AmberEdit is a mail reader whose nodelist is a convenience, and there
@@ -1824,8 +1860,8 @@ The pieces, in the order the work goes through them:
   them over in — the number alone is wrong for the week after New
   Year, when `.365` is the older file and the larger number. An archive is
   unpacked without paths into the temporary directory, only the entry carrying
-  the nodelist, and every file it wrote is removed by the destructor, including
-  on the way out of an exception. Which directory that is is
+  the nodelist, and every file it wrote is removed by the destructor, whichever
+  way out is taken. Which directory that is is
   `config::makeTempDir`'s answer and not this class's — see below. **What stands
   inside an archive is named by the archive that was found, not by the line that
   found it**: `Z2PNT.Z99` and `z2*.z*` both land on `Z2PNT.Z19`, and `Z2PNT` with
@@ -1957,7 +1993,8 @@ turns up in `AreaConfig::description` as though the tosser config had carried it
 **Compiling happens at startup on the nodelist's terms exactly**: `main.cpp`
 calls `refreshEcholist()` before the terminal is taken over, the state written
 into the compiled file is compared against a stat per line, `--compile` compiles
-anyway, and **nothing in the compiling throws**. Read [The nodelist](#the-nodelist)
+anyway, and **nothing in the compiling fails as a whole**. Read
+[The nodelist](#the-nodelist)
 for the reasoning; all of it holds here word for word.
 
 The pieces, in the order the work goes through them:
@@ -1976,7 +2013,7 @@ The pieces, in the order the work goes through them:
   `.na` entries** (a distribution carries reports, a readme and further archives
   beside them), in the order their names sort in so that an archive read twice
   reads the same way twice. Every file it wrote is removed by the destructor,
-  including on the way out of an exception.
+  whichever way out is taken.
 - **The charset is settled here and never survives it.** An `echolist` line
   states the charset the file is written in and the text is decoded to UTF-8 as
   it is read, so `parseEcholist` and everything past it see UTF-8 like the rest

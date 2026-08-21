@@ -1,7 +1,6 @@
 #include "echolist/echolist_compiler.hpp"
 
 #include <ctime>
-#include <exception>
 #include <iterator>
 #include <ostream>
 #include <string>
@@ -35,8 +34,21 @@ CompileReport compileEcholists(const CompileOptions& options, std::ostream* log)
         CompiledSource summary;
         std::vector<EchoEntry> entries;
 
-        try {
-            EcholistSources::Loaded loaded = reader.read(spec.path, spec.charset);
+        auto read = reader.read(spec.path, spec.charset);
+        if (!read) {
+            // The state is taken anyway — what the line names now, even where
+            // that is nothing — so that the compiled file records this attempt
+            // and the next start tries again only once the file itself has
+            // changed. An echolist that is not there is not an error here: it is
+            // an echolist that is not there.
+            summary.state = stateOf(spec.path, spec.charset);
+            summary.problem = read.error();
+            report.problems.emplace_back(read.error());
+            if (log != nullptr) {
+                *log << "echolist  " << spec.path << ": " << read.error() << "\n";
+            }
+        } else {
+            EcholistSources::Loaded loaded = std::move(*read);
             summary.state = std::move(loaded.state);
             summary.archive = std::move(loaded.archive);
             summary.files = loaded.parts.size();
@@ -72,18 +84,6 @@ CompileReport compileEcholists(const CompileOptions& options, std::ostream* log)
                                std::make_move_iterator(parsed.entries.begin()),
                                std::make_move_iterator(parsed.entries.end()));
             }
-        } catch (const std::exception& e) {
-            // The state is taken anyway — what the line names now, even where
-            // that is nothing — so that the compiled file records this attempt
-            // and the next start tries again only once the file itself has
-            // changed. An echolist that is not there is not an error here: it is
-            // an echolist that is not there.
-            summary.state = stateOf(spec.path, spec.charset);
-            summary.problem = e.what();
-            report.problems.emplace_back(e.what());
-            if (log != nullptr) {
-                *log << "echolist  " << spec.path << ": " << e.what() << "\n";
-            }
         }
 
         report.warnings += summary.warnings;
@@ -91,17 +91,16 @@ CompileReport compileEcholists(const CompileOptions& options, std::ostream* log)
         report.sources.push_back(std::move(summary));
     }
 
-    try {
-        const WriteReport written =
-            writeEcholistDb(options.dbPath, compiled, std::time(nullptr));
-        report.areas = written.areas;
-        report.duplicates = written.duplicates;
-        report.bytes = written.bytes;
-        report.written = true;
-    } catch (const std::exception& e) {
-        report.problems.emplace_back(e.what());
-        if (log != nullptr) *log << e.what() << "\n";
+    const auto written = writeEcholistDb(options.dbPath, compiled, std::time(nullptr));
+    if (!written) {
+        report.problems.emplace_back(written.error());
+        if (log != nullptr) *log << written.error() << "\n";
+        return report;
     }
+    report.areas = written->areas;
+    report.duplicates = written->duplicates;
+    report.bytes = written->bytes;
+    report.written = true;
     return report;
 }
 
@@ -114,15 +113,12 @@ bool echolistNeedsCompiling(const CompileOptions& options) {
         now.push_back(stateOf(spec.path, spec.charset));
     }
 
-    try {
-        const EcholistDb db = EcholistDb::open(options.dbPath);
-        // Missing, unreadable, or written by another version of the format —
-        // all of them come out of open() as an exception, and all of them mean
-        // the same thing here.
-        return db.sources() != now;
-    } catch (const std::exception&) {
-        return true;
-    }
+    // Missing, unreadable, or written by another version of the format — all of
+    // them come back out of open() as a failure, and all of them mean the same
+    // thing here.
+    const auto db = EcholistDb::open(options.dbPath);
+    if (!db) return true;
+    return db->sources() != now;
 }
 
 CompileReport refreshEcholist(const CompileOptions& options, bool force,

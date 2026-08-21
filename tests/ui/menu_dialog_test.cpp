@@ -32,7 +32,9 @@ namespace {
 /// Hands back nothing: these tests are about the menu, not the areas.
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    std::vector<amberedit::domain::AreaConfig> loadAreas() override { return {}; }
+    amberedit::Result<std::vector<amberedit::domain::AreaConfig>> loadAreas() override {
+        return {};
+    }
 };
 
 /// The state the menu stands on, with the config it refers to outliving it.

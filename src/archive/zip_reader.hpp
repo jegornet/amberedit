@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "support/result.hpp"
+
 namespace amberedit::archive {
 
 /// One file in a zip archive, as the central directory describes it.
@@ -37,15 +39,17 @@ struct ZipEntry {
 /// file this was not pointed at on purpose.
 class ZipArchive {
 public:
-    /// Throws std::runtime_error naming the file if it is not a readable zip.
-    [[nodiscard]] static ZipArchive open(const std::string& path);
+    /// The archive at `path`, or why it is not a readable zip — named, since
+    /// the caller was pointed at it by a config line and that is where the
+    /// answer is.
+    [[nodiscard]] static Result<ZipArchive> open(const std::string& path);
 
     [[nodiscard]] const std::vector<ZipEntry>& entries() const { return entries_; }
     [[nodiscard]] const std::string& path() const { return path_; }
 
-    /// The contents of one entry, checked against the CRC the archive states.
-    /// Throws std::runtime_error for a damaged or unsupported entry.
-    [[nodiscard]] std::string read(const ZipEntry& entry) const;
+    /// The contents of one entry, checked against the CRC the archive states,
+    /// or why a damaged or unsupported entry could not be unpacked.
+    [[nodiscard]] Result<std::string> read(const ZipEntry& entry) const;
 
 private:
     std::vector<unsigned char> data_;

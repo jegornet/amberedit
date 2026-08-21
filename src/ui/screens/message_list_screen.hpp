@@ -34,9 +34,9 @@ void ensureHeaders(AppState& state);
 void centerCursor(AppState& state);
 
 /// Opens an area and moves the navigator into it — to the reader, positioned
-/// at the lastread message, or to this list when the area is empty.
-/// false means the base did not open; the reason is already in state.status.
-bool enterArea(AppState& state, const domain::AreaConfig& area);
+/// at the lastread message, or to this list when the area is empty. A failure
+/// says why the base did not open and leaves the navigator where it was.
+[[nodiscard]] Result<void> enterArea(AppState& state, const domain::AreaConfig& area);
 
 /// Closes the current area and returns to the area list, dropping both the
 /// loaded headers and whatever the reader was showing.

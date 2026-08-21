@@ -29,7 +29,7 @@ public:
     /// declares too. The check is here and not where the config is read: the
     /// tosser's config has not been opened by then, and two answers to "where is
     /// the base for this tag" is not something to pick a winner for.
-    std::vector<domain::AreaConfig> loadAreas() override;
+    [[nodiscard]] Result<std::vector<domain::AreaConfig>> loadAreas() override;
 
 private:
     std::vector<ManualArea> areas_;

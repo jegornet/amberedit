@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "support/result.hpp"
 #include "nodelist/node_entry.hpp"
 #include "nodelist/nodelist_source.hpp"
 
@@ -32,8 +33,7 @@ struct WriteReport {
     size_t bytes{0};
 };
 
-/// Writes the compiled nodelist. Throws std::runtime_error naming the file for
-/// anything that stops it.
+/// Writes the compiled nodelist, naming the file for anything that stops it.
 ///
 /// Where two entries stand at one address the earlier source wins, and inside
 /// one source the earlier line does: the config's order of `nodelist` lines is
@@ -43,7 +43,8 @@ struct WriteReport {
 /// opening the old one while this runs either goes on reading the whole of the
 /// old file or opens the whole of the new one. There is no moment at which the
 /// path names half a nodelist.
-WriteReport writeNodelistDb(const std::string& path, const std::vector<DbSource>& sources,
-                            std::time_t builtAt);
+[[nodiscard]] Result<WriteReport> writeNodelistDb(const std::string& path,
+                                                  const std::vector<DbSource>& sources,
+                                                  std::time_t builtAt);
 
 }  // namespace amberedit::nodelist

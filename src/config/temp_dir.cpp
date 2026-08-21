@@ -3,7 +3,6 @@
 #include <unistd.h>
 
 #include <filesystem>
-#include <stdexcept>
 #include <system_error>
 
 namespace amberedit::config {
@@ -43,30 +42,31 @@ std::string defaultTempDir() {
 /// belonging to somebody else refuses itself — the permissions over a directory
 /// are the owner's alone to set, so setting them is the question and the answer
 /// at once.
-void insistItIsOurs(const std::string& path) {
+[[nodiscard]] Result<void> insistItIsOurs(const std::string& path) {
     std::error_code ec;
     if (fs::is_symlink(fs::symlink_status(path, ec))) {
-        throw std::runtime_error(
+        return failure(
             "the temporary directory to work in is a symbolic link and so not "
             "ours to use — set tmpdir to a directory of your own: " +
             path);
     }
     fs::permissions(path, fs::perms::owner_all, fs::perm_options::replace, ec);
     if (ec) {
-        throw std::runtime_error(
+        return failure(
             "the temporary directory to work in is not ours — set tmpdir to a "
             "directory of your own: " +
             path);
     }
+    return {};
 }
 
 }  // namespace
 
-std::string makeTempDir(const std::string& configured) {
+Result<std::string> makeTempDir(const std::string& configured) {
     const bool ours = configured.empty();
     const std::string path = ours ? defaultTempDir() : configured;
     if (path.empty()) {
-        throw std::runtime_error(
+        return failure(
             "the system names no temporary directory of its own, so tmpdir has "
             "to name one");
     }
@@ -74,10 +74,13 @@ std::string makeTempDir(const std::string& configured) {
     std::error_code ec;
     fs::create_directories(path, ec);
     if (!fs::is_directory(path, ec)) {
-        throw std::runtime_error(
+        return failure(
             "the temporary directory to work in is not one that can be made: " + path);
     }
-    if (ours) insistItIsOurs(path);
+    if (ours) {
+        const auto checked = insistItIsOurs(path);
+        if (!checked) return tl::make_unexpected(checked.error());
+    }
     return path;
 }
 

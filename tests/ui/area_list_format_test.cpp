@@ -5,6 +5,7 @@
 
 #include "app/area_manager.hpp"
 #include "config/app_config.hpp"
+#include "test_strings.hpp"
 #include "ui/area_list_format.hpp"
 
 using amberedit::app::AreaEntry;
@@ -19,11 +20,11 @@ namespace {
 /// The fields a format string asks for, read through the config so that the
 /// test lays out what a user would actually have written.
 AreaListFormat fields(const std::string& format) {
-    return AppConfig::loadFromString(
-               "tosser_config a\ntosser_config_format hpt\n"
-               "default_charset CP866\ncompose_charset CP866\n"
-               "arealist_format \"" +
-               format + "\"\n")
+    return amberedit::test::valueOf(
+               AppConfig::loadFromString("tosser_config a\ntosser_config_format hpt\n"
+                                         "default_charset CP866\ncompose_charset CP866\n"
+                                         "arealist_format \"" +
+                                         format + "\"\n"))
         .areaListFormatNarrow;
 }
 

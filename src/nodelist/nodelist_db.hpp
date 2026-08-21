@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include "support/result.hpp"
 #include "domain/ftn_address.hpp"
 #include "nodelist/node_entry.hpp"
 #include "nodelist/nodelist_format.hpp"
@@ -30,11 +31,15 @@ namespace amberedit::nodelist {
 /// a system call for every row it draws.
 class NodelistDb {
 public:
-    /// Opens a compiled nodelist. Throws std::runtime_error naming the file for
-    /// one that is not there, is not a compiled nodelist, or was written by
-    /// another version of the format. `nodelistNeedsCompiling` reads every one
-    /// of those as "compile it again", which is the whole of the answer to them.
-    [[nodiscard]] static NodelistDb open(const std::string& path);
+    /// Opens a compiled nodelist, naming the file for one that is not there, is
+    /// not a compiled nodelist, was written by another version of the format, or
+    /// is truncated. `nodelistNeedsCompiling` reads every one of those as
+    /// "compile it again", which is the whole of the answer to them.
+    ///
+    /// Everything the three accessors below read is checked here, which is what
+    /// lets them be total: a damaged file is refused at open, where the path can
+    /// be named, and not in the middle of a list being drawn.
+    [[nodiscard]] static Result<NodelistDb> open(const std::string& path);
 
     [[nodiscard]] size_t size() const { return nodeCount_; }
     [[nodiscard]] bool empty() const { return nodeCount_ == 0; }
@@ -48,10 +53,16 @@ public:
 
     /// The address of a node, without reading its line. What the address column
     /// of a list is drawn from, and cheap enough to ask for every visible row.
+    ///
+    /// An index no node has answers with the empty address, as `entry()` answers
+    /// with the empty line and `sourceAt()` with `sources().size()`. These three
+    /// are drawn from a row at a time by a dialog that has already bounded its
+    /// cursor against `size()`, and `open()` has refused everything else that
+    /// could make a bounded index unreadable — so there is nothing left here for
+    /// a caller to check per row.
     [[nodiscard]] domain::FtnAddress addressAt(size_t index) const;
 
-    /// The whole line. Throws std::runtime_error if the file is damaged in a way
-    /// the header could not show.
+    /// The whole line.
     [[nodiscard]] NodeEntry entry(size_t index) const;
 
     /// Which nodelist the node came from, as an index into `sources()`.

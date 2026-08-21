@@ -31,7 +31,8 @@ void openMenu(AppState& state);
 /// else.
 void runMenuCommand(AppState& state, config::MenuCommand command);
 
-/// Loads message msgNumber (1-based) into the reader state.
+/// Loads message msgNumber (1-based) into the reader state. False means there
+/// was no such message to load and the screen was left as it was.
 bool loadMessage(AppState& state, uint32_t msgNumber);
 
 /// Opens the area *at* msgNumber: that message, or the nearest one to it the

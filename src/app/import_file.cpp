@@ -57,50 +57,42 @@ std::string charsetFor(const std::string& named) {
     return normalized.empty() ? named : normalized;
 }
 
-ImportResult importText(const ImportRequest& request) {
-    std::string bytes;
-    try {
-        bytes = config::text::readFile(request.path);
-    } catch (const std::exception& e) {
-        return ImportResult{{}, e.what()};
-    }
+Result<std::vector<std::string>> importText(const ImportRequest& request) {
+    const auto bytes = config::text::readFile(request.path);
+    if (!bytes) return tl::make_unexpected(bytes.error());
 
+    // intoUtf8 and not the reader's toUtf8: that one hands the bytes back
+    // unchanged, which is right for a message being read and wrong here — the
+    // charset was typed a moment ago, and a mistyped one would go into the
+    // message as mojibake nobody could undo afterwards.
     encoding::IconvRecoder recoder;
-    const std::string utf8 = recoder.toUtf8(bytes, charsetFor(request.charset));
-    // The recoder hands the bytes back unchanged rather than throwing, which is
-    // right for a message being read and wrong here: the charset was typed a
-    // moment ago, and a mistyped one would go into the message as mojibake
-    // nobody could undo afterwards.
-    if (!recoder.lastError().empty()) return ImportResult{{}, recoder.lastError()};
+    const auto utf8 = recoder.intoUtf8(*bytes, charsetFor(request.charset));
+    if (!utf8) return tl::make_unexpected(utf8.error());
 
-    const std::vector<std::string> read = config::text::splitLines(utf8);
+    const std::vector<std::string> read = config::text::splitLines(*utf8);
 
-    ImportResult result;
-    result.lines.reserve(read.size() + 2);
-    if (!request.beginLine.empty()) result.lines.push_back(request.beginLine);
+    std::vector<std::string> lines;
+    lines.reserve(read.size() + 2);
+    if (!request.beginLine.empty()) lines.push_back(request.beginLine);
     // A `CC:` or `XC:` line of the file is disarmed on the way in: the file is
     // being read into the message as text, and a command in it is one the
     // writer of the file asked for rather than the writer of the message.
     for (const auto& line : read) {
-        result.lines.push_back(disarmCopyCommand(sanitize(line)));
+        lines.push_back(disarmCopyCommand(sanitize(line)));
     }
-    if (!request.endLine.empty()) result.lines.push_back(request.endLine);
-    return result;
+    if (!request.endLine.empty()) lines.push_back(request.endLine);
+    return lines;
 }
 
-ImportResult importUue(const ImportRequest& request) {
-    std::string bytes;
-    try {
-        bytes = config::text::readFile(request.path);
-    } catch (const std::exception& e) {
-        return ImportResult{{}, e.what()};
-    }
+Result<std::vector<std::string>> importUue(const ImportRequest& request) {
+    const auto bytes = config::text::readFile(request.path);
+    if (!bytes) return tl::make_unexpected(bytes.error());
 
     // The name the file goes out under, and nothing of the path it was read
     // from: where it stood on this machine is nobody else's business, and
     // uudecode would make a directory of it at the other end.
     const std::string name = std::filesystem::path(request.path).filename().string();
-    return ImportResult{uuencode(bytes, name), {}};
+    return uuencode(*bytes, name);
 }
 
 /// One six-bit group as a uuencoded character.
@@ -153,7 +145,7 @@ std::vector<std::string> uuencode(std::string_view bytes, std::string_view name)
     return lines;
 }
 
-ImportResult importFile(const ImportRequest& request) {
+Result<std::vector<std::string>> importFile(const ImportRequest& request) {
     return request.mode == ImportMode::Uue ? importUue(request) : importText(request);
 }
 

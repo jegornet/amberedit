@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "support/result.hpp"
 #include "ui/term/event.hpp"
 
 namespace amberedit::ui {
@@ -117,15 +118,16 @@ public:
     /// The layout AmberEdit has when no `keys` file is named.
     [[nodiscard]] static KeyMap defaults();
 
-    /// Reads a layout. Throws std::runtime_error naming the file and the line:
-    /// a `keys` line that cannot be read is a layout the user asked for by name
-    /// and did not get, and starting on the defaults instead would leave every
-    /// key doing something other than what was asked.
-    [[nodiscard]] static KeyMap loadFromFile(const std::string& path);
+    /// Reads a layout, or says why, naming the file and the line: a `keys` line
+    /// that cannot be read is a layout the user asked for by name and did not
+    /// get, and starting on the defaults instead would leave every key doing
+    /// something other than what was asked.
+    [[nodiscard]] static Result<KeyMap> loadFromFile(const std::string& path);
 
-    /// The same from text already in hand. `origin` is what an error names the
+    /// The same from text already in hand. `origin` is what a failure names the
     /// text by.
-    [[nodiscard]] static KeyMap parse(std::string_view text, const std::string& origin);
+    [[nodiscard]] static Result<KeyMap> parse(std::string_view text,
+                                              const std::string& origin);
 
     /// Whether that keystroke runs that command.
     [[nodiscard]] bool is(const term::Event& event, KeyCommand command) const;

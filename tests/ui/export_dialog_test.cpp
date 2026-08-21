@@ -54,7 +54,7 @@ Event clickAt(int x, int y) {
 
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    std::vector<AreaConfig> loadAreas() override { return {}; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
 };
 
 /// A message on the reader's screen and a directory to write it into.
@@ -175,8 +175,8 @@ struct ExportFixture {
 
     /// What the file at `name` holds, in the charset it was written in.
     [[nodiscard]] std::string fileText(const std::string& name) const {
-        return amberedit::config::text::readFile(
-            (std::filesystem::path(state.exportDirectory) / name).string());
+        return amberedit::test::valueOf(amberedit::config::text::readFile(
+            (std::filesystem::path(state.exportDirectory) / name).string()));
     }
 
     TempDir dir;

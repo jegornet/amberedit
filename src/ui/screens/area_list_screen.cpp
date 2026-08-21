@@ -131,7 +131,8 @@ void openSelected(AppState& state) {
     const domain::AreaConfig area = entry.config;
     const bool wasUnavailable = !entry.isAvailable();
 
-    if (message_list::enterArea(state, area)) {
+    const auto entered = message_list::enterArea(state, area);
+    if (entered) {
         // An area that would not open at startup and opens now has had its base
         // made in between: the row saying it cannot be read is out of date, and
         // so are the two counts beside it.
@@ -141,9 +142,9 @@ void openSelected(AppState& state) {
 
     // Nothing was left half open — enterArea() goes on only once the base is
     // there — so saying why is the whole of what is left to do.
-    const std::string reason = state.manager.lastError();
-    state.errorMessage = "Cannot open the area: " +
-                         (reason.empty() ? "the base could not be opened" : reason);
+    state.errorMessage =
+        "Cannot open the area: " +
+        (entered.error().empty() ? "the base could not be opened" : entered.error());
 }
 
 /// The next area holding unread messages, starting below the cursor and going
@@ -372,20 +373,18 @@ void rescan(AppState& state) {
     }
 
     // An unreadable tosser config, or one that has come to declare a tag an
-    // `area ... endarea` block declares too, are what reload() throws for, and
-    // it leaves the list as it was — so there is nothing to undo and, with no
+    // `area ... endarea` block declares too, are what reload() fails for, and it
+    // leaves the list as it was — so there is nothing to undo and, with no
     // status line to say it in, nothing to say. The cursor is settled below
     // either way.
-    try {
-        // Each area is named on the modal as it is reached, which is what the
-        // frame drawn from in here puts on the screen. The shell is blocked
-        // inside this call, so nothing else would draw one.
-        state.manager.reload([&state](const std::string& areaTag) {
-            state.rescanArea = areaTag;
-            state.redraw();
-        });
-    } catch (const std::exception&) {  // NOLINT(bugprone-empty-catch)
-    }
+    //
+    // Each area is named on the modal as it is reached, which is what the frame
+    // drawn from in here puts on the screen. The shell is blocked inside this
+    // call, so nothing else would draw one.
+    static_cast<void>(state.manager.reload([&state](const std::string& areaTag) {
+        state.rescanArea = areaTag;
+        state.redraw();
+    }));
 
     const auto& areas = state.manager.areas();
     if (!tag.empty()) {

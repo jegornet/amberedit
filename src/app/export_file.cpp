@@ -187,36 +187,34 @@ std::vector<std::string> exportedLines(const domain::MessageHeader& header,
     return lines;
 }
 
-ExportResult exportMessage(const ExportRequest& request,
+Result<void> exportMessage(const ExportRequest& request,
                            const domain::MessageHeader& header,
                            const domain::MessageBody& body) {
     encoding::IconvRecoder recoder;
 
+    // A charset the file cannot be written in is a failure rather than a file
+    // full of question marks: it was named a moment ago, and what is on disk
+    // afterwards cannot be told from a message that had them in it. That is why
+    // this goes through intoCharset and not the reader's fromUtf8.
     std::string out;
     for (const auto& line : exportedLines(header, body, request.dateFormat)) {
-        out += recoder.fromUtf8(line, request.charset);
+        const auto encoded = recoder.intoCharset(line, request.charset);
+        if (!encoded) return tl::make_unexpected(encoded.error());
+        out += *encoded;
         out += '\n';
     }
-    // A charset the file cannot be written in is an error rather than a file
-    // full of question marks: it was named a moment ago, and what is on disk
-    // afterwards cannot be told from a message that had them in it.
-    if (!recoder.lastError().empty()) return ExportResult{recoder.lastError()};
 
-    try {
-        // Added to or written afresh as the caller was told to ask, and the
-        // stream is asked afterwards whether it took it: a full disk fails on
-        // the write and not on the open.
-        const auto how =
-            request.write == ExportWrite::Overwrite ? std::ios::trunc : std::ios::app;
-        std::ofstream file(request.path, std::ios::binary | how);
-        if (!file) return ExportResult{"cannot write file: " + request.path};
-        file.write(out.data(), static_cast<std::streamsize>(out.size()));
-        file.flush();
-        if (!file) return ExportResult{"cannot write file: " + request.path};
-    } catch (const std::exception& e) {
-        return ExportResult{e.what()};
-    }
-    return ExportResult{};
+    // Added to or written afresh as the caller was told to ask, and the stream
+    // is asked afterwards whether it took it: a full disk fails on the write and
+    // not on the open.
+    const auto how =
+        request.write == ExportWrite::Overwrite ? std::ios::trunc : std::ios::app;
+    std::ofstream file(request.path, std::ios::binary | how);
+    if (!file) return failure("cannot write file: " + request.path);
+    file.write(out.data(), static_cast<std::streamsize>(out.size()));
+    file.flush();
+    if (!file) return failure("cannot write file: " + request.path);
+    return {};
 }
 
 std::vector<UueFile> uueFilesIn(const std::vector<std::string>& lines) {
@@ -249,9 +247,9 @@ std::vector<UueFile> uueFiles(const domain::MessageBody& body) {
     return uueFilesIn(lines);
 }
 
-ExportResult saveUueFiles(const std::string& directory,
+Result<void> saveUueFiles(const std::string& directory,
                           const std::vector<UueFile>& files) {
-    if (files.empty()) return ExportResult{"nothing to save"};
+    if (files.empty()) return failure("nothing to save");
 
     // Every name is looked at before any of them is written. These names are the
     // message's rather than the user's and there is nowhere to change one, so a
@@ -260,24 +258,20 @@ ExportResult saveUueFiles(const std::string& directory,
     for (const auto& file : files) {
         const fs::path path = fs::path(directory) / file.name;
         std::error_code ec;
-        if (fs::exists(path, ec)) return ExportResult{"file exists: " + file.name};
+        if (fs::exists(path, ec)) return failure("file exists: " + file.name);
     }
 
     for (const auto& file : files) {
         const fs::path path = fs::path(directory) / file.name;
-        try {
-            // Asked afterwards whether it took it: a full disk fails on the
-            // write and not on the open.
-            std::ofstream out(path.string(), std::ios::binary | std::ios::trunc);
-            if (!out) return ExportResult{"cannot write file: " + file.name};
-            out.write(file.bytes.data(), static_cast<std::streamsize>(file.bytes.size()));
-            out.flush();
-            if (!out) return ExportResult{"cannot write file: " + file.name};
-        } catch (const std::exception& e) {
-            return ExportResult{e.what()};
-        }
+        // Asked afterwards whether it took it: a full disk fails on the write
+        // and not on the open.
+        std::ofstream out(path.string(), std::ios::binary | std::ios::trunc);
+        if (!out) return failure("cannot write file: " + file.name);
+        out.write(file.bytes.data(), static_cast<std::streamsize>(file.bytes.size()));
+        out.flush();
+        if (!out) return failure("cannot write file: " + file.name);
     }
-    return ExportResult{};
+    return {};
 }
 
 }  // namespace amberedit::app

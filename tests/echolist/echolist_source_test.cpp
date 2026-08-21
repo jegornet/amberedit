@@ -14,7 +14,6 @@
 
 using namespace amberedit;
 using amberedit::test::contains;
-using amberedit::test::errorFrom;
 namespace fs = std::filesystem;
 
 TEST_CASE("a .zip is an archive of echolists and anything else is one echolist "
@@ -64,7 +63,7 @@ TEST_CASE("an echolist is read in the charset the line states [echolist]") {
     }
 
     echolist::EcholistSources sources(dir.path("tmp"));
-    const auto loaded = sources.read(path, "CP866");
+    const auto loaded = amberedit::test::valueOf(sources.read(path, "CP866"));
     REQUIRE(loaded.parts.size() == 1);
     CHECK(loaded.archive.empty());
     CHECK(loaded.parts[0].name == "echo.lst");
@@ -79,8 +78,8 @@ TEST_CASE("a zipped echolist is unpacked without paths and taken away again "
 
     {
         echolist::EcholistSources sources(workDir);
-        const auto loaded =
-            sources.read(test::projectPath("testdata/echolist/elst2601.zip"), "CP866");
+        const auto loaded = amberedit::test::valueOf(
+            sources.read(test::projectPath("testdata/echolist/elst2601.zip"), "CP866"));
 
         CHECK(fs::path(loaded.archive).filename() == "elst2601.zip");
         // The three .na lists in it and nothing else: the archive also carries
@@ -173,13 +172,14 @@ TEST_CASE("a wildcard reads whichever kind of file it landed on [echolist]") {
     fs::last_write_time(plain, now - std::chrono::minutes(60), ec);
     fs::last_write_time(zipped, now - std::chrono::minutes(1), ec);
 
-    const auto archive = sources.read(dir.path("e*.*"), "CP866");
+    const auto archive =
+        amberedit::test::valueOf(sources.read(dir.path("e*.*"), "CP866"));
     CHECK(fs::path(archive.archive).filename() == "elst2601.zip");
     CHECK(archive.parts.size() == 3);
 
     // The other way round, and the same pattern reads a plain list instead.
     fs::last_write_time(plain, now, ec);
-    const auto list = sources.read(dir.path("e*.*"), "CP866");
+    const auto list = amberedit::test::valueOf(sources.read(dir.path("e*.*"), "CP866"));
     CHECK(list.archive.empty());
     REQUIRE(list.parts.size() == 1);
     CHECK(list.parts[0].name == "echo50.lst");
@@ -189,13 +189,13 @@ TEST_CASE("an echolist that is not there says so [echolist]") {
     test::TempDir dir;
     echolist::EcholistSources sources(dir.path("tmp"));
 
-    const std::string error = errorFrom([&] { sources.read(dir.path("gone.lst"), ""); });
+    const std::string error =
+        amberedit::test::errorOf(sources.read(dir.path("gone.lst"), ""));
     CHECK_MESSAGE(contains(error, "echolist not found"), error);
     // A pattern that covers nothing names the pattern rather than a file, since
     // no file of that name was ever written down.
-    const std::string error2 = errorFrom([&] {
-        sources.read(dir.path("gone*.lst"), "");
-    });
+    const std::string error2 =
+        amberedit::test::errorOf(sources.read(dir.path("gone*.lst"), ""));
     CHECK_MESSAGE(contains(error2, "no echolist matching"), error2);
 
     // An archive holding no echolist at all is the same kind of nothing, said
@@ -208,5 +208,5 @@ TEST_CASE("an echolist that is not there says so [echolist]") {
                             0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0};
         out.write(end, sizeof(end));
     }
-    CHECK_THROWS_AS(sources.read(archive, ""), std::runtime_error);
+    CHECK_FALSE(sources.read(archive, "").has_value());
 }

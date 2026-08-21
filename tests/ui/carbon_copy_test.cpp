@@ -16,6 +16,7 @@
 #include "ports/i_area_source.hpp"
 #include "ports/i_lastread_store.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -53,7 +54,7 @@ private:
 class ListedAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit ListedAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    std::vector<AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -84,7 +85,7 @@ struct CopyFixture {
           manager(std::make_unique<ListedAreaSource>(areaList()),
                   std::unique_ptr<PerAreaLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     [[nodiscard]] std::vector<AreaConfig> areaList() const {
@@ -123,13 +124,14 @@ struct CopyFixture {
         // Where a `@file` is looked for when it names no directory of its own.
         cfg.configDir = dir.path("");
         if (!groups.empty()) {
-            cfg.areaGroups = AppConfig::loadFromString(
-                                 "tosser_config /dev/null\n"
-                                 "tosser_config_format fidoconfig\n"
-                                 "default_charset CP866\n"
-                                 "compose_charset CP866\n" +
-                                 groups)
-                                 .areaGroups;
+            cfg.areaGroups =
+                amberedit::test::valueOf(
+                    AppConfig::loadFromString("tosser_config /dev/null\n"
+                                              "tosser_config_format fidoconfig\n"
+                                              "default_charset CP866\n"
+                                              "compose_charset CP866\n" +
+                                              groups))
+                    .areaGroups;
         }
         return cfg;
     }
@@ -144,7 +146,7 @@ struct CopyFixture {
             nodeOf("2:5020/3456", "Sergey Sergeev"),
             nodeOf("2:5020/4567", "Sergey Petrov"),
         };
-        nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+        REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
         config.nodelistDbPath = dir.path("nodelist.db");
     }
 
@@ -152,7 +154,7 @@ struct CopyFixture {
     void enter(const std::string& tag) {
         const AreaConfig area = areaNamed(tag);
         state.setCurrentArea(area);
-        state.base = manager.openArea(area);
+        state.base = amberedit::test::valueOf(manager.openArea(area));
         REQUIRE(state.base != nullptr);
         state.messageCount = state.base->count();
     }
@@ -181,7 +183,8 @@ struct CopyFixture {
     }
 
     uint32_t countIn(const std::string& tag) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const uint32_t count = base->count();
         manager.closeCurrentArea();
@@ -189,7 +192,8 @@ struct CopyFixture {
     }
 
     amberedit::domain::MessageHeader headerIn(const std::string& tag, uint32_t number) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const auto header = base->header(number);
         manager.closeCurrentArea();
@@ -198,7 +202,8 @@ struct CopyFixture {
 
     /// What a message reads as, service lines left out.
     std::vector<std::string> textIn(const std::string& tag, uint32_t number) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const auto body = base->body(number);
         manager.closeCurrentArea();
@@ -213,7 +218,8 @@ struct CopyFixture {
     /// And the service lines of it, as the reader shows them — '@' where the
     /// stored byte is ^A.
     std::vector<std::string> kludgesIn(const std::string& tag, uint32_t number) {
-        amberedit::ports::IMsgBase* base = manager.openArea(areaNamed(tag));
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(areaNamed(tag)));
         REQUIRE(base != nullptr);
         const auto body = base->body(number);
         manager.closeCurrentArea();

@@ -32,8 +32,8 @@ Every tagged release carries built packages —
 and Fedora, debs for Debian stable and Ubuntu 22.04 and 24.04, and tarballs for
 macOS on both architectures.
 
-Building it yourself needs CMake ≥ 3.16, a C++17 compiler, git, iconv, zlib and
-the wide-character ncurses — [INSTALL.md](INSTALL.md) has the commands, and what
+Building it yourself needs CMake ≥ 3.16, a C++17 compiler, git, iconv, zlib,
+tl::expected and the wide-character ncurses — [INSTALL.md](INSTALL.md) has the commands, and what
 differs on macOS.
 
 ## Running

@@ -8,6 +8,7 @@
 #include "nodelist/nodelist_writer.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
@@ -37,11 +38,12 @@ namespace {
 /// Takes every message out of the area, which is how the reader is opened on
 /// nothing at all — the screen a first message is written from.
 void emptyTheArea(AreaFixture& fixture) {
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(fixture.area);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.area));
     REQUIRE(base != nullptr);
-    while (base->count() > 0) REQUIRE(base->remove(1));
+    while (base->count() > 0) REQUIRE(base->remove(1).has_value());
     fixture.manager.closeCurrentArea();
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 }
 
 /// Draws the reader into a buffer of its own size, which is what fills the
@@ -121,7 +123,7 @@ TEST_CASE("→ on the last message leaves the area [messageread][squish]") {
     // A mark on the newest message has nothing after it to move to, so the area
     // opens there — the end the right arrow walks off.
     fixture.lastRead->set(lastUid);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == static_cast<int>(total) - 1);
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
@@ -146,7 +148,7 @@ TEST_CASE("← on the first message leaves the area [messageread][squish]") {
     AreaFixture fixture(base.path(), config);
 
     fixture.lastRead->set(uidAt(fixture, 1));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == 0);
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
@@ -166,7 +168,7 @@ TEST_CASE("Walking off the front of an area leaves it unread whole "
     // every one of them read on the way — and then one ← more, off the front.
     // The mark on the newest message is what opens the area at that end.
     fixture.lastRead->set(uidAt(fixture, total));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == static_cast<int>(total) - 1);
     while (fixture.state.messageCursor > 0) {
         REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
@@ -191,14 +193,14 @@ TEST_CASE("Coming back into an area walked off the front of starts it over "
     REQUIRE(total >= 2);
 
     // Nothing read here, so the area opens at its front to begin with.
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == 0);
 
     // ← off the front and straight back in: the mark was taken off, and the
     // area opens where the reading stopped rather than at its newest message.
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
     REQUIRE(fixture.state.navigator.current() == ScreenId::AreaList);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     CHECK(fixture.state.messageCursor == 0);
     REQUIRE(fixture.state.readHeader.has_value());
@@ -214,7 +216,7 @@ TEST_CASE("Esc on the first message leaves the mark on it [messageread][squish]"
     // The same walk back through the area as above, and out of the same first
     // message.
     fixture.lastRead->set(uidAt(fixture, total));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     while (fixture.state.messageCursor > 0) {
         REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
     }
@@ -231,7 +233,7 @@ TEST_CASE("An area of one message is both its first and its last "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     // One message, and the reader on it: either arrow has nowhere to go.
     fixture.state.messageCount = 1;
     fixture.state.messageCursor = 0;
@@ -250,7 +252,7 @@ TEST_CASE("An empty area is left by either arrow too [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     emptyTheArea(fixture);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCount == 0);
     REQUIRE(fixture.state.navigator.current() == ScreenId::MessageRead);
 
@@ -277,7 +279,7 @@ TEST_CASE("With reader_edge_exit off the ends of an area are a dead end "
     // The far end of the area, which is where the right arrow has nowhere left
     // to go: the mark on the newest message opens the reader on it.
     fixture.lastRead->set(uidAt(fixture, total));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == static_cast<int>(total) - 1);
 
     // The key is still swallowed — it means "next message", and there is none.
@@ -300,7 +302,7 @@ TEST_CASE("The header gives each stamp a row of its own "
     fixture.config.backButton = Visibility::Off;
     fixture.config.showRecdDate = Visibility::On;
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     const std::vector<std::string> rows = rowsOf(fixture);
     CHECK(startsWith(rows[2], " From : "));
@@ -333,7 +335,7 @@ TEST_CASE("A stamp widens its column rather than being cut at a name's width "
     // stamp at every width rather than only in a narrow window.
     fixture.config.readerDateTimeFormat = "%A, the %d of %B %Y, %H:%M %z";
     fixture.state.width = 100;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readHeader.has_value());
 
     fixture.state.readHeader->utcOffset = "+0300";
@@ -361,7 +363,7 @@ TEST_CASE("%z writes the zone the message states, and only on the row it dates "
     fixture.config.showRecdDate = Visibility::On;
     fixture.state.width = 92;
     fixture.config.readerDateTimeFormat = "%H:%M %z";
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readHeader.has_value());
 
     // What the message's own TZUTC says. Whether the message in the base
@@ -386,7 +388,7 @@ TEST_CASE("show_recd_date is what puts the Recd row up, and it is off by default
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Off unless it is asked for: the row is a fifth of the header block and a
     // row off the message under it.
@@ -413,7 +415,7 @@ TEST_CASE("show_recd_date when_wide follows the width of the window "
     fixture.config.adaptiveUiThreshold = 80;
 
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     CHECK(startsWith(rowsOf(fixture)[6], " Recd : "));
 
     // Dragged under the threshold, the row goes with the width it was asked for
@@ -434,7 +436,7 @@ TEST_CASE("The Recd row is drawn in the color the Date row is "
     fixture.config.backButton = Visibility::Off;
     fixture.config.showRecdDate = Visibility::On;
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     term::Screen screen(fixture.state.width, fixture.state.height);
     term::render(screen, message_read::render(fixture.state));
@@ -460,7 +462,7 @@ TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank "
     fixture.config.backButton = Visibility::Off;
     fixture.config.showRecdDate = Visibility::On;
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readHeader.has_value());
 
     // A message written here arrived from nowhere. The row stays: a block that
@@ -478,7 +480,7 @@ TEST_CASE("The Subj row runs to the edge of the block rather than to the columns
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readHeader.has_value());
 
     // Longer than the name column the From and To rows stop at, and shorter
@@ -501,7 +503,7 @@ TEST_CASE("A window too narrow for both stamps keeps the one that dates the mess
     // Long enough that the pair cannot fit the name column at any width, so
     // the arrival stamp is what has to go.
     fixture.config.readerDateTimeFormat = "%A %d %B %Y %H:%M:%S";
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(fixture.state.readHeader.has_value());
     const std::string written =
@@ -524,7 +526,7 @@ TEST_CASE("The subject runs the width of the header block and the attributes clo
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(fixture.state.readHeader.has_value());
     REQUIRE(fixture.state.readHeader->origAddr.isValid());
@@ -548,7 +550,7 @@ TEST_CASE("The header block keeps its four rows at any width "
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.config.menuButton = Visibility::Off;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Eighty columns is the line the rest of the interface adapts on, and the
     // header block does not: the stamps keep their own row either side of it.
@@ -571,7 +573,7 @@ TEST_CASE("An empty area shows none of the thread the area before it had "
     fixture.state.readThread.replyTo = 19;
     fixture.state.readThread.replies = {21};
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCount == 0);
 
     CHECK(fixture.state.readThread.empty());
@@ -585,7 +587,7 @@ TEST_CASE("Deleting the last message of an area takes its thread with it "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Down to one message, itself an answer to something, and then that one is
     // deleted too: nothing of the thread is left to draw beside the title.
@@ -603,7 +605,7 @@ TEST_CASE("An empty area leaves the reader's menu with only New and Nodelist liv
     TempSquishBase base;
     AreaFixture fixture(base.path());
     emptyTheArea(fixture);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCount == 0);
     openMenu(fixture);
 
@@ -628,7 +630,7 @@ TEST_CASE("The corner opens the menu and a click in it runs the command "
     // `when_narrow` leaves the corner to the title; these tests are about the
     // menu, so they ask for it outright.
     fixture.config.menuButton = Visibility::On;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     drawFrame(fixture);
 
     // The button hangs from the top-right corner, and clicking it is the whole
@@ -655,7 +657,7 @@ TEST_CASE("A click on a dimmed menu button does nothing at all "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     emptyTheArea(fixture);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     openMenu(fixture);
 
     const auto* reply = buttonFor(fixture, MenuCommand::Reply);
@@ -675,7 +677,7 @@ TEST_CASE("menu_button off leaves the corner to the title "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.menuButton = Visibility::Off;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // The button costs no row either way — it stands in the two the title and
     // the rule under it already take — so what turning it off gives back is the
@@ -700,7 +702,7 @@ TEST_CASE("menu_button when_narrow follows the width of the window "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(fixture.config.menuButton == Visibility::WhenNarrow);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Eighty columns is the line, and the window is measured again on every
     // frame: a wide one has the room to say what a key does elsewhere, and a
@@ -721,7 +723,7 @@ TEST_CASE("when_wide is the same line read from the other side "
     AreaFixture fixture(base.path());
     fixture.config.menuButton = Visibility::WhenWide;
     fixture.config.backButton = Visibility::WhenWide;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // At the threshold and over the window is a wide one, which is exactly
     // where `when_narrow` has nothing on the screen.
@@ -740,7 +742,7 @@ TEST_CASE("adaptive_ui_threshold moves the width the two cross at "
     AreaFixture fixture(base.path());
     REQUIRE(fixture.config.menuButton == Visibility::WhenNarrow);
     REQUIRE(fixture.config.backButton == Visibility::WhenNarrow);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // A hundred columns is a wide window by default, so nothing `when_narrow`
     // is on the screen there...
@@ -765,7 +767,7 @@ TEST_CASE("back_button when_narrow follows the width of the window too "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(fixture.config.backButton == Visibility::WhenNarrow);
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // The button stands in the top-left corner, so the first row is where it is
     // there to be read off — and where the title starts instead when it is not.
@@ -791,7 +793,7 @@ TEST_CASE("The arrow keys still move between messages [messageread][squish]") {
 
     // The mark is on the first message, so the area opens on the second.
     fixture.lastRead->set(uidAt(fixture, 1));
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == 1);
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
@@ -809,7 +811,7 @@ TEST_CASE("The arrow keys still move between messages [messageread][squish]") {
 TEST_CASE("w opens the export dialog [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character('w')));
     REQUIRE(fixture.state.exportPicker);
@@ -822,7 +824,7 @@ TEST_CASE("w opens the export dialog [messageread][squish]") {
 TEST_CASE("The export button is offered but not given [messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     openMenu(fixture);
     // Not in the default menu: writing a message out to a file is a thing done
     // now and then, and `w` does it without a button.
@@ -848,7 +850,7 @@ TEST_CASE("An empty area has nothing to export [messageread][menu][squish]") {
     fixture.config.readerMenu = {MenuCommand::Export};
     emptyTheArea(fixture);
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     openMenu(fixture);
     // The button is drawn dimmed, and the key does nothing at all: there is no
     // message on the screen to write out.
@@ -867,7 +869,7 @@ namespace {
 /// own messages say nothing about pipe codes, and what is being tested is what
 /// the reader makes of a line that does.
 void showBody(AreaFixture& fixture, const std::vector<std::string>& lines) {
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::loadMessage(fixture.state, 1));
 
     amberedit::domain::MessageBody body;
@@ -995,7 +997,7 @@ void giveNodelistWithSender(AreaFixture& fixture, const amberedit::test::TempDir
     amberedit::nodelist::DbSource source;
     source.state.spec = "nodelist";
     source.entries = {entry};
-    amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
 }
 
@@ -1041,7 +1043,7 @@ TEST_CASE("The rule under the header says where the message was written "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     amberedit::test::TempDir dir;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     giveNodelistWithSender(fixture, dir);
 
     // The location stands in the rule that closes the block.
@@ -1074,7 +1076,7 @@ TEST_CASE("A point nobody lists is placed where its boss is "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     amberedit::test::TempDir dir;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readHeader);
 
     // The message is from a point of the node the nodelist holds, and no
@@ -1090,7 +1092,7 @@ TEST_CASE("A point nobody lists is placed where its boss is "
     amberedit::nodelist::DbSource source;
     source.state.spec = "nodelist";
     source.entries = {entry};
-    amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
 
     fixture.state.readHeader->origAddr = point;
@@ -1102,7 +1104,7 @@ TEST_CASE("With show_location off the rule is a rule "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     amberedit::test::TempDir dir;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     giveNodelistWithSender(fixture, dir);
     REQUIRE(closingRule(fixture).find("Belgrade") != std::string::npos);
 
@@ -1114,7 +1116,7 @@ TEST_CASE("The rule under the header says how much message there is "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readBody);
     fixture.config.readerShowMessageSize = true;
 
@@ -1147,7 +1149,7 @@ TEST_CASE("Without reader_show_message_size the rule keeps its left end "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Which is what a config saying nothing gets: the setting is off until it
     // is asked for.
@@ -1160,7 +1162,7 @@ TEST_CASE("The size and the location share the closing rule "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     amberedit::test::TempDir dir;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     giveNodelistWithSender(fixture, dir);
     fixture.config.readerShowMessageSize = true;
 
@@ -1186,7 +1188,7 @@ TEST_CASE("A sender no nodelist holds is said nothing about "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     amberedit::test::TempDir dir;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // A config with no nodelist at all, which is what most configs are: the
     // rule is the rule it always was — nothing was looked for, and nothing is
@@ -1200,7 +1202,7 @@ TEST_CASE("A sender no nodelist holds is said nothing about "
     amberedit::nodelist::DbSource source;
     source.state.spec = "nodelist";
     source.entries = {other};
-    amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0);
+    REQUIRE(amberedit::nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     fixture.config.nodelistDbPath = dir.path("nodelist.db");
     fixture.state.nodelistOpened = false;
 
@@ -1232,7 +1234,7 @@ TEST_CASE("The function keys answer beside the letters they double "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // F9 is `l`: the list of messages in the area.
     REQUIRE(message_read::handleEvent(fixture.state, Event::F9));
@@ -1255,12 +1257,12 @@ TEST_CASE("The function keys answer beside the letters they double "
 TEST_CASE("The reader answers the layout it was given [messageread][keys]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
-    fixture.state.keys = amberedit::ui::KeyMap::parse(
-        "F3 reader.find\n"
-        "x  reader.list\n",
-        "keys");
+    fixture.state.keys =
+        amberedit::test::valueOf(amberedit::ui::KeyMap::parse("F3 reader.find\n"
+                                                              "x  reader.list\n",
+                                                              "keys"));
 
     // What the layout names, on the key it names it on.
     REQUIRE(message_read::handleEvent(fixture.state, Event::F3));

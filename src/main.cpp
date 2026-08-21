@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "app/area_manager.hpp"
 #include "config/app_config.hpp"
@@ -11,6 +12,7 @@
 #include "nodelist/nodelist_compiler.hpp"
 #include "ui/app_shell.hpp"
 #include "ui/keys.hpp"
+#include "ui/theme.hpp"
 #include "version.hpp"
 
 namespace {
@@ -134,27 +136,58 @@ int main(int argc, char* argv[]) {
             configPath = *found;
         }
 
-        const auto appConfig = amberedit::config::AppConfig::loadFromFile(configPath);
+        const auto loaded = amberedit::config::AppConfig::loadFromFile(configPath);
+        if (!loaded) {
+            std::cerr << "error: " << loaded.error() << "\n";
+            return 1;
+        }
+        const amberedit::config::AppConfig& appConfig = *loaded;
 
         // The keyboard layout, read here so that a `keys` file that cannot be
         // read is said out loud like any other startup failure. A config naming
         // none is AmberEdit's own layout, which is what most configs are.
-        const auto keys = appConfig.keysPath.empty()
-                              ? amberedit::ui::KeyMap::defaults()
-                              : amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
+        amberedit::ui::KeyMap keys = amberedit::ui::KeyMap::defaults();
+        if (!appConfig.keysPath.empty()) {
+            auto read = amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
+            if (!read) {
+                std::cerr << "error: " << read.error() << "\n";
+                return 1;
+            }
+            keys = std::move(*read);
+        }
+
+        // And the theme, for the same reason and before anything is drawn:
+        // every screen reads the palette while rendering, so a theme the config
+        // names and cannot be read has to be said here or nowhere.
+        if (!appConfig.themePath.empty()) {
+            const auto palette = amberedit::ui::theme::loadPalette(appConfig.themePath);
+            if (!palette) {
+                std::cerr << "error: " << palette.error() << "\n";
+                return 1;
+            }
+            amberedit::ui::theme::palette = *palette;
+        }
 
         // Before the terminal is taken over, which is the only place there is
         // left to say anything about either of them.
         compileNodelists(appConfig, forceCompile);
         compileEcholists(appConfig, forceCompile);
 
+        auto source = amberedit::app::makeAreaSource(appConfig);
+        if (!source) {
+            std::cerr << "error: " << source.error() << "\n";
+            return 1;
+        }
+
         amberedit::app::AreaManager manager(
-            amberedit::echolist::withEcholistDescriptions(
-                amberedit::app::makeAreaSource(appConfig), appConfig),
+            amberedit::echolist::withEcholistDescriptions(std::move(*source), appConfig),
             std::make_unique<amberedit::msgbase::MsgBaseLastReadStore>(
                 appConfig.lastreadUser, appConfig.userName),
             appConfig);
-        manager.reload();
+        if (const auto read = manager.reload(); !read) {
+            std::cerr << "error: " << read.error() << "\n";
+            return 1;
+        }
 
         return amberedit::ui::runApp(manager, appConfig, keys);
     } catch (const std::exception& e) {

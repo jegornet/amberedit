@@ -329,12 +329,11 @@ TemplateResult expandTemplate(const std::string& text, const TemplateContext& co
                 if (path.is_relative() && !context.includeDir.empty()) {
                     path = std::filesystem::path(context.includeDir) / path;
                 }
-                try {
-                    for (auto& included : config::text::splitLines(
-                             config::text::readFile(path.string()))) {
+                if (const auto text = config::text::readFile(path.string())) {
+                    for (auto& included : config::text::splitLines(*text)) {
                         result.lines.push_back(std::move(included));
                     }
-                } catch (const std::exception&) {
+                } else {
                     // A missing include is the template's problem, not the
                     // message's: say so where it would have gone.
                     result.lines.push_back("[template: cannot read " + path.string() +

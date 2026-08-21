@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "support/result.hpp"
+
 namespace amberedit::echolist {
 
 /// Whether the name is a zip archive's — the one thing an `echolist` line names
@@ -117,13 +119,14 @@ public:
     };
 
     /// Resolves the line, unpacks it where it names an archive, reads it and
-    /// decodes it. `charset` is what the line stated, empty for the locale's.
-    /// Throws std::runtime_error saying what was looked for and where.
-    [[nodiscard]] Loaded read(const std::string& spec, const std::string& charset);
+    /// decodes it, or says what was looked for and where. `charset` is what the
+    /// line stated, empty for the locale's.
+    [[nodiscard]] Result<Loaded> read(const std::string& spec,
+                                      const std::string& charset);
 
 private:
-    [[nodiscard]] Loaded readArchive(const SourceState& state,
-                                     const std::string& charset);
+    [[nodiscard]] Result<Loaded> readArchive(const SourceState& state,
+                                             const std::string& charset);
 
     std::string tempDir_;
     std::vector<std::string> unpacked_;

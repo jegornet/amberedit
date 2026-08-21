@@ -34,7 +34,7 @@ public:
     FtnMsgBase(const FtnMsgBase&) = delete;
     FtnMsgBase& operator=(const FtnMsgBase&) = delete;
 
-    bool open(const domain::AreaConfig& area) override;
+    [[nodiscard]] Result<void> open(const domain::AreaConfig& area) override;
     void close() override;
 
     /// Creates the base an area names, empty, and leaves it closed.
@@ -47,9 +47,9 @@ public:
     ///
     /// It refuses unless isAbsent() holds, so nothing that is already on disk
     /// is written over, and refuses an area whose type nothing states — there
-    /// is no base to probe and no format to guess at. false says why in
-    /// lastError() and leaves the disk as it was.
-    bool create(const domain::AreaConfig& area);
+    /// is no base to probe and no format to guess at. A failure says why and
+    /// leaves the disk as it was.
+    [[nodiscard]] Result<void> create(const domain::AreaConfig& area);
 
     /// Whether the area has a type and nothing at all stands at its path.
     ///
@@ -69,12 +69,11 @@ public:
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid) const override;
 
-    uint32_t write(const domain::MessageDraft& draft) override;
-    bool replace(uint32_t index, const domain::MessageDraft& draft) override;
-    bool remove(uint32_t index) override;
-    bool markSeen(uint32_t index) override;
-
-    [[nodiscard]] std::string lastError() const override { return lastError_; }
+    [[nodiscard]] Result<uint32_t> write(const domain::MessageDraft& draft) override;
+    [[nodiscard]] Result<void> replace(uint32_t index,
+                                       const domain::MessageDraft& draft) override;
+    [[nodiscard]] Result<void> remove(uint32_t index) override;
+    [[nodiscard]] Result<void> markSeen(uint32_t index) override;
 
     [[nodiscard]] bool isOpen() const { return driver_ != nullptr; }
 
@@ -94,7 +93,6 @@ private:
     domain::AreaConfig areaConfig_;
     encoding::CharsetDetector detector_;
     mutable encoding::IconvRecoder recoder_;
-    mutable std::string lastError_;
 };
 
 }  // namespace amberedit::msgbase

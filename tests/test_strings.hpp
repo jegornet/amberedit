@@ -1,8 +1,12 @@
 #pragma once
 
-#include <exception>
+#include <doctest/doctest.h>
+
 #include <string>
 #include <string_view>
+#include <utility>
+
+#include "support/result.hpp"
 
 namespace amberedit::test {
 
@@ -16,21 +20,33 @@ inline bool contains(std::string_view haystack, std::string_view text) {
     return haystack.find(text) != std::string_view::npos;
 }
 
-/// The message of the std::runtime_error `run` throws, or "" if it throws none.
+/// The reason a Result holds no value, or "" where it holds one.
 ///
-/// doctest's CHECK_THROWS_WITH compares the whole message and nothing less,
-/// which none of these assertions want: the messages carry a file-and-line
-/// prefix and run on past the part worth asserting. Catching the message and
-/// putting `contains` to it says the same thing and says what was thrown when
-/// it fails.
-template <typename F>
-std::string errorFrom(F&& run) {
-    try {
-        run();
-    } catch (const std::exception& e) {
-        return e.what();
-    }
-    return {};
+/// doctest has no matchers and none of these assertions wants a whole message
+/// compared: they carry a file-and-line prefix and run on past the part worth
+/// asserting. So this is paired with `contains` and CHECK_MESSAGE, which prints
+/// the message when the assertion fails.
+template <typename T>
+std::string errorOf(const Result<T>& result) {
+    return result ? std::string{} : result.error();
+}
+
+/// The value of a Result a test says must hold one.
+///
+/// REQUIRE and not CHECK: a test whose premise has broken stops there rather
+/// than going on to read a value that is not there. By value because the Result
+/// it comes out of is usually a temporary — and moved out of where it is one,
+/// which is what lets a Result of a unique_ptr through at all.
+template <typename T>
+T valueOf(Result<T>&& result) {
+    REQUIRE_MESSAGE(result.has_value(), errorOf(result));
+    return std::move(*result);
+}
+
+template <typename T>
+T valueOf(const Result<T>& result) {
+    REQUIRE_MESSAGE(result.has_value(), errorOf(result));
+    return *result;
 }
 
 }  // namespace amberedit::test

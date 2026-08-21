@@ -8,6 +8,7 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/screens/message_read_screen.hpp"
@@ -46,9 +47,10 @@ struct Letter {
 /// test chose is the only one a rule can be written against — and the numbers
 /// then say which message is which, which is what the reader is checked on.
 void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(fixture.area);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.area));
     REQUIRE(base != nullptr);
-    while (base->count() > 0) REQUIRE(base->remove(1));
+    while (base->count() > 0) REQUIRE(base->remove(1).has_value());
 
     for (size_t i = 0; i < letters.size(); ++i) {
         const Letter& letter = letters[i];
@@ -62,7 +64,7 @@ void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
     }
 
     fixture.manager.closeCurrentArea();
-    fixture.manager.reload();
+    static_cast<void>(fixture.manager.reload());
 }
 
 /// A config with a twit or two in it and nothing else to speak of. The user has
@@ -115,7 +117,7 @@ TEST_CASE("blank puts a notice in place of a twit's text [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Blank, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}});
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Blank does not move the reader: the message is opened, and it is its text
     // that is not on the screen.
@@ -138,7 +140,7 @@ TEST_CASE("Space shows a blanked twit after all [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Blank, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(bodyOf(fixture) == kNotice);
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character(' ')));
@@ -153,7 +155,7 @@ TEST_CASE("A twit shown once is hidden again on the next message [twit][squish]"
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Blank, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}, {"Ivan Ivanov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character(' ')));
     REQUIRE(bodyOf(fixture) != kNotice);
 
@@ -171,7 +173,7 @@ TEST_CASE("show leaves the twits alone [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Show, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Petr Petrov"}});
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     CHECK(showing(fixture) == 1);
     CHECK(bodyOf(fixture).find("Message number 1.") != std::string::npos);
@@ -182,7 +184,7 @@ TEST_CASE("skip walks forward past a run of twits [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
                 {{"Petr Petrov"}, {"Ivan Ivanov"}, {"Ivan Ivanov"}, {"Petr Petrov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(showing(fixture) == 1);
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
@@ -197,7 +199,7 @@ TEST_CASE("skip walks back past a run of twits [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
                 {{"Petr Petrov"}, {"Ivan Ivanov"}, {"Ivan Ivanov"}, {"Petr Petrov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
     REQUIRE(showing(fixture) == 4);
 
@@ -211,7 +213,7 @@ TEST_CASE("skip spares a twit written to the user themselves [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
                 {{"Petr Petrov"}, {"Ivan Ivanov", "Vasya Pupkin"}, {"Petr Petrov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
 
@@ -227,7 +229,7 @@ TEST_CASE("ignore walks past a twit written to the user [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Ignore, {"Ivan Ivanov"}));
     putMessages(fixture,
                 {{"Petr Petrov"}, {"Ivan Ivanov", "Vasya Pupkin"}, {"Petr Petrov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
 
@@ -240,7 +242,7 @@ TEST_CASE("Entering an area lands past the twits standing at its front "
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Ivan Ivanov"}, {"Petr Petrov"}});
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     CHECK(showing(fixture) == 3);
     CHECK(fixture.state.messageCursor == 2);
@@ -251,7 +253,7 @@ TEST_CASE("An area of nothing but twits is read as blank reads [twit][squish]") 
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Ivan Ivanov"}});
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // There is nowhere to skip to, and an area is not left unopened for it: the
     // message asked for is the one shown, its text behind the notice.
@@ -268,7 +270,7 @@ TEST_CASE("A twit picked out of the list opens the message after it [twit][squis
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture,
                 {{"Petr Petrov"}, {"Ivan Ivanov"}, {"Ivan Ivanov"}, {"Petr Petrov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     fixture.state.navigator.push(ScreenId::MessageList);
     fixture.state.messageCursor = 1;  // the first of the two twits
@@ -282,7 +284,7 @@ TEST_CASE("A run of twits at the end of an area is the end of it [twit][squish]"
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Petr Petrov"}, {"Ivan Ivanov"}, {"Ivan Ivanov"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(showing(fixture) == 1);
 
     // There is nothing further to read here, which is what walking off the end
@@ -298,7 +300,7 @@ TEST_CASE("kill takes the twits out of the area as it opens [twit][squish]") {
     putMessages(fixture,
                 {{"Petr Petrov"}, {"Ivan Ivanov"}, {"Ivan Ivanov"}, {"Petr Petrov"}});
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     CHECK(fixture.state.messageCount == 2);
     CHECK(fixture.state.base->header(1).from == "Petr Petrov");
@@ -312,7 +314,7 @@ TEST_CASE("kill on an area of nothing but twits empties it [twit][squish]") {
     AreaFixture fixture(base.path(), twitting(TwitMode::Kill, {"Ivan Ivanov"}));
     putMessages(fixture, {{"Ivan Ivanov"}, {"Ivan Ivanov"}});
 
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // Which is an empty area, and the reader opens on nothing at all — the
     // screen a first message is written from.
@@ -329,7 +331,7 @@ TEST_CASE("A twit is one by its subject as well [twit][squish]") {
     putMessages(fixture, {{"Petr Petrov", "All", "Buy my things"},
                           {"Petr Petrov", "All", "Everything on SALE today"},
                           {"Petr Petrov", "All", "Nothing to sell"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(showing(fixture) == 1);
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
@@ -347,7 +349,7 @@ TEST_CASE("A twit is one by the address it was written from [twit][squish]") {
     putMessages(fixture, {{"Petr Petrov", "All", "One", "2:5020/1042"},
                           {"Ivan Ivanov", "All", "Two", "2:5030/1042"},
                           {"Semen Semenov", "All", "Three", "2:5020/9999"}});
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
 

@@ -13,6 +13,7 @@
 #include "msgbase/raw_message.hpp"
 #include "temp_squish_base.hpp"
 #include "test_paths.hpp"
+#include "test_strings.hpp"
 
 using amberedit::config::text::startsWith;
 using amberedit::domain::AreaConfig;
@@ -144,7 +145,6 @@ TEST_CASE("FtnMsgBase opens a Squish base and counts messages [squish]") {
     REQUIRE(msgbase.open(localnetArea(base.path())));
     CHECK(msgbase.isOpen());
     CHECK(msgbase.count() > 0);
-    CHECK(msgbase.lastError().empty());
 
     msgbase.close();
     CHECK_FALSE(msgbase.isOpen());
@@ -246,7 +246,7 @@ TEST_CASE("The AREA: line a packet carries is service data [squish]") {
     draft.kludges = {"AREA:RU.LINUX", "MSGID: 192:168/3 5f3a1b2c"};
     // The same five characters in the message itself, which is a line of it.
     draft.lines = {"hello", "AREA:NOT.A.KLUDGE"};
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number != 0);
 
     const auto body = msgbase.body(number);
@@ -307,8 +307,9 @@ TEST_CASE("FtnMsgBase: reading before open() does not crash [squish]") {
 
 TEST_CASE("FtnMsgBase reports a missing base [squish]") {
     FtnMsgBase msgbase;
-    CHECK_FALSE(msgbase.open(localnetArea("/nonexistent/path/area")));
-    CHECK_FALSE(msgbase.lastError().empty());
+    const auto opened = msgbase.open(localnetArea("/nonexistent/path/area"));
+    CHECK_FALSE(opened.has_value());
+    CHECK_FALSE(opened.error().empty());
     CHECK_FALSE(msgbase.isOpen());
 }
 
@@ -322,14 +323,16 @@ TEST_CASE("FtnMsgBase refuses a base that is not there [squish]") {
     area.kind = amberedit::domain::AreaKind::Netmail;
 
     FtnMsgBase msgbase;
-    CHECK_FALSE(msgbase.open(area));
-    CHECK_FALSE(msgbase.lastError().empty());
+    const auto opened = msgbase.open(area);
+    CHECK_FALSE(opened.has_value());
+    CHECK_FALSE(opened.error().empty());
     CHECK_FALSE(msgbase.isOpen());
 
     // The same for an echo area, in case the two ever open differently.
     area.kind = amberedit::domain::AreaKind::Echo;
-    CHECK_FALSE(msgbase.open(area));
-    CHECK_FALSE(msgbase.lastError().empty());
+    const auto asEcho = msgbase.open(area);
+    CHECK_FALSE(asEcho.has_value());
+    CHECK_FALSE(asEcho.error().empty());
 }
 
 TEST_CASE("FtnMsgBase opens a base on a long path [squish]") {
@@ -350,7 +353,7 @@ TEST_CASE("FtnMsgBase opens a base on a long path [squish]") {
     REQUIRE(FtnMsgBase::probeType(area.path) == MsgBaseType::Sdm);
 
     FtnMsgBase msgbase;
-    CHECK(msgbase.open(area));
+    CHECK(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 0);
 
     std::error_code ec;
@@ -363,8 +366,9 @@ TEST_CASE("FtnMsgBase refuses to open a passthrough area [squish]") {
     area.type = MsgBaseType::Passthrough;
 
     FtnMsgBase msgbase;
-    CHECK_FALSE(msgbase.open(area));
-    CHECK_FALSE(msgbase.lastError().empty());
+    const auto opened = msgbase.open(area);
+    CHECK_FALSE(opened.has_value());
+    CHECK_FALSE(opened.error().empty());
 }
 
 TEST_CASE("FtnMsgBase::probeType works the format out from the files [squish]") {
@@ -383,8 +387,7 @@ TEST_CASE("Squish marks a message read and keeps it so [squish]") {
     // The fixture is a base as a tosser leaves one: nothing in it has been read.
     CHECK_FALSE(msgbase.header(1).seen);
 
-    REQUIRE(msgbase.markSeen(1));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.markSeen(1).has_value());
     CHECK(msgbase.header(1).seen);
     // Only the message asked for, and nothing else about it: MSGSEEN is not one
     // of the message's own attributes and must not turn up among them.
@@ -392,7 +395,7 @@ TEST_CASE("Squish marks a message read and keeps it so [squish]") {
     CHECK(msgbase.header(1).attributes == msgbase.header(2).attributes);
 
     // Marking a message already marked is not an error and writes nothing.
-    REQUIRE(msgbase.markSeen(1));
+    REQUIRE(msgbase.markSeen(1).has_value());
     CHECK(msgbase.header(1).seen);
 
     // The mark is on the disk, not in this object.
@@ -401,8 +404,8 @@ TEST_CASE("Squish marks a message read and keeps it so [squish]") {
     CHECK(again.header(1).seen);
     CHECK_FALSE(again.header(2).seen);
 
-    CHECK_FALSE(msgbase.markSeen(0));
-    CHECK_FALSE(msgbase.markSeen(msgbase.count() + 1));
+    CHECK_FALSE(msgbase.markSeen(0).has_value());
+    CHECK_FALSE(msgbase.markSeen(msgbase.count() + 1).has_value());
 }
 
 TEST_CASE("A changed Squish message is still marked read [squish]") {
@@ -412,14 +415,14 @@ TEST_CASE("A changed Squish message is still marked read [squish]") {
     FtnMsgBase msgbase;
     REQUIRE(msgbase.open(localnetArea(base.path())));
     REQUIRE(msgbase.count() > 0);
-    REQUIRE(msgbase.markSeen(1));
+    REQUIRE(msgbase.markSeen(1).has_value());
 
     amberedit::domain::MessageDraft draft;
     draft.from = "Yegor Gluhov";
     draft.to = "All";
     draft.subject = "Rewritten";
     draft.lines = {"A second version of the same message."};
-    REQUIRE(msgbase.replace(1, draft));
+    REQUIRE(msgbase.replace(1, draft).has_value());
 
     CHECK(msgbase.header(1).subject == "Rewritten");
     CHECK(msgbase.header(1).seen);
@@ -431,7 +434,7 @@ TEST_CASE("FtnMsgBase opens a base with no stated type [squish]") {
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() > 0);
 }
 
@@ -501,7 +504,7 @@ TEST_CASE("A message's own CHRS decides its header, not the default [squish]") {
     for (const char* fallback : {"CP866", "KOI8-R", "CP1251"}) {
         INFO("default_charset = " << fallback);
         FtnMsgBase msgbase(fallback);
-        REQUIRE(msgbase.open(area));
+        REQUIRE(msgbase.open(area).has_value());
         REQUIRE(msgbase.count() == 3);
 
         // Whatever the default is, a message that states its charset is read
@@ -554,9 +557,8 @@ TEST_CASE("FtnMsgBase writes a message and reads it back [squish]") {
     draft.lines = {"Привет!", "", "--- AmberEdit",
                    " * Origin: AmberEdit test (192:168/2)"};
 
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number == before + 1);
-    CHECK(msgbase.lastError().empty());
     CHECK(msgbase.count() == before + 1);
 
     // The header comes back as it went in, converted both ways: what was
@@ -610,7 +612,7 @@ TEST_CASE("A draft naming no charset is written in the area's own [squish]") {
     draft.lines = {"Привет!"};
     REQUIRE(draft.charset.empty());
 
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number != 0);
 
     // Written in KOI8-R and read back in KOI8-R, which is the same round trip
@@ -650,7 +652,7 @@ TEST_CASE("A Squish header short of a zone is read out of its kludges [squish]")
                      "MSGID: 192:168/2.5 68a1b2c3"};
     draft.lines = {"Hello!"};
 
-    const uint32_t number = msgbase.write(draft);
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
     REQUIRE(number != 0);
 
     const auto header = msgbase.header(number);
@@ -679,8 +681,7 @@ TEST_CASE("A changed message is written over the one it was [squish]") {
     draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
     draft.lines = {"A shorter message."};
 
-    REQUIRE(msgbase.replace(1, draft));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.replace(1, draft).has_value());
 
     // The area is the same length, the message is where it was, and every
     // other message is where it was.
@@ -733,8 +734,7 @@ TEST_CASE("A changed message that has outgrown its frame moves to another [squis
     // it lies in cannot hold it and another has to be found.
     draft.lines.assign(200, "A line of a message that has grown a good deal.");
 
-    REQUIRE(msgbase.replace(1, draft));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.replace(1, draft).has_value());
     CHECK(msgbase.count() == before);
     CHECK(msgbase.uidOf(1) == uid);
     CHECK(msgbase.body(1).lines.size() > 100);
@@ -772,8 +772,7 @@ TEST_CASE("FtnMsgBase deletes a message [squish]") {
     const std::string third = msgbase.header(3).subject;
     REQUIRE(second != third);
 
-    REQUIRE(msgbase.remove(2));
-    CHECK(msgbase.lastError().empty());
+    REQUIRE(msgbase.remove(2).has_value());
     CHECK(msgbase.count() == before - 1);
     // Everything after it moved up one, so the number that named it now names
     // what followed it.
@@ -781,10 +780,11 @@ TEST_CASE("FtnMsgBase deletes a message [squish]") {
 
     // There is no message past the end to delete, and saying so is not the
     // same as deleting one.
-    CHECK_FALSE(msgbase.remove(before));
-    CHECK_FALSE(msgbase.lastError().empty());
+    const auto removed = msgbase.remove(before);
+    CHECK_FALSE(removed.has_value());
+    CHECK_FALSE(removed.error().empty());
     CHECK(msgbase.count() == before - 1);
-    CHECK_FALSE(msgbase.remove(0));
+    CHECK_FALSE(msgbase.remove(0).has_value());
 }
 
 TEST_CASE("FtnMsgBase reads the thread links, and nothing where there are none "

@@ -13,6 +13,7 @@
 #include "ports/i_area_source.hpp"
 #include "ports/i_lastread_store.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
 #include "ui/forward_dialog.hpp"
@@ -81,7 +82,9 @@ class TwoAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     TwoAreaSource(domain::AreaConfig first, domain::AreaConfig second)
         : areas_{std::move(first), std::move(second)} {}
-    std::vector<domain::AreaConfig> loadAreas() override { return areas_; }
+    amberedit::Result<std::vector<domain::AreaConfig>> loadAreas() override {
+        return areas_;
+    }
 
 private:
     std::vector<domain::AreaConfig> areas_;
@@ -154,13 +157,14 @@ struct TwoAreaFixture {
           manager(std::make_unique<TwoAreaSource>(source, target),
                   std::unique_ptr<PerAreaLastReadStore>(lastRead), config),
           state(manager, config) {
-        manager.reload();
+        static_cast<void>(manager.reload());
     }
 
     /// The messages an area holds, read off a base opened for the purpose.
     /// Nothing else may be open at the time: the manager keeps one base.
     uint32_t countIn(const domain::AreaConfig& area) {
-        amberedit::ports::IMsgBase* base = manager.openArea(area);
+        amberedit::ports::IMsgBase* base =
+            amberedit::test::valueOf(manager.openArea(area));
         REQUIRE(base != nullptr);
         const uint32_t count = base->count();
         manager.closeCurrentArea();
@@ -231,13 +235,14 @@ struct TwoAreaFixture {
         // there is nothing else here a config read from text would settle
         // differently.
         if (!groups.empty()) {
-            cfg.areaGroups = amberedit::config::AppConfig::loadFromString(
-                                 "tosser_config /dev/null\n"
-                                 "tosser_config_format fidoconfig\n"
-                                 "default_charset CP866\n"
-                                 "compose_charset CP866\n" +
-                                 groups)
-                                 .areaGroups;
+            cfg.areaGroups =
+                amberedit::test::valueOf(amberedit::config::AppConfig::loadFromString(
+                                             "tosser_config /dev/null\n"
+                                             "tosser_config_format fidoconfig\n"
+                                             "default_charset CP866\n"
+                                             "compose_charset CP866\n" +
+                                             groups))
+                    .areaGroups;
         }
         return cfg;
     }
@@ -368,9 +373,10 @@ uint32_t writeInto(TwoAreaFixture& fixture, const domain::AreaConfig& area,
     draft.kludges = std::move(kludges);
     draft.lines = {"hello from the packet"};
 
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(area);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(area));
     REQUIRE(base != nullptr);
-    const uint32_t number = base->write(draft);
+    const uint32_t number = amberedit::test::valueOf(base->write(draft));
     REQUIRE(number != 0);
     fixture.manager.closeCurrentArea();
     return number;
@@ -378,7 +384,7 @@ uint32_t writeInto(TwoAreaFixture& fixture, const domain::AreaConfig& area,
 
 /// The reader on the message just written — the one the AREA: line is on.
 void readMessage(TwoAreaFixture& fixture, uint32_t number) {
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
     REQUIRE(message_read::loadMessage(fixture.state, number));
     REQUIRE(fixture.state.readBody);
 }
@@ -398,7 +404,7 @@ std::vector<std::string> visibleLines(const amberedit::ui::AppState& state) {
 
 TEST_CASE("n asks which area the reply goes into [other_area]") {
     TwoAreaFixture fixture;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
     REQUIRE(fixture.state.navigator.current() == ScreenId::MessageRead);
 
     message_read::handleEvent(fixture.state, Event::Character('n'));
@@ -422,7 +428,7 @@ TEST_CASE("n asks which area the reply goes into [other_area]") {
 
 TEST_CASE("The picker searches by name, as the area list does [other_area]") {
     TwoAreaFixture fixture;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
     message_read::handleEvent(fixture.state, Event::Character('n'));
     REQUIRE(fixture.state.areaPicker);
 
@@ -446,7 +452,7 @@ TEST_CASE("A reply moved into another area is written there and read here "
     const uint32_t unreadBefore =
         fixture.manager.areas()[static_cast<size_t>(fixture.rowOf("test.other"))].unread;
 
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const uint32_t reading = state.readHeader->number;
     const std::string answering = state.readHeader->from;
@@ -519,7 +525,7 @@ TEST_CASE("A moved reply is written under the settings of the area it goes into 
                            "endgroup\n");
     auto& state = fixture.state;
 
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     // In the area being read, the settings are that area's.
     CHECK(state.areaConfig.origin == "Here at home");
@@ -545,7 +551,8 @@ TEST_CASE("A moved reply is written under the settings of the area it goes into 
     compose::saveMessage(state);
 
     // The stored message carries the target area's origin line.
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(fixture.target);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
     REQUIRE(base != nullptr);
     const uint32_t last = base->count();
     const auto body = base->body(last);
@@ -564,7 +571,7 @@ TEST_CASE("Writing and deleting keep the area list's counts honest [other_area]"
     const int row = fixture.rowOf("localnet");
     const uint32_t before = fixture.manager.areas()[static_cast<size_t>(row)].total;
 
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
 
     // An ordinary reply, written where it was read.
@@ -586,7 +593,7 @@ TEST_CASE("Writing and deleting keep the area list's counts honest [other_area]"
 TEST_CASE("Picking the area being read is a reply, not a move [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
 
     message_read::handleEvent(state, Event::Character('n'));
     REQUIRE(state.areaPicker);
@@ -610,7 +617,7 @@ TEST_CASE("A moved reply dropped leaves both areas as they were [other_area]") {
     auto& state = fixture.state;
 
     const uint32_t thereBefore = fixture.countIn(fixture.target);
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const uint32_t reading = state.readHeader->number;
 
@@ -634,7 +641,7 @@ TEST_CASE("A moved reply dropped leaves both areas as they were [other_area]") {
 TEST_CASE("The reply_to button asks the same question the key does [other_area]") {
     TwoAreaFixture fixture;
     fixture.config.readerMenu = {amberedit::config::MenuCommand::ReplyTo};
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
 
     // Drawn so that the button knows where it landed, then clicked in the
     // middle of it and answered the way the shell answers it.
@@ -664,7 +671,7 @@ TEST_CASE("m asks what is to become of the message before asking where "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
 
     message_read::handleEvent(state, Event::Character('m'));
     REQUIRE(state.forwardPicker);
@@ -698,7 +705,7 @@ TEST_CASE("The area dialog says which of the three it is asking for "
 
     for (const auto& expected : titles) {
         TwoAreaFixture fixture;
-        REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+        REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
         fixture.askForward(expected.first);
 
         REQUIRE(fixture.state.areaPicker);
@@ -713,7 +720,7 @@ TEST_CASE("The area dialog says which of the three it is asking for "
 TEST_CASE("The three answers are chosen by their initials as well [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
 
     message_read::handleEvent(state, Event::Character('m'));
     REQUIRE(state.forwardPicker);
@@ -736,7 +743,7 @@ TEST_CASE("A message forwarded into another area goes there as a new one "
     const uint32_t hereBefore = fixture.countIn(fixture.source);
     const uint32_t thereBefore = fixture.countIn(fixture.target);
 
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const uint32_t reading = state.readHeader->number;
     const std::string subject = state.readHeader->subject;
@@ -810,7 +817,7 @@ TEST_CASE("A forward dropped leaves both areas as they were [other_area]") {
     auto& state = fixture.state;
 
     const uint32_t thereBefore = fixture.countIn(fixture.target);
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
 
     fixture.askForward(Mode::Forward);
     REQUIRE(state.areaPicker);
@@ -840,7 +847,7 @@ TEST_CASE("A message copied into another area stands in both [other_area]") {
     const uint32_t unreadBefore =
         fixture.manager.areas()[static_cast<size_t>(fixture.rowOf("test.other"))].unread;
 
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const domain::MessageHeader original = *state.readHeader;
     const std::vector<std::string> text = visibleLines(state);
@@ -868,7 +875,8 @@ TEST_CASE("A message copied into another area stands in both [other_area]") {
     // MSGID it goes by: what was copied is this message and not a new one
     // carrying its words.
     CHECK(fixture.countIn(fixture.source) == hereBefore);
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(fixture.target);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
     REQUIRE(base != nullptr);
     REQUIRE(base->count() == thereBefore + 1);
     const domain::MessageHeader copied = base->header(thereBefore + 1);
@@ -898,7 +906,7 @@ TEST_CASE("A message moved into another area is gone from this one [other_area]"
     const uint32_t hereBefore = fixture.countIn(fixture.source);
     const uint32_t thereBefore = fixture.countIn(fixture.target);
 
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const domain::MessageHeader original = *state.readHeader;
     const std::vector<std::string> text = visibleLines(state);
@@ -921,7 +929,8 @@ TEST_CASE("A message moved into another area is gone from this one [other_area]"
         fixture.manager.areas()[static_cast<size_t>(fixture.rowOf("test.other"))].total ==
         thereBefore + 1);
 
-    amberedit::ports::IMsgBase* base = fixture.manager.openArea(fixture.target);
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
     REQUIRE(base != nullptr);
     REQUIRE(base->count() == thereBefore + 1);
     const domain::MessageHeader moved = base->header(thereBefore + 1);
@@ -944,7 +953,7 @@ TEST_CASE("A move into an area that will not take it keeps the message "
     auto& state = fixture.state;
 
     const uint32_t hereBefore = fixture.countIn(fixture.source);
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const uint32_t reading = state.readHeader->number;
 
@@ -968,7 +977,7 @@ TEST_CASE("Moving a message into the area it is in does nothing [other_area]") {
     auto& state = fixture.state;
 
     const uint32_t hereBefore = fixture.countIn(fixture.source);
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     const uint32_t reading = state.readHeader->number;
 
@@ -994,7 +1003,7 @@ TEST_CASE("Moving a message into the area it is in does nothing [other_area]") {
 TEST_CASE("The forward button asks the same question m does [other_area]") {
     TwoAreaFixture fixture;
     fixture.config.readerMenu = {amberedit::config::MenuCommand::Forward};
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
 
     message_read::openMenu(fixture.state);
     REQUIRE(fixture.state.menuView);
@@ -1030,7 +1039,7 @@ TEST_CASE("The picker opens on the first area, not on the one being read "
     REQUIRE(fixture.rowOf("test.other") == 0);
 
     // Read the area that sorts last.
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
     REQUIRE(fixture.rowOf("localnet") == 1);
 
     message_read::handleEvent(fixture.state, Event::Character('n'));
@@ -1048,7 +1057,7 @@ TEST_CASE("reply_to_area is where the reply picker opens [other_area]") {
     // Written in another case than the area carries, since an echoid names the
     // same echo however it is spelled.
     fixture.config.replyToArea = "TEST.OTHER";
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
 
     message_read::handleEvent(fixture.state, Event::Character('n'));
     REQUIRE(fixture.state.areaPicker);
@@ -1066,7 +1075,7 @@ TEST_CASE("reply_to_area is the reply's alone, and only where it names an area "
           "[other_area]") {
     TwoAreaFixture fixture;
     fixture.config.replyToArea = "test.other";
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
     REQUIRE(fixture.rowOf("test.other") != 0);
 
     // A forward, a move and a copy carry the message itself somewhere; there is
@@ -1086,7 +1095,7 @@ TEST_CASE("A reply_to_area naming no area opens the picker where it always did "
     // of an area are resolved — an area group may state this one.
     TwoAreaFixture fixture;
     fixture.config.replyToArea = "no.such.area";
-    REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
 
     message_read::handleEvent(fixture.state, Event::Character('n'));
     REQUIRE(fixture.state.areaPicker);
@@ -1100,7 +1109,7 @@ TEST_CASE("The picker lists the areas in the area list's own order [other_area]"
     // says, the dialog says the same, ascending or descending.
     for (const bool descending : {false, true}) {
         TwoAreaFixture fixture({{amberedit::config::AreaSortKey::Echoid, descending}});
-        REQUIRE(message_list::enterArea(fixture.state, fixture.source));
+        REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
         message_read::handleEvent(fixture.state, Event::Character('n'));
         REQUIRE(fixture.state.areaPicker);
 
@@ -1401,7 +1410,7 @@ TEST_CASE("A forward opens on the line the template positions the cursor on "
           "[other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
-    REQUIRE(message_list::enterArea(state, fixture.source));
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
 
     // A window with three rows to write in, so that the message being passed on
     // is longer than what fits and there is something to scroll.

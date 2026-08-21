@@ -6,6 +6,8 @@
 #include <string_view>
 #include <vector>
 
+#include "support/result.hpp"
+
 namespace amberedit::config::text {
 
 /// Case folding and whitespace, for ASCII and deliberately for nothing else.
@@ -160,7 +162,21 @@ inline std::vector<std::string> splitLines(std::string_view text) {
     return lines;
 }
 
-/// Reads a whole file. Throws std::runtime_error if it is unavailable.
-std::string readFile(const std::string& path);
+/// Refuses a path that names a directory, which is what every read of a whole
+/// file has to do before it starts reading.
+///
+/// A directory opens as a stream on both systems, and then the two libraries
+/// part company: libstdc++ throws out of the first read — from inside
+/// basic_filebuf, past any exception mask, so there is no catching it where it
+/// happens — and libc++ hands back an empty string and sets no flag at all.
+/// Neither is an answer a caller can do anything with, and a config that points
+/// a setting at a directory is an ordinary enough mistake to be worth saying
+/// out loud. So the question is asked here, through the non-throwing filesystem
+/// overload, and every system answers the same way.
+[[nodiscard]] Result<void> insistItIsAFile(const std::string& path);
+
+/// Reads a whole file, or says why it could not be read — naming the path,
+/// which is the one thing a caller cannot add and a reader needs.
+[[nodiscard]] Result<std::string> readFile(const std::string& path);
 
 }  // namespace amberedit::config::text
