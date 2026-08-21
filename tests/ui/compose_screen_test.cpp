@@ -15,9 +15,10 @@
 #include "nodelist/nodelist_writer.hpp"
 #include "ports/i_area_source.hpp"
 #include "temp_dir.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
-#include "ui/confirm_dialog.hpp"
 #include "ui/attributes_dialog.hpp"
+#include "ui/confirm_dialog.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -943,7 +944,8 @@ TEST_CASE("Ctrl-W takes the word before the cursor out of the message "
 
     // On the layout rather than on the chord: a file that has moved it moves it
     // here too, and the key it was on is a key this screen no longer knows.
-    state.keys = amberedit::ui::KeyMap::parse("F6 compose.delete-word\n", "keys");
+    state.keys = amberedit::test::valueOf(
+        amberedit::ui::KeyMap::parse("F6 compose.delete-word\n", "keys"));
     REQUIRE(compose::handleEvent(state, Event::F6));
     CHECK(state.edit.lines[0] == "one ");
     CHECK_FALSE(compose::handleEvent(state, ctrl('w')));

@@ -8,6 +8,7 @@
 #include "nodelist/nodelist_writer.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
@@ -1257,10 +1258,10 @@ TEST_CASE("The reader answers the layout it was given [messageread][keys]") {
     AreaFixture fixture(base.path());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area));
 
-    fixture.state.keys = amberedit::ui::KeyMap::parse(
-        "F3 reader.find\n"
-        "x  reader.list\n",
-        "keys");
+    fixture.state.keys =
+        amberedit::test::valueOf(amberedit::ui::KeyMap::parse("F3 reader.find\n"
+                                                              "x  reader.list\n",
+                                                              "keys"));
 
     // What the layout names, on the key it names it on.
     REQUIRE(message_read::handleEvent(fixture.state, Event::F3));

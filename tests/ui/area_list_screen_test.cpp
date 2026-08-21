@@ -11,6 +11,7 @@
 #include "app/area_manager.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
@@ -161,7 +162,8 @@ TEST_CASE("The bare letter still types into the quick search [arealist]") {
 TEST_CASE("A letter a layout has made a command stops typing into the search "
           "[arealist][keys]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
-    fixture.state.keys = amberedit::ui::KeyMap::parse("t arealist.rescan\n", "keys");
+    fixture.state.keys = amberedit::test::valueOf(
+        amberedit::ui::KeyMap::parse("t arealist.rescan\n", "keys"));
 
     // What a bare letter costs when it is bound here: the command is answered
     // before the search, so the letter is no longer one an area can be found by.

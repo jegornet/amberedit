@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "msgbase/null_lastread_store.hpp"
+#include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/keys.hpp"
 #include "ui/term/element.hpp"
@@ -76,11 +77,11 @@ TEST_CASE("The hint bar names the commands of the screen it stands under [hintba
 TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out "
           "[hintbar][keys]") {
     Fixture fixture(ScreenId::MessageRead);
-    fixture.state.keys = KeyMap::parse(
-        "F4 reader.reply\n"
-        "Ctrl-E reader.new\n"
-        "x reader.list\n",
-        "keys");
+    fixture.state.keys =
+        amberedit::test::valueOf(KeyMap::parse("F4 reader.reply\n"
+                                               "Ctrl-E reader.new\n"
+                                               "x reader.list\n",
+                                               "keys"));
 
     // Three of the six are bound, and the row is the three of them: a label
     // with no key in front of it would be a label saying to press nothing.
@@ -93,16 +94,16 @@ TEST_CASE("Where a command has several keys the shortest one is shown "
 
     // A bare key beats a chord, a chord beats a function key, and Ctrl beats
     // Alt — whichever order the layout wrote them in.
-    fixture.state.keys = KeyMap::parse(
-        "F4 reader.reply\n"
-        "Ctrl-J reader.reply\n"
-        "q reader.reply\n"
-        "F6 reader.new\n"
-        "Alt-N reader.new\n"
-        "F7 reader.list\n"
-        "Alt-L reader.list\n"
-        "Ctrl-L reader.list\n",
-        "keys");
+    fixture.state.keys =
+        amberedit::test::valueOf(KeyMap::parse("F4 reader.reply\n"
+                                               "Ctrl-J reader.reply\n"
+                                               "q reader.reply\n"
+                                               "F6 reader.new\n"
+                                               "Alt-N reader.new\n"
+                                               "F7 reader.list\n"
+                                               "Alt-L reader.list\n"
+                                               "Ctrl-L reader.list\n",
+                                               "keys"));
 
     CHECK(hint_bar::text(fixture.state) == "q reply  alt-n new  ctrl-l list");
 }
@@ -185,7 +186,8 @@ TEST_CASE("A click on a hint asks for the key it is written under [hintbar]") {
 
     // A layout that has moved the command moves what the click asks for with
     // it: the hint is written under the key it presses, whichever that is.
-    fixture.state.keys = KeyMap::parse("F5 reader.reply-to\n", "keys");
+    fixture.state.keys =
+        amberedit::test::valueOf(KeyMap::parse("F5 reader.reply-to\n", "keys"));
     term::render(screen, hint_bar::render(fixture.state));
     REQUIRE(fixture.state.hintSpots.size() == 1);
     const auto moved = hint_bar::clicked(

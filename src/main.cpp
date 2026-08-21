@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "app/area_manager.hpp"
 #include "config/app_config.hpp"
@@ -145,9 +146,15 @@ int main(int argc, char* argv[]) {
         // The keyboard layout, read here so that a `keys` file that cannot be
         // read is said out loud like any other startup failure. A config naming
         // none is AmberEdit's own layout, which is what most configs are.
-        const auto keys = appConfig.keysPath.empty()
-                              ? amberedit::ui::KeyMap::defaults()
-                              : amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
+        amberedit::ui::KeyMap keys = amberedit::ui::KeyMap::defaults();
+        if (!appConfig.keysPath.empty()) {
+            auto read = amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
+            if (!read) {
+                std::cerr << "error: " << read.error() << "\n";
+                return 1;
+            }
+            keys = std::move(*read);
+        }
 
         // And the theme, for the same reason and before anything is drawn:
         // every screen reads the palette while rendering, so a theme the config
