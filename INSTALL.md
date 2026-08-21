@@ -8,9 +8,14 @@ macOS on both architectures. Building it yourself is the rest of this file.
 ## What it needs
 
 CMake ≥ 3.16, a C++17 compiler (GCC 8, Clang 7, Apple Clang 11), iconv (in libc
-or libiconv), zlib and the wide-character ncurses, plus doctest if the tests are
-to be built. Nothing is downloaded during the build. There are no other
-dependencies.
+or libiconv), zlib, tl::expected and the wide-character ncurses, plus doctest if
+the tests are to be built. Nothing is downloaded during the build. There are no
+other dependencies.
+
+tl::expected and doctest are header-only and wanted only while building; the
+packages are `expected-devel` and `doctest-devel` on RHEL and Fedora,
+`libexpected-dev` and `doctest-dev` on Debian and Ubuntu, `tl-expected` and
+`doctest` in Homebrew.
 
 That floor is chosen so that RHEL 8 and its rebuilds build AmberEdit out of the
 box with nothing but the stock toolchain — no devtoolset, no newer CMake.
@@ -18,10 +23,13 @@ box with nothing but the stock toolchain — no devtoolset, no newer CMake.
 ## Building
 
 ```bash
-# doctest is only for the tests; on RHEL and its rebuilds it comes from EPEL.
-sudo dnf install epel-release                                              # RHEL / Rocky / Alma
-sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel doctest-devel  # RHEL / Fedora
-sudo apt install g++ cmake git libncurses-dev zlib1g-dev doctest-dev       # Debian / Ubuntu
+# On RHEL and its rebuilds expected-devel and doctest-devel come from EPEL;
+# on Ubuntu libexpected-dev is in universe.
+sudo dnf install epel-release                                    # RHEL / Rocky / Alma
+sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
+                 expected-devel doctest-devel                    # RHEL / Fedora
+sudo apt install g++ cmake git libncurses-dev zlib1g-dev \
+                 libexpected-dev doctest-dev                     # Debian / Ubuntu
 
 git clone https://github.com/jegornet/amberedit && cd amberedit
 
@@ -68,8 +76,9 @@ The ncurses Apple ships is 5.7 and has no wide characters at all, so a newer one
 is needed:
 
 ```bash
-brew install ncurses doctest
-cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix doctest)"
+brew install ncurses tl-expected doctest
+cmake -S . -B build \
+      -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest)"
 ```
 
 ## Running it

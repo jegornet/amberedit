@@ -52,8 +52,9 @@ cmake --build build -j
 Both must be clean before anything is called done, and the whole thing must
 build from a fresh clone with no network. The build produces one binary; the
 external inputs are the wide ncurses, iconv, zlib — for the zipped nodelists and
-echolists AmberEdit unpacks itself — and doctest for the tests, all of them found
-on the system and none of them fetched.
+echolists AmberEdit unpacks itself — tl::expected, which every fallible operation
+answers with, and doctest for the tests, all of them found on the system and none
+of them fetched.
 
 Test cases carry their tags inside the name — `TEST_CASE("... [nodelist][ui]")` —
 because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
@@ -120,7 +121,8 @@ archive.
   `%check` fails three charset tests and nothing says why.
 - `debian/` — deb, built for Debian stable and Ubuntu 22.04 and 24.04. `dh` runs
   the tests as part of the build; `doctest-dev` is the build dependency and is
-  spelled the same on all four.
+  spelled the same on all four. `libexpected-dev` is in *universe* on jammy and
+  noble — the official images enable it and a minimal chroot does not.
 - `.github/workflows/release.yml` — everything a `v*` tag produces. It checks the
   tag against `project(AmberEdit VERSION ...)` before building anything: a tag
   disagreeing with the source is a release nobody can rebuild.
@@ -132,11 +134,23 @@ So C++20 does not go back in. The three corners that keep wanting to:
 map or set (use `count(k) != 0`). `.clang-tidy` leaves out the three checks that
 would argue for the C++20 spellings for exactly that reason.
 
-Three things in the build follow from the same floor:
+Four things in the build follow from the same floor:
 
 - GCC 8 keeps `std::filesystem` in a separate `libstdc++fs`. `CMakeLists.txt`
   finds out by linking, not by version, and puts the result in the
   `amberedit_filesystem` interface target that `amberedit_core` exports.
+- **`Result<T>` is `tl::expected` and not `std::expected`, and that too is the
+  floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
+  library is the only way the project gets the type at all — and it is packaged
+  on every target under one header and one CMake package: `expected-devel` on
+  EPEL 8 and 9 and Fedora, `libexpected-dev` on bookworm, trixie, jammy and
+  noble, `tl-expected` in Homebrew. **What may be used of it is the 1.0.0 API
+  and no more**, because bookworm and jammy carry 1.0.0: `has_value()`,
+  `operator bool`, `operator*`, `error()`, `value_or()` and `tl::make_unexpected`.
+  Not `transform`, not `transform_error`, and not the deduced `tl::unexpected` —
+  all three are newer, all three compile on Fedora and on a developer's Mac, and
+  all three fail the two oldest debs. `support/result.hpp` says the same thing
+  where the type is declared.
 - **The tests are on doctest, and that is a packaging decision rather than a
   taste.** Nothing is fetched, so a package build — which has no network — gets
   the tests too, and doctest is the only framework every target packages under
@@ -210,6 +224,9 @@ Domain (Area, Message, FtnAddress) + Ports (IMsgBase, ILastReadStore, IAreaConfi
 Adapters (FtnMsgBase over the msgbase/ format drivers, AppConfig,
           FidoconfigParser, AreasBbsParser, CharsetDetector, IconvRecoder,
           MsgBaseLastReadStore)
+
+Support (Result) — the bottom. It includes nothing of the project and
+                   every layer above may include it.
 ```
 
 `nodelist/` and `echolist/` stand beside the adapters and lean on the domain, on

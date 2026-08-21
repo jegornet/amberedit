@@ -32,6 +32,10 @@ BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(ncursesw)
 # zlib to unpack zipped nodelists and echolists
 BuildRequires:  zlib-devel
+# tl::expected, which every fallible operation in AmberEdit answers with.
+# Header-only, so it is wanted at build time and never at run time. From EPEL on
+# RHEL, as doctest is — std::expected would need C++23 and the floor is GCC 8.
+BuildRequires:  expected-devel
 
 # The single-byte charsets FidoNet runs on — CP866, CP437, KOI8-R — are not in
 # the base glibc on RHEL 9 and later or on Fedora: the gconv modules for them
