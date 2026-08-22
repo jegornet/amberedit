@@ -80,7 +80,7 @@ inline constexpr Color kText{254};  // #e4e4e4, off-white
 /// red of a message that has not gone out.
 inline constexpr Color kMsglistUnread{40};
 inline constexpr Color kLink{33};        // #0087ff, blue
-inline constexpr Color kQuoteEven{230};  // #ffffd7, cream
+inline constexpr Color kQuoteEven{231};  // #ffffff, white
 inline constexpr Color kQuoteOdd{228};   // #ffff87, light yellow
 inline constexpr Color kKludge{242};     // #6c6c6c, dark grey
 inline constexpr Color kTrailer{249};    // #b2b2b2, light grey
