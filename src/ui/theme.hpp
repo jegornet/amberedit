@@ -15,7 +15,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-two constants for the thirty-seven roles below. Each is named after
+/// Twenty-three constants for the thirty-eight roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -62,6 +62,10 @@ inline constexpr Color kDialogHint{244};  // #808080, mid grey
 /// The frame round a box. Between the fill it stands on and the text inside it,
 /// so the box is drawn plainly without the frame being the thing that is read.
 inline constexpr Color kDialogBorder{240};  // #585858, dark grey
+/// What a box casts on the screen behind it: the only thing darker than this
+/// palette's own background, which is what a shadow on a screen this dark comes
+/// to. A theme on paper puts a grey here instead.
+inline constexpr Color kDialogShadow{16};  // #000000, black
 inline constexpr Color kHeader{254};        // #e4e4e4, off-white
 /// #00d700, green — not one of the colors above, a row nobody has read yet
 /// being the one thing in the message list that has to be seen without being
@@ -183,6 +187,14 @@ struct Palette {
     /// standing in the rules are lit — `dialog_title` at the top, `dialog_hint`
     /// or `error` at the bottom.
     Color dialogBorder = builtin_theme::kDialogBorder;
+    /// The shadow a box casts on what it covers — two columns to the right of it
+    /// and one row below, the offset a shadow takes when a cell is twice as tall
+    /// as it is wide. A fill and nothing else: the strips it falls on are wiped
+    /// to a blank in it, so the screen underneath does not read as text lit from
+    /// behind. Its own role because it is the one color drawn *outside* a box
+    /// that still belongs to it, and because how far a theme is willing to
+    /// darken what is behind a dialog is the theme's business.
+    Color dialogShadow = builtin_theme::kDialogShadow;
     /// The message header block — the From/To/Subj labels and their values.
     Color header = builtin_theme::kHeader;
     /// A From or To naming the user themselves.

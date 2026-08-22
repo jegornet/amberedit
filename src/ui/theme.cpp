@@ -21,7 +21,7 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 37> kFields{{
+const std::array<std::pair<std::string_view, Field>, 38> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
@@ -38,6 +38,7 @@ const std::array<std::pair<std::string_view, Field>, 37> kFields{{
     {"dialog_field", &Palette::dialogField},
     {"dialog_flash", &Palette::dialogFlash},
     {"dialog_border", &Palette::dialogBorder},
+    {"dialog_shadow", &Palette::dialogShadow},
     {"header", &Palette::header},
     {"own_name", &Palette::ownName},
     {"msglist_unread", &Palette::msglistUnread},

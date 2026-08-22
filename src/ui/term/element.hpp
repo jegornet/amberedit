@@ -103,6 +103,16 @@ protected:
 /// own fill down over them in the same breath.
 [[nodiscard]] Element clear_under(Element child);
 
+/// The element with a shadow falling `dx` columns to the right of it and `dy`
+/// rows below, in `color`. It takes no room of its own: the shadow is cast on
+/// the cells already drawn beside the element, which is what keeps every dialog
+/// the size and in the place it had without one. What falls off the edge of the
+/// screen is dropped.
+///
+/// The strips are wiped to a blank in `color` rather than tinted, so what the
+/// screen had there does not show through as text lit from behind.
+[[nodiscard]] Element shadow(Element child, Color color, int dx, int dy);
+
 [[nodiscard]] Element bold(Element child);
 [[nodiscard]] Element italic(Element child);
 [[nodiscard]] Element inverted(Element child);

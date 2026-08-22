@@ -1442,10 +1442,10 @@ taking a row.
   without painting over it in the same breath.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
-  `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash` and
+  `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash`,
   `dialog_border` — the frame, the rules closing it and the dividers inside it,
-  `separator`'s counterpart in a box — plus `menu_button`, which is only ever
-  drawn inside one. A new dialog reaches for those rather than for `text`,
+  `separator`'s counterpart in a box — and `dialog_shadow`, plus `menu_button`,
+  which is only ever drawn inside one. A new dialog reaches for those rather than for `text`,
   `table_header`, `header`,
   `screen_buttons`/`dimmed`/`kludge`, `input_field`/`input_text`,
   `focused_field`/`focused_text`, `input_filler` and `animated_button_text`,
@@ -1469,6 +1469,14 @@ taking a row.
   against the defaults field by field, `16_colors.cfg` for the opposite, that no
   field was left at a default, and every file against `black.cfg`'s set of keys —
   so forgetting a file fails the build.
+- **Every modal casts a shadow**, two columns to its right and one row below,
+  wiped to `dialog_shadow`. `dialog::surface()` is the one place it is hung —
+  every box goes through it — and `term::shadow()` is what draws it. It asks for
+  **no room**: the strips fall on cells the screen has already drawn, so a box
+  keeps the size and the place it had before there were shadows and nothing that
+  measures itself against the window had to change. It is also the one node that
+  paints outside its own box; `Screen::at()` drops what falls off the edge, so a
+  box against the right-hand side simply casts less.
 - **A theme is colors and one switch.** `input_filler_show`, `on` or `off` as
   every other switch AmberEdit reads is written, says whether a field's free
   columns are underscored; it is a `bool` on `Palette` and a line in `kSwitches`,
