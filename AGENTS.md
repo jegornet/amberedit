@@ -1013,6 +1013,22 @@ decides what an occurrence is.
   box per row into `AppState::DeleteLineSpots`, three of them because the button
   is drawn a cell at a time with nothing standing over all three rows; the click
   is `deleteLine()`, the same call `Ctrl-Y` makes.
+- **What `Ctrl-Y` deletes is kept, and `Ctrl-U` puts it back.** `TextBuffer`
+  carries the stack (`deleted`), `deleteLine()` pushes onto it and
+  `restoreLine()` pops: four presses out and four presses back leave the text as
+  it was, which is what makes deleting a block of quoting and thinking better of
+  it undoable. The line goes back **above the row the cursor is on** — where
+  `Ctrl-Y` took one out, so the two undo each other, and a cursor moved
+  elsewhere first makes the pair a way of moving a line. The two ends need the
+  row the deletion is remembered with: off the bottom there is nothing left to
+  go back above, and the blank the last line of all is emptied into is written
+  over rather than pushed down. **Nothing else fills the stack** — the block
+  `Ctrl-D` takes out and the word `Ctrl-W` takes out are not lines, and a stack
+  that mixed them in would put back something other than what was last seen to
+  go. **It lives and dies with the message**: `leaveEditor()` clears the whole
+  `TextBuffer`, so what was deleted out of one message is nothing the next may
+  be handed. It is not in the hint bar — the row names what there is to do here,
+  and undoing a deletion is only worth knowing about once the deletion is.
 - **The wheel in the editor scrolls the text and drags the cursor** —
   `wheelScroll()`, a row per notch. The cursor stays where it was written while
   it is on the screen and is carried onto the nearest row still showing when the

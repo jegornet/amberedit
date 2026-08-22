@@ -116,6 +116,7 @@ on (`hint_bar`). Clicking one presses that key.
 | `Ctrl-F` | edit message attributes                                         |
 | `Ctrl-O` | open a file to insert as text or uuencoded                    |
 | `Ctrl-Y` | delete the line — or the button beside it, on the right-hand edge   |
+| `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` | delete the quoted text after the cursor                            |
 | `Ctrl-W` | delete the word before the cursor                                  |
 | `Alt+←` `Alt+→` | by words                                                           |

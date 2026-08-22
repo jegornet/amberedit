@@ -1135,6 +1135,41 @@ TEST_CASE("The subject box is no wider than what it will hold [compose]") {
     CHECK(subject.x_max - subject.x_min + 1 == 72);
 }
 
+TEST_CASE("Ctrl-U puts back the line Ctrl-Y took, and only while the message is "
+          "being written [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+
+    compose::startNew(state);
+    fixture.walkToText();
+    fillText(state, 4);
+    state.edit.row = 1;
+
+    compose::handleEvent(state, ctrl('y'));
+    compose::handleEvent(state, ctrl('y'));
+    CHECK_FALSE(textHas(state, "line 1"));
+    CHECK_FALSE(textHas(state, "line 2"));
+
+    // The stack empties in the order it filled: the line that went last is the
+    // one that comes back first.
+    compose::handleEvent(state, ctrl('u'));
+    CHECK(textHas(state, "line 2"));
+    CHECK_FALSE(textHas(state, "line 1"));
+    compose::handleEvent(state, ctrl('u'));
+    const std::vector<std::string> whole{"line 0", "line 1", "line 2", "line 3"};
+    CHECK(state.edit.lines == whole);
+
+    // The stack goes with the message: what was deleted out of one is nothing
+    // the next message may be handed.
+    compose::handleEvent(state, ctrl('y'));
+    compose::dropMessage(state);
+    compose::startNew(state);
+    fixture.walkToText();
+    const auto started = state.edit.lines;
+    compose::handleEvent(state, ctrl('u'));
+    CHECK(state.edit.lines == started);
+}
+
 TEST_CASE("Esc asks before dropping the message, wherever the cursor is [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;

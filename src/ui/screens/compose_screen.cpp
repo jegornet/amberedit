@@ -1633,6 +1633,8 @@ bool textKey(AppState& state, const Event& event) {
     // so that Del bound to a command is that command here too.
     if (state.keys.is(event, KeyCommand::ComposeDeleteLine)) {
         deleteLine(state.edit);
+    } else if (state.keys.is(event, KeyCommand::ComposeRestoreLine)) {
+        restoreLine(state.edit);
     } else if (state.keys.is(event, KeyCommand::ComposeDeleteQuote)) {
         deleteQuote(state.edit);
     } else if (state.keys.is(event, KeyCommand::ComposeDeleteWord)) {

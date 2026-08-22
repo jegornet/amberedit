@@ -47,6 +47,7 @@ enum class KeyCommand : uint8_t {
     ComposeImport,       ///< compose.import
     ComposeHeaderBack,   ///< compose.header-back
     ComposeDeleteLine,   ///< compose.delete-line
+    ComposeRestoreLine,  ///< compose.restore-line
     ComposeDeleteQuote,  ///< compose.delete-quote
     ComposeDeleteWord,   ///< compose.delete-word
     ComposeWordLeft,     ///< compose.word-left

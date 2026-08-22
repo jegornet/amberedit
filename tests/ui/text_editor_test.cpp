@@ -10,6 +10,7 @@ using amberedit::ui::deleteLine;
 using amberedit::ui::EditOptions;
 using amberedit::ui::insertNewline;
 using amberedit::ui::insertText;
+using amberedit::ui::restoreLine;
 using amberedit::ui::TextBuffer;
 using amberedit::ui::trimmedLines;
 
@@ -158,6 +159,66 @@ TEST_CASE("Ctrl-Y takes the whole line [editor]") {
     TextBuffer single = bufferOf({"only"}, 0, 2);
     deleteLine(single);
     CHECK(shown(single) == "^");
+}
+
+TEST_CASE("Ctrl-U puts back what Ctrl-Y took, newest first [editor]") {
+    TextBuffer buffer = bufferOf({"one", "two", "three"}, 0, 0);
+    deleteLine(buffer);
+    deleteLine(buffer);
+    CHECK(shown(buffer) == "^three");
+
+    // A stack: the line that went last comes back first, and the text is what
+    // it was after as many presses back as there were presses out.
+    CHECK(restoreLine(buffer));
+    CHECK(shown(buffer) == "^two|three");
+    CHECK(restoreLine(buffer));
+    CHECK(shown(buffer) == "^one|two|three");
+
+    // Nothing left to put back, and nothing invented to put back either.
+    CHECK_FALSE(restoreLine(buffer));
+    CHECK(shown(buffer) == "^one|two|three");
+}
+
+TEST_CASE("Ctrl-U puts a line back where it stood, at either end [editor]") {
+    // The last line is the one with nothing left under it to go back above.
+    TextBuffer last = bufferOf({"one", "two"}, 1, 3);
+    deleteLine(last);
+    CHECK(shown(last) == "^one");
+    CHECK(restoreLine(last));
+    CHECK(shown(last) == "one|^two");
+
+    // The only line is emptied rather than removed, so what comes back goes
+    // into that blank rather than above it.
+    TextBuffer single = bufferOf({"only"}, 0, 2);
+    deleteLine(single);
+    CHECK(restoreLine(single));
+    CHECK(shown(single) == "^only");
+}
+
+TEST_CASE("Ctrl-U puts the line back where the cursor has since moved [editor]") {
+    TextBuffer buffer = bufferOf({"one", "two", "three"}, 2, 0);
+    deleteLine(buffer);
+    CHECK(shown(buffer) == "one|^two");
+
+    // Moved off the end the deletion left it at: the line goes in above the
+    // cursor, which is what makes Ctrl-Y and Ctrl-U a way of moving one.
+    buffer.row = 0;
+    buffer.col = 0;
+    CHECK(restoreLine(buffer));
+    CHECK(shown(buffer) == "^three|one|two");
+}
+
+TEST_CASE("Only Ctrl-Y fills the stack Ctrl-U empties [editor]") {
+    using amberedit::ui::deleteQuote;
+    using amberedit::ui::deleteWordBefore;
+
+    TextBuffer buffer = bufferOf({"> quoted", "answer"}, 0, 0);
+    deleteQuote(buffer);
+    CHECK(shown(buffer) == "^answer");
+    buffer.col = buffer.line().size();
+    deleteWordBefore(buffer);
+    CHECK(shown(buffer) == "^");
+    CHECK_FALSE(restoreLine(buffer));
 }
 
 TEST_CASE("Ctrl-W takes the word before the cursor [editor]") {

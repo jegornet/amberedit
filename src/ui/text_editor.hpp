@@ -7,6 +7,15 @@
 
 namespace amberedit::ui {
 
+/// A line that was deleted, kept to be put back.
+struct DeletedLine {
+    std::string text;
+    /// The row it stood on when it was taken out. Only the end of the text needs
+    /// it: a line deleted off the bottom has nothing left under it to go back
+    /// above, and without this it would come back one line too high.
+    int row{0};
+};
+
 /// The text of a message being written, and where the cursor stands in it.
 ///
 /// Lines rather than one string, because that is what a message is: FTS-0001
@@ -16,6 +25,12 @@ struct TextBuffer {
     std::vector<std::string> lines{std::string{}};
     int row{0};
     size_t col{0};
+
+    /// The lines `deleteLine()` has taken out, newest last — what `restoreLine()`
+    /// puts back, one press for one press. It lives with the buffer and so with
+    /// the message: the editor closing takes the whole `TextBuffer` with it, and
+    /// what was deleted out of one message is nothing the next one may be handed.
+    std::vector<DeletedLine> deleted;
 
     [[nodiscard]] const std::string& line() const {
         return lines[static_cast<size_t>(row)];
@@ -50,8 +65,20 @@ void deleteBefore(TextBuffer& buffer);
 /// when the cursor stands at its end.
 void deleteAt(TextBuffer& buffer);
 
-/// Deletes the whole line the cursor is on.
+/// Deletes the whole line the cursor is on, keeping it on `buffer.deleted` for
+/// `restoreLine()` to put back.
 void deleteLine(TextBuffer& buffer);
+
+/// Puts the last deleted line back in, above the line the cursor stands on, and
+/// leaves the cursor at the start of it. Says whether there was one to put back.
+///
+/// It is a stack and not one line: Ctrl-Y pressed four times and Ctrl-U pressed
+/// four times leave the text as it was, the lines coming back in the order they
+/// went — which is what makes deleting a block of quoting and thinking better of
+/// it a thing the editor can undo. Nothing else fills it: the block Ctrl-D takes
+/// out and the word Ctrl-W takes out are not lines, and a stack that mixed them
+/// in would put back something other than what was last seen to go.
+bool restoreLine(TextBuffer& buffer);
 
 /// Takes out the block of quoted text the cursor stands in: from the line it
 /// is on down to the first line that is neither a quote nor blank, which stays.

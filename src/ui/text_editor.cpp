@@ -171,6 +171,11 @@ void deleteAt(TextBuffer& buffer) {
 }
 
 void deleteLine(TextBuffer& buffer) {
+    // Onto the stack before anything else, blank line and all: a blank one was
+    // as much a press of Ctrl-Y as any other, and leaving it out would have
+    // Ctrl-U put back the line above it instead.
+    buffer.deleted.push_back(DeletedLine{buffer.line(), buffer.row});
+
     if (buffer.lines.size() == 1) {
         buffer.lines[0].clear();
         buffer.col = 0;
@@ -181,6 +186,37 @@ void deleteLine(TextBuffer& buffer) {
         buffer.row = static_cast<int>(buffer.lines.size()) - 1;
     }
     buffer.col = 0;
+}
+
+bool restoreLine(TextBuffer& buffer) {
+    if (buffer.deleted.empty()) return false;
+    const DeletedLine taken = buffer.deleted.back();
+    buffer.deleted.pop_back();
+
+    // The one line of an empty buffer is the blank `deleteLine()` left standing
+    // where the whole text used to be; the line goes back into it rather than
+    // above it, or undoing the deletion would leave a blank line behind.
+    if (buffer.lines.size() == 1 && buffer.lines[0].empty()) {
+        buffer.lines[0] = taken.text;
+        buffer.row = 0;
+        buffer.col = 0;
+        return true;
+    }
+
+    // Above the line the cursor stands on, which is where Ctrl-Y took one out —
+    // so the two undo each other, and a line put back somewhere else goes where
+    // the cursor was carried to. The end of the text is the exception: a line
+    // deleted off the bottom left the cursor on the line above it, and going in
+    // above that one would swap the pair.
+    auto at = static_cast<size_t>(buffer.row);
+    const bool atEnd = at + 1 == buffer.lines.size();
+    if (atEnd && taken.row >= static_cast<int>(buffer.lines.size()))
+        at = buffer.lines.size();
+
+    buffer.lines.insert(buffer.lines.begin() + static_cast<ptrdiff_t>(at), taken.text);
+    buffer.row = static_cast<int>(at);
+    buffer.col = 0;
+    return true;
 }
 
 void deleteWordBefore(TextBuffer& buffer) {
