@@ -1601,6 +1601,14 @@ taking a row.
     so the canvas draws such a message as it arrived rather than guessing which
     of its breaks were somebody else's. `testdata/ansi/ansi_msg1.txt` is the one
     that punishes a guess.
+  - **A sequence that does not finish draws nothing.** A message can arrive cut
+    at a byte count, and the cut falls inside a code as readily as between two
+    glyphs. The canvas steps over the `ESC`, the `[` and the parameters behind
+    them: what is left commands nothing, and its digits are not something an
+    artist drew — nobody writes a literal ESC in front of them. Only the opening
+    goes, so a glyph standing right after the stump is still the message's own,
+    and `containsCodes()` still asks for a whole sequence, half of one being no
+    evidence that anybody drew here at all.
   - **The tearline and the origin line never go through the canvas.** They are
     not the author's drawing but the network's signature at the foot of it, they
     say where a message came from, and they are read off the trailer color the
@@ -2351,12 +2359,14 @@ named.
   `testdata/echolist/elst2601.zip` — a real ELIST distribution: three `.na` lists,
   and beside them the reports, the readme and the two further archives that are
   there to be left alone. Do not edit them to make a test pass.
-- `testdata/ansi/` — two real ANSI messages out of echoes, and each is there for
-  its own idiom. `ansi_msg.txt` carries a row across its own line breaks with
+- `testdata/ansi/` — three real ANSI messages out of echoes, and each is there
+  for its own idiom. `ansi_msg.txt` carries a row across its own line breaks with
   `ESC[A`, `ansi_msg1.txt` with the `ESC[s`/`ESC[u` pair; between them they hold
-  both halves of `Canvas::newline()` and both spellings of the cursor save. Both
-  draw a border down column 80 and so pin the wrap as well. Do not edit them to
-  make a test pass.
+  both halves of `Canvas::newline()` and both spellings of the cursor save, and
+  both draw a border down column 80 and so pin the wrap as well. `ansi_msg0.txt`
+  reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
+  and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
+  them to make a test pass.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.
 - `testdata/msgbase/charsets.*` — a small Squish base for the charset tests: the
   word "Привет" in KOI8-R and in CP866, each with the CHRS kludge that says so,

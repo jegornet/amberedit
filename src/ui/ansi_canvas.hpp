@@ -67,9 +67,11 @@ inline constexpr int kMaxRows = 4096;
 /// there does not complete one — a lone ESC at the end of the message, an ESC
 /// before an ordinary character, an unterminated OSC.
 ///
-/// Public because detection and replay must agree on what a sequence is: a byte
-/// the parser swallows and the detector does not count would be an ESC left
-/// standing in a message the reader decided was plain.
+/// Public because this is what `containsCodes()` reads a message for: a whole
+/// sequence is the evidence that somebody drew with ANSI here, and half of one
+/// is not. The replay steps over a little more than this — the opening of a CSI
+/// that never finishes — because there the question is whether a byte is a
+/// glyph, and the digits of a code nobody can act on are not one.
 [[nodiscard]] size_t escapeLength(std::string_view text, size_t at);
 
 /// Plays `stream` out onto the canvas and hands back its rows, each cut to

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "encoding/iconv_recoder.hpp"
 #include "test_paths.hpp"
 #include "ui/ansi_canvas.hpp"
 #include "ui/text_layout.hpp"
@@ -208,6 +209,21 @@ TEST_CASE("sequences that say nothing here leave no bytes behind [ansi]") {
     CHECK(textOf(draw("a\x1b" "xb")) == std::vector<std::string>{"axb"});
 }
 
+TEST_CASE("a code cut off before its end draws nothing either [ansi]") {
+    // A message can arrive cut at a byte count, and the cut falls inside a
+    // sequence as readily as between two glyphs. What is left commands nothing
+    // and is not text: nobody writes a literal ESC in front of "[1;30".
+    CHECK(textOf(draw("a\x1b[1;30")) == std::vector<std::string>{"a"});
+    CHECK(textOf(draw("a\x1b[1;30\nb")) == std::vector<std::string>{"a", "b"});
+    // Only the opening goes. A glyph standing right behind the stump is the
+    // message's own and is drawn — a letter there would not be, since a letter
+    // is the final byte a CSI was waiting for and completes it.
+    CHECK(textOf(draw("a\x1b[1;30\u2584")) == std::vector<std::string>{"a\u2584"});
+    // Detection is not moved by this: half a sequence is no evidence that
+    // anybody drew with ANSI here.
+    CHECK_FALSE(ansi::containsCodes("\x1b[1;30"));
+}
+
 TEST_CASE("a message cannot make the canvas grow without bound [ansi]") {
     const auto lines = draw("x\x1b[99999999999Bz");
     CHECK(static_cast<int>(lines.size()) == ansi::kMaxRows);
@@ -265,4 +281,34 @@ TEST_CASE("the sample artwork replays onto the canvas [ansi]") {
             found = true;
     }
     CHECK(found);
+}
+
+TEST_CASE("the sample artwork that arrived cut short replays too [ansi]") {
+    // The third file, cut to 79 bytes a line on its way here: twenty-six of its
+    // lines stop in the middle of a sequence and the rest of each was thrown
+    // away. Nothing brings that back — what this holds is that the stumps are
+    // not drawn as glyphs on top of it.
+    std::ifstream file(amberedit::test::projectPath("testdata/ansi/ansi_msg0.txt"),
+                       std::ios::binary);
+    REQUIRE(file);
+    const std::string raw{std::istreambuf_iterator<char>(file),
+                          std::istreambuf_iterator<char>()};
+    // It lies in the tree as it arrived, in CP437, so it is recoded here the way
+    // the reader recodes a body before the canvas ever sees it.
+    amberedit::encoding::IconvRecoder recoder;
+    const std::string stream = recoder.toUtf8(raw, "CP437");
+    REQUIRE(ansi::containsCodes(stream));
+
+    const auto lines = draw(stream);
+    // Nothing in this one moves the cursor, so its rows are its lines.
+    CHECK(lines.size() == 68);
+    for (const auto& line : lines) {
+        CHECK(line.text.find('\x1b') == std::string::npos);
+        // The stumps this file actually carries.
+        CHECK(line.text.find("[1;30") == std::string::npos);
+        CHECK(line.text.find("[37;46") == std::string::npos);
+        CHECK(line.text.find("[1;46") == std::string::npos);
+        CHECK(line.text.find("[40") == std::string::npos);
+        CHECK(amberedit::ui::displayWidth(line.text) <= ansi::kColumns);
+    }
 }

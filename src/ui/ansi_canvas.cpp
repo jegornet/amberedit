@@ -313,8 +313,29 @@ void Canvas::feed(std::string_view stream) {
         if (c == kEsc) {
             const size_t length = escapeLength(stream, i);
             if (length == 0) {
+                if (i + 1 < stream.size() && stream[i + 1] == '[') {
+                    // A CSI that never reached its final byte, which is what a
+                    // message cut at a byte count arrives with. It commands
+                    // nothing, and its digits are not text either — no author
+                    // writes a literal ESC in front of them — so the opening and
+                    // the parameters behind it are stepped over and nothing is
+                    // drawn. The step stops at the parameters, so an ordinary
+                    // glyph standing right after the stump is still the
+                    // message's own.
+                    size_t at = i + 2;
+                    while (at < stream.size() &&
+                           (isParamByte(static_cast<unsigned char>(stream[at])) ||
+                            isIntermediateByte(static_cast<unsigned char>(stream[at])))) {
+                        ++at;
+                    }
+                    i = at;
+                    continue;
+                }
                 // An ESC that opens nothing. Only the ESC goes: what follows it
                 // was never part of a sequence and is the message's own text.
+                // An unfinished OSC is left to this too: it runs to the end of
+                // the stream, and swallowing one whole would take the rest of
+                // the picture with it.
                 ++i;
                 continue;
             }
