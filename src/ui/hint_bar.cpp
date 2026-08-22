@@ -109,32 +109,44 @@ Element render(AppState& state) {
         return term::text(horizontalRule(state.width)) | color(theme::palette.separator);
     }
 
+    // As many as the window holds, whole. A row longer than the window is
+    // squeezed rather than cut — every hint losing its last letters at once,
+    // `q reply` down to `q re` — and half a dozen fragments name no key and no
+    // command between them. So the ones that do not fit are left off entirely,
+    // from the end of the row, and what is drawn reads as it was written.
+    size_t fits = 0;
+    // The space on either side of the hints, which the row carries either way.
+    int used = 2;
+    for (const Hint& hint : hints) {
+        const int cost = displayWidth(hint.text) + (fits == 0 ? 0 : 2);
+        if (used + cost > state.width) break;
+        used += cost;
+        ++fits;
+    }
+    // Not even the first of them: the rule alone, as on a screen with nothing
+    // to say. A window this narrow has no room to be told anything.
+    if (fits == 0) {
+        return term::text(horizontalRule(state.width)) | color(theme::palette.separator);
+    }
+
     // A space on either side of the hints, as every other label set into a rule
     // in this interface carries — see `dialog_frame`, which closes its boxes the
     // same way. The two spaces between hints belong to the row rather than to
     // either of them, so that a click lands on a hint and not beside one.
-    state.hintSpots.reserve(hints.size());
+    state.hintSpots.reserve(fits);
     Elements pieces{term::text(" ")};
-    int used = 1;
-    for (size_t i = 0; i < hints.size(); ++i) {
-        if (i != 0) {
-            pieces.push_back(term::text("  "));
-            used += 2;
-        }
+    for (size_t i = 0; i < fits; ++i) {
+        if (i != 0) pieces.push_back(term::text("  "));
         state.hintSpots.push_back({hints[i].command, {}});
         const bool pressed =
             state.isPressed(AppState::Pressed::Hint, static_cast<uint32_t>(i));
         pieces.push_back(term::text(hints[i].text) | color(colorOf(pressed)) |
                          reflect(state.hintSpots.back().box));
-        used += displayWidth(hints[i].text);
     }
     pieces.push_back(term::text(" "));
-    ++used;
 
-    // The rule fills what is left of the row. A window with no room for it gets
-    // the hints and no rule, and one with no room for those gets what fits:
-    // `hint_bar when_wide` is what keeps a narrow window from carrying the row
-    // at all, and this is only what happens where a config has said otherwise.
+    // The rule fills what is left of the row, and there is nothing left where
+    // the hints filled it to the edge.
     if (const int rest = state.width - used; rest > 0) {
         pieces.push_back(term::text(horizontalRule(rest)) |
                          color(theme::palette.separator));

@@ -56,9 +56,9 @@ amberedit                                 # or: amberedit -c some/amberedit.cfg
 There is no help screen, so here they are. Enter accepts a dialog and Esc closes
 one; the mouse works on every screen, and the wheel scrolls a line at a time.
 **Ctrl-Q** quits from anywhere. Every key below that runs a command
-can be moved — see [Rebinding the keys](#rebinding-the-keys) — and in a window
-wide enough for it the last row names the main ones under whatever keys they are
-on (`hint_bar`). Clicking one presses that key.
+can be moved — see [Rebinding the keys](#rebinding-the-keys) — and the last row
+names the main ones under whatever keys they are on (`hint_bar`), as many as the
+window holds. Clicking one presses that key.
 
 **Area list**
 

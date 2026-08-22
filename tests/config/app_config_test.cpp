@@ -296,9 +296,9 @@ TEST_CASE("AppConfig reads the adaptive UI threshold [app_config]") {
 TEST_CASE("AppConfig reads the hint bar setting [app_config]") {
     using amberedit::config::Visibility;
 
-    // `when_wide` unless the config says otherwise: the row is not cut short to
-    // fit, so a narrow window does without it.
-    CHECK(with("").hintBar == Visibility::WhenWide);
+    // `on` unless the config says otherwise: there is no help screen, and the
+    // narrow window with least room for the row is the one that needs it most.
+    CHECK(with("").hintBar == Visibility::On);
     CHECK(with("hint_bar on\n").hintBar == Visibility::On);
     CHECK(with("hint_bar off\n").hintBar == Visibility::Off);
     CHECK(with("hint_bar when_narrow\n").hintBar == Visibility::WhenNarrow);

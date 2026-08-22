@@ -728,16 +728,18 @@ struct AppConfig {
 
     /// Whether the last row of the screen carries the hint bar — the commands
     /// of whichever screen is up, each behind the key that runs it — from
-    /// `hint_bar`. `when_wide` unless the config says otherwise, against the
-    /// same threshold every other window-led setting is read against: there is
-    /// no help screen and one quiet row stands in for one, but the row cannot
-    /// be cut short — a narrow window would show the first two hints and a rule
-    /// where the rest were, which says less than nothing.
+    /// `hint_bar`. `on` unless the config says otherwise: there is no help
+    /// screen, one quiet row stands in for one, and the window that has least
+    /// room for it is the window that needs it most — narrow is where the
+    /// buttons go and the keys are all that is left. A window too narrow for
+    /// the whole row carries as many hints as fit whole and leaves the rest off
+    /// the end of it — see `hint_bar::render()`; `when_wide` is still there for
+    /// whoever would rather have the row whole or not at all.
     ///
     /// The row is taken off the screen above it whether or not there is
     /// anything to put in it, so that the message list, which has no commands
     /// of its own, is not a row taller than the screens on either side of it.
-    Visibility hintBar{Visibility::WhenWide};
+    Visibility hintBar{Visibility::On};
 
     /// Whether the editor shows the delete-line button down its three rightmost
     /// columns, from `compose_delete_line_button` — a box around the row the

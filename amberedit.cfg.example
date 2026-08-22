@@ -521,9 +521,11 @@ adaptive_ui_threshold 80
 
 # Whether the last row of the screen is the hint bar — the commands of whichever
 # screen is up, each behind the key that runs it: "/ next-unread  ctrl-r rescan"
-# on the area list. Optional; "when_wide" by default, the same four values as
-# back_button below and the same line they are read against — the row is not cut
-# short to fit, so a window too narrow for it does without.
+# on the area list. Optional; "on" by default, the same four values as
+# back_button below and the same line "when_narrow" and "when_wide" are read
+# against. A window too narrow for the whole row carries as many hints as fit
+# whole and leaves the rest off the end of it, so "when_wide" is the way to ask
+# for the row whole or not at all.
 #
 # The keys come from the layout, so a command the "keys" file leaves unbound is
 # left out of the row, and one with several keys is shown under the shortest of
@@ -538,7 +540,7 @@ adaptive_ui_threshold 80
 # The hints are drawn in the theme's "hint_bar" — dark grey in both themes that
 # ship here — and what is left of the row beside them is a rule in "separator",
 # the same rule that closes the headings at the top of a screen.
-hint_bar when_wide
+hint_bar on
 
 # Whether the reader and the message list show a back button — a left arrow in
 # the top-left corner. Optional; "when_narrow" by default. Esc does the same

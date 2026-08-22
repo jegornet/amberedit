@@ -112,12 +112,13 @@ TEST_CASE("hint_bar decides whether the row is there at all [hintbar]") {
     Fixture fixture(ScreenId::AreaList);
     fixture.config.adaptiveUiThreshold = 80;
 
-    // Wide by default: the row is not cut short to fit, so a narrow window does
-    // without it rather than showing the first two hints and a rule.
+    // On by default, in a window of any width: there is no help screen, and the
+    // narrow window that has least room for the row is the one whose buttons
+    // have gone and whose keys are all that is left.
     fixture.state.width = 100;
     CHECK(fixture.state.hintBarShown());
     fixture.state.width = 60;
-    CHECK_FALSE(fixture.state.hintBarShown());
+    CHECK(fixture.state.hintBarShown());
 
     fixture.config.hintBar = Visibility::On;
     CHECK(fixture.state.hintBarShown());
@@ -165,6 +166,40 @@ TEST_CASE("The row is the hints set into a rule [hintbar]") {
     }
     CHECK(screen.at(0, 0).bg == amberedit::ui::theme::Color{});
     CHECK(screen.at(39, 0).bg == amberedit::ui::theme::Color{});
+}
+
+TEST_CASE("A window too narrow for the whole row carries what fits of it "
+          "[hintbar]") {
+    // The reader names six commands, which is more than a narrow window holds.
+    Fixture fixture(ScreenId::MessageRead);
+    fixture.state.width = 30;
+
+    const auto rowOf = [&fixture]() {
+        term::Screen screen(fixture.state.width, 1);
+        term::render(screen, hint_bar::render(fixture.state));
+        std::string row;
+        for (int x = 0; x < fixture.state.width; ++x) row += screen.at(x, 0).glyph;
+        return row;
+    };
+
+    // Whole hints and no fragments: a squeezed row would be `q re n rep e n`,
+    // which names neither a key nor a command. What is left off is left off the
+    // end, and the rule closes the row as it always does.
+    CHECK(rowOf() == " q reply  n reply-to  e new ──");
+    // And nothing is clickable that is not drawn.
+    CHECK(fixture.state.hintSpots.size() == 3);
+
+    // One column narrower than the hint needs takes that hint off the row
+    // rather than the last letters of every one of them.
+    fixture.state.width = 27;
+    CHECK(rowOf() == " q reply  n reply-to ──────");
+    CHECK(fixture.state.hintSpots.size() == 2);
+
+    // Too narrow even for the first: the rule alone, as under a screen with no
+    // commands of its own.
+    fixture.state.width = 8;
+    CHECK(rowOf() == "────────");
+    CHECK(fixture.state.hintSpots.empty());
 }
 
 TEST_CASE("A click on a hint asks for the key it is written under [hintbar]") {

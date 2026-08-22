@@ -2158,7 +2158,12 @@ named.
   (`ui/hint_bar.*`). Which commands each screen offers is a table there; the key
   in front of each is `KeyMap::preferredKey()` — a bare key before a chord,
   Ctrl before Alt, a chord before a function key — and a command the layout
-  leaves unbound is left out of the row. `runApp()` takes the row off
+  leaves unbound is left out of the row, as is one the window has no room for:
+  `hint_bar` is **on** by default, at every width, and a row longer than the
+  window drops whole hints off its end rather than being squeezed — every hint
+  losing its last letters at once turns `q reply  n reply-to` into
+  `q re n rep`, which names neither a key nor a command. `when_wide` is what to
+  set for the row whole or not at all. `runApp()` takes the row off
   `state.height` before the screens lay themselves out, so no screen knows the
   bar is under it, and the row is taken whether or not there is anything to put
   in it: the message list has no commands, and a row that came and went between
