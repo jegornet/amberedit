@@ -437,6 +437,28 @@ reader_stylecodes off
 # Optional; off by default; may be set per area in a group block.
 bbs_codes_renegade off
 
+# EXPERIMENTAL. Whether the reader replays the ANSI graphics a message may have
+# been written with — the escape sequences a BBS drew a picture on the caller's
+# terminal with. Optional; off by default; may be set per area in a group block.
+#
+# The setting says an echo may carry ANSI; each message is still looked at on its
+# own, and only one that actually holds an escape sequence is drawn this way. The
+# rest of the echo reads as it always did.
+#
+# A message that is drawn this way is replayed onto a canvas 80 columns wide —
+# the width the art was composed at — and the canvas is what the reader scrolls.
+# Nothing in it wraps: a window narrower than the picture shows the left of it
+# and the rest is off screen. Colors, cursor movement, the erasers, and saving
+# and restoring the cursor under either spelling — ESC 7 / ESC 8 and ESC[s /
+# ESC[u — are acted on. Bold is the bright half of the palette, as it was on the
+# adapter these codes were written for, and blinking is passed over.
+#
+# Inside such a message reader_stylecodes and bbs_codes_renegade do not apply
+# however they are set: a marker in a picture is a glyph somebody drew with. The
+# tearline and the origin line stay out of the picture and keep the theme's
+# trailer color, wherever the drawing left off.
+bbs_codes_ansi off
+
 # Whether the reader leaves the area at its ends: → on the last message and ← on
 # the first go back to the area list. Optional; on by default. Off, the two keys
 # stop at the ends instead. Esc leaves the area from anywhere either way, and an
@@ -833,7 +855,7 @@ twit_mode blank
 #   template_date_format  template_time_format
 #   import_begin          import_end
 #   reader_stylecodes     areareplydirect       reply_to_area
-#   bbs_codes_renegade
+#   bbs_codes_renegade    bbs_codes_ansi
 #   compose_cc_list       compose_xc_list
 #   twit                  twit_subj             twit_to      twit_mode
 #

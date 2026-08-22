@@ -35,7 +35,7 @@ constexpr CommandInfo kCommands[] = {
     {KeyCommand::ReaderForward, "reader.forward", KeyScreen::Reader, "m"},
     {KeyCommand::ReaderChange, "reader.change", KeyScreen::Reader, "c F2"},
     {KeyCommand::ReaderDelete, "reader.delete", KeyScreen::Reader, "d Del"},
-    {KeyCommand::ReaderExport, "reader.export", KeyScreen::Reader, "w"},
+    {KeyCommand::ReaderExport, "reader.export", KeyScreen::Reader, "w F7"},
     {KeyCommand::ReaderFind, "reader.find", KeyScreen::Reader, "f"},
     {KeyCommand::ReaderList, "reader.list", KeyScreen::Reader, "l F9"},
     {KeyCommand::ReaderInfo, "reader.info", KeyScreen::Reader, "i"},

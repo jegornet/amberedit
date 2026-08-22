@@ -606,6 +606,17 @@ struct AppConfig {
     /// would be losing text.
     bool bbsCodesRenegade{false};
 
+    /// **Experimental.** Whether the reader replays the ANSI graphics a message
+    /// may have been written with — the escape sequences a BBS drew a picture
+    /// on the caller's terminal with. Off by default, and per area.
+    ///
+    /// The option says an echo *may* carry ANSI; each message is still looked at
+    /// on its own, and only one that actually holds an escape sequence is drawn
+    /// as a canvas. See `ui/ansi_canvas`, and note that a canvas suspends
+    /// `styleCodes` and `bbsCodesRenegade` above however they are set: inside a
+    /// picture they would be reading glyphs somebody drew with as markup.
+    bool bbsCodesAnsi{false};
+
     /// Whether the reader leaves the area at its ends: → on the last message
     /// and ← on the first go back to the area list, from `reader_edge_exit`.
     ///

@@ -48,7 +48,7 @@ struct AppState {
     ///   interface reads this and nothing else.
     /// - `areaConfig` — the same with the groups covering `currentArea` laid
     ///   over it. Anything a group may state, read while showing the area:
-    ///   `userName`, `styleCodes` and `bbsCodesRenegade` today.
+    ///   `userName`, `styleCodes`, `bbsCodesRenegade` and `bbsCodesAnsi` today.
     /// - `composeConfig()` — the same for the area a message is being written
     ///   into, which is not always the one on screen.
     ///
@@ -419,6 +419,16 @@ struct AppState {
         /// several rows and the reader draws only the ones on screen, so a row
         /// scrolled into from the middle has to carry what is to be lit in it.
         std::vector<encoding::TextMatch> found;
+        /// Whether this row is part of an ANSI canvas rather than a line of the
+        /// message as it was written. Set only where `bbs_codes_ansi` is on and
+        /// the message turned out to hold escape sequences.
+        ///
+        /// What it decides is what does *not* happen to the row: the style codes
+        /// are left alone, because a `*` in a picture is a glyph and not a
+        /// marker. The colors are already in `colorRuns` — the canvas hands its
+        /// rows over in the same shape the pipe codes leave a line in — so
+        /// nothing else about the drawing has to know where a row came from.
+        bool canvas{false};
     };
     std::vector<DisplayLine> readLines;
     int readScroll{0};

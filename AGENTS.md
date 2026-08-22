@@ -74,11 +74,18 @@ Clang accepts most of C++20 under `-std=c++17` with only a warning:
 
 ```bash
 docker run --rm -v "$PWD":/src:ro rockylinux:8 sh -c '
-  dnf -y install gcc-c++ cmake git ncurses-devel zlib-devel &&
+  dnf -y install epel-release &&
+  dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel \
+                 expected-devel doctest-devel &&
   cp -a /src /work && rm -rf /work/build &&
   cmake -S /work -B /out && cmake --build /out -j"$(nproc)" &&
   cd /out && ctest --output-on-failure'
 ```
+
+EPEL comes first and on its own line because two of the packages behind it are
+there and nowhere else on RHEL 8: `expected-devel` and `doctest-devel`. Without
+it `cmake` stops at the tl::expected check, which reads as a broken tree rather
+than as a missing repository.
 
 The copy is not incidental: one test opens `testdata/msgbase/charsets` in the
 source tree itself, so a read-only `/src` fails there and nowhere else. Short of
@@ -404,6 +411,20 @@ Rules that hold the design together:
   The flag travels on `MessageLine`, set by the adapter, so the reader only
   renders it. `isOriginLine()` checks the prefix and nothing else: the
   parentheses may hold a 4D address, a 5D one, or the network name too.
+- **A message body has two line terminators, 0DH and 0AH. Every other byte is
+  text.** `splitBody` looks for those two and for nothing else, and nothing may
+  be added that looks for anything else. FTS-0001 (§ Message Text) also gives
+  8DH as a "soft carriage return" marking a previous processor's line wrap, to
+  be ignored. **AmberEdit does not implement that and must not.** 8DH is a
+  character somebody wrote, and a reader that took it for markup would be
+  deleting text out of the body it is showing. Which character it is depends on
+  the charset the message declares, and that is beside the point: the rule is
+  that the byte is never looked at, not that looking at it happens to be safe
+  somewhere.
+  It could not be told from the text in any case. Ahead of the decoding it is a
+  byte like any other; behind the decoding there is no 8DH left to find. So this
+  is not a thing nobody has got round to, and a picture that reached us already
+  broken by a sender's word wrap is not a reason to reach for it.
 
 ### Keys, modifiers and the mouse
 
@@ -1542,6 +1563,63 @@ taking a row.
   - **Off is the default and per-area is the point.** A pipe is an ordinary
     character in every echo not written this way. What the message says nothing
     about keeps the theme's colors, so an uncolored quote is still a quote.
+- **ANSI graphics are a sequence of drawing operations, not text with colors in
+  it.** `bbs_codes_ansi` turns on the replay; `ui/ansi_canvas` does it. A pipe
+  code says "the rest of this line is green" and leaves the text where it stood,
+  while `ESC[12;30H` says "carry on at row 12, column 30" and the bytes after it
+  belong nowhere in the message's line order. So nothing about this can be done a
+  line at a time: `wrapCanvasBody()` hands the visible body over as **one
+  stream**, `Canvas` plays it onto a grid of cells, and only the grid is a
+  picture with rows in it. Those rows come back as the `bbs::CodedLine` the
+  reader already draws, which is why nothing downstream of the layout had to
+  learn about any of this — `DisplayLine::canvas` says only what must *not*
+  happen to a row.
+  - **The canvas is 80 columns wide and wraps at once.** 80 is the format and not
+    a default: the art was composed on an 80-column terminal, draws a border down
+    the last column, and counts on the next glyph appearing at the start of the
+    next row. A deferred wrap — the pending-wrap state a real terminal keeps, and
+    that the next cursor move cancels — would put that glyph back on top of the
+    border it just drew. `kMaxRows` bounds the other axis, which is a guard and
+    nothing else: a message may write `ESC[999999B` and a reader that believed it
+    would allocate for it.
+  - **A line break in the message is a carriage return and a line feed.** The
+    files are written as chunks that undo their own newline with an `ESC[A` and
+    carry on, so a break that only moved down would leave every chunk a column
+    out.
+  - **The cursor is saved and restored under two spellings.** `ESC 7`/`ESC 8` is
+    the DEC pair and `ESC[s`/`ESC[u` is the CSI one, and BBS art uses whichever
+    the program that wrote it emitted — the second at least as often as the
+    first. Both mean the position and not the pen. Dropping either is not a
+    missing flourish: a file that carries its rows across its own newlines that
+    way falls into strips, one per chunk.
+  - **Every line break the message carries is honoured, and two lines are never
+    joined.** A picture can arrive already broken: tossers and BBS packages word
+    wrap a message on its way out to the network, at a byte count and counting
+    the bytes of an escape sequence like any others, and what they leave behind
+    is an ordinary hard break. Nothing tells it from a break the artist drew —
+    a row of a picture may genuinely end in blanks out at the right-hand edge —
+    so the canvas draws such a message as it arrived rather than guessing which
+    of its breaks were somebody else's. `testdata/ansi/ansi_msg1.txt` is the one
+    that punishes a guess.
+  - **The tearline and the origin line never go through the canvas.** They are
+    not the author's drawing but the network's signature at the foot of it, they
+    say where a message came from, and they are read off the trailer color the
+    theme gives every other message's. Left in the stream they would be drawn
+    wherever the art happened to leave the cursor — over the picture as often as
+    under it — in whatever colors it was last using. `wrapCanvasBody()` breaks
+    the stream at them exactly as it does at a kludge.
+  - **Per message, not per area.** An echo that carries ANSI carries it in a
+    handful of its messages, and `ansiCanvas()` looks for an escape sequence in
+    each one before deciding. The rest go on wrapping, quoting and coloring as
+    they always did. Inside a canvas the other two dialects are suspended however
+    the config has them: a `*` or a `|07` in a picture is a glyph somebody drew
+    with. Nothing wraps either — a row broken to fit the window would stop being
+    the picture, so `render()` cuts each row at the width instead.
+  - **Bold is the bright half of the palette and blinking is passed over.** These
+    codes were written for an adapter where 1 set the intensity bit of the
+    foreground nibble; art is drawn in sixteen colors, not eight in two weights.
+    Blinking is dropped for the reason `|24`–`|31` are taken as backgrounds
+    above: nothing in a reader should flash.
 
 ### Charsets and the locale
 
@@ -2273,6 +2351,12 @@ named.
   `testdata/echolist/elst2601.zip` — a real ELIST distribution: three `.na` lists,
   and beside them the reports, the readme and the two further archives that are
   there to be left alone. Do not edit them to make a test pass.
+- `testdata/ansi/` — two real ANSI messages out of echoes, and each is there for
+  its own idiom. `ansi_msg.txt` carries a row across its own line breaks with
+  `ESC[A`, `ansi_msg1.txt` with the `ESC[s`/`ESC[u` pair; between them they hold
+  both halves of `Canvas::newline()` and both spellings of the cursor save. Both
+  draw a border down column 80 and so pin the wrap as well. Do not edit them to
+  make a test pass.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.
 - `testdata/msgbase/charsets.*` — a small Squish base for the charset tests: the
   word "Привет" in KOI8-R and in CP866, each with the CHRS kludge that says so,

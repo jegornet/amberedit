@@ -159,6 +159,13 @@ TEST_CASE("AppConfig reads the BBS color codes setting [app_config]") {
     CHECK_FALSE(loads("bbs_codes_renegade 1\n"));
 }
 
+TEST_CASE("AppConfig reads the ANSI graphics setting [app_config]") {
+    CHECK_FALSE(with("").bbsCodesAnsi);  // off unless the config asks for it
+    CHECK(with("bbs_codes_ansi on\n").bbsCodesAnsi);
+    CHECK_FALSE(with("bbs_codes_ansi off\n").bbsCodesAnsi);
+    CHECK_FALSE(loads("bbs_codes_ansi 1\n"));
+}
+
 TEST_CASE("AppConfig reads the sender location setting [app_config]") {
     CHECK(with("").showLocation);  // shown unless the config says otherwise
     CHECK(with("show_location on\n").showLocation);
@@ -1517,6 +1524,18 @@ TEST_CASE("A group may turn the BBS color codes on for its areas [app_config]") 
     CHECK_FALSE(cfg.bbsCodesRenegade);
     CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).bbsCodesRenegade);
     CHECK(cfg.effectiveFor(area("fsx.bbs")).bbsCodesRenegade);
+}
+
+TEST_CASE("A group may turn the ANSI graphics on for its areas [app_config]") {
+    const auto cfg = with(
+        "group\n"
+        "  member fsx.*\n"
+        "  bbs_codes_ansi on\n"
+        "endgroup\n");
+
+    CHECK_FALSE(cfg.bbsCodesAnsi);
+    CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).bbsCodesAnsi);
+    CHECK(cfg.effectiveFor(area("fsx.bbs")).bbsCodesAnsi);
 }
 
 TEST_CASE("An address a group states is the area's, and one of ours [app_config]") {

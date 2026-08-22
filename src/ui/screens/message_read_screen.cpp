@@ -13,6 +13,7 @@
 #include "app/message_search.hpp"
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
+#include "ui/ansi_canvas.hpp"
 #include "ui/back_button.hpp"
 #include "ui/event_util.hpp"
 #include "ui/export_dialog.hpp"
@@ -410,8 +411,10 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
     const std::string& line = source.text;
     const auto links = findLinks(line);
     std::vector<StyleSpan> spans;
-    // The area's own answer: markup in one echo is punctuation in another.
-    if (state.areaConfig.styleCodes) spans = findStyleSpans(line);
+    // The area's own answer: markup in one echo is punctuation in another. A
+    // canvas row is neither — every character in it was drawn where it stands,
+    // so a marker in one is part of the picture.
+    if (state.areaConfig.styleCodes && !source.canvas) spans = findStyleSpans(line);
     if (links.empty() && spans.empty() && source.colorRuns.empty() &&
         source.found.empty()) {
         return text(line) | color(base);
@@ -1114,12 +1117,96 @@ std::vector<std::vector<encoding::TextMatch>> foundForRows(
     return perRow;
 }
 
+/// Whether this message is to be drawn as an ANSI canvas: the area allows it
+/// and the message actually carries an escape sequence.
+///
+/// Per message and not per area, which is the whole shape of the setting. An
+/// echo that carries ANSI carries it in a handful of its messages — a welcome
+/// screen, an artpack announcement — and the rest are ordinary text that must
+/// go on wrapping, quoting and coloring as it always did. The kludges are not
+/// asked: they are service data, and an ESC in one would say nothing about how
+/// the text was written.
+bool ansiCanvas(const AppState& state, const domain::MessageBody& body) {
+    if (!state.areaConfig.bbsCodesAnsi) return false;
+    for (const auto& line : body.lines) {
+        if (!line.kludge && ansi::containsCodes(line.text)) return true;
+    }
+    return false;
+}
+
+/// Lays a canvas message out: the visible text replayed onto the grid, and its
+/// rows into readLines.
+///
+/// The visible lines go in as **one stream**, line breaks and all, because that
+/// is what they were: the message is a sequence of drawing operations, and
+/// where each of them lands depends on every one before it. The kludges and the
+/// trailer break the stream, and they break it in place rather than being
+/// gathered to one end — a message keeps the order it was stored in whatever is
+/// done to its text. In practice they stand at the top and the bottom and there
+/// is one canvas between them.
+///
+/// **The tearline and the origin line are never part of the picture.** They are
+/// not the author's drawing but the network's own signature at the foot of it,
+/// and they say where a message came from — which is worth reading, and is read
+/// off the color the theme gives every other message's trailer. Left in the
+/// stream they would be drawn wherever the art happened to leave the cursor,
+/// over the picture as often as under it, in whatever colors it was last using.
+///
+/// Nothing here wraps. A row of a picture broken to fit the window would not be
+/// the picture, so `ansi::render()` cuts each row at the width instead and what
+/// does not fit is off screen. The search highlight is still laid over the rows:
+/// what a reader was told to find is the reader's own business and not the
+/// message's, and a canvas row is text like any other once it has been drawn.
+void wrapCanvasBody(AppState& state, const domain::MessageBody& body, int width,
+                    const std::optional<encoding::TextSearch>& search) {
+    const bool searched = search && !search->empty();
+    std::string stream;
+    bool started = false;
+
+    const auto flush = [&] {
+        if (!started) return;
+        for (auto& row : ansi::render(stream, width)) {
+            AppState::DisplayLine line;
+            line.text = std::move(row.text);
+            line.colorRuns = std::move(row.runs);
+            line.canvas = true;
+            if (searched) line.found = search->findAll(line.text);
+            state.readLines.push_back(std::move(line));
+        }
+        stream.clear();
+        started = false;
+    };
+
+    for (const auto& line : body.lines) {
+        if (!line.kludge && !line.trailer) {
+            if (started) stream += '\n';
+            stream += line.text;
+            started = true;
+            continue;
+        }
+        if (line.kludge && !state.showKludges) continue;
+        // Out of the canvas and onto a row of its own, which is where it is
+        // drawn in the theme's colors rather than in the picture's. Wrapped,
+        // too: an origin line is a sentence and reads at any width.
+        flush();
+        for (auto& row : wrapText(line.text, width)) {
+            state.readLines.push_back(
+                {std::move(row), line.kludge, 0, line.trailer, {}, {}});
+        }
+    }
+    flush();
+}
+
 /// Wraps a body into readLines at the given width. The body is passed in
 /// rather than read back off the state: this way the function does not depend
 /// on the optional being engaged, which is the caller's business.
 void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
     state.readLines.clear();
     const std::optional<encoding::TextSearch> search = highlight(state);
+    if (ansiCanvas(state, body)) {
+        wrapCanvasBody(state, body, width, search);
+        return;
+    }
 
     for (const auto& line : body.lines) {
         if (line.kludge && !state.showKludges) continue;

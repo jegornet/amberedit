@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(AmberEdit VERSION 0.1.7 LANGUAGES CXX C)
+project(AmberEdit VERSION 0.1.8 LANGUAGES CXX C)
 
 # C++17, and deliberately not newer: the oldest system AmberEdit is meant to build
 # on out of the box is RHEL 8, whose stock toolchain is GCC 8.5 and CMake 3.20.
@@ -391,6 +391,7 @@ add_executable(amberedit
   src/main.cpp
   src/ui/app_shell.cpp
   src/ui/area_dialog.cpp
+  src/ui/ansi_canvas.cpp
   src/ui/bbs_codes.cpp
   src/ui/area_list_format.cpp
   src/ui/msg_list_format.cpp

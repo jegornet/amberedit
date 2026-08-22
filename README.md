@@ -32,6 +32,7 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Echolists**, compiled at startup on the same terms
 - **Color Themes** in the terminal's own 256 colours
 - **Twits** — FidoNet just won't be FidoNet without them.
+- **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental
 
 ## Building and installing
 
@@ -108,7 +109,7 @@ window holds. Clicking one presses that key.
 | `k` | show the kludges — a reply then quotes them, a forward carries them |
 | `b` | the scrollbar |
 | `i` | what the base holds about the message |
-| `w` | write the message out to a file |
+| `w` / `F7` | write the message out to a file |
 | `Ctrl-N` / `F10` | the nodelist |
 | `Space` | show a message blanked as a twit |
 | `Esc` `Backspace` | back to the area list |
