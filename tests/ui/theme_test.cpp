@@ -27,7 +27,7 @@ TEST_CASE("An empty theme file is the built-in palette [theme]") {
     const Palette builtIn;
     CHECK(same(loaded.background, builtIn.background));
     CHECK(same(loaded.text, builtIn.text));
-    CHECK(same(loaded.warning, builtIn.warning));
+    CHECK(same(loaded.error, builtIn.error));
 }
 
 TEST_CASE("A theme file states only what it changes [theme]") {
@@ -136,7 +136,6 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.separator, builtIn.separator));
     CHECK(same(loaded.scrollTrack, builtIn.scrollTrack));
     CHECK(same(loaded.hintBar, builtIn.hintBar));
-    CHECK(same(loaded.warning, builtIn.warning));
     CHECK(same(loaded.error, builtIn.error));
     CHECK(same(loaded.unsent, builtIn.unsent));
     CHECK(same(loaded.found, builtIn.found));
@@ -189,9 +188,6 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.separator, builtIn.separator));
     CHECK_FALSE(same(loaded.scrollTrack, builtIn.scrollTrack));
     CHECK_FALSE(same(loaded.hintBar, builtIn.hintBar));
-    // `warning` is deliberately absent from every shipped theme: nothing in
-    // the interface draws with it, so there is no DOS screen for a leftover
-    // default-palette color to appear on.
     CHECK_FALSE(same(loaded.error, builtIn.error));
     CHECK_FALSE(same(loaded.unsent, builtIn.unsent));
     CHECK_FALSE(same(loaded.found, builtIn.found));

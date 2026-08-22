@@ -15,7 +15,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-three constants for the thirty-eight roles below. Each is named after
+/// Twenty-two constants for the thirty-seven roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -65,8 +65,8 @@ inline constexpr Color kDialogBorder{240};  // #585858, dark grey
 inline constexpr Color kHeader{254};        // #e4e4e4, off-white
 /// #00d700, green — not one of the colors above, a row nobody has read yet
 /// being the one thing in the message list that has to be seen without being
-/// looked for, where every other role in it is either the text color or a
-/// warning.
+/// looked for, where every other role in it is either the text color or the
+/// red of a message that has not gone out.
 inline constexpr Color kMsglistUnread{40};
 inline constexpr Color kLink{33};        // #0087ff, blue
 inline constexpr Color kQuoteEven{49};   // #00ffaf, green-cyan
@@ -74,7 +74,6 @@ inline constexpr Color kQuoteOdd{45};    // #00d7ff, cyan
 inline constexpr Color kKludge{242};     // #6c6c6c, dark grey
 inline constexpr Color kTrailer{249};    // #b2b2b2, light grey
 inline constexpr Color kSeparator{239};  // #4e4e4e, dark grey
-inline constexpr Color kWarning{174};    // #d78787, dusty red
 inline constexpr Color kError{196};      // #ff0000, red
 /// A message written here that has not gone out yet. Softer than `kError`: it is
 /// a state the user put the message in rather than something that went wrong.
@@ -248,9 +247,8 @@ struct Palette {
     /// with, and the scrollbar's track. A box's own frame is `dialog_border`.
     Color separator = builtin_theme::kSeparator;
     Color scrollTrack = builtin_theme::kSeparator;
-    /// Something to see to rather than to read: a failed operation, a message
-    /// written here that has not gone out yet.
-    Color warning = builtin_theme::kWarning;
+    /// Something to see to rather than to read: a screen that could not be
+    /// drawn, and a message written here that has not gone out yet.
     Color error = builtin_theme::kError;
     Color unsent = builtin_theme::kUnsent;
     /// Behind every occurrence of what the reader was told to find, in the
