@@ -33,7 +33,7 @@ constexpr int kWidth = 5;
 /// notice in a tenth of a second, and the whole box changing is what makes it
 /// plain that the button was hit.
 [[nodiscard]] inline theme::Color colorOf(bool pressed) {
-    return pressed ? theme::palette.animatedButtonText : theme::palette.footer;
+    return pressed ? theme::palette.animatedButtonText : theme::palette.screenButtons;
 }
 
 /// The top row: the sides of the box around the label. There is no top side —

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(AmberEdit VERSION 0.1.4 LANGUAGES CXX C)
+project(AmberEdit VERSION 0.1.5 LANGUAGES CXX C)
 
 # C++17, and deliberately not newer: the oldest system AmberEdit is meant to build
 # on out of the box is RHEL 8, whose stock toolchain is GCC 8.5 and CMake 3.20.
@@ -439,7 +439,7 @@ target_link_libraries(amberedit PRIVATE amberedit_nodelist amberedit_echolist
 include(GNUInstallDirs)
 install(TARGETS amberedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)
-# The exclusion is not paranoia: `._default.cfg` beside `default.cfg` matches
+# The exclusion is not paranoia: `._blue.cfg` beside `blue.cfg` matches
 # `*.cfg` and would be installed as a theme. macOS writes those sidecars whenever
 # a file with extended attributes is carried through an archive, so a package
 # built from a tarball made on a Mac ships them.

@@ -673,9 +673,11 @@ template_time_format "%H:%M"
 # --- writing a message --------------------------------------------------------
 
 # Theme file to draw the interface with. Optional: without it AmberEdit uses its
-# built-in palette, which themes/default.cfg is a copy of.
-#theme /usr/share/amberedit/themes/default.cfg       # the built-in palette
-#theme /usr/share/amberedit/themes/ged_classic.cfg   # GoldED Classic
+# built-in palette, which themes/black.cfg is a copy of.
+#theme /usr/share/amberedit/themes/black.cfg         # the built-in palette
+#theme /usr/share/amberedit/themes/blue.cfg          # a navy screen
+#theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
+#theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
 
 # The GoldED-style message template. Required and has to be readable; may be set
 # per area in a group block.

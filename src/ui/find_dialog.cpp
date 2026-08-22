@@ -182,7 +182,7 @@ Element render(AppState& state, Element background) {
     Element field =
         inputField(picker.query, picker.cursor, fieldWidth, typing,
                    typing ? theme::palette.selectionText : theme::palette.dialogLabel,
-                   &picker.origin) |
+                   fieldFiller(theme::palette.dialogHint), &picker.origin) |
         bgcolor(typing ? theme::palette.selection : theme::palette.dialogField) |
         reflect(picker.queryBox);
 

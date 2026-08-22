@@ -592,7 +592,7 @@ Element render(AppState& state, Element background) {
     lines.push_back(dialog::framed(
         inputField(picker.path, picker.pathCursor, inner, onPath,
                    onPath ? theme::palette.selectionText : theme::palette.dialogLabel,
-                   &picker.pathOrigin) |
+                   fieldFiller(theme::palette.dialogHint), &picker.pathOrigin) |
         bgcolor(onPath ? theme::palette.selection : theme::palette.dialogField) |
         reflect(picker.pathBox)));
     lines.push_back(dialog::divider(inner));

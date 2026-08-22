@@ -141,7 +141,7 @@ void layout(AppState::InfoView& view, int columns) {
 /// One side of the frame, and one of the two bars closing it — the same frame
 /// the replies dialog draws, with a label in the middle of the top side.
 Element side() {
-    return text("│") | color(theme::palette.separator);
+    return text("│") | color(theme::palette.dialogBorder);
 }
 
 Element bar(int width, const std::string& left, const std::string& right,
@@ -149,9 +149,9 @@ Element bar(int width, const std::string& left, const std::string& right,
     const int room = std::max(0, width - displayWidth(label));
     const int before = room / 2;
     return hbox(
-        {text(left + horizontalRule(before)) | color(theme::palette.separator),
+        {text(left + horizontalRule(before)) | color(theme::palette.dialogBorder),
          text(label) | color(theme::palette.dialogTitle),
-         text(horizontalRule(room - before) + right) | color(theme::palette.separator)});
+         text(horizontalRule(room - before) + right) | color(theme::palette.dialogBorder)});
 }
 
 }  // namespace

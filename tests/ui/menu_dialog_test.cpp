@@ -135,7 +135,7 @@ TEST_CASE("the menu button is drawn plainly until it is clicked [menu]") {
     // written in, so nothing moves under the pointer.
     CHECK(rowOf(menu_button::topRow(true)) == "│ ≡ │");
     CHECK(menu_button::colorOf(true) == theme::palette.animatedButtonText);
-    CHECK(menu_button::colorOf(false) == theme::palette.footer);
+    CHECK(menu_button::colorOf(false) == theme::palette.screenButtons);
 }
 
 TEST_CASE("the menu button is clicked in the top-right corner [menu]") {

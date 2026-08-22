@@ -119,7 +119,7 @@ TEST_CASE("a palette number the terminal has is used untouched [element]") {
     CHECK(nearestWithin(196, 256) == 196);
     CHECK(nearestWithin(255, 256) == 255);
     // And a sixteen-colour theme on a sixteen-colour terminal likewise, which is
-    // what makes themes/ged_classic.cfg exact on a bare console.
+    // what makes themes/16_colors.cfg exact on a bare console.
     CHECK(nearestWithin(4, 16) == 4);
     CHECK(nearestWithin(15, 16) == 15);
 }

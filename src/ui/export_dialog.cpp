@@ -322,7 +322,7 @@ Element box(const std::string& value, size_t cursor, int width, bool focused,
             size_t* origin, term::Box& where) {
     return inputField(value, cursor, width, focused,
                       focused ? theme::palette.selectionText : theme::palette.dialogLabel,
-                      origin) |
+                      fieldFiller(theme::palette.dialogHint), origin) |
            bgcolor(focused ? theme::palette.selection : theme::palette.dialogField) |
            reflect(where);
 }
@@ -376,7 +376,7 @@ Element existingQuestion(AppState& state, Picker& picker) {
     // The frame is drawn round a padded box: without the margins the hint line
     // sets the width and ends up flush against the border.
     return hbox({text("  "), std::move(content), text("  ")}) | border |
-           color(theme::palette.separator);
+           color(theme::palette.dialogBorder);
 }
 
 // --- events ------------------------------------------------------------------

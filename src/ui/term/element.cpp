@@ -291,6 +291,47 @@ public:
     }
 };
 
+/// A shadow falling to the right of the element and below it, the way a box laid
+/// over a screen would cast one.
+///
+/// It asks for no room of its own and leaves the element the box it was given:
+/// a shadow is cast on what is already there, so every dialog keeps the size and
+/// the place it had before there were shadows. That is also why this is the one
+/// node that paints outside its own box — `Screen::at()` drops what falls off
+/// the edge, so a box standing against the right-hand side simply casts less.
+///
+/// The strips go down before the element: they never overlap it, but the fill
+/// under a box is laid by the same call, and the element has to be able to paint
+/// over what it covers.
+class Shadow : public Decorated {
+public:
+    Shadow(Element child, Color color, int dx, int dy)
+        : Decorated(std::move(child)), color_(color), dx_(dx), dy_(dy) {}
+
+    void Render(Screen& screen) override {
+        // Down the right-hand side, starting `dy_` rows lower, and along the
+        // bottom, starting `dx_` columns further right: a shadow is the box
+        // moved, not the box grown.
+        for (int y = box_.y_min + dy_; y <= box_.y_max + dy_; ++y) {
+            for (int x = box_.x_max + 1; x <= box_.x_max + dx_; ++x) fall(screen, x, y);
+        }
+        for (int y = box_.y_max + 1; y <= box_.y_max + dy_; ++y) {
+            for (int x = box_.x_min + dx_; x <= box_.x_max; ++x) fall(screen, x, y);
+        }
+        Node::Render(screen);
+    }
+
+private:
+    void fall(Screen& screen, int x, int y) const {
+        if (x < 0 || y < 0 || x >= screen.width() || y >= screen.height()) return;
+        screen.at(x, y) = Cell{" ", color_, color_, 0};
+    }
+
+    Color color_;
+    int dx_;
+    int dy_;
+};
+
 /// Paints one attribute over the whole box and then draws the child on top.
 /// Drawing in that order is what makes the innermost decorator the one that
 /// shows: a colored run inside a colored line is painted second.
@@ -393,6 +434,10 @@ Element center(Element child) { return hcenter(vcenter(std::move(child))); }
 
 Element clear_under(Element child) {
     return std::make_shared<ClearUnder>(std::move(child));
+}
+
+Element shadow(Element child, Color color, int dx, int dy) {
+    return std::make_shared<Shadow>(std::move(child), color, dx, dy);
 }
 
 Element bold(Element child) { return std::make_shared<Styled>(std::move(child), kBold); }

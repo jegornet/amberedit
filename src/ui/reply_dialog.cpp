@@ -58,9 +58,9 @@ Element titleBar(int width) {
     const std::string label = " Replies ";
     const int left = std::max(0, (width - displayWidth(label)) / 2);
     const int right = std::max(0, width - left - displayWidth(label));
-    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.separator),
+    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.dialogBorder),
                  text(label) | color(theme::palette.dialogTitle),
-                 text(horizontalRule(right) + "╮") | color(theme::palette.separator)});
+                 text(horizontalRule(right) + "╮") | color(theme::palette.dialogBorder)});
 }
 
 }  // namespace
@@ -79,7 +79,7 @@ Element render(AppState& state, Element background) {
 
     // The frame is drawn by hand rather than with border(), which has no room
     // for a title: this one belongs in the middle of the top side.
-    const auto side = [] { return text("│") | color(theme::palette.separator); };
+    const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
     Elements lines{titleBar(inner)};
     for (size_t i = 0; i < texts.size(); ++i) {
         auto& choice = state.replyChoices[i];
@@ -90,7 +90,7 @@ Element render(AppState& state, Element background) {
              side()}));
     }
     lines.push_back(text("╰" + horizontalRule(inner) + "╯") |
-                    color(theme::palette.separator));
+                    color(theme::palette.dialogBorder));
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows

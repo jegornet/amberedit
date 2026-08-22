@@ -52,7 +52,7 @@ Element render(AppState& state, Element background) {
     // The same frame round the same margins as the other two boxes: one of them
     // looking like the others is what makes any of them read as a box.
     auto box = hbox({text("  "), vbox(std::move(content)), text("  ")}) | border |
-               color(theme::palette.separator);
+               color(theme::palette.dialogBorder);
 
     return dbox({std::move(background), dialog::surface(std::move(box)) | center});
 }

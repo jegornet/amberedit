@@ -21,11 +21,15 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 33> kFields{{
+const std::array<std::pair<std::string_view, Field>, 38> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
     {"input_field", &Palette::inputField},
+    {"input_text", &Palette::inputText},
+    {"focused_field", &Palette::focusedField},
+    {"focused_text", &Palette::focusedText},
+    {"input_filler", &Palette::inputFiller},
     {"dialog_background", &Palette::dialogBackground},
     {"dialog_text", &Palette::dialogText},
     {"dialog_title", &Palette::dialogTitle},
@@ -33,6 +37,8 @@ const std::array<std::pair<std::string_view, Field>, 33> kFields{{
     {"dialog_hint", &Palette::dialogHint},
     {"dialog_field", &Palette::dialogField},
     {"dialog_flash", &Palette::dialogFlash},
+    {"dialog_border", &Palette::dialogBorder},
+    {"dialog_shadow", &Palette::dialogShadow},
     {"header", &Palette::header},
     {"own_name", &Palette::ownName},
     {"msglist_unread", &Palette::msglistUnread},
@@ -41,7 +47,7 @@ const std::array<std::pair<std::string_view, Field>, 33> kFields{{
     {"quote_even", &Palette::quoteEven},
     {"quote_odd", &Palette::quoteOdd},
     {"kludge", &Palette::kludge},
-    {"footer", &Palette::footer},
+    {"screen_buttons", &Palette::screenButtons},
     {"dimmed", &Palette::dimmed},
     {"scroll_thumb", &Palette::scrollThumb},
     {"trailer", &Palette::trailer},
@@ -50,22 +56,42 @@ const std::array<std::pair<std::string_view, Field>, 33> kFields{{
     {"hint_bar", &Palette::hintBar},
     {"separator", &Palette::separator},
     {"scroll_track", &Palette::scrollTrack},
-    {"warning", &Palette::warning},
     {"error", &Palette::error},
     {"unsent", &Palette::unsent},
     {"found", &Palette::found},
     {"animated_button_text", &Palette::animatedButtonText},
 }};
 
+/// The keys that are not colors, the same way round: the name in the file
+/// against the field it fills. One so far — `input_filler_show` — and a table
+/// rather than an `if`, so that a second one is a line here as a color is a line
+/// above.
+using Switch = bool Palette::*;
+
+const std::array<std::pair<std::string_view, Switch>, 1> kSwitches{{
+    {"input_filler_show", &Palette::inputFillerShown},
+}};
+
 Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
     Palette palette;
 
     for (const auto& entry : entries) {
+        const auto setting = std::find_if(
+            kSwitches.begin(), kSwitches.end(),
+            [&entry](const auto& known) { return known.first == entry.key; });
+        if (setting != kSwitches.end()) {
+            const auto on = entry.flag();
+            if (!on) return tl::make_unexpected(on.error());
+            palette.*(setting->second) = *on;
+            continue;
+        }
+
         const auto field =
             std::find_if(kFields.begin(), kFields.end(),
                          [&entry](const auto& role) { return role.first == entry.key; });
         if (field == kFields.end()) {
-            return entry.fail("'" + entry.key + "' is not a color this theme knows");
+            return entry.fail("'" + entry.key +
+                              "' is not a color or a setting this theme knows");
         }
 
         const auto value = entry.one();

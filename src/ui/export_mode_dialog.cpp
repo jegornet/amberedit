@@ -139,7 +139,7 @@ Element render(AppState& state, Element background) {
     // The frame is drawn round a padded box: without the margins the hint line
     // sets the width and ends up flush against the border.
     auto box = hbox({text("  "), vbox(std::move(rows)), text("  ")}) | border |
-               color(theme::palette.separator);
+               color(theme::palette.dialogBorder);
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows

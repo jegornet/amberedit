@@ -56,8 +56,8 @@ TEST_CASE("the back button is drawn plainly until it is clicked [back_button]") 
 
     CHECK(top.text == "│ ← │");
     CHECK(bottom.text == "└───┘");
-    for (const Color& color : top.fg) CHECK(color == theme::palette.footer);
-    for (const Color& color : bottom.fg) CHECK(color == theme::palette.footer);
+    for (const Color& color : top.fg) CHECK(color == theme::palette.screenButtons);
+    for (const Color& color : bottom.fg) CHECK(color == theme::palette.screenButtons);
 }
 
 TEST_CASE("a click recolors the whole back button [back_button]") {

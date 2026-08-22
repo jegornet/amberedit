@@ -10,6 +10,12 @@ namespace amberedit::ui::dialog {
 
 using namespace term;
 
+/// How far the shadow falls: two columns right and one row down. Two to one
+/// because a character cell is about twice as tall as it is wide, so that is
+/// what a shadow at 45 degrees comes to on a screen made of them.
+constexpr int kShadowRight = 2;
+constexpr int kShadowDown = 1;
+
 namespace {
 
 /// A run of rule, and nothing at all where there is no room for one.
@@ -34,9 +40,9 @@ Element labelledRule(const std::string& left, const std::string& right,
     // bold rule would read as a second thing having changed.
     auto middle = text(shown) | color(tint);
     if (strong) middle = std::move(middle) | bold;
-    return hbox({text(left + rule(before)) | color(theme::palette.separator),
+    return hbox({text(left + rule(before)) | color(theme::palette.dialogBorder),
                  std::move(middle),
-                 text(rule(after) + right) | color(theme::palette.separator)});
+                 text(rule(after) + right) | color(theme::palette.dialogBorder)});
 }
 
 }  // namespace
@@ -51,7 +57,7 @@ Element bottomBar(const std::string& hint, const std::string& error, int width) 
                             /*centred=*/false, /*strong=*/true);
     }
     if (hint.empty()) {
-        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.separator);
+        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.dialogBorder);
     }
     return labelledRule("╰", "╯", " " + hint + " ", width, theme::palette.dialogHint,
                         /*centred=*/false);
@@ -59,7 +65,7 @@ Element bottomBar(const std::string& hint, const std::string& error, int width) 
 
 Element footerBar(const std::string& label, int width) {
     if (label.empty()) {
-        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.separator);
+        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.dialogBorder);
     }
     return labelledRule("╰", "╯", " " + label + " ", width, theme::palette.dialogHint,
                         /*centred=*/true);
@@ -68,18 +74,21 @@ Element footerBar(const std::string& label, int width) {
 Element surface(Element box) {
     // clear_under is outermost of the three: a decorator draws before its
     // child, so the wipe has to happen before the fill goes down rather than
-    // over it.
-    return std::move(box) | bgcolor(theme::palette.dialogBackground) |
-           color(theme::palette.dialogText) | clear_under;
+    // over it. The shadow goes outside all of it — it is the one thing here
+    // drawn beside the box rather than on it, and it takes no room, so a box
+    // stands where it stood before there were shadows.
+    return shadow(std::move(box) | bgcolor(theme::palette.dialogBackground) |
+                      color(theme::palette.dialogText) | clear_under,
+                  theme::palette.dialogShadow, kShadowRight, kShadowDown);
 }
 
 Element framed(Element content) {
-    const auto side = [] { return text("│") | color(theme::palette.separator); };
+    const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
     return hbox({side(), std::move(content), side()});
 }
 
 Element divider(int width) {
-    return text("├" + horizontalRule(width) + "┤") | color(theme::palette.separator);
+    return text("├" + horizontalRule(width) + "┤") | color(theme::palette.dialogBorder);
 }
 
 Element line(const std::string& content, int width, theme::Color tint) {

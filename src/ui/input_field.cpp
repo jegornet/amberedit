@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -39,8 +40,27 @@ size_t offsetAtColumn(const std::string& value, size_t origin, int column) {
     return origin + substrByWidth(value.substr(origin), 0, std::max(0, column)).size();
 }
 
+namespace {
+
+/// The columns past the end of what is written: underscores where the field was
+/// given a `filler` color to draw them in, blanks where it was not.
+Element room(int columns, std::optional<theme::Color> filler) {
+    if (columns <= 0) return text("");
+    const std::string run(static_cast<size_t>(columns), filler ? '_' : ' ');
+    if (!filler) return text(run);
+    return text(run) | color(*filler);
+}
+
+}  // namespace
+
+std::optional<theme::Color> fieldFiller(theme::Color color) {
+    if (!theme::palette.inputFillerShown) return std::nullopt;
+    return color;
+}
+
 Element inputField(const std::string& value, size_t cursor, int width, bool active,
-                   theme::Color tint, size_t* origin) {
+                   theme::Color tint, std::optional<theme::Color> filler,
+                   size_t* origin) {
     // Never past the end of what is there. A field whose text has just been
     // replaced under a cursor left where it was is the way this happens, and a
     // frame is the wrong place to find out about it.
@@ -52,8 +72,10 @@ Element inputField(const std::string& value, size_t cursor, int width, bool acti
     };
 
     if (!active) {
-        return drawn(text(padRight(truncateToWidth(value, width), width)) | color(tint),
-                     0);
+        const std::string shown = truncateToWidth(value, width);
+        return drawn(
+            hbox({text(shown) | color(tint), room(width - displayWidth(shown), filler)}),
+            0);
     }
 
     const size_t atLen = charLen(value, cursor);
@@ -75,12 +97,9 @@ Element inputField(const std::string& value, size_t cursor, int width, bool acti
     // What is drawn is `value` from where the scroll left off — `left` is a
     // suffix of everything before the cursor, so what it lost off its front is
     // where the field now begins.
-    return drawn(
-        hbox({text(left) | color(tint), text(at) | inverted,
-              text(right +
-                   std::string(static_cast<size_t>(std::max(0, width - used)), ' ')) |
-                  color(tint)}),
-        cursor - left.size());
+    return drawn(hbox({text(left) | color(tint), text(at) | inverted,
+                       text(right) | color(tint), room(width - used, filler)}),
+                 cursor - left.size());
 }
 
 }  // namespace amberedit::ui

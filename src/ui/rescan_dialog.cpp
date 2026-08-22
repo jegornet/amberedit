@@ -44,7 +44,7 @@ Element render(const AppState& state, Element background) {
     // only boxes drawn over a screen, and one of them looking like the other is
     // what makes either read as a box rather than as part of the list.
     auto box = hbox({text("  "), std::move(content), text("  ")}) | border |
-               color(theme::palette.separator);
+               color(theme::palette.dialogBorder);
 
     return dbox({std::move(background), dialog::surface(std::move(box)) | center});
 }
