@@ -1465,20 +1465,18 @@ taking a row.
   first asked for, so the count follows the theme rather than the roles.
 - **Adding a color role means three edits**: the field in `Palette`, the line in
   `kFields` in `ui/theme.cpp` tying it to its theme-file key, and an entry in
-  every file under `themes/`. Tests load the shipped themes — `blue.cfg`
-  against the defaults field by field, `16_colors.cfg` for the opposite, that
-  no field was left at a default — so forgetting a file fails the build. The one
-  role exempt from that opposite is `hint_bar`: both themes state the same dark
-  grey, deliberately the default's own, so that the row along the bottom does not
-  change shade with the theme.
+  every file under `themes/`. Tests load the shipped themes — `black.cfg`
+  against the defaults field by field, `16_colors.cfg` for the opposite, that no
+  field was left at a default, and every file against `black.cfg`'s set of keys —
+  so forgetting a file fails the build.
 - **A theme is colors and one switch.** `input_filler_show`, `on` or `off` as
   every other switch AmberEdit reads is written, says whether a field's free
   columns are underscored; it is a `bool` on `Palette` and a line in `kSwitches`,
   the same table treatment the colors get, so a second setting is a line rather
-  than a special case. Off in the built-in palette and in `blue.cfg`, where an
-  idle field carries a fill of its own; on in `16_colors.cfg`, where it carries
-  the screen's own black and the underscores are the whole of what says a field
-  is there.
+  than a special case. On in the built-in palette, whose fills are steps of
+  near-black, and in `16_colors.cfg`, where an idle field carries the screen's
+  own black; off in `blue.cfg`, which lights its idle fields plainly enough on
+  its own.
 - **The BBS color codes are markup taken out of the text; the style codes are
   markers left standing in it.** `bbs_codes_renegade` turns on the
   Renegade/Telegard pipe codes `|00`–`|31`: `ui/bbs_codes` reads them, the first
@@ -2222,8 +2220,9 @@ named.
   `fsc-0004.001` (INTL).
 - `default.tpl` — the template a message is built from, shipped as it stands and
   the whole token set `app/msg_template` implements.
-- `themes/` — `blue.cfg` is the built-in palette written out, `16_colors.cfg` a
-  sixteen-color DOS one, `black.cfg` a dark one written entirely above entry 15.
+- `themes/` — `black.cfg` is the built-in palette written out, and the only one
+  that has to keep in step with `Palette`'s defaults; `blue.cfg` is a navy
+  screen, `16_colors.cfg` a sixteen-color DOS one.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in

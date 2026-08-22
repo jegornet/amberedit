@@ -15,50 +15,70 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Seventeen constants for the thirty-seven roles below. Each is named after
+/// Twenty-three constants for the thirty-eight roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
 ///
-/// themes/blue.cfg is this palette written out, and the two are held
+/// themes/black.cfg is this palette written out, and the two are held
 /// together by a test: change one and change the other.
+///
+/// Nothing here is an entry below 16. Those sixteen are whatever the terminal
+/// was configured to draw them as, so a palette written in them would change
+/// with the profile it is looked at through; every color below is one the
+/// 256-color palette fixes.
 namespace builtin_theme {
 
-inline constexpr Color kBackground{17};   // #00005f, deep navy
+inline constexpr Color kBackground{232};  // #080808, near-black
 inline constexpr Color kSelection{25};    // #005faf, a lit blue bar
-/// One step off the background, which is all a field needs to read as a box
-/// that takes typing: enough to see the slot, not enough to shout about it.
-inline constexpr Color kInputField{18};   // #000087, a deeper navy
-/// #121212, near-black — the fill a modal box stands on. Not `kBackground`: a
-/// dialog that wore the screen's own color would be a frame drawn on the screen
-/// rather than a box standing over it, and the shadow the frame casts is this
-/// step of darkness.
-inline constexpr Color kDialogBackground{233};
-inline constexpr Color kHeader{75};       // #5fafff, bright sky
-/// The same shade as the header at present, kept apart so that either may be
-/// moved without the other.
-inline constexpr Color kLink{75};         // #5fafff
-inline constexpr Color kText{253};        // #dadada, off-white
-inline constexpr Color kOwnName{253};     // #dadada, off-white
-/// #5fafaf, muted cyan — not one of the colors above, a row nobody has read yet
+/// White, and the brightest thing here — which is why so much takes it: what is
+/// written on the selection bar and on the field the typing is in, a name that
+/// is the user's own, a search hit, and the tenth of a second a button lights up
+/// for.
+inline constexpr Color kSelectionText{231};  // #ffffff, white
+/// A step above the screen, which is all a field needs to read as a box that
+/// takes typing: enough to see the slot, not enough to shout about it. A modal
+/// box stands on the same step, and for the same reason — near the screen's own
+/// color, far enough off it to be seen as laid over it.
+inline constexpr Color kInputField{234};  // #1c1c1c, a step above black
+inline constexpr Color kInputText{251};   // #c6c6c6, light grey
+/// The field the typing is in, lit by a fill two steps further up rather than by
+/// a color of its own; the scrollbar's thumb is the same grey, being the moving
+/// part against a track that does not move.
+inline constexpr Color kFocusedField{241};  // #626262, mid grey
+/// The underscores in the room a field has left, and the slot a field inside a
+/// box is cut into: both are a step off the fill they stand on and neither is
+/// meant to be read, only seen.
+inline constexpr Color kInputFiller{237};  // #3a3a3a, near-black
+inline constexpr Color kDialogText{252};   // #d0d0d0, light grey
+/// The brightest grey here, for the two lines that name what is under them: the
+/// label in a box's top rule and the heading row of a screen.
+inline constexpr Color kDialogTitle{255};  // #eeeeee, all but white
+inline constexpr Color kDialogLabel{111};  // #87afff, light blue
+/// The quiet grey: the keys along a box's bottom rule, the buttons in the
+/// screen's corners, whatever is shown but will not be acted on, and the hint
+/// bar along the last row.
+inline constexpr Color kDialogHint{244};  // #808080, mid grey
+/// The frame round a box. Between the fill it stands on and the text inside it,
+/// so the box is drawn plainly without the frame being the thing that is read.
+inline constexpr Color kDialogBorder{240};  // #585858, dark grey
+inline constexpr Color kHeader{254};        // #e4e4e4, off-white
+/// #00d700, green — not one of the colors above, a row nobody has read yet
 /// being the one thing in the message list that has to be seen without being
 /// looked for, where every other role in it is either the text color or a
 /// warning.
-inline constexpr Color kMsglistUnread{73};
-inline constexpr Color kQuoteEven{178};   // #d7af00, gold
-inline constexpr Color kQuoteOdd{186};    // #d7d787, pale gold
-inline constexpr Color kKludge{102};      // #878787, grey
-inline constexpr Color kTrailer{144};     // #afaf87, stone
-inline constexpr Color kSeparator{239};   // #4e4e4e, dark grey
-/// The hint bar along the bottom. Dark grey in both themes rather than each
-/// theme's own quiet color: the row is there to be read past, and a bar that
-/// changed shade with the theme would be one more thing drawing the eye down to
-/// it.
-inline constexpr Color kHintBar{8};  // dark grey, the terminal's own
-inline constexpr Color kWarning{174};     // #d78787, dusty red
-/// Brighter than anything else here, which is the point: it is on screen for a
-/// tenth of a second and has to be seen in that time.
-inline constexpr Color kAnimatedButtonText{231};  // #ffffff, white
+inline constexpr Color kMsglistUnread{40};
+inline constexpr Color kLink{33};        // #0087ff, blue
+inline constexpr Color kQuoteEven{49};   // #00ffaf, green-cyan
+inline constexpr Color kQuoteOdd{45};    // #00d7ff, cyan
+inline constexpr Color kKludge{242};     // #6c6c6c, dark grey
+inline constexpr Color kTrailer{249};    // #b2b2b2, light grey
+inline constexpr Color kSeparator{239};  // #4e4e4e, dark grey
+inline constexpr Color kWarning{174};    // #d78787, dusty red
+inline constexpr Color kError{196};      // #ff0000, red
+/// A message written here that has not gone out yet. Softer than `kError`: it is
+/// a state the user put the message in rather than something that went wrong.
+inline constexpr Color kUnsent{210};  // #ff8787, salmon
 
 }  // namespace builtin_theme
 
@@ -78,29 +98,29 @@ struct Palette {
     Color selection = builtin_theme::kSelection;
     /// Written on that fill. Its own role rather than the message text reused:
     /// a theme that selects with a light fill needs something darker here.
-    Color selectionText = builtin_theme::kText;
+    Color selectionText = builtin_theme::kSelectionText;
     /// Behind a field that is typed into but is not the one being typed into
     /// now: the header block of a message being written. A fill rather than a
     /// border, which would cost a column on each side of every field and a row
     /// above and below the block.
     Color inputField = builtin_theme::kInputField;
-    /// Written on that fill. The same shade as `header` at present — the block
-    /// is the message's own header, and a field standing idle reads as part of
-    /// it — kept apart so that a theme whose `input_field` is not the screen's
-    /// background can pick something legible on it without moving the rest of
-    /// the block.
-    Color inputText = builtin_theme::kHeader;
+    /// Written on that fill: a step under the `header` the block around it is
+    /// written in, so that a field standing idle reads as part of the header
+    /// and still as a box waiting for something. Its own role so that a theme
+    /// whose `input_field` is far from its background can pick something
+    /// legible on it without moving the rest of the block.
+    Color inputText = builtin_theme::kInputText;
     /// Behind the field the typing is actually in, and behind the one stop of
     /// that ring which is a button rather than a field — the attributes under
-    /// the addresses. The same shade as `selection` at present, so that
-    /// whatever is being acted on wears one color across the program, kept
-    /// apart so that a theme may say "here is where the typing goes" in
-    /// something other than the bar its lists mark a row with.
-    Color focusedField = builtin_theme::kSelection;
+    /// the addresses. Its own role rather than `selection` reused: the built-in
+    /// palette lights the field the typing is in with a step of grey and marks
+    /// the row a list would act on with a blue bar, and a theme is free to say
+    /// both with one color instead.
+    Color focusedField = builtin_theme::kFocusedField;
     /// Written on that fill, `selection_text`'s counterpart for the same
     /// reason: a theme that lights the focused field with a fill of its own
     /// needs to choose what goes on it.
-    Color focusedText = builtin_theme::kText;
+    Color focusedText = builtin_theme::kSelectionText;
     /// The underscores standing in the columns of a field nothing has been
     /// typed into yet — the room it still has, said the way a paper form says
     /// it. Quiet by design: they are the shape of the field rather than
@@ -109,19 +129,19 @@ struct Palette {
     /// one the typing is in stand side by side on the same screen. The same
     /// role inside a box is `dialog_hint`, which is that palette's quiet color
     /// already.
-    Color inputFiller = builtin_theme::kKludge;
+    Color inputFiller = builtin_theme::kInputFiller;
     /// Whether those underscores are drawn at all — `input_filler_show`, `on` or
-    /// `off`. Off by default: the built-in palette gives an idle field a fill of
-    /// its own, and underscores over it would be a second answer to a question
-    /// already answered. A theme whose fields carry no fill of their own — or
-    /// one after the look of a paper form — turns them on, and `input_filler` is
-    /// the color they take then.
-    bool inputFillerShown = false;
+    /// `off`. On by default: the built-in palette's fills are steps of
+    /// near-black, and the underscores are what says a field is a field before
+    /// anything is typed into it. A theme that lights its idle fields plainly
+    /// enough on its own turns them off, as themes/blue.cfg does, and
+    /// `input_filler` is then a color nothing draws with.
+    bool inputFillerShown = true;
     /// Behind a modal box, from its frame to the far corner — the fill wiped
     /// over whatever the box stands on. Its own role rather than `background`
     /// reused: a dialog is meant to read as something laid over the screen, and
     /// it is a step off the screen's own color that says so.
-    Color dialogBackground = builtin_theme::kDialogBackground;
+    Color dialogBackground = builtin_theme::kInputField;
     /// The text inside a box: what it asks, what a row of its list says, and
     /// every cell it puts no color of its own on — the margins either side of a
     /// row, a blank line between blocks. The screen's own `text` is not reused,
@@ -129,33 +149,33 @@ struct Palette {
     /// fill of its own, so what is legible on the screen need not be legible on
     /// it. A theme whose dialogs are lighter than its screens — a grey DOS
     /// window over a black one — turns on being able to say both.
-    Color dialogText = builtin_theme::kText;
+    Color dialogText = builtin_theme::kDialogText;
     /// The label in the top rule of a box, naming what it is for.
-    Color dialogTitle = builtin_theme::kTrailer;
+    Color dialogTitle = builtin_theme::kDialogTitle;
     /// A label inside a box, against the value it names: the From/To/Subj of a
     /// message being answered or forwarded, the fields of the import and export
     /// dialogs, the headings of the info box.
-    Color dialogLabel = builtin_theme::kHeader;
+    Color dialogLabel = builtin_theme::kDialogLabel;
     /// The quiet things in a box: the keys along its bottom rule, and whatever
     /// it shows but will not act on — an area that cannot be opened, a menu
     /// button whose command is not available on the message in front of the
     /// user. The screen's `screen_buttons` and `dimmed` are one color in every
     /// shipped theme and this is their counterpart inside a box, for the same
     /// reason they are: quiet is the point of all three.
-    Color dialogHint = builtin_theme::kKludge;
+    Color dialogHint = builtin_theme::kDialogHint;
     /// Behind a field inside a box that is typed into but not being typed into
     /// now — what `input_field` is on a screen, and a role of its own for the
     /// same reason the rest of this family is: the box's fill is not the
     /// screen's, so the slot that has to stand off it need not be either. What
     /// is written on it is `dialog_label`, and the field the typing is actually
     /// in takes `selection`/`selection_text` as everything else does.
-    Color dialogField = builtin_theme::kInputField;
+    Color dialogField = builtin_theme::kInputFiller;
     /// What a button in a box says while a click on it is being shown — the
     /// confirmation's Yes and No, a button of the menu behind the corner. It
     /// has to be seen against the box's own fill **and** against `selection`,
     /// since a click lands as readily on the selected button as on the other
     /// one.
-    Color dialogFlash = builtin_theme::kAnimatedButtonText;
+    Color dialogFlash = builtin_theme::kSelectionText;
     /// The frame round a box — its four sides, the rules that close it top and
     /// bottom, and the dividers between its blocks. `separator`'s counterpart
     /// inside a box, and a role of its own for the family's usual reason: the
@@ -163,11 +183,11 @@ struct Palette {
     /// box's, which a theme may want a different shade against. Only the labels
     /// standing in the rules are lit — `dialog_title` at the top, `dialog_hint`
     /// or `error` at the bottom.
-    Color dialogBorder = builtin_theme::kSeparator;
+    Color dialogBorder = builtin_theme::kDialogBorder;
     /// The message header block — the From/To/Subj labels and their values.
     Color header = builtin_theme::kHeader;
     /// A From or To naming the user themselves.
-    Color ownName = builtin_theme::kOwnName;
+    Color ownName = builtin_theme::kSelectionText;
     /// A message in the message list that has not been read yet, across the
     /// row — the number and the date as well as the three text columns, a
     /// message being unread having nothing to do with any one column of it.
@@ -181,7 +201,7 @@ struct Palette {
     /// `highlight_unread` is what decides whether this is used at all.
     Color msglistUnread = builtin_theme::kMsglistUnread;
     /// Message text.
-    Color text = builtin_theme::kText;
+    Color text = builtin_theme::kHeader;
     /// A link inside it. Only the address itself takes this color, the rest of
     /// the line keeping whatever it had — a link in a quote stays in the quote.
     Color link = builtin_theme::kLink;
@@ -202,9 +222,9 @@ struct Palette {
     /// click on them is being shown. A button inside a box is not one of them —
     /// that is `menu_button`, on the box's own fill.
     Color kludge = builtin_theme::kKludge;
-    Color screenButtons = builtin_theme::kKludge;
-    Color dimmed = builtin_theme::kKludge;
-    Color scrollThumb = builtin_theme::kKludge;
+    Color screenButtons = builtin_theme::kDialogHint;
+    Color dimmed = builtin_theme::kDialogHint;
+    Color scrollThumb = builtin_theme::kFocusedField;
     /// Quiet but a step brighter: the tearline and origin closing a message,
     /// and the line at the top of every screen — the lists' column headings and
     /// the title over a message being read are one role, so that the top of the
@@ -216,13 +236,13 @@ struct Palette {
     /// `dialog_background` and stand apart from `dialog_hint`, which is what a
     /// button that cannot be pressed is drawn in.
     Color trailer = builtin_theme::kTrailer;
-    Color tableHeader = builtin_theme::kTrailer;
-    Color menuButton = builtin_theme::kTrailer;
+    Color tableHeader = builtin_theme::kDialogTitle;
+    Color menuButton = builtin_theme::kDialogText;
     /// The hint bar along the last row of the screen — the commands of whichever
     /// screen is up. Quiet on purpose: the row is a reminder, not something to
     /// read every frame. What is left of the row is a rule, drawn in
     /// `separator` like every other rule in the interface.
-    Color hintBar = builtin_theme::kHintBar;
+    Color hintBar = builtin_theme::kDialogHint;
 
     /// Drawn rather than written: the rules a screen sets its blocks apart
     /// with, and the scrollbar's track. A box's own frame is `dialog_border`.
@@ -231,8 +251,8 @@ struct Palette {
     /// Something to see to rather than to read: a failed operation, a message
     /// written here that has not gone out yet.
     Color warning = builtin_theme::kWarning;
-    Color error = builtin_theme::kWarning;
-    Color unsent = builtin_theme::kWarning;
+    Color error = builtin_theme::kError;
+    Color unsent = builtin_theme::kUnsent;
     /// Behind every occurrence of what the reader was told to find, in the
     /// message a search landed on — the body and the header block alike. It is
     /// a **fill**, and what is written on it is `background`: a search
@@ -241,14 +261,14 @@ struct Palette {
     /// links and whatever a message's own BBS codes asked for. One role rather
     /// than a pair, the screen's own background being what is legible on
     /// anything bright enough to serve here.
-    Color found = builtin_theme::kText;
+    Color found = builtin_theme::kSelectionText;
     /// What a button on a screen says while a click on it is being shown — the
     /// Back button's arrow, a thread marker, the menu button in the corner. The
     /// frame around a label goes with it, so the whole button is what lights
     /// up; only the color changes, so nothing moves under the pointer. A button
     /// inside a box takes `dialog_flash`, which has the box's fill under it
     /// rather than the screen's.
-    Color animatedButtonText = builtin_theme::kAnimatedButtonText;
+    Color animatedButtonText = builtin_theme::kSelectionText;
 };
 
 /// The palette in force.

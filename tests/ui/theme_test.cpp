@@ -1,7 +1,10 @@
 #include <doctest/doctest.h>
 
+#include <set>
 #include <string>
 
+#include "config/cfg_file.hpp"
+#include "config/text_util.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 #include "ui/theme.hpp"
@@ -54,10 +57,12 @@ TEST_CASE("Colors are palette numbers, across the whole range [theme]") {
 
 TEST_CASE("A theme carries one setting that is not a color [theme]") {
     // `input_filler_show`, on or off as every other switch AmberEdit reads is
-    // written, and off where the file says nothing.
+    // written, and the built-in palette's own answer where the file says
+    // nothing — which is on, the fills it gives an idle field being steps of
+    // near-black.
     CHECK(valueOf(parsePalette("input_filler_show on")).inputFillerShown);
     CHECK_FALSE(valueOf(parsePalette("input_filler_show off")).inputFillerShown);
-    CHECK_FALSE(valueOf(parsePalette("text 33")).inputFillerShown);
+    CHECK(valueOf(parsePalette("text 33")).inputFillerShown);
 
     // A number is not a switch, and neither is the palette complaint: the key
     // is answered as the setting it is.
@@ -87,12 +92,14 @@ TEST_CASE("The old #rrggbb spelling is refused by name [theme]") {
     REQUIRE_MESSAGE(contains(error, "256-color palette"), error);
 }
 
-TEST_CASE("The blue theme is the built-in palette, written out [theme]") {
-    // It ships as the thing to copy and edit, so the two drifting apart would
-    // hand every new theme a wrong starting point. Reading it also proves every
-    // role has a key: a field the file cannot name would fail this comparison.
+TEST_CASE("The black theme is the built-in palette, written out [theme]") {
+    // It is what AmberEdit draws with when the config names no theme, and it
+    // ships as the thing to copy and edit, so the two drifting apart would both
+    // change the program under everyone and hand every new theme a wrong
+    // starting point. Reading it also proves every role has a key: a field the
+    // file cannot name would fail this comparison.
     const Palette loaded = valueOf(amberedit::ui::theme::loadPalette(
-        amberedit::test::projectPath("themes/blue.cfg")));
+        amberedit::test::projectPath("themes/black.cfg")));
     const Palette builtIn;
 
     CHECK(same(loaded.background, builtIn.background));
@@ -153,10 +160,11 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.focusedField, builtIn.focusedField));
     CHECK_FALSE(same(loaded.focusedText, builtIn.focusedText));
     CHECK_FALSE(same(loaded.inputFiller, builtIn.inputFiller));
-    // The one setting a theme carries that is not a color, and this theme is
-    // where it earns its keep: nothing else in it would say a field is there.
+    // The one setting a theme carries that is not a color. It agrees with the
+    // built-in palette here, and is stated in the file all the same, so that a
+    // theme is the whole palette written out and not the difference from
+    // another one.
     CHECK(loaded.inputFillerShown);
-    CHECK(loaded.inputFillerShown != builtIn.inputFillerShown);
     CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
     CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -180,19 +188,38 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.menuButton, builtIn.menuButton));
     CHECK_FALSE(same(loaded.separator, builtIn.separator));
     CHECK_FALSE(same(loaded.scrollTrack, builtIn.scrollTrack));
-    // The hint bar is the one role both shipped themes state the same, and the
-    // same as the default: dark grey on black wherever it is drawn, so that the
-    // quiet row along the bottom does not change shade with the theme. It is
-    // stated in the file all the same, so that a theme is still the whole
-    // palette written out.
-    CHECK(same(loaded.hintBar, builtIn.hintBar));
-    // `warning` is deliberately absent from both shipped themes: nothing in
+    CHECK_FALSE(same(loaded.hintBar, builtIn.hintBar));
+    // `warning` is deliberately absent from every shipped theme: nothing in
     // the interface draws with it, so there is no DOS screen for a leftover
     // default-palette color to appear on.
     CHECK_FALSE(same(loaded.error, builtIn.error));
     CHECK_FALSE(same(loaded.unsent, builtIn.unsent));
     CHECK_FALSE(same(loaded.found, builtIn.found));
     CHECK_FALSE(same(loaded.animatedButtonText, builtIn.animatedButtonText));
+}
+
+TEST_CASE("Every shipped theme states the same keys [theme]") {
+    // `themes/black.cfg` is compared with the defaults field by field above, so
+    // a role it forgot fails there. The others are held to it rather than to the
+    // defaults: a key missing from one of them is a color out of the black theme
+    // showing up in the middle of a blue or a sixteen-color screen.
+    const auto keysOf = [](const char* file) {
+        const auto text =
+            amberedit::config::text::readFile(amberedit::test::projectPath(file));
+        REQUIRE_MESSAGE(text.has_value(), file);
+        const auto entries = amberedit::config::parseCfg(*text, file);
+        REQUIRE_MESSAGE(entries.has_value(), file);
+        std::set<std::string> keys;
+        for (const auto& entry : *entries) keys.insert(entry.key);
+        return keys;
+    };
+
+    const std::set<std::string> written = keysOf("themes/black.cfg");
+    REQUIRE(written.size() > 30);
+    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg"}) {
+        CAPTURE(file);
+        CHECK(keysOf(file) == written);
+    }
 }
 
 TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [theme]") {
