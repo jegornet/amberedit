@@ -853,7 +853,7 @@ decides what an occurrence is.
   not the ring**: it walks the fields that are typed into and hands the typing
   down to the text off the subject, going past the button. Nor are the arrows:
   `↓` off the subject goes to the button and then into the text because both are
-  drawn below it, and `↑` off the From name stops. `Ctrl-U` goes back onto the
+  drawn below it, and `↑` off the From name stops. `Alt-H` goes back onto the
   field the cursor was last in — a chord of its own rather than `Ctrl-I`, which
   is the byte Tab has sent since ASCII and would be the ring on all but a
   terminal reporting modified keys.

@@ -83,7 +83,7 @@ Ctrl-S          compose.save
 F2              compose.save
 Ctrl-F          compose.attributes
 Ctrl-O          compose.import
-Ctrl-U          compose.header-back
+Alt-H           compose.header-back
 Ctrl-Y          compose.delete-line
 Ctrl-D          compose.delete-quote
 Ctrl-W          compose.delete-word

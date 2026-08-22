@@ -1225,7 +1225,7 @@ void replyHere(AppState& state) {
                                *state.readHeader);
     // Straight into the text: a reply has every field filled in from the message
     // it answers, and what the user came here to do is answer it. The cursor is
-    // left on the subject for when Ctrl-U brings it back up — that is the field
+    // left on the subject for when Alt-H brings it back up — that is the field
     // worth a second look, carried over unchanged, and a thread that has
     // wandered gets renamed there.
     moveTo(state, kSubject);
@@ -1406,7 +1406,7 @@ void startChange(AppState& state, bool notice) {
         if (!line.kludge) lines.push_back(line.text);
     }
 
-    // On the subject, for when Ctrl-U brings the typing up into the header: it
+    // On the subject, for when Alt-H brings the typing up into the header: it
     // is the field a changed message most often wants changed with it, and the
     // typing starts in the text.
     moveTo(state, kSubject);
@@ -1945,7 +1945,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // lands on the first field going forwards and on the last going back. Round
     // and round either way, the whole header and the text in one cycle.
     //
-    // Ctrl-U is the other way up, onto the field the cursor was last in — the
+    // Alt-H is the other way up, onto the field the cursor was last in — the
     // answer to "put me back where I was" rather than to "next". A chord of its
     // own rather than Ctrl-I: that one is the byte Tab has sent since ASCII, and
     // no terminal short of one reporting modified keys could tell the two apart.

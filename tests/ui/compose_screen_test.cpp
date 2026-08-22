@@ -94,6 +94,12 @@ Event ctrl(char letter) {
     return Event::Character(std::string(1, letter), true, false, false);
 }
 
+/// Alt held with a letter, as the input layer hands it over however the
+/// terminal happened to spell it.
+Event alt(char letter) {
+    return Event::Character(std::string(1, letter), false, true, false);
+}
+
 /// A left-button press at a cell of the screen.
 Event clickAt(int x, int y) {
     term::MouseEvent mouse;
@@ -244,7 +250,7 @@ TEST_CASE("Enter off the subject hands the typing down to the text [compose]") {
     CHECK(textHas(state, "x"));
 }
 
-TEST_CASE("Ctrl-U goes back up into the header, onto the field left behind "
+TEST_CASE("Alt-H goes back up into the header, onto the field left behind "
           "[compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
@@ -253,7 +259,7 @@ TEST_CASE("Ctrl-U goes back up into the header, onto the field left behind "
     fixture.walkToText();
     REQUIRE_FALSE(state.composeInHeader);
 
-    compose::handleEvent(state, ctrl('u'));
+    compose::handleEvent(state, alt('h'));
     CHECK(state.composeInHeader);
     // On the field the cursor was last in, which is the last one the header was
     // walked out of — "put me back where I was", not "next".
@@ -410,8 +416,8 @@ TEST_CASE("A reply opens on its quote, the header already filled in [compose]") 
     CHECK_FALSE(state.composeInHeader);
     CHECK(state.compose.toName == "Vasya Pupkin");
     CHECK(state.compose.subject == "a thread");
-    // And Ctrl-U lands on the subject, which is the field worth a second look.
-    compose::handleEvent(state, ctrl('u'));
+    // And Alt-H lands on the subject, which is the field worth a second look.
+    compose::handleEvent(state, alt('h'));
     CHECK(state.composeField == compose::kSubject);
 }
 
@@ -500,7 +506,7 @@ TEST_CASE("The template is expanded again for a header still being filled in "
     // But once the message is the user's, it is left alone: a single character
     // typed into it is enough.
     compose::handleEvent(state, Event::Character('!'));
-    compose::handleEvent(state, ctrl('u'));
+    compose::handleEvent(state, alt('h'));
     state.compose.fromAddr = "2:5020/3";
     fixture.walkToText();
     CHECK(textHas(state, "(2:5020/2)"));
@@ -520,7 +526,7 @@ TEST_CASE("A trip through an unchanged header leaves the cursor where it was "
     const int row = state.edit.row;
     REQUIRE(row > 0);
 
-    compose::handleEvent(state, ctrl('u'));
+    compose::handleEvent(state, alt('h'));
     fixture.walkToText();
     // Nothing in the header changed, so nothing was built again and the cursor
     // is where it was left.

@@ -60,7 +60,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bf");
+    CHECK(keys.altLetters() == "bfh");
 }
 
 TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {

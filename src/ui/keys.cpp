@@ -46,7 +46,7 @@ constexpr CommandInfo kCommands[] = {
     {KeyCommand::ComposeSave, "compose.save", KeyScreen::Compose, "Ctrl-S F2"},
     {KeyCommand::ComposeAttributes, "compose.attributes", KeyScreen::Compose, "Ctrl-F"},
     {KeyCommand::ComposeImport, "compose.import", KeyScreen::Compose, "Ctrl-O"},
-    {KeyCommand::ComposeHeaderBack, "compose.header-back", KeyScreen::Compose, "Ctrl-U"},
+    {KeyCommand::ComposeHeaderBack, "compose.header-back", KeyScreen::Compose, "Alt-H"},
     {KeyCommand::ComposeDeleteLine, "compose.delete-line", KeyScreen::Compose, "Ctrl-Y"},
     {KeyCommand::ComposeDeleteQuote, "compose.delete-quote", KeyScreen::Compose,
      "Ctrl-D"},

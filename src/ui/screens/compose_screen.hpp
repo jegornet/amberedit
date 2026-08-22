@@ -16,7 +16,7 @@
 /// header stands over it, filled in field by field. `AppState::composeInHeader`
 /// is which of the two the typing goes into: a new message opens in the header,
 /// where the recipient has to be named, and a reply opens in the text.
-/// `Ctrl-U` goes back up into the header, `Enter` off its last field comes back
+/// `Alt-H` goes back up into the header, `Enter` off its last field comes back
 /// down.
 namespace amberedit::ui::screens::compose {
 
@@ -102,7 +102,7 @@ void openMenu(AppState& state);
 /// been answered. Both are things a key on this screen does as well.
 void runMenuCommand(AppState& state, config::MenuCommand command);
 
-/// Puts the cursor into the header, on the field it was last in — what `Ctrl-U`
+/// Puts the cursor into the header, on the field it was last in — what `Alt-H`
 /// asks for.
 void editHeader(AppState& state);
 

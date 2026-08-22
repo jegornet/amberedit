@@ -110,7 +110,7 @@ on (`hint_bar`). Clicking one presses that key.
 |---|--------------------------------------------------------------------|
 | `Tab` `Shift-Tab` | the ring: the fields, the subject, the attributes button, the text |
 | `Enter` | the next field, then down into the text                            |
-| `Ctrl-U` | edit header                                                        |
+| `Alt-H` | edit header                                                         |
 | `Ctrl-S` / `F2` | save (asks first)                                                  |
 | `Esc` | drop the message (asks first)                                      |
 | `Ctrl-F` | edit message attributes                                         |
