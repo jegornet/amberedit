@@ -46,6 +46,10 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     // Quitting is one chord: Ctrl-C is left to whatever a layout wants of it.
     CHECK_FALSE(keys.is(ctrl('c'), KeyCommand::AppQuit));
     CHECK(keys.is(ctrl('w'), KeyCommand::ComposeDeleteWord));
+    CHECK(keys.is(Event::Named(Event::Name::Backspace, false, true),
+                  KeyCommand::ComposeDeleteWord));
+    // A bare Backspace is still the key that takes out one character.
+    CHECK_FALSE(keys.is(Event::Backspace, KeyCommand::ComposeDeleteWord));
     CHECK(keys.is(alt('b'), KeyCommand::ComposeWordLeft));
     CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, false, true),
                   KeyCommand::ComposeWordLeft));
@@ -61,6 +65,8 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
     CHECK(keys.altLetters() == "bfh");
+    // And the ESC in front of Backspace is claimed for the same reason.
+    CHECK(keys.altBackspace());
 }
 
 TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {
@@ -109,18 +115,22 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK(keyNamed("Delete") == Event::Delete);
     CHECK(keyNamed("-") == Event::Character('-'));
     CHECK(keyNamed("Alt-Left") == Event::Named(Event::Name::ArrowLeft, false, true));
+    CHECK(keyNamed("alt-backspace") == Event::Named(Event::Name::Backspace, false, true));
 
-    // Ctrl goes with a letter and Alt with a letter or an arrow: nothing else
-    // is a key a terminal can be made to report.
+    // Ctrl goes with a letter and Alt with a letter, an arrow or Backspace:
+    // nothing else is a key a terminal can be made to report.
     CHECK_FALSE(keyNamed("Ctrl-F5"));
     CHECK_FALSE(keyNamed("Ctrl-+"));
+    CHECK_FALSE(keyNamed("Ctrl-Backspace"));
     CHECK_FALSE(keyNamed("Alt-F5"));
+    CHECK_FALSE(keyNamed("Alt-Home"));
     CHECK_FALSE(keyNamed("F13"));
     CHECK_FALSE(keyNamed("Ctrl"));
     CHECK_FALSE(keyNamed(""));
 
     // And what is written back out reads the same again.
-    for (const char* spelling : {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left"}) {
+    for (const char* spelling :
+         {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left", "Alt-Backspace"}) {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(keyNamed(spellingOf(*key)) == key);
@@ -135,8 +145,10 @@ TEST_CASE("The keys that move about cannot be bound [keys]") {
         CHECK(amberedit::ui::isReservedKey(spelling));
         CHECK_FALSE(keyNamed(spelling));
     }
-    // Bare only: Alt-Left is how a word is walked over.
+    // Bare only: Alt-Left is how a word is walked over, and Alt-Backspace how
+    // one is taken out.
     CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Left"));
+    CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Backspace"));
 
     const std::string error = errorOf(KeyMap::parse("Esc reader.list", "keys"));
     CHECK_MESSAGE(contains(error, "cannot be bound"), error);
@@ -175,8 +187,10 @@ TEST_CASE("A layout is read from the file the config names [keys]") {
 
     const KeyMap keys = valueOf(KeyMap::loadFromFile(path));
     CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
-    // The terminal is told about the letters this layout uses and no others.
+    // The terminal is told about the letters this layout uses and no others,
+    // and about an ESC in front of Backspace only where one is wanted.
     CHECK(keys.altLetters() == "j");
+    CHECK_FALSE(keys.altBackspace());
 
     const std::string error = errorOf(KeyMap::loadFromFile(dir.path("gone.cfg")));
     CHECK_MESSAGE(contains(error, "keys file not found"), error);

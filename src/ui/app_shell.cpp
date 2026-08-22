@@ -168,7 +168,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
     state.keys = keys;
     // The terminal is told which letters Alt is held with before it starts
     // reading any: a layout binding none leaves Escape unambiguous everywhere.
-    Terminal terminal(keys.altLetters());
+    Terminal terminal(keys.altLetters(), keys.altBackspace());
 
     // Putting a frame on the screen from inside whatever is running, rather
     // than at the top of the loop. It lives here because the terminal does, and

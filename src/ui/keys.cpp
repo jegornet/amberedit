@@ -52,7 +52,8 @@ constexpr CommandInfo kCommands[] = {
      "Ctrl-U"},
     {KeyCommand::ComposeDeleteQuote, "compose.delete-quote", KeyScreen::Compose,
      "Ctrl-D"},
-    {KeyCommand::ComposeDeleteWord, "compose.delete-word", KeyScreen::Compose, "Ctrl-W"},
+    {KeyCommand::ComposeDeleteWord, "compose.delete-word", KeyScreen::Compose,
+     "Ctrl-W Alt-Backspace"},
     {KeyCommand::ComposeWordLeft, "compose.word-left", KeyScreen::Compose,
      "Alt-B Alt-Left"},
     {KeyCommand::ComposeWordRight, "compose.word-right", KeyScreen::Compose,
@@ -107,6 +108,14 @@ const NamedKey* namedKey(std::string_view spelling) {
 bool isArrow(Event::Name name) {
     return name == Event::Name::ArrowUp || name == Event::Name::ArrowDown ||
            name == Event::Name::ArrowLeft || name == Event::Name::ArrowRight;
+}
+
+/// Whether a named key is one a terminal will report with Alt held. The arrows
+/// are, and so is Backspace — Alt with it is the other way a word is taken out.
+/// Nothing else is worth spelling: a key that would never arrive is a binding
+/// that would never fire.
+bool takesAlt(Event::Name name) {
+    return isArrow(name) || name == Event::Name::Backspace;
 }
 
 bool isAsciiLetter(char c) {
@@ -185,11 +194,11 @@ std::optional<Event> keyNamed(std::string_view spelling) {
     if (parsed.body.empty()) return std::nullopt;
 
     if (const NamedKey* named = namedKey(parsed.body)) {
-        // Alt with an arrow is a key a terminal can be asked to report; nothing
-        // else carries a modifier here, and a spelling that asks for one is a
-        // key that would never arrive.
+        // Alt with an arrow or with Backspace is a key a terminal can be asked
+        // to report; nothing else carries a modifier here, and a spelling that
+        // asks for one is a key that would never arrive.
         if (parsed.ctrl) return std::nullopt;
-        if (parsed.alt && !isArrow(named->name)) return std::nullopt;
+        if (parsed.alt && !takesAlt(named->name)) return std::nullopt;
         return Event::Named(named->name, false, parsed.alt);
     }
     // A character, which is one byte: what is bound is what the terminal reports
@@ -348,6 +357,14 @@ std::string KeyMap::altLetters() const {
     }
     std::sort(letters.begin(), letters.end());
     return letters;
+}
+
+bool KeyMap::altBackspace() const {
+    const Event chord = Event::Named(Event::Name::Backspace, false, true);
+    return std::any_of(bound_.begin(), bound_.end(), [&chord](const auto& keys) {
+        return std::any_of(keys.begin(), keys.end(),
+                           [&chord](const Event& key) { return key == chord; });
+    });
 }
 
 }  // namespace amberedit::ui

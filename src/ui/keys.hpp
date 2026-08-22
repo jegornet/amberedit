@@ -154,6 +154,14 @@ public:
     /// letters a layout actually binds may claim it.
     [[nodiscard]] std::string altLetters() const;
 
+    /// Whether anything is bound to Alt with Backspace.
+    ///
+    /// Asked for the same reason the letters are: that chord reaches an
+    /// ordinary terminal as an ESC in front of the byte Backspace sends, which
+    /// is what pressing Escape and then Backspace also looks like, so the
+    /// sequence is claimed only where a layout has a use for it.
+    [[nodiscard]] bool altBackspace() const;
+
 private:
     void bind(KeyCommand command, term::Event key);
 

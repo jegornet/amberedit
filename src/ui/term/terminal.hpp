@@ -32,8 +32,9 @@ public:
     /// asked for by name: on a terminal that knows no keyboard protocol, Alt+F
     /// arrives as an ESC in front of an `f`, which is also what pressing Escape
     /// and then `f` looks like — so a letter is claimed only where the layout
-    /// binds it, and Escape keeps the rest.
-    explicit Terminal(std::string altLetters = "");
+    /// binds it, and Escape keeps the rest. `altBackspace` says the same of
+    /// Alt with Backspace, which arrives the same ambiguous way.
+    explicit Terminal(std::string altLetters = "", bool altBackspace = false);
     ~Terminal();
 
     Terminal(const Terminal&) = delete;

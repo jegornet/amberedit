@@ -62,7 +62,7 @@ void registerKey(const std::string& sequence, const Event& event) {
 /// the user was typing in. Naming them here is ncurses' own way of extending the
 /// description, and it puts them through the same matcher as everything else,
 /// with no timing left for this code to get wrong.
-void registerModifiedKeys(const std::string& altLetters) {
+void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     // The disambiguated Escape. With the kitty protocol on, a bare Escape is
     // reported like this precisely so it cannot be read as the start of
     // something longer — which is what makes pressing Esc reliable at last.
@@ -99,6 +99,20 @@ void registerModifiedKeys(const std::string& altLetters) {
         const Event alt = Event::Named(name, false, true, false);
         registerKey(std::string("\x1b[1;3") + final, alt);
         registerKey(std::string("\x1b[1;9") + final, alt);
+    }
+
+    // Alt with Backspace, the other way a word is taken out. Both protocols
+    // spell it as they spell any modified key, and unambiguously, so those two
+    // forms are registered whether anything binds the chord or not. The old
+    // form — a bare ESC in front of the byte Backspace sends, either of the two
+    // it may be — is ambiguous with Escape then Backspace, and so is claimed
+    // only where the layout asks for it.
+    const Event altBack = Event::Named(Event::Name::Backspace, false, true, false);
+    registerKey("\x1b[127;3u", altBack);
+    registerKey("\x1b[27;3;127~", altBack);
+    if (altBackspace) {
+        registerKey("\x1b\x7f", altBack);
+        registerKey("\x1b\b", altBack);
     }
 
     // Shift+Space, which is a key the terminal will not tell anyone about unless
@@ -309,7 +323,7 @@ Event mouseEvent() {
 
 }  // namespace
 
-Terminal::Terminal(std::string altLetters) : screen_(0, 0) {
+Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
     // Before ncurses starts: it reads the locale as it initialises, and what it
     // finds there decides the encoding everything is written out in.
     ensureUtf8Locale();
@@ -344,7 +358,7 @@ Terminal::Terminal(std::string altLetters) : screen_(0, 0) {
 
     flowControl = std::make_unique<FlowControlOff>();
     keyReporting = std::make_unique<ModifiedKeyReporting>();
-    registerModifiedKeys(altLetters);
+    registerModifiedKeys(altLetters, altBackspace);
 
     screen_.resize(COLS, LINES);
 }

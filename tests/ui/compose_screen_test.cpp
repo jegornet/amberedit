@@ -1004,14 +1004,26 @@ TEST_CASE("Ctrl-W takes the word before the cursor out of the message "
     CHECK(state.edit.lines[0] == "one two ");
     CHECK(state.edit.col == 8);
 
+    // Alt with Backspace does the same, and the bare key still takes out the
+    // one character: the modifier is what tells the two apart.
+    REQUIRE(
+        compose::handleEvent(state, Event::Named(Event::Name::Backspace, false, true)));
+    CHECK(state.edit.lines[0] == "one ");
+    REQUIRE(compose::handleEvent(state, Event::Backspace));
+    CHECK(state.edit.lines[0] == "one");
+    state.edit.lines = {"one two three"};
+    state.edit.col = state.edit.lines[0].size();
+
     // On the layout rather than on the chord: a file that has moved it moves it
     // here too, and the key it was on is a key this screen no longer knows.
     state.keys = amberedit::test::valueOf(
         amberedit::ui::KeyMap::parse("F6 compose.delete-word\n", "keys"));
     REQUIRE(compose::handleEvent(state, Event::F6));
-    CHECK(state.edit.lines[0] == "one ");
+    CHECK(state.edit.lines[0] == "one two ");
     CHECK_FALSE(compose::handleEvent(state, ctrl('w')));
-    CHECK(state.edit.lines[0] == "one ");
+    CHECK_FALSE(
+        compose::handleEvent(state, Event::Named(Event::Name::Backspace, false, true)));
+    CHECK(state.edit.lines[0] == "one two ");
 }
 
 TEST_CASE("The dialog turns attributes over by chord, by Space and by click "

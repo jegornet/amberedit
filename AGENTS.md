@@ -411,7 +411,12 @@ Rules that hold the design together:
   `ESC`+letter form of **Alt+letter** is ambiguous with Escape then the letter,
   so only the letters a layout actually binds claim it: `KeyMap::altLetters()`
   hands them to `Terminal`, which passes them to `registerModifiedKeys()`. All 26
-  `CSI u` forms are registered already.
+  `CSI u` forms are registered already. **Alt+Backspace** goes the same way —
+  both protocol spellings always, the bare `ESC`+DEL (and `ESC`+BS) form only
+  when `KeyMap::altBackspace()` says a layout wants it. It is the one other
+  named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
+  naming the arrows and it; by default it is `compose.delete-word` beside
+  `Ctrl-W`.
 - Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`,
   without it ncurses resolves the ambiguity on its own timer
   (`set_escdelay(25)`).
@@ -2183,8 +2188,9 @@ named.
   chord arrives as the letter with a flag on it, and falling through to the
   insert would put that letter in the message.
 - **Two things follow the layout rather than a key.** `Terminal` claims
-  `ESC`+letter only for `KeyMap::altLetters()`, and the boxes that close on the
-  key that opened them — Info, the nodelist — ask the layout what that key is.
+  `ESC`+letter only for `KeyMap::altLetters()` and `ESC`+DEL only for
+  `KeyMap::altBackspace()`, and the boxes that close on the key that opened
+  them — Info, the nodelist — ask the layout what that key is.
 - **A bare letter bound in the area list stops being a letter the quick search
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.

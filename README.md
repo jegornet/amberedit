@@ -126,7 +126,7 @@ window holds. Clicking one presses that key.
 | `Ctrl-Y` | delete the line — or the button beside it, on the right-hand edge   |
 | `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` | delete the quoted text after the cursor                            |
-| `Ctrl-W` | delete the word before the cursor                                  |
+| `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
 | `Alt+←` `Alt+→` | by words                                                           |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 
@@ -152,14 +152,15 @@ several lines and then answers to each of those keys.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ctrl-` and a letter, or `Alt-`
-and a letter or an arrow. Two screens may share a key, as `F2` does between the
-reader and the editor; two commands of one screen may not, and a layout that
-tries says which line clashes with which.
+and a letter, an arrow or `Backspace`. Two screens may share a key, as `F2`
+does between the reader and the editor; two commands of one screen may not, and
+a layout that tries says which line clashes with which.
 
 **Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
-every screen, and the dialogs answer for themselves entirely. Naming one of them
-is an error rather than a line quietly dropped.
+every screen — bare, that is: `Alt-Left` and `Alt-Backspace` are chords of their
+own and may be bound — and the dialogs answer for themselves entirely. Naming
+one of them is an error rather than a line quietly dropped.
 
 The commands are `app.quit`; `arealist.next-unread` and `arealist.rescan`;
 `reader.` `reply`, `reply-to`, `new`, `forward`, `change`, `delete`, `export`,
