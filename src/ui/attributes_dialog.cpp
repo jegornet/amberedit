@@ -249,9 +249,9 @@ void handleEvent(AppState& state, const Event& event) {
     }
 
     // The chords, which is what the list of them beside the names is for. Every
-    // one of them is the dialog's while it is up — the shell hands it the key
-    // before it looks at its own, so Ctrl-C is Crash here whatever a layout has
-    // made of it elsewhere.
+    // one of them but `app.quit` is the dialog's while it is up — the shell
+    // hands it the key ahead of every other binding, so Ctrl-C is Crash here
+    // whatever a layout has made of it elsewhere.
     if (event.ctrl()) {
         for (int i = 0; i < kAttributeCount; ++i) {
             if (isCtrl(event, kAttributes[static_cast<size_t>(i)].key)) {

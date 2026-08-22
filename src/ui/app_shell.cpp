@@ -224,19 +224,21 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         // the new size, and there is nothing else for it to mean.
         if (event == Event::Resize) continue;
 
-        // The attributes dialog is modal and takes every key, ahead even of the
-        // one that quits: its chords are its own and no layout can move them —
+        // Quitting is answered from any screen and ahead of everything modal,
+        // the attributes dialog included: no box is worth being the one thing
+        // standing between the user and the way out.
+        if (state.keys.is(event, KeyCommand::AppQuit)) {
+            terminal.exit();
+            continue;
+        }
+
+        // The attributes dialog is modal and takes every key the layout has not
+        // made `app.quit`: its chords are its own and no layout can move them —
         // Ctrl-C is Crash while it is up, which is what the list beside the
         // checkboxes says — so it is the one screen anywhere that can claim a
         // key back. It closes on Esc like every other box.
         if (state.attributePicker) {
             attributes_dialog::handleEvent(state, event);
-            continue;
-        }
-
-        // Quitting is answered from any screen, ahead of anything modal.
-        if (state.keys.is(event, KeyCommand::AppQuit)) {
-            terminal.exit();
             continue;
         }
 

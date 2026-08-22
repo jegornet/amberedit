@@ -11,8 +11,9 @@
 /// are themselves the button that opens this: pointing at them, Enter or Space
 /// with the typing on them, or `Ctrl-F` from anywhere on the screen. Here they
 /// are changed, a checkbox each, turned over by pointing at one or by the chord
-/// written beside it. It is modal while it is up, and every chord is its own
-/// while it is — which is what lets Ctrl-C be Crash here.
+/// written beside it. It is modal while it is up, and every chord bar the one
+/// that quits is its own while it is — which is what lets Ctrl-C be Crash
+/// here.
 namespace amberedit::ui::attributes_dialog {
 
 /// Opens it on the message in `state`.

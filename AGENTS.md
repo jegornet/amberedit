@@ -997,10 +997,11 @@ decides what an occurrence is.
     `app/compose_prefill.cpp` (`kLocal` always, `kPrivate` in netmail) and reach
     the base on `MessageDraft::attributes`. `FtnMsgBase::write()` stores that word
     as it stands and adds nothing of its own.
-  - **Every chord is the dialog's while it is up**, `app_shell.cpp` answering it
-    ahead of even `app.quit`: `Ctrl-C` is Crash here, and a chord it binds
-    nothing to is swallowed rather than passed down. It is the only thing
-    anywhere that can claim a key back from a layout, and it closes on Esc. Hold,
+  - **Every chord bar `app.quit` is the dialog's while it is up**,
+    `app_shell.cpp` answering the quit key ahead of it and handing it everything
+    else: `Ctrl-C` is Crash here, and a chord it binds nothing to is swallowed
+    rather than passed down. It is the only thing anywhere that can claim a key
+    back from a layout, and it closes on Esc. Hold,
     Immediate, Return Rcpt Request and Transit are `Ctrl-H`, `Ctrl-I`, `Ctrl-M`
     and `Ctrl-J`, the bytes Backspace, Tab, Enter and line feed have sent since
     ASCII: they arrive as chords only on a terminal reporting modified keys,
