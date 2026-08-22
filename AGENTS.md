@@ -971,7 +971,7 @@ decides what an occurrence is.
     so whatever the typing is on wears one color everywhere. That pair defaults
     to `selection`/`selection_text` — the bar the lists give the row Enter would
     act on — and is a role of its own so that a theme may mark the field the
-    typing is in and the selected row apart. Both shipped themes state all four.
+    typing is in and the selected row apart. Every shipped theme states all four.
   - **The button is a stop in the Tab ring**, `kAttributes`, between the subject
     and the text — the one stop not typed into, which is why `headerKey()` hands
     it Enter and Space and then bows out before anything that edits text.
@@ -2222,7 +2222,8 @@ named.
   the whole token set `app/msg_template` implements.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one
   that has to keep in step with `Palette`'s defaults; `blue.cfg` is a navy
-  screen, `16_colors.cfg` a sixteen-color DOS one.
+  screen, `white.cfg` paper for a light terminal, `16_colors.cfg` a sixteen-color
+  DOS one.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in

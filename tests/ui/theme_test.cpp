@@ -212,7 +212,8 @@ TEST_CASE("Every shipped theme states the same keys [theme]") {
 
     const std::set<std::string> written = keysOf("themes/black.cfg");
     REQUIRE(written.size() > 30);
-    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg"}) {
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/white.cfg"}) {
         CAPTURE(file);
         CHECK(keysOf(file) == written);
     }
@@ -223,8 +224,8 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
     // own, so every color drawn on that fill has to be something else. Left
     // unchecked it is an invisible confirmation rather than an ugly one — the
     // text is there, in the color of what is behind it.
-    for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg"}) {
+    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg",
+                             "themes/black.cfg", "themes/white.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
@@ -261,8 +262,8 @@ TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
     // compose screen puts down: a field standing idle and the one the typing is
     // in are both text on a fill of its own, and text the color of what is
     // behind it is a field that looks empty.
-    for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg"}) {
+    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg",
+                             "themes/black.cfg", "themes/white.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));

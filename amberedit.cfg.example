@@ -676,6 +676,7 @@ template_time_format "%H:%M"
 # built-in palette, which themes/black.cfg is a copy of.
 #theme /usr/share/amberedit/themes/black.cfg         # the built-in palette
 #theme /usr/share/amberedit/themes/blue.cfg          # a navy screen
+#theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
 #theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
 
 # The GoldED-style message template. Required and has to be readable; may be set
