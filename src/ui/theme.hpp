@@ -15,7 +15,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-three constants for the thirty-eight roles below. Each is named after
+/// Twenty-four constants for the thirty-eight roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -50,9 +50,13 @@ inline constexpr Color kFocusedField{241};  // #626262, mid grey
 /// box is cut into: both are a step off the fill they stand on and neither is
 /// meant to be read, only seen.
 inline constexpr Color kInputFiller{237};  // #3a3a3a, near-black
-inline constexpr Color kDialogText{252};   // #d0d0d0, light grey
-/// The brightest grey here, for the two lines that name what is under them: the
-/// label in a box's top rule and the heading row of a screen.
+/// The plain light grey: what a box is written in, the buttons of the context
+/// menu standing on its fill, and the reader's header block out on the screen.
+inline constexpr Color kDialogText{252};  // #d0d0d0, light grey
+/// The brightest grey here, for the label standing in a box's top rule. The
+/// screen's own heading row is `kTableHeader` — a box is a small enough thing
+/// that its title is told from its text by being brighter, where a screen has
+/// the room for a hue.
 inline constexpr Color kDialogTitle{255};  // #eeeeee, all but white
 inline constexpr Color kDialogLabel{111};  // #87afff, light blue
 /// The quiet grey: the keys along a box's bottom rule, the buttons in the
@@ -66,19 +70,26 @@ inline constexpr Color kDialogBorder{240};  // #585858, dark grey
 /// palette's own background, which is what a shadow on a screen this dark comes
 /// to. A theme on paper puts a grey here instead.
 inline constexpr Color kDialogShadow{16};  // #000000, black
-inline constexpr Color kHeader{254};        // #e4e4e4, off-white
+/// Message text, and the brightest thing on the screen that is not a heading:
+/// what the whole program is there to show is a step over the header block it
+/// stands under.
+inline constexpr Color kText{254};  // #e4e4e4, off-white
 /// #00d700, green — not one of the colors above, a row nobody has read yet
 /// being the one thing in the message list that has to be seen without being
 /// looked for, where every other role in it is either the text color or the
 /// red of a message that has not gone out.
 inline constexpr Color kMsglistUnread{40};
 inline constexpr Color kLink{33};        // #0087ff, blue
-inline constexpr Color kQuoteEven{49};   // #00ffaf, green-cyan
-inline constexpr Color kQuoteOdd{45};    // #00d7ff, cyan
+inline constexpr Color kQuoteEven{230};  // #ffffd7, cream
+inline constexpr Color kQuoteOdd{228};   // #ffff87, light yellow
 inline constexpr Color kKludge{242};     // #6c6c6c, dark grey
 inline constexpr Color kTrailer{249};    // #b2b2b2, light grey
-inline constexpr Color kSeparator{239};  // #4e4e4e, dark grey
-inline constexpr Color kError{196};      // #ff0000, red
+/// The line at the top of every screen. A light blue rather than a grey: the
+/// headings name what is under them instead of being part of it, and a hue
+/// nothing else on the screen carries says so without another step of white.
+inline constexpr Color kTableHeader{110};  // #87afd7, light blue
+inline constexpr Color kSeparator{239};    // #4e4e4e, dark grey
+inline constexpr Color kError{196};        // #ff0000, red
 /// A message written here that has not gone out yet. Softer than `kError`: it is
 /// a state the user put the message in rather than something that went wrong.
 inline constexpr Color kUnsent{210};  // #ff8787, salmon
@@ -195,8 +206,10 @@ struct Palette {
     /// that still belongs to it, and because how far a theme is willing to
     /// darken what is behind a dialog is the theme's business.
     Color dialogShadow = builtin_theme::kDialogShadow;
-    /// The message header block — the From/To/Subj labels and their values.
-    Color header = builtin_theme::kHeader;
+    /// The message header block — the From/To/Subj labels and their values. A
+    /// step under `text`: the block says who wrote what to whom, and the
+    /// message itself is what is being read.
+    Color header = builtin_theme::kDialogText;
     /// A From or To naming the user themselves.
     Color ownName = builtin_theme::kSelectionText;
     /// A message in the message list that has not been read yet, across the
@@ -212,7 +225,7 @@ struct Palette {
     /// `highlight_unread` is what decides whether this is used at all.
     Color msglistUnread = builtin_theme::kMsglistUnread;
     /// Message text.
-    Color text = builtin_theme::kHeader;
+    Color text = builtin_theme::kText;
     /// A link inside it. Only the address itself takes this color, the rest of
     /// the line keeping whatever it had — a link in a quote stays in the quote.
     Color link = builtin_theme::kLink;
@@ -247,7 +260,7 @@ struct Palette {
     /// `dialog_background` and stand apart from `dialog_hint`, which is what a
     /// button that cannot be pressed is drawn in.
     Color trailer = builtin_theme::kTrailer;
-    Color tableHeader = builtin_theme::kDialogTitle;
+    Color tableHeader = builtin_theme::kTableHeader;
     Color menuButton = builtin_theme::kDialogText;
     /// The hint bar along the last row of the screen — the commands of whichever
     /// screen is up. Quiet on purpose: the row is a reminder, not something to
