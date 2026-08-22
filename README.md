@@ -1,10 +1,18 @@
-# AmberEdit
-
-A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux 
-and macOS. It supports Squish, JAM and Fido `*.msg` message bases and Fidoconfig 
-(Husky), `squish.cfg` and `areas.bbs` tosser configuration.
+```
+,d$$$$b.              db                         ,@$$$$@b       db QO   db
+$$'  `$$              $$                         @$             $$      $$
+$8    8$ ,88@q.,p@88. $$d%@8%. ,o@$$@@. ,d@$$@q. $b       ,o@$$$$$ && d#@@%D
+$$8@@8$$ $$   $$   $$ $$'  `@$ $@    @8 $$'  `8' $$$0f    $$'  `$$ $$   $$
+$$    $$ $$   $$   $$ $$    B$ $$$$$B@' $$       $$       $$    $$ $$   $$
+$$    $$ $$   $$   $$ $$.  ,@B $$.      $$       @$       Q@.  ,$@ $$   $@.,J@
+$$    $$ $$   $$   $$ `Q$$$$@' `@$$$$Q: $$       `@$$$$@% `Q@$$@@' $$   `@$$0'
+```
 
 [![CI](https://github.com/jegornet/amberedit/actions/workflows/ci.yml/badge.svg)](https://github.com/jegornet/amberedit/actions/workflows/ci.yml)
+
+A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux and macOS.
+
+<img src="amberedit_demo.gif" alt="demo" width="400">
 
 ## Features
 
