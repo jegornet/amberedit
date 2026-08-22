@@ -13,6 +13,7 @@
 #include "ui/attributes_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
 #include "ui/error_dialog.hpp"
+#include "ui/error_log.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
 #include "ui/find_dialog.hpp"
@@ -53,6 +54,28 @@ AppState::AreaPicker::For purposeOf(AppState::ForwardPicker::Mode mode) {
     return AppState::AreaPicker::For::Forward;
 }
 
+/// What the error log calls the screen that was up. The errors it keeps are
+/// about a message base rather than about the interface, so which screen was in
+/// front of the user is the shortest way to say what was being read at the time.
+const char* screenName(app::ScreenId screen) {
+    switch (screen) {
+        case app::ScreenId::AreaList: return "area list";
+        case app::ScreenId::MessageList: return "message list";
+        case app::ScreenId::MessageRead: return "reader";
+        case app::ScreenId::Compose: break;
+    }
+    return "compose";
+}
+
+/// What the log calls the event that was being answered. A keystroke is named
+/// the way a `keys` file would name it; the pointer is not, its position being
+/// about the frame it landed on rather than about anything a later reader of the
+/// log can act on.
+std::string eventName(const Event& event) {
+    if (event.is_mouse()) return "mouse";
+    return spellingOf(event);
+}
+
 /// The whole interface, as one tree of boxes, for whichever screen is up.
 ///
 /// Rendering touches the message base — loading headers, re-wrapping a body — so
@@ -74,6 +97,11 @@ Element document(AppState& state) {
             case app::ScreenId::Compose: body = screens::compose::render(state); break;
         }
     } catch (const std::exception& e) {
+        // On the screen in place of what would not draw, and in the log as well:
+        // the row says something went wrong and the file is the only place that
+        // still says so once the next frame has painted over it.
+        error_log::write(screenName(state.navigator.current()),
+                         "drawing the screen: " + std::string(e.what()));
         body = text(" error: " + std::string(e.what())) | color(theme::palette.error);
     }
 
@@ -166,6 +194,10 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
            const KeyMap& keys) {
     AppState state(manager, config);
     state.keys = keys;
+    // Before the terminal is taken over, so that anything the first frame throws
+    // is already being kept. An empty path leaves the log off, which is what a
+    // config stating no `error_log` asks for.
+    error_log::open(config.errorLogPath);
     // The terminal is told which letters Alt is held with before it starts
     // reading any: a layout binding none leaves Escape unambiguous everywhere.
     Terminal terminal(keys.altLetters(), keys.altBackspace());
@@ -505,9 +537,14 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
 
         // A keystroke that throws is swallowed rather than reported: a broken
         // area must not take the application down while the user is looking at
-        // it, and there is nowhere left to say so — there is no status line.
-        // The next frame is drawn from the state the failed
+        // it, and there is nowhere on the screen left to say so — there is no
+        // status line. The next frame is drawn from the state the failed
         // keystroke left, which is the state it found.
+        //
+        // The log is where it is said instead, naming the screen and the key, so
+        // that a message which breaks the base it is in can be looked into
+        // afterwards. Where the config named no `error_log` that is nowhere, and
+        // this is the silence it has always been.
         try {
             switch (state.navigator.current()) {
                 case app::ScreenId::AreaList:
@@ -523,7 +560,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                     screens::compose::handleEvent(state, forScreen);
                     break;
             }
-        } catch (const std::exception&) {  // NOLINT(bugprone-empty-catch)
+        } catch (const std::exception& e) {
+            error_log::write(screenName(state.navigator.current()),
+                             eventName(forScreen) + ": " + std::string(e.what()));
         }
 
         // A key that put a different screen in front of the user takes the rest

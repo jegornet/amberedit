@@ -297,7 +297,11 @@ Rules that hold the design together:
   those three are the only places that do. Not for AmberEdit's own errors, which
   are values, but for what the standard library throws underneath: `bad_alloc`,
   `std::stoll`, the `std::filesystem` overloads that take no `error_code`. A
-  broken area must never take the application down.
+  broken area must never take the application down. The two in the UI have
+  nowhere on the screen to say what they caught, so they say it to
+  `ui/error_log` instead — a line naming the screen and the key, in the file
+  `error_log` points at, and nowhere at all where the config names none, which
+  is the ordinary case. `main()` has a terminal and prints to it.
 - **A diagnostic per item is a field and not a `Result`.** A list where one
   member is broken and the rest are fine — `AreaEntry::error`,
   `CompileReport::problems`, `CopyCommand::error`, `StartingText::error` — is a

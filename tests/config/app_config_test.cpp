@@ -928,6 +928,27 @@ TEST_CASE("AppConfig has no nodelist unless one is named [app_config]") {
     CHECK(with("nodelist_db /ftn/nodelist.db\n").nodelistDbPath == "/ftn/nodelist.db");
 }
 
+TEST_CASE("AppConfig reads the error log path [app_config]") {
+    const char* home = std::getenv("HOME");
+    REQUIRE(home != nullptr);
+
+    // A path like every other path in the config: written the way it is typed in
+    // a shell, so a leading ~/ is the home directory.
+    CHECK(with("error_log ~/ftn/amberr.log\n").errorLogPath ==
+          std::string(home) + "/ftn/amberr.log");
+
+    // Empty by default, and that is what says the log is off — there is no
+    // second field for whether one is being kept.
+    CHECK(with("").errorLogPath.empty());
+
+    // An empty path would read back as the setting never having been written,
+    // which a line that is there did not mean.
+    const std::string error = errorWith("error_log \"\"\n");
+    CHECK_MESSAGE(contains(error, "needs the path"), error);
+    const std::string error2 = errorWith("error_log /a\nerror_log /b\n");
+    CHECK_MESSAGE(contains(error2, "set twice"), error2);
+}
+
 TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_config]") {
     const std::string error = errorWith("nodelist /ftn/nodelist/nodelist.ndl\n");
     CHECK_MESSAGE(contains(error, "nodelist_db is not set"), error);

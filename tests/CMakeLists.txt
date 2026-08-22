@@ -54,6 +54,7 @@ add_executable(amberedit_tests
   ui/hint_bar_test.cpp
   ui/import_dialog_test.cpp
   ui/info_dialog_test.cpp
+  ui/error_log_test.cpp
   ui/keys_test.cpp
   ui/nodelist_dialog_test.cpp
   ui/compose_screen_test.cpp
@@ -106,6 +107,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/dialog_frame.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/dir_listing.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/error_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/error_log.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_mode_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/find_dialog.cpp

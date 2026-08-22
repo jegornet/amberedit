@@ -192,8 +192,11 @@ int main(int argc, char* argv[]) {
         return amberedit::ui::runApp(manager, appConfig, keys);
     } catch (const std::exception& e) {
         // Only startup failures reach this point (no config, unreadable tosser
-        // config) — inside the UI exceptions are caught and shown in the status
-        // line.
+        // config), which is why there is a terminal to print to. Inside the UI
+        // exceptions are caught where they happen: a frame that will not draw
+        // says so in place of the screen, a keystroke that throws leaves the
+        // state as it was, and both go to the `error_log` where the config names
+        // one.
         std::cerr << "error: " << e.what() << "\n";
         return 1;
     }

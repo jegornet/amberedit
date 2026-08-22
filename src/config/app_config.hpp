@@ -418,6 +418,17 @@ struct AppConfig {
     /// for naming somewhere else.
     std::string tempDirPath;
 
+    /// A file to write the errors the interface swallows to, from `error_log`.
+    /// Empty where the config names none, which is the ordinary case and means
+    /// nothing is written down anywhere.
+    ///
+    /// It is for the two places that have nowhere to say anything: a frame that
+    /// would not draw and a keystroke that threw, both caught in
+    /// `ui/app_shell.cpp` so that one broken area cannot take the application
+    /// down. Writing it is `ui::error_log`'s — this layer only holds where the
+    /// file is.
+    std::string errorLogPath;
+
     /// Character set a message being *read* is decoded from when it carries no
     /// CHRS kludge — or one that names no particular encoding, "IBMPC" being
     /// the name that does that. Nothing else can say: no tosser config format

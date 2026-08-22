@@ -667,6 +667,10 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         const auto read = readPath(entry, "a directory to work in");
         if (!read) return tl::make_unexpected(read.error());
         cfg.tempDirPath = *read;
+    } else if (key == "error_log") {
+        const auto read = readPath(entry, "a file to write errors to");
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.errorLogPath = *read;
     } else if (key == "default_charset") {
         const auto read = entry.one();
         if (!read) return tl::make_unexpected(read.error());

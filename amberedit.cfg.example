@@ -242,6 +242,28 @@ show_location on
 # base keeps it in.
 reader_show_message_size off
 
+# --- diagnostics --------------------------------------------------------------
+
+# A file to write errors to. Optional; without one nothing is written down
+# anywhere, which is the default.
+#
+# Once the screen is up there is nowhere on it to report anything: there is no
+# status line, a frame that will not draw says "error: ..." in place of the
+# screen, and a key that fails leaves everything as it was and says nothing at
+# all. Name a file here and both are kept instead — the time, the screen that
+# was up, the key that was pressed, and what went wrong:
+#
+#   2026-01-30 21:14:05 reader: F9: ~/ftn/msg/linux.sqd: unexpected end of file
+#
+# One error is one line and each is added to the end of the file, so the log
+# outlives a restart and can be watched with "tail -f" while AmberEdit runs.
+# Nothing rotates it and nothing empties it: it is written to only when
+# something has gone wrong, and a file that will not open is passed over in
+# silence — there is nowhere to complain to about the place complaints go. What
+# goes wrong before the screen opens is not in here; that is printed to the
+# terminal, which is still there to print to.
+#error_log ~/ftn/amberr.log
+
 # --- the keyboard -------------------------------------------------------------
 
 # A keyboard layout. Optional; without one AmberEdit uses its own, which is what
