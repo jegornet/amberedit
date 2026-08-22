@@ -752,6 +752,10 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         const auto read = entry.flag();
         if (!read) return tl::make_unexpected(read.error());
         cfg.bbsCodesRenegade = *read;
+    } else if (key == "bbs_codes_ansi") {
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.bbsCodesAnsi = *read;
     } else if (key == "reader_edge_exit") {
         const auto read = entry.flag();
         if (!read) return tl::make_unexpected(read.error());
@@ -966,6 +970,7 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
                                                       "template_time_format",
                                                       "reader_stylecodes",
                                                       "bbs_codes_renegade",
+                                                      "bbs_codes_ansi",
                                                       "areareplydirect",
                                                       "reply_to_area",
                                                       "compose_cc_list",

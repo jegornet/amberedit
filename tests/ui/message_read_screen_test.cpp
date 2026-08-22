@@ -814,6 +814,15 @@ TEST_CASE("The arrow keys still move between messages [messageread][squish]") {
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
 }
 
+TEST_CASE("F7 opens the export dialog too [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::F7));
+    CHECK(fixture.state.exportPicker);
+}
+
 TEST_CASE("w opens the export dialog [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
@@ -923,6 +932,9 @@ void showBody(AreaFixture& fixture, const std::vector<std::string>& lines) {
     amberedit::domain::MessageBody body;
     for (const auto& line : lines)
         body.lines.push_back(amberedit::domain::MessageLine{line, false, false});
+    // As a base hands a body over: the tearline and the origin line are flagged
+    // where a message closes with them, and the reader colors them by the flag.
+    amberedit::domain::markTrailer(body.lines);
     fixture.state.readBody = body;
     // The width has not changed, so relayout() would leave the old wrapping
     // standing over the new body.
@@ -1025,6 +1037,108 @@ TEST_CASE("The pipe codes are left as text where the area did not ask for them "
     REQUIRE(row >= 0);
     CHECK(screen.at(0, row).glyph == "|");
     CHECK(screen.at(0, row).fg == amberedit::ui::theme::palette.text);
+}
+
+TEST_CASE("The reader replays the ANSI a message was drawn with "
+          "[messageread][ansi][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.bbsCodesAnsi = true;
+    // Two lines of the message and one row of the picture: the second undoes
+    // its own newline the way an ANSI file does and carries on where the first
+    // left off, which is the whole reason a canvas is needed at all.
+    showBody(fixture, {"\x1b[1;1Hab", "\x1b[A\x1b[5C\x1b[1;31mcd"});
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+
+    const int row = rowOf(fixture, screen, "ab   cd");
+    REQUIRE(row >= 0);
+    CHECK(screen.at(0, row).glyph == "a");
+    // Bright red, which is what 1 asks for beside 31 — the bright half of the
+    // palette and not a heavier stroke.
+    CHECK(screen.at(5, row).glyph == "c");
+    CHECK(screen.at(5, row).fg == term::Color{9});
+    // One row, so the message's own second line is nowhere on screen.
+    CHECK(fixture.state.readLines.size() == 1);
+    CHECK(fixture.state.readLines.front().canvas);
+}
+
+TEST_CASE("The trailer is never part of the picture [messageread][ansi][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.bbsCodesAnsi = true;
+    // The art leaves the cursor back up in the middle of itself, which is where
+    // the tearline would land if it went through the canvas.
+    showBody(fixture, {"\x1b[1;1Hart", "\x1b[1;1H", "--- AmberEdit",
+                       " * Origin: somewhere (2:5020/9999)"});
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+
+    // Under the picture and not over it, and in the theme's trailer color
+    // whatever colors the message was drawing in.
+    const int art = rowOf(fixture, screen, "art");
+    const int tear = rowOf(fixture, screen, "--- AmberEdit");
+    const int origin = rowOf(fixture, screen, "* Origin: somewhere");
+    REQUIRE(art >= 0);
+    REQUIRE(tear > art);
+    REQUIRE(origin > tear);
+    CHECK(screen.at(0, tear).fg == amberedit::ui::theme::palette.trailer);
+    CHECK(screen.at(1, origin).fg == amberedit::ui::theme::palette.trailer);
+    // And they are rows of the message rather than rows of the canvas.
+    CHECK_FALSE(fixture.state.readLines[1].canvas);
+}
+
+TEST_CASE("A canvas suspends the other codes [messageread][ansi][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.bbsCodesAnsi = true;
+    fixture.config.styleCodes = true;
+    fixture.config.bbsCodesRenegade = true;
+    // Both of the others are on, and neither may touch this: a `*` and a `|07`
+    // in a picture are glyphs somebody drew with.
+    showBody(fixture, {"\x1b[32m*star* |07pipe"});
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+
+    const int row = rowOf(fixture, screen, "*star* |07pipe");
+    REQUIRE(row >= 0);
+    CHECK(screen.at(0, row).fg == term::Color{2});
+}
+
+TEST_CASE("A message with no ANSI in it is read the ordinary way "
+          "[messageread][ansi][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.bbsCodesAnsi = true;
+    // The option says the echo *may* carry ANSI. Most of its messages do not,
+    // and they go on wrapping, quoting and coloring as they always did.
+    showBody(fixture, {"> and a quote"});
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+
+    const int row = rowOf(fixture, screen, "> and a quote");
+    REQUIRE(row >= 0);
+    CHECK(screen.at(0, row).fg == amberedit::ui::theme::palette.quoteOdd);
+    CHECK_FALSE(fixture.state.readLines.front().canvas);
+}
+
+TEST_CASE("Nothing is replayed where the area did not ask for it "
+          "[messageread][ansi][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE_FALSE(fixture.state.areaConfig.bbsCodesAnsi);
+    showBody(fixture, {"\x1b[1;1Hab", "\x1b[A\x1b[5Ccd"});
+
+    // Two lines of the message are two rows, and the sequences are still in
+    // them: an echo that was never written this way is not to have its text
+    // quietly taken apart.
+    CHECK(fixture.state.readLines.size() == 2);
+    CHECK_FALSE(fixture.state.readLines.front().canvas);
+    CHECK(fixture.state.readLines.front().text == "\x1b[1;1Hab");
 }
 
 namespace {

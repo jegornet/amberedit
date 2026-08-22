@@ -72,6 +72,7 @@ add_executable(amberedit_tests
   ui/theme_test.cpp
   ui/text_layout_test.cpp
   ui/bbs_codes_test.cpp
+  ui/ansi_canvas_test.cpp
   ui/text_editor_test.cpp
   ui/edit_layout_test.cpp
 )
@@ -102,6 +103,7 @@ target_compile_definitions(amberedit_tests PRIVATE
 # test needs the source directly.
 target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/area_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/ansi_canvas.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/bbs_codes.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/confirm_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/dialog_frame.cpp

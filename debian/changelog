@@ -1,3 +1,9 @@
+amberedit (0.1.8-1) unstable; urgency=low
+
+  * ANSI graphics support (experimental)
+
+ -- Yegor Gluhov <git@jegor.net>  Sun, 23 Aug 2026 12:00:00 +0000
+
 amberedit (0.1.7-1) unstable; urgency=low
 
   * Add comment reply
