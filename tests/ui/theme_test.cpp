@@ -86,6 +86,9 @@ TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.selection, builtIn.selection));
     CHECK(same(loaded.selectionText, builtIn.selectionText));
     CHECK(same(loaded.inputField, builtIn.inputField));
+    CHECK(same(loaded.inputText, builtIn.inputText));
+    CHECK(same(loaded.focusedField, builtIn.focusedField));
+    CHECK(same(loaded.focusedText, builtIn.focusedText));
     CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK(same(loaded.dialogText, builtIn.dialogText));
     CHECK(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -130,6 +133,9 @@ TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.selection, builtIn.selection));
     CHECK_FALSE(same(loaded.selectionText, builtIn.selectionText));
     CHECK_FALSE(same(loaded.inputField, builtIn.inputField));
+    CHECK_FALSE(same(loaded.inputText, builtIn.inputText));
+    CHECK_FALSE(same(loaded.focusedField, builtIn.focusedField));
+    CHECK_FALSE(same(loaded.focusedText, builtIn.focusedText));
     CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
     CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -199,6 +205,24 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
         CHECK_FALSE(same(theme.selectionText, theme.selection));
         CHECK_FALSE(same(theme.dialogFlash, theme.selection));
         CHECK_FALSE(same(theme.dialogLabel, theme.dialogField));
+    }
+}
+
+TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
+    // The same rule the dialog palette is held to, for the pair of fills the
+    // compose screen puts down: a field standing idle and the one the typing is
+    // in are both text on a fill of its own, and text the color of what is
+    // behind it is a field that looks empty.
+    for (const char* file : {"themes/default.cfg", "themes/ged_classic.cfg"}) {
+        CAPTURE(file);
+        const Palette theme = valueOf(
+            amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
+
+        CHECK_FALSE(same(theme.inputText, theme.inputField));
+        CHECK_FALSE(same(theme.focusedText, theme.focusedField));
+        // And the two fills apart from each other, which is what says which of
+        // the fields the typing is in.
+        CHECK_FALSE(same(theme.focusedField, theme.inputField));
     }
 }
 

@@ -75,12 +75,28 @@ struct Palette {
     /// Written on that fill. Its own role rather than the message text reused:
     /// a theme that selects with a light fill needs something darker here.
     Color selectionText = builtin_theme::kText;
-    /// Behind a field that is typed into: the header block of a message being
-    /// written. A fill rather than a border, which would cost a column on each
-    /// side of every field and a row above and below the block. The one the
-    /// typing is in takes `selection` instead, as everything else that has it
-    /// does.
+    /// Behind a field that is typed into but is not the one being typed into
+    /// now: the header block of a message being written. A fill rather than a
+    /// border, which would cost a column on each side of every field and a row
+    /// above and below the block.
     Color inputField = builtin_theme::kInputField;
+    /// Written on that fill. The same shade as `header` at present — the block
+    /// is the message's own header, and a field standing idle reads as part of
+    /// it — kept apart so that a theme whose `input_field` is not the screen's
+    /// background can pick something legible on it without moving the rest of
+    /// the block.
+    Color inputText = builtin_theme::kHeader;
+    /// Behind the field the typing is actually in, and behind the one stop of
+    /// that ring which is a button rather than a field — the attributes under
+    /// the addresses. The same shade as `selection` at present, so that
+    /// whatever is being acted on wears one color across the program, kept
+    /// apart so that a theme may say "here is where the typing goes" in
+    /// something other than the bar its lists mark a row with.
+    Color focusedField = builtin_theme::kSelection;
+    /// Written on that fill, `selection_text`'s counterpart for the same
+    /// reason: a theme that lights the focused field with a fill of its own
+    /// needs to choose what goes on it.
+    Color focusedText = builtin_theme::kText;
     /// Behind a modal box, from its frame to the far corner — the fill wiped
     /// over whatever the box stands on. Its own role rather than `background`
     /// reused: a dialog is meant to read as something laid over the screen, and

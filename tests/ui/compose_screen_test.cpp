@@ -752,13 +752,13 @@ TEST_CASE("The attributes button is lit when the typing is on it, and plain when
         CHECK(cell.bg.defaulted);
     }
 
-    // In focus it takes the fill the lists give the row Enter would act on.
+    // In focus it takes the fields' own fill, being a stop in their ring.
     compose::handleEvent(state, Event::Tab);
     compose::handleEvent(state, Event::Tab);
     REQUIRE(state.composeField == compose::kAttributes);
     for (const auto& cell : buttonCells()) {
-        CHECK(cell.fg == theme::palette.selectionText);
-        CHECK(cell.bg == theme::palette.selection);
+        CHECK(cell.fg == theme::palette.focusedText);
+        CHECK(cell.bg == theme::palette.focusedField);
     }
 
     // And nothing of it is left lit once the typing has gone back to a field.
@@ -795,13 +795,13 @@ TEST_CASE("The fields that are typed into are drawn as boxes that take typing "
             CHECK(bg == theme::palette.inputField);
         }
     }
-    // And the one the typing is in takes the selection fill, its text written
+    // And the one the typing is in takes the focused fill, its text written
     // in the color that goes on it.
     for (const term::Color& bg : fillOf(compose::kToName)) {
-        CHECK(bg == theme::palette.selection);
+        CHECK(bg == theme::palette.focusedField);
     }
     const term::Box& focused = state.composeFieldSpots[compose::kToName].box;
-    CHECK(screen.at(focused.x_max, focused.y_min).fg == theme::palette.selectionText);
+    CHECK(screen.at(focused.x_max, focused.y_min).fg == theme::palette.focusedText);
 
     // The label beside a field is not part of it: it says what the box is for
     // and is not typed into, so the fill stops where the box starts.

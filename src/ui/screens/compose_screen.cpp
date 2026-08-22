@@ -161,9 +161,9 @@ std::string attributesText(uint32_t attributes) {
 ///
 /// Out of focus it is drawn like every other value in the block, so the row
 /// reads as part of the message and not as a control panel bolted to it. In
-/// focus it takes the fill the lists give the row Enter would act on: it is a
-/// stop in the same ring the fields are in, and the cursor has to be visible on
-/// it as it is in them.
+/// focus it takes `focused_field`/`focused_text`, the fields' own pair: it is a
+/// stop in the same ring they are in, and the cursor has to be visible on it as
+/// it is in them.
 Element attributesColumn(AppState& state, int width, bool focused) {
     const std::string carried = attributesText(state.compose.attributes);
     const std::string shown =
@@ -177,8 +177,8 @@ Element attributesColumn(AppState& state, int width, bool focused) {
     if (focused) {
         button = std::move(button) | bold |
                  color(pressed ? theme::palette.animatedButtonText
-                               : theme::palette.selectionText) |
-                 bgcolor(theme::palette.selection);
+                               : theme::palette.focusedText) |
+                 bgcolor(theme::palette.focusedField);
     } else {
         button = std::move(button) | color(pressed ? theme::palette.animatedButtonText
                                                    : theme::palette.header);
@@ -204,17 +204,17 @@ Elements headerRows(AppState& state, bool editing) {
     // A field that is typed into is drawn on a fill the width of its column, so
     // that it reads as a box asking for something before anything is in it: the
     // block is otherwise five values written on a screen, with nothing about
-    // them saying which of the two blocks on this screen may be changed. The one
-    // the typing is in takes the selection fill instead — the same the lists
-    // give the row Enter would act on, and the same the attributes button
-    // beside them takes, so whatever the typing is on wears one color
-    // everywhere.
+    // them saying which of the two blocks on this screen may be changed. Idle,
+    // that is `input_field` with `input_text` on it; the one the typing is in
+    // takes `focused_field`/`focused_text` instead — the same pair the
+    // attributes button beside them takes, so whatever the typing is on wears
+    // one color everywhere.
     const auto cell = [&](int which, int width) {
         const bool focused = editing && state.composeField == which;
         return field(valueOf(state.compose, which), state.composeCursor, width, focused,
-                     focused ? theme::palette.selectionText : theme::palette.header,
+                     focused ? theme::palette.focusedText : theme::palette.inputText,
                      &state.composeFieldSpots[static_cast<size_t>(which)]) |
-               bgcolor(focused ? theme::palette.selection : theme::palette.inputField);
+               bgcolor(focused ? theme::palette.focusedField : theme::palette.inputField);
     };
     // What is left of the row once the labels and the names are taken off —
     // wider than the address column above it, since the names stop at

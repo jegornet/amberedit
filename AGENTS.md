@@ -949,14 +949,17 @@ decides what an occurrence is.
   message carrying none says `Attrs...`. `Ctrl-F` opens the dialog from anywhere
   on the screen. Six things worth knowing:
   - **The fields around it are drawn as boxes that take typing**, on the
-    `input_field` fill and the width of their column (`headerRows()`'s `cell()`).
-    A fill says which block may be changed without spending a column either side
-    of every field the way a border would, and the name and address columns stand
-    hard against each other for the same reason. Only the fields wear it: the
-    Date and Recd rows are shown rather than typed into and keep `header` on no
-    fill. The field the typing is in takes `selection`/`selection_text` — the
-    same fill the lists give the row Enter would act on, so whatever the typing
-    is on wears one color everywhere. Both shipped themes state the role.
+    `input_field` fill with `input_text` on it and the width of their column
+    (`headerRows()`'s `cell()`). A fill says which block may be changed without
+    spending a column either side of every field the way a border would, and the
+    name and address columns stand hard against each other for the same reason.
+    Only the fields wear it: the Date and Recd rows are shown rather than typed
+    into and keep `header` on no fill. The field the typing is in takes
+    `focused_field`/`focused_text`, which the button beside them takes as well,
+    so whatever the typing is on wears one color everywhere. That pair defaults
+    to `selection`/`selection_text` — the bar the lists give the row Enter would
+    act on — and is a role of its own so that a theme may mark the field the
+    typing is in and the selected row apart. Both shipped themes state all four.
   - **The button is a stop in the Tab ring**, `kAttributes`, between the subject
     and the text — the one stop not typed into, which is why `headerKey()` hands
     it Enter and Space and then bows out before anything that edits text.
@@ -1427,8 +1430,9 @@ taking a row.
   `dialog_label`, `dialog_hint`, `dialog_field` and `dialog_flash`, plus
   `menu_button`, which is only ever drawn inside one. A new dialog reaches for
   those rather than for `text`, `table_header`, `header`,
-  `footer`/`dimmed`/`kludge`, `input_field` and `animated_button_text`, which
-  are the screen's counterparts and stay on the screen. The split is what lets
+  `footer`/`dimmed`/`kludge`, `input_field`/`input_text`,
+  `focused_field`/`focused_text` and `animated_button_text`, which are the
+  screen's counterparts and stay on the screen. The split is what lets
   `themes/ged_classic.cfg` put a light grey DOS window with black in it over a
   screen that is light on black: one role cannot be legible on both. A test
   loads both shipped themes and checks that nothing a box draws with is the

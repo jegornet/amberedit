@@ -21,11 +21,14 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 33> kFields{{
+const std::array<std::pair<std::string_view, Field>, 36> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
     {"input_field", &Palette::inputField},
+    {"input_text", &Palette::inputText},
+    {"focused_field", &Palette::focusedField},
+    {"focused_text", &Palette::focusedText},
     {"dialog_background", &Palette::dialogBackground},
     {"dialog_text", &Palette::dialogText},
     {"dialog_title", &Palette::dialogTitle},
