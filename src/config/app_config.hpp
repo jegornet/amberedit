@@ -239,18 +239,19 @@ struct EcholistSource {
 /// by the table its config key is read through — `save` in `reader_menu` is
 /// refused there rather than being unrepresentable here.
 enum class MenuCommand {
-    List,      ///< reader: the list of messages, as l and F9 do
-    Reply,     ///< reader: answer it, quoting
-    ReplyTo,   ///< reader: answer it in another area, as n and F5 do
-    New,       ///< reader: write a new message
-    Forward,   ///< reader: pass it on into another area, as m does
-    Find,      ///< reader: look for a message in the area, as `f` does
-    Change,    ///< reader: write the message on screen again, as c does
-    Info,      ///< reader: what the base holds about the message, as i does
-    Export,    ///< reader: write it out to a text file, as w does
-    Nodelist,  ///< reader: look an address or a sysop up, as Ctrl-N and F10 do
-    Save,      ///< editor: store what is being written
-    Import,    ///< editor: read a file into the message, as Ctrl-O does
+    List,          ///< reader: the list of messages, as l and F9 do
+    Reply,         ///< reader: answer it, quoting
+    ReplyTo,       ///< reader: answer it in another area, as n and F5 do
+    CommentReply,  ///< reader: answer it addressed to its recipient, as Alt-Q does
+    New,           ///< reader: write a new message
+    Forward,       ///< reader: pass it on into another area, as m does
+    Find,          ///< reader: look for a message in the area, as `f` does
+    Change,        ///< reader: write the message on screen again, as c does
+    Info,          ///< reader: what the base holds about the message, as i does
+    Export,        ///< reader: write it out to a text file, as w does
+    Nodelist,      ///< reader: look an address or a sysop up, as Ctrl-N and F10 do
+    Save,          ///< editor: store what is being written
+    Import,        ///< editor: read a file into the message, as Ctrl-O does
 };
 
 /// Whether a piece of the interface is on the screen at all: the menu button,
@@ -840,11 +841,13 @@ struct AppConfig {
     /// What the two menus hold, in the order they are to stand — from
     /// `reader_menu` and `compose_menu`.
     ///
-    /// The reader's default leaves out `change`, `info` and `export`: writing
-    /// over a message that is already in a base is a rare thing to want and a
-    /// bad thing to do by accident, what a base holds about a message is a
-    /// question most readers never ask, and a message is written out to a file
-    /// now and then — `c`/F2, `i` and `w` do all three without a button.
+    /// The reader's default leaves out `change`, `info`, `export` and
+    /// `comment_reply`: writing over a message that is already in a base is a
+    /// rare thing to want and a bad thing to do by accident, what a base holds
+    /// about a message is a question most readers never ask, a message is
+    /// written out to a file now and then, and answering the recipient rather
+    /// than the sender is a thing wanted now and then and never by accident —
+    /// `c`/F2, `i`, `w` and Alt-Q do all four without a button.
     std::vector<MenuCommand> readerMenu{
         MenuCommand::List,    MenuCommand::Reply, MenuCommand::ReplyTo, MenuCommand::New,
         MenuCommand::Forward, MenuCommand::Find,  MenuCommand::Nodelist};

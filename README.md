@@ -98,6 +98,7 @@ window holds. Clicking one presses that key.
 | `q` / `F4` | reply |
 | `e` | write a new message |
 | `n` / `F5` | reply into another area |
+| `Alt-Q` | reply, addressed to whoever the message was written to |
 | `m` | forward, move or copy into another area |
 | `c` / `F2` | change the message |
 | `d` / `Del` | delete it (asks first) |
@@ -163,11 +164,11 @@ own and may be bound — and the dialogs answer for themselves entirely. Naming
 one of them is an error rather than a line quietly dropped.
 
 The commands are `app.quit`; `arealist.next-unread` and `arealist.rescan`;
-`reader.` `reply`, `reply-to`, `new`, `forward`, `change`, `delete`, `export`,
-`find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`, `thread-up` and
-`thread-down`; and `compose.` `save`, `attributes`, `import`, `header-back`,
-`delete-line`, `delete-quote`, `delete-word`, `word-left`, `word-right`,
-`line-start` and `line-end`.
+`reader.` `reply`, `reply-to`, `comment-reply`, `new`, `forward`, `change`,
+`delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
+`thread-up` and `thread-down`; and `compose.` `save`, `attributes`, `import`,
+`header-back`, `delete-line`, `restore-line`, `delete-quote`, `delete-word`,
+`word-left`, `word-right`, `line-start` and `line-end`.
 
 ### Finding a message
 

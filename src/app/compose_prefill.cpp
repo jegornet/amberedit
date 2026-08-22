@@ -76,6 +76,20 @@ ComposeFields reply(const config::AppConfig& config, const domain::AreaConfig& r
     return fields;
 }
 
+ComposeFields commentReply(const config::AppConfig& config,
+                           const domain::AreaConfig& readIn,
+                           const domain::AreaConfig& into,
+                           const domain::MessageHeader& header) {
+    ComposeFields fields = reply(config, readIn, into, header);
+    // The one thing that differs from a reply: the message's recipient rather
+    // than its sender. Both halves of the row come from them — a name at
+    // somebody else's node is not an address anybody can be written to — and an
+    // echo's To address addresses nobody, so there is none to take.
+    fields.toName = header.to;
+    if (fields.netmail) fields.toAddr = addressText(header.destAddr);
+    return fields;
+}
+
 ComposeFields change(const domain::AreaConfig& area,
                      const domain::MessageHeader& header) {
     ComposeFields fields;

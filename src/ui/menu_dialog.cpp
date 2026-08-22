@@ -101,6 +101,7 @@ Label labelOf(config::MenuCommand command) {
         case config::MenuCommand::List: return {"≔", "List"};
         case config::MenuCommand::Reply: return {"↩", "Reply"};
         case config::MenuCommand::ReplyTo: return {"↪", "Reply to…"};
+        case config::MenuCommand::CommentReply: return {"⇄", "Comment"};
         case config::MenuCommand::New: return {"✎", "New"};
         case config::MenuCommand::Forward: return {"↗", "Fwd / Copy"};
         case config::MenuCommand::Find: return {"⌕", "Find"};

@@ -1227,14 +1227,18 @@ bool clickToCursor(AppState& state, const MouseEvent& click) {
 }
 
 /// The reply itself, into the area the message is being read in: every field
-/// off the message it answers, and the cursor in the text.
+/// off the message it answers, and the cursor in the text. `comment` is which
+/// answer it is — the To row off the message's recipient rather than off
+/// whoever wrote it, and nothing else about it different.
 ///
-/// Apart from `startReply()`, which decides first whether the answer is going
+/// Apart from `beginReply()`, which decides first whether the answer is going
 /// anywhere else at all, so that the decision is made once and not again by the
 /// area it lands in.
-void replyHere(AppState& state) {
-    state.compose = app::reply(state.areaConfig, state.currentArea, state.currentArea,
-                               *state.readHeader);
+void replyHere(AppState& state, bool comment) {
+    state.compose = comment ? app::commentReply(state.areaConfig, state.currentArea,
+                                                state.currentArea, *state.readHeader)
+                            : app::reply(state.areaConfig, state.currentArea,
+                                         state.currentArea, *state.readHeader);
     // Straight into the text: a reply has every field filled in from the message
     // it answers, and what the user came here to do is answer it. The cursor is
     // left on the subject for when Alt-H brings it back up — that is the field
@@ -1245,14 +1249,16 @@ void replyHere(AppState& state) {
 }
 
 /// The reply into an area other than the one it was read in — what both ways of
-/// asking for one end at, `direct` saying which asked.
+/// asking for one end at, `direct` saying which asked and `comment` which answer
+/// is being written.
 ///
 /// The user's own `n` and the message's own `AREA:` line differ in one thing:
 /// what the network is told about it. A reply the user has moved is answering a
 /// message posted somewhere else, and the template's @moved lines say so; one
 /// following the message's own line is answering it in the echo it says it came
 /// from, and there is nothing to say — see `ComposeFields::direct`.
-void replyInto(AppState& state, const domain::AreaConfig& target, bool direct) {
+void replyInto(AppState& state, const domain::AreaConfig& target, bool direct,
+               bool comment) {
     state.targetArea = target;
     // Prefilled against the area it is going into rather than the one it
     // answers: the sender's name and AKA are that area's, and whether the
@@ -1264,8 +1270,11 @@ void replyInto(AppState& state, const domain::AreaConfig& target, bool direct) {
     // composeConfig(), which cannot answer yet: what makes composeArea() the
     // target is the `moved` flag two lines below, and app::reply() returns
     // fields without it.
-    state.compose = app::reply(state.config.effectiveFor(state.targetArea),
-                               state.currentArea, state.targetArea, *state.readHeader);
+    const config::AppConfig into = state.config.effectiveFor(state.targetArea);
+    state.compose = comment ? app::commentReply(into, state.currentArea, state.targetArea,
+                                                *state.readHeader)
+                            : app::reply(into, state.currentArea, state.targetArea,
+                                         *state.readHeader);
     state.compose.moved = true;
     state.compose.direct = direct;
     moveTo(state, kSubject);
@@ -1300,6 +1309,25 @@ const domain::AreaConfig* directReplyArea(const AppState& state) {
     // An echo that is named but not subscribed, or one renamed since the
     // message arrived. There is nowhere to put the answer but here.
     return nullptr;
+}
+
+/// Both answers to the message on screen, `comment` saying which: the reply and
+/// the comment differ in the To row alone, and everything the answer is begun
+/// with otherwise — the area it goes into above all — is decided the same way
+/// for either.
+void beginReply(AppState& state, bool comment) {
+    if (!state.readHeader) return;
+
+    // Where the message says which echo it belongs to, the answer follows it —
+    // the same reply into another area the dialog's `n` starts, begun without
+    // asking, since the message has already said where. Copied out of the
+    // manager's list rather than pointed at, as the dialog's own answer is.
+    if (const domain::AreaConfig* found = directReplyArea(state)) {
+        const domain::AreaConfig target = *found;
+        replyInto(state, target, /*direct=*/true, comment);
+        return;
+    }
+    replyHere(state, comment);
 }
 
 }  // namespace
@@ -1338,18 +1366,11 @@ void startNew(AppState& state) {
 }
 
 void startReply(AppState& state) {
-    if (!state.readHeader) return;
+    beginReply(state, /*comment=*/false);
+}
 
-    // Where the message says which echo it belongs to, the answer follows it —
-    // the same reply into another area the dialog's `n` starts, begun without
-    // asking, since the message has already said where. Copied out of the
-    // manager's list rather than pointed at, as the dialog's own answer is.
-    if (const domain::AreaConfig* found = directReplyArea(state)) {
-        const domain::AreaConfig target = *found;
-        replyInto(state, target, /*direct=*/true);
-        return;
-    }
-    replyHere(state);
+void startCommentReply(AppState& state) {
+    beginReply(state, /*comment=*/true);
 }
 
 void startReplyTo(AppState& state, const domain::AreaConfig& target) {
@@ -1364,10 +1385,10 @@ void startReplyTo(AppState& state, const domain::AreaConfig& target) {
     // asked for, and an `AREA:` line saying otherwise does not get to overrule
     // the user who has just picked this one out of the dialog.
     if (target.tag == state.currentArea.tag && target.path == state.currentArea.path) {
-        replyHere(state);
+        replyHere(state, /*comment=*/false);
         return;
     }
-    replyInto(state, target, /*direct=*/false);
+    replyInto(state, target, /*direct=*/false, /*comment=*/false);
 }
 
 void startForwardTo(AppState& state, const domain::AreaConfig& target) {

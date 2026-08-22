@@ -29,6 +29,7 @@ enum class KeyCommand : uint8_t {
     AreaListRescan,      ///< arealist.rescan
     ReaderReply,         ///< reader.reply
     ReaderReplyTo,       ///< reader.reply-to
+    ReaderCommentReply,  ///< reader.comment-reply
     ReaderNew,           ///< reader.new
     ReaderForward,       ///< reader.forward
     ReaderChange,        ///< reader.change

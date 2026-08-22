@@ -421,6 +421,31 @@ TEST_CASE("A reply opens on its quote, the header already filled in [compose]") 
     CHECK(state.composeField == compose::kSubject);
 }
 
+TEST_CASE("A comment answers the recipient and is a reply otherwise [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+
+    amberedit::domain::MessageHeader answered;
+    answered.number = 1;
+    answered.from = "Vasya Pupkin";
+    answered.to = "Petya Ivanov";
+    answered.subject = "a thread";
+    state.readHeader = answered;
+
+    compose::startCommentReply(state);
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    // The one field that differs from what `q` would have left: the message was
+    // written to Petya, and this is what is being said back to him.
+    CHECK(state.compose.toName == "Petya Ivanov");
+    // Everything else is the reply — the quote it opens on, the subject carried
+    // over, and the flag the template and the REPLY kludge are built off.
+    CHECK_FALSE(state.composeInHeader);
+    CHECK(state.compose.reply);
+    CHECK(state.compose.subject == "a thread");
+    compose::handleEvent(state, alt('h'));
+    CHECK(state.composeField == compose::kSubject);
+}
+
 TEST_CASE("A message is not stored without a sender address [compose]") {
     // Neither the area nor the config names an address, so prefill has nothing
     // to put in the From row.

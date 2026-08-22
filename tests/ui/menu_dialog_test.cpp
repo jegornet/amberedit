@@ -202,10 +202,10 @@ TEST_CASE("every label the menus offer fits the default width [menu]") {
     // the buttons or the window, and there is room left over for a longer
     // wording of any of them.
     const std::vector<Item> all{
-        {MenuCommand::List}, {MenuCommand::Reply},   {MenuCommand::ReplyTo},
-        {MenuCommand::New},  {MenuCommand::Forward}, {MenuCommand::Change},
-        {MenuCommand::Info}, {MenuCommand::Export},  {MenuCommand::Nodelist},
-        {MenuCommand::Save}, {MenuCommand::Import}};
+        {MenuCommand::List},         {MenuCommand::Reply}, {MenuCommand::ReplyTo},
+        {MenuCommand::CommentReply}, {MenuCommand::New},   {MenuCommand::Forward},
+        {MenuCommand::Change},       {MenuCommand::Info},  {MenuCommand::Export},
+        {MenuCommand::Nodelist},     {MenuCommand::Save},  {MenuCommand::Import}};
     // The glyph column is as wide as the widest glyph in the menu and no wider:
     // a column set to what one platform draws an emoji in would stand a blank
     // column wide on another.

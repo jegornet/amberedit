@@ -30,6 +30,7 @@ constexpr CommandInfo kCommands[] = {
     {KeyCommand::AreaListRescan, "arealist.rescan", KeyScreen::AreaList, "Ctrl-R"},
     {KeyCommand::ReaderReply, "reader.reply", KeyScreen::Reader, "q F4"},
     {KeyCommand::ReaderReplyTo, "reader.reply-to", KeyScreen::Reader, "n F5"},
+    {KeyCommand::ReaderCommentReply, "reader.comment-reply", KeyScreen::Reader, "Alt-Q"},
     {KeyCommand::ReaderNew, "reader.new", KeyScreen::Reader, "e"},
     {KeyCommand::ReaderForward, "reader.forward", KeyScreen::Reader, "m"},
     {KeyCommand::ReaderChange, "reader.change", KeyScreen::Reader, "c F2"},

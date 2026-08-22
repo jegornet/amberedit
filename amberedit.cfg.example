@@ -595,6 +595,9 @@ compose_delete_line_button when_narrow
 #   reader_menu   list      the list of messages in the area
 #                 reply     answer the message, quoting it
 #                 reply_to  answer it in another area
+#                 comment_reply
+#                           answer it addressed to whoever it was written
+#                           to, as Alt-Q does
 #                 new       write a new message
 #                 forward   pass the message on into another area, as `m` does
 #                 find      look for a message in the area, as `f` does
@@ -606,10 +609,11 @@ compose_delete_line_button when_narrow
 #   compose_menu  save      store the message being written, as ^S does
 #                 import    read a file into the message, as ^O does
 #
-# The two lists below are the defaults. "change", "info" and "export" are left
-# out of the reader's — write them in to have them:
+# The two lists below are the defaults. "change", "info", "export" and
+# "comment_reply" are left out of the reader's — write them in to have them:
 #
-#   reader_menu list reply reply_to new forward find change info export nodelist
+#   reader_menu list reply reply_to comment_reply new forward find change info
+#               export nodelist
 #
 # The area list and the message list carry no menu button and have no setting for
 # one.

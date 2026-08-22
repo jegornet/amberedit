@@ -59,6 +59,7 @@ q               reader.reply
 F4              reader.reply
 n               reader.reply-to
 F5              reader.reply-to
+Alt-Q           reader.comment-reply
 e               reader.new
 m               reader.forward
 c               reader.change

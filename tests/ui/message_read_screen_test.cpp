@@ -79,6 +79,12 @@ std::vector<std::string> rowsOf(AreaFixture& fixture) {
     return rows;
 }
 
+/// Alt held with a letter, as the input layer hands it over however the
+/// terminal happened to spell it.
+Event altKey(char letter) {
+    return Event::Character(std::string(1, letter), false, true, false);
+}
+
 /// Whether `row` begins with `prefix`. C++17, so no starts_with.
 bool startsWith(const std::string& row, const std::string& prefix) {
     return row.compare(0, prefix.size(), prefix) == 0;
@@ -842,6 +848,48 @@ TEST_CASE("The export button is offered but not given [messageread][menu][squish
     fixture.state.menuView.reset();
     message_read::runMenuCommand(fixture.state, MenuCommand::Export);
     CHECK(fixture.state.exportPicker);
+}
+
+TEST_CASE("The comment button is offered but not given [messageread][menu][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    openMenu(fixture);
+    // Not in the default menu and not in the hint bar either: answering
+    // somebody the message did not come from is a thing wanted now and then,
+    // and Alt-Q does it without a button.
+    CHECK(buttonFor(fixture, MenuCommand::CommentReply) == nullptr);
+
+    fixture.state.menuView.reset();
+    fixture.config.readerMenu = {MenuCommand::CommentReply};
+    openMenu(fixture);
+    const auto* button = buttonFor(fixture, MenuCommand::CommentReply);
+    REQUIRE(button != nullptr);
+    REQUIRE(button->enabled);
+
+    REQUIRE(menu_dialog::handleEvent(fixture.state, pressOn(*button)) ==
+            menu_dialog::Outcome::Picked);
+    fixture.state.menuView.reset();
+    message_read::runMenuCommand(fixture.state, MenuCommand::CommentReply);
+    CHECK(fixture.state.navigator.current() == ScreenId::Compose);
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.compose.toName == fixture.state.readHeader->to);
+}
+
+TEST_CASE("Alt-Q answers whoever the message was written to [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader);
+    const std::string sender = fixture.state.readHeader->from;
+    const std::string recipient = fixture.state.readHeader->to;
+    // Two different people, or the test would pass whichever field was read.
+    REQUIRE(sender != recipient);
+
+    REQUIRE(message_read::handleEvent(fixture.state, altKey('q')));
+    CHECK(fixture.state.navigator.current() == ScreenId::Compose);
+    CHECK(fixture.state.compose.toName == recipient);
+    CHECK(fixture.state.compose.subject == fixture.state.readHeader->subject);
 }
 
 TEST_CASE("An empty area has nothing to export [messageread][menu][squish]") {

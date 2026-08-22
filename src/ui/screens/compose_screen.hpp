@@ -54,6 +54,18 @@ void startNew(AppState& state);
 /// reader stays where it is either way, and saving or dropping comes back to it.
 void startReply(AppState& state);
 
+/// Starts a comment on the message in the reader: the same reply in every
+/// respect — the quote, the subject carried over, the `AREA:` line followed
+/// where `areareplydirect` says to, the cursor in the text — save that it is
+/// addressed to whoever the message was written *to* rather than to whoever
+/// wrote it. Does nothing where there is no message, as `startReply()` does not.
+///
+/// It has no place in the default menu and none in the hint bar: it answers
+/// somebody the message on screen did not come from, which is a thing wanted
+/// now and then and never by accident. `Alt-Q` is what does it, and
+/// `reader_menu comment_reply` is how a button for it is asked for.
+void startCommentReply(AppState& state);
+
 /// Starts the same reply, to be written into `target` rather than into the area
 /// the message was read in — what the reader's `n` asks for, once the dialog
 /// has been answered with an area.

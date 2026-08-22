@@ -39,6 +39,11 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     CHECK(keys.is(Event::F9, KeyCommand::ReaderList));
     CHECK(keys.is(Event::Character('q'), KeyCommand::ReaderReply));
     CHECK(keys.is(Event::F4, KeyCommand::ReaderReply));
+    // The comment on the message, which is the reply addressed to whoever it
+    // was written to. A chord of its own: a bare letter is not what a command
+    // wanted now and then should be a slip of the finger away from.
+    CHECK(keys.is(alt('q'), KeyCommand::ReaderCommentReply));
+    CHECK_FALSE(keys.is(Event::Character('q'), KeyCommand::ReaderCommentReply));
     CHECK(keys.is(Event::Delete, KeyCommand::ReaderDelete));
     CHECK(keys.is(ctrl('n'), KeyCommand::ReaderNodelist));
     CHECK(keys.is(Event::F10, KeyCommand::ReaderNodelist));
@@ -64,7 +69,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bfh");
+    CHECK(keys.altLetters() == "bfhq");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }

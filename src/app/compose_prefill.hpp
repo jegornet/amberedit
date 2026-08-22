@@ -111,6 +111,27 @@ ComposeFields newMessage(const config::AppConfig& config, const domain::AreaConf
 ComposeFields reply(const config::AppConfig& config, const domain::AreaConfig& readIn,
                     const domain::AreaConfig& into, const domain::MessageHeader& header);
 
+/// The fields a comment on `header` starts with: the reply above in every
+/// respect — the subject carried over, the quote, the reply link, the sender's
+/// AKA chosen the same way — save that it is addressed to whoever the message
+/// was written *to* rather than to whoever wrote it.
+///
+/// It is how a third party picks up what was said to somebody else, and how a
+/// message of one's own read back is carried on to the same correspondent. In
+/// netmail the whole of the To row comes from the recipient, name and address
+/// together; in echomail there is no address to take, as there is none in a
+/// reply.
+///
+/// The sender is left exactly as `reply()` chose it, which is a rule about the
+/// message being answered and not about who is being written to: a netmail that
+/// was addressed to us is answered from that AKA, and a comment on it is then
+/// written from and to the same address — which is what a comment on one's own
+/// message is.
+ComposeFields commentReply(const config::AppConfig& config,
+                           const domain::AreaConfig& readIn,
+                           const domain::AreaConfig& into,
+                           const domain::MessageHeader& header);
+
 /// The fields a message being changed starts with: its own, as the base holds
 /// them.
 ///

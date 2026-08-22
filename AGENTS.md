@@ -738,6 +738,25 @@ Rules that hold the design together:
     44/44` — whenever the line names another area, whether or not
     `areareplydirect` is on: it is a fact about the message.
 
+- **`comment-reply` is the same reply addressed to the recipient**: `Alt-Q`,
+  `reader.comment-reply`, `compose::startCommentReply()`. It differs from a
+  reply in `ComposeFields`' To row alone — `app::commentReply()` is
+  `app::reply()` with `toName` off `header.to` and, in netmail, `toAddr` off
+  `header.destAddr`. Both halves come from the recipient: a name at somebody
+  else's node is nobody. The sender AKA rule is left exactly as `reply()` chose
+  it, being a rule about the message being answered rather than about who is
+  written to, so a comment on a netmail that was addressed to us is written
+  from and to the same address.
+  - It shares `beginReply()` with the reply, so `areareplydirect` and the three
+    paths above hold for it unchanged, and `ComposeFields::reply` stays true —
+    the quote, the REPLY kludge, `@Quoted` and the "reply" title are the
+    reply's. There is no comment variant of `n`.
+  - **Offered but not given, and never shown unasked**: `comment_reply` is in
+    `config::MenuCommand` so `reader_menu` may name it, and it is out of the
+    default `readerMenu` and out of `hint_bar.cpp`'s `kReader` entirely.
+    Answering somebody the message did not come from is a thing wanted now and
+    then and never by accident.
+
 - **`reply_to_area` moves the picker's cursor**, and outside this screen says
   where an echo's carbon copies go. `askArea()` looks the tag up in the
   manager's list — case-folded, as every echoid is — and only for `For::Reply`:

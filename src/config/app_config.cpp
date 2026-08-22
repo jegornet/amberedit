@@ -172,11 +172,12 @@ using MenuNames = std::vector<std::pair<std::string_view, MenuCommand>>;
 
 const MenuNames& readerCommands() {
     static const MenuNames names{
-        {"list", MenuCommand::List},        {"reply", MenuCommand::Reply},
-        {"reply_to", MenuCommand::ReplyTo}, {"new", MenuCommand::New},
-        {"forward", MenuCommand::Forward},  {"find", MenuCommand::Find},
-        {"change", MenuCommand::Change},    {"info", MenuCommand::Info},
-        {"export", MenuCommand::Export},    {"nodelist", MenuCommand::Nodelist},
+        {"list", MenuCommand::List},         {"reply", MenuCommand::Reply},
+        {"reply_to", MenuCommand::ReplyTo},  {"comment_reply", MenuCommand::CommentReply},
+        {"new", MenuCommand::New},           {"forward", MenuCommand::Forward},
+        {"find", MenuCommand::Find},         {"change", MenuCommand::Change},
+        {"info", MenuCommand::Info},         {"export", MenuCommand::Export},
+        {"nodelist", MenuCommand::Nodelist},
     };
     return names;
 }

@@ -199,6 +199,80 @@ TEST_CASE("An echo answered into netmail picks the AKA off the recipient "
     CHECK(fields.toAddr == "192:200/1");
 }
 
+TEST_CASE("A netmail comment is addressed to the message's recipient [compose]") {
+    // The whole of the To row comes from whoever the message was written to,
+    // name and address together — the one thing a comment differs from a reply
+    // in. The sender is the reply's: 192:168/2 is ours and is what the message
+    // was written to, so that is what answers, whoever the answer goes to.
+    auto header = messageFrom("Vasya Pupkin", "192:168/3.1", /*destAddr=*/"192:168/2");
+    header.to = "Petya Ivanov";
+    const AreaConfig netmail = areaOf(AreaKind::Netmail, "2:5020/736");
+    const auto fields =
+        amberedit::app::commentReply(editorConfig(), netmail, netmail, header);
+
+    CHECK(fields.netmail);
+    CHECK(fields.reply);
+    CHECK(fields.fromName == "Yegor Gluhov");
+    CHECK(fields.fromAddr == "192:168/2");
+    CHECK(fields.toName == "Petya Ivanov");
+    CHECK(fields.toAddr == "192:168/2");
+    CHECK(fields.subject == "test");
+}
+
+TEST_CASE("A comment differs from the reply in the To row alone [compose]") {
+    auto header = messageFrom("Vasya Pupkin", "192:168/3.1", "2:5020/1");
+    header.to = "Petya Ivanov";
+    const AreaConfig netmail = areaOf(AreaKind::Netmail, "2:5020/736");
+    const auto config = editorConfig();
+    const auto answer = amberedit::app::reply(config, netmail, netmail, header);
+    const auto comment = amberedit::app::commentReply(config, netmail, netmail, header);
+
+    // Routed netmail: the address it was sent to is not ours, so [akamatch]
+    // picks the sender off whoever *wrote* it in both — the rule is about the
+    // message being answered and not about who is being written to.
+    CHECK(comment.fromAddr == answer.fromAddr);
+    CHECK(comment.fromName == answer.fromName);
+    CHECK(comment.subject == answer.subject);
+    CHECK(comment.netmail == answer.netmail);
+    CHECK(comment.reply == answer.reply);
+    CHECK(comment.attributes == answer.attributes);
+
+    CHECK(answer.toName == "Vasya Pupkin");
+    CHECK(answer.toAddr == "192:168/3.1");
+    CHECK(comment.toName == "Petya Ivanov");
+    CHECK(comment.toAddr == "2:5020/1");
+}
+
+TEST_CASE("A netmail comment with no destination address leaves it empty [compose]") {
+    // Nothing to be addressed to, as a reply to a message with no origin
+    // address has nothing either: the field is left for the user to type.
+    auto header = messageFrom("Vasya Pupkin", "2:382/736.120", "");
+    header.to = "Petya Ivanov";
+    const AreaConfig netmail = areaOf(AreaKind::Netmail, "2:5020/736");
+    const auto fields =
+        amberedit::app::commentReply(editorConfig(), netmail, netmail, header);
+
+    CHECK(fields.toName == "Petya Ivanov");
+    CHECK(fields.toAddr.empty());
+    CHECK(fields.fromAddr == "2:5020/736");
+}
+
+TEST_CASE("An echomail comment is addressed to nobody in particular [compose]") {
+    // An echo is written to a name and to no address, so that is all a comment
+    // on it has to go by — "All" included, which is what most of an echo is
+    // written to and what a comment on one of those is then addressed to.
+    auto header = messageFrom("Vasya Pupkin", "2:382/736.120", "192:168/2");
+    header.to = "All";
+    const AreaConfig echo = areaOf(AreaKind::Echo, "2:5020/736");
+    const auto fields = amberedit::app::commentReply(editorConfig(), echo, echo, header);
+
+    CHECK_FALSE(fields.netmail);
+    CHECK(fields.fromAddr == "2:5020/736");
+    CHECK(fields.toName == "All");
+    CHECK(fields.toAddr.empty());
+    CHECK(fields.subject == "test");
+}
+
 TEST_CASE("An echomail reply answers from the area's AKA [compose]") {
     // The addresses in an echo's header belong to whoever wrote it and to the
     // link it arrived over; neither is anything to answer from or to.

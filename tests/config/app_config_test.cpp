@@ -376,6 +376,11 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
           std::vector<MenuCommand>{MenuCommand::Change, MenuCommand::Info,
                                    MenuCommand::Export});
 
+    // And so is answering the recipient rather than the sender: Alt-Q does it
+    // without a button, and the button is there for whoever wants one.
+    CHECK(with("reader_menu reply comment_reply\n").readerMenu ==
+          std::vector<MenuCommand>{MenuCommand::Reply, MenuCommand::CommentReply});
+
     // `none` was how a toolbar used to be taken away, and the menus took the
     // toolbars' place: the message says where the setting went rather than
     // leaving it to read as a typo.
@@ -395,7 +400,8 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     REQUIRE_MESSAGE(
         contains(
             error2,
-            "list, reply, reply_to, new, forward, find, change, info, export, nodelist"),
+            "list, reply, reply_to, comment_reply, new, forward, find, change, info, "
+            "export, nodelist"),
         error2);
 }
 
