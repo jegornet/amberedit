@@ -68,7 +68,8 @@ d               reader.delete
 Del             reader.delete
 w               reader.export
 F7              reader.export
-f               reader.find
+Ctrl-F          reader.find
+F6              reader.find
 l               reader.list
 F9              reader.list
 i               reader.info

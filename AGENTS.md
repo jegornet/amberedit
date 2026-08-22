@@ -789,7 +789,7 @@ Rules that hold the design together:
 
 ### Finding a message
 
-`f` in the reader, `find` in `reader_menu`. Three pieces: `ui/find_dialog.*`
+`Ctrl-F` or `F6` in the reader, `find` in `reader_menu`. Three pieces: `ui/find_dialog.*`
 asks, `message_read::findMessage()` walks the area, and `encoding::TextSearch`
 decides what an occurrence is.
 

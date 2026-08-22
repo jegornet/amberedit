@@ -361,13 +361,13 @@ TEST_CASE("Words that are nowhere leave the reader as it was [find][squish]") {
         message_read::findMessage(fixture.state, "   ", SearchScope::HeaderAndText));
 }
 
-TEST_CASE("f opens the find box on what was last looked for [find][squish]") {
+TEST_CASE("Ctrl-F opens the find box on what was last looked for [find][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), plain());
     putMessages(fixture, {says({"needle"})});
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
-    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('f')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character("f", true)));
     REQUIRE(fixture.state.findPicker);
     CHECK(fixture.state.findPicker->query.empty());
 
@@ -382,7 +382,7 @@ TEST_CASE("f opens the find box on what was last looked for [find][squish]") {
                                       fixture.state.findPicker->scope));
     fixture.state.findPicker.reset();
 
-    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('f')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::F6));
     REQUIRE(fixture.state.findPicker);
     CHECK(fixture.state.findPicker->query == "needle");
     CHECK(fixture.state.findPicker->cursor == 6);
