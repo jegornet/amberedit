@@ -112,10 +112,15 @@ const std::string& valueOf(const app::ComposeFields& fields, int field) {
 /// What this adds is the `spot`: where the field landed and the byte its
 /// leftmost column shows, which together are what a click is answered against.
 /// Where it landed is read off the frame rather than worked out twice.
+///
+/// `filler` underscores the room the field has left. The header fields ask for
+/// it; the Date and Recd stamps and the row of message text under the cursor do
+/// not, being shown or written rather than asked for.
 Element field(const std::string& value, size_t cursor, int width, bool active,
-              theme::Color tint, AppState::ComposeSpot* spot = nullptr) {
-    if (spot == nullptr) return inputField(value, cursor, width, active, tint);
-    return inputField(value, cursor, width, active, tint, &spot->origin) |
+              theme::Color tint, std::optional<theme::Color> filler = std::nullopt,
+              AppState::ComposeSpot* spot = nullptr) {
+    if (spot == nullptr) return inputField(value, cursor, width, active, tint, filler);
+    return inputField(value, cursor, width, active, tint, filler, &spot->origin) |
            reflect(spot->box);
 }
 
@@ -159,11 +164,15 @@ std::string attributesText(uint32_t attributes) {
 /// nothing on it yet, rather than a blank column with a dialog hidden behind
 /// it.
 ///
-/// Out of focus it is drawn like every other value in the block, so the row
-/// reads as part of the message and not as a control panel bolted to it. In
-/// focus it takes `focused_field`/`focused_text`, the fields' own pair: it is a
-/// stop in the same ring they are in, and the cursor has to be visible on it as
-/// it is in them.
+/// Out of focus it wears `input_field`, the fill the header's own boxes wear
+/// when the typing is elsewhere: it is one of the stops of that block and reads
+/// as one, rather than as a value written on the screen beside them. In focus it
+/// takes `focused_field`/`focused_text`, the fields' own pair, as a stop in the
+/// same ring has to.
+///
+/// The fill is only as wide as what the attributes say, where a field's is the
+/// width of its column: a field is a box waiting for something and has to show
+/// how much room it has, and this one is not typed into.
 Element attributesColumn(AppState& state, int width, bool focused) {
     const std::string carried = attributesText(state.compose.attributes);
     const std::string shown =
@@ -180,8 +189,10 @@ Element attributesColumn(AppState& state, int width, bool focused) {
                                : theme::palette.focusedText) |
                  bgcolor(theme::palette.focusedField);
     } else {
-        button = std::move(button) | color(pressed ? theme::palette.animatedButtonText
-                                                   : theme::palette.header);
+        button = std::move(button) |
+                 color(pressed ? theme::palette.animatedButtonText
+                               : theme::palette.inputText) |
+                 bgcolor(theme::palette.inputField);
     }
 
     // The button is only as wide as what it says: the fill beside it is the
@@ -213,6 +224,7 @@ Elements headerRows(AppState& state, bool editing) {
         const bool focused = editing && state.composeField == which;
         return field(valueOf(state.compose, which), state.composeCursor, width, focused,
                      focused ? theme::palette.focusedText : theme::palette.inputText,
+                     fieldFiller(theme::palette.inputFiller),
                      &state.composeFieldSpots[static_cast<size_t>(which)]) |
                bgcolor(focused ? theme::palette.focusedField : theme::palette.inputField);
     };
@@ -1849,8 +1861,8 @@ Element render(AppState& state) {
         // line is a quote, and how deeply.
         const size_t within = std::min(
             state.edit.col > row.begin ? state.edit.col - row.begin : 0, piece.size());
-        content.push_back(
-            placed(field(piece, within, layout.width, true, base, &spot), i));
+        content.push_back(placed(
+            field(piece, within, layout.width, true, base, std::nullopt, &spot), i));
         // `field()` counts the scroll from the start of what it was given, and
         // what it was given starts partway into the line.
         spot.origin += row.begin;

@@ -37,12 +37,12 @@ TEST_CASE("A theme file states only what it changes [theme]") {
 }
 
 TEST_CASE("Roles the built-in palette shares can be taken apart [theme]") {
-    // kludge, footer, dimmed and scroll_thumb are one color by default; naming
-    // one of them moves that one alone.
+    // kludge, screen_buttons, dimmed and scroll_thumb are one color by default;
+    // naming one of them moves that one alone.
     const Palette loaded = valueOf(parsePalette("kludge 196\n"));
     const Palette builtIn;
     CHECK(same(loaded.kludge, Color{196}));
-    CHECK(same(loaded.footer, builtIn.footer));
+    CHECK(same(loaded.screenButtons, builtIn.screenButtons));
 }
 
 TEST_CASE("Colors are palette numbers, across the whole range [theme]") {
@@ -50,6 +50,19 @@ TEST_CASE("Colors are palette numbers, across the whole range [theme]") {
     CHECK(same(valueOf(parsePalette("text 15")).text, Color{15}));    // bright white
     CHECK(same(valueOf(parsePalette("text 196")).text, Color{196}));  // in the cube
     CHECK(same(valueOf(parsePalette("text 255")).text, Color{255}));  // the grey ramp
+}
+
+TEST_CASE("A theme carries one setting that is not a color [theme]") {
+    // `input_filler_show`, on or off as every other switch AmberEdit reads is
+    // written, and off where the file says nothing.
+    CHECK(valueOf(parsePalette("input_filler_show on")).inputFillerShown);
+    CHECK_FALSE(valueOf(parsePalette("input_filler_show off")).inputFillerShown);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).inputFillerShown);
+
+    // A number is not a switch, and neither is the palette complaint: the key
+    // is answered as the setting it is.
+    const std::string error = errorOf(parsePalette("input_filler_show 1", "theme.cfg"));
+    REQUIRE_MESSAGE(contains(error, "on or off"), error);
 }
 
 TEST_CASE("A key that is not a color is refused [theme]") {
@@ -74,12 +87,12 @@ TEST_CASE("The old #rrggbb spelling is refused by name [theme]") {
     REQUIRE_MESSAGE(contains(error, "256-color palette"), error);
 }
 
-TEST_CASE("The example theme is the built-in palette, written out [theme]") {
+TEST_CASE("The blue theme is the built-in palette, written out [theme]") {
     // It ships as the thing to copy and edit, so the two drifting apart would
     // hand every new theme a wrong starting point. Reading it also proves every
     // role has a key: a field the file cannot name would fail this comparison.
     const Palette loaded = valueOf(amberedit::ui::theme::loadPalette(
-        amberedit::test::projectPath("themes/default.cfg")));
+        amberedit::test::projectPath("themes/blue.cfg")));
     const Palette builtIn;
 
     CHECK(same(loaded.background, builtIn.background));
@@ -89,6 +102,8 @@ TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.inputText, builtIn.inputText));
     CHECK(same(loaded.focusedField, builtIn.focusedField));
     CHECK(same(loaded.focusedText, builtIn.focusedText));
+    CHECK(same(loaded.inputFiller, builtIn.inputFiller));
+    CHECK(loaded.inputFillerShown == builtIn.inputFillerShown);
     CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK(same(loaded.dialogText, builtIn.dialogText));
     CHECK(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -96,6 +111,7 @@ TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.dialogHint, builtIn.dialogHint));
     CHECK(same(loaded.dialogField, builtIn.dialogField));
     CHECK(same(loaded.dialogFlash, builtIn.dialogFlash));
+    CHECK(same(loaded.dialogBorder, builtIn.dialogBorder));
     CHECK(same(loaded.header, builtIn.header));
     CHECK(same(loaded.ownName, builtIn.ownName));
     CHECK(same(loaded.msglistUnread, builtIn.msglistUnread));
@@ -104,7 +120,7 @@ TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.quoteEven, builtIn.quoteEven));
     CHECK(same(loaded.quoteOdd, builtIn.quoteOdd));
     CHECK(same(loaded.kludge, builtIn.kludge));
-    CHECK(same(loaded.footer, builtIn.footer));
+    CHECK(same(loaded.screenButtons, builtIn.screenButtons));
     CHECK(same(loaded.dimmed, builtIn.dimmed));
     CHECK(same(loaded.scrollThumb, builtIn.scrollThumb));
     CHECK(same(loaded.trailer, builtIn.trailer));
@@ -120,13 +136,13 @@ TEST_CASE("The example theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.animatedButtonText, builtIn.animatedButtonText));
 }
 
-TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
+TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     // A shipped theme has to parse, and a sixteen-color palette has to reach
     // every role: one left at its default would put a default-palette color in
     // the middle of a DOS screen. Which color each role gets is the theme's
     // business and gets tuned — only that none was forgotten is checked here.
     const Palette loaded = valueOf(amberedit::ui::theme::loadPalette(
-        amberedit::test::projectPath("themes/ged_classic.cfg")));
+        amberedit::test::projectPath("themes/16_colors.cfg")));
     const Palette builtIn;
 
     CHECK_FALSE(same(loaded.background, builtIn.background));
@@ -136,6 +152,11 @@ TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.inputText, builtIn.inputText));
     CHECK_FALSE(same(loaded.focusedField, builtIn.focusedField));
     CHECK_FALSE(same(loaded.focusedText, builtIn.focusedText));
+    CHECK_FALSE(same(loaded.inputFiller, builtIn.inputFiller));
+    // The one setting a theme carries that is not a color, and this theme is
+    // where it earns its keep: nothing else in it would say a field is there.
+    CHECK(loaded.inputFillerShown);
+    CHECK(loaded.inputFillerShown != builtIn.inputFillerShown);
     CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
     CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -143,6 +164,7 @@ TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.dialogHint, builtIn.dialogHint));
     CHECK_FALSE(same(loaded.dialogField, builtIn.dialogField));
     CHECK_FALSE(same(loaded.dialogFlash, builtIn.dialogFlash));
+    CHECK_FALSE(same(loaded.dialogBorder, builtIn.dialogBorder));
     CHECK_FALSE(same(loaded.header, builtIn.header));
     CHECK_FALSE(same(loaded.ownName, builtIn.ownName));
     CHECK_FALSE(same(loaded.msglistUnread, builtIn.msglistUnread));
@@ -150,7 +172,7 @@ TEST_CASE("The GoldED Classic theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.quoteEven, builtIn.quoteEven));
     CHECK_FALSE(same(loaded.quoteOdd, builtIn.quoteOdd));
     CHECK_FALSE(same(loaded.kludge, builtIn.kludge));
-    CHECK_FALSE(same(loaded.footer, builtIn.footer));
+    CHECK_FALSE(same(loaded.screenButtons, builtIn.screenButtons));
     CHECK_FALSE(same(loaded.dimmed, builtIn.dimmed));
     CHECK_FALSE(same(loaded.scrollThumb, builtIn.scrollThumb));
     CHECK_FALSE(same(loaded.trailer, builtIn.trailer));
@@ -178,7 +200,8 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
     // own, so every color drawn on that fill has to be something else. Left
     // unchecked it is an invisible confirmation rather than an ugly one — the
     // text is there, in the color of what is behind it.
-    for (const char* file : {"themes/default.cfg", "themes/ged_classic.cfg"}) {
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
@@ -190,7 +213,9 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
         CHECK_FALSE(same(theme.dialogHint, theme.dialogBackground));
         CHECK_FALSE(same(theme.dialogFlash, theme.dialogBackground));
         CHECK_FALSE(same(theme.menuButton, theme.dialogBackground));
-        CHECK_FALSE(same(theme.separator, theme.dialogBackground));
+        // The frame is drawn on the box's own fill, and `separator` is not:
+        // the rules on a screen are the screen's.
+        CHECK_FALSE(same(theme.dialogBorder, theme.dialogBackground));
         CHECK_FALSE(same(theme.error, theme.dialogBackground));
 
         // The two fills a box puts down over its own: the bar on whatever Enter
@@ -213,13 +238,25 @@ TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
     // compose screen puts down: a field standing idle and the one the typing is
     // in are both text on a fill of its own, and text the color of what is
     // behind it is a field that looks empty.
-    for (const char* file : {"themes/default.cfg", "themes/ged_classic.cfg"}) {
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
 
         CHECK_FALSE(same(theme.inputText, theme.inputField));
         CHECK_FALSE(same(theme.focusedText, theme.focusedField));
+        // The underscores standing in the room a field has left are a color of
+        // their own and not the fill under them. How far they stand off it is
+        // the theme's business — one theme sets them a whisker above the fill on
+        // purpose, so that the field is felt rather than read — and against
+        // `focused_field` they are held to nothing at all: that fill is on
+        // screen exactly where the typing is, and a theme may let them go under
+        // it rather than draw a second mark inside the first.
+        CHECK_FALSE(same(theme.inputFiller, theme.inputField));
+        // And inside a box they are `dialog_hint`, on the box's own two fills.
+        CHECK_FALSE(same(theme.dialogHint, theme.dialogField));
+        CHECK_FALSE(same(theme.dialogHint, theme.selection));
         // And the two fills apart from each other, which is what says which of
         // the fields the typing is in.
         CHECK_FALSE(same(theme.focusedField, theme.inputField));

@@ -34,9 +34,9 @@ Element labelledRule(const std::string& left, const std::string& right,
     // bold rule would read as a second thing having changed.
     auto middle = text(shown) | color(tint);
     if (strong) middle = std::move(middle) | bold;
-    return hbox({text(left + rule(before)) | color(theme::palette.separator),
+    return hbox({text(left + rule(before)) | color(theme::palette.dialogBorder),
                  std::move(middle),
-                 text(rule(after) + right) | color(theme::palette.separator)});
+                 text(rule(after) + right) | color(theme::palette.dialogBorder)});
 }
 
 }  // namespace
@@ -51,7 +51,7 @@ Element bottomBar(const std::string& hint, const std::string& error, int width) 
                             /*centred=*/false, /*strong=*/true);
     }
     if (hint.empty()) {
-        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.separator);
+        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.dialogBorder);
     }
     return labelledRule("╰", "╯", " " + hint + " ", width, theme::palette.dialogHint,
                         /*centred=*/false);
@@ -59,7 +59,7 @@ Element bottomBar(const std::string& hint, const std::string& error, int width) 
 
 Element footerBar(const std::string& label, int width) {
     if (label.empty()) {
-        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.separator);
+        return text("╰" + horizontalRule(width) + "╯") | color(theme::palette.dialogBorder);
     }
     return labelledRule("╰", "╯", " " + label + " ", width, theme::palette.dialogHint,
                         /*centred=*/true);
@@ -74,12 +74,12 @@ Element surface(Element box) {
 }
 
 Element framed(Element content) {
-    const auto side = [] { return text("│") | color(theme::palette.separator); };
+    const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
     return hbox({side(), std::move(content), side()});
 }
 
 Element divider(int width) {
-    return text("├" + horizontalRule(width) + "┤") | color(theme::palette.separator);
+    return text("├" + horizontalRule(width) + "┤") | color(theme::palette.dialogBorder);
 }
 
 Element line(const std::string& content, int width, theme::Color tint) {

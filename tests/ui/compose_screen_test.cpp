@@ -744,12 +744,14 @@ TEST_CASE("The attributes button is lit when the typing is on it, and plain when
         return cells;
     };
 
-    // Out of focus it is drawn like every other value in the block, so the row
-    // reads as the message rather than as a control panel.
+    // Out of focus it wears the fill and the color the header's own boxes wear,
+    // so the row reads as one of the stops of the block rather than as a value
+    // beside them: what the attributes say is this stop's value, and a value
+    // here is written as the addresses over it are.
     REQUIRE(state.composeField != compose::kAttributes);
     for (const auto& cell : buttonCells()) {
-        CHECK(cell.fg == theme::palette.header);
-        CHECK(cell.bg.defaulted);
+        CHECK(cell.fg == theme::palette.inputText);
+        CHECK(cell.bg == theme::palette.inputField);
     }
 
     // In focus it takes the fields' own fill, being a stop in their ring.
@@ -761,10 +763,11 @@ TEST_CASE("The attributes button is lit when the typing is on it, and plain when
         CHECK(cell.bg == theme::palette.focusedField);
     }
 
-    // And nothing of it is left lit once the typing has gone back to a field.
+    // And nothing of it is left lit once the typing has gone back to a field:
+    // back to the idle fill the boxes around it carry.
     compose::handleEvent(state, Event::TabReverse);
     REQUIRE(state.composeField == compose::kSubject);
-    for (const auto& cell : buttonCells()) CHECK(cell.bg.defaulted);
+    for (const auto& cell : buttonCells()) CHECK(cell.bg == theme::palette.inputField);
 }
 
 TEST_CASE("The fields that are typed into are drawn as boxes that take typing "
@@ -801,11 +804,64 @@ TEST_CASE("The fields that are typed into are drawn as boxes that take typing "
         CHECK(bg == theme::palette.focusedField);
     }
     const term::Box& focused = state.composeFieldSpots[compose::kToName].box;
-    CHECK(screen.at(focused.x_max, focused.y_min).fg == theme::palette.focusedText);
 
     // The label beside a field is not part of it: it says what the box is for
     // and is not typed into, so the fill stops where the box starts.
     CHECK(screen.at(1, focused.y_min).bg.defaulted);
+}
+
+/// Turns the underscores on for as long as it stands: the built-in palette
+/// leaves them off, and the test that is about them has to ask for them as a
+/// theme does.
+struct FillerShown {
+    FillerShown() { theme::palette.inputFillerShown = true; }
+    ~FillerShown() { theme::palette.inputFillerShown = was; }
+    bool was{theme::palette.inputFillerShown};
+};
+
+TEST_CASE("The room a field has left is underscored [compose]") {
+    const FillerShown shown;
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    compose::startNew(state);
+    REQUIRE(state.composeField == compose::kToName);
+    for (const char letter : std::string("Bob")) {
+        compose::handleEvent(state, Event::Character(letter));
+    }
+
+    term::Screen screen(state.width, state.height);
+    term::render(screen, compose::render(state));
+
+    const auto cellsOf = [&](int which) {
+        const term::Box& box = state.composeFieldSpots[static_cast<size_t>(which)].box;
+        REQUIRE_FALSE(box.IsEmpty());
+        std::vector<term::Cell> cells;
+        for (int x = box.x_min; x <= box.x_max; ++x) {
+            cells.push_back(screen.at(x, box.y_min));
+        }
+        return cells;
+    };
+
+    // A field nothing has been typed into is underscores from end to end: it is
+    // a box asking for something, and on a theme whose idle fields carry no fill
+    // of their own this is the only thing that says one is there.
+    for (const auto& cell : cellsOf(compose::kSubject)) {
+        CHECK(cell.glyph == "_");
+        CHECK(cell.fg == theme::palette.inputFiller);
+    }
+
+    // What was typed is what was typed, and the underscores stand in the room
+    // after it — past the cursor, which is the blank the field is scrolled to.
+    const auto typed = cellsOf(compose::kToName);
+    REQUIRE(typed.size() > 4);
+    CHECK(typed[0].glyph == "B");
+    CHECK(typed[0].fg == theme::palette.focusedText);
+    CHECK(typed[2].glyph == "b");
+    CHECK(typed[3].glyph == " ");  // the cursor, drawn inverted on a stand-in blank
+    for (size_t i = 4; i < typed.size(); ++i) {
+        CHECK(typed[i].glyph == "_");
+        CHECK(typed[i].fg == theme::palette.inputFiller);
+    }
 }
 
 TEST_CASE("The date is shown like the rest of the block, on no fill [compose]") {
@@ -1040,7 +1096,7 @@ TEST_CASE("The dialog lists every attribute with the chord that sets it "
     CHECK(shows(rows, "Message attributes"));
     CHECK(shows(rows, "[x] Private              Ctrl-P"));
     CHECK(shows(rows, "[ ] Crash                Ctrl-C"));
-    CHECK(shows(rows, "[x] Local                Ctrl-W"));
+    CHECK(shows(rows, "[x] Local                Ctrl-L"));
     CHECK(shows(rows, "Done"));
 }
 

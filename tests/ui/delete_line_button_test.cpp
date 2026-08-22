@@ -45,7 +45,7 @@ TEST_CASE("the delete-line button is a box with a cross in it "
     CHECK(rowOf(delete_line_button::bottomRow()).text == "└─┘");
 
     for (const Color& color : rowOf(delete_line_button::labelRow()).fg) {
-        CHECK(color == theme::palette.footer);
+        CHECK(color == theme::palette.screenButtons);
     }
 }
 

@@ -257,8 +257,8 @@ A colour in a theme is a number from 0 to 255 — an entry in the terminal's own
 256-colour palette, the same numbering `ESC[38;5;Nm` uses. Entries 0–15 are the
 colours you have already chosen for everything else you run.
 
-`themes/default.cfg` is the built-in palette written out — copy it and edit.
-`themes/ged_classic.cfg` uses nothing above 15, so it is exact even on a console
+`themes/blue.cfg` is the built-in palette written out — copy it and edit.
+`themes/16_colors.cfg` uses nothing above 15, so it is exact even on a console
 that has only those; a terminal with fewer colours than a theme asks for gets the
 nearest it has.
 

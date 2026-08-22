@@ -319,7 +319,7 @@ Rules that hold the design together:
   rather than the store. Writing a position would point every other reader at the
   wrong message the first time the base is packed. `indexOfUid()` asks the driver
   for the nearest earlier message, so a mark on a deleted one lands on the
-  message before it — the answer GoldED settles on.
+  message before it.
 - **The three lastread files have code of their own**, apart from the format
   drivers: `msgbase/lastread_file.*` does the byte-level I/O, one store per
   format sits on top, and `MsgBaseLastReadStore` picks between them by base type.
@@ -875,7 +875,14 @@ decides what an occurrence is.
   path and charset boxes included, or the hit test drifts from what was drawn. It
   holds the UTF-8 stepping a cursor needs (`prevChar`, `charLen`, `charCount`)
   beside the drawing that uses it. The compose screen's `field()` is a wrapper
-  that adds the `ComposeSpot`.
+  that adds the `ComposeSpot`. Its `filler` is the color the columns past what is
+  written are underscored in — `input_filler` on a screen, `dialog_hint` in a
+  box, and nothing at all for the row of message text under the cursor, which
+  comes through here to be edited and is not a box asking for anything. A field
+  asks through `fieldFiller()`, which answers with nothing where the theme's
+  `input_filler_show` is off: whether a field wants underscores is the field's
+  answer and whether the theme draws them is the theme's, and that is the one
+  place the two meet.
 - **A long line is broken by the window, never by the editor.**
   `softWrapOffsets()` (`text_layout.cpp`) says where the window breaks a line and
   `layoutRows()` (`ui/edit_layout.cpp`) turns the buffer into the `EditRow`s that
@@ -950,11 +957,16 @@ decides what an occurrence is.
   on the screen. Six things worth knowing:
   - **The fields around it are drawn as boxes that take typing**, on the
     `input_field` fill with `input_text` on it and the width of their column
-    (`headerRows()`'s `cell()`). A fill says which block may be changed without
-    spending a column either side of every field the way a border would, and the
-    name and address columns stand hard against each other for the same reason.
-    Only the fields wear it: the Date and Recd rows are shown rather than typed
-    into and keep `header` on no fill. The field the typing is in takes
+    (`headerRows()`'s `cell()`), the room past what is written underscored in
+    `input_filler` where the theme asks for it. A fill says which block may be
+    changed without spending a column either side of every field the way a border
+    would, and the name and address columns stand hard against each other for the
+    same reason; the underscores say the same thing where a theme gives an idle
+    field no fill of its own, which is what `input_filler_show` is for.
+    The fields wear it and so does the attributes button beside them, in the same
+    colors and only as wide as what it says rather than the width of a column: it
+    is a stop of the block, and what the attributes say is its value. The Date and
+    Recd rows are shown rather than typed into and keep `header` on no fill. The field the typing is in takes
     `focused_field`/`focused_text`, which the button beside them takes as well,
     so whatever the typing is on wears one color everywhere. That pair defaults
     to `selection`/`selection_text` — the bar the lists give the row Enter would
@@ -970,10 +982,12 @@ decides what an occurrence is.
     `compose.attributes` as it is made, so the row under the addresses moves with
     the dialog; `Enter` keeps what was done and `Esc` puts back what the dialog
     opened with, the only copy anyone keeps. `Ctrl-Z` clears the lot.
-  - The list and the chords are GoldED's, less the attributes AmberEdit has no
-    bit for (Archive/Sent, Zonegate, Hub/Host-Route, Xmail, Erase and Truncate
-    File/Sent, Locked, Confirm Rcpt Request, the reserved ones), left out rather
-    than shown dead.
+  - The list is the attributes AmberEdit has a bit for; the ones it has none for
+    (Archive/Sent, Zonegate, Hub/Host-Route, Xmail, Erase and Truncate
+    File/Sent, Locked, Confirm Rcpt Request, the reserved ones) are left out
+    rather than shown dead. The chords are the ones FTN editors have long used
+    for these bits, less Local, which is `Ctrl-L` here: `Ctrl-W` is the word the
+    editor takes out.
   - The bits live on `ComposeFields::attributes`, are seeded by
     `app/compose_prefill.cpp` (`kLocal` always, `kPrivate` in netmail) and reach
     the base on `MessageDraft::attributes`. `FtnMsgBase::write()` stores that word
@@ -1042,8 +1056,9 @@ decides what an occurrence is.
 
 - **The commands are in the text of the message, and they are carried out when
   it is stored.** `CC:` sends a copy to somebody else, `XC:`/`XP:` posts the same
-  message in other echoes — GoldED's spelling, so that a habit brought from there
-  goes on working. `app/copy_commands.*` is everything the text alone decides:
+  message in other echoes — the spelling FTN editors have long used, so that a
+  habit brought from one of them goes on working. `app/copy_commands.*` is
+  everything the text alone decides:
   finding the lines, reading their tokens, finishing an address written in part,
   building the list the message keeps and rewriting the text round it. Who a name
   belongs to is not there — that is the nodelist's answer, and `nodelist/` stands
@@ -1141,8 +1156,8 @@ decides what an occurrence is.
 - A forward is a *new* message that happens to carry one: `original` is set as
   for a reply, but `fields.forward` makes the context `@new` rather than
   `@reply`, fills `@message` instead of `@quote` (both are unconditional inserts
-  in the template GoldED ships, and filling both would put the message in twice)
-  and writes no REPLY kludge. Its subject comes from the message it passes on,
+  in the template AmberEdit ships, `default.tpl`, and filling both would put the
+  message in twice) and writes no REPLY kludge. Its subject comes from the message it passes on,
   and its editor opens **where `@position` says**: the bare `@position` answers
   for a forward, since `@quoted@position` stands on a line only a reply reaches
   and the later one wins where a template has both. That is how a reply lands on
@@ -1427,20 +1442,22 @@ taking a row.
   without painting over it in the same breath.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
-  `dialog_label`, `dialog_hint`, `dialog_field` and `dialog_flash`, plus
-  `menu_button`, which is only ever drawn inside one. A new dialog reaches for
-  those rather than for `text`, `table_header`, `header`,
-  `footer`/`dimmed`/`kludge`, `input_field`/`input_text`,
-  `focused_field`/`focused_text` and `animated_button_text`, which are the
-  screen's counterparts and stay on the screen. The split is what lets
-  `themes/ged_classic.cfg` put a light grey DOS window with black in it over a
-  screen that is light on black: one role cannot be legible on both. A test
-  loads both shipped themes and checks that nothing a box draws with is the
-  color of the box — the fills it puts down over its own, `selection` and
-  `dialog_field`, and what is written on each of them included.
+  `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash` and
+  `dialog_border` — the frame, the rules closing it and the dividers inside it,
+  `separator`'s counterpart in a box — plus `menu_button`, which is only ever
+  drawn inside one. A new dialog reaches for those rather than for `text`,
+  `table_header`, `header`,
+  `screen_buttons`/`dimmed`/`kludge`, `input_field`/`input_text`,
+  `focused_field`/`focused_text`, `input_filler` and `animated_button_text`,
+  which are the screen's counterparts and stay on the screen. The split is what
+  lets `themes/16_colors.cfg` put a light grey DOS window with black in it over
+  a screen that is light on black: one role cannot be legible on both. A test
+  loads every shipped theme and checks that nothing a box draws with is the
+  color of the box — the frame, the fills it puts down over its own, `selection`
+  and `dialog_field`, and what is written on each of them included.
 - **A terminal with fewer colors than a theme asks for** gets the nearest it has
   (`nearestWithin`), and one already holding the entry gets it untouched — which
-  is what makes `themes/ged_classic.cfg`, written in the sixteen ANSI colors,
+  is what makes `themes/16_colors.cfg`, written in the sixteen ANSI colors,
   exact on a bare console. A terminal in *direct* mode is the other way round: it
   reads a color number as a triple, so the entry is expanded through
   `paletteRgb()` first. Skipping that is a silent wrong-colour bug, not a missing
@@ -1448,12 +1465,20 @@ taking a row.
   first asked for, so the count follows the theme rather than the roles.
 - **Adding a color role means three edits**: the field in `Palette`, the line in
   `kFields` in `ui/theme.cpp` tying it to its theme-file key, and an entry in
-  every file under `themes/`. Tests load both shipped themes — `default.cfg`
-  against the defaults field by field, `ged_classic.cfg` for the opposite, that
+  every file under `themes/`. Tests load the shipped themes — `blue.cfg`
+  against the defaults field by field, `16_colors.cfg` for the opposite, that
   no field was left at a default — so forgetting a file fails the build. The one
   role exempt from that opposite is `hint_bar`: both themes state the same dark
   grey, deliberately the default's own, so that the row along the bottom does not
   change shade with the theme.
+- **A theme is colors and one switch.** `input_filler_show`, `on` or `off` as
+  every other switch AmberEdit reads is written, says whether a field's free
+  columns are underscored; it is a `bool` on `Palette` and a line in `kSwitches`,
+  the same table treatment the colors get, so a second setting is a line rather
+  than a special case. Off in the built-in palette and in `blue.cfg`, where an
+  idle field carries a fill of its own; on in `16_colors.cfg`, where it carries
+  the screen's own black and the underscores are the whole of what says a field
+  is there.
 - **The BBS color codes are markup taken out of the text; the style codes are
   markers left standing in it.** `bbs_codes_renegade` turns on the
   Renegade/Telegard pipe codes `|00`–`|31`: `ui/bbs_codes` reads them, the first
@@ -1779,11 +1804,10 @@ and the text from 190, NUL-terminated. Those offsets are named constants in
 thirty-six bytes early lands *inside* the subject field and leaves offset 144
 zeroed, where every other FTN program looks for it.
 
-AmberEdit reads and writes the **Opus** half, which is what GoldED+ does unless
-its `FIDOMSGTYPE` says otherwise and what its manual calls the dominant variant —
-`goldlib/gmb3/gmofido.h`, `struct FidoHdr`, is the layout written out. There is
-deliberately **no setting and no sniffing** for the other reading: nothing in the
-bytes tells the two apart, and a guess there would silently change a netmail
+AmberEdit reads and writes the **Opus** half, the dominant variant: it is what
+FTN software writes unless it has been told otherwise. There is deliberately **no
+setting and no sniffing** for the other reading: nothing in the bytes tells the
+two apart, and a guess there would silently change a netmail
 *address*. Nothing is lost by not having one — the zones come from `INTL` and the
 points from `FMPT`/`TOPT`, and a header written the FTSC way simply has no stamps
 and is dated by its ASCII date.
@@ -1856,11 +1880,11 @@ pretending there is:
 - *Fido `*.msg`* — the file and its size, the 190-byte header field by field, the
   eight bytes at 176 read the **Opus** way, then dumps of the header and body.
 
-**The field names are GoldED+'s**, from `make_dump_msg()` in its `goldlib/gmb3`
-(`gmosqsh5.cpp`, `gmojamm5.cpp`, `gmofido5.cpp`): a report read here and one read
-there are meant to be the same report. Where AmberEdit knows something GoldED+
-does not show — the frame's type, JAM's FTS-0001 reading of the attribute word —
-it is added after the common fields and said to be an addition in a comment.
+**The field names are the ones FTN base dumps have always used**: a report read
+here and one read out of another tool are meant to be the same report. Where
+AmberEdit knows something those dumps do not show — the frame's type, JAM's
+FTS-0001 reading of the attribute word — it is added after the common fields and
+said to be an addition in a comment.
 
 Three rules hold across the three drivers. A message that cannot be read comes
 back empty rather than half filled in. A dump is capped at
@@ -2196,10 +2220,10 @@ named.
   base message and kludge format), and the ones a written message has to satisfy:
   `fts-0009.001` (MSGID/REPLY), `fts-4008.002` (TZUTC), `fts-5003.001` (CHRS) and
   `fsc-0004.001` (INTL).
-- `TEMPLATE.md` — the GoldED message template format, which `app/msg_template`
-  implements.
-- `themes/` — `default.cfg` is the built-in palette written out,
-  `ged_classic.cfg` a sixteen-color DOS one.
+- `default.tpl` — the template a message is built from, shipped as it stands and
+  the whole token set `app/msg_template` implements.
+- `themes/` — `blue.cfg` is the built-in palette written out, `16_colors.cfg` a
+  sixteen-color DOS one, `black.cfg` a dark one written entirely above entry 15.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in

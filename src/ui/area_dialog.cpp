@@ -95,9 +95,9 @@ Element titleBar(const std::string& label, int width, theme::Color tint) {
     const std::string shown = truncateToWidth(label, width);
     const int left = std::max(0, (width - displayWidth(shown)) / 2);
     const int right = std::max(0, width - left - displayWidth(shown));
-    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.separator),
+    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.dialogBorder),
                  text(shown) | color(tint),
-                 text(horizontalRule(right) + "╮") | color(theme::palette.separator)});
+                 text(horizontalRule(right) + "╮") | color(theme::palette.dialogBorder)});
 }
 
 }  // namespace
@@ -124,7 +124,7 @@ Element render(AppState& state, Element background) {
                                                       : theme::palette.error;
     }
 
-    const auto side = [] { return text("│") | color(theme::palette.separator); };
+    const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
     Elements lines{titleBar(label, inner, tint)};
 
     // The room is reserved first: the boxes are written into while the frame is
@@ -165,7 +165,7 @@ Element render(AppState& state, Element background) {
             hbox({side(), std::move(cell) | reflect(picker.rows.back().box), side()}));
     }
     lines.push_back(text("╰" + horizontalRule(inner) + "╯") |
-                    color(theme::palette.separator));
+                    color(theme::palette.dialogBorder));
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows

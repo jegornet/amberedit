@@ -439,7 +439,7 @@ target_link_libraries(amberedit PRIVATE amberedit_nodelist amberedit_echolist
 include(GNUInstallDirs)
 install(TARGETS amberedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)
-# The exclusion is not paranoia: `._default.cfg` beside `default.cfg` matches
+# The exclusion is not paranoia: `._blue.cfg` beside `blue.cfg` matches
 # `*.cfg` and would be installed as a theme. macOS writes those sidecars whenever
 # a file with extended attributes is carried through an archive, so a package
 # built from a tarball made on a Mac ships them.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -47,8 +48,23 @@ namespace amberedit::ui {
 /// comes back with the byte the leftmost column shows — which is what a click
 /// has to be answered against, and is known only here, this being where the
 /// sideways scroll is decided.
+///
+/// `filler` is the color the columns nothing has been typed into yet are
+/// underscored in — the room the field has left, said the way a paper form says
+/// it. It is optional because this draws two different things: a box asking for
+/// something, which wants them, and a row of the message text under the cursor,
+/// which is edited the same way and is not a box at all. Passing no color pads
+/// with blanks, as everything did before there were any.
 [[nodiscard]] term::Element inputField(const std::string& value, size_t cursor, int width,
                                        bool active, theme::Color tint,
+                                       std::optional<theme::Color> filler = std::nullopt,
                                        size_t* origin = nullptr);
+
+/// `color` where the theme asks for the underscores and nothing where it does
+/// not — `input_filler_show`. What a field passes as its `filler`: whether it
+/// wants them is the field's answer, whether the theme draws them is the
+/// theme's, and this is where the two meet, so that no screen has to ask about
+/// the setting itself.
+[[nodiscard]] std::optional<theme::Color> fieldFiller(theme::Color color);
 
 }  // namespace amberedit::ui

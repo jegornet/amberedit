@@ -15,12 +15,12 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Seventeen constants for the thirty-three roles below. Each is named after
+/// Seventeen constants for the thirty-seven roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
 ///
-/// themes/default.cfg is this palette written out, and the two are held
+/// themes/blue.cfg is this palette written out, and the two are held
 /// together by a test: change one and change the other.
 namespace builtin_theme {
 
@@ -65,6 +65,10 @@ inline constexpr Color kAnimatedButtonText{231};  // #ffffff, white
 /// Every color the interface draws with, one field per role, so that a theme
 /// can separate roles the built-in palette happens to give the same color.
 /// The field names are the theme file's keys, in snake_case.
+///
+/// A theme is colors and, where a color cannot say it, a switch: a `bool` field
+/// is a setting of the look rather than a role, and stands beside the color it
+/// belongs to rather than apart from it.
 struct Palette {
     /// Painted across the whole screen, so a theme holds together whatever the
     /// terminal's own background is.
@@ -97,6 +101,22 @@ struct Palette {
     /// reason: a theme that lights the focused field with a fill of its own
     /// needs to choose what goes on it.
     Color focusedText = builtin_theme::kText;
+    /// The underscores standing in the columns of a field nothing has been
+    /// typed into yet — the room it still has, said the way a paper form says
+    /// it. Quiet by design: they are the shape of the field rather than
+    /// anything the user wrote, and a field with something in it has to read as
+    /// what is in it. One color for both states, since an idle field and the
+    /// one the typing is in stand side by side on the same screen. The same
+    /// role inside a box is `dialog_hint`, which is that palette's quiet color
+    /// already.
+    Color inputFiller = builtin_theme::kKludge;
+    /// Whether those underscores are drawn at all — `input_filler_show`, `on` or
+    /// `off`. Off by default: the built-in palette gives an idle field a fill of
+    /// its own, and underscores over it would be a second answer to a question
+    /// already answered. A theme whose fields carry no fill of their own — or
+    /// one after the look of a paper form — turns them on, and `input_filler` is
+    /// the color they take then.
+    bool inputFillerShown = false;
     /// Behind a modal box, from its frame to the far corner — the fill wiped
     /// over whatever the box stands on. Its own role rather than `background`
     /// reused: a dialog is meant to read as something laid over the screen, and
@@ -119,9 +139,9 @@ struct Palette {
     /// The quiet things in a box: the keys along its bottom rule, and whatever
     /// it shows but will not act on — an area that cannot be opened, a menu
     /// button whose command is not available on the message in front of the
-    /// user. The screen's `footer` and `dimmed` are one color in both shipped
-    /// themes and this is their counterpart inside a box, for the same reason
-    /// they are: quiet is the point of all three.
+    /// user. The screen's `screen_buttons` and `dimmed` are one color in every
+    /// shipped theme and this is their counterpart inside a box, for the same
+    /// reason they are: quiet is the point of all three.
     Color dialogHint = builtin_theme::kKludge;
     /// Behind a field inside a box that is typed into but not being typed into
     /// now — what `input_field` is on a screen, and a role of its own for the
@@ -136,6 +156,14 @@ struct Palette {
     /// since a click lands as readily on the selected button as on the other
     /// one.
     Color dialogFlash = builtin_theme::kAnimatedButtonText;
+    /// The frame round a box — its four sides, the rules that close it top and
+    /// bottom, and the dividers between its blocks. `separator`'s counterpart
+    /// inside a box, and a role of its own for the family's usual reason: the
+    /// rules on a screen are drawn on the screen's fill and this one on the
+    /// box's, which a theme may want a different shade against. Only the labels
+    /// standing in the rules are lit — `dialog_title` at the top, `dialog_hint`
+    /// or `error` at the bottom.
+    Color dialogBorder = builtin_theme::kSeparator;
     /// The message header block — the From/To/Subj labels and their values.
     Color header = builtin_theme::kHeader;
     /// A From or To naming the user themselves.
@@ -161,13 +189,20 @@ struct Palette {
     /// reply stay apart.
     Color quoteEven = builtin_theme::kQuoteEven;
     Color quoteOdd = builtin_theme::kQuoteOdd;
-    /// Service text: kludge lines, the Back button in the corner, the
-    /// scrollbar's thumb, an area the area list shows but will not open, and
-    /// the stand-in `arealist_description_default` puts where an area describes
-    /// itself with nothing, which is the program talking as a kludge line is.
-    /// Inside a box the counterpart is `dialog_hint`.
+    /// Service text: kludge lines, the scrollbar's thumb, an area the area list
+    /// shows but will not open, and the stand-in `arealist_description_default`
+    /// puts where an area describes itself with nothing, which is the program
+    /// talking as a kludge line is. Inside a box the counterpart is
+    /// `dialog_hint`.
+    ///
+    /// `screen_buttons` is the quiet buttons drawn straight on the screen: the
+    /// back button in the top-left corner, the menu button in the top-right one,
+    /// and the delete-line button that walks down the editor's right edge beside
+    /// the cursor's row. All three light up in `animated_button_text` while a
+    /// click on them is being shown. A button inside a box is not one of them —
+    /// that is `menu_button`, on the box's own fill.
     Color kludge = builtin_theme::kKludge;
-    Color footer = builtin_theme::kKludge;
+    Color screenButtons = builtin_theme::kKludge;
     Color dimmed = builtin_theme::kKludge;
     Color scrollThumb = builtin_theme::kKludge;
     /// Quiet but a step brighter: the tearline and origin closing a message,
@@ -189,8 +224,8 @@ struct Palette {
     /// `separator` like every other rule in the interface.
     Color hintBar = builtin_theme::kHintBar;
 
-    /// Drawn rather than written: the rules between blocks, the scrollbar's
-    /// track.
+    /// Drawn rather than written: the rules a screen sets its blocks apart
+    /// with, and the scrollbar's track. A box's own frame is `dialog_border`.
     Color separator = builtin_theme::kSeparator;
     Color scrollTrack = builtin_theme::kSeparator;
     /// Something to see to rather than to read: a failed operation, a message

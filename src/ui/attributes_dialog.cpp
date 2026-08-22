@@ -51,7 +51,7 @@ constexpr Attribute kAttributes[] = {
     {"Transit", 'j', domain::attr::kInTransit},
     {"Orphan", 'o', domain::attr::kOrphan},
     {"Kill/Sent", 'k', domain::attr::kKillSent},
-    {"Local", 'w', domain::attr::kLocal},
+    {"Local", 'l', domain::attr::kLocal},
     {"Hold", 'h', domain::attr::kHold},
     {"File Request", 'f', domain::attr::kFileRequest},
     {"Return Rcpt Request", 'm', domain::attr::kReceiptRequest},
@@ -131,14 +131,14 @@ Element titleBar(const std::string& label, int width) {
     const std::string shown = truncateToWidth(label, width);
     const int left = std::max(0, (width - displayWidth(shown)) / 2);
     const int right = std::max(0, width - left - displayWidth(shown));
-    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.separator),
+    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.dialogBorder),
                  text(shown) | color(theme::palette.dialogTitle),
-                 text(horizontalRule(right) + "╮") | color(theme::palette.separator)});
+                 text(horizontalRule(right) + "╮") | color(theme::palette.dialogBorder)});
 }
 
 /// One row of the box: the sides, and `content` between them.
 Element framed(Element content) {
-    const auto side = [] { return text("│") | color(theme::palette.separator); };
+    const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
     return hbox({side(), std::move(content), side()});
 }
 
@@ -210,10 +210,10 @@ Element render(AppState& state, Element background) {
         hbox({text(std::string(static_cast<size_t>(left), ' ')), button,
               text(std::string(
                   static_cast<size_t>(std::max(0, inner - left - buttonWidth)), ' '))})));
-    rows.push_back(centred("Space toggles · Ctrl-Z clears · Enter done · Esc puts back",
+    rows.push_back(centred("space toggle · ctrl-z clear · enter done · esc cancel",
                            inner, theme::palette.dialogHint));
     rows.push_back(text("╰" + horizontalRule(inner) + "╯") |
-                   color(theme::palette.separator));
+                   color(theme::palette.dialogBorder));
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the header underneath neither shows
