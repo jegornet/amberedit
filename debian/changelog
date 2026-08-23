@@ -1,3 +1,10 @@
+amberedit (0.3.1-1) unstable; urgency=low
+
+  * Add setup wizard
+  * Specify datetime format in msglist_format
+
+ -- Yegor Gluhov <git@jegor.net>  Sun, 23 Aug 2026 12:00:00 +0000
+
 amberedit (0.3-1) unstable; urgency=low
 
   * Make hint bar customizable
