@@ -561,12 +561,9 @@ Result<void> readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) 
                 "akamatch takes an AKA and the address patterns it is used for, "
                 "e.g. akamatch 2:5020/9999.1 2:5020/9999.*");
         }
-        if (!cfg.userAddress) {
-            return entry->fail(
-                "akamatch needs the address line — it is the address used when no "
-                "pattern matches");
-        }
-
+        // The address it falls back to where no pattern matches is not checked
+        // for here: `address` is required of every config, and this runs after
+        // that is settled.
         AkaMatch& into = akaEntryFor(cfg, aka);
         for (size_t i = 1; i < entry->values.size(); ++i) {
             const auto pattern = domain::AddressPattern::parse(entry->values[i]);
@@ -1436,6 +1433,21 @@ Result<AppConfig> fromEntries(const std::vector<CfgEntry>& entries,
         return failure(originName +
                        ": compose_charset is not set — it is the charset a message is "
                        "written in");
+    }
+    // Who the messages are from, and neither half is guessed either. Without the
+    // address the origin line ends in an empty pair of parentheses and the
+    // header carries no From address, which is a message the tosser bounces;
+    // without the name JAM has no CRC to key a lastread record by, and that
+    // format silently keeps no marks at all. Both are failures a long way from
+    // the config that caused them, so the config is where they are refused.
+    if (cfg.userName.empty()) {
+        return failure(originName +
+                       ": name is not set — it is the name a message is written under");
+    }
+    if (!cfg.userAddress) {
+        return failure(originName +
+                       ": address is not set — it is the address a message is "
+                       "written from");
     }
     // A nodelist with nowhere to compile it to is a line that does nothing, and
     // the other way round is not: a config may read a compiled nodelist that

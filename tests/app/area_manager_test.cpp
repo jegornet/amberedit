@@ -64,7 +64,9 @@ AppConfig configFrom(const std::string& body) {
     return amberedit::test::valueOf(
         AppConfig::loadFromString("tosser_config /dev/null\n"
                                   "tosser_config_format fidoconfig\n"
-                                  "compose_charset CP866\n" +
+                                  "compose_charset CP866\n"
+                                  "name Vasya Pupkin\n"
+                                  "address 2:5020/9999.1\n" +
                                   body));
 }
 
@@ -118,7 +120,6 @@ TEST_CASE("An area group's address outranks the tosser's [areamanager]") {
     linux.address = *FtnAddress::parse("192:168/1");
 
     auto manager = makeManager({sysop, linux}, configFrom("default_charset CP866\n"
-                                                          "address 2:5020/1\n"
                                                           "group\n"
                                                           "  member r50.sysop\n"
                                                           "  address 2:5020/9999\n"
@@ -353,6 +354,7 @@ TEST_CASE("An area declared in the config is read like any other [areamanager]")
     const auto config =
         amberedit::test::valueOf(AppConfig::loadFromString("default_charset CP866\n"
                                                            "compose_charset CP866\n"
+                                                           "name Vasya Pupkin\n"
                                                            "address 2:5020/9999\n"
                                                            "area NOTES\n"
                                                            "  type passthrough\n"

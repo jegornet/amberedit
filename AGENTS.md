@@ -336,8 +336,8 @@ Rules that hold the design together:
   Marks go to disk on every message opened, so a reader killed mid-area resumes
   where it was.
 - **JAM keys its records by a name CRC, not by a user number.** `lastread_user`
-  only fills the record's `UserID`, and without the config's `name` there is no
-  key at all, so that format keeps no marks. The CRC is the reflected `edb88320H`
+  only fills the record's `UserID`; the config's `name` is the key, which is one
+  of the reasons `fromEntries()` requires it. The CRC is the reflected `edb88320H`
   polynomial seeded with `ffffffffH` and *not* inverted at the end, over the name
   with `A-Z` lowered and nothing else — inverting it, or lowering Cyrillic too,
   gives a hash no other reader agrees with.
@@ -1642,6 +1642,15 @@ taking a row.
   wrong, so `fromEntries()` fails when either is missing, alongside the check
   that there is an area list at all — `tosser_config`, `area ... endarea`
   blocks, or both.
+- **`name` and `address` are required too, and for the same kind of reason.**
+  Neither is guessed: without the address a message goes out with no From
+  address and an origin line ending in an empty pair of parentheses, which the
+  tosser bounces, and without the name JAM has no CRC to key a lastread record
+  by, so that format silently keeps no marks. Both are failures a long way from
+  the config that caused them, so `fromEntries()` refuses the config instead. A
+  group may state either for the areas it covers, which is not the file stating
+  it: the group is reached only where the file already has both. That is also
+  why an `akamatch` line needs no check for the address it falls back to.
 - **`IBMPC` is not CP866**, however often it is one in practice. FTS-5003 keeps
   the name only as an obsolete level-2 one meaning "some IBM PC code page":
   CP866 in Russian echoes, CP437 or CP850 in western ones, CP852 in central

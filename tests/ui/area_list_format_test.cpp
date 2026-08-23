@@ -23,6 +23,7 @@ AreaListFormat fields(const std::string& format) {
     return amberedit::test::valueOf(
                AppConfig::loadFromString("tosser_config a\ntosser_config_format hpt\n"
                                          "default_charset CP866\ncompose_charset CP866\n"
+                                         "name Vasya Pupkin\naddress 2:5020/9999.1\n"
                                          "arealist_format \"" +
                                          format + "\"\n"))
         .areaListFormatNarrow;

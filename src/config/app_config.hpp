@@ -1060,8 +1060,10 @@ struct AppConfig {
     /// wherever AmberEdit was started.
     std::string configDir;
 
-    /// The user's name and address. The MVP only displays them; they are needed
-    /// for composing messages, which is out of scope for now.
+    /// The user's name and address, which every config states: they are what a
+    /// message is written from, and either one missing is a message that goes
+    /// out unsendable. The address stays an optional because parsing it is what
+    /// fills it in, but a config that loaded has one.
     std::string userName;
     std::optional<domain::FtnAddress> userAddress;
 

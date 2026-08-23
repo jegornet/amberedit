@@ -20,13 +20,20 @@ using amberedit::test::contains;
 
 namespace {
 
-/// The settings every config must state, which a test not about them still has
-/// to write out for the config to load at all.
-const char* const kRequired =
+/// The required settings but the two that say whose config it is, kept apart
+/// from them because a key written twice is a contradiction the parser refuses:
+/// a test that writes its own `name` or `address` cannot be handed one here too.
+const char* const kSettings =
     "tosser_config a\n"
     "tosser_config_format hpt\n"
     "default_charset CP866\n"
     "compose_charset CP866\n";
+const char* const kName = "name Vasya Pupkin\n";
+const char* const kAddress = "address 2:5020/9999.1\n";
+
+/// The settings every config must state, which a test not about them still has
+/// to write out for the config to load at all.
+const std::string kRequired = kSettings + std::string(kName) + kAddress;
 
 /// A config with the given body on top of the settings every config needs.
 AppConfig with(const std::string& body) {
@@ -41,6 +48,29 @@ std::string errorWith(const std::string& body) {
 /// Whether it loaded at all, for the assertions that only say that much.
 bool loads(const std::string& body) {
     return AppConfig::loadFromString(kRequired + body).has_value();
+}
+
+/// The same three for a body that writes the `name` itself, and then for one
+/// that writes the `address` itself: the half it states is the half left out of
+/// what is put in front of it.
+AppConfig withOwnName(const std::string& body) {
+    return amberedit::test::valueOf(
+        AppConfig::loadFromString(kSettings + std::string(kAddress) + body));
+}
+
+std::string errorWithOwnName(const std::string& body) {
+    return amberedit::test::errorOf(
+        AppConfig::loadFromString(kSettings + std::string(kAddress) + body));
+}
+
+AppConfig withOwnAddress(const std::string& body) {
+    return amberedit::test::valueOf(
+        AppConfig::loadFromString(kSettings + std::string(kName) + body));
+}
+
+std::string errorWithOwnAddress(const std::string& body) {
+    return amberedit::test::errorOf(
+        AppConfig::loadFromString(kSettings + std::string(kName) + body));
 }
 
 }  // namespace
@@ -68,16 +98,26 @@ TEST_CASE("AppConfig parses a complete config [app_config]") {
 }
 
 TEST_CASE("AppConfig: minimal config and defaults [app_config]") {
+    // Everything the file has to say and nothing else, so that what is checked
+    // under it is what AmberEdit fills in for a config that says no more.
     const auto cfg = amberedit::test::valueOf(
         AppConfig::loadFromString("tosser_config /etc/husky/areas.bbs\n"
                                   "tosser_config_format areas.bbs\n"
                                   "default_charset CP866\n"
-                                  "compose_charset CP866\n"));
+                                  "compose_charset CP866\n"
+                                  "name Vasya Pupkin\n"
+                                  "address 2:382/9999.1\n"));
 
     CHECK(cfg.tosserConfigPath == "/etc/husky/areas.bbs");
     CHECK(cfg.tosserConfigFormat == TosserConfigFormat::AreasBbs);
-    CHECK(cfg.userName.empty());
-    CHECK_FALSE(cfg.userAddress.has_value());
+    CHECK(cfg.userName == "Vasya Pupkin");
+    REQUIRE(cfg.userAddress.has_value());
+    CHECK(cfg.userAddress->toString() == "2:382/9999.1");
+    // The AKA list is the `aka` lines and nothing more: the main address is not
+    // one of them, however much it is one of ours.
+    CHECK(cfg.akaMatches.empty());
+    CHECK(cfg.origin.empty());
+    CHECK(cfg.quoteString == " FL> ");
 }
 
 TEST_CASE("AppConfig requires both charsets [app_config]") {
@@ -85,7 +125,8 @@ TEST_CASE("AppConfig requires both charsets [app_config]") {
     // one reads are written in says nothing about what one wants to write in,
     // and a default would mojibake silently in whichever direction it got
     // wrong. So each is named in the message that asks for it.
-    const std::string base = "tosser_config a\ntosser_config_format hpt\n";
+    const std::string base =
+        "tosser_config a\ntosser_config_format hpt\n" + std::string(kName) + kAddress;
     const auto reason = [&base](const std::string& rest) {
         return amberedit::test::errorOf(AppConfig::loadFromString(base + rest));
     };
@@ -103,20 +144,53 @@ TEST_CASE("AppConfig requires both charsets [app_config]") {
     CHECK_MESSAGE(contains(error4, "default_charset is not set"), error4);
 }
 
+TEST_CASE("AppConfig requires the name and the address [app_config]") {
+    // Neither is guessed and neither has a default: an empty address is a
+    // message with no From address and an origin line ending in an empty pair
+    // of parentheses, which the tosser bounces, and an empty name leaves JAM
+    // with no CRC to key a lastread record by, so that format silently keeps no
+    // marks. Both are failures a long way from the config that caused them.
+    const std::string base =
+        "tosser_config a\ntosser_config_format hpt\n"
+        "default_charset CP866\ncompose_charset CP866\n";
+    const auto reason = [&base](const std::string& rest) {
+        return amberedit::test::errorOf(AppConfig::loadFromString(base + rest));
+    };
+
+    const std::string error = reason("");
+    CHECK_MESSAGE(contains(error, "name is not set"), error);
+    const std::string error2 = reason(kName);
+    CHECK_MESSAGE(contains(error2, "address is not set"), error2);
+    const std::string error3 = reason(kAddress);
+    CHECK_MESSAGE(contains(error3, "name is not set"), error3);
+    CHECK(reason(std::string(kName) + kAddress).empty());
+
+    // An empty value is not a way to leave the name out either. The address has
+    // no such case: an empty value is no FTN address, and it is refused as one.
+    const std::string error4 = reason("name \"\"\n" + std::string(kAddress));
+    CHECK_MESSAGE(contains(error4, "name is not set"), error4);
+
+    // A group states them for the areas it covers, and that is not a config
+    // stating them: the group is reached only where the file already has both.
+    const std::string error5 =
+        reason("group\n member r50.sysop\n name Vasya Pupkin\nendgroup\n");
+    CHECK_MESSAGE(contains(error5, "name is not set"), error5);
+}
+
 TEST_CASE("A value is quoted only when it has to be [app_config]") {
     // A name is several words and needs no quotes for it; quotes are what a
     // value whose own spaces matter is written in.
-    CHECK(with("name Vasya Pupkin\n").userName == "Vasya Pupkin");
-    CHECK(with("name \"Vasya Pupkin\"\n").userName == "Vasya Pupkin");
+    CHECK(withOwnName("name Vasya Pupkin\n").userName == "Vasya Pupkin");
+    CHECK(withOwnName("name \"Vasya Pupkin\"\n").userName == "Vasya Pupkin");
     CHECK(with("quote_string \" FL> \"\n").quoteString == " FL> ");
 
     // A "#" begins a comment where a word begins, and is a character like any
     // other inside a word or inside quotes.
-    CHECK(with("name Vasya # our man\n").userName == "Vasya");
-    CHECK(with("name \"Vasya #1\"\n").userName == "Vasya #1");
+    CHECK(withOwnName("name Vasya # our man\n").userName == "Vasya");
+    CHECK(withOwnName("name \"Vasya #1\"\n").userName == "Vasya #1");
     CHECK(with("theme a#b.cfg\n").themePath == "a#b.cfg");
 
-    const std::string error = errorWith("name \"Vasya\n");
+    const std::string error = errorWithOwnName("name \"Vasya\n");
     CHECK_MESSAGE(contains(error, "never closed"), error);
 }
 
@@ -126,7 +200,8 @@ TEST_CASE("AppConfig accepts format aliases [app_config]") {
                    AppConfig::loadFromString("tosser_config a\ntosser_config_format " +
                                              name +
                                              "\ndefault_charset CP866\n"
-                                             "compose_charset CP866\n"))
+                                             "compose_charset CP866\n" +
+                                             kName + kAddress))
             .tosserConfigFormat;
     };
     CHECK(format("areas.bbs") == TosserConfigFormat::AreasBbs);
@@ -1186,21 +1261,11 @@ TEST_CASE("AppConfig complains about an unknown format [app_config]") {
 }
 
 TEST_CASE("AppConfig complains about a malformed FTN address [app_config]") {
-    CHECK_FALSE(loads("address не_адрес\n"));
+    const std::string error = errorWithOwnAddress("address не_адрес\n");
+    CHECK_MESSAGE(contains(error, "address is not an FTN address"), error);
 }
 
 namespace {
-
-/// A config with the given body, on top of the required keys and a main
-/// address for the akamatch lines to fall back to.
-AppConfig withAkas(const std::string& body) {
-    return with("name Vasya\naddress 2:5020/9999.1\n" + body);
-}
-
-/// Why the same AKA lines would not load. Empty means they loaded.
-std::string akasError(const std::string& body) {
-    return errorWith("name Vasya\naddress 2:5020/9999.1\n" + body);
-}
 
 /// The example from the documentation, which is also the shape the feature was
 /// asked for in.
@@ -1221,7 +1286,7 @@ std::string akaFor(const AppConfig& cfg, const std::string& dest) {
 }  // namespace
 
 TEST_CASE("AppConfig reads the aka and akamatch lines [app_config]") {
-    const auto cfg = withAkas(kExample);
+    const auto cfg = with(kExample);
 
     REQUIRE(cfg.akaMatches.size() == 3);
     std::string listed;
@@ -1242,7 +1307,7 @@ TEST_CASE("AppConfig reads the aka and akamatch lines [app_config]") {
 TEST_CASE("An AKA declared on its own can be given patterns later [app_config]") {
     // The two keys write into one list: an `aka` line says which addresses are
     // ours, an `akamatch` line what each of them is used for.
-    const auto cfg = withAkas(
+    const auto cfg = with(
         "aka 192:168/2\n"
         "akamatch 192:168/2 192:*\n"
         "akamatch 192:168/2 172:16/*\n");
@@ -1253,7 +1318,7 @@ TEST_CASE("An AKA declared on its own can be given patterns later [app_config]")
 }
 
 TEST_CASE("AppConfig picks the AKA whose pattern says the most [app_config]") {
-    const auto cfg = withAkas(kExample);
+    const auto cfg = with(kExample);
 
     CHECK(akaFor(cfg, "192:168/9") == "192:168/2");   // zone 192
     CHECK(akaFor(cfg, "172:16/1.5") == "192:168/2");  // zone 172 and net 16
@@ -1267,7 +1332,7 @@ TEST_CASE("AppConfig picks the AKA whose pattern says the most [app_config]") {
 }
 
 TEST_CASE("AppConfig: a more specific pattern beats a wider one [app_config]") {
-    const auto cfg = withAkas(
+    const auto cfg = with(
         "akamatch 2:5020/736.1 2:*\n"
         "akamatch 2:382/736.120 2:382/736.*\n");
 
@@ -1278,22 +1343,24 @@ TEST_CASE("AppConfig: a more specific pattern beats a wider one [app_config]") {
 TEST_CASE("AppConfig refuses a malformed akamatch line [app_config]") {
     // A dropped entry would show up as netmail from the wrong address, so every
     // one of these stops AmberEdit rather than being skipped.
-    const std::string error = akasError("akamatch\n");
+    const std::string error = errorWith("akamatch\n");
     CHECK_MESSAGE(contains(error, "needs an AKA"), error);
-    const std::string error2 = akasError("akamatch \"not an address\" 2:*\n");
+    const std::string error2 = errorWith("akamatch \"not an address\" 2:*\n");
     CHECK_MESSAGE(contains(error2, "not an address"), error2);
-    const std::string error3 = akasError("akamatch 2:5020/1\n");
+    const std::string error3 = errorWith("akamatch 2:5020/1\n");
     CHECK_MESSAGE(contains(error3, "address patterns"), error3);
-    const std::string error4 = akasError("akamatch 2:5020/1 2:382/\n");
+    const std::string error4 = errorWith("akamatch 2:5020/1 2:382/\n");
     CHECK_MESSAGE(contains(error4, "2:382/"), error4);
     // An AKA is one address; the destinations belong on an akamatch line.
-    const std::string error5 = akasError("aka 2:5020/1 2:*\n");
+    const std::string error5 = errorWith("aka 2:5020/1 2:*\n");
     CHECK_MESSAGE(contains(error5, "aka takes one address"), error5);
 }
 
-TEST_CASE("AppConfig: akamatch needs a main address to fall back to [app_config]") {
-    const std::string error = errorWith(kExample);
-    CHECK_MESSAGE(contains(error, "address line"), error);
+TEST_CASE("AppConfig: akamatch has the main address to fall back to [app_config]") {
+    // It asks for one and needs no check of its own to get it: `address` is
+    // required of every config, so the fallback is there by the time an
+    // akamatch line is read at all.
+    CHECK(loads(kExample));
     // An AKA that is only named asks for nothing and so needs nothing.
     CHECK(with("aka 255:255/255.0\n").akaMatches.size() == 1);
 }
@@ -1324,7 +1391,7 @@ TEST_CASE("The example config's AKA lines parse once uncommented [app_config]") 
     // Being commented out, nothing in the example itself reads them — a user
     // uncommenting them would be the first to find out whether they still
     // parse. So they are written out here, as the example has them, and read.
-    const auto cfg = withAkas(
+    const auto cfg = with(
         "aka 192:168/2\n"
         "aka 2:5020/999.1\n"
         "aka 255:255/255.0\n"
@@ -1480,7 +1547,8 @@ TEST_CASE("Startup insists on a template that can be read [app_config]") {
         "tosser_config /etc/husky/areas.bbs\n"
         "tosser_config_format areas.bbs\n"
         "default_charset CP866\n"
-        "compose_charset CP866\n";
+        "compose_charset CP866\n" +
+        std::string(kName) + kAddress;
 
     write(configPath, base);
     CHECK_FALSE(AppConfig::loadFromFile(configPath.string()).has_value());  // none named
@@ -1557,7 +1625,7 @@ TEST_CASE("Groups are laid over one another one setting at a time [app_config]")
 
     // A sister area takes the same two and not the third.
     CHECK(cfg.effectiveFor(area("esp.chile")).composeCharset == "LATIN-1");
-    CHECK(cfg.effectiveFor(area("esp.chile")).userName.empty());
+    CHECK(cfg.effectiveFor(area("esp.chile")).userName == "Vasya Pupkin");
     // And one outside them both keeps the widest group's answer.
     CHECK(cfg.effectiveFor(area("ru.linux")).composeCharset == "CP866");
 }
@@ -1603,7 +1671,7 @@ TEST_CASE("A group may turn the ANSI graphics on for its areas [app_config]") {
 }
 
 TEST_CASE("An address a group states is the area's, and one of ours [app_config]") {
-    const auto cfg = with(
+    const auto cfg = withOwnAddress(
         "address 2:5020/9999.1\n"
         "group\n"
         "  member r50.sysop\n"
@@ -1976,7 +2044,7 @@ TEST_CASE("An area ... endarea block declares an area of its own [app_config]") 
 
     REQUIRE(cfg.manualAreas.size() == 1);
     const auto& declared = cfg.manualAreas.front();
-    CHECK(declared.line == 5);  // the four required settings stand above it
+    CHECK(declared.line == 7);  // the six required settings stand above it
 
     const auto& area = declared.area;
     CHECK(area.tag == "ru.linux");
@@ -2044,7 +2112,7 @@ TEST_CASE("An area block's kinds and types are the words the tosser configs use 
 TEST_CASE("An area's own address is an AKA of ours [app_config]") {
     // The same answer a group's `address` gets: a message written under it is
     // still the user's own, and nothing picks it by destination.
-    const auto cfg = with(
+    const auto cfg = withOwnAddress(
         "address 2:5020/9999\n"
         "area point.area\n"
         "  path /ftn/msg/point\n"
@@ -2113,7 +2181,8 @@ TEST_CASE("An area block is refused for what it gets wrong [app_config]") {
 
 TEST_CASE("The area list comes from the tosser config, from blocks, or from both "
           "[app_config]") {
-    const char* const charsets = "default_charset CP866\ncompose_charset CP866\n";
+    const std::string charsets =
+        "default_charset CP866\ncompose_charset CP866\n" + std::string(kName) + kAddress;
 
     // No tosser at all is a config of nothing but blocks.
     const auto own = amberedit::test::valueOf(AppConfig::loadFromString(

@@ -15,10 +15,12 @@
 
 # --- who you are --------------------------------------------------------------
 
-# Your name. Required.
+# The name a message you write is from. Required; may be set per area in a group
+# block. It is also the key JAM finds your lastread record by.
 name Vasya Pupkin
 
-# Your main address, 3D or 4D. Required.
+# The address a message you write is from, 3D or 4D. Required; may be set per
+# area in a group block.
 address 2:382/9999.1
 
 # Your other addresses. Optional; one line per AKA.

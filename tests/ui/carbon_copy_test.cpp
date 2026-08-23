@@ -129,7 +129,9 @@ struct CopyFixture {
                     AppConfig::loadFromString("tosser_config /dev/null\n"
                                               "tosser_config_format fidoconfig\n"
                                               "default_charset CP866\n"
-                                              "compose_charset CP866\n" +
+                                              "compose_charset CP866\n"
+                                              "name Vasya Pupkin\n"
+                                              "address 2:5020/9999.1\n" +
                                               groups))
                     .areaGroups;
         }
