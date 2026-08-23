@@ -32,8 +32,12 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Nodelists and pointlists**, including ZIP-archived — automatically compiled at startup
    when they change
 - **Echolists**, compiled at startup on the same terms
+- **A setup wizard**: `amberedit --setup` asks what a first config has to say and
+  writes one, so there is nothing to edit by hand before the first start
 - **Color Themes** in the terminal's own 256 colors
-- **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental.
+- **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental,
+  and turned on per echo rather than for all your mail (see *Experimental options*
+  at the end of `amberedit.cfg.example`).
 <details>
 <summary>ANSI graphics demo</summary>
 <img src="amberedit_demo_ansi.webp" alt="ansi demo" />
@@ -59,16 +63,39 @@ the project would build as-is (probably not) or whether Windows support could be
 ## Running
 
 ```bash
-amberedit --setup                         # asks five questions, writes the config
+amberedit --setup                         # six steps, and you have a config
 amberedit                                 # or: amberedit -c some/amberedit.cfg
 ```
 
-`--setup` is the short way to a first config: your name and address, which tosser
-config you have and where it is, the charset your mail is read and written in,
-and a nodelist if you have one. What it writes is the whole of
-`amberedit.cfg.example` with your answers in it, so everything else is there,
-commented, to change later. Copying that file by hand and fixing up the paths
-works exactly as it always did.
+**First run: `amberedit --setup`.** Six steps — who you are and which tosser
+config you keep, where that file is, the charset your mail is read in and the one
+it is written in, a nodelist if you have one, and where the config goes:
+
+```
+╭───────────── General parameters — step 1 of 6 ─────────────╮
+│ Who the messages you write are from.                       │
+│ Name:    John Doe__________________________________________│
+│ Address: 2:382/736_________________________________________│
+│ e.g. John Doe, 2:382/736                                   │
+├────────────────────────────────────────────────────────────┤
+│ Your areas come from your tosser's config, which is:       │
+│   (*) HPT (Fidoconfig)                                     │
+│   ( ) areas.bbs                                            │
+│   ( ) squish.cfg                                           │
+├────────────────────────────────────────────────────────────┤
+│                                                   [ Next ] │
+╰ Enter next field · Tab move · Esc leave ───────────────────╯
+```
+
+Every answer is checked as you leave the step, the two file steps are a directory
+you walk with the arrows or the mouse, and the nodelist step can be skipped. What
+it writes is the whole of `amberedit.cfg.example` with your answers in the lines
+that state them — so every other setting is there, commented, to change later. It
+points `template` at the message template your install put under
+`/usr/share/amberedit`, and writes a copy of it beside the config where there is
+none to point at. It refuses to run where there is a config already; copying
+`amberedit.cfg.example` by hand and fixing up the paths works exactly as it
+always did.
 
 ```
 -c, --config <path>   the config to read
@@ -94,8 +121,8 @@ names is yours to write down as well — `arealist_hints`, `msglist_hints`,
 
 | Key | What it does |
 |---|---|
-| `↑` `↓` `PgUp` `PgDn`, `Home` `End` | move |
-| `Enter`, click | open the area under the cursor |
+| `↑` `↓` `PgUp` `PgDn` `Space`, `Home` `End` | move |
+| `Enter`, `→`, click | open the area under the cursor |
 | any letter | search by area tag; `Backspace` edits the query, `Esc` closes it |
 | `/` | go to the next area with unread messages, round the end of the list |
 | `Ctrl-R` | read the tosser config and every base again |
@@ -302,6 +329,18 @@ and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
 defaults to, is in `amberedit.cfg.example`. `amberedit --setup` writes a config
 out of that file for you, and refuses to run where one of those three is already
 there.
+
+A `group … endgroup` block states settings for the echoes its `member` patterns
+match — the charsets, the origin, the template, the twits and the rest of what is
+per-echo rather than per-config. The settings under *Experimental options* at the
+end of the sample are meant to be turned on that way and not globally:
+
+```
+group
+  member fsx_ads
+  bbs_codes_ansi on
+endgroup
+```
 
 ## License
 

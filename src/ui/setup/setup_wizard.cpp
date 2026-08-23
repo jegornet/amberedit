@@ -465,7 +465,7 @@ void renderIdentity(SetupState& state, Elements& lines, int inner) {
         labelledField(" Name:    ", state.name, inner, state.stop == Stop::Name));
     lines.push_back(
         labelledField(" Address: ", state.address, inner, state.stop == Stop::Address));
-    lines.push_back(note("e.g. John Doe, 2:382/9999", inner, theme::palette.dialogHint));
+    lines.push_back(note("e.g. John Doe, 2:382/736", inner, theme::palette.dialogHint));
     lines.push_back(dialog::divider(inner));
     lines.push_back(note("Your areas come from your tosser's config, which is:", inner,
                          theme::palette.dialogText));
