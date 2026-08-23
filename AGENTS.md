@@ -653,17 +653,24 @@ Rules that hold the design together:
   list opens, the reader moves the cursor alone as it walks between messages.
 - **What a row holds is `msglist_format`'s**, read the way `arealist_format` is
   and laid out by `ui/msg_list_format.*` — `a` number, `f` from, `t` to,
-  `s` subject, `d` date, `\n` for the next line of the row. `"a f0 t0 d15\ns"
-  "a f t s d"` by default: the narrow row puts the subject on a line of its own
-  under the names, the wide one has them all on the one line. The narrow row
-  writes the stamp's width out where the wide one leaves it measured — fifteen
-  is what `reader_datetime_format`'s default comes to down to the minute, and a
-  pinned column keeps the names beside it the same width from one screenful to
-  the next. `AppState::messageListFormat()` picks
-  between the two on every frame, `msgRowHeight()` is how many lines a row
-  stands and `messageListItems()` how many messages the screen holds — scrolling,
-  paging, clamping, `centerCursor()`, `ensureHeaders()`'s window and the
-  scrollbar's thumb are all counted in messages, and any line of a row is a click
+  `s` subject, `d` date, `\n` for the next line of the row.
+  `"a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)"` by default: the narrow
+  row puts the subject on a line of its own under the names, the wide one has
+  them all on the one line. **`d` is the one field written by a format of its
+  own**, in brackets after the letter and after its width — `d(%d %b %y)`,
+  `d10(%Y-%m-%d)` — read to the first `)` by `parseListFormat()` and held to
+  exactly what `reader_datetime_format` is held to by `checkTimeFormat()`. A `d`
+  with no brackets is the reader's format, and stays empty in `MsgListField`
+  until the column is drawn: the config is read a line at a time and
+  `msglist_format` may stand above `reader_datetime_format` in the file. Both
+  defaults write the stamp out because a column of stamps is read down for the
+  day, and a format with no `%z` in it measures the same from one screenful to
+  the next where the reader's own widens and narrows with the zones on screen.
+  `AppState::messageListFormat()` picks between the two on every frame,
+  `msgRowHeight()` is how many lines a row stands and `messageListItems()` how
+  many messages the screen holds — scrolling, paging, clamping,
+  `centerCursor()`, `ensureHeaders()`'s window and the scrollbar's thumb are all
+  counted in messages, and any line of a row is a click
   on that message. `reflowOffset()` at the top of `render()` holds the selected
   row's screen line when the two formats differ in height, exactly as the area
   list's does.
@@ -672,21 +679,24 @@ Rules that hold the design together:
   width of their own, and the number column, which is as wide as the highest
   number that can go in it and never under three (`kAutoWidth`, `digitWidth()`,
   `kMinNumberWidth`) — a handful of messages should read as a column rather than
-  as a stray digit against the left edge. Then the Date column,
-  which takes what the stamps come to and no more: a stamp too wide is cut at the
+  as a stray digit against the left edge. Then the Date columns, each of which
+  takes what the stamps come to and no more: a stamp too wide is cut at the
   spaces from the end — `fitDate()`: `15 Aug 26 20:28 +0200` → `15 Aug 26 20:28`
   → `15 Aug 26` → `15 Aug` → `15`. A stamp cut mid-word reads as a different
   date; one short of its zone still reads as the date it is, and the order of the
-  parts is `reader_datetime_format`'s. The stamps are measured cut to what is
-  free and over the visible rows only, so column and stamps do not chase each
-  other from frame to frame; the heading is the column's floor where there is
-  room for one. Only then do the fields written `0` share what is left. That
-  middle pass is the whole point of the ordering: what the stamps do not use is
-  worth more to the subject than five empty columns of Date. `render()` gathers
-  the visible rows once, into `msg_format::Row`s, so the pass that measures the
-  stamps and the lines that draw them cannot disagree. What is laid out is
-  `state.width` less the scrollbar's column wherever the bar is drawn — the
-  `msglist_scrollbar` half of the bullet under the area list above.
+  parts is the column's own format's. Two Date columns are measured apart,
+  through their own formats, and share the pass's room equally. The stamps are
+  measured cut to what is free and over the visible rows only, so column and
+  stamps do not chase each other from frame to frame; the heading is the column's
+  floor where there is room for one. Only then do the fields written `0` share
+  what is left. That middle pass is the whole point of the ordering: what the
+  stamps do not use is worth more to the subject than five empty columns of Date.
+  `render()` gathers the visible rows once, into `msg_format::Row`s, so the pass
+  that measures the stamps and the lines that draw them cannot disagree — a `Row`
+  carries the header and no stamp, `layoutLine()` settles each Date `Column`'s
+  format against `reader_datetime_format`, and `stampOf()` writes it. What is
+  laid out is `state.width` less the scrollbar's column wherever the bar is
+  drawn — the `msglist_scrollbar` half of the bullet under the area list above.
 - **A row is colored by five rules, two over the whole row and three over a
   cell.** Row-wide: the current row, and a message nobody has read yet
   (`msglist_unread`, number and date included). Per-cell: a message written here
@@ -1847,13 +1857,15 @@ taking a row.
 - **Every date is written through `MessageDate::format()`**, with a strftime
   format from the config: `reader_datetime_format` wherever a stamp is read, and
   `template_date_format`/`template_time_format` for the template's
-  `@cdate`/`@odate` and `@ctime`/`@otime`. There is deliberately no fixed-width
+  `@cdate`/`@odate` and `@ctime`/`@otime`. The message list's Date column is the
+  one place that may say otherwise — `msglist_format`'s `d(...)`, which both of
+  its defaults use — and it is judged by the same `checkTimeFormat()`. There is deliberately no fixed-width
   spelling: **every column showing a stamp measures it** — the reader's header
   from the two stamps and the attributes, the message list from the rows on
   screen — so a format may be any length. **The stamp is trimmed at both ends**,
   because a specifier that writes nothing leaves the space beside it behind and a
   column measured off a stamp ending in a blank is wider than what stands in it.
-  `readTimeFormat()` refuses a format that writes more than a line (`%n`, `%t`)
+  `checkTimeFormat()` refuses a format that writes more than a line (`%n`, `%t`)
   or nothing but blank; it checks against a sample stamp that does state a zone,
   so `%z` alone is not refused for the blank it leaves elsewhere. The fields go
   to strftime as the base stores them — an FTN stamp is in no time zone, so `%Z`

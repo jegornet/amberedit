@@ -142,7 +142,7 @@ std::optional<int> clickedMessage(const AppState& state, const Event& event) {
 }
 
 /// The messages this frame is about to draw, in the order they stand in — what
-/// the Date column is measured against and what the lines are then drawn from,
+/// the Date columns are measured against and what the lines are then drawn from,
 /// gathered once so that the two cannot disagree.
 ///
 /// A header the window has not reached yet stands as a row with none in it: the
@@ -161,8 +161,6 @@ std::vector<msg_format::Row> visibleRows(const AppState& state) {
         row.number = index + 1;
         row.header = headerAt(state, static_cast<uint32_t>(row.number));
         if (row.header != nullptr) {
-            row.stamp = row.header->date.format(state.config.readerDateTimeFormat,
-                                                row.header->utcOffset);
             row.fromIsOwn = state.isOwnName(row.header->from);
             row.toIsOwn = state.isOwnName(row.header->to);
         }
@@ -334,8 +332,9 @@ Element render(AppState& state) {
     // how wide the Date column stands is a question about the stamps on the
     // screen, and these are them.
     const std::vector<msg_format::Row> shown = visibleRows(state);
-    const msg_format::Layout layout = msg_format::layout(
-        state.messageListFormat(), rowWidth - kIndent, state.messageCount, shown);
+    const msg_format::Layout layout =
+        msg_format::layout(state.messageListFormat(), rowWidth - kIndent,
+                           state.messageCount, shown, state.config.readerDateTimeFormat);
 
     // A format whose fixed widths come to more than the window holds is cut off
     // at its right edge rather than pushing the row past it: what a field asks

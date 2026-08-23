@@ -356,15 +356,16 @@ arealist_scrollbar off
 
 # --- message list -------------------------------------------------------------
 
-# What a row of the message list holds. Optional; "a f0 t0 d15\ns" "a f t s d"
-# by default. Written exactly as arealist_format is — one or two formats, the
-# narrow window's and the wide one's, each a set of letters in any case, each
-# optionally followed by the width in columns it is given:
+# What a row of the message list holds. Optional;
+# "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)" by default. Written
+# exactly as arealist_format is — one or two formats, the narrow window's and the
+# wide one's, each a set of letters in any case, each optionally followed by the
+# width in columns it is given:
 #   a   the message's number in the area, counted from one   the numbers in it
 #   f   who the message is from                              20 columns
 #   t   who it is to                                         20 columns
 #   s   what it is about                                     what is left
-#   d   when it was written, in reader_datetime_format       what the stamps need
+#   d   when it was written                                  what the stamps need
 # A \n begins the next line of the row, a row stands up to five lines tall,
 # and every line has to hold something — a blank line in a row is written as a
 # space. A width of 0 means "whatever the rest of this line leaves", shared
@@ -381,22 +382,34 @@ arealist_scrollbar off
 #       wide for its column is cut at the spaces rather than mid-word — "15 Aug
 #       26 20:28 +0200" to "15 Aug 26 20:28" to "15 Aug 26" to "15 Aug" to "15" —
 #       so a column of fourteen shows nine of "30 Jul 26" and would stand five
-#       empty; what it does not use goes to the fields written 0 instead.
+#       empty; what it does not use goes to the fields written 0 instead. Two
+#       stamp columns on one line are measured apart and share the room between
+#       them.
 # Either may be given a width like any other field: a4 pins the number column,
 # d0 hands the stamp whatever the line leaves over.
 #
-# So the default narrow row puts the number, the two names and the stamp on one
+# "d" is the one field written by a format of its own, in brackets after the
+# letter and after its width where one is written: d(%d %b %y),
+# d10(%Y-%m-%d). It is a strftime format, read exactly as
+# reader_datetime_format is and refused on the same terms; everything up to the
+# first ")" belongs to it, spaces and all, which is one more reason the whole
+# value is in quotes. A "d" with no brackets is reader_datetime_format's, as it
+# has always been. Inside the brackets a \n is not the next line of the row —
+# it goes to strftime as it was written — and a format wanting a literal ")" is
+# not a thing that can be written here.
+#
+# So the default narrow row puts the number, the two names and the day on one
 # line and the subject across the whole of the next, a window that narrow having
 # no columns to put them side by side; the wide one is the single row the list
-# has always drawn. The narrow row writes the stamp's width out — fifteen, what
-# reader_datetime_format's own default comes to down to the minute — rather than
-# leaving it measured: pinning the column keeps the names beside it the same
-# width from one screenful to the next, where a measured one would widen and
+# has always drawn, with the minute beside the day. Both write the stamp out
+# rather than leaving it to reader_datetime_format: a column of stamps is read
+# down for which day a message is from, and a format with no %z in it measures
+# the same from one screenful to the next, where the reader's own would widen and
 # narrow as the zones in the messages on screen came and went. The subject is drawn
 # in the theme's "dimmed" color wherever it stands. Where the narrow and wide
 # formats are not the same height, dragging the window across adaptive_ui_threshold
 # keeps the selected message where it stands on the screen.
-msglist_format "a f0 t0 d15\ns" "a f t s d"
+msglist_format "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)"
 
 # Whether the message list draws the reader's scrollbar in its rightmost column,
 # on the same terms as arealist_scrollbar. Optional; on by default.
@@ -708,10 +721,14 @@ list_wheel_throttle_ms 200
 # --- dates --------------------------------------------------------------------
 
 # How every stamp shown while reading is written: the two in the reader's header
-# block (Date, and Recd under it), the Date column of the message list, and the
-# one beside each answer in the replies dialog. Optional; "%d %b %y %H:%M %z" by
-# default. One setting for the date and the time both, because each place showing
-# them shows one string.
+# block (Date, and Recd under it), the one beside each answer in the replies
+# dialog, the file stamps in the import dialog, and the one at the head of an
+# exported message. Optional; "%d %b %y %H:%M %z" by default. One setting for the
+# date and the time both, because each place showing them shows one string.
+#
+# The message list's Date column is written with this too, and is the one place
+# that may say otherwise: msglist_format's d(...) gives that column a format of
+# its own, which is what both of its defaults do.
 #
 # The value is a strftime(3) format: %d day, %m month, %b month by name, %y and
 # %Y the year in two digits and in four, %H:%M:%S the time, %a the weekday, %% a

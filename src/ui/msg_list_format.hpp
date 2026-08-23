@@ -18,6 +18,11 @@ namespace amberedit::ui::msg_format {
 struct Column {
     config::MsgFieldKind kind{config::MsgFieldKind::Subject};
     int width{0};
+    /// What a Date column writes its stamp with, settled: the format the field
+    /// named, or `reader_datetime_format` where it named none. `layoutLine()`
+    /// is where the two meet, so everything downstream of it has one format to
+    /// read and no default to remember. Empty on every other column.
+    std::string format;
 };
 
 /// One line of a row, laid out: the columns on it, in the order the format
@@ -28,28 +33,32 @@ using Line = std::vector<Column>;
 /// one, so `front()` is the row's top line whatever was written.
 using Layout = std::vector<Line>;
 
-/// One message as the table draws it: the header it is drawn from, its number
-/// in the area counted from one, and the stamp as `reader_datetime_format`
-/// writes it — before the Date column has had a chance to cut it.
+/// One message as the table draws it: the header it is drawn from and its number
+/// in the area, counted from one. The stamp is not carried here — a row has as
+/// many stamps as the format has Date columns, and each of those writes its own
+/// from the header's date.
 ///
 /// Whether a name is the user's own is settled by the screen, which knows what
 /// the area is signed with; nothing here compares names.
 struct Row {
     const domain::MessageHeader* header{nullptr};
     int number{0};
-    std::string stamp;
     bool fromIsOwn{false};
     bool toIsOwn{false};
 };
+
+/// The stamp `column` writes for `row`, whole — before the column has had a
+/// chance to cut it, and empty for a row whose header has not been read yet.
+/// The zone is the message's own, as everywhere else a written stamp is shown.
+[[nodiscard]] std::string stampOf(const Row& row, const Column& column);
 
 /// The stamp for a Date column, cut to the room it has: a datetime too wide for
 /// its column drops its trailing parts one at a time, at the spaces —
 /// "15 Aug 26 20:28 +0200" to "15 Aug 26 20:28" to "15 Aug 26" to "15 Aug" to
 /// "15" — rather than being cut mid-word into something that reads as a
-/// different date. The format is `reader_datetime_format`'s and may put its
-/// parts in any order, so what goes first is whatever the reader chose to lead
-/// with; only when even that first part will not fit is the stamp cut where the
-/// width falls.
+/// different date. The format is the column's own and may put its parts in any
+/// order, so what goes first is whatever the user chose to lead with; only when
+/// even that first part will not fit is the stamp cut where the width falls.
 std::string fitDate(const std::string& stamp, int width);
 
 /// Shares `width` columns out among one line's fields, in three passes, which
@@ -60,12 +69,14 @@ std::string fitDate(const std::string& stamp, int width);
 ///     in the area needs, and never fewer than three: a handful of messages
 ///     should still read as a column rather than as a stray digit against the
 ///     left edge.
-///  2. The Date column, written with no width of its own, takes what the stamps
+///  2. Each Date column written with no width of its own takes what the stamps
 ///     in it come to and no more: a stamp is cut at the spaces, so a column of
-///     fourteen would show nine of "30 Jul 26" and stand five empty. The
-///     heading is a floor where there is room for it — a column of "15" under a
-///     truncated "Date" says less than the two spare columns are worth. What it
-///     leaves goes on to the next pass rather than standing blank.
+///     fourteen would show nine of "30 Jul 26" and stand five empty. Two Date
+///     columns are measured apart, each through its own format, and share the
+///     room the pass has between them. The heading is a floor where there is
+///     room for it — a column of "15" under a truncated "Date" says less than
+///     the two spare columns are worth. What they leave goes on to the next pass
+///     rather than standing blank.
 ///  3. What is left is split equally between the fields written `0`, the first
 ///     of them taking the odd column.
 ///
@@ -75,15 +86,18 @@ std::string fitDate(const std::string& stamp, int width);
 /// the next. A window too narrow for the first two passes leaves the flexible
 /// fields nothing; a field of no width is simply not drawn, which is what keeps
 /// a row inside its window however the format was written.
+/// `defaultDateFormat` is `reader_datetime_format`: what a Date column written
+/// without a format of its own is drawn with, and the one place the reader's
+/// format and the list's meet.
 Line layoutLine(const config::MsgListLine& fields, int width, uint32_t messageCount,
-                const std::vector<Row>& shown);
+                const std::vector<Row>& shown, const std::string& defaultDateFormat);
 
 /// The whole row laid out in `width` columns, a line at a time. Each line is
 /// measured on its own: the fixed fields on one line are not what the flexible
 /// fields on the next have to share, so a subject given `0` on a line of its own
 /// takes the whole width whatever stands above it.
 Layout layout(const config::MsgListFormat& format, int width, uint32_t messageCount,
-              const std::vector<Row>& shown);
+              const std::vector<Row>& shown, const std::string& defaultDateFormat);
 
 /// The heading row over `layout`'s top line. There is one heading row however
 /// tall a row is: it stands over the line the row is read from first, and the

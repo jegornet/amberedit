@@ -182,11 +182,12 @@ enum class MsgFieldKind {
     From,     ///< 'f' — who the message is from
     To,       ///< 't' — who it is to
     Subject,  ///< 's' — what it is about
-    Date,     ///< 'd' — when it was written, in `reader_datetime_format`
+    Date,     ///< 'd' — when it was written, in the column's own format
     Space,    ///< ' ' — a gap between two fields, and the only way to a gap
 };
 
-/// One field of `msglist_format`: what it shows and how wide it stands.
+/// One field of `msglist_format`: what it shows, how wide it stands, and — for
+/// the Date column — what its stamp is written with.
 struct MsgListField {
     MsgFieldKind kind{MsgFieldKind::Subject};
     /// Columns. Zero is what `s0` asks for: the field takes what the rest of
@@ -195,9 +196,16 @@ struct MsgListField {
     /// format names no width for them — a width worked out from what the field
     /// holds rather than one written down.
     int width{0};
+    /// The strftime format a Date column writes its stamp with, from the
+    /// brackets after the letter — `d(%d %b %y)`. Empty means
+    /// `reader_datetime_format`, and it stays empty rather than being filled in
+    /// here: the config is read a line at a time and `msglist_format` may stand
+    /// above `reader_datetime_format` in the file, so the two are only ever put
+    /// together where the column is drawn. Nothing but a Date column has one.
+    std::string dateFormat;
 
     friend bool operator==(const MsgListField& a, const MsgListField& b) {
-        return a.kind == b.kind && a.width == b.width;
+        return a.kind == b.kind && a.width == b.width && a.dateFormat == b.dateFormat;
     }
 };
 
@@ -507,43 +515,48 @@ struct AppConfig {
     /// same way `arealist_format` is, and standing in the same relation to the
     /// wide window's format below.
     ///
-    /// The default is `"a f0 t0 d15\ns"`: the number, the two names sharing
-    /// whatever the number and the stamp leave of the first line, and the
-    /// subject across the whole of the second. A narrow window has no columns
-    /// to put the subject beside the names, and a line of its own is the room
-    /// it does have.
+    /// The default is `"a f0 t0 d(%d %b %y)\ns"`: the number, the two names
+    /// sharing whatever the number and the stamp leave of the first line, and
+    /// the subject across the whole of the second. A narrow window has no
+    /// columns to put the subject beside the names, and a line of its own is the
+    /// room it does have.
     ///
-    /// The stamp stands at a written fifteen rather than at the width it works
-    /// out for itself: `reader_datetime_format`'s default is fifteen columns
-    /// down to the minute, and pinning the column keeps the names beside it the
-    /// same width from one screenful to the next — a measured column would
-    /// widen and narrow as the zones in the messages on screen came and went.
+    /// The stamp is the day and nothing else, and written out here rather than
+    /// left to `reader_datetime_format`: a narrow row has three columns to keep
+    /// steady beside it, and a format with no `%z` in it measures the same from
+    /// one screenful to the next, where the reader's own would widen and narrow
+    /// as the zones in the messages on screen came and went. The column is
+    /// measured rather than pinned because there is now nothing to pin it
+    /// against.
     MsgListFormat messageListFormatNarrow{{{MsgFieldKind::Number, kAutoWidth},
                                            {MsgFieldKind::Space, 1},
                                            {MsgFieldKind::From, 0},
                                            {MsgFieldKind::Space, 1},
                                            {MsgFieldKind::To, 0},
                                            {MsgFieldKind::Space, 1},
-                                           {MsgFieldKind::Date, 15}},
+                                           {MsgFieldKind::Date, kAutoWidth, "%d %b %y"}},
                                           {{MsgFieldKind::Subject, 0}}};
 
     /// What each row of the message list holds in a window of
     /// `adaptive_ui_threshold` columns or more, from `msglist_format`'s second
     /// value. One format on the line gives both, as it does for the area list.
     ///
-    /// The default is `"a f t s d"`, one line: the names stand at their own
-    /// twenty columns, the stamp takes what it needs, and the subject has the
-    /// rest — which is the table the list has always drawn, said in the letters
-    /// the setting is written in.
-    MsgListFormat messageListFormatWide{{{MsgFieldKind::Number, kAutoWidth},
-                                         {MsgFieldKind::Space, 1},
-                                         {MsgFieldKind::From, 20},
-                                         {MsgFieldKind::Space, 1},
-                                         {MsgFieldKind::To, 20},
-                                         {MsgFieldKind::Space, 1},
-                                         {MsgFieldKind::Subject, 0},
-                                         {MsgFieldKind::Space, 1},
-                                         {MsgFieldKind::Date, kAutoWidth}}};
+    /// The default is `"a f t s d(%d %b %y %H:%M)"`, one line: the names stand
+    /// at their own twenty columns, the stamp takes what it needs, and the
+    /// subject has the rest — which is the table the list has always drawn, said
+    /// in the letters the setting is written in. A wide window has room for the
+    /// minute the narrow one leaves off, and no more use for the zone than it
+    /// has: a column of stamps is read down for which day a message is from.
+    MsgListFormat messageListFormatWide{
+        {{MsgFieldKind::Number, kAutoWidth},
+         {MsgFieldKind::Space, 1},
+         {MsgFieldKind::From, 20},
+         {MsgFieldKind::Space, 1},
+         {MsgFieldKind::To, 20},
+         {MsgFieldKind::Space, 1},
+         {MsgFieldKind::Subject, 0},
+         {MsgFieldKind::Space, 1},
+         {MsgFieldKind::Date, kAutoWidth, "%d %b %y %H:%M"}}};
 
     /// Whether the area list draws the reader's scrollbar beside its rows, from
     /// `arealist_scrollbar`.
@@ -965,10 +978,16 @@ struct AppConfig {
 
     /// How every stamp the reader shows is written, from
     /// `reader_datetime_format`: the two in the header block — when the message
-    /// was written and when it arrived — the Date column of the message list,
-    /// and the one beside each answer in the replies dialog. A strftime format,
-    /// and one setting for the date and the time both because each of those is
-    /// one string on screen.
+    /// was written and when it arrived — and the one beside each answer in the
+    /// replies dialog, along with the file stamps in the import dialog and the
+    /// one at the head of an exported message. A strftime format, and one
+    /// setting for the date and the time both because each of those is one
+    /// string on screen.
+    ///
+    /// The message list's Date column is written with this too, and is the one
+    /// place that may say otherwise: `msglist_format`'s `d(...)` gives that
+    /// column a format of its own, which is what both defaults do — a column
+    /// beside three others wants less of a stamp than a row of its own does.
     ///
     /// The default is the FTN stamp without its seconds and with the zone it
     /// was written in: a message is read for when it was written, not for the

@@ -16,6 +16,15 @@ std::string quoted(std::string_view format) {
     return "\"" + std::string(format) + "\"";
 }
 
+/// What a complaint about brackets after the wrong letter says next: which
+/// letters do take a format, or that none of them does. A list whose fields are
+/// all drawn from what they hold has nothing to offer instead, and saying so is
+/// shorter than leaving the user to work it out.
+std::string takesInstead(const ListFormatSpec& spec) {
+    if (spec.formatted.empty()) return ", and no field of this list is";
+    return " — the ones that are: " + std::string(spec.formatted);
+}
+
 }  // namespace
 
 Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
@@ -68,7 +77,41 @@ Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpe
                 ++i;
             }
         }
-        lines.back().push_back(ListFormatField{letter, width});
+        // A format of its own, in brackets after the width. Everything up to the
+        // first `)` belongs to it, spaces included: the whole value is one
+        // quoted string, so a space in there is no more trouble than the space
+        // between two fields.
+        std::string format;
+        if (i < value.size() && value[i] == '(') {
+            if (!found->takesFormat) {
+                return entry.fail(setting + ": '" + std::string(1, letter) +
+                                  "' is not written by a format of its own" +
+                                  takesInstead(spec));
+            }
+            const size_t close = value.find(')', i);
+            if (close == std::string::npos) {
+                return entry.fail(
+                    setting + ": the format after '" + std::string(1, letter) +
+                    "' is never closed — a ')' ends it, e.g. " + quoted(spec.example));
+            }
+            format = value.substr(i + 1, close - i - 1);
+            if (format.empty()) {
+                return entry.fail(
+                    setting + ": '" + std::string(1, letter) +
+                    "()' asks for a format and names none — the brackets are "
+                    "left off where the field is to be written as ever");
+            }
+            i = close + 1;
+            // The width belongs in front of the format, and digits after the
+            // brackets would otherwise be read as a field nobody wrote.
+            if (i < value.size() && value[i] >= '0' && value[i] <= '9') {
+                return entry.fail(setting +
+                                  ": a width goes before the format it belongs to — '" +
+                                  std::string(1, letter) + "15(" + format + ")'");
+            }
+        }
+
+        lines.back().push_back(ListFormatField{letter, width, std::move(format)});
     }
 
     // Every line has to hold something. A row that is to have a blank line in it
