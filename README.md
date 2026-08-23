@@ -35,7 +35,7 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental.
 <details>
 <summary>ANSI graphics demo</summary>
-<img src="amberedit_demo_ansi.gif" alt="ansi demo" />
+<img src="amberedit_demo_ansi.webp" alt="ansi demo" />
 </details>
 
 ## Building and installing
