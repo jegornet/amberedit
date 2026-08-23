@@ -45,7 +45,7 @@ option(AMBEREDIT_BUILD_TESTS "Build AmberEdit unit tests" ON)
 #   * which header to include. `<ncurses.h>` finds Apple's even with Homebrew's
 #     include directory ahead of it, so where a `ncursesw/` directory exists it
 #     is asked for by name — that path is unambiguous everywhere it exists.
-#   * whether what was found actually has the wide and extended-colour API.
+#   * whether what was found actually has the wide and extended-color API.
 #     That is settled by compiling, below, because it is the only answer that
 #     cannot be wrong.
 include(CheckCXXSourceCompiles)
@@ -69,7 +69,7 @@ else()
 endif()
 
 # Does the header live under ncursesw/, and does what we found do wide
-# characters and extended colour pairs? One compile answers all three.
+# characters and extended color pairs? One compile answers all three.
 set(amberedit_curses_probe "
   #include <@header@>
   int main() {

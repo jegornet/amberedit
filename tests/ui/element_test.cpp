@@ -52,10 +52,10 @@ TEST_CASE("center places an element on both axes [element]") {
     CHECK(rowText(screen, 1) == "   ab    ");
 }
 
-TEST_CASE("the innermost colour is the one that shows [element]") {
+TEST_CASE("the innermost color is the one that shows [element]") {
     // Parents paint their whole box and then draw their children over it, so a
-    // coloured run inside a coloured line wins. Every screen's colouring rests
-    // on this: a URL in a quote keeps the link colour, the rest of the line
+    // colored run inside a colored line wins. Every screen's coloring rests
+    // on this: a URL in a quote keeps the link color, the rest of the line
     // keeps the quote's.
     Screen screen(4, 1);
     const Color outer{240};
@@ -118,14 +118,14 @@ TEST_CASE("a palette number the terminal has is used untouched [element]") {
     // what the terminal is told, with nothing approximated in between.
     CHECK(nearestWithin(196, 256) == 196);
     CHECK(nearestWithin(255, 256) == 255);
-    // And a sixteen-colour theme on a sixteen-colour terminal likewise, which is
+    // And a sixteen-color theme on a sixteen-color terminal likewise, which is
     // what makes themes/16_colors.cfg exact on a bare console.
     CHECK(nearestWithin(4, 16) == 4);
     CHECK(nearestWithin(15, 16) == 15);
 }
 
-TEST_CASE("a palette entry expands to the colour it stands for [element]") {
-    // What a terminal in direct-colour mode is handed. It reads a colour number
+TEST_CASE("a palette entry expands to the color it stands for [element]") {
+    // What a terminal in direct-color mode is handed. It reads a color number
     // as a triple rather than as an index, so an entry sent as it stands would
     // paint whatever its number happens to spell — 102 as #000066 instead of
     // grey, and a whole theme turning blue with nothing to show for it.
@@ -137,7 +137,7 @@ TEST_CASE("a palette entry expands to the colour it stands for [element]") {
 }
 
 TEST_CASE("a palette number the terminal lacks falls back [element]") {
-    // Only when the terminal genuinely has fewer colours than the theme asks
+    // Only when the terminal genuinely has fewer colors than the theme asks
     // for. Approximate matches, so these check the direction rather than an
     // exact index: bright red must not come out green.
     CHECK(nearestWithin(196, 8) == 1);  // cube red -> ANSI red

@@ -92,9 +92,9 @@ int linesFor(int columns) {
 /// One checkbox: whether the attribute is set, what it is called and the chord
 /// that turns it over.
 ///
-/// The box in front is what says which attributes the message carries — colour
+/// The box in front is what says which attributes the message carries — color
 /// alone would leave a monochrome terminal with a list that says nothing — and
-/// the set ones are written in the header's own colour besides. The one under
+/// the set ones are written in the header's own color besides. The one under
 /// the cursor takes the fill the lists give their current row, so that Space is
 /// plainly about it.
 Element checkbox(const Attribute& attribute, uint32_t attributes, bool current) {

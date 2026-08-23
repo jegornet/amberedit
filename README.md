@@ -283,9 +283,8 @@ colors you have already chosen for everything else you run.
 
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
 with when the config names no theme, and the file to copy and edit.
-`themes/16_colors.cfg` uses nothing above 15, so it is exact even on a console
-that has only those; a terminal with fewer colours than a theme asks for gets the
-nearest it has.
+`themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
+customizing the pallete in your terminal app.
 Also, we have `themes/blue.cfg` and `themes/white.cfg`
 
 ### Configuration

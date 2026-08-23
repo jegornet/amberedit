@@ -1510,8 +1510,8 @@ taking a row.
   is what makes `themes/16_colors.cfg`, written in the sixteen ANSI colors,
   exact on a bare console. A terminal in *direct* mode is the other way round: it
   reads a color number as a triple, so the entry is expanded through
-  `paletteRgb()` first. Skipping that is a silent wrong-colour bug, not a missing
-  optimisation — index 102 would go out as #000066. Colour pairs are allocated as
+  `paletteRgb()` first. Skipping that is a silent wrong-color bug, not a missing
+  optimisation — index 102 would go out as #000066. Color pairs are allocated as
   first asked for, so the count follows the theme rather than the roles.
 - **Adding a color role means three edits**: the field in `Palette`, the line in
   `kFields` in `ui/theme.cpp` tying it to its theme-file key, and an entry in
@@ -2127,7 +2127,7 @@ frame names the file it came from (`sourceAt()` and the `SourceState` behind it)
 
 **`show_location`** puts the sender's location, as the nodelist gives it, into
 the rule that closes the reader's header block — lined up under the addresses, in
-the kludges' colour, costing no row since the rule is there either way. A sender
+the kludges' color, costing no row since the rule is there either way. A sender
 no compiled nodelist holds leaves the rule exactly as it was. That is also what
 opens the compiled file in an ordinary session, so `AppState::nodelist()` is
 where the lazy open lives rather than in the box.
