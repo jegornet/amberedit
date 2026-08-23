@@ -1295,7 +1295,7 @@ void replyInto(AppState& state, const domain::AreaConfig& target, bool direct,
 ///
 /// The tag has to name an area the tosser config declares, since a message is
 /// written into a base and not into a name; one naming the area it is already
-/// in is no move at all, and answering it here rather than in `startReplyTo()`
+/// in is no move at all, and answering it here rather than in `startReplyElsewhere()`
 /// is what keeps the two from calling each other round in a circle.
 const domain::AreaConfig* directReplyArea(const AppState& state) {
     if (!state.areaConfig.areaReplyDirect || !state.readBody) return nullptr;
@@ -1339,19 +1339,20 @@ void openMenu(AppState& state) {
     // line the cursor is on, so neither goes quiet while the typing is up in the
     // header: a file read in from there goes into the text, which is the only
     // place a file could go, and the typing follows it down.
-    for (const config::MenuCommand command : state.config.composeMenu) {
+    for (const Command command : state.config.composeMenu) {
         items.push_back({command, true, {}});
     }
     menu_dialog::open(state, std::move(items));
 }
 
-void runMenuCommand(AppState& state, config::MenuCommand command) {
+void runMenuCommand(AppState& state, Command command) {
     switch (command) {
         // Save asks the same question Ctrl-S asks rather than storing the
         // message outright: a click is no surer than a key.
-        case config::MenuCommand::Save: askToSave(state); break;
-        case config::MenuCommand::Import: import_dialog::open(state); break;
-        // The reader's own, which `compose_menu` cannot name.
+        case Command::ComposeSave: askToSave(state); break;
+        case Command::ComposeImport: import_dialog::open(state); break;
+        // Everything the editor answers with a chord of its own and the
+        // reader's own besides, which `compose_menu` cannot name.
         default: break;
     }
 }
@@ -1373,7 +1374,7 @@ void startCommentReply(AppState& state) {
     beginReply(state, /*comment=*/true);
 }
 
-void startReplyTo(AppState& state, const domain::AreaConfig& target) {
+void startReplyElsewhere(AppState& state, const domain::AreaConfig& target) {
     if (!state.readHeader) return;
 
     // The area the message is already in is a reply and not a move, however it
@@ -1401,7 +1402,7 @@ void startForwardTo(AppState& state, const domain::AreaConfig& target) {
     // which is what the message is about wherever it is read, and its text,
     // which the template puts in where @message stands.
     // Under the target area's settings, and worked out here for the reason
-    // startReplyTo() gives: `forward` is what makes it the compose area, and it
+    // startReplyElsewhere() gives: `forward` is what makes it the compose area, and it
     // is set on the line below.
     state.compose =
         app::newMessage(state.config.effectiveFor(state.targetArea), state.targetArea);
@@ -1607,11 +1608,11 @@ bool headerKey(AppState& state, const Event& event) {
     // The ends of the field, from the keys marked for them and from the chords
     // a terminal that sends nothing for Home and End leaves as the only way
     // there — the pair every readline-shaped line editor answers.
-    if (event == Event::Home || state.keys.is(event, KeyCommand::ComposeLineStart)) {
+    if (event == Event::Home || state.keys.is(event, Command::ComposeLineStart)) {
         cursor = 0;
         return true;
     }
-    if (event == Event::End || state.keys.is(event, KeyCommand::ComposeLineEnd)) {
+    if (event == Event::End || state.keys.is(event, Command::ComposeLineEnd)) {
         cursor = value.size();
         return true;
     }
@@ -1664,17 +1665,17 @@ bool textKey(AppState& state, const Event& event) {
     // Word motion has to come before the arrows for that reason alone — Alt-Left
     // is a left arrow with a modifier on it — and the rest follow the same rule
     // so that Del bound to a command is that command here too.
-    if (state.keys.is(event, KeyCommand::ComposeDeleteLine)) {
+    if (state.keys.is(event, Command::ComposeDeleteLine)) {
         deleteLine(state.edit);
-    } else if (state.keys.is(event, KeyCommand::ComposeRestoreLine)) {
+    } else if (state.keys.is(event, Command::ComposeRestoreLine)) {
         restoreLine(state.edit);
-    } else if (state.keys.is(event, KeyCommand::ComposeDeleteQuote)) {
+    } else if (state.keys.is(event, Command::ComposeDeleteQuote)) {
         deleteQuote(state.edit);
-    } else if (state.keys.is(event, KeyCommand::ComposeDeleteWord)) {
+    } else if (state.keys.is(event, Command::ComposeDeleteWord)) {
         deleteWordBefore(state.edit);
-    } else if (state.keys.is(event, KeyCommand::ComposeWordRight)) {
+    } else if (state.keys.is(event, Command::ComposeWordRight)) {
         moveWordRight(state.edit);
-    } else if (state.keys.is(event, KeyCommand::ComposeWordLeft)) {
+    } else if (state.keys.is(event, Command::ComposeWordLeft)) {
         moveWordLeft(state.edit);
     } else if (event == Event::Return) {
         insertNewline(state.edit);
@@ -1694,10 +1695,9 @@ bool textKey(AppState& state, const Event& event) {
         moveRows(state, -std::max(1, editorRows(state)));
     } else if (event == Event::PageDown) {
         moveRows(state, std::max(1, editorRows(state)));
-    } else if (event == Event::Home ||
-               state.keys.is(event, KeyCommand::ComposeLineStart)) {
+    } else if (event == Event::Home || state.keys.is(event, Command::ComposeLineStart)) {
         moveToLineStart(state.edit);
-    } else if (event == Event::End || state.keys.is(event, KeyCommand::ComposeLineEnd)) {
+    } else if (event == Event::End || state.keys.is(event, Command::ComposeLineEnd)) {
         moveToLineEnd(state.edit);
     } else if (event.ctrl() || event.alt()) {
         // A chord this layout does not bind is swallowed rather than typed, the
@@ -1930,7 +1930,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // to the wrong keystroke would throw it away or send it half-written. Both
     // are asked wherever the cursor is — the header is part of the message now,
     // not a screen in front of it.
-    if (state.keys.is(event, KeyCommand::ComposeSave)) {
+    if (state.keys.is(event, Command::ComposeSave)) {
         askToSave(state);
         return true;
     }
@@ -1961,14 +1961,14 @@ bool handleEvent(AppState& state, const Event& event) {
     // The attributes the message goes out with. The row under the addresses says
     // which it carries; setting them is the dialog's, which is what both the
     // button and this chord open.
-    if (state.keys.is(event, KeyCommand::ComposeAttributes)) {
+    if (state.keys.is(event, Command::ComposeAttributes)) {
         attributes_dialog::open(state);
         return true;
     }
     // A file into the message, from anywhere on the screen — the header
     // included, since what is read goes into the text either way and the typing
     // follows it there.
-    if (state.keys.is(event, KeyCommand::ComposeImport)) {
+    if (state.keys.is(event, Command::ComposeImport)) {
         import_dialog::open(state);
         return true;
     }
@@ -1985,7 +1985,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // own rather than Ctrl-I: that one is the byte Tab has sent since ASCII, and
     // no terminal short of one reporting modified keys could tell the two apart.
     if (!state.composeInHeader) {
-        if (state.keys.is(event, KeyCommand::ComposeHeaderBack)) {
+        if (state.keys.is(event, Command::ComposeHeaderBack)) {
             editHeader(state);
             return true;
         }

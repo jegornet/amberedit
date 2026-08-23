@@ -9,70 +9,6 @@ namespace {
 
 using term::Event;
 
-/// One command: what the file calls it, which screen answers it, and the keys
-/// it runs on when no `keys` file has been named.
-///
-/// The defaults are written as spellings rather than as events so that this
-/// table is the one place the layout is stated. `amberkeys.cfg.example` is the
-/// same table written out, and a test reads that file back through here to keep
-/// the two saying the same thing.
-struct CommandInfo {
-    KeyCommand command;
-    const char* name;
-    KeyScreen screen;
-    /// Blank separated, in the order they are to be offered.
-    const char* keys;
-};
-
-constexpr CommandInfo kCommands[] = {
-    {KeyCommand::AppQuit, "app.quit", KeyScreen::Anywhere, "Ctrl-Q"},
-    {KeyCommand::AreaListNextUnread, "arealist.next-unread", KeyScreen::AreaList, "/"},
-    {KeyCommand::AreaListRescan, "arealist.rescan", KeyScreen::AreaList, "Ctrl-R"},
-    {KeyCommand::ReaderReply, "reader.reply", KeyScreen::Reader, "q F4"},
-    {KeyCommand::ReaderReplyTo, "reader.reply-to", KeyScreen::Reader, "n F5"},
-    {KeyCommand::ReaderCommentReply, "reader.comment-reply", KeyScreen::Reader, "Alt-Q"},
-    {KeyCommand::ReaderNew, "reader.new", KeyScreen::Reader, "e"},
-    {KeyCommand::ReaderForward, "reader.forward", KeyScreen::Reader, "m"},
-    {KeyCommand::ReaderChange, "reader.change", KeyScreen::Reader, "c F2"},
-    {KeyCommand::ReaderDelete, "reader.delete", KeyScreen::Reader, "d Del"},
-    {KeyCommand::ReaderExport, "reader.export", KeyScreen::Reader, "w F7"},
-    {KeyCommand::ReaderFind, "reader.find", KeyScreen::Reader, "Ctrl-F F6"},
-    {KeyCommand::ReaderList, "reader.list", KeyScreen::Reader, "l F9"},
-    {KeyCommand::ReaderInfo, "reader.info", KeyScreen::Reader, "i"},
-    {KeyCommand::ReaderNodelist, "reader.nodelist", KeyScreen::Reader, "Ctrl-N F10"},
-    {KeyCommand::ReaderKludges, "reader.kludges", KeyScreen::Reader, "k"},
-    {KeyCommand::ReaderScrollbar, "reader.scrollbar", KeyScreen::Reader, "b"},
-    {KeyCommand::ReaderThreadUp, "reader.thread-up", KeyScreen::Reader, "-"},
-    {KeyCommand::ReaderThreadDown, "reader.thread-down", KeyScreen::Reader, "+ ="},
-    {KeyCommand::ComposeSave, "compose.save", KeyScreen::Compose, "Ctrl-S F2"},
-    {KeyCommand::ComposeAttributes, "compose.attributes", KeyScreen::Compose, "Ctrl-F"},
-    {KeyCommand::ComposeImport, "compose.import", KeyScreen::Compose, "Ctrl-O"},
-    {KeyCommand::ComposeHeaderBack, "compose.header-back", KeyScreen::Compose, "Alt-H"},
-    {KeyCommand::ComposeDeleteLine, "compose.delete-line", KeyScreen::Compose, "Ctrl-Y"},
-    {KeyCommand::ComposeRestoreLine, "compose.restore-line", KeyScreen::Compose,
-     "Ctrl-U"},
-    {KeyCommand::ComposeDeleteQuote, "compose.delete-quote", KeyScreen::Compose,
-     "Ctrl-D"},
-    {KeyCommand::ComposeDeleteWord, "compose.delete-word", KeyScreen::Compose,
-     "Ctrl-W Alt-Backspace"},
-    {KeyCommand::ComposeWordLeft, "compose.word-left", KeyScreen::Compose,
-     "Alt-B Alt-Left"},
-    {KeyCommand::ComposeWordRight, "compose.word-right", KeyScreen::Compose,
-     "Alt-F Alt-Right"},
-    {KeyCommand::ComposeLineStart, "compose.line-start", KeyScreen::Compose, "Ctrl-A"},
-    {KeyCommand::ComposeLineEnd, "compose.line-end", KeyScreen::Compose, "Ctrl-E"},
-};
-
-static_assert(sizeof(kCommands) / sizeof(kCommands[0]) == kKeyCommandCount,
-              "every command needs a name, a screen and its defaults");
-
-const CommandInfo& infoOf(KeyCommand command) {
-    const auto at = static_cast<size_t>(command);
-    // The table is written in the order the enumeration is, which is what lets
-    // a command be looked up by its own value.
-    return kCommands[at];
-}
-
 /// A key with a name of its own, and whether AmberEdit keeps it for moving
 /// about. The first spelling of each is the one written back out.
 struct NamedKey {
@@ -162,21 +98,6 @@ int reachOf(const Event& key) {
 
 }  // namespace
 
-const char* nameOf(KeyCommand command) {
-    return infoOf(command).name;
-}
-
-KeyScreen screenOf(KeyCommand command) {
-    return infoOf(command).screen;
-}
-
-std::optional<KeyCommand> commandNamed(std::string_view name) {
-    for (const CommandInfo& info : kCommands) {
-        if (config::text::iequals(name, info.name)) return info.command;
-    }
-    return std::nullopt;
-}
-
 bool isReservedKey(std::string_view spelling) {
     const Spelling parsed = withoutModifiers(spelling);
     // Only bare: Alt-Left is how a word is walked over, and Home with Ctrl on it
@@ -238,18 +159,19 @@ std::string spellingOf(const Event& key) {
     return out + key.input();
 }
 
-std::string briefSpellingOf(const Event& key) {
+std::string hintSpellingOf(const Event& key, bool capitalize) {
     const std::string full = spellingOf(key);
-    // A modifier is spelled the same however it is written, so it may as well be
-    // quiet; a bare key is not — `G` is a key of its own, and `F9` and `Del` are
-    // names rather than letters.
-    if (!key.ctrl() && !key.alt()) return full;
-    return config::text::toLower(full);
+    if (!capitalize) return config::text::toLower(full);
+    // A modifier and a named key already carry their own capitals — `Ctrl-R`,
+    // `F7`, `Del` — and are written as they stand; a bare letter is the only
+    // part with a case of its own to raise.
+    if (key.ctrl() || key.alt() || key.kind() == Event::Kind::Key) return full;
+    return config::text::toUpper(full);
 }
 
 KeyMap KeyMap::defaults() {
     KeyMap map;
-    for (const CommandInfo& info : kCommands) {
+    for (const Commands::Info& info : Commands::all()) {
         for (const std::string& spelling : config::text::tokenize(info.keys)) {
             const auto key = keyNamed(spelling);
             // The table above is ours, so a spelling it cannot read is a
@@ -265,7 +187,7 @@ Result<KeyMap> KeyMap::parse(std::string_view text, const std::string& origin) {
     // What each key is already doing, to answer for a key written twice. The
     // command is kept rather than only the key: what makes the second line
     // wrong is the first one, and saying so is the whole of the message.
-    std::vector<std::pair<Event, KeyCommand>> taken;
+    std::vector<std::pair<Event, Command>> taken;
 
     const std::vector<std::string> lines = config::text::splitLines(text);
     for (size_t i = 0; i < lines.size(); ++i) {
@@ -283,8 +205,8 @@ Result<KeyMap> KeyMap::parse(std::string_view text, const std::string& origin) {
                            "— as in `l reader.list`");
         }
 
-        const auto command = commandNamed(tokens[1]);
-        if (!command) {
+        const Commands::Info* command = Commands::named(tokens[1]);
+        if (command == nullptr) {
             return failure(where + "no command is called " + tokens[1]);
         }
         if (isReservedKey(tokens[0])) {
@@ -300,14 +222,17 @@ Result<KeyMap> KeyMap::parse(std::string_view text, const std::string& origin) {
         for (const auto& [earlier, other] : taken) {
             if (!(earlier == *key)) continue;
             // Two screens may share a key and never meet; one screen may not.
-            const KeyScreen a = screenOf(*command);
-            const KeyScreen b = screenOf(other);
-            if (a != b && a != KeyScreen::Anywhere && b != KeyScreen::Anywhere) continue;
-            return failure(where + tokens[0] + " is already " + nameOf(other));
+            const CommandScreen a = command->screen;
+            const CommandScreen b = Commands::of(other).screen;
+            if (a != b && a != CommandScreen::Anywhere && b != CommandScreen::Anywhere) {
+                continue;
+            }
+            return failure(where + tokens[0] + " is already " +
+                           std::string(Commands::of(other).name));
         }
 
-        taken.emplace_back(*key, *command);
-        map.bind(*command, *key);
+        taken.emplace_back(*key, command->command);
+        map.bind(command->command, *key);
     }
     return map;
 }
@@ -318,11 +243,11 @@ Result<KeyMap> KeyMap::loadFromFile(const std::string& path) {
     return parse(*text, path);
 }
 
-void KeyMap::bind(KeyCommand command, Event key) {
+void KeyMap::bind(Command command, Event key) {
     bound_[static_cast<size_t>(command)].push_back(std::move(key));
 }
 
-bool KeyMap::is(const Event& event, KeyCommand command) const {
+bool KeyMap::is(const Event& event, Command command) const {
     // A mouse report is never a binding: what a click means is where it landed,
     // and every screen asks that of the pointer rather than of the layout.
     if (event.is_mouse()) return false;
@@ -331,11 +256,11 @@ bool KeyMap::is(const Event& event, KeyCommand command) const {
                        [&event](const Event& key) { return event == key; });
 }
 
-const std::vector<Event>& KeyMap::keysOf(KeyCommand command) const {
+const std::vector<Event>& KeyMap::keysOf(Command command) const {
     return bound_[static_cast<size_t>(command)];
 }
 
-std::optional<Event> KeyMap::preferredKey(KeyCommand command) const {
+std::optional<Event> KeyMap::preferredKey(Command command) const {
     const auto& keys = bound_[static_cast<size_t>(command)];
     if (keys.empty()) return std::nullopt;
     // The first of the nearest kind: two keys of one kind are as good as each

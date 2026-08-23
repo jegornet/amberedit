@@ -564,7 +564,7 @@ compose_xc_list verbose
 adaptive_ui_threshold 80
 
 # Whether the last row of the screen is the hint bar — the commands of whichever
-# screen is up, each behind the key that runs it: "/ next-unread  ctrl-r rescan"
+# screen is up, each behind the key that runs it: "/ next unread  ctrl-r rescan"
 # on the area list. Optional; "on" by default, the same four values as
 # back_button below and the same line "when_narrow" and "when_wide" are read
 # against. A window too narrow for the whole row carries as many hints as fit
@@ -573,9 +573,11 @@ adaptive_ui_threshold 80
 #
 # The keys come from the layout, so a command the "keys" file leaves unbound is
 # left out of the row, and one with several keys is shown under the shortest of
-# them — a bare key before a chord, a chord before a function key. The message
-# list has no commands of its own and its row is blank; the row is taken off the
-# screen either way, so moving between screens moves nothing else.
+# them — a bare key before a chord, a chord before a function key. A key is
+# written in the case the row is — hint_bar_capitalize, below — and the word
+# beside it is the one the menu writes on a button for the same command. The row
+# is taken off the screen whether or not there is anything to put in it, so
+# moving between screens moves nothing else.
 #
 # Clicking a hint presses the key it is written under, and the hint lights up
 # for the length of the click the way every other button does. Standing there it
@@ -585,6 +587,55 @@ adaptive_ui_threshold 80
 # ship here — and what is left of the row beside them is a rule in "separator",
 # the same rule that closes the headings at the top of a screen.
 hint_bar on
+
+# Where in the row the hints stand — the rest of it is the rule that closes the
+# interface at the bottom, and this is which side of them it runs along.
+# Optional; "center" by default.
+#   left     / next unread  ctrl-r rescan ──────────
+#   center   ───── / next unread  ctrl-r rescan ─────
+#   right    ────────── / next unread  ctrl-r rescan
+# One setting for every screen's row: the four are one row that changes with the
+# screen, and hints that jumped from one side to the other between two screens
+# would read as something having moved.
+hint_bar_align center
+
+# Whether the row is written in capitals. Optional; off by default, the row being
+# a quiet one:
+#   on    Q Reply  Ctrl-F Find  F7 Export
+#   off   q reply  ctrl-f find  f7 export
+# The keys go with the words, which is what makes it one setting rather than two.
+# It is the row's own spelling of a key and not the layout's: "g" and "G" are two
+# keys in a "keys" file and one hint either way here.
+hint_bar_capitalize off
+
+# What each screen's row holds, in the order the hints are to stand. Optional;
+# the four lines at the end of this block are the defaults. Each key names
+# commands of its own screen, by the part of the name after the dot — the
+# "reply-elsewhere" of "reader.reply-elsewhere", which is the spelling the "keys"
+# file uses — and "quit" besides, which every screen answers:
+#
+#   arealist_hints  next-unread  rescan  quit
+#
+#   msglist_hints   quit
+#
+#   reader_hints    reply  reply-elsewhere  comment-reply  new  forward  change
+#                   delete  export  find  list  info  nodelist  kludges
+#                   scrollbar  thread-up  thread-down  quit
+#
+#   compose_hints   save  attributes  import  header-back  delete-line
+#                   restore-line  delete-quote  delete-word  word-left
+#                   word-right  line-start  line-end  quit
+#
+# What each of them does is written beside its key in amberkeys.cfg.example.
+#
+# "none" on its own is a row with nothing in it, which is what the message list
+# is given: every key on it moves the cursor, so there is nothing to remind
+# anyone of. A list may otherwise be as long as you like — what the window has
+# no room for is left off the end of the row.
+arealist_hints next-unread rescan
+msglist_hints none
+reader_hints reply reply-elsewhere new list export nodelist
+compose_hints save delete-line import
 
 # Whether the reader and the message list show a back button — a left arrow in
 # the top-left corner. Optional; "when_narrow" by default. Esc does the same
@@ -610,36 +661,41 @@ compose_delete_line_button when_narrow
 # in the top-right corner of the reader and of the editor. Every command is one a
 # key does too; a button whose command has nothing to do is drawn quietly, in
 # the theme's "dialog_hint" color as everything else a box shows but will not
-# act on is. The
-# value is the commands in the order they are to stand, and each screen has its
-# own key and its own commands:
+# act on is. The value is the commands in the order they are to stand, named the
+# way the hint lists name them — the part after the dot — and each screen has
+# its own key and its own commands:
 #
-#   reader_menu   list      the list of messages in the area
-#                 reply     answer the message, quoting it
-#                 reply_to  answer it in another area
-#                 comment_reply
-#                           answer it addressed to whoever it was written
-#                           to, as Alt-Q does
-#                 new       write a new message
-#                 forward   pass the message on into another area, as `m` does
-#                 find      look for a message in the area, as `f` does
-#                 change    change the message, as `c`/F2 does
-#                 info      what the base holds about the message, as `i` does
-#                 export    write the message out to a text file, as `w` does
-#                 nodelist  look an address or a sysop up, as Ctrl-N/F10 does
+#   reader_menu   list             the list of messages in the area
+#                 reply            answer the message, quoting it
+#                 reply-elsewhere  answer it in another area
+#                 comment-reply    answer it addressed to whoever it was
+#                                  written to, as Alt-Q does
+#                 new              write a new message
+#                 forward          pass the message on into another area,
+#                                  as `m` does
+#                 find             look for a message in the area, as `f` does
+#                 change           change the message, as `c`/F2 does
+#                 info             what the base holds about it, as `i` does
+#                 export           write it out to a text file, as `w` does
+#                 nodelist         look an address or a sysop up, as Ctrl-N does
 #
-#   compose_menu  save      store the message being written, as ^S does
-#                 import    read a file into the message, as ^O does
+#   compose_menu  save             store the message being written, as ^S does
+#                 import           read a file into the message, as ^O does
+#
+# A menu holds what a button can stand for, which is less than a hint bar may
+# name: the rest of what the editor does is editing, and there is no button for
+# taking a line out. "none" on its own leaves the screen without a menu, and so
+# does menu_button off — the first for one screen, the second for both.
 #
 # The two lists below are the defaults. "change", "info", "export" and
-# "comment_reply" are left out of the reader's — write them in to have them:
+# "comment-reply" are left out of the reader's — write them in to have them:
 #
-#   reader_menu list reply reply_to comment_reply new forward find change info
-#               export nodelist
+#   reader_menu list reply reply-elsewhere comment-reply new forward find
+#               change info export nodelist
 #
 # The area list and the message list carry no menu button and have no setting for
 # one.
-reader_menu list reply reply_to new forward find nodelist
+reader_menu list reply reply-elsewhere new forward find nodelist
 compose_menu save import
 
 # Whether the reader and the editor show the menu button at all. Optional;
@@ -648,9 +704,10 @@ compose_menu save import
 menu_button when_narrow
 
 # How wide one button of the menu stands, in columns, the frame included.
-# Optional; 20 by default, 4 to 100. A label with no room left for it
-# is cut, as every other label in the interface is.
-menu_buttons_width 20
+# Optional; 22 by default, 4 to 100 — which is the longest label either menu
+# offers, glyph and all, with a column or two after it. A label with no room
+# left for it is cut, as every other label in the interface is.
+menu_buttons_width 22
 
 # How long a click is shown before it acts, in milliseconds. Optional; 100 by
 # default, 0 turning the animation off. A click on a button draws it in the

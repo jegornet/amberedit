@@ -80,7 +80,7 @@ struct AppState {
     struct MenuView {
         /// One command as it stands in the menu.
         struct Item {
-            config::MenuCommand command{};
+            Command command{};
             /// Whether it can be run on what is in front of the user. A disabled
             /// button is drawn quietly and swallows a click: it is still a
             /// button, and letting the press through to the screen underneath
@@ -1335,8 +1335,7 @@ struct AppState {
     /// Whether a screen shows the menu button in its top-right corner. A menu
     /// with no commands in it is no menu either: the corner would open a box
     /// with nothing in it to press.
-    [[nodiscard]] bool menuButtonShown(
-        const std::vector<config::MenuCommand>& commands) const {
+    [[nodiscard]] bool menuButtonShown(const std::vector<Command>& commands) const {
         return !commands.empty() && shown(config.menuButton);
     }
 
@@ -1352,7 +1351,7 @@ struct AppState {
     /// drawn rather than against a second guess at the same arithmetic. In the
     /// order they are drawn, which is the order `Pressed::Hint` numbers them in.
     struct HintSpot {
-        KeyCommand command{};
+        Command command{};
         term::Box box;
     };
     std::vector<HintSpot> hintSpots;

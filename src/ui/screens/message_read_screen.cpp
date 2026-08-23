@@ -697,17 +697,17 @@ void openList(AppState& state) {
 /// message is the whole of what is on offer. New is that message; the nodelist
 /// is about somebody else's system and opens whatever is on the screen, saying
 /// along its own bottom edge when there is no nodelist to show.
-bool commandEnabled(const AppState& state, config::MenuCommand command) {
+bool commandEnabled(const AppState& state, Command command) {
     switch (command) {
-        case config::MenuCommand::Reply:
-        case config::MenuCommand::ReplyTo:
-        case config::MenuCommand::CommentReply:
-        case config::MenuCommand::Forward:
-        case config::MenuCommand::Change:
-        case config::MenuCommand::Info:
-        case config::MenuCommand::Export:
-        case config::MenuCommand::Find:
-        case config::MenuCommand::List: return state.messageCount > 0;
+        case Command::ReaderReply:
+        case Command::ReaderReplyElsewhere:
+        case Command::ReaderCommentReply:
+        case Command::ReaderForward:
+        case Command::ReaderChange:
+        case Command::ReaderInfo:
+        case Command::ReaderExport:
+        case Command::ReaderFind:
+        case Command::ReaderList: return state.messageCount > 0;
         default: return true;
     }
 }
@@ -717,30 +717,30 @@ bool commandEnabled(const AppState& state, config::MenuCommand command) {
 void openMenu(AppState& state) {
     std::vector<AppState::MenuView::Item> items;
     items.reserve(state.config.readerMenu.size());
-    for (const config::MenuCommand command : state.config.readerMenu) {
+    for (const Command command : state.config.readerMenu) {
         items.push_back({command, commandEnabled(state, command), {}});
     }
     menu_dialog::open(state, std::move(items));
 }
 
-void runMenuCommand(AppState& state, config::MenuCommand command) {
+void runMenuCommand(AppState& state, Command command) {
     switch (command) {
-        case config::MenuCommand::Reply: compose::startReply(state); break;
-        case config::MenuCommand::ReplyTo:
+        case Command::ReaderReply: compose::startReply(state); break;
+        case Command::ReaderReplyElsewhere:
             askArea(state, AppState::AreaPicker::For::Reply);
             break;
-        case config::MenuCommand::CommentReply: compose::startCommentReply(state); break;
-        case config::MenuCommand::Forward: askForward(state); break;
-        case config::MenuCommand::New: compose::startNew(state); break;
-        case config::MenuCommand::Change: askToChange(state); break;
-        case config::MenuCommand::Info: info_dialog::open(state); break;
-        case config::MenuCommand::Export: askExport(state); break;
-        case config::MenuCommand::Find: find_dialog::open(state); break;
-        case config::MenuCommand::Nodelist: nodelist_dialog::open(state); break;
-        case config::MenuCommand::List: openList(state); break;
-        // The editor's own two, which `reader_menu` cannot name.
-        case config::MenuCommand::Save:
-        case config::MenuCommand::Import: break;
+        case Command::ReaderCommentReply: compose::startCommentReply(state); break;
+        case Command::ReaderForward: askForward(state); break;
+        case Command::ReaderNew: compose::startNew(state); break;
+        case Command::ReaderChange: askToChange(state); break;
+        case Command::ReaderInfo: info_dialog::open(state); break;
+        case Command::ReaderExport: askExport(state); break;
+        case Command::ReaderFind: find_dialog::open(state); break;
+        case Command::ReaderNodelist: nodelist_dialog::open(state); break;
+        case Command::ReaderList: openList(state); break;
+        // Everything the reader answers with a key of its own and nothing a
+        // button stands for, which `reader_menu` cannot name.
+        default: break;
     }
 }
 
@@ -1564,18 +1564,18 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     // Replying and writing anew. Both belong to the reader alone: a reply is a
     // reply to the message on screen, and the other screens leave the keys free.
-    if (state.keys.is(event, KeyCommand::ReaderReply)) {
+    if (state.keys.is(event, Command::ReaderReply)) {
         compose::startReply(state);
         return true;
     }
-    if (state.keys.is(event, KeyCommand::ReaderNew)) {
+    if (state.keys.is(event, Command::ReaderNew)) {
         compose::startNew(state);
         return true;
     }
     // Writing the message on screen again, over the one in the base. Not in the
     // menu unless the config asks for it: writing over a message that is already
     // in a base is a rare thing to want and a bad thing to do by accident.
-    if (state.keys.is(event, KeyCommand::ReaderChange)) {
+    if (state.keys.is(event, Command::ReaderChange)) {
         askToChange(state);
         return true;
     }
@@ -1583,21 +1583,21 @@ bool handleEvent(AppState& state, const Event& event) {
     // and, where the message carries uuencoded files, asking first whether it is
     // those that are wanted. Not in the default menu: it is a thing done now and
     // then.
-    if (state.keys.is(event, KeyCommand::ReaderExport)) {
+    if (state.keys.is(event, Command::ReaderExport)) {
         askExport(state);
         return true;
     }
     // Answering in another area: the dialog asks which, and what follows is the
     // ordinary reply, quote and all, written where it says.
-    if (state.keys.is(event, KeyCommand::ReaderReplyTo)) {
+    if (state.keys.is(event, Command::ReaderReplyElsewhere)) {
         askArea(state, AppState::AreaPicker::For::Reply);
         return true;
     }
     // The same answer, addressed to whoever the message was written to rather
     // than to whoever wrote it — a comment on what was said to somebody else.
     // Alt-Q and nothing else: it is not in the hint bar, and a button for it is
-    // `reader_menu comment_reply`.
-    if (state.keys.is(event, KeyCommand::ReaderCommentReply)) {
+    // `reader_menu comment-reply`.
+    if (state.keys.is(event, Command::ReaderCommentReply)) {
         compose::startCommentReply(state);
         return true;
     }
@@ -1605,23 +1605,23 @@ bool handleEvent(AppState& state, const Event& event) {
     // sense: in a message of one's own carrying it, or by putting this very
     // message there — with or without taking it out of here. The area dialog
     // follows whichever was answered.
-    if (state.keys.is(event, KeyCommand::ReaderForward)) {
+    if (state.keys.is(event, Command::ReaderForward)) {
         askForward(state);
         return true;
     }
     // Up and down the thread. The markers beside the message number say what
     // these two would do, and a click on one does it as well.
-    if (state.keys.is(event, KeyCommand::ReaderThreadUp)) {
+    if (state.keys.is(event, Command::ReaderThreadUp)) {
         followUp(state);
         return true;
     }
-    if (state.keys.is(event, KeyCommand::ReaderThreadDown)) {
+    if (state.keys.is(event, Command::ReaderThreadDown)) {
         followDown(state);
         return true;
     }
     // Deleting is asked about first: the base has no way back from it, and the
     // key sits among ones that only move about.
-    if (state.keys.is(event, KeyCommand::ReaderDelete)) {
+    if (state.keys.is(event, Command::ReaderDelete)) {
         if (!state.readHeader) return true;
         state.confirm = AppState::Confirm::DeleteMessage;
         state.confirmChoice = AppState::ConfirmChoice::Yes;
@@ -1631,30 +1631,30 @@ bool handleEvent(AppState& state, const Event& event) {
     // record by record, down to the bytes. Not in the menu unless the config
     // asks for it — it answers a question most readers never ask, and the ones
     // who do know the key.
-    if (state.keys.is(event, KeyCommand::ReaderInfo)) {
+    if (state.keys.is(event, Command::ReaderInfo)) {
         info_dialog::open(state);
         return true;
     }
     // Looking for a message in the area — the dialog asks what for, and the
     // shell hands its answer back to findMessage() above.
-    if (state.keys.is(event, KeyCommand::ReaderFind)) {
+    if (state.keys.is(event, Command::ReaderFind)) {
         find_dialog::open(state);
         return true;
     }
     // The nodelist, on whoever wrote the message on screen.
-    if (state.keys.is(event, KeyCommand::ReaderNodelist)) {
+    if (state.keys.is(event, Command::ReaderNodelist)) {
         nodelist_dialog::open(state);
         return true;
     }
-    if (state.keys.is(event, KeyCommand::ReaderKludges)) {
+    if (state.keys.is(event, Command::ReaderKludges)) {
         toggleKludges(state);
         return true;
     }
-    if (state.keys.is(event, KeyCommand::ReaderScrollbar)) {
+    if (state.keys.is(event, Command::ReaderScrollbar)) {
         toggleScrollbar(state);
         return true;
     }
-    if (state.keys.is(event, KeyCommand::ReaderList)) {
+    if (state.keys.is(event, Command::ReaderList)) {
         openList(state);
         return true;
     }

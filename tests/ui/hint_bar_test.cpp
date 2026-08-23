@@ -17,6 +17,7 @@
 using amberedit::app::AreaManager;
 using amberedit::app::ScreenId;
 using amberedit::config::AppConfig;
+using amberedit::config::Command;
 using amberedit::config::Visibility;
 using amberedit::domain::AreaConfig;
 using amberedit::ui::AppState;
@@ -64,14 +65,51 @@ struct Fixture {
 }  // namespace
 
 TEST_CASE("The hint bar names the commands of the screen it stands under [hintbar]") {
+    // The key, and beside it the word the menu writes on a button for the same
+    // command: one list of commands answers for both.
     CHECK(hint_bar::text(Fixture(ScreenId::AreaList).state) ==
-          "/ next-unread  ctrl-r rescan");
+          "/ next unread  ctrl-r rescan");
     CHECK(hint_bar::text(Fixture(ScreenId::MessageRead).state) ==
-          "q reply  n reply-to  e new  l list  w export  ctrl-n nodelist");
+          "q reply  n reply elsewhere  e new  l list  w export  ctrl-n nodelist");
     CHECK(hint_bar::text(Fixture(ScreenId::Compose).state) ==
-          "ctrl-s save  ctrl-y delete-line  ctrl-o import");
-    // Every key on the message list moves the cursor, so it has nothing to say.
+          "ctrl-s save  ctrl-y delete line  ctrl-o import");
+    // Every key on the message list moves the cursor, so its list starts empty.
     CHECK(hint_bar::text(Fixture(ScreenId::MessageList).state).empty());
+}
+
+TEST_CASE("Each screen's row is the list the config gives it [hintbar]") {
+    // Every row is the user's: a screen has the hints that were asked for, in
+    // the order they were written, and a screen whose list is empty has none.
+    Fixture fixture(ScreenId::MessageRead);
+    fixture.config.readerHints = {Command::ReaderInfo, Command::ReaderChange,
+                                  Command::AppQuit};
+    CHECK(hint_bar::text(fixture.state) == "i info  c change  ctrl-q quit");
+
+    fixture.config.readerHints.clear();
+    CHECK(hint_bar::text(fixture.state).empty());
+
+    // The message list included, which has nothing to say only until it is
+    // given something.
+    Fixture list(ScreenId::MessageList);
+    list.config.msglistHints = {Command::AppQuit};
+    CHECK(hint_bar::text(list.state) == "ctrl-q quit");
+}
+
+TEST_CASE("hint_bar_capitalize is the case the whole row is written in "
+          "[hintbar]") {
+    Fixture fixture(ScreenId::MessageRead);
+    fixture.config.readerHints = {Command::ReaderReply, Command::ReaderFind,
+                                  Command::ReaderExport};
+
+    // Off unless the config says otherwise: the row is a quiet one, and a
+    // capital on every word of it shouts.
+    CHECK_FALSE(fixture.config.hintBarCapitalize);
+    CHECK(hint_bar::text(fixture.state) == "q reply  ctrl-f find  w export");
+
+    // On, the key and the word both — the same words the menu writes on its
+    // buttons, and the keys as a `keys` file spells them.
+    fixture.config.hintBarCapitalize = true;
+    CHECK(hint_bar::text(fixture.state) == "Q Reply  Ctrl-F Find  W Export");
 }
 
 TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out "
@@ -85,7 +123,7 @@ TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out "
 
     // Three of the six are bound, and the row is the three of them: a label
     // with no key in front of it would be a label saying to press nothing.
-    CHECK(hint_bar::text(fixture.state) == "F4 reply  ctrl-e new  x list");
+    CHECK(hint_bar::text(fixture.state) == "f4 reply  ctrl-e new  x list");
 }
 
 TEST_CASE("Where a command has several keys the shortest one is shown "
@@ -148,19 +186,19 @@ TEST_CASE("The row is the hints set into a rule [hintbar]") {
     std::string row;
     for (int x = 0; x < fixture.state.width; ++x) row += screen.at(x, 0).glyph;
     // A space either side of the hints, as every other label set into a rule in
-    // this interface carries, and the rule to the edge of the screen.
-    CHECK(row == " / next-unread  ctrl-r rescan ──────────");
+    // this interface carries, and the rule running to both edges of the screen.
+    CHECK(row == "───── / next unread  ctrl-r rescan ─────");
 
     // The hints in the bar's own color — both of them, the second as much as
     // the first — and the rule in the one every other rule is drawn in. No fill
     // of its own either way: the row stands on the theme's background like
     // everything else.
     const auto& palette = amberedit::ui::theme::palette;
-    for (const int x : {1, 13, 16, 28}) {
+    for (const int x : {6, 18, 21, 33}) {
         INFO("column " << x);
         CHECK(screen.at(x, 0).fg == palette.hintBar);
     }
-    for (const int x : {30, 39}) {
+    for (const int x : {0, 4, 35, 39}) {
         INFO("column " << x);
         CHECK(screen.at(x, 0).fg == palette.separator);
     }
@@ -168,11 +206,44 @@ TEST_CASE("The row is the hints set into a rule [hintbar]") {
     CHECK(screen.at(39, 0).bg == amberedit::ui::theme::Color{});
 }
 
+TEST_CASE("hint_bar_align is which side of the hints the rule runs along "
+          "[hintbar]") {
+    using amberedit::config::HintAlign;
+
+    Fixture fixture(ScreenId::AreaList);
+    fixture.state.width = 40;
+    const auto rowOf = [&fixture]() {
+        term::Screen screen(fixture.state.width, 1);
+        term::render(screen, hint_bar::render(fixture.state));
+        std::string row;
+        for (int x = 0; x < fixture.state.width; ++x) row += screen.at(x, 0).glyph;
+        return row;
+    };
+
+    // In the middle unless the config says otherwise, and the odd column of an
+    // uneven rest goes to the right-hand side.
+    CHECK(fixture.config.hintBarAlign == HintAlign::Center);
+    fixture.state.width = 39;
+    CHECK(rowOf() == "──── / next unread  ctrl-r rescan ─────");
+
+    fixture.state.width = 40;
+    fixture.config.hintBarAlign = HintAlign::Left;
+    CHECK(rowOf() == " / next unread  ctrl-r rescan ──────────");
+
+    fixture.config.hintBarAlign = HintAlign::Right;
+    CHECK(rowOf() == "────────── / next unread  ctrl-r rescan ");
+
+    // The space either side of the hints is theirs wherever they stand, so a
+    // hint is never flush against the rule.
+    fixture.config.hintBarAlign = HintAlign::Center;
+    CHECK(rowOf() == "───── / next unread  ctrl-r rescan ─────");
+}
+
 TEST_CASE("A window too narrow for the whole row carries what fits of it "
           "[hintbar]") {
     // The reader names six commands, which is more than a narrow window holds.
     Fixture fixture(ScreenId::MessageRead);
-    fixture.state.width = 30;
+    fixture.state.width = 35;
 
     const auto rowOf = [&fixture]() {
         term::Screen screen(fixture.state.width, 1);
@@ -184,15 +255,16 @@ TEST_CASE("A window too narrow for the whole row carries what fits of it "
 
     // Whole hints and no fragments: a squeezed row would be `q re n rep e n`,
     // which names neither a key nor a command. What is left off is left off the
-    // end, and the rule closes the row as it always does.
-    CHECK(rowOf() == " q reply  n reply-to  e new ──");
+    // end. Three of them fill this window to the column, which leaves no rule
+    // to draw and the space either side of the hints still theirs.
+    CHECK(rowOf() == " q reply  n reply elsewhere  e new ");
     // And nothing is clickable that is not drawn.
     CHECK(fixture.state.hintSpots.size() == 3);
 
     // One column narrower than the hint needs takes that hint off the row
     // rather than the last letters of every one of them.
-    fixture.state.width = 27;
-    CHECK(rowOf() == " q reply  n reply-to ──────");
+    fixture.state.width = 34;
+    CHECK(rowOf() == "─── q reply  n reply elsewhere ───");
     CHECK(fixture.state.hintSpots.size() == 2);
 
     // Too narrow even for the first: the rule alone, as under a screen with no
@@ -211,10 +283,10 @@ TEST_CASE("A click on a hint asks for the key it is written under [hintbar]") {
     term::render(screen, hint_bar::render(fixture.state));
     REQUIRE(fixture.state.hintSpots.size() == 6);
 
-    // The second hint is `n reply-to`, and clicking it asks for `n` — the key
-    // the row says runs it, so that the click and the row cannot disagree.
+    // The second hint is `n reply elsewhere`, and clicking it asks for `n` — the
+    // key the row says runs it, so the click and the row cannot disagree.
     const auto& spot = fixture.state.hintSpots[1];
-    REQUIRE(spot.command == amberedit::ui::KeyCommand::ReaderReplyTo);
+    REQUIRE(spot.command == Command::ReaderReplyElsewhere);
     const auto asked = hint_bar::clicked(fixture.state, clickAt(spot.box.x_min, 0));
     REQUIRE(asked);
     CHECK(*asked == term::Event::Character('n'));
@@ -222,7 +294,7 @@ TEST_CASE("A click on a hint asks for the key it is written under [hintbar]") {
     // A layout that has moved the command moves what the click asks for with
     // it: the hint is written under the key it presses, whichever that is.
     fixture.state.keys =
-        amberedit::test::valueOf(KeyMap::parse("F5 reader.reply-to\n", "keys"));
+        amberedit::test::valueOf(KeyMap::parse("F5 reader.reply-elsewhere\n", "keys"));
     term::render(screen, hint_bar::render(fixture.state));
     REQUIRE(fixture.state.hintSpots.size() == 1);
     const auto moved = hint_bar::clicked(

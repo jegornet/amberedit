@@ -67,7 +67,9 @@ one; the mouse works on every screen, and the wheel scrolls a line at a time.
 **Ctrl-Q** quits from anywhere. Every key below that runs a command
 can be moved — see [Rebinding the keys](#rebinding-the-keys) — and the last row
 names the main ones under whatever keys they are on (`hint_bar`), as many as the
-window holds. Clicking one presses that key.
+window holds. Clicking one presses that key. Which commands each screen's row
+names is yours to write down as well — `arealist_hints`, `msglist_hints`,
+`reader_hints` and `compose_hints`, one list of commands each.
 
 **Area list**
 
@@ -165,7 +167,7 @@ own and may be bound — and the dialogs answer for themselves entirely. Naming
 one of them is an error rather than a line quietly dropped.
 
 The commands are `app.quit`; `arealist.next-unread` and `arealist.rescan`;
-`reader.` `reply`, `reply-to`, `comment-reply`, `new`, `forward`, `change`,
+`reader.` `reply`, `reply-elsewhere`, `comment-reply`, `new`, `forward`, `change`,
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
 `thread-up` and `thread-down`; and `compose.` `save`, `attributes`, `import`,
 `header-back`, `delete-line`, `restore-line`, `delete-quote`, `delete-word`,

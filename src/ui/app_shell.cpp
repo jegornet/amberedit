@@ -259,7 +259,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         // Quitting is answered from any screen and ahead of everything modal,
         // the attributes dialog included: no box is worth being the one thing
         // standing between the user and the way out.
-        if (state.keys.is(event, KeyCommand::AppQuit)) {
+        if (state.keys.is(event, Command::AppQuit)) {
             terminal.exit();
             continue;
         }
@@ -339,7 +339,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         // something this loop can mean.
         if (state.menuView) {
             if (menu_dialog::handleEvent(state, event) == menu_dialog::Outcome::Picked) {
-                const config::MenuCommand command = menu_dialog::current(state);
+                const Command command = menu_dialog::current(state);
                 state.menuView.reset();
                 switch (state.navigator.current()) {
                     case app::ScreenId::MessageRead:
@@ -387,7 +387,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 state.areaPicker.reset();
                 switch (purpose) {
                     case AppState::AreaPicker::For::Reply:
-                        screens::compose::startReplyTo(state, target);
+                        screens::compose::startReplyElsewhere(state, target);
                         break;
                     case AppState::AreaPicker::For::Forward:
                         screens::compose::startForwardTo(state, target);

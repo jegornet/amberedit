@@ -165,86 +165,66 @@ Format formatOf(const ListFormatRow& lines, KindOf kindOf) {
     return format;
 }
 
-/// The commands one menu key may name, in the order the default writes them.
-/// Each key has its own table, which is what makes `reader_menu save` a mistake
-/// the config catches rather than a button that does nothing.
-using MenuNames = std::vector<std::pair<std::string_view, MenuCommand>>;
-
-const MenuNames& readerCommands() {
-    static const MenuNames names{
-        {"list", MenuCommand::List},         {"reply", MenuCommand::Reply},
-        {"reply_to", MenuCommand::ReplyTo},  {"comment_reply", MenuCommand::CommentReply},
-        {"new", MenuCommand::New},           {"forward", MenuCommand::Forward},
-        {"find", MenuCommand::Find},         {"change", MenuCommand::Change},
-        {"info", MenuCommand::Info},         {"export", MenuCommand::Export},
-        {"nodelist", MenuCommand::Nodelist},
-    };
-    return names;
-}
-
-const MenuNames& composeCommands() {
-    static const MenuNames names{{"save", MenuCommand::Save},
-                                 {"import", MenuCommand::Import}};
-    return names;
-}
-
-/// What a menu key says about a word that is not one of its commands. Its own
-/// function so that the message is built where it is returned rather than once
-/// per value read.
-tl::unexpected<std::string> failUnknownCommand(const CfgEntry& entry,
-                                               const std::string& value,
-                                               const std::string& offered) {
-    return entry.fail(entry.key + ": '" + value + "' is not one of its commands (" +
-                      offered + ")");
-}
-
-/// The commands a menu key names, as the key writes them.
+/// The commands a menu or a hint list names, as the key writes them: the part
+/// of each name after the screen it belongs to, the config key already saying
+/// which screen is meant — `reply-elsewhere` is `reader.reply-elsewhere`.
 ///
-/// Whether the button that opens the menu is on the screen at all is
-/// `menu_button`, so the list here is only ever what the menu holds. Everything
-/// malformed stops AmberEdit rather than being skipped: a dropped button is one
-/// the user wrote down and cannot see, which is exactly the shape of a mistake
-/// nobody finds.
-Result<std::vector<MenuCommand>> parseMenu(const CfgEntry& entry,
-                                           const MenuNames& known) {
-    std::string offered;
-    for (const auto& command : known) {
-        if (!offered.empty()) offered += ", ";
-        offered.append(command.first);
-    }
+/// What a key may name is `Commands::offeredOn()`, which is what makes
+/// `reader_menu save` a mistake the config catches rather than a button that
+/// does nothing. Everything malformed stops AmberEdit rather than being skipped:
+/// a dropped button is one the user wrote down and cannot see, which is exactly
+/// the shape of a mistake nobody finds.
+///
+/// `none`, alone, is the empty list — the row or the menu asked for and left
+/// with nothing in it. It is a value rather than an omitted key so that a list
+/// that is meant to be empty reads as one.
+Result<std::vector<Command>> parseCommandList(const CfgEntry& entry, CommandScreen screen,
+                                              Commands::In where) {
+    const std::string offered = Commands::offeredNamesOn(screen, where);
 
     if (entry.values.empty()) {
-        return entry.fail(entry.key + " needs the commands to put in the menu (" +
-                          offered + ") — write menu_button off for no menu at all");
+        return entry.fail(entry.key + " needs the commands it is to hold (" + offered +
+                          "), or `none` for none of them");
     }
 
-    std::vector<MenuCommand> commands;
+    std::vector<Command> commands;
     for (const std::string& value : entry.values) {
-        const std::string name = text::toLower(value);
-        // `none` was how a screen used to be left without a toolbar, and the
-        // menus took the toolbars' place: it is said here rather than left to
-        // read as an unknown command, since the setting moved and did not go
-        // away.
-        if (name == "none") {
-            return entry.fail(
-                entry.key + ": 'none' is no longer one of its values — write " +
-                "menu_button off for no menu at all, and this key for what the "
-                "menu holds");
+        if (text::iequals(value, "none")) {
+            // On its own and nowhere else: `reply none` is a list that was
+            // being written and stopped, not an empty one.
+            if (entry.values.size() != 1) {
+                return entry.fail(entry.key +
+                                  ": `none` is the whole of the list or no part of it");
+            }
+            return std::vector<Command>{};
         }
 
-        const auto found =
-            std::find_if(known.begin(), known.end(),
-                         [&name](const auto& pair) { return pair.first == name; });
-        if (found == known.end()) return failUnknownCommand(entry, value, offered);
-        // Written twice can only be a slip: two buttons doing the same thing
-        // one under the other is not something anyone asks for on purpose.
-        if (std::find(commands.begin(), commands.end(), found->second) !=
-            commands.end()) {
-            return entry.fail(entry.key + ": '" + name + "' is named twice");
+        const Commands::Info* found = Commands::namedOn(screen, value, where);
+        if (found == nullptr) {
+            return entry.fail(entry.key + ": '" + value +
+                              "' is not one of its commands (" + offered + ")");
         }
-        commands.push_back(found->second);
+        // Written twice can only be a slip: two hints or two buttons doing the
+        // same thing beside one another is not something anyone asks for on
+        // purpose.
+        if (std::find(commands.begin(), commands.end(), found->command) !=
+            commands.end()) {
+            return entry.fail(entry.key + ": '" + value + "' is named twice");
+        }
+        commands.push_back(found->command);
     }
     return commands;
+}
+
+Result<HintAlign> parseHintAlign(const CfgEntry& entry) {
+    const auto only = entry.one();
+    if (!only) return tl::make_unexpected(only.error());
+    const std::string value = text::toLower(*only);
+    if (value == "left") return HintAlign::Left;
+    if (value == "center") return HintAlign::Center;
+    if (value == "right") return HintAlign::Right;
+    return entry.fail(entry.key + ": '" + *only +
+                      "' does not say where the hints stand (left | center | right)");
 }
 
 Result<Visibility> parseVisibility(const CfgEntry& entry) {
@@ -847,13 +827,43 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         if (!read) return tl::make_unexpected(read.error());
         cfg.menuButton = *read;
     } else if (key == "reader_menu") {
-        const auto read = parseMenu(entry, readerCommands());
+        const auto read =
+            parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu);
         if (!read) return tl::make_unexpected(read.error());
         cfg.readerMenu = *read;
     } else if (key == "compose_menu") {
-        const auto read = parseMenu(entry, composeCommands());
+        const auto read =
+            parseCommandList(entry, CommandScreen::Compose, Commands::In::Menu);
         if (!read) return tl::make_unexpected(read.error());
         cfg.composeMenu = *read;
+    } else if (key == "hint_bar_align") {
+        const auto read = parseHintAlign(entry);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.hintBarAlign = *read;
+    } else if (key == "hint_bar_capitalize") {
+        const auto read = entry.flag();
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.hintBarCapitalize = *read;
+    } else if (key == "arealist_hints") {
+        const auto read =
+            parseCommandList(entry, CommandScreen::AreaList, Commands::In::HintBar);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.arealistHints = *read;
+    } else if (key == "msglist_hints") {
+        const auto read =
+            parseCommandList(entry, CommandScreen::MessageList, Commands::In::HintBar);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.msglistHints = *read;
+    } else if (key == "reader_hints") {
+        const auto read =
+            parseCommandList(entry, CommandScreen::Reader, Commands::In::HintBar);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.readerHints = *read;
+    } else if (key == "compose_hints") {
+        const auto read =
+            parseCommandList(entry, CommandScreen::Compose, Commands::In::HintBar);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.composeHints = *read;
     } else if (key == "menu_buttons_width") {
         // The floor is a frame with a column of label left inside it, under
         // which a button says nothing at all; the ceiling is wider than any

@@ -9,6 +9,7 @@
 
 #include "config/area_pattern.hpp"
 #include "config/cfg_file.hpp"
+#include "config/commands.hpp"
 #include "config/list_format.hpp"
 #include "domain/address_pattern.hpp"
 #include "domain/area.hpp"
@@ -231,29 +232,6 @@ struct EcholistSource {
     }
 };
 
-/// One button of a screen's context menu: the command it runs when it is
-/// clicked.
-///
-/// One enumeration for both menus rather than one per screen: a button is the
-/// same thing wherever it stands, and which commands a screen offers is decided
-/// by the table its config key is read through — `save` in `reader_menu` is
-/// refused there rather than being unrepresentable here.
-enum class MenuCommand {
-    List,          ///< reader: the list of messages, as l and F9 do
-    Reply,         ///< reader: answer it, quoting
-    ReplyTo,       ///< reader: answer it in another area, as n and F5 do
-    CommentReply,  ///< reader: answer it addressed to its recipient, as Alt-Q does
-    New,           ///< reader: write a new message
-    Forward,       ///< reader: pass it on into another area, as m does
-    Find,          ///< reader: look for a message in the area, as `f` does
-    Change,        ///< reader: write the message on screen again, as c does
-    Info,          ///< reader: what the base holds about the message, as i does
-    Export,        ///< reader: write it out to a text file, as w does
-    Nodelist,      ///< reader: look an address or a sysop up, as Ctrl-N and F10 do
-    Save,          ///< editor: store what is being written
-    Import,        ///< editor: read a file into the message, as Ctrl-O does
-};
-
 /// Whether a piece of the interface is on the screen at all: the menu button,
 /// from `menu_button`, the back button, from `back_button`, the editor's
 /// delete-line button, from `compose_delete_line_button`, and the header
@@ -274,6 +252,15 @@ enum class Visibility {
     Off,         ///< never, and what it took goes back to what the screen shows
     WhenNarrow,  ///< only in a window narrower than `adaptive_ui_threshold`
     WhenWide,    ///< only in a window of `adaptive_ui_threshold` columns or more
+};
+
+/// Where the hints stand in the last row of the screen, from `hint_bar_align`:
+/// the rest of the row is the rule that closes the interface, and this is which
+/// side of the hints it runs along.
+enum class HintAlign {
+    Left,    ///< against the left edge, the rule filling what is left
+    Center,  ///< in the middle, with rule on both sides
+    Right,   ///< against the right edge, the rule in front of them
 };
 
 /// Format of the tosser config the area list comes from.
@@ -760,8 +747,8 @@ struct AppConfig {
     /// whoever would rather have the row whole or not at all.
     ///
     /// The row is taken off the screen above it whether or not there is
-    /// anything to put in it, so that the message list, which has no commands
-    /// of its own, is not a row taller than the screens on either side of it.
+    /// anything to put in it, so that the message list, whose list of hints
+    /// starts empty, is not a row taller than the screens on either side of it.
     Visibility hintBar{Visibility::On};
 
     /// Whether the editor shows the delete-line button down its three rightmost
@@ -850,37 +837,94 @@ struct AppConfig {
     Visibility menuButton{Visibility::WhenNarrow};
 
     /// What the two menus hold, in the order they are to stand — from
-    /// `reader_menu` and `compose_menu`.
+    /// `reader_menu` and `compose_menu`. Each names commands of its own screen,
+    /// by the part of the name after the dot: `reply-elsewhere` is
+    /// `reader.reply-elsewhere`.
     ///
     /// The reader's default leaves out `change`, `info`, `export` and
-    /// `comment_reply`: writing over a message that is already in a base is a
+    /// `comment-reply`: writing over a message that is already in a base is a
     /// rare thing to want and a bad thing to do by accident, what a base holds
     /// about a message is a question most readers never ask, a message is
     /// written out to a file now and then, and answering the recipient rather
     /// than the sender is a thing wanted now and then and never by accident —
     /// `c`/F2, `i`, `w` and Alt-Q do all four without a button.
-    std::vector<MenuCommand> readerMenu{
-        MenuCommand::List,    MenuCommand::Reply, MenuCommand::ReplyTo, MenuCommand::New,
-        MenuCommand::Forward, MenuCommand::Find,  MenuCommand::Nodelist};
+    std::vector<Command> readerMenu{Command::ReaderList,           Command::ReaderReply,
+                                    Command::ReaderReplyElsewhere, Command::ReaderNew,
+                                    Command::ReaderForward,        Command::ReaderFind,
+                                    Command::ReaderNodelist};
 
     /// The editor's two: storing the message and reading a file into it. The
     /// rest of what it does is editing, which is the keyboard's — Ctrl-Y and
     /// Ctrl-D are chords anyone writing mail knows by heart, and a menu is no
     /// place to take a line out from.
-    std::vector<MenuCommand> composeMenu{MenuCommand::Save, MenuCommand::Import};
+    std::vector<Command> composeMenu{Command::ComposeSave, Command::ComposeImport};
+
+    /// Whether the hint bars are written in capitals, from
+    /// `hint_bar_capitalize`: `Q Reply  Ctrl-F Find  F7 Export` where they are,
+    /// `q reply  ctrl-f find  f7 export` where they are not.
+    ///
+    /// Off unless the config says otherwise. The row is the quiet one at the
+    /// bottom of the screen — it is there to be glanced at rather than read, and
+    /// lower case is what keeps it from competing with the message above it.
+    ///
+    /// One setting for every screen's row: the four of them are one row that
+    /// changes as the screen does, and a bar written one way over the reader and
+    /// another over the editor would read as two different things.
+    ///
+    /// The keys go with the words either way, which is what makes it one
+    /// setting rather than two — and it is the row's own spelling of a key and
+    /// not the layout's: `g` and `G` are two keys where a `keys` file is
+    /// concerned, and one hint either way here.
+    bool hintBarCapitalize{false};
+
+    /// Where in the row the hints stand, from `hint_bar_align`. In the middle
+    /// unless the config says otherwise: what is beside them is a rule and not
+    /// a margin, so the row closes the screen at the bottom wherever they are,
+    /// and the middle is where the eye passes over them on its way down the
+    /// message rather than having to go to a corner for them.
+    ///
+    /// One setting for every screen's row, as the case is: the four rows are one
+    /// row that changes with the screen, and hints that jumped from one side to
+    /// the other between two screens would read as something having moved.
+    HintAlign hintBarAlign{HintAlign::Center};
+
+    /// What each screen's hint bar names, in the order the hints are to stand —
+    /// from `arealist_hints`, `msglist_hints`, `reader_hints` and
+    /// `compose_hints`, each naming commands of its own screen the way the
+    /// menus do, and `app.quit` besides, which every screen answers.
+    ///
+    /// Not everything a screen answers, by default: the row is a reminder of
+    /// what there is to do here, and the keys left out of it are the ones that
+    /// are either obvious (the arrows), rarely wanted (`info`) or one letter
+    /// away from what is already named (`change` beside `new`). A list is as
+    /// long as the user cares to make it; what has no room left in the window
+    /// is left off the end of the row rather than squeezed.
+    ///
+    /// The message list starts with an empty row: every key on it moves the
+    /// cursor. The row is still taken off the screen above it — see `hintBar` —
+    /// so a list that names nothing is a rule and not a row less.
+    std::vector<Command> arealistHints{Command::AreaListNextUnread,
+                                       Command::AreaListRescan};
+    std::vector<Command> msglistHints;
+    std::vector<Command> readerHints{Command::ReaderReply,  Command::ReaderReplyElsewhere,
+                                     Command::ReaderNew,    Command::ReaderList,
+                                     Command::ReaderExport, Command::ReaderNodelist};
+    std::vector<Command> composeHints{Command::ComposeSave, Command::ComposeDeleteLine,
+                                      Command::ComposeImport};
 
     /// How wide one button of a menu stands, in columns, from
     /// `menu_buttons_width` — the frame around the label included, so it is the
     /// whole of what the button takes on the screen.
     ///
-    /// Twenty by default, which holds the longest label either menu offers — the
-    /// glyph column in front of it included — with room to spare for a longer
-    /// wording of it. It is stated rather than measured: a column of buttons cut
+    /// Twenty-two by default, which holds the longest label either menu offers
+    /// — `↪ Reply elsewhere`, the glyph column in front of it included — with a
+    /// column or two left over, so that no button's word is set against the
+    /// frame. It is stated rather than measured: a column of buttons cut
     /// to whichever of them happened to be in the menu would be a different
     /// width in every area, and the button under the pointer would move as the
     /// menu was opened again. A label with no room left for it is cut, as every
     /// other label in the interface is.
-    int menuButtonsWidth{20};
+    int menuButtonsWidth{22};
 
     /// How long a click is shown before it is acted on, in milliseconds — the
     /// button under the pointer drawn inverted, the row under it drawn as the

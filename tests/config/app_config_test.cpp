@@ -357,59 +357,123 @@ TEST_CASE("AppConfig reads whether the header block carries the Recd row "
 }
 
 TEST_CASE("AppConfig reads the menus [app_config]") {
-    using amberedit::config::MenuCommand;
+    using amberedit::config::Command;
 
     const auto defaults = with("");
     CHECK(defaults.readerMenu ==
-          std::vector<MenuCommand>{MenuCommand::List, MenuCommand::Reply,
-                                   MenuCommand::ReplyTo, MenuCommand::New,
-                                   MenuCommand::Forward, MenuCommand::Find,
-                                   MenuCommand::Nodelist});
+          std::vector<Command>{Command::ReaderList, Command::ReaderReply,
+                                   Command::ReaderReplyElsewhere, Command::ReaderNew,
+                                   Command::ReaderForward, Command::ReaderFind,
+                                   Command::ReaderNodelist});
     CHECK(defaults.composeMenu ==
-          std::vector<MenuCommand>{MenuCommand::Save, MenuCommand::Import});
+          std::vector<Command>{Command::ComposeSave, Command::ComposeImport});
     CHECK(with("compose_menu import save\n").composeMenu ==
-          std::vector<MenuCommand>{MenuCommand::Import, MenuCommand::Save});
+          std::vector<Command>{Command::ComposeImport, Command::ComposeSave});
 
     // The buttons stand in the order they are written, which is the only order
     // there is to give them.
     CHECK(with("reader_menu new list\n").readerMenu ==
-          std::vector<MenuCommand>{MenuCommand::New, MenuCommand::List});
+          std::vector<Command>{Command::ReaderNew, Command::ReaderList});
 
     // Changing a message that is already in the base, what the base holds about
     // it, and writing it out to a file are offered but not given: they are the
     // reader commands the default menu leaves out, and writing them down is what
     // puts them there.
     CHECK(with("reader_menu change info export\n").readerMenu ==
-          std::vector<MenuCommand>{MenuCommand::Change, MenuCommand::Info,
-                                   MenuCommand::Export});
+          std::vector<Command>{Command::ReaderChange, Command::ReaderInfo,
+                                   Command::ReaderExport});
 
     // And so is answering the recipient rather than the sender: Alt-Q does it
     // without a button, and the button is there for whoever wants one.
-    CHECK(with("reader_menu reply comment_reply\n").readerMenu ==
-          std::vector<MenuCommand>{MenuCommand::Reply, MenuCommand::CommentReply});
+    CHECK(with("reader_menu reply comment-reply\n").readerMenu ==
+          std::vector<Command>{Command::ReaderReply, Command::ReaderCommentReply});
 
-    // `none` was how a toolbar used to be taken away, and the menus took the
-    // toolbars' place: the message says where the setting went rather than
-    // leaving it to read as a typo.
-    const std::string error = errorWith("reader_menu none\n");
-    REQUIRE_MESSAGE(contains(error, "menu_button off"), error);
-    CHECK_FALSE(loads("compose_menu none\n"));
+    // `none`, alone, is the menu asked for and left empty — which is a screen
+    // with no menu button, there being nothing for one to open.
+    CHECK(with("reader_menu none\n").readerMenu.empty());
+    CHECK(with("compose_menu none\n").composeMenu.empty());
     CHECK_FALSE(loads("reader_menu none list\n"));
 
     // Each key knows its own commands: the editor's are not the reader's, and a
     // button that would do nothing is a mistake in the config rather than one
-    // on the screen.
+    // on the screen. A menu holds what a button can stand for, which is less
+    // than every command the screen answers.
     CHECK_FALSE(loads("reader_menu save\n"));
     CHECK_FALSE(loads("compose_menu reply\n"));
+    CHECK_FALSE(loads("reader_menu delete\n"));
+    CHECK_FALSE(loads("compose_menu delete-line\n"));
     CHECK_FALSE(loads("reader_menu list list\n"));
     CHECK_FALSE(loads("reader_menu\n"));
-    const std::string error2 = errorWith("reader_menu quit\n");
+    const std::string error = errorWith("reader_menu quit\n");
     REQUIRE_MESSAGE(
-        contains(
-            error2,
-            "list, reply, reply_to, comment_reply, new, forward, find, change, info, "
-            "export, nodelist"),
-        error2);
+        contains(error,
+                 "reply, reply-elsewhere, comment-reply, new, forward, change, "
+                 "export, find, list, info, nodelist"),
+        error);
+}
+
+TEST_CASE("AppConfig reads the hint bars [app_config]") {
+    using amberedit::config::Command;
+
+    const auto defaults = with("");
+    CHECK(defaults.arealistHints ==
+          std::vector<Command>{Command::AreaListNextUnread, Command::AreaListRescan});
+    CHECK(defaults.msglistHints.empty());
+    CHECK(defaults.readerHints ==
+          std::vector<Command>{Command::ReaderReply, Command::ReaderReplyElsewhere,
+                               Command::ReaderNew, Command::ReaderList,
+                               Command::ReaderExport, Command::ReaderNodelist});
+    CHECK(defaults.composeHints ==
+          std::vector<Command>{Command::ComposeSave, Command::ComposeDeleteLine,
+                               Command::ComposeImport});
+
+    // The hints stand in the order they are written, and a row may name
+    // anything the screen answers: a hint is a key with its name beside it, so
+    // there is nothing a key does that a hint cannot say.
+    CHECK(with("reader_hints info kludges\n").readerHints ==
+          std::vector<Command>{Command::ReaderInfo, Command::ReaderKludges});
+    CHECK(with("compose_hints word-left line-end\n").composeHints ==
+          std::vector<Command>{Command::ComposeWordLeft, Command::ComposeLineEnd});
+
+    // `app.quit` is answered before every screen, so every screen's row may
+    // name it.
+    CHECK(with("msglist_hints quit\n").msglistHints ==
+          std::vector<Command>{Command::AppQuit});
+    CHECK(with("arealist_hints quit rescan\n").arealistHints ==
+          std::vector<Command>{Command::AppQuit, Command::AreaListRescan});
+
+    // `none` is the row left empty, which is what the message list has until it
+    // is given something.
+    CHECK(with("arealist_hints none\n").arealistHints.empty());
+    CHECK_FALSE(loads("arealist_hints none rescan\n"));
+
+    // A screen's row names that screen's commands: the reader's are not the
+    // editor's, a hint written twice is a slip, and a key with nothing after it
+    // says nothing.
+    CHECK_FALSE(loads("arealist_hints reply\n"));
+    CHECK_FALSE(loads("reader_hints save\n"));
+    CHECK_FALSE(loads("compose_hints reply\n"));
+    CHECK_FALSE(loads("reader_hints list list\n"));
+    CHECK_FALSE(loads("reader_hints\n"));
+    const std::string error = errorWith("msglist_hints rescan\n");
+    REQUIRE_MESSAGE(contains(error, "quit"), error);
+
+    // The case the row is written in and where in the row it stands: one
+    // setting each for every screen's row, the four of them being one row that
+    // changes with the screen.
+    CHECK_FALSE(with("").hintBarCapitalize);
+    CHECK(with("hint_bar_capitalize on\n").hintBarCapitalize);
+    CHECK_FALSE(with("hint_bar_capitalize off\n").hintBarCapitalize);
+    CHECK_FALSE(loads("hint_bar_capitalize when_wide\n"));
+
+    using amberedit::config::HintAlign;
+    CHECK(with("").hintBarAlign == HintAlign::Center);
+    CHECK(with("hint_bar_align left\n").hintBarAlign == HintAlign::Left);
+    CHECK(with("hint_bar_align center\n").hintBarAlign == HintAlign::Center);
+    CHECK(with("hint_bar_align right\n").hintBarAlign == HintAlign::Right);
+    CHECK_FALSE(loads("hint_bar_align on\n"));
+    CHECK_FALSE(loads("hint_bar_align\n"));
+    CHECK_FALSE(loads("hint_bar_align left right\n"));
 }
 
 TEST_CASE("AppConfig reads whether the menu button is shown [app_config]") {
@@ -433,7 +497,7 @@ TEST_CASE("AppConfig reads whether the menu button is shown [app_config]") {
 TEST_CASE("AppConfig reads how wide the menu's buttons stand [app_config]") {
     // Fifteen columns, frame and all, which is what the longest label the two
     // menus offer asks for.
-    CHECK(with("").menuButtonsWidth == 20);
+    CHECK(with("").menuButtonsWidth == 22);
     CHECK(with("menu_buttons_width 20\n").menuButtonsWidth == 20);
     CHECK(with("menu_buttons_width 4\n").menuButtonsWidth == 4);
 

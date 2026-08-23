@@ -38,6 +38,12 @@ inline std::string toLower(std::string_view s) {
     return out;
 }
 
+inline std::string toUpper(std::string_view s) {
+    std::string out(s);
+    std::transform(out.begin(), out.end(), out.begin(), asciiUpper);
+    return out;
+}
+
 /// std::string_view::starts_with is C++20 and the project is C++17. Taking
 /// string_view on both sides means std::string, string_view and a literal all
 /// call it without a conversion being spelled out at the call site.

@@ -30,7 +30,7 @@ Contents: [What AmberEdit is](#what-amberedit-is) ·
 [Code conventions](#code-conventions) · [Domain notes](#domain-notes) ·
 [The message base drivers](#the-message-base-drivers) ·
 [The nodelist](#the-nodelist) · [The echolist](#the-echolist) ·
-[The keyboard](#the-keyboard) ·
+[Commands and the keyboard](#commands-and-the-keyboard) ·
 [Reference material in the tree](#reference-material-in-the-tree) ·
 [Current scope](#current-scope)
 
@@ -182,8 +182,7 @@ Four things in the build follow from the same floor:
   result and compiles fine. Since Fedora and Homebrew are on 2.5 and EPEL,
   Debian and Ubuntu are all on 2.4, that is a break which passes on a developer's
   Mac and fails every packaging platform. `domain::nameOf(MsgBaseType)` and
-  `domain::nameOf(AreaKind)` are so named for this reason and no other — the
-  spelling matches `ui::nameOf(KeyCommand)`, which came first. A member
+  `domain::nameOf(AreaKind)` are so named for this reason and no other. A member
   `.toString()`, as FtnAddress and AddressPattern have, is not found by ADL and
   is not affected.
 
@@ -742,8 +741,8 @@ Rules that hold the design together:
   config declares and not the one on screen, `compose::startReply()` writes the
   answer into that area, and what follows is the reply into another area below.
   - The three paths are `startReply()`, which decides; the file-local
-    `replyHere()`; and the file-local `replyInto()`, which `startReplyTo()` is
-    the dialog's way to. `startReplyTo()` calls `replyHere()` when the target is
+    `replyHere()`; and the file-local `replyInto()`, which `startReplyElsewhere()` is
+    the dialog's way to. `startReplyElsewhere()` calls `replyHere()` when the target is
     the area being read — an area picked by hand is not overruled by a line in a
     message — which is also what keeps the two from calling each other in a
     circle.
@@ -772,11 +771,11 @@ Rules that hold the design together:
     paths above hold for it unchanged, and `ComposeFields::reply` stays true —
     the quote, the REPLY kludge, `@Quoted` and the "reply" title are the
     reply's. There is no comment variant of `n`.
-  - **Offered but not given, and never shown unasked**: `comment_reply` is in
-    `config::MenuCommand` so `reader_menu` may name it, and it is out of the
-    default `readerMenu` and out of `hint_bar.cpp`'s `kReader` entirely.
-    Answering somebody the message did not come from is a thing wanted now and
-    then and never by accident.
+  - **Offered but not given, and never shown unasked**: `comment-reply` is a
+    command like any other, so `reader_menu` and `reader_hints` may both name
+    it, and it is out of the default `readerMenu` and out of the default
+    `readerHints`. Answering somebody the message did not come from is a thing
+    wanted now and then and never by accident.
 
 - **`reply_to_area` moves the picker's cursor**, and outside this screen says
   where an echo's carbon copies go. `askArea()` looks the tag up in the
@@ -1164,7 +1163,7 @@ decides what an occurrence is.
 ### Writing into another area
 
 - **`n` and `m`** — answering the message on screen there, and passing it on in
-  one of three senses — with `reply_to` and `forward` in `reader_menu` for the
+  one of three senses — with `reply-elsewhere` and `forward` in `reader_menu` for the
   same two. `ui/area_dialog.*` is the modal both open: every area the tosser
   config declares, by name, in the order `arealist_sort` puts the area list in.
   It opens on the first of them and is searched by typing a name the way the area
@@ -1413,9 +1412,10 @@ taking a row.
   list. Every button is `menu_buttons_width` wide, frame included — **the setting
   decides, not the labels**. The column stands clear of the box edge by
   `kMarginX`/`kMarginY`, and `dialog::surface()` fills those margins with it.
-  - **A label is a glyph and a word, and `labelOf()` hands the two back apart** —
-    `{"↗", "Fwd / Copy"}`, `{"⚲", "Nodelist"}`. The word is the half a
-    translation replaces; the glyph says the same thing in every language.
+  - **A label is a glyph and a word, and `config::Commands::Info` carries the
+    two apart** — `icon` and `label`, `↗` and `Fwd / Copy`, `⚲` and `Nodelist`.
+    The word is the half a translation replaces and the half a hint bar shows;
+    the glyph says the same thing in every language and is the menu's alone.
     `labelLine()` puts them together for drawing, in a glyph column
     `iconWidth()` columns wide — the widest glyph in the menu that is up — so
     that the words all start in the same place. When the room runs out it is the
@@ -2264,17 +2264,29 @@ setting, read where the row is laid out and not in the area itself.
 `AMBERECH`, version 1, little-endian, and `format::kVersion` goes up on the same
 terms the nodelist's does.
 
-## The keyboard
+## Commands and the keyboard
 
-`src/ui/keys.*` holds every binding AmberEdit has. A screen never compares a
-keystroke against a key of its own: it asks `state.keys.is(event, command)`, and
-what that answers is either AmberEdit's own layout or the file a `keys` line
-named.
+`src/config/commands.*` is the one list of commands there is, and `src/ui/keys.*`
+holds every binding over it. A screen never compares a keystroke against a key of
+its own: it asks `state.keys.is(event, command)`, and what that answers is either
+AmberEdit's own layout or the file a `keys` line named.
 
-- **`KeyCommand` is the whole of what can be bound**, and `kCommands` in
-  `keys.cpp` is the one place a command's name, its screen and its default keys
-  are stated. Adding a command means adding a row there and asking for it in the
-  screen — nothing else keeps a second list.
+- **`config::Command` is the whole of what can be bound, offered or named**, and
+  `kCommands` in `config/commands.cpp` is the one place a command's name, its
+  screen, the word and glyph it is drawn with, its default keys and whether a
+  menu may hold it are stated. The keyboard, the two context menus and the four
+  hint bars all read `config::Commands` — adding a command means adding a row
+  there and asking for it in the screen that answers it, and nothing else keeps
+  a second list.
+- **A name is written once and spelled one way.** `reader.reply-elsewhere` in a `keys`
+  file; `reply-elsewhere` in `reader_menu` and `reader_hints`, the config key already
+  saying which screen is meant — `Commands::shortNameOf()` is the part after the
+  dot and `Commands::namedOn()` is what a setting reads a word through.
+- **The list lives in `config/` rather than in `ui/`** because the config layer
+  is what has to name a command — `reader_menu`, `reader_hints` — and it may not
+  include the interface. What is drawn is a word and a glyph, which are data;
+  `ui/keys.hpp` brings the names in with `using config::Command` so that a
+  screen writes `Command::ReaderList` and not the layer it lives in.
 - **Only what runs a command is bindable.** Moving about — the arrows, PgUp and
   PgDn, Home and End, Space, Enter, Esc, Backspace, Tab — and every key inside a
   dialog stay where they are, so that no layout can leave a screen with no way
@@ -2284,9 +2296,11 @@ named.
   is why `amberkeys.cfg.example` is the defaults written out: it is the thing to
   copy. A test parses that file and compares it against `KeyMap::defaults()`
   command by command, so the two cannot drift.
-- **`KeyScreen` is what lets one key mean two things.** `F2` is Change in the
+- **`CommandScreen` is what lets one key mean two things.** `F2` is Change in the
   reader and Save in the editor; two commands of *one* screen may not share a
   key, and `app.quit` is answered before every screen and so shares with nothing.
+  It is also what a menu or a hint list is read against, so `reader_menu save` is
+  refused where it is written rather than becoming a button that does nothing.
 - **The layout is read in `main.cpp`**, before the terminal is taken over, so a
   file that cannot be read is reported like any other startup failure rather than
   falling back on defaults the user did not ask for. `config::AppConfig` carries
@@ -2305,23 +2319,41 @@ named.
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.
 - **The hint bar reads the layout rather than naming keys of its own**
-  (`ui/hint_bar.*`). Which commands each screen offers is a table there; the key
-  in front of each is `KeyMap::preferredKey()` — a bare key before a chord,
-  Ctrl before Alt, a chord before a function key — and a command the layout
-  leaves unbound is left out of the row, as is one the window has no room for:
-  `hint_bar` is **on** by default, at every width, and a row longer than the
+  (`ui/hint_bar.*`). Which commands each screen offers is the config's —
+  `arealist_hints`, `msglist_hints`, `reader_hints`, `compose_hints`, one list
+  per screen and each of them read against that screen through
+  `Commands::In::HintBar`, which is every command the screen answers: a hint is a
+  key with its name beside it, so there is nothing a key does that a hint cannot
+  say. The key in front of each is `KeyMap::preferredKey()` — a bare key before a
+  chord, Ctrl before Alt, a chord before a function key — and a command the
+  layout leaves unbound is left out of the row, as is one the window has no room
+  for: `hint_bar` is **on** by default, at every width, and a row longer than the
   window drops whole hints off its end rather than being squeezed — every hint
-  losing its last letters at once turns `q reply  n reply-to` into
+  losing its last letters at once turns `q reply  n reply elsewhere` into
   `q re n rep`, which names neither a key nor a command. `when_wide` is what to
   set for the row whole or not at all. `runApp()` takes the row off
   `state.height` before the screens lay themselves out, so no screen knows the
   bar is under it, and the row is taken whether or not there is anything to put
-  in it: the message list has no commands, and a row that came and went between
+  in it: the message list is given no hints, and a row that came and went between
   screens would move everything else on them. What is left of the row beside the
   hints is a rule in `separator` — the same rule that closes a screen's
   headings, closing the interface at the other end — and a screen with no hints
   leaves it whole. It is drawn after the modals in `document()`, so it says what
   the screen behind them does.
+- **The word beside a key is the one the menu writes on a button**, from
+  `Commands::Info::label`: what a command is called is settled in one place, and
+  a row calling it something else would be a second name for one thing. The
+  glyph is the menu's and stays there — a row is one line, and a column of
+  glyphs in it is width the words want.
+- **Three settings hold for every screen's row at once**, the four rows being one
+  row that changes with the screen. `hint_bar` is whether it is there;
+  `hint_bar_align` is which side of the hints the rule runs along, **center** by
+  default and the odd column of an uneven remainder going to the right-hand side;
+  `hint_bar_capitalize` is the case the row is written in, **off** by default —
+  `q reply  ctrl-f find` rather than `Q Reply  Ctrl-F Find`. The key is cased
+  with the word, which is what makes that one setting rather than two, and it is
+  the row's spelling of a key rather than the layout's: `g` and `G` are two keys
+  in a `keys` file and one hint either way here.
 - **A hint is clicked by pressing its own key.** `hint_bar::clicked()` shows the
   press (`Pressed::Hint`, the index) and hands back
   `KeyMap::preferredKey()` — the very key the hint is written under — which

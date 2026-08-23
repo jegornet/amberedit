@@ -1,0 +1,158 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace amberedit::config {
+
+/// Everything AmberEdit can be asked to do, and the whole of what a key, a menu
+/// button or a hint may name.
+///
+/// **Only what runs a command is here.** Moving about — the arrows, PgUp and
+/// PgDn, Home and End, Space, Enter, Esc, Backspace and Tab — is the same on
+/// every screen and in every dialog, and is neither bindable nor nameable: a
+/// layout that had dropped Esc would be a layout with no way out of the screen
+/// it left you on. The dialogs answer for themselves for the same reason.
+enum class Command : uint8_t {
+    AppQuit,               ///< app.quit
+    AreaListNextUnread,    ///< arealist.next-unread
+    AreaListRescan,        ///< arealist.rescan
+    ReaderReply,           ///< reader.reply
+    ReaderReplyElsewhere,  ///< reader.reply-elsewhere
+    ReaderCommentReply,    ///< reader.comment-reply
+    ReaderNew,             ///< reader.new
+    ReaderForward,         ///< reader.forward
+    ReaderChange,          ///< reader.change
+    ReaderDelete,          ///< reader.delete
+    ReaderExport,          ///< reader.export
+    ReaderFind,            ///< reader.find
+    ReaderList,            ///< reader.list
+    ReaderInfo,            ///< reader.info
+    ReaderNodelist,        ///< reader.nodelist
+    ReaderKludges,         ///< reader.kludges
+    ReaderScrollbar,       ///< reader.scrollbar
+    ReaderThreadUp,        ///< reader.thread-up
+    ReaderThreadDown,      ///< reader.thread-down
+    ComposeSave,           ///< compose.save
+    ComposeAttributes,     ///< compose.attributes
+    ComposeImport,         ///< compose.import
+    ComposeHeaderBack,     ///< compose.header-back
+    ComposeDeleteLine,     ///< compose.delete-line
+    ComposeRestoreLine,    ///< compose.restore-line
+    ComposeDeleteQuote,    ///< compose.delete-quote
+    ComposeDeleteWord,     ///< compose.delete-word
+    ComposeWordLeft,       ///< compose.word-left
+    ComposeWordRight,      ///< compose.word-right
+    ComposeLineStart,      ///< compose.line-start
+    ComposeLineEnd,        ///< compose.line-end
+};
+
+/// One past the last command, which is the width of the table a `KeyMap` keeps.
+inline constexpr size_t kCommandCount = static_cast<size_t>(Command::ComposeLineEnd) + 1;
+
+/// Which screen answers a command.
+///
+/// It is what lets one key mean two things: `F2` is Change in the reader and
+/// Save in the editor, and neither screen is ever the other. Two commands of one
+/// screen may not share a key, and an `Anywhere` command shares with nothing.
+///
+/// It is also what a menu or a hint list is read against: `reader_menu save` is
+/// refused where it is written rather than being a button that does nothing.
+enum class CommandScreen : uint8_t {
+    /// Answered before every screen, so it shares a key with nothing.
+    Anywhere,
+    AreaList,
+    MessageList,
+    Reader,
+    Compose,
+};
+
+/// The one list of commands there is: what each is called, where it is answered,
+/// how it reads on a button and which keys it runs on when no layout has been
+/// named.
+///
+/// Everything that has to name a command reads it from here — the keyboard
+/// (`ui/keys`), the context menu (`reader_menu`, `compose_menu`) and the hint
+/// bars (`arealist_hints` and the rest). A second table beside this one is a
+/// table that falls out of step with it.
+class Commands {
+public:
+    /// Where a command may be named beyond the layout: not everything a key does
+    /// is a thing a button can offer.
+    enum class In : uint8_t {
+        Menu,     ///< the context menu behind a screen's top-right corner
+        HintBar,  ///< the last row of the screen
+    };
+
+    /// One command, entire.
+    struct Info {
+        Command command{};
+        /// What a config and a `keys` file call it: `reader.reply-elsewhere`. The
+        /// screen in front of the dot is what the two are read against, and
+        /// `shortName` is the rest.
+        std::string_view name;
+        CommandScreen screen{};
+        /// The word a button and a hint are written with, and the only part a
+        /// translation replaces.
+        std::string_view label;
+        /// The glyph the menu marks the command with, or empty for a command
+        /// that goes without one.
+        ///
+        /// It is kept apart from the word because it is not the language's — it
+        /// says the same thing in every one of them, and a translation that
+        /// carried it along would have every translator copying it back in. It
+        /// is also the half that cannot be measured by counting: `⚠︎` is two code
+        /// points and one column, `𝒊` is four bytes and one column, and an emoji
+        /// is one glyph in two columns — and which of them a platform's
+        /// `wcwidth()` calls what is the platform's to say. So nothing assumes a
+        /// width; `menu_dialog::labelLine()` measures.
+        std::string_view icon;
+        /// The keys it runs on when no `keys` file has been named, blank
+        /// separated and in the order they are to be offered.
+        ///
+        /// Written as spellings rather than as events so that this table is the
+        /// one place the layout is stated. `amberkeys.cfg.example` is the same
+        /// table written out, and a test reads that file back through here to
+        /// keep the two saying the same thing.
+        std::string_view keys;
+        /// Whether the context menu may offer it. Everything a key does can be a
+        /// hint — a hint is a key with its name beside it — but a menu button is
+        /// a thing the screen has to be able to run on its own, and editing the
+        /// line the cursor is on is not one of those.
+        bool inMenu{false};
+    };
+
+    /// Every command, in the order the enumeration is written.
+    [[nodiscard]] static const std::vector<Info>& all();
+
+    /// One command, by its own value.
+    [[nodiscard]] static const Info& of(Command command);
+
+    /// The part of the name after the screen it belongs to: `reader.reply-elsewhere`
+    /// reads as `reply-elsewhere`. What a menu and a hint list name a command by, the
+    /// config key already saying which screen is meant.
+    [[nodiscard]] static std::string_view shortNameOf(Command command);
+
+    /// The command of that whole name — `reader.reply-elsewhere` — or nothing where no
+    /// command is called that. Read without regard to case.
+    [[nodiscard]] static const Info* named(std::string_view name);
+
+    /// The command that screen calls by that short name, or nothing where it
+    /// offers none — a screen's own commands and the ones answered everywhere,
+    /// and only those `where` can hold.
+    [[nodiscard]] static const Info* namedOn(CommandScreen screen, std::string_view name,
+                                             In where);
+
+    /// What that screen offers a list, in the order the table is written: what a
+    /// setting is read against and what its error message names.
+    [[nodiscard]] static std::vector<Command> offeredOn(CommandScreen screen, In where);
+
+    /// Those names, in one line — `list, reply, reply-elsewhere, …`, which is how a
+    /// setting says what it would have taken.
+    [[nodiscard]] static std::string offeredNamesOn(CommandScreen screen, In where);
+};
+
+}  // namespace amberedit::config

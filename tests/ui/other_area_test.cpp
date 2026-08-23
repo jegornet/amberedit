@@ -190,7 +190,7 @@ struct TwoAreaFixture {
         const auto purpose = state.areaPicker->purpose;
         state.areaPicker.reset();
         switch (purpose) {
-            case For::Reply: compose::startReplyTo(state, picked); break;
+            case For::Reply: compose::startReplyElsewhere(state, picked); break;
             case For::Forward: compose::startForwardTo(state, picked); break;
             case For::Move: message_read::moveMessage(state, picked); break;
             case For::Copy: message_read::copyMessage(state, picked); break;
@@ -640,7 +640,7 @@ TEST_CASE("A moved reply dropped leaves both areas as they were [other_area]") {
 
 TEST_CASE("The reply_to button asks the same question the key does [other_area]") {
     TwoAreaFixture fixture;
-    fixture.config.readerMenu = {amberedit::config::MenuCommand::ReplyTo};
+    fixture.config.readerMenu = {amberedit::config::Command::ReaderReplyElsewhere};
     REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
 
     // Drawn so that the button knows where it landed, then clicked in the
@@ -662,7 +662,8 @@ TEST_CASE("The reply_to button asks the same question the key does [other_area]"
     REQUIRE(menu_dialog::handleEvent(fixture.state, Event::Mouse(mouse)) ==
             menu_dialog::Outcome::Picked);
     fixture.state.menuView.reset();
-    message_read::runMenuCommand(fixture.state, amberedit::config::MenuCommand::ReplyTo);
+    message_read::runMenuCommand(fixture.state,
+                                 amberedit::config::Command::ReaderReplyElsewhere);
 
     CHECK(fixture.state.areaPicker);
 }
@@ -1002,7 +1003,7 @@ TEST_CASE("Moving a message into the area it is in does nothing [other_area]") {
 
 TEST_CASE("The forward button asks the same question m does [other_area]") {
     TwoAreaFixture fixture;
-    fixture.config.readerMenu = {amberedit::config::MenuCommand::Forward};
+    fixture.config.readerMenu = {amberedit::config::Command::ReaderForward};
     REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
 
     message_read::openMenu(fixture.state);
@@ -1022,7 +1023,8 @@ TEST_CASE("The forward button asks the same question m does [other_area]") {
     REQUIRE(menu_dialog::handleEvent(fixture.state, Event::Mouse(mouse)) ==
             menu_dialog::Outcome::Picked);
     fixture.state.menuView.reset();
-    message_read::runMenuCommand(fixture.state, amberedit::config::MenuCommand::Forward);
+    message_read::runMenuCommand(fixture.state,
+                                 amberedit::config::Command::ReaderForward);
 
     // The same first half: what is to become of the message, before where.
     REQUIRE(fixture.state.forwardPicker);

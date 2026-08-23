@@ -50,7 +50,7 @@ void startNew(AppState& state);
 ///
 /// Where the message names an echo of its own — an `AREA:` line at the head of
 /// it, and `areareplydirect` on for the area it is being read in — the answer
-/// goes there instead, exactly as `startReplyTo()` would have taken it. The
+/// goes there instead, exactly as `startReplyElsewhere()` would have taken it. The
 /// reader stays where it is either way, and saving or dropping comes back to it.
 void startReply(AppState& state);
 
@@ -63,7 +63,7 @@ void startReply(AppState& state);
 /// It has no place in the default menu and none in the hint bar: it answers
 /// somebody the message on screen did not come from, which is a thing wanted
 /// now and then and never by accident. `Alt-Q` is what does it, and
-/// `reader_menu comment_reply` is how a button for it is asked for.
+/// `reader_menu comment-reply` is how a button for it is asked for.
 void startCommentReply(AppState& state);
 
 /// Starts the same reply, to be written into `target` rather than into the area
@@ -75,7 +75,7 @@ void startCommentReply(AppState& state);
 /// the sender's AKA and whether there is a recipient to address, and what the
 /// move adds is the template's @moved lines. The reader underneath keeps its
 /// own area, and saving or dropping the message comes back to it.
-void startReplyTo(AppState& state, const domain::AreaConfig& target);
+void startReplyElsewhere(AppState& state, const domain::AreaConfig& target);
 
 /// Starts a message passing the one in the reader on into `target` — what the
 /// reader's `m` asks for, once the dialog has been answered with an area.
@@ -112,7 +112,7 @@ void openMenu(AppState& state);
 
 /// Runs one of those commands, which is what the shell does once the menu has
 /// been answered. Both are things a key on this screen does as well.
-void runMenuCommand(AppState& state, config::MenuCommand command);
+void runMenuCommand(AppState& state, Command command);
 
 /// Puts the cursor into the header, on the field it was last in — what `Alt-H`
 /// asks for.

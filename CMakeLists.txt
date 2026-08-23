@@ -253,6 +253,7 @@ add_library(amberedit_core STATIC
   src/domain/area.cpp
   src/domain/message.cpp
   src/config/text_util.cpp
+  src/config/commands.cpp
   src/config/temp_dir.cpp
   src/config/cfg_file.cpp
   src/config/list_format.cpp

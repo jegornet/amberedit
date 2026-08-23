@@ -17,7 +17,8 @@
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
-using amberedit::config::MenuCommand;
+using amberedit::config::Command;
+using amberedit::config::Commands;
 using amberedit::ui::AppState;
 using namespace amberedit::ui::term;
 
@@ -57,7 +58,7 @@ struct Fixture {
 
 /// What one item looks like as it is written down.
 struct Item {
-    MenuCommand command;
+    Command command;
     bool enabled{true};
 };
 
@@ -162,9 +163,9 @@ TEST_CASE("the menu button is clicked in the top-right corner [menu]") {
 
 TEST_CASE("the menu is a column of buttons of one stated width [menu]") {
     Fixture fixture;
-    REQUIRE(fixture.config.menuButtonsWidth == 20);
+    REQUIRE(fixture.config.menuButtonsWidth == 22);
     menu_dialog::open(fixture.state,
-                      itemsOf({{MenuCommand::List}, {MenuCommand::Nodelist}}));
+                      itemsOf({{Command::ReaderList}, {Command::ReaderNodelist}}));
     REQUIRE(fixture.state.menuView);
 
     const Rendered drawn = draw(fixture.state);
@@ -176,8 +177,8 @@ TEST_CASE("the menu is a column of buttons of one stated width [menu]") {
     // a column measured against whichever labels happened to be in the menu
     // would stand a different width every time it was opened.
     CHECK(first.x_min == second.x_min);
-    CHECK(first.x_max - first.x_min + 1 == 20);
-    CHECK(second.x_max - second.x_min + 1 == 20);
+    CHECK(first.x_max - first.x_min + 1 == 22);
+    CHECK(second.x_max - second.x_min + 1 == 22);
 
     // Three rows each and nothing between them: the frames meet, so the column
     // reads as one list rather than as a handful of boxes.
@@ -191,27 +192,34 @@ TEST_CASE("the menu is a column of buttons of one stated width [menu]") {
     // two, the glyph column would widen and both words would move together,
     // which is the whole point of measuring rather than counting. See
     // `codepointWidth` in `ui/term/utf8.cpp`.
-    CHECK(drawn.at(first.y_min, first.x_min, 20) == "┌──────────────────┐");
-    CHECK(drawn.at(first.y_min + 1, first.x_min, 20) == "│ ≔ List           │");
-    CHECK(drawn.at(first.y_max, first.x_min, 20) == "└──────────────────┘");
-    CHECK(drawn.at(second.y_min + 1, second.x_min, 20) == "│ ⚲ Nodelist       │");
+    CHECK(drawn.at(first.y_min, first.x_min, 22) == "┌────────────────────┐");
+    CHECK(drawn.at(first.y_min + 1, first.x_min, 22) == "│ ≔ List             │");
+    CHECK(drawn.at(first.y_max, first.x_min, 22) == "└────────────────────┘");
+    CHECK(drawn.at(second.y_min + 1, second.x_min, 22) == "│ ⚲ Nodelist         │");
 }
 
 TEST_CASE("every label the menus offer fits the default width [menu]") {
     // Nothing in either menu is cut at the default width until the user narrows
-    // the buttons or the window, and there is room left over for a longer
-    // wording of any of them.
-    const std::vector<Item> all{
-        {MenuCommand::List},         {MenuCommand::Reply}, {MenuCommand::ReplyTo},
-        {MenuCommand::CommentReply}, {MenuCommand::New},   {MenuCommand::Forward},
-        {MenuCommand::Change},       {MenuCommand::Info},  {MenuCommand::Export},
-        {MenuCommand::Nodelist},     {MenuCommand::Save},  {MenuCommand::Import}};
+    // the buttons or the window, and no word is set against the frame: the
+    // longest of them, `Reply elsewhere`, leaves two columns after it.
+    const std::vector<Item> all{{Command::ReaderList},
+                                {Command::ReaderReply},
+                                {Command::ReaderReplyElsewhere},
+                                {Command::ReaderCommentReply},
+                                {Command::ReaderNew},
+                                {Command::ReaderForward},
+                                {Command::ReaderChange},
+                                {Command::ReaderInfo},
+                                {Command::ReaderExport},
+                                {Command::ReaderNodelist},
+                                {Command::ComposeSave},
+                                {Command::ComposeImport}};
     // The glyph column is as wide as the widest glyph in the menu and no wider:
     // a column set to what one platform draws an emoji in would stand a blank
     // column wide on another.
     int widest = 0;
     for (const Item& item : all) {
-        widest = std::max(widest, displayWidth(menu_dialog::labelOf(item.command).icon));
+        widest = std::max(widest, displayWidth(Commands::of(item.command).icon));
     }
     const int icon = menu_dialog::iconWidth(itemsOf(all));
     CHECK(icon == widest);
@@ -220,47 +228,49 @@ TEST_CASE("every label the menus offer fits the default width [menu]") {
         // Measured as it is drawn, glyph column and blank and word together: the
         // glyph in front is not one column on every platform, so the room the
         // word has left cannot be worked out by counting characters.
+        const Commands::Info& command = Commands::of(item.command);
         const std::string line =
-            menu_dialog::labelLine(menu_dialog::labelOf(item.command), 99, icon);
+            menu_dialog::labelLine(command.icon, command.label, 99, icon);
         INFO(line);
-        CHECK(displayWidth(line) <= 17);  // 20 less the two sides and the indent
+        CHECK(displayWidth(line) <= 19);  // 22 less the two sides and the indent
     }
 }
 
 TEST_CASE("a label is a glyph and a word, kept apart [menu]") {
     // What a translation replaces is the word on its own — the glyph in front
     // says the same thing in every language, and is not part of what is written
-    // down for translating.
-    const menu_dialog::Label label = menu_dialog::labelOf(MenuCommand::Nodelist);
-    CHECK(label.icon == "⚲");
-    CHECK(label.text == "Nodelist");
-    CHECK(menu_dialog::labelLine(label, 99) == "⚲ Nodelist");
+    // down for translating. Both come off the one list of commands, which is
+    // what the hint bars and the keyboard read as well.
+    const Commands::Info& command = Commands::of(Command::ReaderNodelist);
+    CHECK(command.icon == "⚲");
+    CHECK(command.label == "Nodelist");
+    CHECK(menu_dialog::labelLine(command.icon, command.label, 99) == "⚲ Nodelist");
 
     // The word is what gives way when the room runs out; the glyph stays,
     // however many columns the platform draws it in.
-    const int icon = displayWidth(label.icon);
-    CHECK(menu_dialog::labelLine(label, icon + 4) == "⚲ No…");
-    CHECK(menu_dialog::labelLine(label, icon + 1) == "⚲");
-    CHECK(menu_dialog::labelLine(label, 0).empty());
+    const int icon = displayWidth(command.icon);
+    CHECK(menu_dialog::labelLine(command.icon, command.label, icon + 4) == "⚲ No…");
+    CHECK(menu_dialog::labelLine(command.icon, command.label, icon + 1) == "⚲");
+    CHECK(menu_dialog::labelLine(command.icon, command.label, 0).empty());
 
     // A glyph narrower than the column it is set in is padded out to it, so that
     // the words below one another line up. The column is stated in columns, not
     // in characters: what a wider glyph elsewhere in the menu asks for is what
     // every other glyph is set in, whatever it is made of.
-    CHECK(menu_dialog::labelLine({"≔", "List"}, 99, 1) == "≔ List");
-    CHECK(menu_dialog::labelLine({"≔", "List"}, 99, 2) == "≔  List");
-    CHECK(menu_dialog::labelLine({"≔", "List"}, 99, 3) == "≔   List");
+    CHECK(menu_dialog::labelLine("≔", "List", 99, 1) == "≔ List");
+    CHECK(menu_dialog::labelLine("≔", "List", 99, 2) == "≔  List");
+    CHECK(menu_dialog::labelLine("≔", "List", 99, 3) == "≔   List");
 
     // A word longer than `Nodelist` — which is what translating one is — is cut
     // rather than pushing the button wider.
-    CHECK(displayWidth(menu_dialog::labelLine({label.icon, "Список узлов"}, 12)) <= 12);
+    CHECK(displayWidth(menu_dialog::labelLine(command.icon, "Список узлов", 12)) <= 12);
 }
 
 TEST_CASE("menu_buttons_width is what the buttons are cut to [menu]") {
     Fixture fixture;
     fixture.config.menuButtonsWidth = 8;
     menu_dialog::open(fixture.state,
-                      itemsOf({{MenuCommand::New}, {MenuCommand::Nodelist}}));
+                      itemsOf({{Command::ReaderNew}, {Command::ReaderNodelist}}));
     REQUIRE(fixture.state.menuView);
 
     const Rendered drawn = draw(fixture.state);
@@ -282,7 +292,7 @@ TEST_CASE("menu_buttons_width is what the buttons are cut to [menu]") {
 
 TEST_CASE("the column stands clear of the edges of the box [menu]") {
     Fixture fixture;
-    menu_dialog::open(fixture.state, itemsOf({{MenuCommand::List}}));
+    menu_dialog::open(fixture.state, itemsOf({{Command::ReaderList}}));
     REQUIRE(fixture.state.menuView);
 
     const Rendered drawn = draw(fixture.state);
@@ -299,12 +309,12 @@ TEST_CASE("the column stands clear of the edges of the box [menu]") {
 
 TEST_CASE("the cursor opens on the first command that can be run [menu]") {
     Fixture fixture;
-    menu_dialog::open(fixture.state, itemsOf({{MenuCommand::Reply, false},
-                                              {MenuCommand::List, false},
-                                              {MenuCommand::New, true}}));
+    menu_dialog::open(fixture.state, itemsOf({{Command::ReaderReply, false},
+                                              {Command::ReaderList, false},
+                                              {Command::ReaderNew, true}}));
     REQUIRE(fixture.state.menuView);
     CHECK(fixture.state.menuView->cursor == 2);
-    CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
+    CHECK(menu_dialog::current(fixture.state) == Command::ReaderNew);
 
     // And it stays there: the two above it are dead, and a ring with one live
     // command on it comes back round to that one.
@@ -316,9 +326,9 @@ TEST_CASE("the cursor opens on the first command that can be run [menu]") {
 
 TEST_CASE("the arrows walk the menu as a ring [menu]") {
     Fixture fixture;
-    menu_dialog::open(
-        fixture.state,
-        itemsOf({{MenuCommand::List}, {MenuCommand::Reply, false}, {MenuCommand::New}}));
+    menu_dialog::open(fixture.state, itemsOf({{Command::ReaderList},
+                                              {Command::ReaderReply, false},
+                                              {Command::ReaderNew}}));
     REQUIRE(fixture.state.menuView);
     REQUIRE(fixture.state.menuView->cursor == 0);
 
@@ -333,13 +343,13 @@ TEST_CASE("the arrows walk the menu as a ring [menu]") {
 
     CHECK(menu_dialog::handleEvent(fixture.state, Event::Return) ==
           menu_dialog::Outcome::Picked);
-    CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
+    CHECK(menu_dialog::current(fixture.state) == Command::ReaderNew);
 }
 
 TEST_CASE("a disabled button is drawn quietly and the cursor's is filled [menu]") {
     Fixture fixture;
     menu_dialog::open(fixture.state,
-                      itemsOf({{MenuCommand::List}, {MenuCommand::Reply, false}}));
+                      itemsOf({{Command::ReaderList}, {Command::ReaderReply, false}}));
     REQUIRE(fixture.state.menuView);
 
     const Rendered drawn = draw(fixture.state);
@@ -363,9 +373,9 @@ TEST_CASE("a disabled button is drawn quietly and the cursor's is filled [menu]"
 
 TEST_CASE("a click answers with the button it landed on [menu]") {
     Fixture fixture;
-    menu_dialog::open(
-        fixture.state,
-        itemsOf({{MenuCommand::List}, {MenuCommand::Reply, false}, {MenuCommand::New}}));
+    menu_dialog::open(fixture.state, itemsOf({{Command::ReaderList},
+                                              {Command::ReaderReply, false},
+                                              {Command::ReaderNew}}));
     REQUIRE(fixture.state.menuView);
     draw(fixture.state);
 
@@ -381,12 +391,12 @@ TEST_CASE("a click answers with the button it landed on [menu]") {
 
     CHECK(menu_dialog::handleEvent(fixture.state, pressAt(live.x_min, live.y_max)) ==
           menu_dialog::Outcome::Picked);
-    CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
+    CHECK(menu_dialog::current(fixture.state) == Command::ReaderNew);
 }
 
 TEST_CASE("Esc and a click outside put the menu away [menu]") {
     Fixture fixture;
-    const auto items = itemsOf({{MenuCommand::List}, {MenuCommand::New}});
+    const auto items = itemsOf({{Command::ReaderList}, {Command::ReaderNew}});
 
     menu_dialog::open(fixture.state, items);
     REQUIRE(fixture.state.menuView);

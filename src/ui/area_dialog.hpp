@@ -5,7 +5,7 @@
 #include "ui/term/event.hpp"
 
 /// The dialog that asks which area a message is to be written into — what the
-/// reader's `n` and `m`, and the `reply_to` and `forward` buttons, put on the
+/// reader's `n` and `m`, and the `reply-elsewhere` and `forward` buttons, put on the
 /// screen. It shows the areas by name and nothing else: the counts and the
 /// groups are the area list's business, and what is being chosen here is a
 /// destination. Which of the two asked is `AreaPicker::purpose`, and the title

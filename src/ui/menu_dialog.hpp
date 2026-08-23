@@ -12,13 +12,15 @@
 /// The context menu the button in the top-right corner opens: a column of
 /// framed buttons, one command each, standing over whatever screen asked for it.
 ///
-/// It is what stands where the toolbars along the bottom of a screen used to.
-/// A toolbar cost three rows of every screen for as long as it was up and had
-/// room for as many buttons as the window was wide; a menu costs a corner, is
-/// there only while it is being read, and holds as many commands as the user
-/// cares to write down. Which those are is `reader_menu` and `compose_menu` —
-/// every one of them a thing a key does as well, so the menu says what a screen
-/// offers rather than offering anything else.
+/// A menu costs a corner, is there only while it is being read, and holds as
+/// many commands as the user cares to write down. Which those are is
+/// `reader_menu` and `compose_menu` — every one of them a thing a key does as
+/// well, so the menu says what a screen offers rather than offering anything
+/// else.
+///
+/// What each command is called and which glyph marks it is `config::Commands`,
+/// the one list the keyboard and the hint bars read too; a menu lays those out
+/// and decides nothing about them.
 ///
 /// The buttons are all one width, the widest label deciding, and stand a blank
 /// row apart: a menu is read down, and a column of boxes of different widths
@@ -32,25 +34,6 @@ enum class Outcome {
     Dismissed,  ///< the menu is gone and nothing was chosen
 };
 
-/// What a button says: the glyph that marks the command, and the word for it.
-///
-/// The two are kept apart because only the word is the language's — the glyph
-/// says the same thing in every one of them, and a translation that carried it
-/// along would have every translator copying it back in. It is also the half
-/// that cannot be measured by counting: `⚠︎` is two code points and one column,
-/// `𝒊` is four bytes and one column, and an emoji is one glyph in two columns —
-/// and which of them a platform's `wcwidth()` calls what is the platform's to
-/// say. So nothing here assumes a width; `labelLine()` measures.
-struct Label {
-    /// The glyph, or empty for a command that goes without one.
-    std::string_view icon;
-    /// The word, and the only part a translation replaces.
-    std::string_view text;
-};
-
-/// What a button says, in its two parts.
-[[nodiscard]] Label labelOf(config::MenuCommand command);
-
 /// The glyph column of a menu: the width of the widest glyph among `items`, so
 /// that every word in the column starts in the same place.
 ///
@@ -61,8 +44,12 @@ struct Label {
 /// there is: what a user reads is the column in front of them.
 [[nodiscard]] int iconWidth(const std::vector<AppState::MenuView::Item>& items);
 
-/// The label as one line `columns` wide at the most: the glyph in a column
+/// A label as one line `columns` wide at the most: the glyph in a column
 /// `iconColumns` wide, a blank, and the word after it.
+///
+/// The two are passed apart rather than as one string because only the word is
+/// the language's — the glyph says the same thing in every one of them — and
+/// because the glyph cannot be measured by counting: see `Commands::Info::icon`.
 ///
 /// The word is what gives way when the room runs out, cut with the ellipsis
 /// every other label in the interface is cut with. The glyph stays: it is what
@@ -73,7 +60,8 @@ struct Label {
 ///
 /// `iconColumns` is a floor, not a cut: a glyph wider than it is drawn whole and
 /// takes the width it takes. `iconWidth()` is what a menu passes.
-[[nodiscard]] std::string labelLine(Label label, int columns, int iconColumns = 0);
+[[nodiscard]] std::string labelLine(std::string_view icon, std::string_view word,
+                                    int columns, int iconColumns = 0);
 
 /// Puts the menu up on `items`, with the cursor on the first command that can
 /// actually be run: a menu opening on a button whose click it would swallow is
@@ -82,7 +70,7 @@ void open(AppState& state, std::vector<AppState::MenuView::Item> items);
 
 /// The command under the cursor — what the shell runs once the menu answers
 /// `Picked`, on the screen the menu was opened from.
-[[nodiscard]] config::MenuCommand current(const AppState& state);
+[[nodiscard]] Command current(const AppState& state);
 
 /// Draws it over whatever the screen was showing. Not const: where each button
 /// landed is written back as they are laid out, so that a click is tested

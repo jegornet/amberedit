@@ -258,7 +258,7 @@ void handleEvent(AppState& state, const Event& event) {
     // opened this to close it again — every one of them, so that whichever the
     // hand reaches for puts the box away.
     if (event == Event::Escape || event == Event::Backspace || event == Event::Return ||
-        state.keys.is(event, KeyCommand::ReaderInfo)) {
+        state.keys.is(event, Command::ReaderInfo)) {
         state.infoView.reset();
     }
 }

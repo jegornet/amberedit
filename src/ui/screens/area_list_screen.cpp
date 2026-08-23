@@ -409,14 +409,14 @@ bool handleEvent(AppState& state, const Event& event) {
     // the key for something typed. That is also what a layout binding a bare
     // letter here costs: the letter runs the command and stops being one an
     // area's name can be searched by.
-    if (state.keys.is(event, KeyCommand::AreaListRescan)) {
+    if (state.keys.is(event, Command::AreaListRescan)) {
         askRescan(state);
         return true;
     }
     // Down the list to the next area with something unread in it, and round the
     // end. It is swallowed even when there is nowhere to go — the answer to
     // "take me to the next unread area" when there is none is to stay put.
-    if (state.keys.is(event, KeyCommand::AreaListNextUnread)) {
+    if (state.keys.is(event, Command::AreaListNextUnread)) {
         state.areaSearch.clear();
         if (const auto target = nextUnread(state)) {
             state.areaCursor = *target;

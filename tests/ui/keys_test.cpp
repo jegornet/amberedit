@@ -11,13 +11,13 @@
 #include "test_strings.hpp"
 #include "ui/term/event.hpp"
 
+using amberedit::config::Commands;
 using amberedit::test::contains;
 using amberedit::test::errorOf;
 using amberedit::test::valueOf;
-using amberedit::ui::KeyCommand;
+using amberedit::ui::Command;
 using amberedit::ui::KeyMap;
 using amberedit::ui::keyNamed;
-using amberedit::ui::nameOf;
 using amberedit::ui::spellingOf;
 using amberedit::ui::term::Event;
 
@@ -35,37 +35,37 @@ Event alt(char letter) {
 TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     const KeyMap keys = KeyMap::defaults();
 
-    CHECK(keys.is(Event::Character('l'), KeyCommand::ReaderList));
-    CHECK(keys.is(Event::F9, KeyCommand::ReaderList));
-    CHECK(keys.is(Event::Character('q'), KeyCommand::ReaderReply));
-    CHECK(keys.is(Event::F4, KeyCommand::ReaderReply));
+    CHECK(keys.is(Event::Character('l'), Command::ReaderList));
+    CHECK(keys.is(Event::F9, Command::ReaderList));
+    CHECK(keys.is(Event::Character('q'), Command::ReaderReply));
+    CHECK(keys.is(Event::F4, Command::ReaderReply));
     // The comment on the message, which is the reply addressed to whoever it
     // was written to. A chord of its own: a bare letter is not what a command
     // wanted now and then should be a slip of the finger away from.
-    CHECK(keys.is(alt('q'), KeyCommand::ReaderCommentReply));
-    CHECK_FALSE(keys.is(Event::Character('q'), KeyCommand::ReaderCommentReply));
-    CHECK(keys.is(Event::Delete, KeyCommand::ReaderDelete));
-    CHECK(keys.is(ctrl('n'), KeyCommand::ReaderNodelist));
-    CHECK(keys.is(Event::F10, KeyCommand::ReaderNodelist));
-    CHECK(keys.is(ctrl('q'), KeyCommand::AppQuit));
+    CHECK(keys.is(alt('q'), Command::ReaderCommentReply));
+    CHECK_FALSE(keys.is(Event::Character('q'), Command::ReaderCommentReply));
+    CHECK(keys.is(Event::Delete, Command::ReaderDelete));
+    CHECK(keys.is(ctrl('n'), Command::ReaderNodelist));
+    CHECK(keys.is(Event::F10, Command::ReaderNodelist));
+    CHECK(keys.is(ctrl('q'), Command::AppQuit));
     // Quitting is one chord: Ctrl-C is left to whatever a layout wants of it.
-    CHECK_FALSE(keys.is(ctrl('c'), KeyCommand::AppQuit));
-    CHECK(keys.is(ctrl('w'), KeyCommand::ComposeDeleteWord));
+    CHECK_FALSE(keys.is(ctrl('c'), Command::AppQuit));
+    CHECK(keys.is(ctrl('w'), Command::ComposeDeleteWord));
     CHECK(keys.is(Event::Named(Event::Name::Backspace, false, true),
-                  KeyCommand::ComposeDeleteWord));
+                  Command::ComposeDeleteWord));
     // A bare Backspace is still the key that takes out one character.
-    CHECK_FALSE(keys.is(Event::Backspace, KeyCommand::ComposeDeleteWord));
-    CHECK(keys.is(alt('b'), KeyCommand::ComposeWordLeft));
+    CHECK_FALSE(keys.is(Event::Backspace, Command::ComposeDeleteWord));
+    CHECK(keys.is(alt('b'), Command::ComposeWordLeft));
     CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, false, true),
-                  KeyCommand::ComposeWordLeft));
+                  Command::ComposeWordLeft));
 
     // F2 is two commands, and the two screens never meet.
-    CHECK(keys.is(Event::F2, KeyCommand::ReaderChange));
-    CHECK(keys.is(Event::F2, KeyCommand::ComposeSave));
+    CHECK(keys.is(Event::F2, Command::ReaderChange));
+    CHECK(keys.is(Event::F2, Command::ComposeSave));
 
     // A key that runs nothing, and a mouse report, which is never a binding.
-    CHECK_FALSE(keys.is(Event::Character('z'), KeyCommand::ReaderList));
-    CHECK_FALSE(keys.is(Event::Mouse({}), KeyCommand::ReaderList));
+    CHECK_FALSE(keys.is(Event::Character('z'), Command::ReaderList));
+    CHECK_FALSE(keys.is(Event::Mouse({}), Command::ReaderList));
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
@@ -82,9 +82,9 @@ TEST_CASE("amberkeys.cfg.example is the defaults, written out [keys]") {
     const KeyMap written = valueOf(KeyMap::parse(text, "amberkeys.cfg.example"));
     const KeyMap defaults = KeyMap::defaults();
 
-    for (size_t i = 0; i < amberedit::ui::kKeyCommandCount; ++i) {
-        const auto command = static_cast<KeyCommand>(i);
-        INFO(nameOf(command));
+    for (size_t i = 0; i < amberedit::ui::kCommandCount; ++i) {
+        const auto command = static_cast<Command>(i);
+        INFO(Commands::of(command).name);
         CHECK(written.keysOf(command) == defaults.keysOf(command));
     }
 }
@@ -97,15 +97,15 @@ TEST_CASE("A layout is the whole of the layout [keys]") {
                               "F3   compose.save\n",
                               "keys"));
 
-    CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
+    CHECK(keys.is(Event::F3, Command::ReaderFind));
     // The letter the default layout had is gone with the rest of it: a file is
     // a layout and not a list of corrections.
-    CHECK_FALSE(keys.is(Event::Character('f'), KeyCommand::ReaderFind));
+    CHECK_FALSE(keys.is(Event::Character('f'), Command::ReaderFind));
     // And a command the file never names has no key at all.
-    CHECK(keys.keysOf(KeyCommand::ReaderList).empty());
-    CHECK(keys.keysOf(KeyCommand::AppQuit).empty());
+    CHECK(keys.keysOf(Command::ReaderList).empty());
+    CHECK(keys.keysOf(Command::AppQuit).empty());
     // Two screens sharing one key is what F2 does by default, and is allowed.
-    CHECK(keys.is(Event::F3, KeyCommand::ComposeSave));
+    CHECK(keys.is(Event::F3, Command::ComposeSave));
 }
 
 TEST_CASE("A key is read the way it is written [keys]") {
@@ -191,7 +191,7 @@ TEST_CASE("A layout is read from the file the config names [keys]") {
     }
 
     const KeyMap keys = valueOf(KeyMap::loadFromFile(path));
-    CHECK(keys.is(Event::F3, KeyCommand::ReaderFind));
+    CHECK(keys.is(Event::F3, Command::ReaderFind));
     // The terminal is told about the letters this layout uses and no others,
     // and about an ESC in front of Backspace only where one is wanted.
     CHECK(keys.altLetters() == "j");

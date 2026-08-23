@@ -29,7 +29,7 @@ void openMenu(AppState& state);
 /// been answered. Every one of them is a thing a key on this screen does as
 /// well; the menu says what the reader offers rather than offering anything
 /// else.
-void runMenuCommand(AppState& state, config::MenuCommand command);
+void runMenuCommand(AppState& state, Command command);
 
 /// Loads message msgNumber (1-based) into the reader state. False means there
 /// was no such message to load and the screen was left as it was.

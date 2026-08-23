@@ -2,6 +2,7 @@ add_executable(amberedit_tests
   main.cpp
   support/result_test.cpp
   config/cfg_file_test.cpp
+  config/commands_test.cpp
   config/text_util_test.cpp
   config/area_pattern_test.cpp
   config/app_config_test.cpp

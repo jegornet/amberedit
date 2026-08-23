@@ -1,0 +1,108 @@
+#include "config/commands.hpp"
+
+#include <doctest/doctest.h>
+
+#include <set>
+#include <string>
+#include <string_view>
+
+using amberedit::config::Command;
+using amberedit::config::Commands;
+using amberedit::config::CommandScreen;
+using amberedit::config::kCommandCount;
+
+TEST_CASE("Every command is one row of the one table [commands]") {
+    // The table is written in the order the enumeration is, which is what lets
+    // a command be looked up by its own value: a row out of order would hand
+    // every reader of it somebody else's command.
+    REQUIRE(Commands::all().size() == kCommandCount);
+    for (size_t i = 0; i < kCommandCount; ++i) {
+        const auto command = static_cast<Command>(i);
+        const Commands::Info& info = Commands::of(command);
+        INFO(info.name);
+        CHECK(info.command == command);
+
+        // A name, a word to draw it with, and a name that says which screen
+        // answers it: everything a menu, a hint bar and a `keys` file need of a
+        // command, and nothing any of them keeps a second list of.
+        CHECK_FALSE(info.name.empty());
+        CHECK_FALSE(info.label.empty());
+        const size_t dot = info.name.find('.');
+        REQUIRE(dot != std::string_view::npos);
+        CHECK_FALSE(Commands::shortNameOf(command).empty());
+
+        // A glyph is the menu's, which is the one place one is drawn.
+        CHECK(info.icon.empty() != info.inMenu);
+    }
+}
+
+TEST_CASE("A command is found by the name it is written under [commands]") {
+    // The whole name is what a `keys` file names it by, without regard to case.
+    REQUIRE(Commands::named("reader.reply-elsewhere") != nullptr);
+    CHECK(Commands::named("reader.reply-elsewhere")->command ==
+          Command::ReaderReplyElsewhere);
+    CHECK(Commands::named("READER.REPLY-ELSEWHERE")->command ==
+          Command::ReaderReplyElsewhere);
+    CHECK(Commands::named("reply-elsewhere") == nullptr);
+    CHECK(Commands::named("reader.nothing") == nullptr);
+
+    // A menu and a hint list name the part after the dot, the config key
+    // already saying which screen is meant.
+    const auto* hint = Commands::namedOn(CommandScreen::Reader, "reply-elsewhere",
+                                         Commands::In::HintBar);
+    REQUIRE(hint != nullptr);
+    CHECK(hint->command == Command::ReaderReplyElsewhere);
+    CHECK(Commands::shortNameOf(hint->command) == "reply-elsewhere");
+
+    // One screen's commands are not another's, whichever list is being read.
+    CHECK(Commands::namedOn(CommandScreen::Compose, "reply-elsewhere",
+                            Commands::In::HintBar) == nullptr);
+    CHECK(Commands::namedOn(CommandScreen::AreaList, "save", Commands::In::Menu) ==
+          nullptr);
+
+    // A hint is a key with its name beside it, so any command of the screen may
+    // be one; a menu holds what a button can stand for, which is fewer.
+    CHECK(Commands::namedOn(CommandScreen::Compose, "delete-line",
+                            Commands::In::HintBar) != nullptr);
+    CHECK(Commands::namedOn(CommandScreen::Compose, "delete-line", Commands::In::Menu) ==
+          nullptr);
+
+    // `app.quit` is answered before every screen, so every screen's row may
+    // name it — and no menu does, a menu being the screen's own commands.
+    for (const CommandScreen screen :
+         {CommandScreen::AreaList, CommandScreen::MessageList, CommandScreen::Reader,
+          CommandScreen::Compose}) {
+        CHECK(Commands::namedOn(screen, "quit", Commands::In::HintBar) != nullptr);
+        CHECK(Commands::namedOn(screen, "quit", Commands::In::Menu) == nullptr);
+    }
+}
+
+TEST_CASE("What a screen offers is named once and told the same way [commands]") {
+    // A screen's own short names, all of them different: two commands one
+    // config line could not tell apart would be a setting nobody could write.
+    for (const CommandScreen screen :
+         {CommandScreen::AreaList, CommandScreen::MessageList, CommandScreen::Reader,
+          CommandScreen::Compose}) {
+        std::set<std::string_view> seen;
+        for (const Command command : Commands::offeredOn(screen, Commands::In::HintBar)) {
+            INFO(Commands::of(command).name);
+            CHECK(seen.insert(Commands::shortNameOf(command)).second);
+        }
+        // Every one of them is what the setting's error message would list.
+        const std::string offered =
+            Commands::offeredNamesOn(screen, Commands::In::HintBar);
+        for (const Command command : Commands::offeredOn(screen, Commands::In::HintBar)) {
+            INFO(offered);
+            CHECK(offered.find(Commands::shortNameOf(command)) != std::string::npos);
+        }
+    }
+
+    // Everything a menu may hold is something a hint bar may hold too.
+    for (const CommandScreen screen : {CommandScreen::Reader, CommandScreen::Compose}) {
+        for (const Command command : Commands::offeredOn(screen, Commands::In::Menu)) {
+            INFO(Commands::of(command).name);
+            CHECK(Commands::namedOn(screen, Commands::shortNameOf(command),
+                                    Commands::In::HintBar) != nullptr);
+        }
+    }
+}

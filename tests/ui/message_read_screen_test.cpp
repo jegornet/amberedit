@@ -20,7 +20,7 @@
 #include "ui/theme.hpp"
 
 using amberedit::app::ScreenId;
-using amberedit::config::MenuCommand;
+using amberedit::config::Command;
 using amberedit::config::Visibility;
 using amberedit::test::AreaFixture;
 using amberedit::test::TempSquishBase;
@@ -93,7 +93,7 @@ bool startsWith(const std::string& row, const std::string& prefix) {
 /// Where the button running `command` was drawn, or nothing where the menu does
 /// not hold it.
 const AppState::MenuView::Item* buttonFor(const AreaFixture& fixture,
-                                          MenuCommand command) {
+                                          Command command) {
     if (!fixture.state.menuView) return nullptr;
     for (const auto& item : fixture.state.menuView->items) {
         if (item.command == command) return &item;
@@ -618,14 +618,14 @@ TEST_CASE("An empty area leaves the reader's menu with only New and Nodelist liv
     // There is no message to answer or to list, and writing the first one is
     // the whole of what the screen is for. The nodelist is about somebody
     // else's system rather than about the message, so it opens either way.
-    CHECK_FALSE(buttonFor(fixture, MenuCommand::Reply)->enabled);
-    CHECK_FALSE(buttonFor(fixture, MenuCommand::List)->enabled);
-    CHECK(buttonFor(fixture, MenuCommand::New)->enabled);
-    CHECK(buttonFor(fixture, MenuCommand::Nodelist)->enabled);
+    CHECK_FALSE(buttonFor(fixture, Command::ReaderReply)->enabled);
+    CHECK_FALSE(buttonFor(fixture, Command::ReaderList)->enabled);
+    CHECK(buttonFor(fixture, Command::ReaderNew)->enabled);
+    CHECK(buttonFor(fixture, Command::ReaderNodelist)->enabled);
 
     // And the cursor opens on the first of them that can be run rather than on
     // the dead Reply the menu happens to begin with.
-    CHECK(menu_dialog::current(fixture.state) == MenuCommand::New);
+    CHECK(menu_dialog::current(fixture.state) == Command::ReaderNew);
 }
 
 TEST_CASE("The corner opens the menu and a click in it runs the command "
@@ -648,11 +648,11 @@ TEST_CASE("The corner opens the menu and a click in it runs the command "
     // What the shell then does with the answer: the box is put away and the
     // command run on the screen it was opened from.
     openMenu(fixture);
-    const auto* list = buttonFor(fixture, MenuCommand::List);
+    const auto* list = buttonFor(fixture, Command::ReaderList);
     REQUIRE(list != nullptr);
     REQUIRE(menu_dialog::handleEvent(fixture.state, pressOn(*list)) ==
             menu_dialog::Outcome::Picked);
-    const MenuCommand picked = menu_dialog::current(fixture.state);
+    const Command picked = menu_dialog::current(fixture.state);
     fixture.state.menuView.reset();
     message_read::runMenuCommand(fixture.state, picked);
     CHECK(fixture.state.navigator.current() == ScreenId::MessageList);
@@ -666,7 +666,7 @@ TEST_CASE("A click on a dimmed menu button does nothing at all "
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     openMenu(fixture);
 
-    const auto* reply = buttonFor(fixture, MenuCommand::Reply);
+    const auto* reply = buttonFor(fixture, Command::ReaderReply);
     REQUIRE(reply != nullptr);
     REQUIRE_FALSE(reply->enabled);
 
@@ -843,19 +843,19 @@ TEST_CASE("The export button is offered but not given [messageread][menu][squish
     openMenu(fixture);
     // Not in the default menu: writing a message out to a file is a thing done
     // now and then, and `w` does it without a button.
-    CHECK(buttonFor(fixture, MenuCommand::Export) == nullptr);
+    CHECK(buttonFor(fixture, Command::ReaderExport) == nullptr);
 
     fixture.state.menuView.reset();
-    fixture.config.readerMenu = {MenuCommand::Export};
+    fixture.config.readerMenu = {Command::ReaderExport};
     openMenu(fixture);
-    const auto* button = buttonFor(fixture, MenuCommand::Export);
+    const auto* button = buttonFor(fixture, Command::ReaderExport);
     REQUIRE(button != nullptr);
     REQUIRE(button->enabled);
 
     REQUIRE(menu_dialog::handleEvent(fixture.state, pressOn(*button)) ==
             menu_dialog::Outcome::Picked);
     fixture.state.menuView.reset();
-    message_read::runMenuCommand(fixture.state, MenuCommand::Export);
+    message_read::runMenuCommand(fixture.state, Command::ReaderExport);
     CHECK(fixture.state.exportPicker);
 }
 
@@ -867,19 +867,19 @@ TEST_CASE("The comment button is offered but not given [messageread][menu][squis
     // Not in the default menu and not in the hint bar either: answering
     // somebody the message did not come from is a thing wanted now and then,
     // and Alt-Q does it without a button.
-    CHECK(buttonFor(fixture, MenuCommand::CommentReply) == nullptr);
+    CHECK(buttonFor(fixture, Command::ReaderCommentReply) == nullptr);
 
     fixture.state.menuView.reset();
-    fixture.config.readerMenu = {MenuCommand::CommentReply};
+    fixture.config.readerMenu = {Command::ReaderCommentReply};
     openMenu(fixture);
-    const auto* button = buttonFor(fixture, MenuCommand::CommentReply);
+    const auto* button = buttonFor(fixture, Command::ReaderCommentReply);
     REQUIRE(button != nullptr);
     REQUIRE(button->enabled);
 
     REQUIRE(menu_dialog::handleEvent(fixture.state, pressOn(*button)) ==
             menu_dialog::Outcome::Picked);
     fixture.state.menuView.reset();
-    message_read::runMenuCommand(fixture.state, MenuCommand::CommentReply);
+    message_read::runMenuCommand(fixture.state, Command::ReaderCommentReply);
     CHECK(fixture.state.navigator.current() == ScreenId::Compose);
     REQUIRE(fixture.state.readHeader);
     CHECK(fixture.state.compose.toName == fixture.state.readHeader->to);
@@ -904,14 +904,14 @@ TEST_CASE("Alt-Q answers whoever the message was written to [messageread][squish
 TEST_CASE("An empty area has nothing to export [messageread][menu][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    fixture.config.readerMenu = {MenuCommand::Export};
+    fixture.config.readerMenu = {Command::ReaderExport};
     emptyTheArea(fixture);
 
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     openMenu(fixture);
     // The button is drawn dimmed, and the key does nothing at all: there is no
     // message on the screen to write out.
-    const auto* button = buttonFor(fixture, MenuCommand::Export);
+    const auto* button = buttonFor(fixture, Command::ReaderExport);
     REQUIRE(button != nullptr);
     CHECK_FALSE(button->enabled);
 

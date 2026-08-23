@@ -546,7 +546,7 @@ Outcome handleEvent(AppState& state, const Event& event) {
     // box away. Ahead of the line being typed into — a binding on a bare letter
     // would otherwise be typed into the lookup instead of closing the box, which
     // is the same order every screen answers its commands in.
-    if (event == Event::Escape || state.keys.is(event, KeyCommand::ReaderNodelist)) {
+    if (event == Event::Escape || state.keys.is(event, Command::ReaderNodelist)) {
         state.nodelistView.reset();
         return Outcome::Ignored;
     }

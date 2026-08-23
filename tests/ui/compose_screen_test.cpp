@@ -29,7 +29,7 @@
 
 using amberedit::app::ScreenId;
 using amberedit::config::AppConfig;
-using amberedit::config::MenuCommand;
+using amberedit::config::Command;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
 using amberedit::domain::FtnAddress;
@@ -1297,7 +1297,7 @@ TEST_CASE("The editor's menu offers Save and Import, wherever the typing is "
     REQUIRE(compose::handleEvent(state, clickAt(state.width - 1, 0)));
     REQUIRE(state.menuView);
 
-    const auto find = [&](MenuCommand command) {
+    const auto find = [&](Command command) {
         for (const auto& item : state.menuView->items) {
             if (item.command == command) return item;
         }
@@ -1308,17 +1308,17 @@ TEST_CASE("The editor's menu offers Save and Import, wherever the typing is "
     // Both are about the message rather than about the line the cursor is on,
     // so neither goes quiet while the typing is up in the header: what is read
     // goes into the text, which is the only place a file could go.
-    CHECK(find(MenuCommand::Save).enabled);
-    REQUIRE(find(MenuCommand::Import).enabled);
+    CHECK(find(Command::ComposeSave).enabled);
+    REQUIRE(find(Command::ComposeImport).enabled);
 
     // Drawn first, since where a button landed is what a click is tested
     // against — and then answered the way the shell answers it.
     term::Screen screen(state.width, state.height);
     term::render(screen, menu_dialog::render(state, compose::render(state)));
-    const term::Box box = find(MenuCommand::Import).box;
+    const term::Box box = find(Command::ComposeImport).box;
     REQUIRE(menu_dialog::handleEvent(state, clickAt(box.x_min + 1, box.y_min + 1)) ==
             menu_dialog::Outcome::Picked);
-    const MenuCommand picked = menu_dialog::current(state);
+    const Command picked = menu_dialog::current(state);
     state.menuView.reset();
     compose::runMenuCommand(state, picked);
     CHECK(state.importPicker);

@@ -399,11 +399,11 @@ TEST_CASE("The reader's menu offers Find [find][squish]") {
     REQUIRE(fixture.state.menuView);
     const auto& items = fixture.state.menuView->items;
     REQUIRE(items.size() >= 2);
-    CHECK(items[items.size() - 2].command == amberedit::config::MenuCommand::Find);
+    CHECK(items[items.size() - 2].command == amberedit::config::Command::ReaderFind);
     CHECK(items[items.size() - 2].enabled);
 
     fixture.state.menuView.reset();
-    message_read::runMenuCommand(fixture.state, amberedit::config::MenuCommand::Find);
+    message_read::runMenuCommand(fixture.state, amberedit::config::Command::ReaderFind);
     CHECK(fixture.state.findPicker);
 }
 

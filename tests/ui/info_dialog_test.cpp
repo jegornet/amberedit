@@ -13,7 +13,7 @@
 #include "ui/term/event.hpp"
 #include "ui/term/screen.hpp"
 
-using amberedit::config::MenuCommand;
+using amberedit::config::Command;
 using amberedit::test::AreaFixture;
 using amberedit::test::TempSquishBase;
 using amberedit::ui::term::Event;
@@ -171,13 +171,13 @@ TEST_CASE("The info button in the menu opens the same box [info][messageread][me
     TempSquishBase base;
     AreaFixture fixture(base.path());
     // The button is not in the default menu — the config is what puts it there.
-    fixture.config.readerMenu = {MenuCommand::Info};
+    fixture.config.readerMenu = {Command::ReaderInfo};
     enterArea(fixture);
 
     message_read::openMenu(fixture.state);
     REQUIRE(fixture.state.menuView);
     REQUIRE(fixture.state.menuView->items.size() == 1);
-    REQUIRE(fixture.state.menuView->items[0].command == MenuCommand::Info);
+    REQUIRE(fixture.state.menuView->items[0].command == Command::ReaderInfo);
     REQUIRE(fixture.state.menuView->items[0].enabled);
 
     // Drawn first, since where a button landed is what a click is tested
@@ -197,6 +197,6 @@ TEST_CASE("The info button in the menu opens the same box [info][messageread][me
     // What the shell does with the answer: the box goes and the command runs on
     // the screen it was opened from.
     fixture.state.menuView.reset();
-    message_read::runMenuCommand(fixture.state, MenuCommand::Info);
+    message_read::runMenuCommand(fixture.state, Command::ReaderInfo);
     CHECK(fixture.state.infoView.has_value());
 }

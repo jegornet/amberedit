@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -45,7 +46,9 @@ int buttonWidth(const AppState& state) {
 /// every row are words the eye has to go looking for.
 Element button(const AppState::MenuView::Item& item, int inner, int icon,
                bool selected, bool pressed) {
-    const std::string label = labelLine(labelOf(item.command), inner - kIndent, icon);
+    const Commands::Info& command = Commands::of(item.command);
+    const std::string label =
+        labelLine(command.icon, command.label, inner - kIndent, icon);
     const int room = std::max(0, inner - kIndent - displayWidth(label));
     const std::string line = " " + label + std::string(static_cast<size_t>(room), ' ');
 
@@ -96,38 +99,18 @@ void step(AppState::MenuView& view, int delta) {
 
 }  // namespace
 
-Label labelOf(config::MenuCommand command) {
-    switch (command) {
-        case config::MenuCommand::List: return {"≔", "List"};
-        case config::MenuCommand::Reply: return {"↩", "Reply"};
-        case config::MenuCommand::ReplyTo: return {"↪", "Reply to…"};
-        case config::MenuCommand::CommentReply: return {"⇄", "Comment"};
-        case config::MenuCommand::New: return {"✎", "New"};
-        case config::MenuCommand::Forward: return {"↗", "Fwd / Copy"};
-        case config::MenuCommand::Find: return {"⌕", "Find"};
-        case config::MenuCommand::Change: return {"⚠︎", "Change"};
-        case config::MenuCommand::Info: return {"𝒊", "Info"};
-        case config::MenuCommand::Export: return {"⌲", "Export"};
-        case config::MenuCommand::Nodelist: return {"⚲", "Nodelist"};
-        case config::MenuCommand::Save: return {"✓", "Save"};
-        case config::MenuCommand::Import: return {"+", "Import"};
-    }
-    return {};
-}
-
 int iconWidth(const std::vector<AppState::MenuView::Item>& items) {
     int width = 0;
     for (const AppState::MenuView::Item& item : items) {
-        width = std::max(width, displayWidth(labelOf(item.command).icon));
+        width = std::max(width, displayWidth(Commands::of(item.command).icon));
     }
     return width;
 }
 
-std::string labelLine(Label label, int columns, int iconColumns) {
+std::string labelLine(std::string_view icon, std::string_view word, int columns,
+                      int iconColumns) {
     if (columns <= 0) return {};
-    if (label.icon.empty() && iconColumns <= 0) {
-        return truncateToWidth(label.text, columns);
-    }
+    if (icon.empty() && iconColumns <= 0) return truncateToWidth(word, columns);
 
     // The glyph is measured with what the renderer draws it by rather than
     // counted: `⚠︎` is two code points in one column, `𝒊` four bytes in one, and
@@ -135,10 +118,10 @@ std::string labelLine(Label label, int columns, int iconColumns) {
     // any of them. Counting instead would hand the word a column the glyph is
     // about to take, and the button would be drawn a column wider than the
     // column it stands in.
-    const std::string icon = padRight(label.icon, iconColumns);
-    const int room = columns - displayWidth(icon) - 1;  // the blank between
-    if (room <= 0) return truncateToWidth(label.icon, columns);
-    return icon + " " + truncateToWidth(label.text, room);
+    const std::string column = padRight(icon, iconColumns);
+    const int room = columns - displayWidth(column) - 1;  // the blank between
+    if (room <= 0) return truncateToWidth(icon, columns);
+    return column + " " + truncateToWidth(word, room);
 }
 
 void open(AppState& state, std::vector<AppState::MenuView::Item> items) {
@@ -150,7 +133,7 @@ void open(AppState& state, std::vector<AppState::MenuView::Item> items) {
     state.menuView = std::move(view);
 }
 
-config::MenuCommand current(const AppState& state) {
+Command current(const AppState& state) {
     const AppState::MenuView& view = *state.menuView;
     const auto at = static_cast<size_t>(
         std::clamp(view.cursor, 0, static_cast<int>(view.items.size()) - 1));
