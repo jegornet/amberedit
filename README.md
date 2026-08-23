@@ -16,27 +16,27 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 
 ## Features
 
-- **Mouse/taps support and adaptive UI**: finally make your phone's SSH client
-  a suitable place to read FTN mail
+- **Mouse/taps support and adaptive UI**: suitable to read FTN mail from any device, 
+  be it a desktop or a mobile SSH client
 - **Charsets encode/decode**: supported UTF-8 and legacy charsets like CP866,
   CP437, LATIN-1 etc. UTF-8 terminal locale is recommended.
-- **Squish, JAM and Fido `*.msg`** messagebase format, with the areas taken from
-  your tosser's config (fidoconfig, `areas.bbs` or `squish.cfg`), and from
-  `area … endarea` blocks of your own for manual area configuration.
+- **Squish, JAM and Fido `*.msg`** message base format, with the areas taken from
+  your tosser's config (fidoconfig, `areas.bbs` or `squish.cfg`). You can also configure
+  the areas manually using `area … endarea` blocks.
 - **Reading and writing**: reply, reply into another area, forward, move or copy 
-  a message elsewhere, change one that is already in a base, delete. Carbon copies and
-  crossposts (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates. And twitting
-  those names or subjects you won't read.
-- **Text and UUE import/export**: read a file into a message as text or uuencoded,
-  write a message out to a text file, or take the uuencoded files back out of one.
+  a message elsewhere, modify or delete. Carbon copies and crossposts
+  (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates. And `twit` keywords
+  to ignore those names or subjects you won't read.
+- **Text and UUE import/export**: import a text file into a message, insert a uuencoded 
+  binary file, write a message out to a text file, or extract uuencoded files from a message.
 - **Nodelists and pointlists**, including ZIP-archived — automatically compiled at startup
    when they change
 - **Echolists**, compiled at startup on the same terms
 - **A setup wizard**: `amberedit --setup` asks what a first config has to say and
-  writes one, so there is nothing to edit by hand before the first start
+  writes one, so you don't have to edit it by hand before the first start
 - **Color Themes** in the terminal's own 256 colors
 - **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental,
-  and turned on per echo rather than for all your mail (see *Experimental options*
+  turned on per echo area rather than for all your mail (see *Experimental options*
   at the end of `amberedit.cfg.example`).
 <details>
 <summary>ANSI graphics demo</summary>
@@ -48,7 +48,7 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 Every tagged release carries built packages —
 [Releases](https://github.com/jegornet/amberedit/releases) has RPMs for RHEL 8, 9
 and Fedora, debs for Debian stable and Ubuntu 22.04 and 24.04, and tarballs for
-macOS on both architectures.
+macOS on both arm64 and x86_64.
 
 Building it yourself needs CMake ≥ 3.16, a C++17 compiler, git, iconv, zlib,
 tl::expected and the wide-character ncurses — [INSTALL.md](INSTALL.md) has the commands,
@@ -75,25 +75,21 @@ Run `amberedit --help` for more command line options.
 
 ### Keys
 
-There is no help screen, so here they are. Enter accepts a dialog and Esc closes
-one; the mouse works on every screen, and the wheel scrolls a line at a time.
-**Ctrl-Q** quits from anywhere. Every key below that runs a command
-can be moved — see [Rebinding the keys](#rebinding-the-keys) — and the last row
-names the main ones under whatever keys they are on (`hint_bar`), as many as the
-window holds. Clicking one presses that key. Which commands each screen's row
-names is yours to write down as well — `arealist_hints`, `msglist_hints`,
-`reader_hints` and `compose_hints`, one list of commands each.
+There is no help screen, so here they are.  Every key below that runs a command
+can be moved — see [Rebinding the keys](#rebinding-the-keys)
+
+**Ctrl-Q** quits from anywhere.
 
 **Area list**
 
-| Key | What it does |
-|---|---|
-| `↑` `↓` `PgUp` `PgDn` `Space`, `Home` `End` | move |
-| `Enter`, `→`, click | open the area under the cursor |
+| Key | What it does                                                     |
+|---|------------------------------------------------------------------|
+| `↑` `↓` `PgUp` `PgDn` `Space`, `Home` `End` | move                                                             |
+| `Enter`, `→`, click | open the area under the cursor                                   |
 | any letter | search by area tag; `Backspace` edits the query, `Esc` closes it |
-| `/` | go to the next area with unread messages, round the end of the list |
-| `Ctrl-R` | read the tosser config and every base again |
-| `Esc` | quit |
+| `/` | go to the next area with unread messages                         |
+| `Ctrl-R` | rescan the message bases                                   |
+| `Esc` | quit                                                             |
 
 **Message list**
 
@@ -106,28 +102,28 @@ names is yours to write down as well — `arealist_hints`, `msglist_hints`,
 
 **Reader**
 
-| Key | What it does |
-|---|---|
+| Key | What it does                                                                 |
+|---|------------------------------------------------------------------------------|
 | `←` `→` | previous, next message — off either end leaves the area (`reader_edge_exit`) |
-| `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message |
-| `Home`, `End` | top, bottom |
-| `q` / `F4` | reply |
-| `e` | write a new message |
-| `n` / `F5` | reply into another area |
-| `Alt-Q` | reply, addressed to whoever the message was written to |
-| `m` | forward, move or copy into another area |
-| `c` / `F2` | change the message |
-| `d` / `Del` | delete it (asks first) |
-| `-` `+` / `=` | up and down the thread |
-| `Ctrl-F` / `F6` | look for a message in the area |
-| `l` / `F9` | the list of messages |
-| `k` | show the kludges — a reply then quotes them, a forward carries them |
-| `b` | the scrollbar |
-| `i` | what the base holds about the message |
-| `w` / `F7` | write the message out to a file |
-| `Ctrl-N` / `F10` | the nodelist |
-| `Space` | show a message blanked as a twit |
-| `Esc` `Backspace` | back to the area list |
+| `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
+| `Home`, `End` | top, bottom                                                                  |
+| `q` / `F4` | reply                                                                        |
+| `e` | write a new message                                                          |
+| `n` / `F5` | reply into another area                                                      |
+| `Alt-Q` | reply, addressed to whoever the message was written to                       |
+| `m` | forward, move or copy into another area                                      |
+| `c` / `F2` | change the message                                                           |
+| `d` / `Del` | delete it (asks first)                                                       |
+| `-` `+` / `=` | up and down the thread                                                       |
+| `Ctrl-F` / `F6` | look for a message in the area                                               |
+| `l` / `F9` | the list of messages                                                         |
+| `k` | show the kludges — a reply then quotes them, a forward carries them          |
+| `b` | toggle the scrollbar                                                         |
+| `i` | technical info from the message base                                         |
+| `w` / `F7` | export the message to a text file or decode UUE if any                       |
+| `Ctrl-N` / `F10` | the nodelist                                                                 |
+| `Space` | show a message blanked as a twit                                             |
+| `Esc` `Backspace` | back to the area list                                                        |
 
 **Editor**
 
@@ -162,10 +158,11 @@ l    reader.list
 F2   reader.change
 ```
 
-**The file is the layout entire.** A command it does not name has no key at all,
-so copy `amberkeys.cfg.example` — which is the defaults above, written out — and
-edit that rather than starting from an empty file. A command may be named on
-several lines and then answers to each of those keys.
+**The keys config file defines the entire layout.** Any command not listed
+in it has no keybinding at all. So copy `amberkeys.cfg.example` (which contains 
+the default bindings, spelled out) and edit that instead of starting from
+a blank file. A command can appear on multiple lines, in which case it responds
+to every key listed for it.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ctrl-` and a letter, or `Alt-`
@@ -176,40 +173,38 @@ a layout that tries says which line clashes with which.
 **Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
 every screen — bare, that is: `Alt-Left` and `Alt-Backspace` are chords of their
-own and may be bound — and the dialogs answer for themselves entirely. Naming
-one of them is an error rather than a line quietly dropped.
+own and may be bound — and the dialogs answer for themselves entirely.
 
 The commands are `app.quit`; `arealist.next_unread` and `arealist.rescan`;
 `reader.` `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`,
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
 `thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
 `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`,
-`word_left`, `word_right`, `line_start` and `line_end`. A `-` reads as a `_`,
-so a config written when the names were spelled `reply-elsewhere` still loads.
+`word_left`, `word_right`, `line_start` and `line_end`.
 
 ### Finding a message
 
-**Ctrl-F (or F6) in the reader** asks what to look for and how much of a message
-to read it against — the header and the text, or the header alone, the header
-being the From and To names, the addresses under them and the subject. The search
-runs from the message on screen to the end of the area; the same words looked for
-again go on from the message after the one that was found, so Ctrl-F, Enter,
-Ctrl-F, Enter walks from occurrence to occurrence. It stops at the end of the
-area rather than wrapping round to the front.
+**Ctrl-F (or F6) in the reader** asks what to look for and where — in the header
+and the text, or in the header alone. The header consists of the From and To names,
+the addresses under them and the subject. The search runs from the message
+on screen to the end of the area; the same words looked for again go on from
+the message after the one that was found, so Ctrl-F, Enter, Ctrl-F, Enter walks
+from occurrence to occurrence. It stops at the end of the area, no wrapping round
+to the front.
 
 The message found opens scrolled to the occurrence, with every occurrence in it —
 in the body and in the header block alike — on the theme's `found` fill. Moving
 to another message takes the highlight off.
 
 **Case is folded by the charset the message declares** — its `CHRS` kludge, or
-the area's `default_charset` where it carries none — rather than by the locale. **CP866
-carries the Russian language support quirks** with it: a message written in it may spell Н, р and
-у with the Latin H, p and y, so those pairs are folded together — and only there,
-since in a western area they are six different letters.
+the area's `default_charset` where it carries none — rather than by the locale.
+**CP866 carries the Russian language support quirks** with it: a message written
+in it may spell Н, р and у with the Latin H, p and y, so those pairs are folded
+together — and only there, since in a western area they are six different letters.
 
 ### Carbon copies and crossposts
 
-Two commands you write into the message itself, as GoldED takes them. Each has
+Two commands you write into the message itself, same as in GoldED+. Each has
 to begin its line, and neither is read in a quoted line:
 
 ```
@@ -224,18 +219,21 @@ masks name. A `#` makes the copy without naming its recipient in the message.
 You are asked before either is carried out, and a name nobody could find leaves
 its line where you wrote it rather than losing what you asked for.
 
-Copies of a message written in an echo go to the netmail area that echo's
+Copies of a message written in an echo area go to the netmail area that echo's
 `reply_to_area` names; what the message keeps in place of the commands is
 `compose_cc_list` and `compose_xc_list`. See `amberedit.cfg.example`.
 
 ### The nodelist
 
+The nodelist filename may be a wildcard — `nodelist ~/ftn/nodelist/z2daily.999`
+or `z2daily.*` takes the newest file it matches. You can also specify ZIP-packed
+nodelists like `nodelist ~/ftn/nodelist/nodelist.z99` or `nodelist.z*`.
+
 **Ctrl-N (or F10) in the reader** opens the nodelist on whoever wrote the message
-on screen.
-The Lookup line takes an address, whole or in part — `2`, `2:382`, `2:382/736`
-— or any part of a sysop's name, and Enter walks through everything it finds.
-The list is the whole nodelist either way: a node is worth as much for its
-neighbours as for itself.
+on screen. The Lookup line takes an address, whole or in part — `2`, `2:382`,
+`2:382/736` — or any part of a sysop's name, and Enter walks through everything
+it finds. The list is the whole nodelist either way: a node is worth as much
+for its neighbors as for itself.
 
 **Writing netmail**, Enter on a half-filled To row asks the nodelist for the
 other half: a name with no address under it lists the nodes of that name,
@@ -244,9 +242,10 @@ address. Part of a name is enough — Enter on a row addresses the message to th
 node, name and address both, with the name spelled as the nodelist spells it,
 and moves on to the subject.
 
-**The header block** in the reader says where the message was written, in the
-rule under it (`show_location`); a point no pointlist lists is placed where its
-boss is, which is also what the nodelist box opens on.
+**The header block** in the reader shows where the message was written, controlled
+by the `show_location` config setting. A point that isn't listed in any pointlist
+is placed at its parent's ("boss's") location — which is also the default view
+the nodelist box opens to.
 
 The nodelists themselves are compiled at startup whenever they have changed, so
 there is nothing to run by hand; `amberedit --compile` compiles them anyway.
@@ -265,8 +264,8 @@ The filename may be a wildcard — `echolist ~/ftn/echolist/echo*.zip` takes the
 newest file it matches, which is what to write when the list you are sent carries
 its month in its name.
 
-An echolist that is not in your locale's charset says which it is on the same
-line (`echolist ~/ftn/echolist/echo50.lst CP866`), and
+You can specify the echolist's charset (`echolist ~/ftn/echolist/echo50.lst CP866`).
+
 `arealist_description_priority` says which description an echo with two of them
 is shown by. As with the nodelists, they are compiled at startup whenever they
 have changed and there is nothing to run by hand. See `amberedit.cfg.example`.
@@ -299,8 +298,7 @@ a config out of that file for you.
 
 A `group … endgroup` block states settings for the echoes its `member` patterns
 match — the charsets, the origin, the template, the twits and the rest of what is
-per-echo rather than per-config. The settings under *Experimental options* at the
-end of the sample are meant to be turned on that way and not globally:
+per-echo rather than per-config:
 
 ```
 group
