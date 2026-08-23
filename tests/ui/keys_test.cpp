@@ -180,6 +180,15 @@ TEST_CASE("A layout that cannot be read says which line is wrong [keys]") {
     CHECK_MESSAGE(contains(error6, "x is already app.quit"), error6);
 }
 
+TEST_CASE("A layout written with the older names is still read [keys]") {
+    // Two-word commands were spelled with a `-` once — `compose.word-left` —
+    // and a file that still spells them that way binds the same commands.
+    const KeyMap keys = valueOf(KeyMap::parse(
+        "Alt-J compose.word-left\nCtrl-Y compose.delete-line\n", "keys"));
+    CHECK(keys.is(alt('j'), Command::ComposeWordLeft));
+    CHECK(keys.is(ctrl('y'), Command::ComposeDeleteLine));
+}
+
 TEST_CASE("A layout is read from the file the config names [keys]") {
     amberedit::test::TempDir dir;
     const std::string path = dir.path("amberkeys.cfg");
@@ -187,7 +196,7 @@ TEST_CASE("A layout is read from the file the config names [keys]") {
         std::ofstream out(path);
         out << "  # indented comments count too\n\n";
         out << "F3\treader.find\n";
-        out << "Alt-J compose.word-left\n";
+        out << "Alt-J compose.word_left\n";
     }
 
     const KeyMap keys = valueOf(KeyMap::loadFromFile(path));

@@ -851,11 +851,11 @@ struct AppConfig {
 
     /// What the two menus hold, in the order they are to stand — from
     /// `reader_menu` and `compose_menu`. Each names commands of its own screen,
-    /// by the part of the name after the dot: `reply-elsewhere` is
-    /// `reader.reply-elsewhere`.
+    /// by the part of the name after the dot: `reply_elsewhere` is
+    /// `reader.reply_elsewhere`.
     ///
     /// The reader's default leaves out `change`, `info`, `export` and
-    /// `comment-reply`: writing over a message that is already in a base is a
+    /// `comment_reply`: writing over a message that is already in a base is a
     /// rare thing to want and a bad thing to do by accident, what a base holds
     /// about a message is a question most readers never ask, a message is
     /// written out to a file now and then, and answering the recipient rather

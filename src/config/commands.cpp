@@ -17,15 +17,15 @@ namespace {
 /// is written with.
 constexpr Commands::Info kCommands[] = {
     {Command::AppQuit, "app.quit", CommandScreen::Anywhere, "Quit", "", "Ctrl-Q", false},
-    {Command::AreaListNextUnread, "arealist.next-unread", CommandScreen::AreaList,
+    {Command::AreaListNextUnread, "arealist.next_unread", CommandScreen::AreaList,
      "Next unread", "", "/", false},
     {Command::AreaListRescan, "arealist.rescan", CommandScreen::AreaList, "Rescan", "",
      "Ctrl-R", false},
     {Command::ReaderReply, "reader.reply", CommandScreen::Reader, "Reply", "↩", "q F4",
      true},
-    {Command::ReaderReplyElsewhere, "reader.reply-elsewhere", CommandScreen::Reader,
+    {Command::ReaderReplyElsewhere, "reader.reply_elsewhere", CommandScreen::Reader,
      "Reply elsewhere", "↪", "n F5", true},
-    {Command::ReaderCommentReply, "reader.comment-reply", CommandScreen::Reader,
+    {Command::ReaderCommentReply, "reader.comment_reply", CommandScreen::Reader,
      "Comment", "⇄", "Alt-Q", true},
     {Command::ReaderNew, "reader.new", CommandScreen::Reader, "New", "✎", "e", true},
     {Command::ReaderForward, "reader.forward", CommandScreen::Reader, "Fwd / Copy", "↗",
@@ -47,9 +47,9 @@ constexpr Commands::Info kCommands[] = {
      false},
     {Command::ReaderScrollbar, "reader.scrollbar", CommandScreen::Reader, "Scrollbar", "",
      "b", false},
-    {Command::ReaderThreadUp, "reader.thread-up", CommandScreen::Reader, "Thread up", "",
+    {Command::ReaderThreadUp, "reader.thread_up", CommandScreen::Reader, "Thread up", "",
      "-", false},
-    {Command::ReaderThreadDown, "reader.thread-down", CommandScreen::Reader,
+    {Command::ReaderThreadDown, "reader.thread_down", CommandScreen::Reader,
      "Thread down", "", "+ =", false},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, "Save", "✓",
      "Ctrl-S F2", true},
@@ -57,23 +57,23 @@ constexpr Commands::Info kCommands[] = {
      "Attributes", "", "Ctrl-F", false},
     {Command::ComposeImport, "compose.import", CommandScreen::Compose, "Import", "+",
      "Ctrl-O", true},
-    {Command::ComposeHeaderBack, "compose.header-back", CommandScreen::Compose, "Header",
+    {Command::ComposeHeaderBack, "compose.header_back", CommandScreen::Compose, "Header",
      "", "Alt-H", false},
-    {Command::ComposeDeleteLine, "compose.delete-line", CommandScreen::Compose,
+    {Command::ComposeDeleteLine, "compose.delete_line", CommandScreen::Compose,
      "Delete line", "", "Ctrl-Y", false},
-    {Command::ComposeRestoreLine, "compose.restore-line", CommandScreen::Compose,
+    {Command::ComposeRestoreLine, "compose.restore_line", CommandScreen::Compose,
      "Restore line", "", "Ctrl-U", false},
-    {Command::ComposeDeleteQuote, "compose.delete-quote", CommandScreen::Compose,
+    {Command::ComposeDeleteQuote, "compose.delete_quote", CommandScreen::Compose,
      "Delete quote", "", "Ctrl-D", false},
-    {Command::ComposeDeleteWord, "compose.delete-word", CommandScreen::Compose,
+    {Command::ComposeDeleteWord, "compose.delete_word", CommandScreen::Compose,
      "Delete word", "", "Ctrl-W Alt-Backspace", false},
-    {Command::ComposeWordLeft, "compose.word-left", CommandScreen::Compose, "Word left",
+    {Command::ComposeWordLeft, "compose.word_left", CommandScreen::Compose, "Word left",
      "", "Alt-B Alt-Left", false},
-    {Command::ComposeWordRight, "compose.word-right", CommandScreen::Compose,
+    {Command::ComposeWordRight, "compose.word_right", CommandScreen::Compose,
      "Word right", "", "Alt-F Alt-Right", false},
-    {Command::ComposeLineStart, "compose.line-start", CommandScreen::Compose,
+    {Command::ComposeLineStart, "compose.line_start", CommandScreen::Compose,
      "Line start", "", "Ctrl-A", false},
-    {Command::ComposeLineEnd, "compose.line-end", CommandScreen::Compose, "Line end", "",
+    {Command::ComposeLineEnd, "compose.line_end", CommandScreen::Compose, "Line end", "",
      "Ctrl-E", false},
 };
 
@@ -100,6 +100,23 @@ bool offers(const Commands::Info& info, CommandScreen screen, Commands::In where
     return info.screen == screen || info.screen == CommandScreen::Anywhere;
 }
 
+/// Whether a config wrote that name for this command, `-` and `_` being the same
+/// character to a reader of names.
+///
+/// A command whose name is two words is written `delete_line`, and was written
+/// `delete-line` before. The older spelling is still read — a config is a file a
+/// user wrote once and is not asked to rewrite — but it is not offered anywhere:
+/// the table holds one spelling, and that is the one every message and every
+/// generated file says.
+bool nameIs(std::string_view written, std::string_view name) {
+    if (written.size() != name.size()) return false;
+    for (size_t i = 0; i < name.size(); ++i) {
+        const char c = written[i] == '-' ? '_' : text::asciiLower(written[i]);
+        if (c != text::asciiLower(name[i])) return false;
+    }
+    return true;
+}
+
 }  // namespace
 
 const std::vector<Commands::Info>& Commands::all() {
@@ -120,7 +137,7 @@ std::string_view Commands::shortNameOf(Command command) {
 
 const Commands::Info* Commands::named(std::string_view name) {
     for (const Info& info : table()) {
-        if (text::iequals(name, info.name)) return &info;
+        if (nameIs(name, info.name)) return &info;
     }
     return nullptr;
 }
@@ -129,7 +146,7 @@ const Commands::Info* Commands::namedOn(CommandScreen screen, std::string_view n
                                         In where) {
     for (const Info& info : table()) {
         if (!offers(info, screen, where)) continue;
-        if (text::iequals(name, shortNameOf(info.command))) return &info;
+        if (nameIs(name, shortNameOf(info.command))) return &info;
     }
     return nullptr;
 }

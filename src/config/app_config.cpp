@@ -179,7 +179,7 @@ MsgListField msgFieldFrom(const ListFormatField& field) {
 
 /// The commands a menu or a hint list names, as the key writes them: the part
 /// of each name after the screen it belongs to, the config key already saying
-/// which screen is meant — `reply-elsewhere` is `reader.reply-elsewhere`.
+/// which screen is meant — `reply_elsewhere` is `reader.reply_elsewhere`.
 ///
 /// What a key may name is `Commands::offeredOn()`, which is what makes
 /// `reader_menu save` a mistake the config catches rather than a button that

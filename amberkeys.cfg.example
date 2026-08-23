@@ -20,6 +20,10 @@
 # Blank lines are ignored, and a line starting with "#" is a comment — which is
 # why "#" itself is the one printable character that cannot be a key here.
 #
+# A command's name is read without regard to case, and a "-" in it reads as a
+# "_": the two-word names were spelled "reader.reply-elsewhere" once, and a file
+# that still spells them that way is still read.
+#
 # Keys are written as:
 #
 #   a single character   l  G  /  +        upper and lower case are different keys
@@ -51,15 +55,15 @@
 Ctrl-Q          app.quit
 
 # --- the area list ------------------------------------------------------------
-/               arealist.next-unread
+/               arealist.next_unread
 Ctrl-R          arealist.rescan
 
 # --- the reader ---------------------------------------------------------------
 q               reader.reply
 F4              reader.reply
-n               reader.reply-elsewhere
-F5              reader.reply-elsewhere
-Alt-Q           reader.comment-reply
+n               reader.reply_elsewhere
+F5              reader.reply_elsewhere
+Alt-Q           reader.comment_reply
 e               reader.new
 m               reader.forward
 c               reader.change
@@ -77,24 +81,24 @@ Ctrl-N          reader.nodelist
 F10             reader.nodelist
 k               reader.kludges
 b               reader.scrollbar
--               reader.thread-up
-+               reader.thread-down
-=               reader.thread-down
+-               reader.thread_up
++               reader.thread_down
+=               reader.thread_down
 
 # --- the editor ---------------------------------------------------------------
 Ctrl-S          compose.save
 F2              compose.save
 Ctrl-F          compose.attributes
 Ctrl-O          compose.import
-Alt-H           compose.header-back
-Ctrl-Y          compose.delete-line
-Ctrl-U          compose.restore-line
-Ctrl-D          compose.delete-quote
-Ctrl-W          compose.delete-word
-Alt-Backspace   compose.delete-word
-Alt-B           compose.word-left
-Alt-Left        compose.word-left
-Alt-F           compose.word-right
-Alt-Right       compose.word-right
-Ctrl-A          compose.line-start
-Ctrl-E          compose.line-end
+Alt-H           compose.header_back
+Ctrl-Y          compose.delete_line
+Ctrl-U          compose.restore_line
+Ctrl-D          compose.delete_quote
+Ctrl-W          compose.delete_word
+Alt-Backspace   compose.delete_word
+Alt-B           compose.word_left
+Alt-Left        compose.word_left
+Alt-F           compose.word_right
+Alt-Right       compose.word_right
+Ctrl-A          compose.line_start
+Ctrl-E          compose.line_end

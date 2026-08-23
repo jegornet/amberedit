@@ -460,7 +460,7 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
 
     // And so is answering the recipient rather than the sender: Alt-Q does it
     // without a button, and the button is there for whoever wants one.
-    CHECK(with("reader_menu reply comment-reply\n").readerMenu ==
+    CHECK(with("reader_menu reply comment_reply\n").readerMenu ==
           std::vector<Command>{Command::ReaderReply, Command::ReaderCommentReply});
 
     // `none`, alone, is the menu asked for and left empty — which is a screen
@@ -476,13 +476,13 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     CHECK_FALSE(loads("reader_menu save\n"));
     CHECK_FALSE(loads("compose_menu reply\n"));
     CHECK_FALSE(loads("reader_menu delete\n"));
-    CHECK_FALSE(loads("compose_menu delete-line\n"));
+    CHECK_FALSE(loads("compose_menu delete_line\n"));
     CHECK_FALSE(loads("reader_menu list list\n"));
     CHECK_FALSE(loads("reader_menu\n"));
     const std::string error = errorWith("reader_menu quit\n");
     REQUIRE_MESSAGE(
         contains(error,
-                 "reply, reply-elsewhere, comment-reply, new, forward, change, "
+                 "reply, reply_elsewhere, comment_reply, new, forward, change, "
                  "export, find, list, info, nodelist"),
         error);
 }
@@ -507,8 +507,15 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
     // there is nothing a key does that a hint cannot say.
     CHECK(with("reader_hints info kludges\n").readerHints ==
           std::vector<Command>{Command::ReaderInfo, Command::ReaderKludges});
+    CHECK(with("compose_hints word_left line_end\n").composeHints ==
+          std::vector<Command>{Command::ComposeWordLeft, Command::ComposeLineEnd});
+
+    // The names were written with a `-` once, and a config that still writes
+    // one is read as it stands.
     CHECK(with("compose_hints word-left line-end\n").composeHints ==
           std::vector<Command>{Command::ComposeWordLeft, Command::ComposeLineEnd});
+    CHECK(with("reader_menu reply reply-elsewhere\n").readerMenu ==
+          std::vector<Command>{Command::ReaderReply, Command::ReaderReplyElsewhere});
 
     // `app.quit` is answered before every screen, so every screen's row may
     // name it.

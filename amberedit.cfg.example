@@ -593,20 +593,22 @@ hint_bar_capitalize off
 # What each screen's row holds, in the order the hints are to stand. Optional;
 # the four lines at the end of this block are the defaults. Each key names
 # commands of its own screen, by the part of the name after the dot — the
-# "reply-elsewhere" of "reader.reply-elsewhere", which is the spelling the "keys"
-# file uses — and "quit" besides, which every screen answers:
+# "reply_elsewhere" of "reader.reply_elsewhere", which is the spelling the "keys"
+# file uses — and "quit" besides, which every screen answers. A "-" in a name
+# reads as a "_", so a config written when they were spelled "reply-elsewhere"
+# is read as it stands:
 #
-#   arealist_hints  next-unread  rescan  quit
+#   arealist_hints  next_unread  rescan  quit
 #
 #   msglist_hints   quit
 #
-#   reader_hints    reply  reply-elsewhere  comment-reply  new  forward  change
+#   reader_hints    reply  reply_elsewhere  comment_reply  new  forward  change
 #                   delete  export  find  list  info  nodelist  kludges
-#                   scrollbar  thread-up  thread-down  quit
+#                   scrollbar  thread_up  thread_down  quit
 #
-#   compose_hints   save  attributes  import  header-back  delete-line
-#                   restore-line  delete-quote  delete-word  word-left
-#                   word-right  line-start  line-end  quit
+#   compose_hints   save  attributes  import  header_back  delete_line
+#                   restore_line  delete_quote  delete_word  word_left
+#                   word_right  line_start  line_end  quit
 #
 # What each of them does is written beside its key in amberkeys.cfg.example.
 #
@@ -614,10 +616,10 @@ hint_bar_capitalize off
 # is given: every key on it moves the cursor, so there is nothing to remind
 # anyone of. A list may otherwise be as long as you like — what the window has
 # no room for is left off the end of the row.
-arealist_hints next-unread rescan
+arealist_hints next_unread rescan
 msglist_hints none
-reader_hints reply reply-elsewhere new list export nodelist
-compose_hints save delete-line import
+reader_hints reply reply_elsewhere new list export nodelist
+compose_hints save delete_line import
 
 # Whether the reader and the message list show a back button — a left arrow in
 # the top-left corner. Optional; "when_narrow" by default. Esc does the same
@@ -649,8 +651,8 @@ compose_delete_line_button when_narrow
 #
 #   reader_menu   list             the list of messages in the area
 #                 reply            answer the message, quoting it
-#                 reply-elsewhere  answer it in another area
-#                 comment-reply    answer it addressed to whoever it was
+#                 reply_elsewhere  answer it in another area
+#                 comment_reply    answer it addressed to whoever it was
 #                                  written to, as Alt-Q does
 #                 new              write a new message
 #                 forward          pass the message on into another area,
@@ -670,14 +672,14 @@ compose_delete_line_button when_narrow
 # does menu_button off — the first for one screen, the second for both.
 #
 # The two lists below are the defaults. "change", "info", "export" and
-# "comment-reply" are left out of the reader's — write them in to have them:
+# "comment_reply" are left out of the reader's — write them in to have them:
 #
-#   reader_menu list reply reply-elsewhere comment-reply new forward find
+#   reader_menu list reply reply_elsewhere comment_reply new forward find
 #               change info export nodelist
 #
 # The area list and the message list carry no menu button and have no setting for
 # one.
-reader_menu list reply reply-elsewhere new forward find nodelist
+reader_menu list reply reply_elsewhere new forward find nodelist
 compose_menu save import
 
 # Whether the reader and the editor show the menu button at all. Optional;

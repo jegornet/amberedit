@@ -439,7 +439,7 @@ Rules that hold the design together:
   both protocol spellings always, the bare `ESC`+DEL (and `ESC`+BS) form only
   when `KeyMap::altBackspace()` says a layout wants it. It is the one other
   named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
-  naming the arrows and it; by default it is `compose.delete-word` beside
+  naming the arrows and it; by default it is `compose.delete_word` beside
   `Ctrl-W`.
 - Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`,
   without it ncurses resolves the ambiguity on its own timer
@@ -768,8 +768,8 @@ Rules that hold the design together:
     44/44` — whenever the line names another area, whether or not
     `areareplydirect` is on: it is a fact about the message.
 
-- **`comment-reply` is the same reply addressed to the recipient**: `Alt-Q`,
-  `reader.comment-reply`, `compose::startCommentReply()`. It differs from a
+- **`comment_reply` is the same reply addressed to the recipient**: `Alt-Q`,
+  `reader.comment_reply`, `compose::startCommentReply()`. It differs from a
   reply in `ComposeFields`' To row alone — `app::commentReply()` is
   `app::reply()` with `toName` off `header.to` and, in netmail, `toAddr` off
   `header.destAddr`. Both halves come from the recipient: a name at somebody
@@ -781,7 +781,7 @@ Rules that hold the design together:
     paths above hold for it unchanged, and `ComposeFields::reply` stays true —
     the quote, the REPLY kludge, `@Quoted` and the "reply" title are the
     reply's. There is no comment variant of `n`.
-  - **Offered but not given, and never shown unasked**: `comment-reply` is a
+  - **Offered but not given, and never shown unasked**: `comment_reply` is a
     command like any other, so `reader_menu` and `reader_hints` may both name
     it, and it is out of the default `readerMenu` and out of the default
     `readerHints`. Answering somebody the message did not come from is a thing
@@ -1173,7 +1173,7 @@ decides what an occurrence is.
 ### Writing into another area
 
 - **`n` and `m`** — answering the message on screen there, and passing it on in
-  one of three senses — with `reply-elsewhere` and `forward` in `reader_menu` for the
+  one of three senses — with `reply_elsewhere` and `forward` in `reader_menu` for the
   same two. `ui/area_dialog.*` is the modal both open: every area the tosser
   config declares, by name, in the order `arealist_sort` puts the area list in.
   It opens on the first of them and is searched by typing a name the way the area
@@ -2330,10 +2330,15 @@ AmberEdit's own layout or the file a `keys` line named.
   hint bars all read `config::Commands` — adding a command means adding a row
   there and asking for it in the screen that answers it, and nothing else keeps
   a second list.
-- **A name is written once and spelled one way.** `reader.reply-elsewhere` in a `keys`
-  file; `reply-elsewhere` in `reader_menu` and `reader_hints`, the config key already
+- **A name is written once and spelled one way.** `reader.reply_elsewhere` in a `keys`
+  file; `reply_elsewhere` in `reader_menu` and `reader_hints`, the config key already
   saying which screen is meant — `Commands::shortNameOf()` is the part after the
   dot and `Commands::namedOn()` is what a setting reads a word through.
+  - **A `-` reads as a `_`.** Two-word names were written `reply-elsewhere` once,
+    and a config that still says so is still read: both lookups fold the one
+    character into the other. Only the underscore is written — the table, every
+    error message and every example file spell a name one way, and the hyphen is
+    read and never offered.
 - **The list lives in `config/` rather than in `ui/`** because the config layer
   is what has to name a command — `reader_menu`, `reader_hints` — and it may not
   include the interface. What is drawn is a word and a glyph, which are data;

@@ -63,7 +63,7 @@ void startReply(AppState& state);
 /// It has no place in the default menu and none in the hint bar: it answers
 /// somebody the message on screen did not come from, which is a thing wanted
 /// now and then and never by accident. `Alt-Q` is what does it, and
-/// `reader_menu comment-reply` is how a button for it is asked for.
+/// `reader_menu comment_reply` is how a button for it is asked for.
 void startCommentReply(AppState& state);
 
 /// Starts the same reply, to be written into `target` rather than into the area

@@ -294,7 +294,7 @@ TEST_CASE("A click on a hint asks for the key it is written under [hintbar]") {
     // A layout that has moved the command moves what the click asks for with
     // it: the hint is written under the key it presses, whichever that is.
     fixture.state.keys =
-        amberedit::test::valueOf(KeyMap::parse("F5 reader.reply-elsewhere\n", "keys"));
+        amberedit::test::valueOf(KeyMap::parse("F5 reader.reply_elsewhere\n", "keys"));
     term::render(screen, hint_bar::render(fixture.state));
     REQUIRE(fixture.state.hintSpots.size() == 1);
     const auto moved = hint_bar::clicked(

@@ -179,12 +179,13 @@ every screen — bare, that is: `Alt-Left` and `Alt-Backspace` are chords of the
 own and may be bound — and the dialogs answer for themselves entirely. Naming
 one of them is an error rather than a line quietly dropped.
 
-The commands are `app.quit`; `arealist.next-unread` and `arealist.rescan`;
-`reader.` `reply`, `reply-elsewhere`, `comment-reply`, `new`, `forward`, `change`,
+The commands are `app.quit`; `arealist.next_unread` and `arealist.rescan`;
+`reader.` `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`,
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
-`thread-up` and `thread-down`; and `compose.` `save`, `attributes`, `import`,
-`header-back`, `delete-line`, `restore-line`, `delete-quote`, `delete-word`,
-`word-left`, `word-right`, `line-start` and `line-end`.
+`thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
+`header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`,
+`word_left`, `word_right`, `line_start` and `line_end`. A `-` reads as a `_`,
+so a config written when the names were spelled `reply-elsewhere` still loads.
 
 ### Finding a message
 

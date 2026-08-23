@@ -18,11 +18,11 @@ namespace amberedit::config {
 /// it left you on. The dialogs answer for themselves for the same reason.
 enum class Command : uint8_t {
     AppQuit,               ///< app.quit
-    AreaListNextUnread,    ///< arealist.next-unread
+    AreaListNextUnread,    ///< arealist.next_unread
     AreaListRescan,        ///< arealist.rescan
     ReaderReply,           ///< reader.reply
-    ReaderReplyElsewhere,  ///< reader.reply-elsewhere
-    ReaderCommentReply,    ///< reader.comment-reply
+    ReaderReplyElsewhere,  ///< reader.reply_elsewhere
+    ReaderCommentReply,    ///< reader.comment_reply
     ReaderNew,             ///< reader.new
     ReaderForward,         ///< reader.forward
     ReaderChange,          ///< reader.change
@@ -34,20 +34,20 @@ enum class Command : uint8_t {
     ReaderNodelist,        ///< reader.nodelist
     ReaderKludges,         ///< reader.kludges
     ReaderScrollbar,       ///< reader.scrollbar
-    ReaderThreadUp,        ///< reader.thread-up
-    ReaderThreadDown,      ///< reader.thread-down
+    ReaderThreadUp,        ///< reader.thread_up
+    ReaderThreadDown,      ///< reader.thread_down
     ComposeSave,           ///< compose.save
     ComposeAttributes,     ///< compose.attributes
     ComposeImport,         ///< compose.import
-    ComposeHeaderBack,     ///< compose.header-back
-    ComposeDeleteLine,     ///< compose.delete-line
-    ComposeRestoreLine,    ///< compose.restore-line
-    ComposeDeleteQuote,    ///< compose.delete-quote
-    ComposeDeleteWord,     ///< compose.delete-word
-    ComposeWordLeft,       ///< compose.word-left
-    ComposeWordRight,      ///< compose.word-right
-    ComposeLineStart,      ///< compose.line-start
-    ComposeLineEnd,        ///< compose.line-end
+    ComposeHeaderBack,     ///< compose.header_back
+    ComposeDeleteLine,     ///< compose.delete_line
+    ComposeRestoreLine,    ///< compose.restore_line
+    ComposeDeleteQuote,    ///< compose.delete_quote
+    ComposeDeleteWord,     ///< compose.delete_word
+    ComposeWordLeft,       ///< compose.word_left
+    ComposeWordRight,      ///< compose.word_right
+    ComposeLineStart,      ///< compose.line_start
+    ComposeLineEnd,        ///< compose.line_end
 };
 
 /// One past the last command, which is the width of the table a `KeyMap` keeps.
@@ -90,7 +90,7 @@ public:
     /// One command, entire.
     struct Info {
         Command command{};
-        /// What a config and a `keys` file call it: `reader.reply-elsewhere`. The
+        /// What a config and a `keys` file call it: `reader.reply_elsewhere`. The
         /// screen in front of the dot is what the two are read against, and
         /// `shortName` is the rest.
         std::string_view name;
@@ -131,18 +131,21 @@ public:
     /// One command, by its own value.
     [[nodiscard]] static const Info& of(Command command);
 
-    /// The part of the name after the screen it belongs to: `reader.reply-elsewhere`
-    /// reads as `reply-elsewhere`. What a menu and a hint list name a command by, the
+    /// The part of the name after the screen it belongs to: `reader.reply_elsewhere`
+    /// reads as `reply_elsewhere`. What a menu and a hint list name a command by, the
     /// config key already saying which screen is meant.
     [[nodiscard]] static std::string_view shortNameOf(Command command);
 
-    /// The command of that whole name — `reader.reply-elsewhere` — or nothing where no
-    /// command is called that. Read without regard to case.
+    /// The command of that whole name — `reader.reply_elsewhere` — or nothing where no
+    /// command is called that. Read without regard to case, and with `-` read as
+    /// `_`: `reader.reply-elsewhere` is how the same command was written once,
+    /// and a config that still says so is still read.
     [[nodiscard]] static const Info* named(std::string_view name);
 
     /// The command that screen calls by that short name, or nothing where it
     /// offers none — a screen's own commands and the ones answered everywhere,
-    /// and only those `where` can hold.
+    /// and only those `where` can hold. Read as `named()` reads, `-` and `_`
+    /// alike.
     [[nodiscard]] static const Info* namedOn(CommandScreen screen, std::string_view name,
                                              In where);
 
@@ -150,7 +153,7 @@ public:
     /// setting is read against and what its error message names.
     [[nodiscard]] static std::vector<Command> offeredOn(CommandScreen screen, In where);
 
-    /// Those names, in one line — `list, reply, reply-elsewhere, …`, which is how a
+    /// Those names, in one line — `list, reply, reply_elsewhere, …`, which is how a
     /// setting says what it would have taken.
     [[nodiscard]] static std::string offeredNamesOn(CommandScreen screen, In where);
 };

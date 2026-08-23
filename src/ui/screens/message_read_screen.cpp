@@ -1596,7 +1596,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // The same answer, addressed to whoever the message was written to rather
     // than to whoever wrote it — a comment on what was said to somebody else.
     // Alt-Q and nothing else: it is not in the hint bar, and a button for it is
-    // `reader_menu comment-reply`.
+    // `reader_menu comment_reply`.
     if (state.keys.is(event, Command::ReaderCommentReply)) {
         compose::startCommentReply(state);
         return true;

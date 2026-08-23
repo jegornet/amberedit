@@ -38,33 +38,33 @@ TEST_CASE("Every command is one row of the one table [commands]") {
 
 TEST_CASE("A command is found by the name it is written under [commands]") {
     // The whole name is what a `keys` file names it by, without regard to case.
-    REQUIRE(Commands::named("reader.reply-elsewhere") != nullptr);
-    CHECK(Commands::named("reader.reply-elsewhere")->command ==
+    REQUIRE(Commands::named("reader.reply_elsewhere") != nullptr);
+    CHECK(Commands::named("reader.reply_elsewhere")->command ==
           Command::ReaderReplyElsewhere);
-    CHECK(Commands::named("READER.REPLY-ELSEWHERE")->command ==
+    CHECK(Commands::named("READER.REPLY_ELSEWHERE")->command ==
           Command::ReaderReplyElsewhere);
-    CHECK(Commands::named("reply-elsewhere") == nullptr);
+    CHECK(Commands::named("reply_elsewhere") == nullptr);
     CHECK(Commands::named("reader.nothing") == nullptr);
 
     // A menu and a hint list name the part after the dot, the config key
     // already saying which screen is meant.
-    const auto* hint = Commands::namedOn(CommandScreen::Reader, "reply-elsewhere",
+    const auto* hint = Commands::namedOn(CommandScreen::Reader, "reply_elsewhere",
                                          Commands::In::HintBar);
     REQUIRE(hint != nullptr);
     CHECK(hint->command == Command::ReaderReplyElsewhere);
-    CHECK(Commands::shortNameOf(hint->command) == "reply-elsewhere");
+    CHECK(Commands::shortNameOf(hint->command) == "reply_elsewhere");
 
     // One screen's commands are not another's, whichever list is being read.
-    CHECK(Commands::namedOn(CommandScreen::Compose, "reply-elsewhere",
+    CHECK(Commands::namedOn(CommandScreen::Compose, "reply_elsewhere",
                             Commands::In::HintBar) == nullptr);
     CHECK(Commands::namedOn(CommandScreen::AreaList, "save", Commands::In::Menu) ==
           nullptr);
 
     // A hint is a key with its name beside it, so any command of the screen may
     // be one; a menu holds what a button can stand for, which is fewer.
-    CHECK(Commands::namedOn(CommandScreen::Compose, "delete-line",
+    CHECK(Commands::namedOn(CommandScreen::Compose, "delete_line",
                             Commands::In::HintBar) != nullptr);
-    CHECK(Commands::namedOn(CommandScreen::Compose, "delete-line", Commands::In::Menu) ==
+    CHECK(Commands::namedOn(CommandScreen::Compose, "delete_line", Commands::In::Menu) ==
           nullptr);
 
     // `app.quit` is answered before every screen, so every screen's row may
@@ -75,6 +75,32 @@ TEST_CASE("A command is found by the name it is written under [commands]") {
         CHECK(Commands::namedOn(screen, "quit", Commands::In::HintBar) != nullptr);
         CHECK(Commands::namedOn(screen, "quit", Commands::In::Menu) == nullptr);
     }
+}
+
+TEST_CASE("The older spelling of a name is still read [commands]") {
+    // Two-word names were written with a `-` once, and a config or a `keys`
+    // file that still writes one is read as it stands — the `-` folds into the
+    // `_` wherever a name is looked up, case folding as it always did.
+    REQUIRE(Commands::named("reader.reply-elsewhere") != nullptr);
+    CHECK(Commands::named("reader.reply-elsewhere")->command ==
+          Command::ReaderReplyElsewhere);
+    CHECK(Commands::named("READER.REPLY-ELSEWHERE")->command ==
+          Command::ReaderReplyElsewhere);
+
+    const auto* hint = Commands::namedOn(CommandScreen::Compose, "delete-line",
+                                         Commands::In::HintBar);
+    REQUIRE(hint != nullptr);
+    CHECK(hint->command == Command::ComposeDeleteLine);
+
+    // Only the one spelling is ever offered back, whichever was written.
+    CHECK(Commands::shortNameOf(hint->command) == "delete_line");
+    CHECK(Commands::offeredNamesOn(CommandScreen::Compose, Commands::In::HintBar)
+              .find('-') == std::string::npos);
+
+    // The fold is between those two characters and nothing else: a name is not
+    // a pattern, and a wrong character is still a wrong name.
+    CHECK(Commands::named("reader reply_elsewhere") == nullptr);
+    CHECK(Commands::named("reader.replyelsewhere") == nullptr);
 }
 
 TEST_CASE("What a screen offers is named once and told the same way [commands]") {
