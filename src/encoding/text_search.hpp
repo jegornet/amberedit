@@ -31,7 +31,7 @@ struct TextMatch {
 ///   states is a subset of those, so folding the decoded text is the same
 ///   answer folding the stored bytes would give, and it is also the right
 ///   answer for a message that states UTF-8.
-/// - **CP866 alone carries the Russian quirks**: a message written in it may
+/// - **CP866 alone carries the Russian language support quirks**: a message written in it may
 ///   spell Н, р and у with the Latin letters that look the same on a DOS screen
 ///   — H, p and y — because the two are a keyboard layout apart. Those pairs are
 ///   folded together, and only there: in a western area they are six different
@@ -76,7 +76,7 @@ private:
 
     std::string query_;
     std::string charset_;
-    /// Whether the charset is the one the Russian quirks belong to.
+    /// Whether the charset is the one the Russian language support quirks belong to.
     bool quirks_{false};
     /// The query folded down to one unit per character.
     std::vector<char32_t> needle_;

@@ -286,7 +286,7 @@ TEST_CASE("A search reads the charset the message declares [find][squish]") {
     CHECK(showing(fixture) == 2);
     CHECK(highlighted(fixture) == std::vector<std::string>{"Привет"});
 
-    // The Russian quirks are CP866's alone: a Latin p for the Cyrillic р finds
+    // The Russian language support quirks are CP866's alone: a Latin p for the Cyrillic р finds
     // the CP866 message and steps over the KOI8-R one.
     AreaFixture other(base.path(), plain());
     REQUIRE(message_list::enterArea(other.state, other.area).has_value());

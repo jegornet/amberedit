@@ -673,7 +673,7 @@ compose_delete_line_button when_narrow
 #                 new              write a new message
 #                 forward          pass the message on into another area,
 #                                  as `m` does
-#                 find             look for a message in the area, as `f` does
+#                 find             look for a message in the area, as ^F does
 #                 change           change the message, as `c`/F2 does
 #                 info             what the base holds about it, as `i` does
 #                 export           write it out to a text file, as `w` does
@@ -801,7 +801,7 @@ quote_string " FL> "
 # type yourself, which are wrapped by whatever shows them.
 quote_margin 78
 
-# The two lines standing either side of a file read into a message as text — ^T
+# The two lines standing either side of a file read into a message as text — ^O
 # in the editor, and "import" in compose_menu. Optional; "=== Cut ===" both. An
 # empty one writes no line at all. Only text is fenced: a file read in as UUE
 # carries its own "begin" and "end".

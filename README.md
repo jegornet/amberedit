@@ -109,8 +109,8 @@ names is yours to write down as well — `arealist_hints`, `msglist_hints`,
 | `m` | forward, move or copy into another area |
 | `c` / `F2` | change the message |
 | `d` / `Del` | delete it (asks first) |
-| `-` `+` | up and down the thread |
-| `f` | look for a message in the area |
+| `-` `+` / `=` | up and down the thread |
+| `Ctrl-F` / `F6` | look for a message in the area |
 | `l` / `F9` | the list of messages |
 | `k` | show the kludges — a reply then quotes them, a forward carries them |
 | `b` | the scrollbar |
@@ -135,7 +135,7 @@ names is yours to write down as well — `arealist_hints`, `msglist_hints`,
 | `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` | delete the quoted text after the cursor                            |
 | `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
-| `Alt+←` `Alt+→` | by words                                                           |
+| `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 
 ### Rebinding the keys
@@ -179,13 +179,13 @@ The commands are `app.quit`; `arealist.next-unread` and `arealist.rescan`;
 
 ### Finding a message
 
-**`f` in the reader** asks what to look for and how much of a message to read it
-against — the header and the text, or the header alone, the header being the
-From and To names, the addresses under them and the subject. The search runs from
-the message on screen to the end of the area; the same words looked for again go
-on from the message after the one that was found, so `f`, Enter, `f`, Enter walks
-from occurrence to occurrence. It stops at the end of the area rather than
-wrapping round to the front.
+**Ctrl-F (or F6) in the reader** asks what to look for and how much of a message
+to read it against — the header and the text, or the header alone, the header
+being the From and To names, the addresses under them and the subject. The search
+runs from the message on screen to the end of the area; the same words looked for
+again go on from the message after the one that was found, so Ctrl-F, Enter,
+Ctrl-F, Enter walks from occurrence to occurrence. It stops at the end of the
+area rather than wrapping round to the front.
 
 The message found opens scrolled to the occurrence, with every occurrence in it —
 in the body and in the header block alike — on the theme's `found` fill. Moving
@@ -193,7 +193,7 @@ to another message takes the highlight off.
 
 **Case is folded by the charset the message declares** — its `CHRS` kludge, or
 the area's `default_charset` where it carries none — rather than by the locale. **CP866
-carries the Russian quirks** with it: a message written in it may spell Н, р and
+carries the Russian language support quirks** with it: a message written in it may spell Н, р and
 у with the Latin H, p and y, so those pairs are folded together — and only there,
 since in a western area they are six different letters.
 

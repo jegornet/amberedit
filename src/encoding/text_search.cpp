@@ -71,7 +71,7 @@ char32_t lowered(char32_t code) {
     return code;
 }
 
-/// The Russian quirks, applied to an already lower-cased code point.
+/// The Russian language support quirks, applied to an already lower-cased code point.
 ///
 /// A message written in CP866 may spell н, р and у with the Latin h, p and y:
 /// on a DOS screen the glyphs are the same and the keys are one layout apart, so

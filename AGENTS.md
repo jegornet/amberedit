@@ -801,7 +801,7 @@ decides what an occurrence is.
   message states is a subset of. That makes folding the decoded text the same
   answer folding the stored bytes would give, and it is also the right answer for
   a message stating UTF-8.
-- **CP866 alone carries the Russian quirks.** A message written in it may spell
+- **CP866 alone carries the Russian language support quirks.** A message written in it may spell
   н, р and у with the Latin h, p and y: the glyphs are the same on a DOS screen
   and the keys are one layout apart. The three pairs are folded together — and
   the capitals with them, since the lower-casing runs first — and only under that
@@ -811,8 +811,8 @@ decides what an occurrence is.
   learn it.
 - **A search starts on the message in front of the user and stops at the end of
   the area.** Nothing wraps round to the front. **The same words looked for again
-  start on the message after the one found**, which is what makes `f`, Enter, `f`,
-  Enter walk from occurrence to occurrence; `AppState::LastFind` is the whole of
+  start on the message after the one found**, which is what makes `Ctrl-F`,
+  Enter, `Ctrl-F`, Enter walk from occurrence to occurrence; `AppState::LastFind` is the whole of
   that memory, and it holds the area as well as the query, because the same words
   looked for in the *next* area are a first search there and starting them one
   message in would pass over its first message.
@@ -1327,7 +1327,7 @@ taking a row.
     which is also why the *dialog* reads the file: `app_shell.cpp` only takes the
     lines and hands them to `compose::insertImported()`. The directory and the
     mode outlive the dialog, on `AppState` rather than in the picker.
-- **`f` in the reader looks for a message in the area**, through
+- **`Ctrl-F` in the reader looks for a message in the area**, through
   `ui/find_dialog.*`: the words in a field, and under them a pair of radio
   buttons saying how much of a message to read them against. Tab walks the three
   stops — the field, the answers, the **Find** button — and Enter searches from
