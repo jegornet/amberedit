@@ -49,6 +49,18 @@ struct NodelistSpec {
     [[nodiscard]] static NodelistSpec of(const std::string& spec);
 };
 
+/// A path with its extension put back into the pattern it is one of: a day
+/// number (`.001` to `.366`) becomes `.999`, and a `Z` and a counter (`.z01` to
+/// `.z99`) becomes `.z99` with the letter left as it was written. Anything else
+/// comes back as it came, `.999` and `.Z99` included, so saying it twice says
+/// the same thing.
+///
+/// The inverse of `NodelistSpec::of`, and here for that reason: what a `.999`
+/// means is stated in one file. It is what a config wants written where a user
+/// has pointed at today's nodelist — `Z2DAILY.255` is the file that is there
+/// now, and `Z2DAILY.999` is that file tomorrow as well.
+[[nodiscard]] std::string generalizedSpec(const std::string& path);
+
 /// The newest file the spec covers, or nullopt where the directory holds none.
 ///
 /// Newest is the file's own modification time, with the higher day number

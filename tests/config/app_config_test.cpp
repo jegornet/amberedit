@@ -758,9 +758,8 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     const std::string error10 = formatError("\"e\\n\\nd\"");
     CHECK_MESSAGE(contains(error10, "holds no fields"), error10);
     // A row taller than any format worth writing is a \n typed once too often.
-    const std::string error11 = formatError(
-        "\"e\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\"");
-    CHECK_MESSAGE(contains(error11, "more than 16 lines"), error11);
+    const std::string error11 = formatError("\"e\\ne\\ne\\ne\\ne\\ne\\ne\"");
+    CHECK_MESSAGE(contains(error11, "more than 5 lines"), error11);
     // The wide format is read as closely as the narrow one.
     const std::string error12 = formatError("\"e c un\" \"e x\"");
     CHECK_MESSAGE(contains(error12, "is not a field"), error12);

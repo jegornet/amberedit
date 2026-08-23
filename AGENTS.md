@@ -571,7 +571,7 @@ Rules that hold the design together:
   apart keep the tosser config's order" means.
 - **What a row holds is `arealist_format`'s.** The shape of the value —
   letters, the width after each, a space standing for itself, `\n` for the next
-  line of the row, at most sixteen lines and no empty ones — is
+  line of the row, at most five lines and no empty ones — is
   `config/list_format.*`'s, shared with `msglist_format` so that a rule which
   held for one list cannot fail to hold for the other; which column a letter
   names is all either setting decides for itself. (The config file knows no
@@ -1276,6 +1276,26 @@ acting on the click.
 rule carries the keys, and what went wrong in their place, rather than either
 taking a row.
 
+- **`--setup` is the one dialog that runs before there is a config.** It has no
+  `AppState` to hang on — that is built out of an `AppConfig` and an
+  `AreaManager`, and the whole point of the wizard is that there is neither yet —
+  so `ui/setup/*` keeps a `SetupState` of its own and `setup_run.cpp` owns a
+  `Terminal` and a loop of its own, the shape `ui/term/terminal.hpp` describes.
+  Everything but that one file is drawn and dispatched like any other dialog and
+  is driven by the tests without a terminal. It asks five questions — who you
+  are and which tosser config, where that config is, the charset read and the
+  charset written, and a nodelist that may be skipped — and the sixth step is
+  the config itself: what will be written, where, and the button that writes it.
+  - **Enter walks the questions of a step; Next is what checks them.** This is
+    the one dialog where Enter does not act wherever the typing is: a step is
+    several fields, and a name typed with the address still empty is a step being
+    answered rather than a mistake to be told about. So Enter moves to the next
+    thing the step asks for — stepping over Back and Skip — and lands on Next
+    once it has asked everything, and the checks run there, on Enter or on a
+    click. Inside the listing Enter keeps its ordinary meaning: it opens a
+    directory and picks a file, and picking one puts the typing on Next. `main.cpp` refuses it where `findDefaultConfigPath()` already
+  answers, and refuses it with `-c`: it writes a config rather than reading one.
+
 - **`i` shows what the base holds about the message** — the storage rather than
   the message: the stored header field by field, the records naming it, and a
   hexdump of the bytes each is made of. `ui/info_dialog.*` shows and does not
@@ -1709,6 +1729,17 @@ taking a row.
   `key = value` — are named for what they are rather than read as odd values.
   `group ... endgroup` is read out of the flat list by `app_config.cpp`, not by
   `cfg_file.cpp`, which the themes share and where a block would mean nothing.
+- **`amberedit.cfg.example` is a build input, not only documentation.**
+  `cmake/embed_resources.cmake` puts it and `default.tpl` into the binary, and
+  `config/config_writer.cpp` writes a first config by filling that sample in —
+  so what `--setup` leaves on disk is the whole commented file with the answers
+  in the lines that state them. The lines it edits are matched at column 0 with
+  their trailing space (`name `, `address `, `tosser_config `,
+  `tosser_config_format `, `default_charset `, `compose_charset `, `template `,
+  `origin `, `#nodelist `, `#nodelist_db `), and a sample that no longer holds
+  exactly one of them fails the render rather than writing a config that is
+  missing a required key. Move a setting inside the sample freely; do not take
+  one of those lines out or write a second one.
 - **`tmpdir` is optional, and `config::makeTempDir()` is the one place that
   knows why.** Whoever needs somewhere to work calls it with `cfg.tempDirPath`
   and gets a directory made and ready: the setting where it names one, and

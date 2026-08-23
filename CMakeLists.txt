@@ -246,6 +246,30 @@ if(AMBEREDIT_FILESYSTEM_NEEDS_STDCXXFS)
   target_link_libraries(amberedit_filesystem INTERFACE stdc++fs)
 endif()
 
+# --- embedded resources ------------------------------------------------------
+# `--setup` writes a whole commented config, which means it needs the sample one,
+# and the sample one is not installed (see the install() rules at the end: the
+# binary, the template and the themes go in, the documentation does not). So it
+# is compiled in, and `default.tpl` with it for a `--setup` run that finds no
+# installed copy of the template to point the config at.
+#
+# The generated source is part of the core rather than of the executable so that
+# the tests reach it: what the wizard writes is checked by parsing it back, and
+# that check is worth nothing if it does not run against the file that ships.
+set(amberedit_embedded ${CMAKE_BINARY_DIR}/generated/embedded_resources.cpp)
+add_custom_command(
+  OUTPUT ${amberedit_embedded}
+  COMMAND ${CMAKE_COMMAND}
+          -DEXAMPLE_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/amberedit.cfg.example
+          -DDEFAULT_TEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/default.tpl
+          -DOUTPUT=${amberedit_embedded}
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/amberedit.cfg.example
+          ${CMAKE_CURRENT_SOURCE_DIR}/default.tpl
+          ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
+  COMMENT "Embedding amberedit.cfg.example and default.tpl"
+  VERBATIM)
+
 # --- application core --------------------------------------------------------
 add_library(amberedit_core STATIC
   src/domain/ftn_address.cpp
@@ -263,6 +287,8 @@ add_library(amberedit_core STATIC
   src/config/manual_area_source.cpp
   src/config/areas_bbs_parser.cpp
   src/config/squish_cfg_parser.cpp
+  src/config/config_writer.cpp
+  ${amberedit_embedded}
   src/encoding/charset_detector.cpp
   src/encoding/iconv_recoder.cpp
   src/encoding/locale_charset.cpp
@@ -415,10 +441,15 @@ add_executable(amberedit
   src/ui/nodelist_dialog.cpp
   src/ui/reply_dialog.cpp
   src/ui/rescan_dialog.cpp
+  src/ui/text_field.cpp
   src/ui/text_layout.cpp
   src/ui/text_editor.cpp
   src/ui/edit_layout.cpp
   src/ui/theme.cpp
+  src/ui/setup/file_picker.cpp
+  src/ui/setup/setup_run.cpp
+  src/ui/setup/setup_wizard.cpp
+  src/ui/setup/wizard_checks.cpp
   src/ui/screens/area_list_screen.cpp
   src/ui/screens/compose_screen.cpp
   src/ui/screens/message_list_screen.cpp

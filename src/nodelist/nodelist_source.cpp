@@ -143,6 +143,28 @@ NodelistSpec NodelistSpec::of(const std::string& spec) {
     return parsed;
 }
 
+std::string generalizedSpec(const std::string& path) {
+    const fs::path parsed(path);
+    const std::string name = parsed.filename().string();
+    const std::string_view extension = extensionOf(name);
+
+    std::string wanted;
+    if (dayNumber(extension)) {
+        wanted = "999";
+    } else if (const auto counter = archiveNumber(extension); counter && *counter >= 1) {
+        // The letter as the archive spells it: a config naming `z2pnt.Z99` for a
+        // directory of `z2pnt.z01` files reads no worse, but a path that comes
+        // back in a case the user did not write it in reads like a mistake.
+        wanted = std::string(1, extension[0]) + "99";
+    } else {
+        return path;
+    }
+
+    fs::path generalized = parsed;
+    generalized.replace_filename(std::string(stemOf(name)) + "." + wanted);
+    return generalized.string();
+}
+
 std::optional<std::string> newestMatch(const NodelistSpec& spec) {
     // A name with nothing to match in it is looked up as it stands: it is the
     // ordinary case, and going through a directory listing for it would answer

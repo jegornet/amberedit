@@ -83,10 +83,11 @@ struct ListFormatSpec {
                                                     const ListFormatSpec& spec,
                                                     const std::string& value);
 
-/// A row stands at most this many lines tall. Well past any format worth
-/// writing, and short enough that a `\n` typed once too often is caught while
-/// the config is read rather than leaving the list one row to a screen.
-constexpr int kMaxFormatLines = 16;
+/// A row stands at most this many lines tall. Past any format worth writing —
+/// an area or a message has five lines' worth to say about itself and no more —
+/// and short enough that a `\n` typed once too often is caught while the config
+/// is read rather than leaving the list one row to a screen.
+constexpr int kMaxFormatLines = 5;
 
 /// The two formats one line names: the narrow window's and the wide one's, the
 /// line either side of `adaptive_ui_threshold`. A line with one format on it

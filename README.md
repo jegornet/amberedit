@@ -59,12 +59,20 @@ the project would build as-is (probably not) or whether Windows support could be
 ## Running
 
 ```bash
-cp amberedit.cfg.example ~/.ambereditrc   # then fix up the paths
+amberedit --setup                         # asks five questions, writes the config
 amberedit                                 # or: amberedit -c some/amberedit.cfg
 ```
 
+`--setup` is the short way to a first config: your name and address, which tosser
+config you have and where it is, the charset your mail is read and written in,
+and a nodelist if you have one. What it writes is the whole of
+`amberedit.cfg.example` with your answers in it, so everything else is there,
+commented, to change later. Copying that file by hand and fixing up the paths
+works exactly as it always did.
+
 ```
 -c, --config <path>   the config to read
+    --setup           ask what a first config should say and write one
     --compile         compile the nodelists and echolists before starting,
                       changed or not
 -h, --help            usage
@@ -291,7 +299,9 @@ Also, we have `themes/blue.cfg` and `themes/white.cfg`
 
 Without `-c` the config is looked for in `$AMBEREDIT_CONFIG`, `./amberedit.cfg`
 and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
-defaults to, is in `amberedit.cfg.example`.
+defaults to, is in `amberedit.cfg.example`. `amberedit --setup` writes a config
+out of that file for you, and refuses to run where one of those three is already
+there.
 
 ## License
 

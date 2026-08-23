@@ -65,6 +65,17 @@ private:
     std::string currentTo_;
 };
 
+/// Whether iconv on this machine knows the charset, both ways round — a name it
+/// will decode from but will not encode into is no use to a config that states
+/// it as the charset messages are written in. Nothing is converted: this opens
+/// two descriptors and closes them again.
+///
+/// It is what asks the question the config layer never asks. A charset there is
+/// a word taken as it is written and only tried at the first message, which is
+/// right for a config somebody keeps — but the setup wizard has the user in
+/// front of it, and a typo is worth catching while there is somebody to fix it.
+[[nodiscard]] Result<void> checkCharset(const std::string& charset);
+
 /// True if the string is well-formed UTF-8. Used both to avoid recoding text
 /// that already is UTF-8 and to keep broken bytes out of the terminal.
 bool isValidUtf8(std::string_view text);
