@@ -23,15 +23,16 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Squish, JAM and Fido `*.msg`** messagebase format, with the areas taken from
   your tosser's config (fidoconfig, `areas.bbs` or `squish.cfg`), and from
   `area … endarea` blocks of your own for manual area configuration.
-- **Writing**: reply, reply into another area, forward, move or copy a message
-  elsewhere, change one that is already in a base, delete. Carbon copies and
-  crossposts (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates.
+- **Reading and writing**: reply, reply into another area, forward, move or copy 
+  a message elsewhere, change one that is already in a base, delete. Carbon copies and
+  crossposts (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates. And twitting
+  those names or subjects you won't read.
 - **Text and UUE import/export**: read a file into a message as text or uuencoded,
   write a message out to a text file, or take the uuencoded files back out of one.
-- **Nodelists and pointlists**, automatically compiled at startup when they change
+- **Nodelists and pointlists**, including ZIP-archived — automatically compiled at startup
+   when they change
 - **Echolists**, compiled at startup on the same terms
-- **Color Themes** in the terminal's own 256 colours
-- **Twits** — FidoNet just won't be FidoNet without them.
+- **Color Themes** in the terminal's own 256 colors
 - **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental.
 <details>
 <summary>ANSI graphics demo</summary>
@@ -46,8 +47,14 @@ and Fedora, debs for Debian stable and Ubuntu 22.04 and 24.04, and tarballs for
 macOS on both architectures.
 
 Building it yourself needs CMake ≥ 3.16, a C++17 compiler, git, iconv, zlib,
-tl::expected and the wide-character ncurses — [INSTALL.md](INSTALL.md) has the commands, and what
-differs on macOS.
+tl::expected and the wide-character ncurses — [INSTALL.md](INSTALL.md) has the commands,
+and what differs on macOS.
+
+## Windows support?
+
+Currently, only macOS and Linux. I don't have any Windows devices, so I can't say whether 
+the project would build as-is (probably not) or whether Windows support could be implemented
+(probably yes).
 
 ## Running
 
@@ -222,7 +229,7 @@ Copies of a message written in an echo go to the netmail area that echo's
 
 **Ctrl-N (or F10) in the reader** opens the nodelist on whoever wrote the message
 on screen.
-The Lookup line takes an address, whole or in part — `2`, `2:240`, `2:240/1120`
+The Lookup line takes an address, whole or in part — `2`, `2:382`, `2:382/736`
 — or any part of a sysop's name, and Enter walks through everything it finds.
 The list is the whole nodelist either way: a node is worth as much for its
 neighbours as for itself.
@@ -270,17 +277,16 @@ See `amberedit.cfg.example`.
 
 ### Themes
 
-A colour in a theme is a number from 0 to 255 — an entry in the terminal's own
-256-colour palette, the same numbering `ESC[38;5;Nm` uses. Entries 0–15 are the
-colours you have already chosen for everything else you run.
+A color in a theme is a number from 0 to 255 — an entry in
+[256-color palette](https://www.ditig.com/256-colors-cheat-sheet). Entries 0–15 are the
+colors you have already chosen for everything else you run.
 
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
 with when the config names no theme, and the file to copy and edit.
-`themes/blue.cfg` is a navy screen with sky blue on it, `themes/white.cfg` a
-near-white one with near-black on it for a light terminal, and
 `themes/16_colors.cfg` uses nothing above 15, so it is exact even on a console
 that has only those; a terminal with fewer colours than a theme asks for gets the
 nearest it has.
+Also, we have `themes/blue.cfg` and `themes/white.cfg`
 
 ### Configuration
 
