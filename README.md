@@ -69,42 +69,9 @@ amberedit                                 # or: amberedit -c some/amberedit.cfg
 
 **First run: `amberedit --setup`.** Six steps — who you are and which tosser
 config you keep, where that file is, the charset your mail is read in and the one
-it is written in, a nodelist if you have one, and where the config goes:
+it is written in, a nodelist if you have one, and where the config goes.
 
-```
-╭───────────── General parameters — step 1 of 6 ─────────────╮
-│ Who the messages you write are from.                       │
-│ Name:    John Doe__________________________________________│
-│ Address: 2:382/736_________________________________________│
-│ e.g. John Doe, 2:382/736                                   │
-├────────────────────────────────────────────────────────────┤
-│ Your areas come from your tosser's config, which is:       │
-│   (*) HPT (Fidoconfig)                                     │
-│   ( ) areas.bbs                                            │
-│   ( ) squish.cfg                                           │
-├────────────────────────────────────────────────────────────┤
-│                                                   [ Next ] │
-╰ Enter next field · Tab move · Esc leave ───────────────────╯
-```
-
-Every answer is checked as you leave the step, the two file steps are a directory
-you walk with the arrows or the mouse, and the nodelist step can be skipped. What
-it writes is the whole of `amberedit.cfg.example` with your answers in the lines
-that state them — so every other setting is there, commented, to change later. It
-points `template` at the message template your install put under
-`/usr/share/amberedit`, and writes a copy of it beside the config where there is
-none to point at. It refuses to run where there is a config already; copying
-`amberedit.cfg.example` by hand and fixing up the paths works exactly as it
-always did.
-
-```
--c, --config <path>   the config to read
-    --setup           ask what a first config should say and write one
-    --compile         compile the nodelists and echolists before starting,
-                      changed or not
--h, --help            usage
--V, --version         the version AmberEdit signs its messages with
-```
+Run `amberedit --help` for more command line options.
 
 ### Keys
 
@@ -326,9 +293,8 @@ Also, we have `themes/blue.cfg` and `themes/white.cfg`
 
 Without `-c` the config is looked for in `$AMBEREDIT_CONFIG`, `./amberedit.cfg`
 and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
-defaults to, is in `amberedit.cfg.example`. `amberedit --setup` writes a config
-out of that file for you, and refuses to run where one of those three is already
-there.
+defaults to, is in `amberedit.cfg.example`. Also, `amberedit --setup` writes 
+a config out of that file for you.
 
 A `group … endgroup` block states settings for the echoes its `member` patterns
 match — the charsets, the origin, the template, the twits and the rest of what is
