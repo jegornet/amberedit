@@ -12,7 +12,7 @@ $$    $$ $$   $$   $$ `Q$$$$@' `@$$$$Q: $$       `@$$$$@% `Q@$$@@' $$   `@$$0'
 
 A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux and macOS.
 
-<img src="amberedit_demo.gif" alt="demo" width="400">
+<img src="amberedit_demo.gif" alt="demo" width="400" />
 
 ## Features
 
@@ -32,7 +32,11 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Echolists**, compiled at startup on the same terms
 - **Color Themes** in the terminal's own 256 colours
 - **Twits** — FidoNet just won't be FidoNet without them.
-- **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental
+- **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental.
+<details>
+<summary>ANSI graphics demo</summary>
+<img src="amberedit_demo_ansi.gif" alt="ansi demo" />
+</details>
 
 ## Building and installing
 
