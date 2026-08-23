@@ -24,6 +24,25 @@ constexpr const char kReplacement[] = "\xEF\xBF\xBD";  // U+FFFD
 
 }  // namespace
 
+Result<void> checkCharset(const std::string& charset) {
+    if (charset.empty()) return failure("no charset is named");
+
+    // Both directions, because both are what a config asks of a charset: a
+    // message is read in one and written in the other.
+    const iconv_t in = iconv_open("UTF-8//TRANSLIT", charset.c_str());
+    if (in == invalidDescriptor()) {
+        return failure("iconv does not know the charset '" + charset + "'");
+    }
+    iconv_close(in);
+
+    const iconv_t out = iconv_open((charset + "//TRANSLIT").c_str(), "UTF-8");
+    if (out == invalidDescriptor()) {
+        return failure("iconv does not know the charset '" + charset + "'");
+    }
+    iconv_close(out);
+    return {};
+}
+
 bool isValidUtf8(std::string_view text) {
     size_t i = 0;
     while (i < text.size()) {

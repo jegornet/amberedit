@@ -47,6 +47,12 @@ bool isFlexible(const config::MsgListField& field) {
     return field.width == 0;
 }
 
+/// Whether the field is a Date column that works its own width out from the
+/// stamps in it, which is the pass between the fixed widths and the shares.
+bool isMeasuredDate(const config::MsgListField& field) {
+    return field.kind == MsgFieldKind::Date && field.width == config::kAutoWidth;
+}
+
 /// The number column is never narrower than this, however few messages the area
 /// holds: a handful of them should still read as a column rather than as a
 /// stray digit against the left edge.
@@ -76,7 +82,7 @@ std::string cellText(const Row& row, const Column& column) {
         case MsgFieldKind::To: return truncateToWidth(row.header->to, column.width);
         case MsgFieldKind::Subject:
             return truncateToWidth(row.header->subject, column.width);
-        case MsgFieldKind::Date: return fitDate(row.stamp, column.width);
+        case MsgFieldKind::Date: return fitDate(stampOf(row, column), column.width);
         case MsgFieldKind::Space: return "";
     }
     return "";
@@ -97,6 +103,11 @@ Ink inkOf(const Row& row, MsgFieldKind kind) {
 
 }  // namespace
 
+std::string stampOf(const Row& row, const Column& column) {
+    if (row.header == nullptr) return {};
+    return row.header->date.format(column.format, row.header->utcOffset);
+}
+
 std::string fitDate(const std::string& stamp, int width) {
     if (width <= 0) return {};
     if (displayWidth(stamp) <= width) return stamp;
@@ -112,15 +123,29 @@ std::string fitDate(const std::string& stamp, int width) {
 }
 
 Line layoutLine(const config::MsgListLine& fields, int width, uint32_t messageCount,
-                const std::vector<Row>& shown) {
+                const std::vector<Row>& shown, const std::string& defaultDateFormat) {
+    // What each field is written with, settled before anything is measured: the
+    // format the field named, or the reader's where it named none. A Date column
+    // is measured and drawn through the same string this way, and nothing below
+    // has a default left to remember.
+    std::vector<std::string> formats;
+    formats.reserve(fields.size());
+    for (const auto& field : fields) {
+        if (field.kind != MsgFieldKind::Date) {
+            formats.emplace_back();
+        } else {
+            formats.push_back(field.dateFormat.empty() ? defaultDateFormat
+                                                       : field.dateFormat);
+        }
+    }
+
     int fixed = 0;
     int dates = 0;
     int flexible = 0;
     for (const auto& field : fields) {
         if (isFlexible(field)) {
             ++flexible;
-        } else if (field.width == config::kAutoWidth &&
-                   field.kind == MsgFieldKind::Date) {
+        } else if (isMeasuredDate(field)) {
             ++dates;
         } else {
             fixed += fixedWidthOf(field, messageCount);
@@ -129,18 +154,26 @@ Line layoutLine(const config::MsgListLine& fields, int width, uint32_t messageCo
 
     int spare = std::max(0, width - fixed);
 
-    // The Date column's own pass. It stands between the fixed widths and the
-    // shares because what it does not use is worth more to the fields written
-    // `0` than an empty five columns of stamp would be.
-    int dateWidth = 0;
+    // The Date columns' own pass. It stands between the fixed widths and the
+    // shares because what they do not use is worth more to the fields written
+    // `0` than an empty five columns of stamp would be. Each is measured through
+    // its own format — two of them may show quite different stamps — but the
+    // room is shared equally, so neither can crowd the other out.
+    std::vector<int> dateWidths(fields.size(), 0);
     if (dates > 0) {
         const int cap = spare / dates;
-        int needed = std::min(cap, displayWidth(headingOf(MsgFieldKind::Date)));
-        for (const auto& row : shown) {
-            needed = std::max(needed, displayWidth(fitDate(row.stamp, cap)));
+        const int heading = std::min(cap, displayWidth(headingOf(MsgFieldKind::Date)));
+        for (size_t at = 0; at < fields.size(); ++at) {
+            if (!isMeasuredDate(fields[at])) continue;
+            int needed = heading;
+            for (const auto& row : shown) {
+                const Column measured{MsgFieldKind::Date, cap, formats[at]};
+                needed =
+                    std::max(needed, displayWidth(fitDate(stampOf(row, measured), cap)));
+            }
+            dateWidths[at] = std::min(cap, needed);
+            spare -= dateWidths[at];
         }
-        dateWidth = std::min(cap, needed);
-        spare -= dateWidth * dates;
     }
 
     const int each = flexible > 0 ? spare / flexible : 0;
@@ -148,25 +181,26 @@ Line layoutLine(const config::MsgListLine& fields, int width, uint32_t messageCo
 
     Line columns;
     columns.reserve(fields.size());
-    for (const auto& field : fields) {
+    for (size_t at = 0; at < fields.size(); ++at) {
+        const auto& field = fields[at];
         if (isFlexible(field)) {
             // The columns that do not divide evenly go to the fields written
             // first: a row is read from the left, and that is where the width
             // is most use.
-            columns.push_back(Column{field.kind, each + (odd > 0 ? 1 : 0)});
+            columns.push_back(Column{field.kind, each + (odd > 0 ? 1 : 0), formats[at]});
             if (odd > 0) --odd;
-        } else if (field.width == config::kAutoWidth &&
-                   field.kind == MsgFieldKind::Date) {
-            columns.push_back(Column{field.kind, dateWidth});
+        } else if (isMeasuredDate(field)) {
+            columns.push_back(Column{field.kind, dateWidths[at], formats[at]});
         } else {
-            columns.push_back(Column{field.kind, fixedWidthOf(field, messageCount)});
+            columns.push_back(
+                Column{field.kind, fixedWidthOf(field, messageCount), formats[at]});
         }
     }
     return columns;
 }
 
 Layout layout(const config::MsgListFormat& format, int width, uint32_t messageCount,
-              const std::vector<Row>& shown) {
+              const std::vector<Row>& shown, const std::string& defaultDateFormat) {
     // A format always has a line, so a layout always has one to draw the row's
     // top from — an empty one would be a row of no lines at all, and there is
     // nothing the screen could do with that.
@@ -175,7 +209,8 @@ Layout layout(const config::MsgListFormat& format, int width, uint32_t messageCo
     Layout lines;
     lines.reserve(format.size());
     for (const auto& fields : format) {
-        lines.push_back(layoutLine(fields, width, messageCount, shown));
+        lines.push_back(
+            layoutLine(fields, width, messageCount, shown, defaultDateFormat));
     }
     return lines;
 }

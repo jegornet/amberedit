@@ -758,9 +758,8 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     const std::string error10 = formatError("\"e\\n\\nd\"");
     CHECK_MESSAGE(contains(error10, "holds no fields"), error10);
     // A row taller than any format worth writing is a \n typed once too often.
-    const std::string error11 = formatError(
-        "\"e\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\\ne\"");
-    CHECK_MESSAGE(contains(error11, "more than 16 lines"), error11);
+    const std::string error11 = formatError("\"e\\ne\\ne\\ne\\ne\\ne\\ne\"");
+    CHECK_MESSAGE(contains(error11, "more than 5 lines"), error11);
     // The wide format is read as closely as the narrow one.
     const std::string error12 = formatError("\"e c un\" \"e x\"");
     CHECK_MESSAGE(contains(error12, "is not a field"), error12);
@@ -783,7 +782,7 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
     };
 
     // The default narrow row stands two lines tall: the number, the two names
-    // and the stamp at a written fifteen on one, the subject on the next.
+    // and the day on one, the subject on the next.
     CHECK(with("").messageListFormatNarrow ==
           MsgListFormat{Line{{MsgFieldKind::Number, kAutoWidth},
                              {MsgFieldKind::Space, 1},
@@ -791,9 +790,10 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
                              {MsgFieldKind::Space, 1},
                              {MsgFieldKind::To, 0},
                              {MsgFieldKind::Space, 1},
-                             {MsgFieldKind::Date, 15}},
+                             {MsgFieldKind::Date, kAutoWidth, "%d %b %y"}},
                         Line{{MsgFieldKind::Subject, 0}}});
-    // The default wide one is a single line, the subject beside the names.
+    // The default wide one is a single line, the subject beside the names and
+    // the minute beside the day.
     CHECK(with("").messageListFormatWide ==
           MsgListFormat{Line{{MsgFieldKind::Number, kAutoWidth},
                              {MsgFieldKind::Space, 1},
@@ -803,9 +803,9 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
                              {MsgFieldKind::Space, 1},
                              {MsgFieldKind::Subject, 0},
                              {MsgFieldKind::Space, 1},
-                             {MsgFieldKind::Date, kAutoWidth}}});
-    CHECK(formatOf("\"a f0 t0 d15\\ns\"") == with("").messageListFormatNarrow);
-    CHECK(wideFormatOf("\"a f0 t0 d15\\ns\" \"a f t s d\"") ==
+                             {MsgFieldKind::Date, kAutoWidth, "%d %b %y %H:%M"}}});
+    CHECK(formatOf("\"a f0 t0 d(%d %b %y)\\ns\"") == with("").messageListFormatNarrow);
+    CHECK(wideFormatOf("\"a f0 t0 d(%d %b %y)\\ns\" \"a f t s d(%d %b %y %H:%M)\"") ==
           with("").messageListFormatWide);
 
     // The letters and the widths they stand at where none is written: the names
@@ -853,6 +853,68 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
     CHECK_MESSAGE(contains(error4, "255 columns"), error4);
     const std::string error5 = formatError("\"a f\\n\"");
     CHECK_MESSAGE(contains(error5, "holds no fields"), error5);
+}
+
+TEST_CASE("AppConfig reads the Date column's own format [app_config]") {
+    using amberedit::config::kAutoWidth;
+    using amberedit::config::MsgFieldKind;
+    using amberedit::config::MsgListFormat;
+    using Line = amberedit::config::MsgListLine;
+
+    const auto formatOf = [](const std::string& value) {
+        return with("msglist_format " + value + "\n").messageListFormatNarrow;
+    };
+    const auto formatError = [](const std::string& value) {
+        return errorWith("msglist_format " + value + "\n");
+    };
+
+    // The brackets after the letter are that column's own strftime format, and
+    // the column measures itself against what it writes.
+    CHECK(formatOf("\"s d(%Y-%m-%d)\"") ==
+          MsgListFormat{Line{{MsgFieldKind::Subject, 0},
+                             {MsgFieldKind::Space, 1},
+                             {MsgFieldKind::Date, kAutoWidth, "%Y-%m-%d"}}});
+    // A width still belongs to the letter, and goes in front of the format.
+    CHECK(formatOf("\"s d15(%d %b %y %H:%M)\"") ==
+          MsgListFormat{Line{{MsgFieldKind::Subject, 0},
+                             {MsgFieldKind::Space, 1},
+                             {MsgFieldKind::Date, 15, "%d %b %y %H:%M"}}});
+    // The letter is read either way about; what stands in the brackets is not,
+    // being a format the C library reads and not a field this does.
+    CHECK(formatOf("\"s D(%d %b)\"") == formatOf("\"s d(%d %b)\""));
+    // A `d` with no brackets is `reader_datetime_format`'s, which is what the
+    // empty format means everywhere it is read.
+    CHECK(formatOf("\"s d\"") == MsgListFormat{Line{{MsgFieldKind::Subject, 0},
+                                                    {MsgFieldKind::Space, 1},
+                                                    {MsgFieldKind::Date, kAutoWidth}}});
+
+    // A stamp is not a thing the other fields are written from, and no field of
+    // the area list is written from one at all.
+    const std::string error = formatError("\"s f(%d)\"");
+    CHECK_MESSAGE(contains(error, "is not written by a format of its own"), error);
+    CHECK_MESSAGE(contains(error, "d date"), error);
+    const std::string error2 = errorWith("arealist_format \"e d(%d)\"\n");
+    CHECK_MESSAGE(contains(error2, "no field of this list is"), error2);
+
+    // Brackets that are never closed, and brackets with nothing in them: each is
+    // a format the user meant something by, so neither is read past.
+    const std::string error3 = formatError("\"s d(%d %b\"");
+    CHECK_MESSAGE(contains(error3, "is never closed"), error3);
+    const std::string error4 = formatError("\"s d()\"");
+    CHECK_MESSAGE(contains(error4, "asks for a format and names none"), error4);
+    // The width goes in front, and digits after the brackets would otherwise be
+    // read as a field nobody wrote.
+    const std::string error5 = formatError("\"s d(%d %b)15\"");
+    CHECK_MESSAGE(contains(error5, "a width goes before the format"), error5);
+
+    // And the format itself is held to what `reader_datetime_format` is held
+    // to — it goes to the same strftime and stands in a column of the same
+    // table.
+    const std::string error6 = formatError("\"s d(%d%n%H)\"");
+    CHECK_MESSAGE(contains(error6, "more than one line"), error6);
+    CHECK_MESSAGE(contains(error6, "msglist_format's d(...)"), error6);
+    const std::string error7 = formatError("\"s d( )\"");
+    CHECK_MESSAGE(contains(error7, "writes no stamp at all"), error7);
 }
 
 TEST_CASE("AppConfig reads the area list order [app_config]") {

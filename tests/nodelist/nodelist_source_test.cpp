@@ -315,3 +315,36 @@ TEST_CASE("a tmpdir with no zipped nodelist under it is left unmade [nodelist]")
     static_cast<void>(amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/Z2DAILY.225"))));
     CHECK_FALSE(fs::exists(temporary));
 }
+
+TEST_CASE("a nodelist name is generalized into the pattern it is one of [nodelist]") {
+    // A day number becomes the sentinel that stands for whichever day is
+    // newest, which is what a config wants written where a user has pointed at
+    // the nodelist that happens to be there today.
+    CHECK(nodelist::generalizedSpec("/ftn/nodelist/z2daily.255") ==
+          "/ftn/nodelist/z2daily.999");
+    CHECK(nodelist::generalizedSpec("z2daily.001") == "z2daily.999");
+    CHECK(nodelist::generalizedSpec("z2daily.366") == "z2daily.999");
+
+    // And an archive counter becomes the archive sentinel, in the case it was
+    // written in: the two spellings are both used, and a path that came back in
+    // the other one would read like a mistake.
+    CHECK(nodelist::generalizedSpec("/ftn/z2pnt.z56") == "/ftn/z2pnt.z99");
+    CHECK(nodelist::generalizedSpec("/ftn/Z2PNT.Z07") == "/ftn/Z2PNT.Z99");
+
+    // Everything else is a name, and a name is what it stays.
+    CHECK(nodelist::generalizedSpec("/ftn/nodelist.ndl") == "/ftn/nodelist.ndl");
+    CHECK(nodelist::generalizedSpec("/ftn/z2daily.367") == "/ftn/z2daily.367");
+    CHECK(nodelist::generalizedSpec("/ftn/z2daily.000") == "/ftn/z2daily.000");
+    CHECK(nodelist::generalizedSpec("/ftn/z2pnt.z00") == "/ftn/z2pnt.z00");
+    CHECK(nodelist::generalizedSpec("/ftn/nodelist.zip") == "/ftn/nodelist.zip");
+    CHECK(nodelist::generalizedSpec("/ftn/NODELIST") == "/ftn/NODELIST");
+    CHECK(nodelist::generalizedSpec("") == "");
+
+    // A dot in a directory name is not an extension.
+    CHECK(nodelist::generalizedSpec("/ftn/v3.4/nodelist") == "/ftn/v3.4/nodelist");
+
+    // Saying it twice says the same thing, which is what lets it be run over a
+    // path that is already a pattern.
+    CHECK(nodelist::generalizedSpec("/ftn/z2daily.999") == "/ftn/z2daily.999");
+    CHECK(nodelist::generalizedSpec("/ftn/z2pnt.Z99") == "/ftn/z2pnt.Z99");
+}

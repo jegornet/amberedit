@@ -2,8 +2,6 @@
 #
 # Copy it to ./amberedit.cfg or ~/.ambereditrc and fix up the paths — those are
 # where AmberEdit looks when it is started without -c, after $AMBEREDIT_CONFIG.
-# The area list and the paths to the message bases are NOT here: they are read
-# from your tosser's configuration.
 #
 # A line is a key and the values after it, separated by spaces. A value that has
 # spaces of its own — or a "#" in it — is written in double quotes; a "#"
@@ -167,7 +165,7 @@ lastread_user 0
 # line; on its own it is a compiled nodelist something else keeps up to date.
 # Ctrl-N (or F10) in the reader searches it, by an address whole or in part or
 # by any part of a sysop's name.
-#nodelist_db ~/ftn/nodelist/nodelist.db
+#nodelist_db ~/ftn/nodelist/amberndl.db
 
 # A directory to work in — today that is unpacking a zipped nodelist or echolist.
 # Optional: without it an "amberedit" directory of your own under the system's
@@ -215,9 +213,8 @@ lastread_user 0
 # description is where that description ends.
 #
 # After the path, optionally, the character set that echolist is written in —
-# CP866 for a Russian one, and the Fidonet spellings ("+7_FIDO", a bare "866")
-# mean here what they mean in a CHRS kludge. A line that states none is read in
-# the charset your locale names, which is right only if the two agree: state it.
+# for example, CP866 for a Russian one. line that states none is read in
+# the charset your locale names.
 #
 # AmberEdit compiles them itself at startup whenever they have changed, exactly
 # as it does the nodelists; "amberedit --compile" compiles them anyway. An
@@ -264,7 +261,7 @@ reader_show_message_size off
 # silence — there is nowhere to complain to about the place complaints go. What
 # goes wrong before the screen opens is not in here; that is printed to the
 # terminal, which is still there to print to.
-#error_log ~/ftn/amberr.log
+#error_log ~/ftn/log/amberedit.log
 
 # --- the keyboard -------------------------------------------------------------
 
@@ -310,7 +307,7 @@ arealist_sort te
 #   u   how many of them are unread                          4 columns
 #   n   a star where anything is unread                      1 column
 # A \n — a backslash and an n, this file knowing no escapes of its own — begins
-# the next line of the row, and a row may stand up to sixteen lines tall. Every
+# the next line of the row, and a row may stand up to five lines tall. Every
 # line has to hold something: a row that is to have a blank line in it writes
 # that line as a space, where an empty one is a \n typed once too often and is
 # refused. A width of 0 means "whatever the fixed-width fields leave on this
@@ -359,16 +356,17 @@ arealist_scrollbar off
 
 # --- message list -------------------------------------------------------------
 
-# What a row of the message list holds. Optional; "a f0 t0 d15\ns" "a f t s d"
-# by default. Written exactly as arealist_format is — one or two formats, the
-# narrow window's and the wide one's, each a set of letters in any case, each
-# optionally followed by the width in columns it is given:
+# What a row of the message list holds. Optional;
+# "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)" by default. Written
+# exactly as arealist_format is — one or two formats, the narrow window's and the
+# wide one's, each a set of letters in any case, each optionally followed by the
+# width in columns it is given:
 #   a   the message's number in the area, counted from one   the numbers in it
 #   f   who the message is from                              20 columns
 #   t   who it is to                                         20 columns
 #   s   what it is about                                     what is left
-#   d   when it was written, in reader_datetime_format       what the stamps need
-# A \n begins the next line of the row, a row stands up to sixteen lines tall,
+#   d   when it was written                                  what the stamps need
+# A \n begins the next line of the row, a row stands up to five lines tall,
 # and every line has to hold something — a blank line in a row is written as a
 # space. A width of 0 means "whatever the rest of this line leaves", shared
 # equally where several fields on the line ask for it, and each line is measured
@@ -384,30 +382,40 @@ arealist_scrollbar off
 #       wide for its column is cut at the spaces rather than mid-word — "15 Aug
 #       26 20:28 +0200" to "15 Aug 26 20:28" to "15 Aug 26" to "15 Aug" to "15" —
 #       so a column of fourteen shows nine of "30 Jul 26" and would stand five
-#       empty; what it does not use goes to the fields written 0 instead.
+#       empty; what it does not use goes to the fields written 0 instead. Two
+#       stamp columns on one line are measured apart and share the room between
+#       them.
 # Either may be given a width like any other field: a4 pins the number column,
 # d0 hands the stamp whatever the line leaves over.
 #
-# So the default narrow row puts the number, the two names and the stamp on one
+# "d" is the one field written by a format of its own, in brackets after the
+# letter and after its width where one is written: d(%d %b %y),
+# d10(%Y-%m-%d). It is a strftime format, read exactly as
+# reader_datetime_format is and refused on the same terms; everything up to the
+# first ")" belongs to it, spaces and all, which is one more reason the whole
+# value is in quotes. A "d" with no brackets is reader_datetime_format's, as it
+# has always been. Inside the brackets a \n is not the next line of the row —
+# it goes to strftime as it was written — and a format wanting a literal ")" is
+# not a thing that can be written here.
+#
+# So the default narrow row puts the number, the two names and the day on one
 # line and the subject across the whole of the next, a window that narrow having
 # no columns to put them side by side; the wide one is the single row the list
-# has always drawn. The narrow row writes the stamp's width out — fifteen, what
-# reader_datetime_format's own default comes to down to the minute — rather than
-# leaving it measured: pinning the column keeps the names beside it the same
-# width from one screenful to the next, where a measured one would widen and
-# narrow as the zones in the messages on screen came and went. The subject is drawn in the theme's "dimmed" color wherever
-# it stands, quiet like the area list's description: it is the one column that is
-# prose rather than a fact about the message, and the numbers, names and stamps
-# beside it are what the list is read down. Where the two formats are not the
-# same height, dragging the window across adaptive_ui_threshold keeps the
-# selected message where it stands on the screen.
-msglist_format "a f0 t0 d15\ns" "a f t s d"
+# has always drawn, with the minute beside the day. Both write the stamp out
+# rather than leaving it to reader_datetime_format: a column of stamps is read
+# down for which day a message is from, and a format with no %z in it measures
+# the same from one screenful to the next, where the reader's own would widen and
+# narrow as the zones in the messages on screen came and went. The subject is drawn
+# in the theme's "dimmed" color wherever it stands. Where the narrow and wide
+# formats are not the same height, dragging the window across adaptive_ui_threshold
+# keeps the selected message where it stands on the screen.
+msglist_format "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)"
 
 # Whether the message list draws the reader's scrollbar in its rightmost column,
 # on the same terms as arealist_scrollbar. Optional; on by default.
 msglist_scrollbar on
 
-# Whether a message nobody has read yet is drawn in the theme's msglist_unread
+# Whether a message user hasn't read yet is drawn in the theme's msglist_unread
 # color across the whole row. Optional; on by default. A From or To naming you
 # keeps the own_name color. What counts as unread is the mark the base itself
 # keeps on each message — TimesRead in JAM and in a Fido *.msg, the MSGSEEN bit
@@ -432,34 +440,6 @@ reader_underline_links on
 # word could start or end, so `snake_case`, `2*3*4`, /usr/local/bin and
 # `#include <stdio.h>` are left alone. Italic needs a terminal that draws it.
 reader_stylecodes off
-
-# EXPERIMENTAL. Whether the reader acts on the BBS color codes — "pipe codes" —
-# in the Renegade/Telegard dialect: a pipe and two decimal digits, |00 to |31.
-# See also http://wiki.synchro.net/custom:colors#renegade_telegard_format
-# Optional; off by default; may be set per area in a group block.
-bbs_codes_renegade off
-
-# EXPERIMENTAL. Whether the reader replays the ANSI graphics a message may have
-# been written with — the escape sequences a BBS drew a picture on the caller's
-# terminal with. Optional; off by default; may be set per area in a group block.
-#
-# The setting says an echo may carry ANSI; each message is still looked at on its
-# own, and only one that actually holds an escape sequence is drawn this way. The
-# rest of the echo reads as it always did.
-#
-# A message that is drawn this way is replayed onto a canvas 80 columns wide —
-# the width the art was composed at — and the canvas is what the reader scrolls.
-# Nothing in it wraps: a window narrower than the picture shows the left of it
-# and the rest is off screen. Colors, cursor movement, the erasers, and saving
-# and restoring the cursor under either spelling — ESC 7 / ESC 8 and ESC[s /
-# ESC[u — are acted on. Bold is the bright half of the palette, as it was on the
-# adapter these codes were written for, and blinking is passed over.
-#
-# Inside such a message reader_stylecodes and bbs_codes_renegade do not apply
-# however they are set: a marker in a picture is a glyph somebody drew with. The
-# tearline and the origin line stay out of the picture and keep the theme's
-# trailer color, wherever the drawing left off.
-bbs_codes_ansi off
 
 # Whether the reader leaves the area at its ends: → on the last message and ← on
 # the first go back to the area list. Optional; on by default. Off, the two keys
@@ -741,10 +721,14 @@ list_wheel_throttle_ms 200
 # --- dates --------------------------------------------------------------------
 
 # How every stamp shown while reading is written: the two in the reader's header
-# block (Date, and Recd under it), the Date column of the message list, and the
-# one beside each answer in the replies dialog. Optional; "%d %b %y %H:%M %z" by
-# default. One setting for the date and the time both, because each place showing
-# them shows one string.
+# block (Date, and Recd under it), the one beside each answer in the replies
+# dialog, the file stamps in the import dialog, and the one at the head of an
+# exported message. Optional; "%d %b %y %H:%M %z" by default. One setting for the
+# date and the time both, because each place showing them shows one string.
+#
+# The message list's Date column is written with this too, and is the one place
+# that may say otherwise: msglist_format's d(...) gives that column a format of
+# its own, which is what both of its defaults do.
 #
 # The value is a strftime(3) format: %d day, %m month, %b month by name, %y and
 # %Y the year in two digits and in four, %H:%M:%S the time, %a the weekday, %% a
@@ -924,3 +908,50 @@ twit_mode blank
 # config gives that area. Everything else is the whole config's: the layout, the
 # menus, the theme, the area list's own order and columns, the tosser config, and
 # the aka / akamatch rules.
+
+# --- experimental options -----------------------------------------------------
+
+# What is under here is not meant for the whole of your mail. It's recommended to
+# turn these options on in a group block for the echoes that want it and leave it
+# off everywhere else:
+#
+#group
+#  member fsx_ads
+#  bbs_codes_ansi on
+#endgroup
+#
+#group
+#  member fsx_*
+#  bbs_codes_renegade on
+#endgroup
+#
+# See "area groups" above for what a group is and how a member pattern is
+# matched.
+
+# Whether the reader acts on the BBS color codes — "pipe codes" — in the
+# Renegade/Telegard dialect: a pipe and two decimal digits, |00 to |31.
+# See also http://wiki.synchro.net/custom:colors#renegade_telegard_format
+# Optional; off by default; may be set per area in a group block.
+bbs_codes_renegade off
+
+# Whether the reader replays the ANSI graphics a message may have been written
+# with — the escape sequences a BBS drew a picture on the caller's terminal
+# with. Optional; off by default; may be set per area in a group block.
+#
+# The setting says an echo may carry ANSI; each message is still looked at on its
+# own, and only one that actually holds an escape sequence is drawn this way. The
+# rest of the echo reads as it always did.
+#
+# A message that is drawn this way is replayed onto a canvas 80 columns wide —
+# the width the art was composed at — and the canvas is what the reader scrolls.
+# Nothing in it wraps: a window narrower than the picture shows the left of it
+# and the rest is off screen. Colors, cursor movement, the erasers, and saving
+# and restoring the cursor under either spelling — ESC 7 / ESC 8 and ESC[s /
+# ESC[u — are acted on. Bold is the bright half of the palette, as it was on the
+# adapter these codes were written for, and blinking is passed over.
+#
+# Inside such a message reader_stylecodes and bbs_codes_renegade do not apply
+# however they are set: a marker in a picture is a glyph somebody drew with. The
+# tearline and the origin line stay out of the picture and keep the theme's
+# trailer color, wherever the drawing left off.
+bbs_codes_ansi off

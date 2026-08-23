@@ -83,6 +83,7 @@ cmake -S . -B build \
 
 ## Running it
 
-Copy `amberedit.cfg.example`, fix up the paths in it, and run `amberedit` —
+Run `amberedit --setup`, which asks what a first config should say and writes
+one — or copy `amberedit.cfg.example` and fix up the paths in it yourself.
 [README.md](README.md) has the rest: the config search order, the keys, and what
 every screen does.

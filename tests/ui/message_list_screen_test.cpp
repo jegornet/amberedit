@@ -437,6 +437,16 @@ TEST_CASE("A Date column too narrow for the stamp drops its trailing parts "
     CHECK(dateCell(fixture, 20) == full.substr(0, 9));
     CHECK(dateCell(fixture, 14) == full.substr(0, 6));
     CHECK(dateCell(fixture, 12) == full.substr(0, 2));
+
+    // A format of the column's own is what the column is drawn by, and
+    // `reader_datetime_format` has nothing to say about it: the same message,
+    // the same window, a stamp the reader would never write.
+    fixture.config.messageListFormatNarrow[0].back().dateFormat = "%Y-%m-%d";
+    fixture.config.messageListFormatWide = fixture.config.messageListFormatNarrow;
+    CHECK(dateCell(fixture, 60) == msg->date.format("%Y-%m-%d"));
+    // And the column is measured through that format rather than the reader's:
+    // ten columns is the whole of it where fifteen were the whole of the other.
+    CHECK(amberedit::ui::displayWidth(dateCell(fixture, 60)) == 10);
 }
 
 TEST_CASE(

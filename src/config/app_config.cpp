@@ -124,14 +124,17 @@ AreaFieldKind areaFieldOf(char letter) {
 
 /// The letters `msglist_format` is written with. The number and the date stand
 /// at `kAutoWidth`: how wide they want to be is a question about the area and
-/// the stamps in it rather than a number the table could name here.
+/// the stamps in it rather than a number the table could name here. The date is
+/// the one field written by a format of its own — `d(%d %b %y)` — every other
+/// one being drawn from what it holds and nothing else.
 const ListFormatSpec& msgFormatSpec() {
     static const ListFormatSpec spec{
         "msglist_format",
-        {{'a', kAutoWidth}, {'f', 20}, {'t', 20}, {'s', 0}, {'d', kAutoWidth}},
+        {{'a', kAutoWidth}, {'f', 20}, {'t', 20}, {'s', 0}, {'d', kAutoWidth, true}},
         "a number, f from, t to, s subject, d date",
-        "a f0 t0 d15\\ns",
-        "a f t s d",
+        "a f0 t0 d(%d %b %y)\\ns",
+        "a f t s d(%d %b %y %H:%M)",
+        "d date",
     };
     return spec;
 }
@@ -147,22 +150,31 @@ MsgFieldKind msgFieldOf(char letter) {
     }
 }
 
-/// The lines the shared reader came back with, under the kinds this list knows
+/// The lines the shared reader came back with, under the fields this list knows
 /// its letters by. What a letter shows is the only thing either list decides
-/// for itself; the shape of the value is `config/list_format.*`'s.
-template <typename Format, typename Kind, typename KindOf>
-Format formatOf(const ListFormatRow& lines, KindOf kindOf) {
+/// for itself — and, for the message list, whatever else the field carries; the
+/// shape of the value is `config/list_format.*`'s.
+template <typename Format, typename FieldOf>
+Format formatOf(const ListFormatRow& lines, FieldOf fieldOf) {
     Format format;
     format.reserve(lines.size());
     for (const auto& line : lines) {
         typename Format::value_type fields;
         fields.reserve(line.size());
         for (const auto& field : line) {
-            fields.push_back({kindOf(field.letter), field.width});
+            fields.push_back(fieldOf(field));
         }
         format.push_back(std::move(fields));
     }
     return format;
+}
+
+AreaListField areaFieldFrom(const ListFormatField& field) {
+    return AreaListField{areaFieldOf(field.letter), field.width};
+}
+
+MsgListField msgFieldFrom(const ListFormatField& field) {
+    return MsgListField{msgFieldOf(field.letter), field.width, field.format};
 }
 
 /// The commands a menu or a hint list names, as the key writes them: the part
@@ -247,13 +259,16 @@ Result<Visibility> parseVisibility(const CfgEntry& entry) {
 /// would take the header table's columns with it. What a
 /// specifier means beyond that is the C library's business, and one it does not
 /// know comes out as it was written, where the user can see it.
-Result<std::string> readTimeFormat(const CfgEntry& entry) {
-    const auto joined = entry.text();
-    if (!joined) return tl::make_unexpected(joined.error());
-    const std::string& value = *joined;
+///
+/// `what` opens every complaint — the setting's own name where the whole value
+/// is the format, and the field where one column of a list named its own. Every
+/// format goes to the same strftime wherever it was written, so every one of
+/// them is held to this.
+Result<std::string> checkTimeFormat(const CfgEntry& entry, const std::string& what,
+                                    const std::string& value) {
     if (value.empty()) {
         return entry.fail(
-            entry.key +
+            what +
             " needs a strftime format, e.g. \"%d %b %y\" — there is no way to "
             "ask for no date at all");
     }
@@ -267,17 +282,43 @@ Result<std::string> readTimeFormat(const CfgEntry& entry) {
     // A stamp is trimmed, so a format that writes nothing but blank writes
     // nothing at all — which is the empty format above under another spelling.
     if (written.empty()) {
-        return entry.fail(entry.key + ": '" + value +
+        return entry.fail(what + ": '" + value +
                           "' writes no stamp at all, and there is no way to ask for no "
                           "date");
     }
     const auto isControl = [](char c) { return static_cast<unsigned char>(c) < 0x20; };
     if (std::any_of(written.begin(), written.end(), isControl)) {
-        return entry.fail(entry.key + ": '" + value +
+        return entry.fail(what + ": '" + value +
                           "' writes a stamp over more than one line, which a date on a "
                           "header row cannot be");
     }
     return value;
+}
+
+/// The whole value of a setting that is nothing but a strftime format.
+Result<std::string> readTimeFormat(const CfgEntry& entry) {
+    const auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(joined.error());
+    return checkTimeFormat(entry, entry.key, *joined);
+}
+
+/// The formats the fields of a list format wrote for themselves, both windows'.
+/// Only the message list has any — its Date column — and each is checked before
+/// a line of it is drawn, a stamp that will not write being a mistake worth
+/// stopping for rather than a column of blanks nobody can explain.
+Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormats& formats) {
+    for (const ListFormatRow* row : {&formats.narrow, &formats.wide}) {
+        for (const auto& line : *row) {
+            for (const auto& field : line) {
+                if (field.format.empty()) continue;
+                const auto checked = checkTimeFormat(
+                    entry, entry.key + "'s " + std::string(1, field.letter) + "(...)",
+                    field.format);
+                if (!checked) return tl::make_unexpected(checked.error());
+            }
+        }
+    }
+    return true;
 }
 
 /// Expands a leading "~/" to the home directory.
@@ -673,17 +714,18 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
     } else if (key == "arealist_format") {
         const auto read = parseListFormats(entry, areaFormatSpec());
         if (!read) return tl::make_unexpected(read.error());
-        cfg.areaListFormatNarrow =
-            formatOf<AreaListFormat, AreaFieldKind>(read->narrow, areaFieldOf);
-        cfg.areaListFormatWide =
-            formatOf<AreaListFormat, AreaFieldKind>(read->wide, areaFieldOf);
+        cfg.areaListFormatNarrow = formatOf<AreaListFormat>(read->narrow, areaFieldFrom);
+        cfg.areaListFormatWide = formatOf<AreaListFormat>(read->wide, areaFieldFrom);
     } else if (key == "msglist_format") {
         const auto read = parseListFormats(entry, msgFormatSpec());
         if (!read) return tl::make_unexpected(read.error());
-        cfg.messageListFormatNarrow =
-            formatOf<MsgListFormat, MsgFieldKind>(read->narrow, msgFieldOf);
-        cfg.messageListFormatWide =
-            formatOf<MsgListFormat, MsgFieldKind>(read->wide, msgFieldOf);
+        // A stamp the Date column writes for itself is judged by exactly the
+        // rules `reader_datetime_format` is judged by: it goes to the same
+        // strftime and stands in a column of the same table.
+        const auto checked = checkFieldFormats(entry, *read);
+        if (!checked) return tl::make_unexpected(checked.error());
+        cfg.messageListFormatNarrow = formatOf<MsgListFormat>(read->narrow, msgFieldFrom);
+        cfg.messageListFormatWide = formatOf<MsgListFormat>(read->wide, msgFieldFrom);
     } else if (key == "arealist_description_priority") {
         const auto read = parseDescriptionPriority(entry);
         if (!read) return tl::make_unexpected(read.error());

@@ -12,6 +12,7 @@
 #include "nodelist/nodelist_compiler.hpp"
 #include "ui/app_shell.hpp"
 #include "ui/keys.hpp"
+#include "ui/setup/setup_run.hpp"
 #include "ui/theme.hpp"
 #include "version.hpp"
 
@@ -20,9 +21,12 @@ namespace {
 void printUsage(const char* program) {
     std::cerr
         << "AmberEdit — a Fidonet mail editor.\n\n"
-        << "Usage:\n  " << program << " [-c <config>] [--compile]\n\n"
+        << "Usage:\n  " << program << " [-c <config>] [--compile]\n  " << program
+        << " --setup\n\n"
         << "Options:\n"
         << "  -c, --config <path>   path to the AmberEdit config\n"
+        << "      --setup           ask what a first config should say and write\n"
+        << "                        one; refused where there is a config already\n"
         << "      --compile         compile the nodelists and echolists before\n"
         << "                        starting, whether or not they look like they\n"
         << "                        have changed\n"
@@ -90,6 +94,7 @@ void compileEcholists(const amberedit::config::AppConfig& config, bool force) {
 int main(int argc, char* argv[]) {
     std::string configPath;
     bool forceCompile = false;
+    bool setup = false;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -111,6 +116,12 @@ int main(int argc, char* argv[]) {
             forceCompile = true;
             continue;
         }
+        // A mode of its own, and the only one: it writes a config rather than
+        // reading one, so none of what the rest of this does applies to it.
+        if (arg == "--setup") {
+            setup = true;
+            continue;
+        }
         if (arg == "-c" || arg == "--config") {
             if (i + 1 >= argc) {
                 std::cerr << "error: " << arg << " needs a value\n";
@@ -125,12 +136,36 @@ int main(int argc, char* argv[]) {
     }
 
     try {
+        if (setup) {
+            // -c says which config to read, and this reads none. Where the two
+            // are written together it is not clear which of them was meant, and
+            // guessing at that would be guessing at where a config goes.
+            if (!configPath.empty()) {
+                std::cerr << "error: --setup writes a config of its own, so it does "
+                             "not take -c\n";
+                printUsage(argv[0]);
+                return 2;
+            }
+            if (const auto found =
+                    amberedit::config::AppConfig::findDefaultConfigPath()) {
+                // Named rather than said generally: with three places to look,
+                // "there is already a config" leaves the user hunting for which.
+                std::cerr << "error: there is already an AmberEdit config: " << *found
+                          << "\n"
+                          << "Edit it, or move it aside and run --setup again.\n";
+                return 1;
+            }
+            return amberedit::ui::setup::runSetup(argv[0]);
+        }
+
         if (configPath.empty()) {
             auto found = amberedit::config::AppConfig::findDefaultConfigPath();
             if (!found) {
                 std::cerr << "error: no AmberEdit config found.\n"
-                          << "Point at one with -c, or copy amberedit.cfg.example to "
-                             "./amberedit.cfg or ~/.ambereditrc.\n";
+                          << "Run " << argv[0]
+                          << " --setup to be asked what one should say, or copy "
+                             "amberedit.cfg.example to ./amberedit.cfg or "
+                             "~/.ambereditrc.\n";
                 return 1;
             }
             configPath = *found;

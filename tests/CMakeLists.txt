@@ -6,6 +6,7 @@ add_executable(amberedit_tests
   config/text_util_test.cpp
   config/area_pattern_test.cpp
   config/app_config_test.cpp
+  config/config_writer_test.cpp
   config/temp_dir_test.cpp
   config/fidoconfig_parser_test.cpp
   config/manual_area_source_test.cpp
@@ -54,6 +55,7 @@ add_executable(amberedit_tests
   ui/export_dialog_test.cpp
   ui/hint_bar_test.cpp
   ui/import_dialog_test.cpp
+  ui/setup_wizard_test.cpp
   ui/info_dialog_test.cpp
   ui/error_log_test.cpp
   ui/keys_test.cpp
@@ -118,6 +120,13 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/forward_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/hint_bar.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/import_dialog.cpp
+  # The setup wizard, all of it but the file that owns a Terminal: the wizard
+  # answers events and draws into a Screen like every other dialog, and that is
+  # what these tests drive.
+  ${CMAKE_SOURCE_DIR}/src/ui/setup/file_picker.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/setup/setup_wizard.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/setup/wizard_checks.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/text_field.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/info_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/input_field.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/keys.cpp
