@@ -45,7 +45,7 @@ struct Ranked {
 
 }  // namespace
 
-Result<NodelistDb> NodelistDb::open(const std::string& path) {
+tl::expected<NodelistDb, ErrorPtr> NodelistDb::open(const std::string& path) {
     auto isFile = config::text::insistItIsAFile(path);
     if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
@@ -61,10 +61,9 @@ Result<NodelistDb> NodelistDb::open(const std::string& path) {
     const uint64_t size = db.data_.size();
     if (size < format::kHeaderSize ||
         std::memcmp(raw, format::kMagic, sizeof(format::kMagic)) != 0) {
-        return failure(
-            path +
-            " is not a compiled nodelist — nodelist_db names the "
-            "file AmberEdit compiles them into, not a nodelist itself");
+        return failure(path +
+                       " is not a compiled nodelist — nodelist_db names the "
+                       "file AmberEdit compiles them into, not a nodelist itself");
     }
 
     const uint16_t version = readU16(raw + 8);
@@ -99,13 +98,13 @@ Result<NodelistDb> NodelistDb::open(const std::string& path) {
         within(db.namePoolOffset_, db.namePoolSize_, size) &&
         within(db.recordsOffset_, db.recordsSize_, size) && within(sourceOffset, 0, size);
     if (!sane) {
-        return failure("the compiled nodelist is truncated or damaged: " +
-                                 path + " — amberedit --compile writes it again");
+        return failure("the compiled nodelist is truncated or damaged: " + path +
+                       " — amberedit --compile writes it again");
     }
     // The pool is read as C strings, so the last one has to end.
     if (db.namePoolSize_ != 0 && raw[db.namePoolOffset_ + db.namePoolSize_ - 1] != '\0') {
         return failure("the compiled nodelist is damaged: " + path +
-                                 " — amberedit --compile writes it again");
+                       " — amberedit --compile writes it again");
     }
 
     uint64_t at = sourceOffset;
@@ -123,8 +122,7 @@ Result<NodelistDb> NodelistDb::open(const std::string& path) {
     };
     for (uint32_t i = 0; i < sourceCount; ++i) {
         SourceState state;
-        if (!readString(state.spec) || !readString(state.path) ||
-            !within(at, 16, size)) {
+        if (!readString(state.spec) || !readString(state.path) || !within(at, 16, size)) {
             return failure("the compiled nodelist is truncated: " + path);
         }
         state.modified = readU64(raw + at);

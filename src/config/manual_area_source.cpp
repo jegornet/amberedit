@@ -13,7 +13,7 @@ ManualAreaSource::ManualAreaSource(std::vector<ManualArea> areas,
                                    std::unique_ptr<ports::IAreaConfigSource> tosser)
     : areas_(std::move(areas)), tosser_(std::move(tosser)) {}
 
-Result<std::vector<AreaConfig>> ManualAreaSource::loadAreas() {
+tl::expected<std::vector<AreaConfig>, ErrorPtr> ManualAreaSource::loadAreas() {
     // An unreadable tosser config comes back out of here exactly as it did
     // before there were blocks: it is the thing the config points at, and a list
     // silently short of every echo would be worse than a startup that stops.

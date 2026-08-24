@@ -23,7 +23,7 @@ public:
     explicit FakeTosser(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
     explicit FakeTosser(std::string error) : error_(std::move(error)) {}
 
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override {
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
         if (!error_.empty()) return amberedit::failure(error_);
         return areas_;
     }

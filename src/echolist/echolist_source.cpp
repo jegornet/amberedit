@@ -102,7 +102,7 @@ std::optional<std::string> newestMatch(const std::string& spec) {
     return best->path;
 }
 
-Result<std::string> readWholeFile(const std::string& path) {
+tl::expected<std::string, ErrorPtr> readWholeFile(const std::string& path) {
     auto isFile = config::text::insistItIsAFile(path);
     if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
@@ -164,8 +164,8 @@ EcholistSources::~EcholistSources() {
     for (const auto& path : unpacked_) fs::remove(path, ec);
 }
 
-Result<EcholistSources::Loaded> EcholistSources::read(const std::string& spec,
-                                                      const std::string& charset) {
+tl::expected<EcholistSources::Loaded, ErrorPtr> EcholistSources::read(
+    const std::string& spec, const std::string& charset) {
     const SourceState state = stateOf(spec, charset);
     if (state.path.empty()) {
         if (!config::text::hasWildcard(fs::path(spec).filename().string())) {
@@ -193,8 +193,8 @@ Result<EcholistSources::Loaded> EcholistSources::read(const std::string& spec,
     return loaded;
 }
 
-Result<EcholistSources::Loaded> EcholistSources::readArchive(const SourceState& state,
-                                                             const std::string& charset) {
+tl::expected<EcholistSources::Loaded, ErrorPtr> EcholistSources::readArchive(
+    const SourceState& state, const std::string& charset) {
     const std::string& archivePath = state.path;
 
     // Made here and not when the sources were: a config with `tmpdir` in it and

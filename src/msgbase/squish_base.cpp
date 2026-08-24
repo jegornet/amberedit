@@ -159,8 +159,8 @@ uint32_t controlBlockLength(const std::string& control) {
 
 }  // namespace
 
-Result<void> SquishBase::open(const std::string& path, bool /*echo*/,
-                              uint16_t /*defaultZone*/) {
+tl::expected<void, ErrorPtr> SquishBase::open(const std::string& path, bool /*echo*/,
+                                              uint16_t /*defaultZone*/) {
     close();
 
     if (!data_.open(path + ".sqd", true)) {
@@ -189,7 +189,7 @@ void SquishBase::close() {
     frameHeaderSize_ = static_cast<uint16_t>(kFrameHeaderSize);
 }
 
-Result<void> SquishBase::create(const std::string& path) {
+tl::expected<void, ErrorPtr> SquishBase::create(const std::string& path) {
     close();
 
     const std::string dataPath = path + ".sqd";
@@ -241,7 +241,7 @@ Result<void> SquishBase::create(const std::string& path) {
     return {};
 }
 
-Result<void> SquishBase::readBaseHeader() {
+tl::expected<void, ErrorPtr> SquishBase::readBaseHeader() {
     std::array<unsigned char, kBaseHeaderSize> raw{};
     if (const auto io = data_.readAt(0, raw.data(), raw.size()); io.failed()) {
         return failure("cannot read the area header of " + data_.path() + ": " +
@@ -289,7 +289,7 @@ Result<void> SquishBase::readBaseHeader() {
     return {};
 }
 
-Result<void> SquishBase::writeBaseHeader() {
+tl::expected<void, ErrorPtr> SquishBase::writeBaseHeader() {
     // Read-modify-write rather than build from scratch: the header holds the
     // base's name and a hundred reserved bytes that are not ours, and a
     // message added by a reader is no reason to drop them.
@@ -315,7 +315,7 @@ Result<void> SquishBase::writeBaseHeader() {
     return {};
 }
 
-Result<void> SquishBase::loadIndex() {
+tl::expected<void, ErrorPtr> SquishBase::loadIndex() {
     index_.clear();
     const int64_t size = index_file_.size();
     if (size < 0) {
@@ -347,13 +347,13 @@ Result<void> SquishBase::loadIndex() {
     return {};
 }
 
-Result<void> SquishBase::reload() {
+tl::expected<void, ErrorPtr> SquishBase::reload() {
     auto read = readBaseHeader();
     if (!read) return tl::make_unexpected(std::move(read).error());
     return loadIndex();
 }
 
-Result<void> SquishBase::readFrame(uint32_t offset, Frame& out) const {
+tl::expected<void, ErrorPtr> SquishBase::readFrame(uint32_t offset, Frame& out) const {
     if (offset < kBaseHeaderSize || offset >= base_.endFrame) {
         return failure("frame offset " + std::to_string(offset) + " is outside " +
                        data_.path());
@@ -375,7 +375,7 @@ Result<void> SquishBase::readFrame(uint32_t offset, Frame& out) const {
     return {};
 }
 
-Result<void> SquishBase::writeFrame(uint32_t offset, const Frame& frame) {
+tl::expected<void, ErrorPtr> SquishBase::writeFrame(uint32_t offset, const Frame& frame) {
     if (offset < kBaseHeaderSize) {
         return failure("refusing to write a frame over the area header");
     }
@@ -395,7 +395,7 @@ Result<void> SquishBase::writeFrame(uint32_t offset, const Frame& frame) {
     return {};
 }
 
-Result<void> SquishBase::setFrameNext(uint32_t offset, uint32_t value) {
+tl::expected<void, ErrorPtr> SquishBase::setFrameNext(uint32_t offset, uint32_t value) {
     Frame frame;
     auto done = readFrame(offset, frame);
     if (!done) return tl::make_unexpected(std::move(done).error());
@@ -403,7 +403,7 @@ Result<void> SquishBase::setFrameNext(uint32_t offset, uint32_t value) {
     return writeFrame(offset, frame);
 }
 
-Result<void> SquishBase::setFramePrev(uint32_t offset, uint32_t value) {
+tl::expected<void, ErrorPtr> SquishBase::setFramePrev(uint32_t offset, uint32_t value) {
     Frame frame;
     auto done = readFrame(offset, frame);
     if (!done) return tl::make_unexpected(std::move(done).error());
@@ -411,7 +411,8 @@ Result<void> SquishBase::setFramePrev(uint32_t offset, uint32_t value) {
     return writeFrame(offset, frame);
 }
 
-Result<void> SquishBase::read(uint32_t index, RawMessage& out, bool withText) const {
+tl::expected<void, ErrorPtr> SquishBase::read(uint32_t index, RawMessage& out,
+                                              bool withText) const {
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not in the area");
     }
@@ -659,8 +660,8 @@ uint32_t SquishBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
-Result<void> SquishBase::allocateFrame(uint32_t length, uint32_t* offset,
-                                       uint32_t* frameLength) {
+tl::expected<void, ErrorPtr> SquishBase::allocateFrame(uint32_t length, uint32_t* offset,
+                                                       uint32_t* frameLength) {
     *offset = 0;
     *frameLength = 0;
 
@@ -713,7 +714,7 @@ Result<void> SquishBase::allocateFrame(uint32_t length, uint32_t* offset,
     return {};
 }
 
-Result<void> SquishBase::releaseFrame(uint32_t offset, Frame frame) {
+tl::expected<void, ErrorPtr> SquishBase::releaseFrame(uint32_t offset, Frame frame) {
     frame.type = kFrameFree;
     frame.messageLength = 0;
     frame.controlLength = 0;
@@ -737,9 +738,11 @@ Result<void> SquishBase::releaseFrame(uint32_t offset, Frame frame) {
     return {};
 }
 
-Result<void> SquishBase::writeMessageAt(uint32_t offset, const RawHeader& header,
-                                        uint32_t uid, const std::string& control,
-                                        const std::string& text) {
+tl::expected<void, ErrorPtr> SquishBase::writeMessageAt(uint32_t offset,
+                                                        const RawHeader& header,
+                                                        uint32_t uid,
+                                                        const std::string& control,
+                                                        const std::string& text) {
     std::array<unsigned char, kMessageHeaderSize> raw{};
     encodeMessageHeader(raw.data(), header, uid);
     if (const auto io = data_.writeAt(offset + frameHeaderSize_, raw.data(), raw.size());
@@ -763,7 +766,7 @@ Result<void> SquishBase::writeMessageAt(uint32_t offset, const RawHeader& header
     return {};
 }
 
-Result<void> SquishBase::writeIndexEntry(uint32_t index) {
+tl::expected<void, ErrorPtr> SquishBase::writeIndexEntry(uint32_t index) {
     std::array<unsigned char, kIndexRecordSize> raw{};
     const IndexEntry& entry = index_[index - 1];
     writeU32(raw.data(), entry.offset);
@@ -777,7 +780,7 @@ Result<void> SquishBase::writeIndexEntry(uint32_t index) {
     return {};
 }
 
-Result<uint32_t> SquishBase::write(const RawDraft& draft) {
+tl::expected<uint32_t, ErrorPtr> SquishBase::write(const RawDraft& draft) {
     if (!data_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -854,7 +857,7 @@ Result<uint32_t> SquishBase::write(const RawDraft& draft) {
     return count();
 }
 
-Result<void> SquishBase::replace(uint32_t index, const RawDraft& draft) {
+tl::expected<void, ErrorPtr> SquishBase::replace(uint32_t index, const RawDraft& draft) {
     if (!data_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -970,7 +973,7 @@ Result<void> SquishBase::replace(uint32_t index, const RawDraft& draft) {
     return writeBaseHeader();
 }
 
-Result<void> SquishBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> SquishBase::remove(uint32_t index) {
     if (!data_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -1043,7 +1046,7 @@ Result<void> SquishBase::remove(uint32_t index) {
     return writeBaseHeader();
 }
 
-Result<void> SquishBase::markSeen(uint32_t index) {
+tl::expected<void, ErrorPtr> SquishBase::markSeen(uint32_t index) {
     if (!data_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }

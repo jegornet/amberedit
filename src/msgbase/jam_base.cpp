@@ -210,7 +210,8 @@ constexpr KludgeMapping kKludgeMappings[] = {
 
 }  // namespace
 
-Result<void> JamBase::open(const std::string& path, bool echo, uint16_t /*defaultZone*/) {
+tl::expected<void, ErrorPtr> JamBase::open(const std::string& path, bool echo,
+                                           uint16_t /*defaultZone*/) {
     close();
     echo_ = echo;
 
@@ -239,7 +240,7 @@ void JamBase::close() {
     active_.clear();
 }
 
-Result<void> JamBase::create(const std::string& path) {
+tl::expected<void, ErrorPtr> JamBase::create(const std::string& path) {
     close();
 
     const std::string headerPath = path + ".jhr";
@@ -304,7 +305,7 @@ Result<void> JamBase::create(const std::string& path) {
     return {};
 }
 
-Result<void> JamBase::readInfo() {
+tl::expected<void, ErrorPtr> JamBase::readInfo() {
     std::array<unsigned char, kInfoSize> raw{};
     if (const auto io = headers_.readAt(0, raw.data(), raw.size()); io.failed()) {
         return failure("cannot read the info block of " + headers_.path() + ": " +
@@ -321,7 +322,7 @@ Result<void> JamBase::readInfo() {
     return {};
 }
 
-Result<void> JamBase::writeInfo() {
+tl::expected<void, ErrorPtr> JamBase::writeInfo() {
     // Read-modify-write: the reserved space is not ours.
     std::array<unsigned char, kInfoSize> raw{};
     if (const auto io = headers_.readAt(0, raw.data(), raw.size()); io.failed()) {
@@ -337,7 +338,7 @@ Result<void> JamBase::writeInfo() {
     return {};
 }
 
-Result<void> JamBase::readHeaderAt(uint32_t offset, Header& out) const {
+tl::expected<void, ErrorPtr> JamBase::readHeaderAt(uint32_t offset, Header& out) const {
     std::array<unsigned char, kFixedHeaderSize> raw{};
     if (const auto io = headers_.readAt(offset, raw.data(), raw.size()); io.failed()) {
         return failure("cannot read the header at " + std::to_string(offset) + " in " +
@@ -367,7 +368,7 @@ Result<void> JamBase::readHeaderAt(uint32_t offset, Header& out) const {
     return {};
 }
 
-Result<void> JamBase::loadActive() {
+tl::expected<void, ErrorPtr> JamBase::loadActive() {
     active_.clear();
 
     const int64_t indexSize = index_.size();
@@ -442,7 +443,7 @@ Result<void> JamBase::loadActive() {
     return {};
 }
 
-Result<void> JamBase::reload() {
+tl::expected<void, ErrorPtr> JamBase::reload() {
     auto read = readInfo();
     if (!read) return tl::make_unexpected(std::move(read).error());
     return loadActive();
@@ -473,8 +474,8 @@ uint32_t JamBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
-Result<void> JamBase::readSubfields(const ActiveMessage& message,
-                                    std::vector<Subfield>& out) const {
+tl::expected<void, ErrorPtr> JamBase::readSubfields(const ActiveMessage& message,
+                                                    std::vector<Subfield>& out) const {
     out.clear();
     if (message.header.subfieldLength == 0) return {};
 
@@ -501,7 +502,8 @@ Result<void> JamBase::readSubfields(const ActiveMessage& message,
     return {};
 }
 
-Result<void> JamBase::read(uint32_t index, RawMessage& out, bool withText) const {
+tl::expected<void, ErrorPtr> JamBase::read(uint32_t index, RawMessage& out,
+                                           bool withText) const {
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not in the area");
     }
@@ -831,8 +833,8 @@ void JamBase::encodeDraft(const RawDraft& draft, Header& header,
     header.subfieldLength = static_cast<uint32_t>(subfieldBlock.size());
 }
 
-Result<void> JamBase::writeHeaderAt(uint32_t offset, const Header& header,
-                                    const std::string& subfields) {
+tl::expected<void, ErrorPtr> JamBase::writeHeaderAt(uint32_t offset, const Header& header,
+                                                    const std::string& subfields) {
     std::array<unsigned char, kFixedHeaderSize> rawHeader{};
     std::memcpy(rawHeader.data(), kSignature, sizeof(kSignature));
     writeU16(rawHeader.data() + 4, 1);  // revision
@@ -865,8 +867,9 @@ Result<void> JamBase::writeHeaderAt(uint32_t offset, const Header& header,
     return {};
 }
 
-Result<void> JamBase::writeIndexRecord(uint32_t record, const std::string& to,
-                                       uint32_t headerOffset) {
+tl::expected<void, ErrorPtr> JamBase::writeIndexRecord(uint32_t record,
+                                                       const std::string& to,
+                                                       uint32_t headerOffset) {
     std::array<unsigned char, kIndexRecordSize> raw{};
     writeU32(raw.data(), jamCrc32(to));
     writeU32(raw.data() + 4, headerOffset);
@@ -879,7 +882,7 @@ Result<void> JamBase::writeIndexRecord(uint32_t record, const std::string& to,
     return {};
 }
 
-Result<uint32_t> JamBase::write(const RawDraft& draft) {
+tl::expected<uint32_t, ErrorPtr> JamBase::write(const RawDraft& draft) {
     if (!headers_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -955,7 +958,7 @@ Result<uint32_t> JamBase::write(const RawDraft& draft) {
     return count();
 }
 
-Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
+tl::expected<void, ErrorPtr> JamBase::replace(uint32_t index, const RawDraft& draft) {
     if (!headers_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -1064,7 +1067,7 @@ Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
     return {};
 }
 
-Result<void> JamBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> JamBase::remove(uint32_t index) {
     if (!headers_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -1122,7 +1125,7 @@ Result<void> JamBase::remove(uint32_t index) {
     return {};
 }
 
-Result<void> JamBase::markSeen(uint32_t index) {
+tl::expected<void, ErrorPtr> JamBase::markSeen(uint32_t index) {
     if (!headers_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }

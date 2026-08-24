@@ -24,7 +24,8 @@ namespace amberedit::test {
 class SingleAreaSource final : public ports::IAreaConfigSource {
 public:
     explicit SingleAreaSource(domain::AreaConfig area) : area_(std::move(area)) {}
-    amberedit::Result<std::vector<domain::AreaConfig>> loadAreas() override {
+    tl::expected<std::vector<domain::AreaConfig>, amberedit::ErrorPtr> loadAreas()
+        override {
         return std::vector<domain::AreaConfig>{area_};
     }
 

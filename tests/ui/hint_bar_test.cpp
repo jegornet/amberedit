@@ -39,7 +39,9 @@ term::Event clickAt(int x, int y) {
 
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return {};
+    }
 };
 
 /// A state on whichever screen the test is about, and nothing else: the row is
@@ -95,8 +97,9 @@ TEST_CASE("Each screen's row is the list the config gives it [hintbar]") {
     CHECK(hint_bar::text(list.state) == "ctrl-q quit");
 }
 
-TEST_CASE("hint_bar_capitalize is the case the whole row is written in "
-          "[hintbar]") {
+TEST_CASE(
+    "hint_bar_capitalize is the case the whole row is written in "
+    "[hintbar]") {
     Fixture fixture(ScreenId::MessageRead);
     fixture.config.readerHints = {Command::ReaderReply, Command::ReaderFind,
                                   Command::ReaderExport};
@@ -112,8 +115,9 @@ TEST_CASE("hint_bar_capitalize is the case the whole row is written in "
     CHECK(hint_bar::text(fixture.state) == "Q Reply  Ctrl-F Find  W Export");
 }
 
-TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out "
-          "[hintbar][keys]") {
+TEST_CASE(
+    "The hint bar shows the layout's keys and skips what it leaves out "
+    "[hintbar][keys]") {
     Fixture fixture(ScreenId::MessageRead);
     fixture.state.keys =
         amberedit::test::valueOf(KeyMap::parse("F4 reader.reply\n"
@@ -126,8 +130,9 @@ TEST_CASE("The hint bar shows the layout's keys and skips what it leaves out "
     CHECK(hint_bar::text(fixture.state) == "f4 reply  ctrl-e new  x list");
 }
 
-TEST_CASE("Where a command has several keys the shortest one is shown "
-          "[hintbar][keys]") {
+TEST_CASE(
+    "Where a command has several keys the shortest one is shown "
+    "[hintbar][keys]") {
     Fixture fixture(ScreenId::MessageRead);
 
     // A bare key beats a chord, a chord beats a function key, and Ctrl beats
@@ -206,8 +211,9 @@ TEST_CASE("The row is the hints set into a rule [hintbar]") {
     CHECK(screen.at(39, 0).bg == amberedit::ui::theme::Color{});
 }
 
-TEST_CASE("hint_bar_align is which side of the hints the rule runs along "
-          "[hintbar]") {
+TEST_CASE(
+    "hint_bar_align is which side of the hints the rule runs along "
+    "[hintbar]") {
     using amberedit::config::HintAlign;
 
     Fixture fixture(ScreenId::AreaList);
@@ -239,8 +245,9 @@ TEST_CASE("hint_bar_align is which side of the hints the rule runs along "
     CHECK(rowOf() == "───── / next unread  ctrl-r rescan ─────");
 }
 
-TEST_CASE("A window too narrow for the whole row carries what fits of it "
-          "[hintbar]") {
+TEST_CASE(
+    "A window too narrow for the whole row carries what fits of it "
+    "[hintbar]") {
     // The reader names six commands, which is more than a narrow window holds.
     Fixture fixture(ScreenId::MessageRead);
     fixture.state.width = 35;

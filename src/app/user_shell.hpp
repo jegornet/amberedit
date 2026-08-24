@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 /// The user's own shell, run from inside AmberEdit and waited for.
 ///
@@ -30,6 +30,6 @@ namespace amberedit::app {
 /// not one: what the user did in it is between them and it, and a message about
 /// it here would be about the last command they typed rather than about
 /// AmberEdit.
-[[nodiscard]] Result<void> runUserShell();
+[[nodiscard]] tl::expected<void, ErrorPtr> runUserShell();
 
 }  // namespace amberedit::app

@@ -38,7 +38,8 @@ public:
 
     /// Throws only what `inner` throws — the tosser config being unreadable is
     /// still fatal, and nothing about an echolist is.
-    [[nodiscard]] Result<std::vector<domain::AreaConfig>> loadAreas() override;
+    [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
+        override;
 
 private:
     std::unique_ptr<ports::IAreaConfigSource> inner_;

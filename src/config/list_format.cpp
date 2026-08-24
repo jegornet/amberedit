@@ -27,8 +27,9 @@ std::string takesInstead(const ListFormatSpec& spec) {
 
 }  // namespace
 
-Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
-                                      const std::string& value) {
+tl::expected<ListFormatRow, ErrorPtr> parseListFormat(const CfgEntry& entry,
+                                                      const ListFormatSpec& spec,
+                                                      const std::string& value) {
     const std::string setting(spec.setting);
     ListFormatRow lines{ListFormatLine{}};
 
@@ -135,7 +136,8 @@ Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpe
     return lines;
 }
 
-Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec& spec) {
+tl::expected<ListFormats, ErrorPtr> parseListFormats(const CfgEntry& entry,
+                                                     const ListFormatSpec& spec) {
     const std::string setting(spec.setting);
     if (entry.values.empty()) {
         return entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +
@@ -164,8 +166,8 @@ Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec
     return formats;
 }
 
-Result<ListFormatRow> parseOneListFormat(const CfgEntry& entry,
-                                         const ListFormatSpec& spec) {
+tl::expected<ListFormatRow, ErrorPtr> parseOneListFormat(const CfgEntry& entry,
+                                                         const ListFormatSpec& spec) {
     const std::string setting(spec.setting);
     if (entry.values.empty()) {
         return entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +

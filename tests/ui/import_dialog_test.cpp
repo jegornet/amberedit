@@ -30,8 +30,8 @@ using amberedit::app::ImportMode;
 using amberedit::config::AppConfig;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
-using amberedit::test::TempDir;
 using amberedit::test::contains;
+using amberedit::test::TempDir;
 using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
@@ -55,7 +55,9 @@ Event clickAt(int x, int y) {
 
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return {};
+    }
 };
 
 /// A message being written in one area, and a directory of files to read into
@@ -262,8 +264,9 @@ TEST_CASE("An import lands after the line the cursor is in [import_dialog]") {
     CHECK(fixture.state.edit.row == 4);
 }
 
-TEST_CASE("An import at the end of the message keeps the cursor in it "
-          "[import_dialog]") {
+TEST_CASE(
+    "An import at the end of the message keeps the cursor in it "
+    "[import_dialog]") {
     ImportFixture fixture;
     fixture.write("note.txt", "last word\n");
     fixture.state.edit.lines = {"written"};
@@ -333,8 +336,7 @@ TEST_CASE("The import dialog says what it could not read [import_dialog]") {
 
     // The dialog stays up with the reason along its bottom frame.
     REQUIRE(fixture.state.importPicker);
-    CHECK_MESSAGE(contains(fixture.state.importPicker->error,
-                           "note.txt"),
+    CHECK_MESSAGE(contains(fixture.state.importPicker->error, "note.txt"),
                   fixture.state.importPicker->error);
     // As much of it as the frame has room for — a path longer than the box is
     // cut at the right edge like every other thing that will not fit.

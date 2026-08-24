@@ -123,7 +123,8 @@ std::unique_ptr<ports::IAreaConfigSource> makeTosserSource(const AppConfig& cfg)
 
 }  // namespace
 
-Result<std::unique_ptr<ports::IAreaConfigSource>> makeAreaSource(const AppConfig& cfg) {
+tl::expected<std::unique_ptr<ports::IAreaConfigSource>, ErrorPtr> makeAreaSource(
+    const AppConfig& cfg) {
     auto tosser = makeTosserSource(cfg);
     // A config with neither is refused while it is read, so this is a config
     // built in code — and a null source would be a crash at the first reload.
@@ -146,7 +147,7 @@ AreaManager::AreaManager(std::unique_ptr<ports::IAreaConfigSource> areaSource,
 
 AreaManager::~AreaManager() = default;
 
-Result<void> AreaManager::reload(const ProgressFn& onArea) {
+tl::expected<void, ErrorPtr> AreaManager::reload(const ProgressFn& onArea) {
     closeCurrentArea();
 
     // Built beside the list rather than into it, and put in place at the end.
@@ -215,7 +216,7 @@ Result<void> AreaManager::reload(const ProgressFn& onArea) {
     return {};
 }
 
-Result<ports::IMsgBase*> AreaManager::openArea(const AreaConfig& area) {
+tl::expected<ports::IMsgBase*, ErrorPtr> AreaManager::openArea(const AreaConfig& area) {
     closeCurrentArea();
 
     // In the charset this area is read in, which an area group may have a word

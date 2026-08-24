@@ -61,7 +61,7 @@ std::string ZipEntry::baseName() const {
     return cut == std::string::npos ? name : name.substr(cut + 1);
 }
 
-Result<ZipArchive> ZipArchive::open(const std::string& path) {
+tl::expected<ZipArchive, ErrorPtr> ZipArchive::open(const std::string& path) {
     auto isFile = config::text::insistItIsAFile(path);
     if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
@@ -148,7 +148,7 @@ Result<ZipArchive> ZipArchive::open(const std::string& path) {
     return archive;
 }
 
-Result<std::string> ZipArchive::read(const ZipEntry& entry) const {
+tl::expected<std::string, ErrorPtr> ZipArchive::read(const ZipEntry& entry) const {
     const auto* raw = data_.data();
     const size_t size = data_.size();
 

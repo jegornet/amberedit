@@ -17,7 +17,7 @@
 namespace amberedit::config {
 namespace {
 
-Result<TosserConfigFormat> parseFormat(const CfgEntry& entry) {
+tl::expected<TosserConfigFormat, ErrorPtr> parseFormat(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -38,7 +38,8 @@ Result<TosserConfigFormat> parseFormat(const CfgEntry& entry) {
 /// An empty value is not an empty setting: it asks for the tosser config's own
 /// order, which is the only way to say "leave the list as it is written" now
 /// that the default sorts it.
-Result<std::vector<AreaSortCriterion>> parseAreaSort(const CfgEntry& entry) {
+tl::expected<std::vector<AreaSortCriterion>, ErrorPtr> parseAreaSort(
+    const CfgEntry& entry) {
     if (entry.values.empty()) {
         return entry.fail(
             "arealist_sort needs the letters to sort by — write arealist_sort \"\" for "
@@ -205,8 +206,9 @@ MsgListField msgFieldFrom(const ListFormatField& field) {
 /// `none`, alone, is the empty list — the row or the menu asked for and left
 /// with nothing in it. It is a value rather than an omitted key so that a list
 /// that is meant to be empty reads as one.
-Result<std::vector<Command>> parseCommandList(const CfgEntry& entry, CommandScreen screen,
-                                              Commands::In where) {
+tl::expected<std::vector<Command>, ErrorPtr> parseCommandList(const CfgEntry& entry,
+                                                              CommandScreen screen,
+                                                              Commands::In where) {
     const std::string offered = Commands::offeredNamesOn(screen, where);
 
     if (entry.values.empty()) {
@@ -243,7 +245,7 @@ Result<std::vector<Command>> parseCommandList(const CfgEntry& entry, CommandScre
     return commands;
 }
 
-Result<HintAlign> parseHintAlign(const CfgEntry& entry) {
+tl::expected<HintAlign, ErrorPtr> parseHintAlign(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -254,7 +256,7 @@ Result<HintAlign> parseHintAlign(const CfgEntry& entry) {
                       "' does not say where the hints stand (left | center | right)");
 }
 
-Result<Visibility> parseVisibility(const CfgEntry& entry) {
+tl::expected<Visibility, ErrorPtr> parseVisibility(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -279,8 +281,9 @@ Result<Visibility> parseVisibility(const CfgEntry& entry) {
 /// is the format, and the field where one column of a list named its own. Every
 /// format goes to the same strftime wherever it was written, so every one of
 /// them is held to this.
-Result<std::string> checkTimeFormat(const CfgEntry& entry, const std::string& what,
-                                    const std::string& value) {
+tl::expected<std::string, ErrorPtr> checkTimeFormat(const CfgEntry& entry,
+                                                    const std::string& what,
+                                                    const std::string& value) {
     if (value.empty()) {
         return entry.fail(
             what +
@@ -311,7 +314,7 @@ Result<std::string> checkTimeFormat(const CfgEntry& entry, const std::string& wh
 }
 
 /// The whole value of a setting that is nothing but a strftime format.
-Result<std::string> readTimeFormat(const CfgEntry& entry) {
+tl::expected<std::string, ErrorPtr> readTimeFormat(const CfgEntry& entry) {
     auto joined = entry.text();
     if (!joined) return tl::make_unexpected(std::move(joined).error());
     return checkTimeFormat(entry, entry.key, *joined);
@@ -321,7 +324,8 @@ Result<std::string> readTimeFormat(const CfgEntry& entry) {
 /// Only the message list has any — its Date column — and each is checked before
 /// a line of it is drawn, a stamp that will not write being a mistake worth
 /// stopping for rather than a column of blanks nobody can explain.
-Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormatRow& row) {
+tl::expected<bool, ErrorPtr> checkFieldFormats(const CfgEntry& entry,
+                                               const ListFormatRow& row) {
     for (const auto& line : row) {
         for (const auto& field : line) {
             if (field.format.empty()) continue;
@@ -334,7 +338,8 @@ Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormatRow& row) 
     return true;
 }
 
-Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormats& formats) {
+tl::expected<bool, ErrorPtr> checkFieldFormats(const CfgEntry& entry,
+                                               const ListFormats& formats) {
     for (const ListFormatRow* row : {&formats.narrow, &formats.wide}) {
         auto checked = checkFieldFormats(entry, *row);
         if (!checked) return tl::make_unexpected(std::move(checked).error());
@@ -355,7 +360,7 @@ std::string expandTilde(std::string path) {
 /// A path setting: the value with a leading `~/` expanded, and never the empty
 /// one. An empty path reads back as "the setting was never written", and a line
 /// that is there was meant to do something.
-Result<std::string> readPath(const CfgEntry& entry, const char* what) {
+tl::expected<std::string, ErrorPtr> readPath(const CfgEntry& entry, const char* what) {
     auto joined = entry.text();
     if (!joined) return tl::make_unexpected(std::move(joined).error());
     const std::string path = expandTilde(*joined);
@@ -366,7 +371,7 @@ Result<std::string> readPath(const CfgEntry& entry, const char* what) {
 /// An `echolist` line: the path, and the charset that file is written in where
 /// the line says. Two values at most — the charset is one word, and a path with
 /// a space in it is written in quotes like every other value.
-Result<EcholistSource> readEcholist(const CfgEntry& entry) {
+tl::expected<EcholistSource, ErrorPtr> readEcholist(const CfgEntry& entry) {
     if (entry.values.empty() || entry.values.size() > 2) {
         return entry.fail(
             "echolist takes the path of an echolist, and after it the charset it is "
@@ -382,7 +387,8 @@ Result<EcholistSource> readEcholist(const CfgEntry& entry) {
 
 /// The `arealist_description_priority` word: which of the two descriptions an
 /// area with both is shown by.
-Result<DescriptionPriority> parseDescriptionPriority(const CfgEntry& entry) {
+tl::expected<DescriptionPriority, ErrorPtr> parseDescriptionPriority(
+    const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -392,7 +398,8 @@ Result<DescriptionPriority> parseDescriptionPriority(const CfgEntry& entry) {
                       "' (expected area | echolist)");
 }
 
-Result<domain::FtnAddress> readAddress(const CfgEntry& entry, const std::string& value) {
+tl::expected<domain::FtnAddress, ErrorPtr> readAddress(const CfgEntry& entry,
+                                                       const std::string& value) {
     const auto address = domain::FtnAddress::parse(value);
     if (!address) {
         return entry.fail(entry.key + " is not an FTN address: '" + value + "'");
@@ -408,7 +415,7 @@ Result<domain::FtnAddress> readAddress(const CfgEntry& entry, const std::string&
 /// names attributes without a subject: `af,AreaFix,2:382/736,,k/s`. A comma is
 /// therefore always a separator and never text, quoted or not — a subject with
 /// one in it cannot be written here, and nothing else on the line could hold one.
-Result<std::vector<std::string>> macroFields(const CfgEntry& entry) {
+tl::expected<std::vector<std::string>, ErrorPtr> macroFields(const CfgEntry& entry) {
     // The line as it was written, the quotes gone and the runs of blank between
     // words collapsed: a quoted subject arrives as one value with its spaces
     // kept, and an unquoted one as several that join back into what was typed.
@@ -460,7 +467,8 @@ tl::unexpected<ErrorPtr> failUnknownAttribute(const CfgEntry& entry,
 /// Blanks rather than another punctuation mark, because one of the names is
 /// `K/s` and a slash between attributes could not then be told from the slash
 /// inside one.
-Result<uint32_t> macroAttributes(const CfgEntry& entry, const std::string& field) {
+tl::expected<uint32_t, ErrorPtr> macroAttributes(const CfgEntry& entry,
+                                                 const std::string& field) {
     uint32_t attributes = 0;
     for (const std::string& word : text::tokenize(field)) {
         const auto bit = domain::messageAttributeBit(word);
@@ -471,7 +479,7 @@ Result<uint32_t> macroAttributes(const CfgEntry& entry, const std::string& field
 }
 
 /// One `address_macro` line, read onto the macro it describes.
-Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
+tl::expected<AddressMacro, ErrorPtr> readAddressMacro(const CfgEntry& entry) {
     auto read = macroFields(entry);
     if (!read) return tl::make_unexpected(std::move(read).error());
     const std::vector<std::string>& fields = *read;
@@ -510,7 +518,7 @@ Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
 
 /// The value of `compose_cc_list`: what a message keeps of the `CC:` lines it
 /// was written with.
-Result<CarbonList> parseCarbonList(const CfgEntry& entry) {
+tl::expected<CarbonList, ErrorPtr> parseCarbonList(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -527,7 +535,7 @@ Result<CarbonList> parseCarbonList(const CfgEntry& entry) {
 /// The value of `compose_xc_list`, the same for the `XC:`/`XP:` lines. The
 /// words are the ones GoldED writes them with, which is why they are not the
 /// five above with one taken away.
-Result<CrosspostList> parseCrosspostList(const CfgEntry& entry) {
+tl::expected<CrosspostList, ErrorPtr> parseCrosspostList(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -539,7 +547,7 @@ Result<CrosspostList> parseCrosspostList(const CfgEntry& entry) {
                       "' is not one of its values (raw | verbose | yes | none)");
 }
 
-Result<TwitMode> parseTwitMode(const CfgEntry& entry) {
+tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
@@ -559,7 +567,7 @@ Result<TwitMode> parseTwitMode(const CfgEntry& entry) {
 /// address there is" and quietly stop being the name glob it was written as.
 /// Nothing that is not an address is refused: a name is what a name looks like,
 /// and there is no third thing a `twit` line could be.
-Result<TwitRule> readTwit(const CfgEntry& entry) {
+tl::expected<TwitRule, ErrorPtr> readTwit(const CfgEntry& entry) {
     // Asked before `text()`, which would say only that the key needs a value:
     // what a `twit` line takes is worth saying where somebody has written one
     // and left it empty, and `twit ""` is the same mistake as a bare `twit`.
@@ -599,7 +607,8 @@ AkaMatch& akaEntryFor(AppConfig& cfg, const domain::FtnAddress& aka) {
 /// AmberEdit here rather than being skipped — a dropped entry would show up as
 /// netmail from the wrong address, which is what the lines are there to
 /// prevent.
-Result<void> readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) {
+tl::expected<void, ErrorPtr> readAkas(const std::vector<const CfgEntry*>& akas,
+                                      AppConfig& cfg) {
     for (const CfgEntry* entry : akas) {
         if (entry->values.empty()) {
             return entry->fail(entry->key + " needs an AKA of yours");
@@ -648,7 +657,7 @@ Result<void> readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) 
 /// running its own lines through it again — which is what keeps "adding a
 /// setting is a branch in fromEntries()" true for groups as well, with no second
 /// table of overrides to be kept in step with this one.
-Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
+tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry) {
     const std::string& key = entry.key;
 
     if (key == "name") {
@@ -1122,7 +1131,7 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
 /// value belongs outside a group whether or not it also needs a value.
 [[nodiscard]] bool isKnownSetting(const CfgEntry& entry) {
     AppConfig probe;
-    const Result<bool> read = applySetting(probe, entry);
+    const tl::expected<bool, ErrorPtr> read = applySetting(probe, entry);
     return !read || *read;
 }
 
@@ -1150,9 +1159,9 @@ struct Block {
 /// Neither block nests, in itself or in the other: a group states settings for
 /// the areas it covers and an area states what an area is, and there is nothing
 /// one of them could mean inside the other.
-Result<std::vector<const CfgEntry*>> splitBlocks(const std::vector<CfgEntry>& entries,
-                                                 std::vector<Block>& groups,
-                                                 std::vector<Block>& areas) {
+tl::expected<std::vector<const CfgEntry*>, ErrorPtr> splitBlocks(
+    const std::vector<CfgEntry>& entries, std::vector<Block>& groups,
+    std::vector<Block>& areas) {
     std::vector<const CfgEntry*> globals;
     Block open;
     bool openIsArea = false;
@@ -1226,8 +1235,9 @@ Result<std::vector<const CfgEntry*>> splitBlocks(const std::vector<CfgEntry>& en
 /// declares: an ambiguous config is ambiguous whether or not an echo that trips
 /// it has been subscribed yet, and a config error should be one at startup and
 /// not on the day a new area arrives.
-Result<void> checkUnambiguous(const AreaGroup& first, const AreaGroup& second,
-                              const CfgEntry& opener) {
+tl::expected<void, ErrorPtr> checkUnambiguous(const AreaGroup& first,
+                                              const AreaGroup& second,
+                                              const CfgEntry& opener) {
     std::string shared;
     for (const auto& setting : first.settings) {
         if (second.states(setting.key)) {
@@ -1254,7 +1264,8 @@ Result<void> checkUnambiguous(const AreaGroup& first, const AreaGroup& second,
 /// The `group ... endgroup` blocks, read once the whole file has been: a group
 /// is laid over the file's own settings, so what it lays them over has to be
 /// finished first.
-Result<void> readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
+tl::expected<void, ErrorPtr> readGroups(const std::vector<Block>& blocks,
+                                        AppConfig& cfg) {
     for (const auto& block : blocks) {
         AreaGroup group;
         group.line = block.opener->line;
@@ -1341,7 +1352,8 @@ Result<void> readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
 /// Nothing here looks at the disk. Whether the base a block names is there is a
 /// question for the moment the area is opened, and an area declared before its
 /// base exists is exactly what someone writes a block for.
-Result<void> readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
+tl::expected<void, ErrorPtr> readManualAreas(const std::vector<Block>& blocks,
+                                             AppConfig& cfg) {
     for (const auto& block : blocks) {
         ManualArea manual;
         manual.line = block.opener->line;
@@ -1457,8 +1469,8 @@ Result<void> readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
     return {};
 }
 
-Result<AppConfig> fromEntries(const std::vector<CfgEntry>& entries,
-                              const std::string& originName) {
+tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entries,
+                                              const std::string& originName) {
     AppConfig cfg;
     std::set<std::string> seen;
     std::vector<const CfgEntry*> akas;
@@ -1711,14 +1723,14 @@ std::optional<domain::FtnAddress> AppConfig::akaMatching(
     return std::nullopt;
 }
 
-Result<AppConfig> AppConfig::loadFromString(const std::string& text,
-                                            const std::string& originName) {
+tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
+    const std::string& text, const std::string& originName) {
     auto entries = parseCfg(text, originName);
     if (!entries) return tl::make_unexpected(std::move(entries).error());
     return fromEntries(*entries, originName);
 }
 
-Result<AppConfig> AppConfig::loadFromFile(const std::string& path) {
+tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(const std::string& path) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
         return failure("config not found: " + path);

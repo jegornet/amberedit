@@ -73,7 +73,8 @@ const std::array<std::pair<std::string_view, Switch>, 1> kSwitches{{
     {"input_filler_show", &Palette::inputFillerShown},
 }};
 
-Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
+tl::expected<Palette, ErrorPtr> fromEntries(
+    const std::vector<config::CfgEntry>& entries) {
     Palette palette;
 
     for (const auto& entry : entries) {
@@ -117,13 +118,14 @@ Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
 
 }  // namespace
 
-Result<Palette> parsePalette(const std::string& text, const std::string& originName) {
+tl::expected<Palette, ErrorPtr> parsePalette(const std::string& text,
+                                             const std::string& originName) {
     auto entries = config::parseCfg(text, originName);
     if (!entries) return tl::make_unexpected(std::move(entries).error());
     return fromEntries(*entries);
 }
 
-Result<Palette> loadPalette(const std::string& path) {
+tl::expected<Palette, ErrorPtr> loadPalette(const std::string& path) {
     const auto text = config::text::readFile(path);
     // Named as a theme rather than as a file: it is the config's `theme` line
     // that sent us here, and that is where the answer is.

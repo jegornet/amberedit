@@ -28,7 +28,7 @@ using msgbase::bytes::readU32;
 
 }  // namespace
 
-Result<EcholistDb> EcholistDb::open(const std::string& path) {
+tl::expected<EcholistDb, ErrorPtr> EcholistDb::open(const std::string& path) {
     auto isFile = config::text::insistItIsAFile(path);
     if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 

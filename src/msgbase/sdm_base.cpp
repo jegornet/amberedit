@@ -71,7 +71,8 @@ bool hasKludge(const std::vector<std::string>& kludges, std::string_view name) {
 
 }  // namespace
 
-Result<void> SdmBase::open(const std::string& path, bool echo, uint16_t defaultZone) {
+tl::expected<void, ErrorPtr> SdmBase::open(const std::string& path, bool echo,
+                                           uint16_t defaultZone) {
     close();
     echo_ = echo;
     defaultZone_ = defaultZone != 0 ? defaultZone : 2;
@@ -94,7 +95,7 @@ void SdmBase::close() {
     numbers_.clear();
 }
 
-Result<void> SdmBase::create(const std::string& path) {
+tl::expected<void, ErrorPtr> SdmBase::create(const std::string& path) {
     close();
 
     // The base is the directory, and an empty directory is an empty base:
@@ -117,7 +118,7 @@ std::string SdmBase::fileFor(uint32_t number) const {
     return (fs::path(directory_) / (std::to_string(number) + ".msg")).string();
 }
 
-Result<void> SdmBase::scan() {
+tl::expected<void, ErrorPtr> SdmBase::scan() {
     numbers_.clear();
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(directory_, ec)) {
@@ -145,7 +146,8 @@ uint32_t SdmBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
-Result<void> SdmBase::read(uint32_t index, RawMessage& out, bool withText) const {
+tl::expected<void, ErrorPtr> SdmBase::read(uint32_t index, RawMessage& out,
+                                           bool withText) const {
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not in the area");
     }
@@ -361,7 +363,7 @@ void SdmBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
                             : static_cast<uint16_t>(header.replies.front()));
 }
 
-Result<uint32_t> SdmBase::write(const RawDraft& draft) {
+tl::expected<uint32_t, ErrorPtr> SdmBase::write(const RawDraft& draft) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -399,7 +401,7 @@ Result<uint32_t> SdmBase::write(const RawDraft& draft) {
     return failure("cannot find a free message number in " + directory_);
 }
 
-Result<void> SdmBase::replace(uint32_t index, const RawDraft& draft) {
+tl::expected<void, ErrorPtr> SdmBase::replace(uint32_t index, const RawDraft& draft) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -452,7 +454,7 @@ Result<void> SdmBase::replace(uint32_t index, const RawDraft& draft) {
     return {};
 }
 
-Result<void> SdmBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> SdmBase::remove(uint32_t index) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -468,7 +470,7 @@ Result<void> SdmBase::remove(uint32_t index) {
     return {};
 }
 
-Result<void> SdmBase::markSeen(uint32_t index) {
+tl::expected<void, ErrorPtr> SdmBase::markSeen(uint32_t index) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }

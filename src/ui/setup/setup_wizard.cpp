@@ -226,7 +226,7 @@ void takeFileUnderCursor(SetupState& state) {
 }
 
 /// The tosser config as it stands, said out loud where it will not do.
-[[nodiscard]] Result<void> checkPickedTosser(SetupState& state) {
+[[nodiscard]] tl::expected<void, ErrorPtr> checkPickedTosser(SetupState& state) {
     if (state.tosserConfigPath.empty()) {
         return failure("pick your tosser's config — it is where the areas come from");
     }
@@ -237,7 +237,7 @@ void takeFileUnderCursor(SetupState& state) {
 }
 
 /// Writes the config, which is the last thing the wizard does.
-[[nodiscard]] Result<std::string> save(SetupState& state) {
+[[nodiscard]] tl::expected<std::string, ErrorPtr> save(SetupState& state) {
     const std::string target(config::text::trim(state.target.value));
     if (auto ok = checkTargetPath(target); !ok)
         return tl::make_unexpected(std::move(ok).error());
@@ -485,8 +485,9 @@ void renderPickerStep(SetupState& state, Elements& lines, int inner,
 
 void renderCharset(SetupState& state, Elements& lines, int inner) {
     const bool incoming = state.step == Step::ReadCharset;
-    lines.push_back(note(incoming ? "The charset in which the message you READ, when it has"
-                                  : "The charset in which the message you WRITE is",
+    lines.push_back(note(incoming
+                             ? "The charset in which the message you READ, when it has"
+                             : "The charset in which the message you WRITE is",
                          inner, theme::palette.dialogText));
     if (incoming) {
         lines.push_back(note("no CHRS kludge — or it says something like IBMPC 2.", inner,

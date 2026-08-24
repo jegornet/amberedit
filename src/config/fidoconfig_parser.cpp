@@ -27,9 +27,8 @@ namespace {
 /// takes one all the same.
 const std::set<std::string>& valueOptions() {
     static const std::set<std::string> options = {
-        "-a",  "-b",  "-d",         "-g",           "-p",     "-lr",
-        "-lw", "-$m", "-dupecheck", "-dupehistory", "-scan",  "-toonew",
-        "-tooold",
+        "-a",  "-b",         "-d",           "-g",    "-p",      "-lr",     "-lw",
+        "-$m", "-dupecheck", "-dupehistory", "-scan", "-toonew", "-tooold",
     };
     return options;
 }
@@ -52,8 +51,10 @@ std::string stripComment(std::string_view line) {
     return std::string(text::trim(line));
 }
 
-Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& areas,
-                       const std::filesystem::path& baseDir, int includeDepth);
+tl::expected<void, ErrorPtr> parseInto(const std::string& content,
+                                       std::vector<AreaConfig>& areas,
+                                       const std::filesystem::path& baseDir,
+                                       int includeDepth);
 
 /// Parses a single area declaration line.
 std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
@@ -93,8 +94,8 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
             } else if (option == "-b") {
                 // A word nobody knows leaves the type unstated, and the base is
                 // then worked out from the files on disk.
-                area.type = domain::parseMsgBaseType(value).value_or(
-                    MsgBaseType::Unknown);
+                area.type =
+                    domain::parseMsgBaseType(value).value_or(MsgBaseType::Unknown);
             } else if (option == "-g") {
                 area.group = value;
             } else if (option == "-d") {
@@ -112,8 +113,10 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
     return area;
 }
 
-Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& areas,
-                       const std::filesystem::path& baseDir, int includeDepth) {
+tl::expected<void, ErrorPtr> parseInto(const std::string& content,
+                                       std::vector<AreaConfig>& areas,
+                                       const std::filesystem::path& baseDir,
+                                       int includeDepth) {
     for (const auto& rawLine : text::splitLines(content)) {
         const std::string line = stripComment(rawLine);
         if (line.empty()) continue;
@@ -130,8 +133,7 @@ Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& area
             if (!std::filesystem::exists(included, ec)) continue;
             auto text = text::readFile(included.string());
             if (!text) return tl::make_unexpected(std::move(text).error());
-            auto read =
-                parseInto(*text, areas, included.parent_path(), includeDepth - 1);
+            auto read = parseInto(*text, areas, included.parent_path(), includeDepth - 1);
             if (!read) return tl::make_unexpected(std::move(read).error());
             continue;
         }
@@ -148,13 +150,12 @@ Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& area
 
 FidoconfigParser::FidoconfigParser(std::string path) : path_(std::move(path)) {}
 
-Result<std::vector<AreaConfig>> FidoconfigParser::loadAreas() {
+tl::expected<std::vector<AreaConfig>, ErrorPtr> FidoconfigParser::loadAreas() {
     auto content = text::readFile(path_);
     if (!content) return tl::make_unexpected(std::move(content).error());
     std::vector<AreaConfig> areas;
-    auto read =
-        parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
-                  /*includeDepth=*/8);
+    auto read = parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
+                          /*includeDepth=*/8);
     if (!read) return tl::make_unexpected(std::move(read).error());
     return areas;
 }

@@ -60,7 +60,7 @@ struct NameEntry {
 /// 200 bytes and every field of it far shorter, so this only fires on a file
 /// that is not a nodelist at all — but the length is written in two bytes, and
 /// a truncated one would be read back as a record boundary in the wrong place.
-Result<uint16_t> fieldLength(const std::string& field, const char* what,
+tl::expected<uint16_t, ErrorPtr> fieldLength(const std::string& field, const char* what,
                              const std::string& path) {
     if (field.size() > 0xffff) {
         return failure(path + ": a nodelist line has a " + what + " field of " +
@@ -72,7 +72,7 @@ Result<uint16_t> fieldLength(const std::string& field, const char* what,
 
 }  // namespace
 
-Result<WriteReport> writeNodelistDb(const std::string& path,
+tl::expected<WriteReport, ErrorPtr> writeNodelistDb(const std::string& path,
                                     const std::vector<DbSource>& sources,
                                     std::time_t builtAt) {
     if (sources.size() > format::kMaxSources) {

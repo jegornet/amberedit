@@ -4,7 +4,7 @@
 #include <string_view>
 
 #include "config/app_config.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::config {
 
@@ -44,11 +44,12 @@ struct ConfigAnswers {
 /// shape this file depends on, which is a real coupling and a deliberate one:
 /// the alternative is appending the key at the end, and a config naming `name`
 /// twice is refused by the config parser anyway.
-[[nodiscard]] Result<std::string> renderConfigFrom(std::string_view sample,
-                                                   const ConfigAnswers& answers);
+[[nodiscard]] tl::expected<std::string, ErrorPtr> renderConfigFrom(
+    std::string_view sample, const ConfigAnswers& answers);
 
 /// `renderConfigFrom` over the `amberedit.cfg.example` in the binary.
-[[nodiscard]] Result<std::string> renderConfig(const ConfigAnswers& answers);
+[[nodiscard]] tl::expected<std::string, ErrorPtr> renderConfig(
+    const ConfigAnswers& answers);
 
 /// Renders the config, checks that what it rendered parses, writes it beside
 /// `path` and renames it over — and then reads it back the way a start reads it,
@@ -59,14 +60,14 @@ struct ConfigAnswers {
 /// that is what they meant. If the read-back fails the file is taken away
 /// again — a config that is there and does not load is worse than none, because
 /// it is what the next `--setup` finds and refuses to run against.
-[[nodiscard]] Result<void> writeConfig(const std::string& path,
-                                       const ConfigAnswers& answers);
+[[nodiscard]] tl::expected<void, ErrorPtr> writeConfig(const std::string& path,
+                                                       const ConfigAnswers& answers);
 
 /// A value written the way the config format takes one: quoted where it holds
 /// whitespace or a `#`, bare otherwise. A value holding a `"` is refused —
 /// there is no escape for one in the format, so the only honest answers are to
 /// refuse it or to write a file that will not parse.
-[[nodiscard]] Result<std::string> configValue(std::string_view value);
+[[nodiscard]] tl::expected<std::string, ErrorPtr> configValue(std::string_view value);
 
 /// The word `tosser_config_format` states a format with.
 [[nodiscard]] std::string_view formatWord(TosserConfigFormat format);

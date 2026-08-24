@@ -12,8 +12,9 @@ namespace {
 /// the next one, so `-d "hello world"` is one value and `""` is an empty one;
 /// a `#` starting a word ends the line. Inside quotes both characters are
 /// ordinary text, which is how a value may contain either.
-Result<std::vector<std::string>> tokenize(std::string_view line,
-                                          const std::string& origin, int lineNumber) {
+tl::expected<std::vector<std::string>, ErrorPtr> tokenize(std::string_view line,
+                                                          const std::string& origin,
+                                                          int lineNumber) {
     std::vector<std::string> tokens;
     size_t i = 0;
     while (i < line.size()) {
@@ -45,7 +46,7 @@ tl::unexpected<ErrorPtr> CfgEntry::fail(std::string_view what) const {
     return failure<ConfigError>(origin, line, std::string(what));
 }
 
-Result<std::string> CfgEntry::text() const {
+tl::expected<std::string, ErrorPtr> CfgEntry::text() const {
     if (values.empty()) return fail(key + " needs a value");
 
     std::string joined;
@@ -56,12 +57,12 @@ Result<std::string> CfgEntry::text() const {
     return joined;
 }
 
-Result<std::string> CfgEntry::one() const {
+tl::expected<std::string, ErrorPtr> CfgEntry::one() const {
     if (values.size() != 1) return fail(key + " takes exactly one value");
     return values.front();
 }
 
-Result<long long> CfgEntry::number() const {
+tl::expected<long long, ErrorPtr> CfgEntry::number() const {
     auto value = one();
     if (!value) return tl::make_unexpected(std::move(value).error());
 
@@ -74,7 +75,7 @@ Result<long long> CfgEntry::number() const {
     return parsed;
 }
 
-Result<long long> CfgEntry::numberIn(long long min, long long max) const {
+tl::expected<long long, ErrorPtr> CfgEntry::numberIn(long long min, long long max) const {
     auto value = number();
     if (!value) return tl::make_unexpected(std::move(value).error());
     if (*value < min || *value > max) {
@@ -84,7 +85,7 @@ Result<long long> CfgEntry::numberIn(long long min, long long max) const {
     return *value;
 }
 
-Result<bool> CfgEntry::flag() const {
+tl::expected<bool, ErrorPtr> CfgEntry::flag() const {
     auto value = one();
     if (!value) return tl::make_unexpected(std::move(value).error());
     if (text::iequals(*value, "on")) return true;
@@ -92,8 +93,8 @@ Result<bool> CfgEntry::flag() const {
     return fail(key + " must be on or off, not '" + *value + "'");
 }
 
-Result<std::vector<CfgEntry>> parseCfg(std::string_view text,
-                                       const std::string& originName) {
+tl::expected<std::vector<CfgEntry>, ErrorPtr> parseCfg(std::string_view text,
+                                                       const std::string& originName) {
     std::vector<CfgEntry> entries;
 
     int lineNumber = 0;

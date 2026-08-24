@@ -187,10 +187,10 @@ endif()
 # than deduced. jammy carries 1.0.0 and has to build; every other target is
 # 1.1.0 or later.
 #
-# The second half of the probe is the one worth having. `Result<T>`'s error is
+# The second half of the probe is the one worth having. The error type is
 # `ErrorPtr` — a `std::unique_ptr` — so tl::expected has to hold a type it can
 # move and cannot copy, and has to let `std::move(r).error()` hand the pointer
-# out of a Result that is about to die. That is the whole of how an error
+# out of an expected that is about to die. That is the whole of how an error
 # travels here, and a version that cannot do it has to fail at configure time
 # and say so, rather than a thousand lines into the tree.
 set(amberedit_expected_probe "
@@ -355,7 +355,7 @@ target_link_libraries(amberedit_core
   # PUBLIC because everything linking the core — the executable and the tests —
   # uses std::filesystem too, and on GCC 8 that is an extra -l rather than free.
   PUBLIC amberedit_filesystem
-  # PUBLIC because Result<T> stands in the core's own headers, so the nodelist,
+  # PUBLIC because tl::expected stands in the core's own headers, so the nodelist,
   # the echolist, the zip reader, the UI and the tests all include it too.
   PUBLIC amberedit_expected
 )

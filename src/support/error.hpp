@@ -4,6 +4,8 @@
 #include <string>
 #include <utility>
 
+#include <tl/expected.hpp>
+
 namespace amberedit {
 
 /// Why a fallible operation could not do what was asked.
@@ -16,7 +18,7 @@ namespace amberedit {
 /// it — the two things a bare string could not do at once.
 ///
 /// **An error travels as `ErrorPtr` and is moved, never copied.** That is the
-/// whole reason it is held behind a pointer: a Result carrying eight bytes costs
+/// whole reason it is held behind a pointer: an answer carrying eight bytes costs
 /// nothing to hand upwards, and the copy that a `std::string` error invited at
 /// every frame of the way out will not compile.
 ///
@@ -47,7 +49,7 @@ using ErrorPtr = std::unique_ptr<const Error>;
 ///
 /// For the failures that carry nothing a caller could branch on — and, while the
 /// tree moves over to the typed errors beside it, for the ones that have not
-/// been given a class yet. `failure("…")` in `support/result.hpp` builds one.
+/// been given a class yet. `failure("…")` below builds one.
 class PlainError final : public Error {
 public:
     explicit PlainError(std::string message) : message_(std::move(message)) {}
@@ -141,5 +143,25 @@ private:
     std::string subject_;
     std::string detail_;
 };
+
+/// The failure half of an answer, for `return failure("…")`. It converts to a
+/// `tl::expected` of any T, which is what lets a helper that only ever fails —
+/// and a deep return out of a long function — say so without naming the type
+/// again.
+///
+/// This one builds a `PlainError`: an error that is no more than its sentence.
+/// Where a caller above could want to know what kind of failure it was, reach
+/// for `failure<SomeError>(…)` below and a class that holds the parts.
+[[nodiscard]] inline tl::unexpected<ErrorPtr> failure(std::string message) {
+    return tl::make_unexpected<ErrorPtr>(
+        std::make_unique<const PlainError>(std::move(message)));
+}
+
+/// The same, for one of the typed errors: `failure<ConfigError>(origin, line, …)`.
+template <typename E, typename... Args>
+[[nodiscard]] tl::unexpected<ErrorPtr> failure(Args&&... args) {
+    return tl::make_unexpected<ErrorPtr>(
+        std::make_unique<const E>(std::forward<Args>(args)...));
+}
 
 }  // namespace amberedit

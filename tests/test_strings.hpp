@@ -6,7 +6,7 @@
 #include <string_view>
 #include <utility>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::test {
 
@@ -20,31 +20,31 @@ inline bool contains(std::string_view haystack, std::string_view text) {
     return haystack.find(text) != std::string_view::npos;
 }
 
-/// The reason a Result holds no value, or "" where it holds one.
+/// The reason an answer holds no value, or "" where it holds one.
 ///
 /// doctest has no matchers and none of these assertions wants a whole message
 /// compared: they carry a file-and-line prefix and run on past the part worth
 /// asserting. So this is paired with `contains` and CHECK_MESSAGE, which prints
 /// the message when the assertion fails.
 template <typename T>
-std::string errorOf(const Result<T>& result) {
+std::string errorOf(const tl::expected<T, ErrorPtr>& result) {
     return result ? std::string{} : result.error()->message();
 }
 
-/// The value of a Result a test says must hold one.
+/// The value of an answer a test says must hold one.
 ///
 /// REQUIRE and not CHECK: a test whose premise has broken stops there rather
-/// than going on to read a value that is not there. By value because the Result
+/// than going on to read a value that is not there. By value because the expected
 /// it comes out of is usually a temporary — and moved out of where it is one,
-/// which is what lets a Result of a unique_ptr through at all.
+/// which is what lets an expected of a unique_ptr through at all.
 template <typename T>
-T valueOf(Result<T>&& result) {
+T valueOf(tl::expected<T, ErrorPtr>&& result) {
     REQUIRE_MESSAGE(result.has_value(), errorOf(result));
     return std::move(*result);
 }
 
 template <typename T>
-T valueOf(const Result<T>& result) {
+T valueOf(const tl::expected<T, ErrorPtr>& result) {
     REQUIRE_MESSAGE(result.has_value(), errorOf(result));
     return *result;
 }

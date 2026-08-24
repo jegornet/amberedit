@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::archive {
 
@@ -42,14 +42,14 @@ public:
     /// The archive at `path`, or why it is not a readable zip — named, since
     /// the caller was pointed at it by a config line and that is where the
     /// answer is.
-    [[nodiscard]] static Result<ZipArchive> open(const std::string& path);
+    [[nodiscard]] static tl::expected<ZipArchive, ErrorPtr> open(const std::string& path);
 
     [[nodiscard]] const std::vector<ZipEntry>& entries() const { return entries_; }
     [[nodiscard]] const std::string& path() const { return path_; }
 
     /// The contents of one entry, checked against the CRC the archive states,
     /// or why a damaged or unsupported entry could not be unpacked.
-    [[nodiscard]] Result<std::string> read(const ZipEntry& entry) const;
+    [[nodiscard]] tl::expected<std::string, ErrorPtr> read(const ZipEntry& entry) const;
 
 private:
     std::vector<unsigned char> data_;

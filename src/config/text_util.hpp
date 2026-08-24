@@ -6,7 +6,7 @@
 #include <string_view>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::config::text {
 
@@ -179,10 +179,10 @@ inline std::vector<std::string> splitLines(std::string_view text) {
 /// a setting at a directory is an ordinary enough mistake to be worth saying
 /// out loud. So the question is asked here, through the non-throwing filesystem
 /// overload, and every system answers the same way.
-[[nodiscard]] Result<void> insistItIsAFile(const std::string& path);
+[[nodiscard]] tl::expected<void, ErrorPtr> insistItIsAFile(const std::string& path);
 
 /// Reads a whole file, or says why it could not be read — naming the path,
 /// which is the one thing a caller cannot add and a reader needs.
-[[nodiscard]] Result<std::string> readFile(const std::string& path);
+[[nodiscard]] tl::expected<std::string, ErrorPtr> readFile(const std::string& path);
 
 }  // namespace amberedit::config::text

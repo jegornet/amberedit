@@ -5,7 +5,7 @@
 
 #include "domain/area.hpp"
 #include "domain/message.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::ports {
 
@@ -20,7 +20,8 @@ public:
 
     /// Opens the area's base, or says why it is unavailable — missing files, a
     /// corrupt base, an unsupported type.
-    [[nodiscard]] virtual Result<void> open(const domain::AreaConfig& area) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> open(
+        const domain::AreaConfig& area) = 0;
     virtual void close() = 0;
 
     [[nodiscard]] virtual uint32_t count() const = 0;
@@ -57,7 +58,8 @@ public:
 
     /// Appends a message to the base, converting its text out of UTF-8 into
     /// the charset the draft names, and hands back its 1-based number.
-    [[nodiscard]] virtual Result<uint32_t> write(const domain::MessageDraft& draft) = 0;
+    [[nodiscard]] virtual tl::expected<uint32_t, ErrorPtr> write(
+        const domain::MessageDraft& draft) = 0;
 
     /// Writes the draft over message `index`, in its place in the base rather
     /// than beside it. A failure means the message is unchanged.
@@ -68,15 +70,15 @@ public:
     /// decides is the header fields, the control lines and the text —
     /// everything a person can see and change. The date it is written under is
     /// the clock: a message written again is written now.
-    [[nodiscard]] virtual Result<void> replace(uint32_t index,
-                                               const domain::MessageDraft& draft) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> replace(
+        uint32_t index, const domain::MessageDraft& draft) = 0;
 
     /// Takes the message out of the base. A failure means it is still there.
     ///
     /// Everything after it moves up one, so the number that named it now names
     /// what followed it — as in every FTN base, where a message's place is not
     /// its identity.
-    [[nodiscard]] virtual Result<void> remove(uint32_t index) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> remove(uint32_t index) = 0;
 
     /// Writes the base's own "this has been read" mark onto message `index` —
     /// JAM's `TimesRead`, Squish's `MSGSEEN`, the `times_read` word of a Fido
@@ -87,7 +89,7 @@ public:
     /// succeeds, so opening one twice writes once. A failure means the mark was
     /// not made — an area opened read-only is the ordinary reason, and it is not
     /// worth telling anybody about: the message is on the screen either way.
-    [[nodiscard]] virtual Result<void> markSeen(uint32_t index) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> markSeen(uint32_t index) = 0;
 };
 
 }  // namespace amberedit::ports

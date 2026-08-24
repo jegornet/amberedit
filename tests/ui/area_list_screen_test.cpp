@@ -36,7 +36,9 @@ namespace {
 class MutableAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit MutableAreaSource(std::vector<AreaConfig>* areas) : areas_(areas) {}
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return *areas_; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return *areas_;
+    }
 
 private:
     std::vector<AreaConfig>* areas_;
@@ -151,8 +153,9 @@ struct Fixture {
 
 }  // namespace
 
-TEST_CASE("Ctrl-R asks for a rescan rather than typing into the quick search "
-          "[arealist]") {
+TEST_CASE(
+    "Ctrl-R asks for a rescan rather than typing into the quick search "
+    "[arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
 
     REQUIRE(
@@ -171,8 +174,9 @@ TEST_CASE("The bare letter still types into the quick search [arealist]") {
     CHECK(fixture.state.areaCursor == 1);
 }
 
-TEST_CASE("A letter a layout has made a command stops typing into the search "
-          "[arealist][keys]") {
+TEST_CASE(
+    "A letter a layout has made a command stops typing into the search "
+    "[arealist][keys]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.state.keys = amberedit::test::valueOf(
         amberedit::ui::KeyMap::parse("t arealist.rescan\n", "keys"));
@@ -232,8 +236,9 @@ TEST_CASE("The slash goes to the next area with unread messages [arealist][squis
     CHECK(fixture.state.areaCursor == 0);
 }
 
-TEST_CASE("The slash leaves the cursor where it is when nothing is unread "
-          "[arealist]") {
+TEST_CASE(
+    "The slash leaves the cursor where it is when nothing is unread "
+    "[arealist]") {
     // Passthrough areas hold nothing and can hold nothing unread: the key is
     // still the list's — it is swallowed rather than typed — and the cursor
     // stays on the area it was on.
@@ -312,8 +317,9 @@ TEST_CASE("The area list draws the columns arealist_format asks for [arealist]")
     CHECK(rowText(screen, 3) == "   2 two            ");
 }
 
-TEST_CASE("The width the window has picks which of the two formats a row follows "
-          "[arealist]") {
+TEST_CASE(
+    "The width the window has picks which of the two formats a row follows "
+    "[arealist]") {
     using amberedit::config::AreaFieldKind;
     AreaConfig described = passthroughArea("one");
     described.description = "The first area";
@@ -342,8 +348,9 @@ TEST_CASE("The width the window has picks which of the two formats a row follows
     CHECK(rowText(wide, 2) == " one      The first area      ");
 }
 
-TEST_CASE("A format written on several lines draws an area on all of them "
-          "[arealist]") {
+TEST_CASE(
+    "A format written on several lines draws an area on all of them "
+    "[arealist]") {
     using amberedit::config::AreaFieldKind;
     AreaConfig first = passthroughArea("one");
     first.description = "The first area";
@@ -421,8 +428,9 @@ TEST_CASE("A click on any line of a row is a click on that area [arealist]") {
     CHECK(fixture.state.areaCursor == 1);
 }
 
-TEST_CASE("The selected area keeps its place on the screen when a row changes height "
-          "[arealist]") {
+TEST_CASE(
+    "The selected area keeps its place on the screen when a row changes height "
+    "[arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(20));
     fixture.config.adaptiveUiThreshold = 30;
@@ -485,8 +493,9 @@ TEST_CASE("The scrollbar beside tall rows counts areas, not lines [arealist]") {
     CHECK(barColumn(screen, 2, 6) == "││││██");
 }
 
-TEST_CASE("The description column is drawn quiet, the area's own words and all "
-          "[arealist][squish]") {
+TEST_CASE(
+    "The description column is drawn quiet, the area's own words and all "
+    "[arealist][squish]") {
     using amberedit::config::AreaFieldKind;
     namespace theme = amberedit::ui::theme;
 
@@ -498,8 +507,8 @@ TEST_CASE("The description column is drawn quiet, the area's own words and all "
     // The cursor stands on the first row and a selected row keeps the
     // selection's colors throughout, so the two rows the colors are read off
     // are both below it.
-    Fixture fixture({squishArea("zero", under.path()), speaks,
-                     squishArea("two", bare.path())});
+    Fixture fixture(
+        {squishArea("zero", under.path()), speaks, squishArea("two", bare.path())});
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 8},
                                             {AreaFieldKind::Space, 1},
                                             {AreaFieldKind::Description, 0}}};
@@ -648,8 +657,9 @@ TEST_CASE("A rescan puts the cursor back in bounds when its area is gone [areali
     CHECK(fixture.state.areaCursor == 0);
 }
 
-TEST_CASE("A rescan brings the totals and the unread counts up to date "
-          "[arealist][squish]") {
+TEST_CASE(
+    "A rescan brings the totals and the unread counts up to date "
+    "[arealist][squish]") {
     TempSquishBase base;
     Fixture fixture({squishArea("localnet", base.path())});
 
@@ -678,8 +688,9 @@ TEST_CASE("A rescan brings the totals and the unread counts up to date "
     CHECK(fixture.manager.areas()[0].unread == 2);
 }
 
-TEST_CASE("Entering an area with no base on disk makes one and reads it "
-          "[arealist][create]") {
+TEST_CASE(
+    "Entering an area with no base on disk makes one and reads it "
+    "[arealist][create]") {
     // The row is dimmed — at startup there was nothing to open — and Enter on it
     // works all the same: what the tosser config declares is an area, and the
     // base under it is made on the way in.
@@ -724,8 +735,9 @@ TEST_CASE("An area that will not open says so in the error box [arealist][create
     CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::AreaList);
 }
 
-TEST_CASE("A passthrough area is entered and refused like any other "
-          "[arealist][create]") {
+TEST_CASE(
+    "A passthrough area is entered and refused like any other "
+    "[arealist][create]") {
     // There is no base on disk and none to make: the area is a name the tosser
     // routes through. Enter says that rather than doing nothing at all.
     Fixture fixture({passthroughArea("pass.through")});
@@ -736,8 +748,9 @@ TEST_CASE("A passthrough area is entered and refused like any other "
     CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::AreaList);
 }
 
-TEST_CASE("The error box draws what went wrong and a button to dismiss it "
-          "[arealist][create]") {
+TEST_CASE(
+    "The error box draws what went wrong and a button to dismiss it "
+    "[arealist][create]") {
     namespace term = amberedit::ui::term;
     Fixture fixture({passthroughArea("one")});
     fixture.state.errorMessage = "Cannot open the area: no Squish base at /spool/new";

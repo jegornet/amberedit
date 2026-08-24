@@ -24,7 +24,8 @@ namespace text = config::text;  // no term::text here, so the short name is free
 
 /// The one thing no answer may hold: the config format has no escape for a
 /// double quote, and a value carrying one cannot be written at all.
-[[nodiscard]] Result<void> withoutQuotes(std::string_view typed, const char* what) {
+[[nodiscard]] tl::expected<void, ErrorPtr> withoutQuotes(std::string_view typed,
+                                                         const char* what) {
     if (typed.find('"') != std::string_view::npos) {
         return failure(std::string(what) + " cannot hold a double quote");
     }
@@ -45,14 +46,14 @@ namespace text = config::text;  // no term::text here, so the short name is free
 
 }  // namespace
 
-Result<void> checkName(std::string_view typed) {
+tl::expected<void, ErrorPtr> checkName(std::string_view typed) {
     if (text::trim(typed).empty()) {
         return failure("a name is what a message you write is from — it cannot be empty");
     }
     return withoutQuotes(typed, "a name");
 }
 
-Result<domain::FtnAddress> checkAddress(std::string_view typed) {
+tl::expected<domain::FtnAddress, ErrorPtr> checkAddress(std::string_view typed) {
     const std::string_view trimmed = text::trim(typed);
     if (trimmed.empty()) return failure("an address is required, as 2:5020/9999");
 
@@ -65,7 +66,7 @@ Result<domain::FtnAddress> checkAddress(std::string_view typed) {
     return *parsed;
 }
 
-Result<void> checkCharsetAnswer(std::string_view typed) {
+tl::expected<void, ErrorPtr> checkCharsetAnswer(std::string_view typed) {
     const std::string charset(text::trim(typed));
     if (charset.empty()) return failure("a charset is required, as CP866");
     for (char c : charset) {
@@ -101,8 +102,8 @@ std::string defaultReadCharset(const domain::FtnAddress& address) {
     return "CP437";
 }
 
-Result<size_t> checkTosserConfig(const std::string& path,
-                                 config::TosserConfigFormat format) {
+tl::expected<size_t, ErrorPtr> checkTosserConfig(const std::string& path,
+                                                 config::TosserConfigFormat format) {
     if (path.empty()) return failure("no tosser config is named");
     if (auto isFile = text::insistItIsAFile(path); !isFile) {
         return tl::make_unexpected(std::move(isFile).error());
@@ -111,7 +112,7 @@ Result<size_t> checkTosserConfig(const std::string& path,
         return tl::make_unexpected(std::move(quotes).error());
     }
 
-    Result<std::vector<domain::AreaConfig>> areas = failure("");
+    tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> areas = failure("");
     switch (format) {
         case config::TosserConfigFormat::Fidoconfig:
             areas = config::FidoconfigParser(path).loadAreas();
@@ -176,8 +177,8 @@ std::optional<std::string> probeTemplate(const std::string& programPath) {
     return std::nullopt;
 }
 
-Result<std::string> ensureTemplate(const std::string& configPath,
-                                   const std::string& programPath) {
+tl::expected<std::string, ErrorPtr> ensureTemplate(const std::string& configPath,
+                                                   const std::string& programPath) {
     if (const auto installed = probeTemplate(programPath)) return *installed;
 
     const fs::path beside = fs::path(configPath).parent_path() / "default.tpl";
@@ -203,7 +204,7 @@ Result<std::string> ensureTemplate(const std::string& configPath,
     return ec ? beside.string() : absolute.string();
 }
 
-Result<void> checkTargetPath(const std::string& path) {
+tl::expected<void, ErrorPtr> checkTargetPath(const std::string& path) {
     if (text::trim(path).empty()) return failure("say where the config is to be written");
     if (auto quotes = withoutQuotes(path, "a path"); !quotes)
         return tl::make_unexpected(std::move(quotes).error());

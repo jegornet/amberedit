@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 #include "ui/term/color.hpp"
 
 namespace amberedit::ui::theme {
@@ -330,10 +330,10 @@ inline Palette palette;
 /// is not a role, or if a value is not a color. A theme is asked for explicitly,
 /// so a mistake in one is worth saying out loud rather than passing over in
 /// silence.
-[[nodiscard]] Result<Palette> loadPalette(const std::string& path);
+[[nodiscard]] tl::expected<Palette, ErrorPtr> loadPalette(const std::string& path);
 
 /// Parses a theme from a string — the entry point used by the tests.
-[[nodiscard]] Result<Palette> parsePalette(const std::string& text,
-                                           const std::string& originName = "<string>");
+[[nodiscard]] tl::expected<Palette, ErrorPtr> parsePalette(
+    const std::string& text, const std::string& originName = "<string>");
 
 }  // namespace amberedit::ui::theme

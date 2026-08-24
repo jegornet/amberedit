@@ -4,7 +4,7 @@
 #include <string_view>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::config {
 
@@ -12,7 +12,7 @@ namespace amberedit::config {
 /// it, and where it came from so that a complaint can name the line.
 ///
 /// The accessors below are what a setting is read through. They answer with a
-/// Result rather than a default: a line that is there was meant to do something,
+/// failure rather than a default: a line that is there was meant to do something,
 /// and a line that cannot do it is a mistake worth stopping for.
 struct CfgEntry {
     /// The first word of the line, lowercased — keys are case-insensitive, as
@@ -31,20 +31,21 @@ struct CfgEntry {
     /// and `name "Vasya Pupkin"` are the same line. Quotes are what a value
     /// with several spaces in a row, or a leading one, needs — they come
     /// through as they were written.
-    [[nodiscard]] Result<std::string> text() const;
+    [[nodiscard]] tl::expected<std::string, ErrorPtr> text() const;
 
     /// The single value of a key that takes exactly one — an address, a number,
     /// a charset name. By value: what it answers is an address or a charset
-    /// name, and neither is worth a reference through a Result.
-    [[nodiscard]] Result<std::string> one() const;
+    /// name, and neither is worth a reference through an expected.
+    [[nodiscard]] tl::expected<std::string, ErrorPtr> one() const;
 
     /// The single value as a whole number, optionally within `min`..`max`.
-    [[nodiscard]] Result<long long> number() const;
-    [[nodiscard]] Result<long long> numberIn(long long min, long long max) const;
+    [[nodiscard]] tl::expected<long long, ErrorPtr> number() const;
+    [[nodiscard]] tl::expected<long long, ErrorPtr> numberIn(long long min,
+                                                             long long max) const;
 
     /// The single value as `on` or `off`, and nothing else: a setting that
     /// says `1` or `yes` is more likely a misremembering than an intention.
-    [[nodiscard]] Result<bool> flag() const;
+    [[nodiscard]] tl::expected<bool, ErrorPtr> flag() const;
 };
 
 /// Parses the AmberEdit config format — the same one the themes are written in.
@@ -58,7 +59,7 @@ struct CfgEntry {
 /// Fails, naming the file and line, on an unterminated quote and on the two
 /// shapes a toml config left behind — a `[section]` header and a `key = value`
 /// line.
-[[nodiscard]] Result<std::vector<CfgEntry>> parseCfg(std::string_view text,
-                                                     const std::string& originName);
+[[nodiscard]] tl::expected<std::vector<CfgEntry>, ErrorPtr> parseCfg(
+    std::string_view text, const std::string& originName);
 
 }  // namespace amberedit::config

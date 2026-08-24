@@ -23,7 +23,8 @@ public:
     explicit FixedAreas(std::vector<domain::AreaConfig> areas)
         : areas_(std::move(areas)) {}
 
-    amberedit::Result<std::vector<domain::AreaConfig>> loadAreas() override {
+    tl::expected<std::vector<domain::AreaConfig>, amberedit::ErrorPtr> loadAreas()
+        override {
         return areas_;
     }
 
@@ -85,8 +86,9 @@ TEST_CASE("with priority echolist the echolist's description wins [echolist]") {
     CHECK(areas[2].description == "a base no echolist knows");
 }
 
-TEST_CASE("a compiled echolist that will not open leaves every area as it was "
-          "[echolist]") {
+TEST_CASE(
+    "a compiled echolist that will not open leaves every area as it was "
+    "[echolist]") {
     test::TempDir dir;
 
     // It is a convenience, like the nodelist: there is no version of "your
@@ -113,8 +115,9 @@ TEST_CASE("a config naming no compiled echolist is left unwrapped [echolist]") {
           "what the echolist says");
 }
 
-TEST_CASE("the area list main() builds carries the echolist's descriptions "
-          "[echolist]") {
+TEST_CASE(
+    "the area list main() builds carries the echolist's descriptions "
+    "[echolist]") {
     // The chain as `main()` puts it together: whatever the areas came from,
     // wrapped in this. Areas declared here rather than in a tosser config, so
     // that the test is about the wiring and not about a parser.

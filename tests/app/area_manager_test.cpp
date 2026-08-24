@@ -29,7 +29,9 @@ namespace {
 class StubAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit StubAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return areas_;
+    }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -221,8 +223,9 @@ TEST_CASE("sortAreas breaks a tie with the next criterion [areamanager][sort]") 
           std::vector<std::string>{"ru.linux", "a.quiet.one", "ru.fido", "alt.test"});
 }
 
-TEST_CASE("sortAreas leaves areas the criteria cannot tell apart alone "
-          "[areamanager][sort]") {
+TEST_CASE(
+    "sortAreas leaves areas the criteria cannot tell apart alone "
+    "[areamanager][sort]") {
     // Every one of them is an ungrouped echo, so the config's own order stands.
     const std::vector<std::string> written{"ru.fido", "alt.test", "ru.linux"};
     std::vector<AreaEntry> areas{entryOf("ru.fido"), entryOf("alt.test"),
@@ -320,8 +323,9 @@ TEST_CASE("An area whose base cannot be created reports why [areamanager][create
     CHECK_FALSE(opened.error()->message().empty());
 }
 
-TEST_CASE("A base that is there and unreadable is never created over "
-          "[areamanager][create]") {
+TEST_CASE(
+    "A base that is there and unreadable is never created over "
+    "[areamanager][create]") {
     // Half a base, or a broken one, holds something: an empty one written over
     // it would take that with it. Only "nothing at all is there" is answered by
     // making one.

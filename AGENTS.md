@@ -164,8 +164,8 @@ Four things in the build follow from the same floor:
 - GCC 8 keeps `std::filesystem` in a separate `libstdc++fs`. `CMakeLists.txt`
   finds out by linking, not by version, and puts the result in the
   `amberedit_filesystem` interface target that `amberedit_core` exports.
-- **`Result<T>` is `tl::expected` and not `std::expected`, and that too is the
-  floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
+- **The answer type is `tl::expected` and not `std::expected`, and that too is
+  the floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
   library is the only way the project gets the type at all — and it is packaged
   on every target under one header and one CMake package: `expected-devel` on
   EPEL 8, 9 and 10 and Fedora, `libexpected-dev` on trixie, jammy, noble and
@@ -257,8 +257,8 @@ Adapters (FtnMsgBase over the msgbase/ format drivers, AppConfig,
           FidoconfigParser, AreasBbsParser, CharsetDetector, IconvRecoder,
           MsgBaseLastReadStore)
 
-Support (Result) — the bottom. It includes nothing of the project and
-                   every layer above may include it.
+Support (Error) — the bottom. It includes nothing of the project and
+                  every layer above may include it.
 ```
 
 `nodelist/` and `echolist/` stand beside the adapters and lean on the domain, on
@@ -308,15 +308,15 @@ Rules that hold the design together:
   "flags": FTS-0001 calls them attributes. "Flag" is left for a boolean on a
   struct, a command-line option, or a bit in someone else's format
   (`NodeEntry::flags` are FTS-5001's node flags and stay that).
-- **Everything that can fail answers with `Result<T>`** — `tl::expected<T,
-  ErrorPtr>` from `support/result.hpp` — and `error()->message()` is the sentence
+- **Everything that can fail answers with `tl::expected<T, ErrorPtr>`**, spelt
+  out and not behind an alias of ours, and `error()->message()` is the sentence
   a person reads, already complete. Nothing throws, nothing keeps a
   `lastError()` to be asked afterwards, and no bool means "look somewhere else
   for why". `std::optional` still means *absence* and is not a failure,
   `std::error_code` with the non-throwing `std::filesystem` overloads is still
   how the filesystem is asked, and a function answering a plain question —
-  `isOpen()`, `count()` — is still a bool. A Result is read through `*` after
-  being checked, never through `value()`.
+  `isOpen()`, `count()` — is still a bool. It is read through `*` after being
+  checked, never through `value()`.
 - **The error is a class and not a sentence, and it is moved and never copied.**
   `support/error.hpp` holds the closed set: `ConfigError` carries the file and
   the line, `MsgBaseError` carries a `Kind` and the base, and `PlainError` is the
@@ -328,8 +328,8 @@ Rules that hold the design together:
 
   `ErrorPtr` is a `unique_ptr`, which is what makes the moving a rule the
   compiler keeps rather than one to remember: `tl::make_unexpected(read.error())`
-  does not build, and `std::move(read).error()` is what a propagation says. A
-  Result is eight bytes of error however deep it is handed up, where a
+  does not build, and `std::move(read).error()` is what a propagation says. An
+  answer carries eight bytes of error however deep it is handed up, where a
   `std::string` error allocated a fresh copy of the sentence at every frame.
 
   Add a class when something could act on the difference. `failure("…")` builds a
@@ -351,10 +351,10 @@ Rules that hold the design together:
   `ui/error_log` instead — a line naming the screen and the key, in the file
   `error_log` points at, and nowhere at all where the config names none, which
   is the ordinary case. `main()` has a terminal and prints to it.
-- **A diagnostic per item is a field and not a `Result`.** A list where one
+- **A diagnostic per item is a field and not an answer of its own.** A list where one
   member is broken and the rest are fine — `AreaEntry::error`,
   `CompileReport::problems`, `CopyCommand::error`, `StartingText::error` — is a
-  report to be shown beside the things that worked, and a Result there would
+  report to be shown beside the things that worked, and an expected there would
   throw the answer away to keep the complaint.
 - There is no toolbar and no status line, and no bottom bar goes back in: the
   rows one would take are the message's. What a screen offers is in the menu
@@ -1847,7 +1847,7 @@ taking a row.
   `config/cfg_file`: a line is a key and the values after it, double quotes round
   a value whose spaces matter, a `#` starting a word ending the line. No
   sections, and no types beyond what reading a key asks for —
-  `CfgEntry::text/one/number/numberIn/flag`, each answering with a `Result` that
+  `CfgEntry::text/one/number/numberIn/flag`, each answering with an expected that
   names the file and the line. Adding a setting is a branch in `fromEntries()`
   (`config/app_config.cpp`), and a key not in it is refused rather than passed
   over: a misspelling should be a message and not a setting quietly back at its

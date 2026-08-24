@@ -111,7 +111,7 @@ MsgBaseType FtnMsgBase::probeType(const std::string& path) {
     return MsgBaseType::Unknown;
 }
 
-Result<void> FtnMsgBase::open(const AreaConfig& area) {
+tl::expected<void, ErrorPtr> FtnMsgBase::open(const AreaConfig& area) {
     close();
     areaConfig_ = area;
 
@@ -165,7 +165,7 @@ bool FtnMsgBase::isAbsent(const AreaConfig& area) {
     return probeType(area.path) == MsgBaseType::Unknown;
 }
 
-Result<void> FtnMsgBase::create(const AreaConfig& area) {
+tl::expected<void, ErrorPtr> FtnMsgBase::create(const AreaConfig& area) {
     close();
 
     if (!isAbsent(area)) {
@@ -339,7 +339,7 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     return raw;
 }
 
-Result<uint32_t> FtnMsgBase::write(const domain::MessageDraft& draft) {
+tl::expected<uint32_t, ErrorPtr> FtnMsgBase::write(const domain::MessageDraft& draft) {
     if (!driver_)
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
 
@@ -358,7 +358,8 @@ Result<uint32_t> FtnMsgBase::write(const domain::MessageDraft& draft) {
     return *written;
 }
 
-Result<void> FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& draft) {
+tl::expected<void, ErrorPtr> FtnMsgBase::replace(uint32_t index,
+                                                 const domain::MessageDraft& draft) {
     if (!driver_)
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     // Stamped now, like any other message the editor writes: what a changed
@@ -376,7 +377,7 @@ Result<void> FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& dra
     return {};
 }
 
-Result<void> FtnMsgBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> FtnMsgBase::remove(uint32_t index) {
     if (!driver_)
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     const auto removed = driver_->remove(index);
@@ -387,7 +388,7 @@ Result<void> FtnMsgBase::remove(uint32_t index) {
     return {};
 }
 
-Result<void> FtnMsgBase::markSeen(uint32_t index) {
+tl::expected<void, ErrorPtr> FtnMsgBase::markSeen(uint32_t index) {
     if (!driver_)
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     const auto marked = driver_->markSeen(index);

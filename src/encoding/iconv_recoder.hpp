@@ -3,7 +3,7 @@
 #include <string>
 #include <string_view>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::encoding {
 
@@ -29,12 +29,12 @@ public:
     /// the form for a caller that must not accept an approximation — an export,
     /// an import — where the charset was typed a moment ago and a mistyped one
     /// would go to disk as mojibake nobody could undo.
-    [[nodiscard]] Result<std::string> intoUtf8(std::string_view text,
-                                               const std::string& fromCharset);
+    [[nodiscard]] tl::expected<std::string, ErrorPtr> intoUtf8(
+        std::string_view text, const std::string& fromCharset);
 
     /// The same the other way, for a message on its way into a base.
-    [[nodiscard]] Result<std::string> intoCharset(std::string_view text,
-                                                  const std::string& toCharset);
+    [[nodiscard]] tl::expected<std::string, ErrorPtr> intoCharset(
+        std::string_view text, const std::string& toCharset);
 
     /// The same two conversions for a reader, where an approximation is the
     /// right answer: an unknown charset hands the text back as it stands rather
@@ -52,9 +52,11 @@ public:
 
 private:
     void closeDescriptor();
-    [[nodiscard]] Result<void> ensureDescriptor(const std::string& fromCharset);
+    [[nodiscard]] tl::expected<void, ErrorPtr> ensureDescriptor(
+        const std::string& fromCharset);
     void closeOutDescriptor();
-    [[nodiscard]] Result<void> ensureOutDescriptor(const std::string& toCharset);
+    [[nodiscard]] tl::expected<void, ErrorPtr> ensureOutDescriptor(
+        const std::string& toCharset);
 
     void* descriptor_{nullptr};  ///< iconv_t, kept as void* to avoid iconv.h here
     std::string currentFrom_;
@@ -74,7 +76,7 @@ private:
 /// a word taken as it is written and only tried at the first message, which is
 /// right for a config somebody keeps — but the setup wizard has the user in
 /// front of it, and a typo is worth catching while there is somebody to fix it.
-[[nodiscard]] Result<void> checkCharset(const std::string& charset);
+[[nodiscard]] tl::expected<void, ErrorPtr> checkCharset(const std::string& charset);
 
 /// True if the string is well-formed UTF-8. Used both to avoid recoding text
 /// that already is UTF-8 and to keep broken bytes out of the terminal.

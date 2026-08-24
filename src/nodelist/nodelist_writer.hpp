@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 #include "nodelist/node_entry.hpp"
 #include "nodelist/nodelist_source.hpp"
 
@@ -43,7 +43,7 @@ struct WriteReport {
 /// opening the old one while this runs either goes on reading the whole of the
 /// old file or opens the whole of the new one. There is no moment at which the
 /// path names half a nodelist.
-[[nodiscard]] Result<WriteReport> writeNodelistDb(const std::string& path,
+[[nodiscard]] tl::expected<WriteReport, ErrorPtr> writeNodelistDb(const std::string& path,
                                                   const std::vector<DbSource>& sources,
                                                   std::time_t builtAt);
 

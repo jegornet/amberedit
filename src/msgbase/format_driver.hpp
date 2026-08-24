@@ -4,7 +4,7 @@
 #include <string>
 
 #include "msgbase/raw_message.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::msgbase {
 
@@ -33,8 +33,9 @@ public:
     /// @param defaultZone the zone a Fido *.msg header is read under, its two
     ///                    words of address carrying none. The area's own AKA,
     ///                    where the tosser config states one.
-    [[nodiscard]] virtual Result<void> open(const std::string& path, bool echo,
-                                            uint16_t defaultZone) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> open(const std::string& path,
+                                                            bool echo,
+                                                            uint16_t defaultZone) = 0;
     virtual void close() = 0;
 
     /// Creates an empty base at `path`: the files the format opens by reading,
@@ -53,15 +54,17 @@ public:
     /// exclusively — and a creation that fails half way takes back what it had
     /// already made, so there is nothing left for the next attempt to trip
     /// over.
-    [[nodiscard]] virtual Result<void> create(const std::string& path) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> create(
+        const std::string& path) = 0;
 
     [[nodiscard]] virtual uint32_t count() const = 0;
 
     /// Reads message `index`. `withText` false stops at the header and the
     /// control lines, which is all a message list needs and, in every format,
     /// a good deal less to read.
-    [[nodiscard]] virtual Result<void> read(uint32_t index, RawMessage& out,
-                                            bool withText) const = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> read(uint32_t index,
+                                                            RawMessage& out,
+                                                            bool withText) const = 0;
 
     /// What the format holds about message `index`: the stored header, the
     /// records around it and the bytes they are made of, as a report to be
@@ -87,7 +90,8 @@ public:
     /// **Every write takes the base's lock first and gives it back after**, the
     /// whole of it under `FileLock`: a tosser may be writing the same area
     /// between two keystrokes.
-    [[nodiscard]] virtual Result<uint32_t> write(const RawDraft& draft) = 0;
+    [[nodiscard]] virtual tl::expected<uint32_t, ErrorPtr> write(
+        const RawDraft& draft) = 0;
 
     /// Puts `draft` where message `index` is, rather than beside it.
     ///
@@ -106,10 +110,11 @@ public:
     ///
     /// Takes the lock like every other write. A failure leaves the message as
     /// it was and says why.
-    [[nodiscard]] virtual Result<void> replace(uint32_t index, const RawDraft& draft) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> replace(uint32_t index,
+                                                               const RawDraft& draft) = 0;
 
     /// Takes a message out. Everything after it moves up one.
-    [[nodiscard]] virtual Result<void> remove(uint32_t index) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> remove(uint32_t index) = 0;
 
     /// Marks message `index` as read, in the field the format keeps it in:
     /// JAM's `TimesRead` and the `times_read` word of a Fido *.msg go to 1,
@@ -124,7 +129,7 @@ public:
     /// count is a mark here and not a tally, so a message read twice is not
     /// written twice. The lock is taken like any other write; a failure means
     /// the mark was not made, which a read-only base is the ordinary reason for.
-    [[nodiscard]] virtual Result<void> markSeen(uint32_t index) = 0;
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> markSeen(uint32_t index) = 0;
 };
 
 }  // namespace amberedit::msgbase

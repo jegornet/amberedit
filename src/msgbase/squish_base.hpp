@@ -25,24 +25,25 @@ namespace amberedit::msgbase {
 /// messages since the area was opened.
 class SquishBase final : public FormatDriver {
 public:
-    [[nodiscard]] Result<void> open(const std::string& path, bool echo,
-                                    uint16_t defaultZone) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> open(const std::string& path, bool echo,
+                                                    uint16_t defaultZone) override;
     void close() override;
-    [[nodiscard]] Result<void> create(const std::string& path) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
 
     [[nodiscard]] uint32_t count() const override {
         return static_cast<uint32_t>(index_.size());
     }
-    [[nodiscard]] Result<void> read(uint32_t index, RawMessage& out,
-                                    bool withText) const override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> read(uint32_t index, RawMessage& out,
+                                                    bool withText) const override;
     [[nodiscard]] domain::MessageInfo info(uint32_t index) const override;
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid, bool exact) const override;
 
-    [[nodiscard]] Result<uint32_t> write(const RawDraft& draft) override;
-    [[nodiscard]] Result<void> replace(uint32_t index, const RawDraft& draft) override;
-    [[nodiscard]] Result<void> remove(uint32_t index) override;
-    [[nodiscard]] Result<void> markSeen(uint32_t index) override;
+    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
+                                                       const RawDraft& draft) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
 private:
     /// The area header at offset 0 of the .sqd, in the fields we act on. What
@@ -78,34 +79,41 @@ private:
         uint32_t hash{0};    ///< hash of the To: name, high bit set when read
     };
 
-    [[nodiscard]] Result<void> readBaseHeader();
-    [[nodiscard]] Result<void> writeBaseHeader();
-    [[nodiscard]] Result<void> loadIndex();
+    [[nodiscard]] tl::expected<void, ErrorPtr> readBaseHeader();
+    [[nodiscard]] tl::expected<void, ErrorPtr> writeBaseHeader();
+    [[nodiscard]] tl::expected<void, ErrorPtr> loadIndex();
     /// Re-reads the header and the index under the lock, so that a write acts
     /// on the base as it is now rather than as it was when the area opened.
-    [[nodiscard]] Result<void> reload();
+    [[nodiscard]] tl::expected<void, ErrorPtr> reload();
 
-    [[nodiscard]] Result<void> readFrame(uint32_t offset, Frame& out) const;
-    [[nodiscard]] Result<void> writeFrame(uint32_t offset, const Frame& frame);
-    [[nodiscard]] Result<void> setFrameNext(uint32_t offset, uint32_t value);
-    [[nodiscard]] Result<void> setFramePrev(uint32_t offset, uint32_t value);
+    [[nodiscard]] tl::expected<void, ErrorPtr> readFrame(uint32_t offset,
+                                                         Frame& out) const;
+    [[nodiscard]] tl::expected<void, ErrorPtr> writeFrame(uint32_t offset,
+                                                          const Frame& frame);
+    [[nodiscard]] tl::expected<void, ErrorPtr> setFrameNext(uint32_t offset,
+                                                            uint32_t value);
+    [[nodiscard]] tl::expected<void, ErrorPtr> setFramePrev(uint32_t offset,
+                                                            uint32_t value);
 
     /// Takes a frame off the free chain that can hold `length` bytes of
     /// message, or allocates one at the end of the file. `frameLength` comes
     /// back holding what the reused frame owns, which stays as it was.
-    [[nodiscard]] Result<void> allocateFrame(uint32_t length, uint32_t* offset,
-                                             uint32_t* frameLength);
+    [[nodiscard]] tl::expected<void, ErrorPtr> allocateFrame(uint32_t length,
+                                                             uint32_t* offset,
+                                                             uint32_t* frameLength);
     /// Puts a frame on the free chain, for the next message to grow into.
-    [[nodiscard]] Result<void> releaseFrame(uint32_t offset, Frame frame);
+    [[nodiscard]] tl::expected<void, ErrorPtr> releaseFrame(uint32_t offset, Frame frame);
 
     /// Writes the message itself into the frame at `offset`: the XMSG header,
     /// then the control block, then the text — the order a frame holds them in.
     /// The frame header around it is the caller's.
-    [[nodiscard]] Result<void> writeMessageAt(uint32_t offset, const RawHeader& header,
-                                              uint32_t uid, const std::string& control,
-                                              const std::string& text);
+    [[nodiscard]] tl::expected<void, ErrorPtr> writeMessageAt(uint32_t offset,
+                                                              const RawHeader& header,
+                                                              uint32_t uid,
+                                                              const std::string& control,
+                                                              const std::string& text);
 
-    [[nodiscard]] Result<void> writeIndexEntry(uint32_t index);
+    [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexEntry(uint32_t index);
 
     BinaryFile data_;
     BinaryFile index_file_;

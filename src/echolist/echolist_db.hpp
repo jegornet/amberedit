@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "echolist/echolist_source.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::echolist {
 
@@ -34,7 +34,7 @@ public:
     ///
     /// Every record is checked here, through the index that reaches it, which is
     /// what lets the two accessors below be total.
-    [[nodiscard]] static Result<EcholistDb> open(const std::string& path);
+    [[nodiscard]] static tl::expected<EcholistDb, ErrorPtr> open(const std::string& path);
 
     [[nodiscard]] size_t size() const { return areaCount_; }
     [[nodiscard]] bool empty() const { return areaCount_ == 0; }

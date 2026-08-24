@@ -57,7 +57,8 @@ std::string charsetFor(const std::string& named) {
     return normalized.empty() ? named : normalized;
 }
 
-Result<std::vector<std::string>> importText(const ImportRequest& request) {
+tl::expected<std::vector<std::string>, ErrorPtr> importText(
+    const ImportRequest& request) {
     auto bytes = config::text::readFile(request.path);
     if (!bytes) return tl::make_unexpected(std::move(bytes).error());
 
@@ -84,7 +85,7 @@ Result<std::vector<std::string>> importText(const ImportRequest& request) {
     return lines;
 }
 
-Result<std::vector<std::string>> importUue(const ImportRequest& request) {
+tl::expected<std::vector<std::string>, ErrorPtr> importUue(const ImportRequest& request) {
     auto bytes = config::text::readFile(request.path);
     if (!bytes) return tl::make_unexpected(std::move(bytes).error());
 
@@ -145,7 +146,8 @@ std::vector<std::string> uuencode(std::string_view bytes, std::string_view name)
     return lines;
 }
 
-Result<std::vector<std::string>> importFile(const ImportRequest& request) {
+tl::expected<std::vector<std::string>, ErrorPtr> importFile(
+    const ImportRequest& request) {
     return request.mode == ImportMode::Uue ? importUue(request) : importText(request);
 }
 

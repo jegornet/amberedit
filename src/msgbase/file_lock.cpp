@@ -47,7 +47,7 @@ FileLock::~FileLock() {
     release();
 }
 
-Result<void> FileLock::acquire(const std::vector<BinaryFile*>& files) {
+tl::expected<void, ErrorPtr> FileLock::acquire(const std::vector<BinaryFile*>& files) {
     release();
 
     std::string reason;

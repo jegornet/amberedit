@@ -24,7 +24,8 @@ class SquishCfgParser final : public ports::IAreaConfigSource {
 public:
     explicit SquishCfgParser(std::string path);
 
-    [[nodiscard]] Result<std::vector<domain::AreaConfig>> loadAreas() override;
+    [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
+        override;
 
     /// Parsing from a string — the entry point for tests.
     static std::vector<domain::AreaConfig> parseText(const std::string& content);

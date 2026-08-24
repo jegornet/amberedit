@@ -43,8 +43,8 @@ constexpr Anchor kNodelistDb{"#nodelist_db ", "the commented nodelist_db sample"
 /// Exactly one, because a sample with two would leave this editing whichever
 /// came first and leaving the other to be read as a second `name` — which the
 /// config parser refuses, but only after the wizard has said it wrote a config.
-[[nodiscard]] Result<size_t> onlyLine(const std::vector<std::string>& lines,
-                                      Anchor anchor) {
+[[nodiscard]] tl::expected<size_t, ErrorPtr> onlyLine(
+    const std::vector<std::string>& lines, Anchor anchor) {
     size_t found = 0;
     size_t at = 0;
     for (size_t i = 0; i < lines.size(); ++i) {
@@ -60,8 +60,8 @@ constexpr Anchor kNodelistDb{"#nodelist_db ", "the commented nodelist_db sample"
 
 /// Where the first line carrying the anchor is. For the `#nodelist` samples,
 /// which are three of the same thing and where the first is the one to answer.
-[[nodiscard]] Result<size_t> firstLine(const std::vector<std::string>& lines,
-                                       Anchor anchor) {
+[[nodiscard]] tl::expected<size_t, ErrorPtr> firstLine(
+    const std::vector<std::string>& lines, Anchor anchor) {
     for (size_t i = 0; i < lines.size(); ++i) {
         if (text::startsWith(lines[i], anchor.prefix)) return i;
     }
@@ -69,8 +69,9 @@ constexpr Anchor kNodelistDb{"#nodelist_db ", "the commented nodelist_db sample"
 }
 
 /// Sets `key value` over the line the anchor names.
-[[nodiscard]] Result<void> setLine(std::vector<std::string>& lines, Anchor anchor,
-                                   std::string_view key, std::string_view value) {
+[[nodiscard]] tl::expected<void, ErrorPtr> setLine(std::vector<std::string>& lines,
+                                                   Anchor anchor, std::string_view key,
+                                                   std::string_view value) {
     auto at = onlyLine(lines, anchor);
     if (!at) return tl::make_unexpected(std::move(at).error());
     auto written = configValue(value);
@@ -90,7 +91,7 @@ std::string_view formatWord(TosserConfigFormat format) {
     return "fidoconfig";
 }
 
-Result<std::string> configValue(std::string_view value) {
+tl::expected<std::string, ErrorPtr> configValue(std::string_view value) {
     if (value.find('"') != std::string_view::npos) {
         return failure("a value cannot hold a double quote: " + std::string(value));
     }
@@ -106,8 +107,8 @@ Result<std::string> configValue(std::string_view value) {
     return "\"" + std::string(value) + "\"";
 }
 
-Result<std::string> renderConfigFrom(std::string_view sample,
-                                     const ConfigAnswers& answers) {
+tl::expected<std::string, ErrorPtr> renderConfigFrom(std::string_view sample,
+                                                     const ConfigAnswers& answers) {
     std::vector<std::string> lines = text::splitLines(sample);
 
     // The lines to set, and then set one at a time. What the sample is missing
@@ -169,11 +170,12 @@ Result<std::string> renderConfigFrom(std::string_view sample,
     return out;
 }
 
-Result<std::string> renderConfig(const ConfigAnswers& answers) {
+tl::expected<std::string, ErrorPtr> renderConfig(const ConfigAnswers& answers) {
     return renderConfigFrom(resources::exampleConfig(), answers);
 }
 
-Result<void> writeConfig(const std::string& path, const ConfigAnswers& answers) {
+tl::expected<void, ErrorPtr> writeConfig(const std::string& path,
+                                         const ConfigAnswers& answers) {
     auto text = renderConfig(answers);
     if (!text) return tl::make_unexpected(std::move(text).error());
 

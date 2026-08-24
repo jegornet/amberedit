@@ -34,7 +34,8 @@ public:
     FtnMsgBase(const FtnMsgBase&) = delete;
     FtnMsgBase& operator=(const FtnMsgBase&) = delete;
 
-    [[nodiscard]] Result<void> open(const domain::AreaConfig& area) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> open(
+        const domain::AreaConfig& area) override;
     void close() override;
 
     /// Creates the base an area names, empty, and leaves it closed.
@@ -49,7 +50,7 @@ public:
     /// is written over, and refuses an area whose type nothing states — there
     /// is no base to probe and no format to guess at. A failure says why and
     /// leaves the disk as it was.
-    [[nodiscard]] Result<void> create(const domain::AreaConfig& area);
+    [[nodiscard]] tl::expected<void, ErrorPtr> create(const domain::AreaConfig& area);
 
     /// Whether the area has a type and nothing at all stands at its path.
     ///
@@ -69,11 +70,12 @@ public:
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid) const override;
 
-    [[nodiscard]] Result<uint32_t> write(const domain::MessageDraft& draft) override;
-    [[nodiscard]] Result<void> replace(uint32_t index,
-                                       const domain::MessageDraft& draft) override;
-    [[nodiscard]] Result<void> remove(uint32_t index) override;
-    [[nodiscard]] Result<void> markSeen(uint32_t index) override;
+    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(
+        const domain::MessageDraft& draft) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> replace(
+        uint32_t index, const domain::MessageDraft& draft) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
     [[nodiscard]] bool isOpen() const { return driver_ != nullptr; }
 

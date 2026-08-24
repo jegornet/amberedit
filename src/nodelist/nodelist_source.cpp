@@ -100,7 +100,7 @@ bool newerThan(const Candidate& a, const Candidate& b) {
     return a.name > b.name;
 }
 
-Result<std::string> readWholeFile(const std::string& path) {
+tl::expected<std::string, ErrorPtr> readWholeFile(const std::string& path) {
     auto isFile = config::text::insistItIsAFile(path);
     if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
@@ -248,7 +248,8 @@ NodelistSources::~NodelistSources() {
     for (const auto& path : unpacked_) fs::remove(path, ec);
 }
 
-Result<NodelistSources::Loaded> NodelistSources::read(const std::string& spec) {
+tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::read(
+    const std::string& spec) {
     const NodelistSpec pattern = NodelistSpec::of(spec);
     const auto found = newestMatch(pattern);
     if (!found) {
@@ -284,8 +285,8 @@ Result<NodelistSources::Loaded> NodelistSources::read(const std::string& spec) {
     return Loaded{state, *found, {}, std::move(*text)};
 }
 
-Result<NodelistSources::Loaded> NodelistSources::readArchive(const NodelistSpec& spec,
-                                                             const SourceState& state) {
+tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::readArchive(
+    const NodelistSpec& spec, const SourceState& state) {
     const std::string& archivePath = state.path;
 
     // Made here and not when the sources were: a config with `tmpdir` in it and

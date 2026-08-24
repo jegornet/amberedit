@@ -7,7 +7,7 @@
 
 #include "config/app_config.hpp"
 #include "domain/ftn_address.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 /// What the setup wizard knows that has nothing to do with a terminal: what a
 /// good answer looks like, and what to put in a field before anybody has typed
@@ -20,15 +20,16 @@ namespace amberedit::ui::setup {
 
 /// The name a message will be written under. Anything but nothing, and nothing
 /// the config format cannot carry.
-[[nodiscard]] Result<void> checkName(std::string_view typed);
+[[nodiscard]] tl::expected<void, ErrorPtr> checkName(std::string_view typed);
 
 /// The address, as `FtnAddress` reads one: `2:5020/9999` or `2:5020/9999.1`.
-[[nodiscard]] Result<domain::FtnAddress> checkAddress(std::string_view typed);
+[[nodiscard]] tl::expected<domain::FtnAddress, ErrorPtr> checkAddress(
+    std::string_view typed);
 
 /// A charset iconv on this machine knows, written as the config takes it —
 /// which is one word, since `default_charset` and `compose_charset` are read as
 /// a single value.
-[[nodiscard]] Result<void> checkCharsetAnswer(std::string_view typed);
+[[nodiscard]] tl::expected<void, ErrorPtr> checkCharsetAnswer(std::string_view typed);
 
 /// The charset a config for this address most likely wants to read messages in
 /// where the message itself does not say.
@@ -45,8 +46,8 @@ namespace amberedit::ui::setup {
 /// Answers with how many, which is worth saying — a config that parsed to no
 /// areas at all is the wrong file or the wrong format, and both are better found
 /// out here than at the first empty area list.
-[[nodiscard]] Result<size_t> checkTosserConfig(const std::string& path,
-                                               config::TosserConfigFormat format);
+[[nodiscard]] tl::expected<size_t, ErrorPtr> checkTosserConfig(
+    const std::string& path, config::TosserConfigFormat format);
 
 /// Whether the file picker shows a file when it is looking for this format's
 /// config: everything for fidoconfig, whose config is called whatever the sysop
@@ -72,12 +73,12 @@ namespace amberedit::ui::setup {
 /// was not written. A `default.tpl` already sitting beside the config and not
 /// readable is refused rather than replaced — it is somebody's, and this is the
 /// one thing here that touches a file that was already there.
-[[nodiscard]] Result<std::string> ensureTemplate(const std::string& configPath,
-                                                 const std::string& programPath);
+[[nodiscard]] tl::expected<std::string, ErrorPtr> ensureTemplate(
+    const std::string& configPath, const std::string& programPath);
 
 /// Where the config may be written: nothing is there, the directory above it is,
 /// and it is not itself a directory.
-[[nodiscard]] Result<void> checkTargetPath(const std::string& path);
+[[nodiscard]] tl::expected<void, ErrorPtr> checkTargetPath(const std::string& path);
 
 /// `/home/vasya/ftn/etc/areas` written back as `~/ftn/etc/areas`, which is how
 /// the sample config writes a path under the home directory and what survives
