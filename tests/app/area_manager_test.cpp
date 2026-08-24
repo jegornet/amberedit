@@ -317,7 +317,7 @@ TEST_CASE("An area whose base cannot be created reports why [areamanager][create
 
     const auto opened = manager.openArea(area);
     CHECK_FALSE(opened.has_value());
-    CHECK_FALSE(opened.error().empty());
+    CHECK_FALSE(opened.error()->message().empty());
 }
 
 TEST_CASE("A base that is there and unreadable is never created over "
@@ -341,7 +341,7 @@ TEST_CASE("A base that is there and unreadable is never created over "
 
     const auto opened = manager.openArea(area);
     CHECK_FALSE(opened.has_value());
-    CHECK_FALSE(opened.error().empty());
+    CHECK_FALSE(opened.error()->message().empty());
     // Untouched: the file is exactly as long as it was.
     CHECK(std::filesystem::file_size(path + ".sqd") == 300);
 }

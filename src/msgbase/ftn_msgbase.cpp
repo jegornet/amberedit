@@ -116,7 +116,7 @@ Result<void> FtnMsgBase::open(const AreaConfig& area) {
     areaConfig_ = area;
 
     if (area.isPassthrough()) {
-        return failure("area " + area.tag + " is passthrough: there is no base on disk");
+        return failure<MsgBaseError>(MsgBaseError::Kind::Passthrough, area.tag);
     }
 
     // The tosser config need not state a type — work it out from the files.
@@ -128,13 +128,20 @@ Result<void> FtnMsgBase::open(const AreaConfig& area) {
 
     // A base the tosser config names but that was never created is ordinary;
     // saying which format was looked for is the useful half of the message.
-    if (probeType(area.path) != type) {
-        return failure("no " + domain::nameOf(type) + " base at " + area.path);
+    //
+    // Nothing there at all is `Absent` and something of another format is
+    // `WrongFormat`: they read the same, and only the first is worth offering to
+    // create. This is the probe `AreaManager` used to run a second time.
+    if (const MsgBaseType found = probeType(area.path); found != type) {
+        return failure<MsgBaseError>(found == MsgBaseType::Unknown
+                                         ? MsgBaseError::Kind::Absent
+                                         : MsgBaseError::Kind::WrongFormat,
+                                     area.path, std::string(domain::nameOf(type)));
     }
 
     std::unique_ptr<FormatDriver> driver = makeDriver(type);
     if (!driver) {
-        return failure("cannot determine the base type for " + area.path);
+        return failure<MsgBaseError>(MsgBaseError::Kind::UnknownType, area.path);
     }
 
     // Fido *.msg headers carry no zone of their own; the area's AKA is what
@@ -143,7 +150,8 @@ Result<void> FtnMsgBase::open(const AreaConfig& area) {
     const auto opened =
         driver->open(area.path, area.kind != AreaKind::Netmail, defaultZone);
     if (!opened) {
-        return failure("cannot open base " + area.path + ": " + opened.error());
+        return failure<MsgBaseError>(MsgBaseError::Kind::CannotOpen, area.path,
+                                     opened.error()->message());
     }
     driver_ = std::move(driver);
     return {};
@@ -161,13 +169,14 @@ Result<void> FtnMsgBase::create(const AreaConfig& area) {
     close();
 
     if (!isAbsent(area)) {
-        return failure("there is already a base at " + area.path);
+        return failure<MsgBaseError>(MsgBaseError::Kind::AlreadyExists, area.path);
     }
     std::unique_ptr<FormatDriver> driver = makeDriver(area.type);
     if (!driver) {
         // isAbsent() has already refused Unknown and Passthrough, so this is
         // a format added to the enum and not to makeDriver().
-        return failure("cannot create a base of type " + domain::nameOf(area.type));
+        return failure<MsgBaseError>(MsgBaseError::Kind::CannotMakeType,
+                                     std::string(domain::nameOf(area.type)));
     }
     // The driver's own words, unwrapped: it names the file it could not make
     // and why, which is the whole of what there is to say, and a prefix of ours
@@ -331,7 +340,8 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
 }
 
 Result<uint32_t> FtnMsgBase::write(const domain::MessageDraft& draft) {
-    if (!driver_) return failure("no area is open");
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
 
     RawDraft raw = encode(draft);
     // Written now, unless the draft carries a stamp of its own — a message
@@ -343,12 +353,14 @@ Result<uint32_t> FtnMsgBase::write(const domain::MessageDraft& draft) {
     raw.header.arrived = now;
 
     const auto written = driver_->write(raw);
-    if (!written) return failure("cannot write the message: " + written.error());
+    if (!written)
+        return failure("cannot write the message: " + written.error()->message());
     return *written;
 }
 
 Result<void> FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& draft) {
-    if (!driver_) return failure("no area is open");
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     // Stamped now, like any other message the editor writes: what a changed
     // message is dated by is when it was last written by hand. The stamp it
     // arrived here under is the driver's to keep — that one no rewriting
@@ -359,27 +371,29 @@ Result<void> FtnMsgBase::replace(uint32_t index, const domain::MessageDraft& dra
     const auto changed = driver_->replace(index, raw);
     if (!changed) {
         return failure("cannot change message " + std::to_string(index) + ": " +
-                       changed.error());
+                       changed.error()->message());
     }
     return {};
 }
 
 Result<void> FtnMsgBase::remove(uint32_t index) {
-    if (!driver_) return failure("no area is open");
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     const auto removed = driver_->remove(index);
     if (!removed) {
         return failure("cannot delete message " + std::to_string(index) + ": " +
-                       removed.error());
+                       removed.error()->message());
     }
     return {};
 }
 
 Result<void> FtnMsgBase::markSeen(uint32_t index) {
-    if (!driver_) return failure("no area is open");
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     const auto marked = driver_->markSeen(index);
     if (!marked) {
         return failure("cannot mark message " + std::to_string(index) +
-                       " read: " + marked.error());
+                       " read: " + marked.error()->message());
     }
     return {};
 }

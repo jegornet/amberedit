@@ -49,8 +49,8 @@ std::time_t dosTime(uint16_t date, uint16_t time) {
 
 /// The complaint with the archive's name in front of it, ready to be returned:
 /// `return fail(path, "is not a zip archive")`.
-[[nodiscard]] tl::unexpected<std::string> fail(const std::string& path,
-                                               const std::string& what) {
+[[nodiscard]] tl::unexpected<ErrorPtr> fail(const std::string& path,
+                                            const std::string& what) {
     return failure(path + ": " + what);
 }
 
@@ -62,8 +62,8 @@ std::string ZipEntry::baseName() const {
 }
 
 Result<ZipArchive> ZipArchive::open(const std::string& path) {
-    const auto isFile = config::text::insistItIsAFile(path);
-    if (!isFile) return tl::make_unexpected(isFile.error());
+    auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("cannot read the archive: " + path);

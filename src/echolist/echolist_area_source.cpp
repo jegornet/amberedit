@@ -14,7 +14,7 @@ EcholistAreaSource::EcholistAreaSource(std::unique_ptr<ports::IAreaConfigSource>
 
 Result<std::vector<domain::AreaConfig>> EcholistAreaSource::loadAreas() {
     auto loaded = inner_->loadAreas();
-    if (!loaded) return tl::make_unexpected(loaded.error());
+    if (!loaded) return tl::make_unexpected(std::move(loaded).error());
     std::vector<domain::AreaConfig> areas = std::move(*loaded);
     if (dbPath_.empty()) return areas;
 

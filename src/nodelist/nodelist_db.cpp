@@ -46,8 +46,8 @@ struct Ranked {
 }  // namespace
 
 Result<NodelistDb> NodelistDb::open(const std::string& path) {
-    const auto isFile = config::text::insistItIsAFile(path);
-    if (!isFile) return tl::make_unexpected(isFile.error());
+    auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("compiled nodelist not found: " + path);

@@ -6,6 +6,8 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstring>
+#include <system_error>
 
 namespace amberedit::msgbase {
 
@@ -18,6 +20,12 @@ namespace {
 constexpr mode_t kFileMode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 
 }  // namespace
+
+std::string IoStatus::message() const {
+    if (truncated_) return "the file is shorter than the record";
+    if (errnum_ == 0) return {};
+    return std::generic_category().message(errnum_);
+}
 
 BinaryFile::~BinaryFile() {
     close();
@@ -59,8 +67,8 @@ void BinaryFile::close() {
     path_.clear();
 }
 
-bool BinaryFile::readAt(uint64_t offset, void* out, size_t count) const {
-    if (fd_ < 0) return false;
+IoStatus BinaryFile::readAt(uint64_t offset, void* out, size_t count) const {
+    if (fd_ < 0) return IoStatus::refused(EBADF);
     auto* cursor = static_cast<unsigned char*>(out);
     size_t done = 0;
     while (done < count) {
@@ -68,16 +76,19 @@ bool BinaryFile::readAt(uint64_t offset, void* out, size_t count) const {
             ::pread(fd_, cursor + done, count - done, static_cast<off_t>(offset + done));
         if (got < 0) {
             if (errno == EINTR) continue;
-            return false;
+            return IoStatus::refused(errno);
         }
-        if (got == 0) return false;  // end of file: the record is not all there
+        // End of file: the record is not all there, which is a different thing
+        // from a read the kernel refused and is worth saying so.
+        if (got == 0) return IoStatus::truncated();
         done += static_cast<size_t>(got);
     }
-    return true;
+    return IoStatus::moved();
 }
 
-bool BinaryFile::writeAt(uint64_t offset, const void* data, size_t count) {
-    if (fd_ < 0 || !writable_) return false;
+IoStatus BinaryFile::writeAt(uint64_t offset, const void* data, size_t count) {
+    if (fd_ < 0) return IoStatus::refused(EBADF);
+    if (!writable_) return IoStatus::refused(EACCES);
     const auto* cursor = static_cast<const unsigned char*>(data);
     size_t done = 0;
     while (done < count) {
@@ -85,11 +96,13 @@ bool BinaryFile::writeAt(uint64_t offset, const void* data, size_t count) {
             ::pwrite(fd_, cursor + done, count - done, static_cast<off_t>(offset + done));
         if (put <= 0) {
             if (put < 0 && errno == EINTR) continue;
-            return false;
+            // A pwrite of zero is not an errno condition; the file system took
+            // nothing and said nothing, which is as far as this can report it.
+            return put < 0 ? IoStatus::refused(errno) : IoStatus::truncated();
         }
         done += static_cast<size_t>(put);
     }
-    return true;
+    return IoStatus::moved();
 }
 
 int64_t BinaryFile::size() const {

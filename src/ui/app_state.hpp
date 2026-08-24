@@ -311,7 +311,7 @@ struct AppState {
             } else if (auto opened = nodelist::NodelistDb::open(config.nodelistDbPath)) {
                 nodelistDb = std::move(*opened);
             } else {
-                nodelistProblem = opened.error();
+                nodelistProblem = opened.error()->message();
             }
         }
         return nodelistDb ? &*nodelistDb : nullptr;

@@ -19,6 +19,7 @@ add_executable(amberedit_tests
   encoding/charset_detector_test.cpp
   encoding/iconv_recoder_test.cpp
   encoding/text_search_test.cpp
+  msgbase/binary_file_test.cpp
   msgbase/ftn_msgbase_test.cpp
   msgbase/format_drivers_test.cpp
   msgbase/jam_msgbase_test.cpp

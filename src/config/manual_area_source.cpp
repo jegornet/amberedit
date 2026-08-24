@@ -20,7 +20,7 @@ Result<std::vector<AreaConfig>> ManualAreaSource::loadAreas() {
     std::vector<AreaConfig> areas;
     if (tosser_) {
         auto loaded = tosser_->loadAreas();
-        if (!loaded) return tl::make_unexpected(loaded.error());
+        if (!loaded) return tl::make_unexpected(std::move(loaded).error());
         areas = std::move(*loaded);
     }
 

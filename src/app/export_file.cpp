@@ -198,8 +198,8 @@ Result<void> exportMessage(const ExportRequest& request,
     // this goes through intoCharset and not the reader's fromUtf8.
     std::string out;
     for (const auto& line : exportedLines(header, body, request.dateFormat)) {
-        const auto encoded = recoder.intoCharset(line, request.charset);
-        if (!encoded) return tl::make_unexpected(encoded.error());
+        auto encoded = recoder.intoCharset(line, request.charset);
+        if (!encoded) return tl::make_unexpected(std::move(encoded).error());
         out += *encoded;
         out += '\n';
     }

@@ -149,8 +149,8 @@ Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec
             " " + quoted(spec.example) + " " + quoted(spec.wideExample));
     }
 
-    const auto narrow = parseListFormat(entry, spec, entry.values.front());
-    if (!narrow) return tl::make_unexpected(narrow.error());
+    auto narrow = parseListFormat(entry, spec, entry.values.front());
+    if (!narrow) return tl::make_unexpected(std::move(narrow).error());
 
     ListFormats formats;
     formats.narrow = *narrow;
@@ -158,8 +158,8 @@ Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec
         formats.wide = formats.narrow;
         return formats;
     }
-    const auto wide = parseListFormat(entry, spec, entry.values.back());
-    if (!wide) return tl::make_unexpected(wide.error());
+    auto wide = parseListFormat(entry, spec, entry.values.back());
+    if (!wide) return tl::make_unexpected(std::move(wide).error());
     formats.wide = *wide;
     return formats;
 }

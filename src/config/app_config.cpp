@@ -18,8 +18,8 @@ namespace amberedit::config {
 namespace {
 
 Result<TosserConfigFormat> parseFormat(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "fidoconfig" || value == "hpt") return TosserConfigFormat::Fidoconfig;
     if (value == "areas.bbs" || value == "areasbbs" || value == "bbs")
@@ -244,8 +244,8 @@ Result<std::vector<Command>> parseCommandList(const CfgEntry& entry, CommandScre
 }
 
 Result<HintAlign> parseHintAlign(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "left") return HintAlign::Left;
     if (value == "center") return HintAlign::Center;
@@ -255,8 +255,8 @@ Result<HintAlign> parseHintAlign(const CfgEntry& entry) {
 }
 
 Result<Visibility> parseVisibility(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "on") return Visibility::On;
     if (value == "off") return Visibility::Off;
@@ -312,8 +312,8 @@ Result<std::string> checkTimeFormat(const CfgEntry& entry, const std::string& wh
 
 /// The whole value of a setting that is nothing but a strftime format.
 Result<std::string> readTimeFormat(const CfgEntry& entry) {
-    const auto joined = entry.text();
-    if (!joined) return tl::make_unexpected(joined.error());
+    auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(std::move(joined).error());
     return checkTimeFormat(entry, entry.key, *joined);
 }
 
@@ -325,10 +325,10 @@ Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormatRow& row) 
     for (const auto& line : row) {
         for (const auto& field : line) {
             if (field.format.empty()) continue;
-            const auto checked = checkTimeFormat(
+            auto checked = checkTimeFormat(
                 entry, entry.key + "'s " + std::string(1, field.letter) + "(...)",
                 field.format);
-            if (!checked) return tl::make_unexpected(checked.error());
+            if (!checked) return tl::make_unexpected(std::move(checked).error());
         }
     }
     return true;
@@ -336,8 +336,8 @@ Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormatRow& row) 
 
 Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormats& formats) {
     for (const ListFormatRow* row : {&formats.narrow, &formats.wide}) {
-        const auto checked = checkFieldFormats(entry, *row);
-        if (!checked) return tl::make_unexpected(checked.error());
+        auto checked = checkFieldFormats(entry, *row);
+        if (!checked) return tl::make_unexpected(std::move(checked).error());
     }
     return true;
 }
@@ -356,8 +356,8 @@ std::string expandTilde(std::string path) {
 /// one. An empty path reads back as "the setting was never written", and a line
 /// that is there was meant to do something.
 Result<std::string> readPath(const CfgEntry& entry, const char* what) {
-    const auto joined = entry.text();
-    if (!joined) return tl::make_unexpected(joined.error());
+    auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(std::move(joined).error());
     const std::string path = expandTilde(*joined);
     if (path.empty()) return entry.fail(entry.key + " needs the path of " + what);
     return path;
@@ -383,8 +383,8 @@ Result<EcholistSource> readEcholist(const CfgEntry& entry) {
 /// The `arealist_description_priority` word: which of the two descriptions an
 /// area with both is shown by.
 Result<DescriptionPriority> parseDescriptionPriority(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "area") return DescriptionPriority::Area;
     if (value == "echolist") return DescriptionPriority::Echolist;
@@ -412,8 +412,8 @@ Result<std::vector<std::string>> macroFields(const CfgEntry& entry) {
     // The line as it was written, the quotes gone and the runs of blank between
     // words collapsed: a quoted subject arrives as one value with its spaces
     // kept, and an unquoted one as several that join back into what was typed.
-    const auto joined = entry.text();
-    if (!joined) return tl::make_unexpected(joined.error());
+    auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(std::move(joined).error());
     const std::string& line = *joined;
 
     std::vector<std::string> fields;
@@ -433,8 +433,8 @@ Result<std::vector<std::string>> macroFields(const CfgEntry& entry) {
 /// function, as `failUnknownCommand` is and for the same reason: the list of
 /// what was on offer is built where it is returned rather than once per word
 /// read.
-tl::unexpected<std::string> failUnknownAttribute(const CfgEntry& entry,
-                                                 const std::string& word) {
+tl::unexpected<ErrorPtr> failUnknownAttribute(const CfgEntry& entry,
+                                              const std::string& word) {
     // Uns is the one word that looks like an attribute and is none: it is shown
     // when Loc is set and Snt is not, and there is no bit to set for it. Saying
     // so beats "not an attribute" about a word every screen in AmberEdit prints.
@@ -472,8 +472,8 @@ Result<uint32_t> macroAttributes(const CfgEntry& entry, const std::string& field
 
 /// One `address_macro` line, read onto the macro it describes.
 Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
-    const auto read = macroFields(entry);
-    if (!read) return tl::make_unexpected(read.error());
+    auto read = macroFields(entry);
+    if (!read) return tl::make_unexpected(std::move(read).error());
     const std::vector<std::string>& fields = *read;
     if (fields.size() < 3 || fields.size() > 5) {
         return entry.fail(
@@ -491,8 +491,8 @@ Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
     if (macro.name.empty()) {
         return entry.fail("address_macro needs the name the message is addressed to");
     }
-    const auto address = readAddress(entry, fields[2]);
-    if (!address) return tl::make_unexpected(address.error());
+    auto address = readAddress(entry, fields[2]);
+    if (!address) return tl::make_unexpected(std::move(address).error());
     macro.address = *address;
 
     // Empty is "the line said nothing about it" rather than "make it empty":
@@ -501,8 +501,8 @@ Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
     // there itself.
     if (fields.size() > 3 && !fields[3].empty()) macro.subject = fields[3];
     if (fields.size() > 4 && !fields[4].empty()) {
-        const auto attributes = macroAttributes(entry, fields[4]);
-        if (!attributes) return tl::make_unexpected(attributes.error());
+        auto attributes = macroAttributes(entry, fields[4]);
+        if (!attributes) return tl::make_unexpected(std::move(attributes).error());
         macro.attributes = *attributes;
     }
     return macro;
@@ -511,8 +511,8 @@ Result<AddressMacro> readAddressMacro(const CfgEntry& entry) {
 /// The value of `compose_cc_list`: what a message keeps of the `CC:` lines it
 /// was written with.
 Result<CarbonList> parseCarbonList(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "keep") return CarbonList::Keep;
     if (value == "names") return CarbonList::Names;
@@ -528,8 +528,8 @@ Result<CarbonList> parseCarbonList(const CfgEntry& entry) {
 /// words are the ones GoldED writes them with, which is why they are not the
 /// five above with one taken away.
 Result<CrosspostList> parseCrosspostList(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "raw") return CrosspostList::Raw;
     if (value == "verbose") return CrosspostList::Verbose;
@@ -540,8 +540,8 @@ Result<CrosspostList> parseCrosspostList(const CfgEntry& entry) {
 }
 
 Result<TwitMode> parseTwitMode(const CfgEntry& entry) {
-    const auto only = entry.one();
-    if (!only) return tl::make_unexpected(only.error());
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "show") return TwitMode::Show;
     if (value == "blank") return TwitMode::Blank;
@@ -569,8 +569,8 @@ Result<TwitRule> readTwit(const CfgEntry& entry) {
 
     // The line as it was written, quoted or not: `twit Ivan Ivanov` and
     // `twit "Ivan Ivanov"` are the same name, as they are for `name`.
-    const auto joined = entry.text();
-    if (!joined) return tl::make_unexpected(joined.error());
+    auto joined = entry.text();
+    if (!joined) return tl::make_unexpected(std::move(joined).error());
     const std::string& value = *joined;
     if (value.empty()) return entry.fail(kNeeds);
 
@@ -604,8 +604,8 @@ Result<void> readAkas(const std::vector<const CfgEntry*>& akas, AppConfig& cfg) 
         if (entry->values.empty()) {
             return entry->fail(entry->key + " needs an AKA of yours");
         }
-        const auto read = readAddress(*entry, entry->values.front());
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readAddress(*entry, entry->values.front());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         const domain::FtnAddress& aka = *read;
 
         if (entry->key == "aka") {
@@ -652,30 +652,30 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
     const std::string& key = entry.key;
 
     if (key == "name") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.userName = *read;
     } else if (key == "address") {
-        const auto only = entry.one();
-        if (!only) return tl::make_unexpected(only.error());
-        const auto read = readAddress(entry, *only);
-        if (!read) return tl::make_unexpected(read.error());
+        auto only = entry.one();
+        if (!only) return tl::make_unexpected(std::move(only).error());
+        auto read = readAddress(entry, *only);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.userAddress = *read;
     } else if (key == "tosser_config") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.tosserConfigPath = expandTilde(*read);
     } else if (key == "tosser_config_format") {
-        const auto read = parseFormat(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseFormat(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.tosserConfigFormat = *read;
     } else if (key == "nodelist") {
-        const auto read = readPath(entry, "a nodelist file");
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readPath(entry, "a nodelist file");
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.nodelistSources.push_back(*read);
     } else if (key == "address_macro") {
-        const auto read = readAddressMacro(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readAddressMacro(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         AddressMacro macro = *read;
         // The same word twice is a contradiction, and the line that lost would
         // be an invisible one — exactly what any other key written twice is
@@ -688,36 +688,36 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         }
         cfg.addressMacros.push_back(std::move(macro));
     } else if (key == "nodelist_db") {
-        const auto read = readPath(entry, "the compiled nodelist");
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readPath(entry, "the compiled nodelist");
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.nodelistDbPath = *read;
     } else if (key == "echolist") {
-        const auto read = readEcholist(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readEcholist(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.echolistSources.push_back(*read);
     } else if (key == "echolist_db") {
-        const auto read = readPath(entry, "the compiled echolist");
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readPath(entry, "the compiled echolist");
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.echolistDbPath = *read;
     } else if (key == "keys") {
-        const auto read = readPath(entry, "a keyboard layout");
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readPath(entry, "a keyboard layout");
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.keysPath = *read;
     } else if (key == "tmpdir") {
-        const auto read = readPath(entry, "a directory to work in");
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readPath(entry, "a directory to work in");
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.tempDirPath = *read;
     } else if (key == "error_log") {
-        const auto read = readPath(entry, "a file to write errors to");
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readPath(entry, "a file to write errors to");
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.errorLogPath = *read;
     } else if (key == "default_charset") {
-        const auto read = entry.one();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.one();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.defaultCharset = *read;
     } else if (key == "compose_charset") {
-        const auto read = entry.one();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.one();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeCharset = *read;
     } else if (key == "lastread_user") {
         // The number is an index into an array on disk, and the array is
@@ -725,31 +725,31 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         // create a sparse file megabytes long. 65535 is the ceiling the
         // Fido *.msg lastread file imposes anyway, its records being two
         // bytes wide.
-        const auto read = entry.numberIn(0, 65535);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(0, 65535);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.lastreadUser = static_cast<int>(*read);
     } else if (key == "arealist_sort") {
-        const auto read = parseAreaSort(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseAreaSort(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaListSort = *read;
     } else if (key == "arealist_format") {
-        const auto read = parseListFormats(entry, areaFormatSpec());
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseListFormats(entry, areaFormatSpec());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaListFormatNarrow = formatOf<AreaListFormat>(read->narrow, areaFieldFrom);
         cfg.areaListFormatWide = formatOf<AreaListFormat>(read->wide, areaFieldFrom);
     } else if (key == "msglist_format") {
-        const auto read = parseListFormats(entry, msgFormatSpec());
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseListFormats(entry, msgFormatSpec());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         // A stamp the Date column writes for itself is judged by exactly the
         // rules `reader_datetime_format` is judged by: it goes to the same
         // strftime and stands in a column of the same table.
-        const auto checked = checkFieldFormats(entry, *read);
-        if (!checked) return tl::make_unexpected(checked.error());
+        auto checked = checkFieldFormats(entry, *read);
+        if (!checked) return tl::make_unexpected(std::move(checked).error());
         cfg.messageListFormatNarrow = formatOf<MsgListFormat>(read->narrow, msgFieldFrom);
         cfg.messageListFormatWide = formatOf<MsgListFormat>(read->wide, msgFieldFrom);
     } else if (key == "arealist_description_priority") {
-        const auto read = parseDescriptionPriority(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseDescriptionPriority(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaDescriptionPriority = *read;
     } else if (key == "arealist_description_default") {
         // Written with no value at all the line says nothing, and what it would
@@ -761,20 +761,20 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
                 "no description — write arealist_description_default \"\" to leave the "
                 "column blank");
         }
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaDescriptionDefault = *read;
     } else if (key == "arealist_scrollbar") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaListScrollbar = *read;
     } else if (key == "msglist_scrollbar") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.messageListScrollbar = *read;
     } else if (key == "highlight_unread") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.highlightUnread = *read;
     } else if (key == "reader_sidebar_threshold") {
         // Zero is no panel at all, and it is a width rather than a flag: no
@@ -794,8 +794,8 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
             // the same screen: past it nothing is ever dragged, and a threshold
             // no window reaches is the panel off for good — which zero says
             // outright and without the guessing.
-            const auto read = entry.numberIn(0, 255);
-            if (!read) return tl::make_unexpected(read.error());
+            auto read = entry.numberIn(0, 255);
+            if (!read) return tl::make_unexpected(std::move(read).error());
             // And the floor is a column over `adaptive_ui_threshold`'s own
             // default: the panel wants a window wider than a merely wide one,
             // and at eighty and under there is the message and nothing else.
@@ -817,68 +817,68 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         // left for the message is not this setting's business — a width the
         // window has no room for keeps the panel off, and says so by the panel
         // not being there.
-        const auto read = entry.numberIn(16, 255);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(16, 255);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerSidebarWidth = static_cast<int>(*read);
     } else if (key == "reader_sidebar_msglist_format") {
-        const auto read = parseOneListFormat(entry, sidebarFormatSpec());
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseOneListFormat(entry, sidebarFormatSpec());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         // Held to exactly what `msglist_format`'s `d(...)` is held to: it is the
         // same column, written by the same strftime, in a narrower place.
-        const auto checked = checkFieldFormats(entry, *read);
-        if (!checked) return tl::make_unexpected(checked.error());
+        auto checked = checkFieldFormats(entry, *read);
+        if (!checked) return tl::make_unexpected(std::move(checked).error());
         cfg.readerSidebarFormat = formatOf<MsgListFormat>(*read, msgFieldFrom);
     } else if (key == "reader_scrollbar") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.showScrollbar = *read;
     } else if (key == "reader_underline_links") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.underlineLinks = *read;
     } else if (key == "reader_stylecodes") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.styleCodes = *read;
     } else if (key == "bbs_codes_renegade") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.bbsCodesRenegade = *read;
     } else if (key == "bbs_codes_ansi") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.bbsCodesAnsi = *read;
     } else if (key == "reader_edge_exit") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.edgeExit = *read;
     } else if (key == "reader_lastread_auto_next") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.lastreadAutoNext = *read;
     } else if (key == "areareplydirect") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaReplyDirect = *read;
     } else if (key == "compose_cc_list") {
-        const auto read = parseCarbonList(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseCarbonList(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.carbonList = *read;
     } else if (key == "compose_xc_list") {
-        const auto read = parseCrosspostList(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseCrosspostList(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.crosspostList = *read;
     } else if (key == "reply_to_area") {
         // The tag is taken as it is written and checked against nothing: the
         // area list is not built yet when the config is read, and the dialog
         // that uses it opens at the top of the list where the tag names no
         // area it holds.
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.replyToArea = *read;
     } else if (key == "twit") {
-        const auto read = readTwit(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readTwit(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.twits.push_back(*read);
     } else if (key == "twit_subj") {
         // A subject is one string, spaces and all, and an empty pattern would
@@ -887,18 +887,18 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         constexpr const char* kNeeds =
             "twit_subj needs a subject to ignore, e.g. twit_subj \"*SPAM*\"";
         if (entry.values.empty()) return entry.fail(kNeeds);
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         std::string pattern = *read;
         if (pattern.empty()) return entry.fail(kNeeds);
         cfg.twitSubjects.push_back(std::move(pattern));
     } else if (key == "twit_to") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.twitTo = *read;
     } else if (key == "twit_mode") {
-        const auto read = parseTwitMode(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseTwitMode(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.twitMode = *read;
     } else if (key == "adaptive_ui_threshold") {
         // The floor is where a window still has room for the things
@@ -906,127 +906,124 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         // window nothing is ever dragged past, where every window-led setting
         // would be stuck on the one side of the line for good. The same 255 the
         // sidebar's two widths stop at — they are all widths of one screen.
-        const auto read = entry.numberIn(40, 255);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(40, 255);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.adaptiveUiThreshold = static_cast<int>(*read);
     } else if (key == "back_button") {
-        const auto read = parseVisibility(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.backButton = *read;
     } else if (key == "hint_bar") {
-        const auto read = parseVisibility(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.hintBar = *read;
     } else if (key == "compose_delete_line_button") {
-        const auto read = parseVisibility(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeDeleteLineButton = *read;
     } else if (key == "show_location") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.showLocation = *read;
     } else if (key == "reader_show_message_size") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerShowMessageSize = *read;
     } else if (key == "show_recd_date") {
-        const auto read = parseVisibility(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.showRecdDate = *read;
     } else if (key == "menu_button") {
-        const auto read = parseVisibility(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.menuButton = *read;
     } else if (key == "reader_menu") {
-        const auto read =
-            parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerMenu = *read;
     } else if (key == "compose_menu") {
-        const auto read =
-            parseCommandList(entry, CommandScreen::Compose, Commands::In::Menu);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseCommandList(entry, CommandScreen::Compose, Commands::In::Menu);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeMenu = *read;
     } else if (key == "hint_bar_align") {
-        const auto read = parseHintAlign(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseHintAlign(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.hintBarAlign = *read;
     } else if (key == "hint_bar_capitalize") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.hintBarCapitalize = *read;
     } else if (key == "arealist_hints") {
-        const auto read =
+        auto read =
             parseCommandList(entry, CommandScreen::AreaList, Commands::In::HintBar);
-        if (!read) return tl::make_unexpected(read.error());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.arealistHints = *read;
     } else if (key == "msglist_hints") {
-        const auto read =
+        auto read =
             parseCommandList(entry, CommandScreen::MessageList, Commands::In::HintBar);
-        if (!read) return tl::make_unexpected(read.error());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.msglistHints = *read;
     } else if (key == "reader_hints") {
-        const auto read =
-            parseCommandList(entry, CommandScreen::Reader, Commands::In::HintBar);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::HintBar);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerHints = *read;
     } else if (key == "compose_hints") {
-        const auto read =
+        auto read =
             parseCommandList(entry, CommandScreen::Compose, Commands::In::HintBar);
-        if (!read) return tl::make_unexpected(read.error());
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeHints = *read;
     } else if (key == "menu_buttons_width") {
         // The floor is a frame with a column of label left inside it, under
         // which a button says nothing at all; the ceiling is wider than any
         // window a menu would be read in.
-        const auto read = entry.numberIn(4, 100);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(4, 100);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.menuButtonsWidth = static_cast<int>(*read);
     } else if (key == "click_animation_ms") {
         // Zero is meaningful — it is how the animation is turned off — and
         // the ceiling is a second, past which a click stops reading as
         // feedback and starts reading as the program having hung.
-        const auto read = entry.numberIn(0, 1000);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(0, 1000);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.clickAnimationMs = static_cast<int>(*read);
     } else if (key == "list_wheel_throttle") {
-        const auto read = entry.flag();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.listWheelThrottle = *read;
     } else if (key == "list_wheel_throttle_ms") {
         // Zero is meaningful — it is a second way to turn the counting off,
         // there being no gap two notches can fall inside — and the ceiling is
         // where two notches are no longer one movement of the wheel by any
         // reading.
-        const auto read = entry.numberIn(0, 2000);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(0, 2000);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.listWheelThrottleMs = static_cast<int>(*read);
     } else if (key == "reader_datetime_format") {
-        const auto read = readTimeFormat(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readTimeFormat(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerDateTimeFormat = *read;
     } else if (key == "template_date_format") {
-        const auto read = readTimeFormat(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readTimeFormat(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.templateDateFormat = *read;
     } else if (key == "template_time_format") {
-        const auto read = readTimeFormat(entry);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = readTimeFormat(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.templateTimeFormat = *read;
     } else if (key == "theme") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.themePath = expandTilde(*read);
     } else if (key == "template") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.templatePath = expandTilde(*read);
     } else if (key == "quote_string") {
         // One '>' and no more: it is what quote levels are counted in, so a
         // second one would send a first-level quote out looking like a
         // second-level one — to us and to every other reader alike.
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         const std::string& value = *read;
         if (std::count(value.begin(), value.end(), '>') != 1) {
             return entry.fail(
@@ -1039,27 +1036,27 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         // Below 20 the prefix leaves nothing worth wrapping, and past 255
         // the line stops being one another reader will show as it was
         // written.
-        const auto read = entry.numberIn(20, 255);
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.numberIn(20, 255);
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.quoteMargin = static_cast<int>(*read);
     } else if (key == "import_begin") {
         // Empty is a value like any other here: it is how a file goes into a
         // message with no line in front of it, and `entry.text()` of a key
         // written with nothing after it is exactly that.
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.importBegin = *read;
     } else if (key == "import_end") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.importEnd = *read;
     } else if (key == "tearline") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.tearline = *read;
     } else if (key == "origin") {
-        const auto read = entry.text();
-        if (!read) return tl::make_unexpected(read.error());
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.origin = *read;
     } else {
         return false;
@@ -1310,8 +1307,8 @@ Result<void> readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
         // at the moment somebody opens the one area that group covers.
         AppConfig probe = cfg;
         for (const auto& setting : group.settings) {
-            const auto applied = applySetting(probe, setting);
-            if (!applied) return tl::make_unexpected(applied.error());
+            auto applied = applySetting(probe, setting);
+            if (!applied) return tl::make_unexpected(std::move(applied).error());
         }
 
         // An address a group states is an AKA of ours wherever it turns up, so
@@ -1324,8 +1321,8 @@ Result<void> readGroups(const std::vector<Block>& blocks, AppConfig& cfg) {
         }
 
         for (const auto& earlier : cfg.areaGroups) {
-            const auto checked = checkUnambiguous(earlier, group, *block.opener);
-            if (!checked) return tl::make_unexpected(checked.error());
+            auto checked = checkUnambiguous(earlier, group, *block.opener);
+            if (!checked) return tl::make_unexpected(std::move(checked).error());
         }
         cfg.areaGroups.push_back(std::move(group));
     }
@@ -1364,12 +1361,12 @@ Result<void> readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
             }
 
             if (entry->key == "path") {
-                const auto path = readPath(*entry, "the message base");
-                if (!path) return tl::make_unexpected(path.error());
+                auto path = readPath(*entry, "the message base");
+                if (!path) return tl::make_unexpected(std::move(path).error());
                 area.path = *path;
             } else if (entry->key == "type") {
-                const auto only = entry->one();
-                if (!only) return tl::make_unexpected(only.error());
+                auto only = entry->one();
+                if (!only) return tl::make_unexpected(std::move(only).error());
                 const auto type = domain::parseMsgBaseType(*only);
                 if (!type) {
                     return entry->fail("'" + *only +
@@ -1378,8 +1375,8 @@ Result<void> readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
                 }
                 area.type = *type;
             } else if (entry->key == "kind") {
-                const auto only = entry->one();
-                if (!only) return tl::make_unexpected(only.error());
+                auto only = entry->one();
+                if (!only) return tl::make_unexpected(std::move(only).error());
                 const auto kind = domain::parseAreaKind(*only);
                 if (!kind) {
                     return entry->fail("'" + *only +
@@ -1388,26 +1385,26 @@ Result<void> readManualAreas(const std::vector<Block>& blocks, AppConfig& cfg) {
                 }
                 area.kind = *kind;
             } else if (entry->key == "description") {
-                const auto read = entry->text();
-                if (!read) return tl::make_unexpected(read.error());
+                auto read = entry->text();
+                if (!read) return tl::make_unexpected(std::move(read).error());
                 area.description = *read;
             } else if (entry->key == "group_label") {
-                const auto read = entry->one();
-                if (!read) return tl::make_unexpected(read.error());
+                auto read = entry->one();
+                if (!read) return tl::make_unexpected(std::move(read).error());
                 area.group = *read;
             } else if (entry->key == "address") {
-                const auto only = entry->one();
-                if (!only) return tl::make_unexpected(only.error());
-                const auto address = readAddress(*entry, *only);
-                if (!address) return tl::make_unexpected(address.error());
+                auto only = entry->one();
+                if (!only) return tl::make_unexpected(std::move(only).error());
+                auto address = readAddress(*entry, *only);
+                if (!address) return tl::make_unexpected(std::move(address).error());
                 area.address = *address;
             } else if (entry->key == "link") {
                 if (entry->values.empty()) {
                     return entry->fail("link needs the address of a downlink");
                 }
                 for (const auto& value : entry->values) {
-                    const auto link = readAddress(*entry, value);
-                    if (!link) return tl::make_unexpected(link.error());
+                    auto link = readAddress(*entry, value);
+                    if (!link) return tl::make_unexpected(std::move(link).error());
                     area.links.push_back(*link);
                 }
             } else if (isKnownSetting(*entry)) {
@@ -1468,8 +1465,8 @@ Result<AppConfig> fromEntries(const std::vector<CfgEntry>& entries,
     std::vector<Block> groupBlocks;
     std::vector<Block> areaBlocks;
 
-    const auto split = splitBlocks(entries, groupBlocks, areaBlocks);
-    if (!split) return tl::make_unexpected(split.error());
+    auto split = splitBlocks(entries, groupBlocks, areaBlocks);
+    if (!split) return tl::make_unexpected(std::move(split).error());
     const std::vector<const CfgEntry*>& globals = *split;
 
     for (const CfgEntry* entry : globals) {
@@ -1498,8 +1495,8 @@ Result<AppConfig> fromEntries(const std::vector<CfgEntry>& entries,
             return entry->fail(key + " is set twice");
         }
 
-        const auto applied = applySetting(cfg, *entry);
-        if (!applied) return tl::make_unexpected(applied.error());
+        auto applied = applySetting(cfg, *entry);
+        if (!applied) return tl::make_unexpected(std::move(applied).error());
         if (!*applied) return entry->fail("unknown setting '" + key + "'");
     }
 
@@ -1582,14 +1579,14 @@ Result<AppConfig> fromEntries(const std::vector<CfgEntry>& entries,
             "echolist lines into, and the file AmberEdit reads them back from");
     }
 
-    if (const auto read = readAkas(akas, cfg); !read) {
-        return tl::make_unexpected(read.error());
+    if (auto read = readAkas(akas, cfg); !read) {
+        return tl::make_unexpected(std::move(read).error());
     }
-    if (const auto read = readManualAreas(areaBlocks, cfg); !read) {
-        return tl::make_unexpected(read.error());
+    if (auto read = readManualAreas(areaBlocks, cfg); !read) {
+        return tl::make_unexpected(std::move(read).error());
     }
-    if (const auto read = readGroups(groupBlocks, cfg); !read) {
-        return tl::make_unexpected(read.error());
+    if (auto read = readGroups(groupBlocks, cfg); !read) {
+        return tl::make_unexpected(std::move(read).error());
     }
     return cfg;
 }
@@ -1716,8 +1713,8 @@ std::optional<domain::FtnAddress> AppConfig::akaMatching(
 
 Result<AppConfig> AppConfig::loadFromString(const std::string& text,
                                             const std::string& originName) {
-    const auto entries = parseCfg(text, originName);
-    if (!entries) return tl::make_unexpected(entries.error());
+    auto entries = parseCfg(text, originName);
+    if (!entries) return tl::make_unexpected(std::move(entries).error());
     return fromEntries(*entries, originName);
 }
 
@@ -1726,10 +1723,10 @@ Result<AppConfig> AppConfig::loadFromFile(const std::string& path) {
     if (!std::filesystem::exists(path, ec)) {
         return failure("config not found: " + path);
     }
-    const auto content = text::readFile(path);
-    if (!content) return tl::make_unexpected(content.error());
+    auto content = text::readFile(path);
+    if (!content) return tl::make_unexpected(std::move(content).error());
     auto parsed = loadFromString(*content, path);
-    if (!parsed) return tl::make_unexpected(parsed.error());
+    if (!parsed) return tl::make_unexpected(std::move(parsed).error());
     AppConfig cfg = std::move(*parsed);
     // Where a file named without a path is looked for. Settled here rather than
     // in `loadFromString`, which parses a config that need not have come off a
@@ -1748,7 +1745,7 @@ Result<AppConfig> AppConfig::loadFromFile(const std::string& path) {
                        "a new message starts from");
     }
     if (const auto read = text::readFile(cfg.templatePath); !read) {
-        return failure("message template: " + read.error());
+        return failure("message template: " + read.error()->message());
     }
 
     // And the same for a template an area group names, for the same reason: a
@@ -1758,12 +1755,12 @@ Result<AppConfig> AppConfig::loadFromFile(const std::string& path) {
         if (!group.states("template")) continue;
         AppConfig probe = cfg;
         for (const auto& setting : group.settings) {
-            const auto applied = applySetting(probe, setting);
-            if (!applied) return tl::make_unexpected(applied.error());
+            auto applied = applySetting(probe, setting);
+            if (!applied) return tl::make_unexpected(std::move(applied).error());
         }
         if (const auto read = text::readFile(probe.templatePath); !read) {
             return failure("message template of the group at line " +
-                           std::to_string(group.line) + ": " + read.error());
+                           std::to_string(group.line) + ": " + read.error()->message());
         }
     }
     return cfg;

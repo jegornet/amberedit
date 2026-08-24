@@ -128,11 +128,11 @@ Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& area
             if (included.is_relative()) included = baseDir / included;
             std::error_code ec;
             if (!std::filesystem::exists(included, ec)) continue;
-            const auto text = text::readFile(included.string());
-            if (!text) return tl::make_unexpected(text.error());
-            const auto read =
+            auto text = text::readFile(included.string());
+            if (!text) return tl::make_unexpected(std::move(text).error());
+            auto read =
                 parseInto(*text, areas, included.parent_path(), includeDepth - 1);
-            if (!read) return tl::make_unexpected(read.error());
+            if (!read) return tl::make_unexpected(std::move(read).error());
             continue;
         }
 
@@ -149,13 +149,13 @@ Result<void> parseInto(const std::string& content, std::vector<AreaConfig>& area
 FidoconfigParser::FidoconfigParser(std::string path) : path_(std::move(path)) {}
 
 Result<std::vector<AreaConfig>> FidoconfigParser::loadAreas() {
-    const auto content = text::readFile(path_);
-    if (!content) return tl::make_unexpected(content.error());
+    auto content = text::readFile(path_);
+    if (!content) return tl::make_unexpected(std::move(content).error());
     std::vector<AreaConfig> areas;
-    const auto read =
+    auto read =
         parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
                   /*includeDepth=*/8);
-    if (!read) return tl::make_unexpected(read.error());
+    if (!read) return tl::make_unexpected(std::move(read).error());
     return areas;
 }
 

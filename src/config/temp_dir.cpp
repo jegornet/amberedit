@@ -78,8 +78,8 @@ Result<std::string> makeTempDir(const std::string& configured) {
             "the temporary directory to work in is not one that can be made: " + path);
     }
     if (ours) {
-        const auto checked = insistItIsOurs(path);
-        if (!checked) return tl::make_unexpected(checked.error());
+        auto checked = insistItIsOurs(path);
+        if (!checked) return tl::make_unexpected(std::move(checked).error());
     }
     return path;
 }

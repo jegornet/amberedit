@@ -28,7 +28,7 @@ inline bool contains(std::string_view haystack, std::string_view text) {
 /// the message when the assertion fails.
 template <typename T>
 std::string errorOf(const Result<T>& result) {
-    return result ? std::string{} : result.error();
+    return result ? std::string{} : result.error()->message();
 }
 
 /// The value of a Result a test says must hold one.

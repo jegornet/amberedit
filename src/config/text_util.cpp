@@ -16,8 +16,8 @@ Result<void> insistItIsAFile(const std::string& path) {
 }
 
 Result<std::string> readFile(const std::string& path) {
-    const auto isFile = insistItIsAFile(path);
-    if (!isFile) return tl::make_unexpected(isFile.error());
+    auto isFile = insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("cannot open file: " + path);

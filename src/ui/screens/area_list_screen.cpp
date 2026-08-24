@@ -142,9 +142,9 @@ void openSelected(AppState& state) {
 
     // Nothing was left half open — enterArea() goes on only once the base is
     // there — so saying why is the whole of what is left to do.
-    state.errorMessage =
-        "Cannot open the area: " +
-        (entered.error().empty() ? "the base could not be opened" : entered.error());
+    state.errorMessage = "Cannot open the area: " + (entered.error()->message().empty()
+                                                         ? "the base could not be opened"
+                                                         : entered.error()->message());
 }
 
 /// The next area holding unread messages, starting below the cursor and going

@@ -171,19 +171,20 @@ TEST_CASE("a double quote in a value is refused [config_writer]") {
     a.userName = "Vasya \"Pupkin\"";
     const auto rendered = renderConfig(a);
     REQUIRE_FALSE(rendered.has_value());
-    CHECK(contains(rendered.error(), "double quote"));
+    CHECK(contains(rendered.error()->message(), "double quote"));
 }
 
 TEST_CASE("a sample without the line to fill in is a failure [config_writer]") {
     const auto missing = renderConfigFrom("name Somebody\n", answers());
     REQUIRE_FALSE(missing.has_value());
-    CHECK_MESSAGE(contains(missing.error(), "address"), missing.error());
+    CHECK_MESSAGE(contains(missing.error()->message(), "address"),
+                  missing.error()->message());
 
     const std::string doubled =
         std::string(amberedit::config::resources::exampleConfig()) + "\nname Twice\n";
     const auto twice = renderConfigFrom(doubled, answers());
     REQUIRE_FALSE(twice.has_value());
-    CHECK_MESSAGE(contains(twice.error(), "name"), twice.error());
+    CHECK_MESSAGE(contains(twice.error()->message(), "name"), twice.error()->message());
 }
 
 TEST_CASE("writeConfig leaves a config a start can read [config_writer]") {
@@ -206,7 +207,7 @@ TEST_CASE("writeConfig does not write over a config already there [config_writer
 
     const auto again = writeConfig(path, answers());
     REQUIRE_FALSE(again.has_value());
-    CHECK(contains(again.error(), "already"));
+    CHECK(contains(again.error()->message(), "already"));
 }
 
 TEST_CASE("writeConfig says so when the template is not there [config_writer]") {
@@ -217,7 +218,8 @@ TEST_CASE("writeConfig says so when the template is not there [config_writer]") 
 
     const auto written = writeConfig(path, a);
     REQUIRE_FALSE(written.has_value());
-    CHECK_MESSAGE(contains(written.error(), "template"), written.error());
+    CHECK_MESSAGE(contains(written.error()->message(), "template"),
+                  written.error()->message());
     // And nothing is left behind, or the next --setup would refuse to run.
     CHECK_FALSE(std::filesystem::exists(path));
 }

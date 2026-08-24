@@ -99,11 +99,12 @@ Result<WriteReport> writeEcholistDb(const std::string& path,
         if (records.size() > 0xffffffffu) {
             return failure(path + ": the echolists do not fit in one file");
         }
-        const auto tagLength = fieldLength(item.entry->tag, "tag", path);
-        if (!tagLength) return tl::make_unexpected(tagLength.error());
-        const auto descriptionLength =
+        auto tagLength = fieldLength(item.entry->tag, "tag", path);
+        if (!tagLength) return tl::make_unexpected(std::move(tagLength).error());
+        auto descriptionLength =
             fieldLength(item.entry->description, "description", path);
-        if (!descriptionLength) return tl::make_unexpected(descriptionLength.error());
+        if (!descriptionLength)
+            return tl::make_unexpected(std::move(descriptionLength).error());
 
         appendU32(index, static_cast<uint32_t>(records.size()));
         appendU16(records, *tagLength);

@@ -210,7 +210,7 @@ Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
 
     const auto written_ = app::exportMessage(request, *state.readHeader, *state.readBody);
     if (!written_) {
-        picker.error = written_.error();
+        picker.error = written_.error()->message();
         return Outcome::Ignored;
     }
 
@@ -247,7 +247,7 @@ Outcome runExport(AppState& state, Picker& picker) {
         // why nothing under the list is typed into.
         const auto saved = app::saveUueFiles(state.exportDirectory, picker.files);
         if (!saved) {
-            picker.error = saved.error();
+            picker.error = saved.error()->message();
             return Outcome::Ignored;
         }
         // The directory stays for the next export, exactly as a text one leaves

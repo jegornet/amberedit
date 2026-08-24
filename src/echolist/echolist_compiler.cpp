@@ -42,10 +42,11 @@ CompileReport compileEcholists(const CompileOptions& options, std::ostream* log)
             // changed. An echolist that is not there is not an error here: it is
             // an echolist that is not there.
             summary.state = stateOf(spec.path, spec.charset);
-            summary.problem = read.error();
-            report.problems.emplace_back(read.error());
+            summary.problem = read.error()->message();
+            report.problems.emplace_back(read.error()->message());
             if (log != nullptr) {
-                *log << "echolist  " << spec.path << ": " << read.error() << "\n";
+                *log << "echolist  " << spec.path << ": " << read.error()->message()
+                     << "\n";
             }
         } else {
             EcholistSources::Loaded loaded = std::move(*read);
@@ -93,8 +94,8 @@ CompileReport compileEcholists(const CompileOptions& options, std::ostream* log)
 
     const auto written = writeEcholistDb(options.dbPath, compiled, std::time(nullptr));
     if (!written) {
-        report.problems.emplace_back(written.error());
-        if (log != nullptr) *log << written.error() << "\n";
+        report.problems.emplace_back(written.error()->message());
+        if (log != nullptr) *log << written.error()->message() << "\n";
         return report;
     }
     report.areas = written->areas;

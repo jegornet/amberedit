@@ -158,8 +158,8 @@ Result<std::string> IconvRecoder::intoCharset(std::string_view text,
     if (text.empty()) return std::string{};
 
     if (toCharset == "UTF-8" || toCharset == "UTF8") return std::string(text);
-    if (const auto opened = ensureOutDescriptor(toCharset); !opened) {
-        return tl::make_unexpected(opened.error());
+    if (auto opened = ensureOutDescriptor(toCharset); !opened) {
+        return tl::make_unexpected(std::move(opened).error());
     }
     iconv(asIconv(outDescriptor_), nullptr, nullptr, nullptr, nullptr);
 
@@ -212,8 +212,8 @@ Result<std::string> IconvRecoder::intoUtf8(std::string_view text,
         if (isValidUtf8(text)) return std::string(text);
     }
 
-    if (const auto opened = ensureDescriptor(fromCharset); !opened) {
-        return tl::make_unexpected(opened.error());
+    if (auto opened = ensureDescriptor(fromCharset); !opened) {
+        return tl::make_unexpected(std::move(opened).error());
     }
 
     // Reset the converter's state before a new string.

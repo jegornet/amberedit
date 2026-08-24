@@ -25,7 +25,7 @@ struct CfgEntry {
 
     /// The complaint with the file and the line in front of `what`, ready to be
     /// returned: `return entry.fail(key + " takes exactly one value")`.
-    [[nodiscard]] tl::unexpected<std::string> fail(std::string_view what) const;
+    [[nodiscard]] tl::unexpected<ErrorPtr> fail(std::string_view what) const;
 
     /// The values as one string, joined by single spaces: `name Vasya Pupkin`
     /// and `name "Vasya Pupkin"` are the same line. Quotes are what a value

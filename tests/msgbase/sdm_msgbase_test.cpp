@@ -389,6 +389,6 @@ TEST_CASE("FtnMsgBase deletes a message from a *.msg base [sdm]") {
 
     const auto removed = msgbase.remove(before + 1);
     CHECK_FALSE(removed.has_value());
-    CHECK_FALSE(removed.error().empty());
+    CHECK_FALSE(removed.error()->message().empty());
     CHECK_FALSE(msgbase.remove(0).has_value());
 }

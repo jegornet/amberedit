@@ -173,7 +173,7 @@ int main(int argc, char* argv[]) {
 
         const auto loaded = amberedit::config::AppConfig::loadFromFile(configPath);
         if (!loaded) {
-            std::cerr << "error: " << loaded.error() << "\n";
+            std::cerr << "error: " << loaded.error()->message() << "\n";
             return 1;
         }
         const amberedit::config::AppConfig& appConfig = *loaded;
@@ -185,7 +185,7 @@ int main(int argc, char* argv[]) {
         if (!appConfig.keysPath.empty()) {
             auto read = amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
             if (!read) {
-                std::cerr << "error: " << read.error() << "\n";
+                std::cerr << "error: " << read.error()->message() << "\n";
                 return 1;
             }
             keys = std::move(*read);
@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
         if (!appConfig.themePath.empty()) {
             const auto palette = amberedit::ui::theme::loadPalette(appConfig.themePath);
             if (!palette) {
-                std::cerr << "error: " << palette.error() << "\n";
+                std::cerr << "error: " << palette.error()->message() << "\n";
                 return 1;
             }
             amberedit::ui::theme::palette = *palette;
@@ -210,7 +210,7 @@ int main(int argc, char* argv[]) {
 
         auto source = amberedit::app::makeAreaSource(appConfig);
         if (!source) {
-            std::cerr << "error: " << source.error() << "\n";
+            std::cerr << "error: " << source.error()->message() << "\n";
             return 1;
         }
 
@@ -220,7 +220,7 @@ int main(int argc, char* argv[]) {
                 appConfig.lastreadUser, appConfig.userName),
             appConfig);
         if (const auto read = manager.reload(); !read) {
-            std::cerr << "error: " << read.error() << "\n";
+            std::cerr << "error: " << read.error()->message() << "\n";
             return 1;
         }
 

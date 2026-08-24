@@ -75,7 +75,8 @@ Result<void> checkCharsetAnswer(std::string_view typed) {
             return failure("a charset is one word — '" + charset + "' is more than one");
         }
     }
-    if (const auto quotes = withoutQuotes(charset, "a charset"); !quotes) return quotes;
+    if (auto quotes = withoutQuotes(charset, "a charset"); !quotes)
+        return tl::make_unexpected(std::move(quotes).error());
 
     // Through AmberEdit's own alias table first, and iconv second: the config
     // takes the names Fidonet writes — LATIN-1, +7_FIDO — and it is what those
@@ -103,11 +104,11 @@ std::string defaultReadCharset(const domain::FtnAddress& address) {
 Result<size_t> checkTosserConfig(const std::string& path,
                                  config::TosserConfigFormat format) {
     if (path.empty()) return failure("no tosser config is named");
-    if (const auto isFile = text::insistItIsAFile(path); !isFile) {
-        return tl::make_unexpected(isFile.error());
+    if (auto isFile = text::insistItIsAFile(path); !isFile) {
+        return tl::make_unexpected(std::move(isFile).error());
     }
-    if (const auto quotes = withoutQuotes(path, "a path"); !quotes) {
-        return tl::make_unexpected(quotes.error());
+    if (auto quotes = withoutQuotes(path, "a path"); !quotes) {
+        return tl::make_unexpected(std::move(quotes).error());
     }
 
     Result<std::vector<domain::AreaConfig>> areas = failure("");
@@ -122,7 +123,7 @@ Result<size_t> checkTosserConfig(const std::string& path,
             areas = config::SquishCfgParser(path).loadAreas();
             break;
     }
-    if (!areas) return tl::make_unexpected(areas.error());
+    if (!areas) return tl::make_unexpected(std::move(areas).error());
 
     // An empty answer is nearly always the wrong file or the wrong format, and
     // the user is standing right here to say which.
@@ -204,7 +205,8 @@ Result<std::string> ensureTemplate(const std::string& configPath,
 
 Result<void> checkTargetPath(const std::string& path) {
     if (text::trim(path).empty()) return failure("say where the config is to be written");
-    if (const auto quotes = withoutQuotes(path, "a path"); !quotes) return quotes;
+    if (auto quotes = withoutQuotes(path, "a path"); !quotes)
+        return tl::make_unexpected(std::move(quotes).error());
 
     const fs::path target(path);
     std::error_code ec;

@@ -145,8 +145,8 @@ Result<WriteReport> writeNodelistDb(const std::string& path,
             {&entry.phone, "phone"},
             {&entry.flags, "flags"}};
         for (const auto& field : fields) {
-            const auto length = fieldLength(*field.first, field.second, path);
-            if (!length) return tl::make_unexpected(length.error());
+            auto length = fieldLength(*field.first, field.second, path);
+            if (!length) return tl::make_unexpected(std::move(length).error());
             appendU16(records, *length);
         }
         records += entry.system;

@@ -63,7 +63,7 @@ std::string readDump(const BinaryFile& file, uint64_t offset, uint64_t length) {
     const auto wanted = static_cast<size_t>(std::min<uint64_t>(length, kMaxDumpBytes));
     if (wanted == 0) return {};
     std::string block(wanted, '\0');
-    if (!file.readAt(offset, &block[0], block.size())) return {};
+    if (file.readAt(offset, &block[0], block.size()).failed()) return {};
     return block;
 }
 

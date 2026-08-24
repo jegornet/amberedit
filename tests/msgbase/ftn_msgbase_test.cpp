@@ -309,7 +309,7 @@ TEST_CASE("FtnMsgBase reports a missing base [squish]") {
     FtnMsgBase msgbase;
     const auto opened = msgbase.open(localnetArea("/nonexistent/path/area"));
     CHECK_FALSE(opened.has_value());
-    CHECK_FALSE(opened.error().empty());
+    CHECK_FALSE(opened.error()->message().empty());
     CHECK_FALSE(msgbase.isOpen());
 }
 
@@ -325,14 +325,14 @@ TEST_CASE("FtnMsgBase refuses a base that is not there [squish]") {
     FtnMsgBase msgbase;
     const auto opened = msgbase.open(area);
     CHECK_FALSE(opened.has_value());
-    CHECK_FALSE(opened.error().empty());
+    CHECK_FALSE(opened.error()->message().empty());
     CHECK_FALSE(msgbase.isOpen());
 
     // The same for an echo area, in case the two ever open differently.
     area.kind = amberedit::domain::AreaKind::Echo;
     const auto asEcho = msgbase.open(area);
     CHECK_FALSE(asEcho.has_value());
-    CHECK_FALSE(asEcho.error().empty());
+    CHECK_FALSE(asEcho.error()->message().empty());
 }
 
 TEST_CASE("FtnMsgBase opens a base on a long path [squish]") {
@@ -368,7 +368,7 @@ TEST_CASE("FtnMsgBase refuses to open a passthrough area [squish]") {
     FtnMsgBase msgbase;
     const auto opened = msgbase.open(area);
     CHECK_FALSE(opened.has_value());
-    CHECK_FALSE(opened.error().empty());
+    CHECK_FALSE(opened.error()->message().empty());
 }
 
 TEST_CASE("FtnMsgBase::probeType works the format out from the files [squish]") {
@@ -782,7 +782,7 @@ TEST_CASE("FtnMsgBase deletes a message [squish]") {
     // same as deleting one.
     const auto removed = msgbase.remove(before);
     CHECK_FALSE(removed.has_value());
-    CHECK_FALSE(removed.error().empty());
+    CHECK_FALSE(removed.error()->message().empty());
     CHECK(msgbase.count() == before - 1);
     CHECK_FALSE(msgbase.remove(0).has_value());
 }

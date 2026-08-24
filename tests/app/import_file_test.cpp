@@ -14,6 +14,7 @@ using amberedit::app::ImportRequest;
 using amberedit::app::uuencode;
 using amberedit::test::TempDir;
 using amberedit::test::contains;
+using amberedit::test::errorOf;
 
 namespace {
 
@@ -129,7 +130,8 @@ TEST_CASE("importFile says what it could not read [import]") {
 
     const auto missing = importFile(textRequest(dir.path("nothing.txt"), "UTF-8"));
     CHECK_FALSE(missing.has_value());
-    CHECK_MESSAGE(contains(missing.error(), "nothing.txt"), missing.error());
+    const std::string error = errorOf(missing);
+    CHECK_MESSAGE(contains(error, "nothing.txt"), error);
 
     // A charset iconv does not know is an error rather than the bytes handed
     // back as they stand: the name was typed a moment ago, and mojibake in the
@@ -137,7 +139,8 @@ TEST_CASE("importFile says what it could not read [import]") {
     const auto unknown =
         importFile(textRequest(write(dir, "note.txt", kPrivetCp866), "CP8666"));
     CHECK_FALSE(unknown.has_value());
-    CHECK_MESSAGE(contains(unknown.error(), "CP8666"), unknown.error());
+    const std::string charsetError = errorOf(unknown);
+    CHECK_MESSAGE(contains(charsetError, "CP8666"), charsetError);
 }
 
 TEST_CASE("uuencode writes a block uudecode reads back [import]") {
