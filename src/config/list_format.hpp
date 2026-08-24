@@ -103,9 +103,8 @@ struct ListFormatSpec {
 /// nothing in them, a width written after them instead of before, and brackets
 /// after a letter that takes none are all refused rather than read past: each is
 /// a format the user meant something by.
-[[nodiscard]] Result<ListFormatRow> parseListFormat(const CfgEntry& entry,
-                                                    const ListFormatSpec& spec,
-                                                    const std::string& value);
+[[nodiscard]] tl::expected<ListFormatRow, ErrorPtr> parseListFormat(
+    const CfgEntry& entry, const ListFormatSpec& spec, const std::string& value);
 
 /// A row stands at most this many lines tall. Past any format worth writing —
 /// an area or a message has five lines' worth to say about itself and no more —
@@ -128,8 +127,8 @@ struct ListFormats {
     ListFormatRow wide;
 };
 
-[[nodiscard]] Result<ListFormats> parseListFormats(const CfgEntry& entry,
-                                                   const ListFormatSpec& spec);
+[[nodiscard]] tl::expected<ListFormats, ErrorPtr> parseListFormats(
+    const CfgEntry& entry, const ListFormatSpec& spec);
 
 /// The one format a setting that has no two sides to it takes — the reader's
 /// sidebar, which is only ever on the screen in a window wide enough for it and
@@ -138,7 +137,7 @@ struct ListFormats {
 /// A second value is refused rather than read as the wide window's: a setting
 /// that took two everywhere else and one here would be a rule nobody could
 /// remember, and a format with a space in it is written in quotes either way.
-[[nodiscard]] Result<ListFormatRow> parseOneListFormat(const CfgEntry& entry,
-                                                       const ListFormatSpec& spec);
+[[nodiscard]] tl::expected<ListFormatRow, ErrorPtr> parseOneListFormat(
+    const CfgEntry& entry, const ListFormatSpec& spec);
 
 }  // namespace amberedit::config

@@ -60,9 +60,9 @@ std::optional<AreaConfig> parseLine(const std::string& rawLine) {
 
 AreasBbsParser::AreasBbsParser(std::string path) : path_(std::move(path)) {}
 
-Result<std::vector<AreaConfig>> AreasBbsParser::loadAreas() {
-    const auto content = text::readFile(path_);
-    if (!content) return tl::make_unexpected(content.error());
+tl::expected<std::vector<AreaConfig>, ErrorPtr> AreasBbsParser::loadAreas() {
+    auto content = text::readFile(path_);
+    if (!content) return tl::make_unexpected(std::move(content).error());
     return parseText(*content);
 }
 

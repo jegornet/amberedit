@@ -72,7 +72,7 @@ struct CompileReport {
 /// or not an echolist at all becomes a line in `problems` and an empty source in
 /// the compiled file; a compiled file that cannot be written becomes a line in
 /// `problems` and `written` staying false. That is why the answer is a report
-/// and not a Result: several sources are read and each has an outcome of its
+/// and not an expected: several sources are read and each has an outcome of its
 /// own, and the ones that worked are the point. This runs at every start, and a
 /// mail reader that would not open because an echolist had gone would be worse
 /// than one without any descriptions.

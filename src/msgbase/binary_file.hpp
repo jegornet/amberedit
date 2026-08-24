@@ -5,6 +5,42 @@
 
 namespace amberedit::msgbase {
 
+/// Whether the bytes moved, and why they did not.
+///
+/// `readAt` and `writeAt` used to answer a plain `bool`, and one false covered
+/// two different things: a file shorter than the record asked for, and a read
+/// the kernel refused. The second came with an `errno` that was dropped on the
+/// floor, so a base on a failing disk and a base truncated by a half-finished
+/// tosser said exactly the same nothing.
+///
+/// **Deliberately not convertible to `bool`.** Swapping the return type for one
+/// that was would have flipped the sense of every `if (!file.readAt(…))` in the
+/// three drivers without a word from the compiler. `ok()` and `failed()` have to
+/// be written out, and the compiler names every site that has not been.
+class IoStatus {
+public:
+    /// The bytes moved.
+    [[nodiscard]] static IoStatus moved() { return IoStatus{0, false}; }
+    /// The file holds fewer bytes than the record wanted. Not an `errno`
+    /// condition: `pread` says so by returning zero.
+    [[nodiscard]] static IoStatus truncated() { return IoStatus{0, true}; }
+    /// The kernel refused, with the `errno` it left behind.
+    [[nodiscard]] static IoStatus refused(int errnum) { return IoStatus{errnum, false}; }
+
+    [[nodiscard]] bool ok() const { return errnum_ == 0 && !truncated_; }
+    [[nodiscard]] bool failed() const { return !ok(); }
+
+    /// Why, for a driver to put its path and offset in front of. Empty where it
+    /// worked.
+    [[nodiscard]] std::string message() const;
+
+private:
+    IoStatus(int errnum, bool truncated) : errnum_(errnum), truncated_(truncated) {}
+
+    int errnum_{0};
+    bool truncated_{false};
+};
+
 /// One file of a message base, held open for as long as the base is.
 ///
 /// A descriptor rather than a `FILE*`, for two reasons that decide the whole
@@ -40,11 +76,11 @@ public:
     [[nodiscard]] int descriptor() const { return fd_; }
     [[nodiscard]] const std::string& path() const { return path_; }
 
-    /// Reads exactly `count` bytes. False means the file is shorter than that
-    /// or the read failed; a short read is never silently accepted, since every
-    /// record here is fixed width and half of one says nothing.
-    [[nodiscard]] bool readAt(uint64_t offset, void* out, size_t count) const;
-    [[nodiscard]] bool writeAt(uint64_t offset, const void* data, size_t count);
+    /// Reads exactly `count` bytes. A short read is never silently accepted,
+    /// since every record here is fixed width and half of one says nothing —
+    /// and the status tells a short file from a refused read.
+    [[nodiscard]] IoStatus readAt(uint64_t offset, void* out, size_t count) const;
+    [[nodiscard]] IoStatus writeAt(uint64_t offset, const void* data, size_t count);
 
     /// Size in bytes, or -1 when it cannot be determined.
     [[nodiscard]] int64_t size() const;

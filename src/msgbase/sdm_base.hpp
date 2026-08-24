@@ -23,27 +23,28 @@ namespace amberedit::msgbase {
 /// have it — the loser rescans and takes the next.
 class SdmBase final : public FormatDriver {
 public:
-    [[nodiscard]] Result<void> open(const std::string& path, bool echo,
-                                    uint16_t defaultZone) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> open(const std::string& path, bool echo,
+                                                    uint16_t defaultZone) override;
     void close() override;
-    [[nodiscard]] Result<void> create(const std::string& path) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
 
     [[nodiscard]] uint32_t count() const override {
         return static_cast<uint32_t>(numbers_.size());
     }
-    [[nodiscard]] Result<void> read(uint32_t index, RawMessage& out,
-                                    bool withText) const override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> read(uint32_t index, RawMessage& out,
+                                                    bool withText) const override;
     [[nodiscard]] domain::MessageInfo info(uint32_t index) const override;
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid, bool exact) const override;
 
-    [[nodiscard]] Result<uint32_t> write(const RawDraft& draft) override;
-    [[nodiscard]] Result<void> replace(uint32_t index, const RawDraft& draft) override;
-    [[nodiscard]] Result<void> remove(uint32_t index) override;
-    [[nodiscard]] Result<void> markSeen(uint32_t index) override;
+    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
+                                                       const RawDraft& draft) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
 private:
-    [[nodiscard]] Result<void> scan();
+    [[nodiscard]] tl::expected<void, ErrorPtr> scan();
     [[nodiscard]] std::string fileFor(uint32_t number) const;
 
     /// The message as the file holds it: the 190-byte header, and the body —

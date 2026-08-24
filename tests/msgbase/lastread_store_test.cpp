@@ -59,7 +59,9 @@ private:
 class StubAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit StubAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return areas_;
+    }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -182,8 +184,8 @@ TEST_CASE("JAM records are found by the CRC of the user's name [lastread]") {
     REQUIRE(bytes.size() == 32);
     CHECK(lastread_file::readU32(bytes.data()) ==
           lastread_file::nameCrc32("Ivan Petrov"));
-    CHECK(lastread_file::readU32(bytes.data() + 4) == 1u);   // UserID
-    CHECK(lastread_file::readU32(bytes.data() + 8) == 100u); // LastReadMsg
+    CHECK(lastread_file::readU32(bytes.data() + 4) == 1u);    // UserID
+    CHECK(lastread_file::readU32(bytes.data() + 8) == 100u);  // LastReadMsg
 
     // A record already in the file is rewritten in place.
     ivan.setLastRead(area, 150);
@@ -253,8 +255,9 @@ TEST_CASE("A passthrough area keeps no marks [lastread]") {
 
 // --- end to end, on the Squish base in the repository ------------------------
 
-TEST_CASE("Reading a message leaves a mark the next run resumes from "
-          "[lastread][squish]") {
+TEST_CASE(
+    "Reading a message leaves a mark the next run resumes from "
+    "[lastread][squish]") {
     amberedit::test::TempSquishBase base;
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
 
@@ -297,8 +300,9 @@ TEST_CASE("Reading a message leaves a mark the next run resumes from "
     CHECK(manager.startingMessage(area, total) == total - 1);
 }
 
-TEST_CASE("Where an area resumes is reader_lastread_auto_next's "
-          "[lastread][squish]") {
+TEST_CASE(
+    "Where an area resumes is reader_lastread_auto_next's "
+    "[lastread][squish]") {
     amberedit::test::TempSquishBase base;
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
 
@@ -344,8 +348,9 @@ TEST_CASE("Where an area resumes is reader_lastread_auto_next's "
     }
 }
 
-TEST_CASE("An area with no mark opens at its first message "
-          "[lastread][squish]") {
+TEST_CASE(
+    "An area with no mark opens at its first message "
+    "[lastread][squish]") {
     amberedit::test::TempSquishBase base;
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
     // The base in testdata comes with marks of its own; this is the area as
@@ -356,8 +361,12 @@ TEST_CASE("An area with no mark opens at its first message "
     config.tosserConfigPath = "/dev/null";
     // Nothing read is nothing read whichever way this stands: there is no
     // marked message to open on, and no message before the first one either.
-    SUBCASE("with lastread_auto_next on") { config.lastreadAutoNext = true; }
-    SUBCASE("and with it off") { config.lastreadAutoNext = false; }
+    SUBCASE("with lastread_auto_next on") {
+        config.lastreadAutoNext = true;
+    }
+    SUBCASE("and with it off") {
+        config.lastreadAutoNext = false;
+    }
 
     std::vector<AreaConfig> areas{area};
     amberedit::app::AreaManager manager(
@@ -383,7 +392,7 @@ TEST_CASE("A mark is stored as a UID, not as a position [lastread][squish]") {
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
 
     amberedit::msgbase::FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     const uint32_t total = msgbase.count();
     REQUIRE(total >= 2);
     const uint32_t uid = msgbase.uidOf(total - 1);

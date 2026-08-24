@@ -18,6 +18,7 @@ using amberedit::domain::AreaKind;
 using amberedit::domain::MessageDraft;
 using amberedit::domain::MsgBaseType;
 using amberedit::msgbase::FtnMsgBase;
+using amberedit::test::valueOf;
 
 namespace fs = std::filesystem;
 
@@ -150,7 +151,7 @@ TEST_CASE("A JAM message number survives deletions before it [jam]") {
     draft.netmail = false;
     for (const char* subject : {"one", "two", "three"}) {
         draft.subject = subject;
-        REQUIRE(msgbase.write(draft) != 0);
+        REQUIRE(valueOf(msgbase.write(draft)) != 0);
     }
     REQUIRE(msgbase.count() == 3);
 
@@ -188,7 +189,7 @@ TEST_CASE("JAM keeps SEEN-BY and PATH apart and puts them back [jam]") {
     // stores those lines as subfields and the reader shows them at the end.
     draft.lines = {"Body text", "--- AmberEdit", " * Origin: test (192:168/2)",
                    "SEEN-BY: 168/2 3", "\x01PATH: 168/2"};
-    REQUIRE(msgbase.write(draft) == 1);
+    REQUIRE(valueOf(msgbase.write(draft)) == 1);
 
     const auto body = msgbase.body(1);
     REQUIRE(body.lines.size() >= 2);
@@ -220,7 +221,7 @@ TEST_CASE("A changed JAM message keeps its number and its place [jam]") {
     draft.netmail = false;
     for (const char* subject : {"one", "two", "three"}) {
         draft.subject = subject;
-        REQUIRE(msgbase.write(draft) != 0);
+        REQUIRE(valueOf(msgbase.write(draft)) != 0);
     }
     const uint32_t uid = msgbase.uidOf(2);
     const auto was = msgbase.header(2);
@@ -278,8 +279,8 @@ TEST_CASE("A JAM message is marked read in TimesRead [jam]") {
 
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
-    REQUIRE(msgbase.write(netmailDraft()) == 1);
-    REQUIRE(msgbase.write(netmailDraft()) == 2);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 2);
 
     // A message JAM has just been given has been read no times at all.
     CHECK_FALSE(msgbase.header(1).seen);
@@ -315,7 +316,7 @@ TEST_CASE("A changed JAM message is still marked read [jam]") {
 
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
-    REQUIRE(msgbase.write(netmailDraft()) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 1);
     REQUIRE(msgbase.markSeen(1).has_value());
 
     MessageDraft draft = netmailDraft();
@@ -337,8 +338,8 @@ TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
 
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
-    REQUIRE(msgbase.write(netmailDraft()) == 1);
-    REQUIRE(msgbase.write(netmailDraft()) == 2);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 2);
 
     // The *.msg attribute word is sixteen bits wide, so MSGSEEN has nowhere to
     // go in it and the read count is what says this instead.
@@ -425,8 +426,8 @@ TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
 
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
-    REQUIRE(msgbase.write(netmailDraft()) == 1);
-    REQUIRE(msgbase.write(netmailDraft()) == 2);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 2);
     const auto was = msgbase.header(1);
 
     MessageDraft change = netmailDraft();
@@ -472,7 +473,7 @@ TEST_CASE("An echo *.msg area starts at 2.msg [sdm]") {
 
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
-    REQUIRE(msgbase.write(draft) == 1);
+    REQUIRE(valueOf(msgbase.write(draft)) == 1);
     CHECK_FALSE(fs::exists(dir.path() / "1.msg"));
     CHECK(fs::exists(dir.path() / "2.msg"));
     CHECK(msgbase.uidOf(1) == 2);
@@ -496,7 +497,7 @@ TEST_CASE("The JAM index record keys by the recipient's name [jam]") {
     MessageDraft draft = netmailDraft();
     draft.netmail = false;
     draft.to = "All";
-    REQUIRE(msgbase.write(draft) == 1);
+    REQUIRE(valueOf(msgbase.write(draft)) == 1);
 
     std::ifstream jdx(path + ".jdx", std::ios::binary);
     unsigned char record[8] = {0};

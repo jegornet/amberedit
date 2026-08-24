@@ -53,12 +53,13 @@ public:
     /// enough that the screen has to say what it is doing. It is called from
     /// inside the loop, so whatever it does happens between two bases and not
     /// on a thread of its own.
-    [[nodiscard]] Result<void> reload(const ProgressFn& onArea = {});
+    [[nodiscard]] tl::expected<void, ErrorPtr> reload(const ProgressFn& onArea = {});
 
     [[nodiscard]] const std::vector<AreaEntry>& areas() const { return areas_; }
 
     /// Opens an area's base and returns it, or says why it did not open.
-    [[nodiscard]] Result<ports::IMsgBase*> openArea(const domain::AreaConfig& area);
+    [[nodiscard]] tl::expected<ports::IMsgBase*, ErrorPtr> openArea(
+        const domain::AreaConfig& area);
 
     /// Closes the currently open base, if there is one.
     void closeCurrentArea();
@@ -144,7 +145,7 @@ void sortAreas(std::vector<AreaEntry>& areas,
 
 /// Builds an area source from the app config, picking fidoconfig or areas.bbs
 /// according to the format stated there.
-[[nodiscard]] Result<std::unique_ptr<ports::IAreaConfigSource>> makeAreaSource(
-    const config::AppConfig& cfg);
+[[nodiscard]] tl::expected<std::unique_ptr<ports::IAreaConfigSource>, ErrorPtr>
+makeAreaSource(const config::AppConfig& cfg);
 
 }  // namespace amberedit::app

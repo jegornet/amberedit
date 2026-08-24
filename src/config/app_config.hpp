@@ -1227,10 +1227,11 @@ struct AppConfig {
 
     /// Reads a config file, or says why it could not be read or parsed, or
     /// which required field is missing.
-    [[nodiscard]] static Result<AppConfig> loadFromFile(const std::string& path);
+    [[nodiscard]] static tl::expected<AppConfig, ErrorPtr> loadFromFile(
+        const std::string& path);
 
     /// Parses a config from a string — the entry point used by the tests.
-    [[nodiscard]] static Result<AppConfig> loadFromString(
+    [[nodiscard]] static tl::expected<AppConfig, ErrorPtr> loadFromString(
         const std::string& text, const std::string& originName = "<string>");
 
     /// Paths searched when no config is given on the command line:

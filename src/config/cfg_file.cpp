@@ -12,8 +12,9 @@ namespace {
 /// the next one, so `-d "hello world"` is one value and `""` is an empty one;
 /// a `#` starting a word ends the line. Inside quotes both characters are
 /// ordinary text, which is how a value may contain either.
-Result<std::vector<std::string>> tokenize(std::string_view line,
-                                          const std::string& origin, int lineNumber) {
+tl::expected<std::vector<std::string>, ErrorPtr> tokenize(std::string_view line,
+                                                          const std::string& origin,
+                                                          int lineNumber) {
     std::vector<std::string> tokens;
     size_t i = 0;
     while (i < line.size()) {
@@ -28,8 +29,8 @@ Result<std::vector<std::string>> tokenize(std::string_view line,
             }
             const size_t end = line.find('"', ++i);
             if (end == std::string_view::npos) {
-                return failure(origin + ":" + std::to_string(lineNumber) +
-                               ": a quoted value is never closed");
+                return failure<ConfigError>(std::string(origin), lineNumber,
+                                            "a quoted value is never closed");
             }
             token.append(line, i, end - i);
             i = end + 1;
@@ -41,11 +42,11 @@ Result<std::vector<std::string>> tokenize(std::string_view line,
 
 }  // namespace
 
-tl::unexpected<std::string> CfgEntry::fail(std::string_view what) const {
-    return failure(origin + ":" + std::to_string(line) + ": " + std::string(what));
+tl::unexpected<ErrorPtr> CfgEntry::fail(std::string_view what) const {
+    return failure<ConfigError>(origin, line, std::string(what));
 }
 
-Result<std::string> CfgEntry::text() const {
+tl::expected<std::string, ErrorPtr> CfgEntry::text() const {
     if (values.empty()) return fail(key + " needs a value");
 
     std::string joined;
@@ -56,14 +57,14 @@ Result<std::string> CfgEntry::text() const {
     return joined;
 }
 
-Result<std::string> CfgEntry::one() const {
+tl::expected<std::string, ErrorPtr> CfgEntry::one() const {
     if (values.size() != 1) return fail(key + " takes exactly one value");
     return values.front();
 }
 
-Result<long long> CfgEntry::number() const {
-    const auto value = one();
-    if (!value) return tl::make_unexpected(value.error());
+tl::expected<long long, ErrorPtr> CfgEntry::number() const {
+    auto value = one();
+    if (!value) return tl::make_unexpected(std::move(value).error());
 
     long long parsed = 0;
     const char* end = value->data() + value->size();
@@ -74,9 +75,9 @@ Result<long long> CfgEntry::number() const {
     return parsed;
 }
 
-Result<long long> CfgEntry::numberIn(long long min, long long max) const {
-    const auto value = number();
-    if (!value) return tl::make_unexpected(value.error());
+tl::expected<long long, ErrorPtr> CfgEntry::numberIn(long long min, long long max) const {
+    auto value = number();
+    if (!value) return tl::make_unexpected(std::move(value).error());
     if (*value < min || *value > max) {
         return fail(key + " must be between " + std::to_string(min) + " and " +
                     std::to_string(max) + ", got " + std::to_string(*value));
@@ -84,23 +85,23 @@ Result<long long> CfgEntry::numberIn(long long min, long long max) const {
     return *value;
 }
 
-Result<bool> CfgEntry::flag() const {
-    const auto value = one();
-    if (!value) return tl::make_unexpected(value.error());
+tl::expected<bool, ErrorPtr> CfgEntry::flag() const {
+    auto value = one();
+    if (!value) return tl::make_unexpected(std::move(value).error());
     if (text::iequals(*value, "on")) return true;
     if (text::iequals(*value, "off")) return false;
     return fail(key + " must be on or off, not '" + *value + "'");
 }
 
-Result<std::vector<CfgEntry>> parseCfg(std::string_view text,
-                                       const std::string& originName) {
+tl::expected<std::vector<CfgEntry>, ErrorPtr> parseCfg(std::string_view text,
+                                                       const std::string& originName) {
     std::vector<CfgEntry> entries;
 
     int lineNumber = 0;
     for (const auto& line : text::splitLines(text)) {
         ++lineNumber;
         auto tokens = tokenize(line, originName, lineNumber);
-        if (!tokens) return tl::make_unexpected(tokens.error());
+        if (!tokens) return tl::make_unexpected(std::move(tokens).error());
         if (tokens->empty()) continue;
 
         CfgEntry entry;

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::nodelist {
 
@@ -150,11 +150,11 @@ public:
 
     /// Resolves the spec, unpacks it where it is an archive, and reads it, or
     /// says what was looked for and where.
-    [[nodiscard]] Result<Loaded> read(const std::string& spec);
+    [[nodiscard]] tl::expected<Loaded, ErrorPtr> read(const std::string& spec);
 
 private:
-    [[nodiscard]] Result<Loaded> readArchive(const NodelistSpec& spec,
-                                             const SourceState& state);
+    [[nodiscard]] tl::expected<Loaded, ErrorPtr> readArchive(const NodelistSpec& spec,
+                                                             const SourceState& state);
 
     std::string tempDir_;
     std::vector<std::string> unpacked_;

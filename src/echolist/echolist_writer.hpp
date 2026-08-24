@@ -7,7 +7,7 @@
 
 #include "echolist/echolist_parser.hpp"
 #include "echolist/echolist_source.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::echolist {
 
@@ -42,8 +42,7 @@ struct WriteReport {
 /// opening the old one while this runs either goes on reading the whole of the
 /// old file or opens the whole of the new one. There is no moment at which the
 /// path names half an echolist.
-[[nodiscard]] Result<WriteReport> writeEcholistDb(const std::string& path,
-                                                  const std::vector<DbSource>& sources,
-                                                  std::time_t builtAt);
+[[nodiscard]] tl::expected<WriteReport, ErrorPtr> writeEcholistDb(
+    const std::string& path, const std::vector<DbSource>& sources, std::time_t builtAt);
 
 }  // namespace amberedit::echolist

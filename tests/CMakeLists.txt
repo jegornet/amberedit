@@ -1,6 +1,6 @@
 add_executable(amberedit_tests
   main.cpp
-  support/result_test.cpp
+  support/error_test.cpp
   config/cfg_file_test.cpp
   config/commands_test.cpp
   config/text_util_test.cpp
@@ -19,6 +19,7 @@ add_executable(amberedit_tests
   encoding/charset_detector_test.cpp
   encoding/iconv_recoder_test.cpp
   encoding/text_search_test.cpp
+  msgbase/binary_file_test.cpp
   msgbase/ftn_msgbase_test.cpp
   msgbase/format_drivers_test.cpp
   msgbase/jam_msgbase_test.cpp

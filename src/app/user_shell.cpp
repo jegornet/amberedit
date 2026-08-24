@@ -66,7 +66,7 @@ std::string userShellPath() {
     return "/bin/sh";
 }
 
-Result<void> runUserShell() {
+tl::expected<void, ErrorPtr> runUserShell() {
     const std::string shell = userShellPath();
 
     // Asked before the fork rather than worked out from what the child exited

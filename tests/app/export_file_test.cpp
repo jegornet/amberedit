@@ -27,6 +27,7 @@ using amberedit::domain::MessageHeader;
 using amberedit::domain::MessageLine;
 using amberedit::test::TempDir;
 using amberedit::test::contains;
+using amberedit::test::errorOf;
 
 namespace {
 
@@ -247,7 +248,8 @@ TEST_CASE("saveUueFiles writes over nothing [export][uue]") {
     // before anything is written, rather than leaving the directory half filled.
     const auto result = saveUueFiles(dir.path(""), files);
     CHECK_FALSE(result.has_value());
-    CHECK_MESSAGE(contains(result.error(), "report.zip"), result.error());
+    const std::string error = errorOf(result);
+    CHECK_MESSAGE(contains(error, "report.zip"), error);
     CHECK(amberedit::test::valueOf(amberedit::config::text::readFile(
               dir.path("report.zip"))) == "something of the user's own");
     CHECK_FALSE(std::filesystem::exists(dir.path("one.txt")));
@@ -260,5 +262,6 @@ TEST_CASE("exportMessage says where it could not write [export]") {
     const auto result = exportMessage(
         ExportRequest{dir.path("nowhere/out.txt"), "UTF-8", kFormat}, header(), body());
     CHECK_FALSE(result.has_value());
-    CHECK_MESSAGE(contains(result.error(), "out.txt"), result.error());
+    const std::string error = errorOf(result);
+    CHECK_MESSAGE(contains(error, "out.txt"), error);
 }

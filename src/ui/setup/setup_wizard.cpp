@@ -226,30 +226,30 @@ void takeFileUnderCursor(SetupState& state) {
 }
 
 /// The tosser config as it stands, said out loud where it will not do.
-[[nodiscard]] Result<void> checkPickedTosser(SetupState& state) {
+[[nodiscard]] tl::expected<void, ErrorPtr> checkPickedTosser(SetupState& state) {
     if (state.tosserConfigPath.empty()) {
         return failure("pick your tosser's config — it is where the areas come from");
     }
-    const auto areas = checkTosserConfig(state.tosserConfigPath, state.format);
-    if (!areas) return tl::make_unexpected(areas.error());
+    auto areas = checkTosserConfig(state.tosserConfigPath, state.format);
+    if (!areas) return tl::make_unexpected(std::move(areas).error());
     state.tosserAreas = *areas;
     return {};
 }
 
 /// Writes the config, which is the last thing the wizard does.
-[[nodiscard]] Result<std::string> save(SetupState& state) {
+[[nodiscard]] tl::expected<std::string, ErrorPtr> save(SetupState& state) {
     const std::string target(config::text::trim(state.target.value));
-    if (const auto ok = checkTargetPath(target); !ok)
-        return tl::make_unexpected(ok.error());
+    if (auto ok = checkTargetPath(target); !ok)
+        return tl::make_unexpected(std::move(ok).error());
 
     // The template first, so that a config never names one that was not written.
-    const auto templatePath = ensureTemplate(target, state.programPath);
-    if (!templatePath) return tl::make_unexpected(templatePath.error());
+    auto templatePath = ensureTemplate(target, state.programPath);
+    if (!templatePath) return tl::make_unexpected(std::move(templatePath).error());
 
     config::ConfigAnswers answers = answersOf(state);
     answers.templatePath = abbreviateHome(*templatePath);
-    if (const auto written = config::writeConfig(target, answers); !written) {
-        return tl::make_unexpected(written.error());
+    if (auto written = config::writeConfig(target, answers); !written) {
+        return tl::make_unexpected(std::move(written).error());
     }
     return target;
 }
@@ -260,13 +260,13 @@ Outcome advance(SetupState& state) {
     switch (state.step) {
         case Step::Identity: {
             if (const auto ok = checkName(state.name.value); !ok) {
-                state.error = ok.error();
+                state.error = ok.error()->message();
                 state.stop = Stop::Name;
                 return Outcome::Ignored;
             }
             const auto address = checkAddress(state.address.value);
             if (!address) {
-                state.error = address.error();
+                state.error = address.error()->message();
                 state.stop = Stop::Address;
                 return Outcome::Ignored;
             }
@@ -282,7 +282,7 @@ Outcome advance(SetupState& state) {
         case Step::TosserFile: {
             takeFileUnderCursor(state);
             if (const auto ok = checkPickedTosser(state); !ok) {
-                state.error = ok.error();
+                state.error = ok.error()->message();
                 return Outcome::Ignored;
             }
             enterStep(state, Step::ReadCharset);
@@ -290,7 +290,7 @@ Outcome advance(SetupState& state) {
         }
         case Step::ReadCharset: {
             if (const auto ok = checkCharsetAnswer(state.readCharset.value); !ok) {
-                state.error = ok.error();
+                state.error = ok.error()->message();
                 return Outcome::Ignored;
             }
             if (!state.composeCharset.touched) {
@@ -302,7 +302,7 @@ Outcome advance(SetupState& state) {
         }
         case Step::ComposeCharset: {
             if (const auto ok = checkCharsetAnswer(state.composeCharset.value); !ok) {
-                state.error = ok.error();
+                state.error = ok.error()->message();
                 return Outcome::Ignored;
             }
             openNodelistPicker(state);
@@ -329,7 +329,7 @@ Outcome advance(SetupState& state) {
 
     const auto written = save(state);
     if (!written) {
-        state.error = written.error();
+        state.error = written.error()->message();
         return Outcome::Ignored;
     }
     state.savedPath = *written;
@@ -485,8 +485,9 @@ void renderPickerStep(SetupState& state, Elements& lines, int inner,
 
 void renderCharset(SetupState& state, Elements& lines, int inner) {
     const bool incoming = state.step == Step::ReadCharset;
-    lines.push_back(note(incoming ? "The charset in which the message you READ, when it has"
-                                  : "The charset in which the message you WRITE is",
+    lines.push_back(note(incoming
+                             ? "The charset in which the message you READ, when it has"
+                             : "The charset in which the message you WRITE is",
                          inner, theme::palette.dialogText));
     if (incoming) {
         lines.push_back(note("no CHRS kludge — or it says something like IBMPC 2.", inner,

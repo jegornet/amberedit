@@ -39,10 +39,10 @@ CompileReport compileNodelists(const CompileOptions& options, std::ostream* log)
             // changed. A nodelist that is not there is not an error here: it is
             // a nodelist that is not there.
             summary.state = stateOf(spec);
-            summary.problem = read.error();
-            report.problems.emplace_back(read.error());
+            summary.problem = read.error()->message();
+            report.problems.emplace_back(read.error()->message());
             if (log != nullptr) {
-                *log << "nodelist  " << spec << ": " << read.error() << "\n";
+                *log << "nodelist  " << spec << ": " << read.error()->message() << "\n";
             }
         } else {
             NodelistSources::Loaded loaded = std::move(*read);
@@ -84,8 +84,8 @@ CompileReport compileNodelists(const CompileOptions& options, std::ostream* log)
 
     const auto written = writeNodelistDb(options.dbPath, compiled, std::time(nullptr));
     if (!written) {
-        report.problems.emplace_back(written.error());
-        if (log != nullptr) *log << written.error() << "\n";
+        report.problems.emplace_back(written.error()->message());
+        if (log != nullptr) *log << written.error()->message() << "\n";
         return report;
     }
     report.nodes = written->nodes;

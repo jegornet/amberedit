@@ -43,8 +43,8 @@ constexpr Anchor kNodelistDb{"#nodelist_db ", "the commented nodelist_db sample"
 /// Exactly one, because a sample with two would leave this editing whichever
 /// came first and leaving the other to be read as a second `name` — which the
 /// config parser refuses, but only after the wizard has said it wrote a config.
-[[nodiscard]] Result<size_t> onlyLine(const std::vector<std::string>& lines,
-                                      Anchor anchor) {
+[[nodiscard]] tl::expected<size_t, ErrorPtr> onlyLine(
+    const std::vector<std::string>& lines, Anchor anchor) {
     size_t found = 0;
     size_t at = 0;
     for (size_t i = 0; i < lines.size(); ++i) {
@@ -60,8 +60,8 @@ constexpr Anchor kNodelistDb{"#nodelist_db ", "the commented nodelist_db sample"
 
 /// Where the first line carrying the anchor is. For the `#nodelist` samples,
 /// which are three of the same thing and where the first is the one to answer.
-[[nodiscard]] Result<size_t> firstLine(const std::vector<std::string>& lines,
-                                       Anchor anchor) {
+[[nodiscard]] tl::expected<size_t, ErrorPtr> firstLine(
+    const std::vector<std::string>& lines, Anchor anchor) {
     for (size_t i = 0; i < lines.size(); ++i) {
         if (text::startsWith(lines[i], anchor.prefix)) return i;
     }
@@ -69,12 +69,13 @@ constexpr Anchor kNodelistDb{"#nodelist_db ", "the commented nodelist_db sample"
 }
 
 /// Sets `key value` over the line the anchor names.
-[[nodiscard]] Result<void> setLine(std::vector<std::string>& lines, Anchor anchor,
-                                   std::string_view key, std::string_view value) {
-    const auto at = onlyLine(lines, anchor);
-    if (!at) return tl::make_unexpected(at.error());
-    const auto written = configValue(value);
-    if (!written) return tl::make_unexpected(written.error());
+[[nodiscard]] tl::expected<void, ErrorPtr> setLine(std::vector<std::string>& lines,
+                                                   Anchor anchor, std::string_view key,
+                                                   std::string_view value) {
+    auto at = onlyLine(lines, anchor);
+    if (!at) return tl::make_unexpected(std::move(at).error());
+    auto written = configValue(value);
+    if (!written) return tl::make_unexpected(std::move(written).error());
     lines[*at] = std::string(key) + " " + *written;
     return {};
 }
@@ -90,7 +91,7 @@ std::string_view formatWord(TosserConfigFormat format) {
     return "fidoconfig";
 }
 
-Result<std::string> configValue(std::string_view value) {
+tl::expected<std::string, ErrorPtr> configValue(std::string_view value) {
     if (value.find('"') != std::string_view::npos) {
         return failure("a value cannot hold a double quote: " + std::string(value));
     }
@@ -106,32 +107,40 @@ Result<std::string> configValue(std::string_view value) {
     return "\"" + std::string(value) + "\"";
 }
 
-Result<std::string> renderConfigFrom(std::string_view sample,
-                                     const ConfigAnswers& answers) {
+tl::expected<std::string, ErrorPtr> renderConfigFrom(std::string_view sample,
+                                                     const ConfigAnswers& answers) {
     std::vector<std::string> lines = text::splitLines(sample);
 
-    const Result<void> edits[] = {
-        setLine(lines, kName, "name", answers.userName),
-        setLine(lines, kAddress, "address", answers.address),
-        setLine(lines, kTosserConfig, "tosser_config", answers.tosserConfigPath),
-        setLine(lines, kTosserFormat, "tosser_config_format",
-                formatWord(answers.tosserFormat)),
-        setLine(lines, kDefaultCharset, "default_charset", answers.defaultCharset),
-        setLine(lines, kComposeCharset, "compose_charset", answers.composeCharset),
-        setLine(lines, kTemplate, "template", answers.templatePath),
+    // The lines to set, and then set one at a time. What the sample is missing
+    // is a broken build rather than a broken config, so the first one that
+    // cannot find its anchor is the answer and the rest are not worth running.
+    struct Edit {
+        Anchor anchor;
+        std::string_view key;
+        std::string_view value;
     };
-    for (const auto& edit : edits) {
-        if (!edit) return tl::make_unexpected(edit.error());
+    const Edit edits[] = {
+        {kName, "name", answers.userName},
+        {kAddress, "address", answers.address},
+        {kTosserConfig, "tosser_config", answers.tosserConfigPath},
+        {kTosserFormat, "tosser_config_format", formatWord(answers.tosserFormat)},
+        {kDefaultCharset, "default_charset", answers.defaultCharset},
+        {kComposeCharset, "compose_charset", answers.composeCharset},
+        {kTemplate, "template", answers.templatePath},
+    };
+    for (const Edit& edit : edits) {
+        auto done = setLine(lines, edit.anchor, edit.key, edit.value);
+        if (!done) return tl::make_unexpected(std::move(done).error());
     }
 
     // The sample's origin is a joke about not having said where you are, and it
     // would go out at the foot of every echomail message this config writes.
     // Nobody asked the user for one, so the config says nothing — an origin the
     // reader has not chosen is worse than none, which AmberEdit copes with.
-    if (const auto at = onlyLine(lines, kOrigin); at) {
+    if (auto at = onlyLine(lines, kOrigin); at) {
         lines[*at] = "#" + lines[*at];
     } else {
-        return tl::make_unexpected(at.error());
+        return tl::make_unexpected(std::move(at).error());
     }
 
     // The nodelist is the one thing here that may go unanswered, and where it
@@ -139,15 +148,15 @@ Result<std::string> renderConfigFrom(std::string_view sample,
     // beside it is refused by the config, and a nodelist nobody named is not
     // worth guessing at.
     if (!answers.nodelistPath.empty()) {
-        const auto nodelistAt = firstLine(lines, kNodelist);
-        if (!nodelistAt) return tl::make_unexpected(nodelistAt.error());
-        const auto dbAt = onlyLine(lines, kNodelistDb);
-        if (!dbAt) return tl::make_unexpected(dbAt.error());
+        auto nodelistAt = firstLine(lines, kNodelist);
+        if (!nodelistAt) return tl::make_unexpected(std::move(nodelistAt).error());
+        auto dbAt = onlyLine(lines, kNodelistDb);
+        if (!dbAt) return tl::make_unexpected(std::move(dbAt).error());
 
-        const auto nodelist = configValue(answers.nodelistPath);
-        if (!nodelist) return tl::make_unexpected(nodelist.error());
-        const auto db = configValue(answers.nodelistDbPath);
-        if (!db) return tl::make_unexpected(db.error());
+        auto nodelist = configValue(answers.nodelistPath);
+        if (!nodelist) return tl::make_unexpected(std::move(nodelist).error());
+        auto db = configValue(answers.nodelistDbPath);
+        if (!db) return tl::make_unexpected(std::move(db).error());
 
         lines[*nodelistAt] = "nodelist " + *nodelist;
         lines[*dbAt] = "nodelist_db " + *db;
@@ -161,19 +170,21 @@ Result<std::string> renderConfigFrom(std::string_view sample,
     return out;
 }
 
-Result<std::string> renderConfig(const ConfigAnswers& answers) {
+tl::expected<std::string, ErrorPtr> renderConfig(const ConfigAnswers& answers) {
     return renderConfigFrom(resources::exampleConfig(), answers);
 }
 
-Result<void> writeConfig(const std::string& path, const ConfigAnswers& answers) {
-    const auto text = renderConfig(answers);
-    if (!text) return tl::make_unexpected(text.error());
+tl::expected<void, ErrorPtr> writeConfig(const std::string& path,
+                                         const ConfigAnswers& answers) {
+    auto text = renderConfig(answers);
+    if (!text) return tl::make_unexpected(std::move(text).error());
 
     // What was rendered, read as a config: a wizard that writes a file the
     // program will not start on has failed, and this is where that is found out
     // rather than at the next start.
     if (const auto parsed = AppConfig::loadFromString(*text, path); !parsed) {
-        return failure("the config that was written does not load: " + parsed.error());
+        return failure("the config that was written does not load: " +
+                       parsed.error()->message());
     }
 
     const fs::path destination(path);
@@ -209,7 +220,8 @@ Result<void> writeConfig(const std::string& path, const ConfigAnswers& answers) 
     // to run against, leaving the user with neither a config nor a way to one.
     if (const auto loaded = AppConfig::loadFromFile(path); !loaded) {
         fs::remove(destination, ec);
-        return failure("the config that was written does not load: " + loaded.error());
+        return failure("the config that was written does not load: " +
+                       loaded.error()->message());
     }
     return {};
 }

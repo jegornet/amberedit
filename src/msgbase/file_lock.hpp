@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::msgbase {
 
@@ -46,7 +46,8 @@ public:
     /// writers coming at the same base from opposite ends of the list would
     /// otherwise hold one file each and wait for the other for ever. A failure
     /// means the base is busy and names the file, and the caller must not write.
-    [[nodiscard]] Result<void> acquire(const std::vector<BinaryFile*>& files);
+    [[nodiscard]] tl::expected<void, ErrorPtr> acquire(
+        const std::vector<BinaryFile*>& files);
 
     void release();
 

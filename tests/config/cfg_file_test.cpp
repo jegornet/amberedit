@@ -93,7 +93,7 @@ TEST_CASE("An entry says which line it came from [cfg_file]") {
     const auto entries = valueOf(parseCfg("# a comment\n\nname Vasya\n", "t.cfg"));
     REQUIRE(entries.size() == 1);
     CHECK(entries.front().line == 3);
-    const std::string error = entries.front().fail("no good").value();
+    const std::string error = entries.front().fail("no good").value()->message();
     CHECK_MESSAGE(contains(error, "t.cfg:3: no good"), error);
 }
 

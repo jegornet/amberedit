@@ -164,24 +164,29 @@ Four things in the build follow from the same floor:
 - GCC 8 keeps `std::filesystem` in a separate `libstdc++fs`. `CMakeLists.txt`
   finds out by linking, not by version, and puts the result in the
   `amberedit_filesystem` interface target that `amberedit_core` exports.
-- **`Result<T>` is `tl::expected` and not `std::expected`, and that too is the
-  floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
+- **The answer type is `tl::expected` and not `std::expected`, and that too is
+  the floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
   library is the only way the project gets the type at all — and it is packaged
   on every target under one header and one CMake package: `expected-devel` on
-  EPEL 8, 9 and 10 and Fedora, `libexpected-dev` on bookworm, trixie, jammy,
-  noble and resolute, `tl-expected` in Arch's extra and in Homebrew. **What may
-  be used of it is the 1.0.0 API and no more**, because bookworm and jammy carry 1.0.0:
+  EPEL 8, 9 and 10 and Fedora, `libexpected-dev` on trixie, jammy, noble and
+  resolute, `tl-expected` in Arch's extra and in Homebrew. **What may be used of
+  it is the 1.0.0 API and no more**, because jammy carries 1.0.0:
   `has_value()`, `operator bool`, `operator*`, `error()`, `value_or()` and
   `tl::make_unexpected`.
   Not `transform`, not `transform_error`, and not the deduced `tl::unexpected` —
   all three are newer, all three compile on Fedora and on a developer's Mac, and
-  all three fail the two oldest debs. `support/result.hpp` says the same thing
-  where the type is declared.
+  all three fail on jammy. `support/result.hpp` says the same thing where the
+  type is declared.
+
+  The other thing asked of it is that it **hold a move-only error**, because
+  `ErrorPtr` is a `unique_ptr`. That is not a version to read off a package but a
+  property to compile, so `CMakeLists.txt` probes for it beside the 1.0.0 API and
+  fails at configure time naming what is missing.
 - **The tests are on doctest, and that is a packaging decision rather than a
   taste.** Nothing is fetched, so a package build — which has no network — gets
   the tests too, and doctest is the only framework every target packages under
   one API: `doctest-devel` on EPEL 8, 9 and 10 and Fedora, `doctest-dev` on
-  bookworm, trixie, jammy, noble and resolute, `doctest` in Arch's extra and in
+  trixie, jammy, noble and resolute, `doctest` in Arch's extra and in
   Homebrew, 2.4.8 through 2.5.x and source-compatible across all of them. Catch2 has no such
   version — EPEL 8 carries only the 2.13 series and trixie, noble and Homebrew
   carry only v3, and the two are not source-compatible — so it would need a
@@ -191,8 +196,17 @@ Four things in the build follow from the same floor:
   ordinary predicate, `amberedit::test::contains` from `tests/test_strings.hpp`,
   paired with `CHECK_MESSAGE` so a failure still prints the string that was
   searched. `CHECK_THROWS_WITH` compares a whole message and nothing less, which
-  none of these assertions want, so `errorFrom` from the same header catches the
-  message and `contains` is put to it.
+  none of these assertions want, so `errorOf` from the same header catches the
+  message — it is what reads `error()->message()`, so a test never spells that
+  out — and `contains` is put to it.
+
+  **Never hand a whole `tl::expected` to an assertion macro** — write
+  `CHECK(base.open(area).has_value())` and `CHECK(valueOf(base.write(m)) == 1)`,
+  never `CHECK(base.open(area))` or `CHECK(base.write(m) == 1)`. doctest
+  decomposes the expression by capturing its left-hand side, and up to 2.4.x it
+  captured that *by value* — which is a copy, and the error is a `unique_ptr`.
+  It compiles on 2.5.x, which captures a reference, so a developer's Mac and
+  Fedora say nothing and RHEL 8, RHEL 9 and jammy fail the build.
 
 - **Never give a type a free `toString()`, and this is a build error rather than
   a preference.** To print what a failing `CHECK(a == b)` compared, doctest calls
@@ -251,8 +265,8 @@ Adapters (FtnMsgBase over the msgbase/ format drivers, AppConfig,
           FidoconfigParser, AreasBbsParser, CharsetDetector, IconvRecoder,
           MsgBaseLastReadStore)
 
-Support (Result) — the bottom. It includes nothing of the project and
-                   every layer above may include it.
+Support (Error) — the bottom. It includes nothing of the project and
+                  every layer above may include it.
 ```
 
 `nodelist/` and `echolist/` stand beside the adapters and lean on the domain, on
@@ -302,15 +316,32 @@ Rules that hold the design together:
   "flags": FTS-0001 calls them attributes. "Flag" is left for a boolean on a
   struct, a command-line option, or a bit in someone else's format
   (`NodeEntry::flags` are FTS-5001's node flags and stay that).
-- **Everything that can fail answers with `Result<T>`** — `tl::expected<T,
-  std::string>` from `support/result.hpp` — and the error is the sentence a
-  person reads, already complete. Nothing throws, nothing keeps a `lastError()`
-  to be asked afterwards, and no bool means "look somewhere else for why".
-  `std::optional` still means *absence* and is not a failure, `std::error_code`
-  with the non-throwing `std::filesystem` overloads is still how the filesystem
-  is asked, and a function answering a plain question — `isOpen()`, `count()` —
-  is still a bool. A Result is read through `*` after being checked, never
-  through `value()`.
+- **Everything that can fail answers with `tl::expected<T, ErrorPtr>`**, spelt
+  out and not behind an alias of ours, and `error()->message()` is the sentence
+  a person reads, already complete. Nothing throws, nothing keeps a
+  `lastError()` to be asked afterwards, and no bool means "look somewhere else
+  for why". `std::optional` still means *absence* and is not a failure,
+  `std::error_code` with the non-throwing `std::filesystem` overloads is still
+  how the filesystem is asked, and a function answering a plain question —
+  `isOpen()`, `count()` — is still a bool. It is read through `*` after being
+  checked, never through `value()`.
+- **The error is a class and not a sentence, and it is moved and never copied.**
+  `support/error.hpp` holds the closed set: `ConfigError` carries the file and
+  the line, `MsgBaseError` carries a `Kind` and the base, and `PlainError` is the
+  rest — a failure nothing above it could branch on. `message()` builds the
+  sentence out of those parts on demand, so the same failure a screen shows can
+  also be asked what it was: `AreaManager::openArea` tells a base that is not
+  there from one that is broken by asking `MsgBaseError::Kind`, where it used to
+  walk the file system a second time.
+
+  `ErrorPtr` is a `unique_ptr`, which is what makes the moving a rule the
+  compiler keeps rather than one to remember: `tl::make_unexpected(read.error())`
+  does not build, and `std::move(read).error()` is what a propagation says. An
+  answer carries eight bytes of error however deep it is handed up, where a
+  `std::string` error allocated a fresh copy of the sentence at every frame.
+
+  Add a class when something could act on the difference. `failure("…")` builds a
+  `PlainError` and stays the right answer where nothing can.
 - Errors a user can act on **before** the screen opens — a config, a theme, a
   template, a keyboard layout — come back out to `main()`, which names the file
   and prints them. Once the interface is up there is nowhere to say anything:
@@ -328,10 +359,10 @@ Rules that hold the design together:
   `ui/error_log` instead — a line naming the screen and the key, in the file
   `error_log` points at, and nowhere at all where the config names none, which
   is the ordinary case. `main()` has a terminal and prints to it.
-- **A diagnostic per item is a field and not a `Result`.** A list where one
+- **A diagnostic per item is a field and not an answer of its own.** A list where one
   member is broken and the rest are fine — `AreaEntry::error`,
   `CompileReport::problems`, `CopyCommand::error`, `StartingText::error` — is a
-  report to be shown beside the things that worked, and a Result there would
+  report to be shown beside the things that worked, and an expected there would
   throw the answer away to keep the complaint.
 - There is no toolbar and no status line, and no bottom bar goes back in: the
   rows one would take are the message's. What a screen offers is in the menu
@@ -1824,7 +1855,7 @@ taking a row.
   `config/cfg_file`: a line is a key and the values after it, double quotes round
   a value whose spaces matter, a `#` starting a word ending the line. No
   sections, and no types beyond what reading a key asks for —
-  `CfgEntry::text/one/number/numberIn/flag`, each answering with a `Result` that
+  `CfgEntry::text/one/number/numberIn/flag`, each answering with an expected that
   names the file and the line. Adding a setting is a branch in `fromEntries()`
   (`config/app_config.cpp`), and a key not in it is refused rather than passed
   over: a misspelling should be a message and not a setting quietly back at its
@@ -2048,7 +2079,9 @@ taking a row.
 
 `src/msgbase/` reads and writes the three formats itself; there is no
 third-party message base code and no submodule. The layering inside it:
-`BinaryFile` (a descriptor, pread/pwrite at offsets), `FileLock` (fcntl locks
+`BinaryFile` (a descriptor, pread/pwrite at offsets, answering an `IoStatus` that
+tells a file shorter than the record from a read the kernel refused and carries
+the `errno` of the second), `FileLock` (fcntl locks
 over every file of a base), `byte_order`/`raw_message`/`jam_crc32` (the encodings
 the formats share), then one `FormatDriver` per format — `SquishBase`
 (.sqd/.sqi, FSP-1037), `JamBase` (.jhr/.jdx/.jdt, JAM-001), `SdmBase` (N.msg,

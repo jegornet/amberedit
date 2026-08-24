@@ -98,7 +98,7 @@ TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
 
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
     CHECK(msgbase.isOpen());
     CHECK(msgbase.count() == 1);
 
@@ -110,7 +110,7 @@ TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
 TEST_CASE("FtnMsgBase reads a Fido *.msg header [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const auto header = msgbase.header(1);
     CHECK(header.number == 1);
@@ -136,7 +136,7 @@ TEST_CASE("FtnMsgBase reads a Fido *.msg header [sdm]") {
 TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
     CHECK(isValidUtf8(body.text()));
@@ -150,7 +150,7 @@ TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [sdm]") {
 TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
     REQUIRE(body.lines.size() > 2);
@@ -179,7 +179,7 @@ TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [sdm]") {
 TEST_CASE("FtnMsgBase: out-of-range indexes in a *.msg base are safe [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
 
@@ -207,7 +207,7 @@ TEST_CASE("FtnMsgBase opens a *.msg base with no stated type [sdm]") {
 TEST_CASE("A *.msg UID is the number in the file name [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     // The one message in the fixture lives in 198.msg, and that number is its
     // UID — the position in the area is 1.
@@ -224,7 +224,7 @@ TEST_CASE("A *.msg UID is the number in the file name [sdm]") {
 TEST_CASE("A lone *.msg message is in no thread [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     CHECK(msgbase.thread(1).empty());
     CHECK(msgbase.thread(0).empty());
@@ -234,7 +234,7 @@ TEST_CASE("A lone *.msg message is in no thread [sdm]") {
 TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const uint32_t before = msgbase.count();
     REQUIRE(before > 0);
@@ -287,7 +287,7 @@ TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [sdm]")
 TEST_CASE("A *.msg written here dates itself where the header has the date [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     amberedit::domain::MessageDraft draft;
     draft.from = "Yegor Gluhov";
@@ -329,7 +329,7 @@ TEST_CASE("A *.msg carrying only the ASCII date is read with it [sdm]") {
     writeAsciiDatedMsg(base.dir() / "200.msg");
 
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
     REQUIRE(msgbase.count() == 2);
 
     const auto header = msgbase.header(2);
@@ -349,7 +349,7 @@ TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {
     putWord(base.dir() / "198.msg", 164, 7);
 
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
     const auto was = msgbase.header(1);
 
     amberedit::domain::MessageDraft draft;
@@ -377,7 +377,7 @@ TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {
 TEST_CASE("FtnMsgBase deletes a message from a *.msg base [sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(netmailArea(base.path())));
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const uint32_t before = msgbase.count();
     REQUIRE(before > 0);
@@ -389,6 +389,6 @@ TEST_CASE("FtnMsgBase deletes a message from a *.msg base [sdm]") {
 
     const auto removed = msgbase.remove(before + 1);
     CHECK_FALSE(removed.has_value());
-    CHECK_FALSE(removed.error().empty());
+    CHECK_FALSE(removed.error()->message().empty());
     CHECK_FALSE(msgbase.remove(0).has_value());
 }

@@ -187,9 +187,9 @@ std::vector<std::string> exportedLines(const domain::MessageHeader& header,
     return lines;
 }
 
-Result<void> exportMessage(const ExportRequest& request,
-                           const domain::MessageHeader& header,
-                           const domain::MessageBody& body) {
+tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
+                                           const domain::MessageHeader& header,
+                                           const domain::MessageBody& body) {
     encoding::IconvRecoder recoder;
 
     // A charset the file cannot be written in is a failure rather than a file
@@ -198,8 +198,8 @@ Result<void> exportMessage(const ExportRequest& request,
     // this goes through intoCharset and not the reader's fromUtf8.
     std::string out;
     for (const auto& line : exportedLines(header, body, request.dateFormat)) {
-        const auto encoded = recoder.intoCharset(line, request.charset);
-        if (!encoded) return tl::make_unexpected(encoded.error());
+        auto encoded = recoder.intoCharset(line, request.charset);
+        if (!encoded) return tl::make_unexpected(std::move(encoded).error());
         out += *encoded;
         out += '\n';
     }
@@ -247,8 +247,8 @@ std::vector<UueFile> uueFiles(const domain::MessageBody& body) {
     return uueFilesIn(lines);
 }
 
-Result<void> saveUueFiles(const std::string& directory,
-                          const std::vector<UueFile>& files) {
+tl::expected<void, ErrorPtr> saveUueFiles(const std::string& directory,
+                                          const std::vector<UueFile>& files) {
     if (files.empty()) return failure("nothing to save");
 
     // Every name is looked at before any of them is written. These names are the

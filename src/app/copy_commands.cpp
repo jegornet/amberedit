@@ -125,7 +125,7 @@ void readTokenFile(const std::string& name, const std::string& fileDir, CopyKind
 
     const auto bytes = config::text::readFile(path.string());
     if (!bytes) {
-        command.error = bytes.error();
+        command.error = bytes.error()->message();
         return;
     }
 

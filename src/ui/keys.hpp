@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "config/commands.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 #include "ui/term/event.hpp"
 
 namespace amberedit::ui {
@@ -74,12 +74,13 @@ public:
     /// that cannot be read is a layout the user asked for by name and did not
     /// get, and starting on the defaults instead would leave every key doing
     /// something other than what was asked.
-    [[nodiscard]] static Result<KeyMap> loadFromFile(const std::string& path);
+    [[nodiscard]] static tl::expected<KeyMap, ErrorPtr> loadFromFile(
+        const std::string& path);
 
     /// The same from text already in hand. `origin` is what a failure names the
     /// text by.
-    [[nodiscard]] static Result<KeyMap> parse(std::string_view text,
-                                              const std::string& origin);
+    [[nodiscard]] static tl::expected<KeyMap, ErrorPtr> parse(std::string_view text,
+                                                              const std::string& origin);
 
     /// Whether that keystroke runs that command.
     [[nodiscard]] bool is(const term::Event& event, Command command) const;

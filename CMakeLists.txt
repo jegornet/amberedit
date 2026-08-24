@@ -138,7 +138,7 @@ else()
 endif()
 
 # --- tl::expected ------------------------------------------------------------
-# Every fallible operation in AmberEdit answers with tl::expected<T, std::string>,
+# Every fallible operation in AmberEdit answers with tl::expected<T, ErrorPtr>,
 # so this is not optional and no part of the code has a path around its absence.
 # std::expected does the same job and is C++23; the floor is RHEL 8 and GCC 8, so
 # it is not on the table and will not be.
@@ -147,9 +147,10 @@ endif()
 # Fedora, from EPEL on RHEL as doctest is; libexpected-dev on Debian and Ubuntu,
 # in universe on the two Ubuntu LTS releases; tl-expected in Homebrew. All of
 # them install <tl/expected.hpp> and a CMake package called tl-expected — but
-# bookworm and jammy carry 1.0.0, whose CMake package predates the rewrite of it
-# in 1.1.0 and does not always export the target the later ones do. So both are
-# asked, and a plain search for the header answers where neither does.
+# jammy carries 1.0.0, whose CMake package predates the rewrite of it in 1.1.0
+# and does not always export the target the later ones do. Debian's floor is
+# trixie, which is past that. So both are asked, and a plain search for the
+# header answers where neither does.
 if(PkgConfig_FOUND)
   pkg_check_modules(TL_EXPECTED QUIET IMPORTED_TARGET tl-expected)
 endif()
@@ -183,17 +184,37 @@ endif()
 
 # Only the 1.0.0 API is exercised, here and in the code: no transform, no
 # transform_error, and tl::unexpected written out with make_unexpected rather
-# than deduced. bookworm and jammy carry 1.0.0 and both have to build.
+# than deduced. jammy carries 1.0.0 and has to build; every other target is
+# 1.1.0 or later.
+#
+# The second half of the probe is the one worth having. The error type is
+# `ErrorPtr` — a `std::unique_ptr` — so tl::expected has to hold a type it can
+# move and cannot copy, and has to let `std::move(r).error()` hand the pointer
+# out of an expected that is about to die. That is the whole of how an error
+# travels here, and a version that cannot do it has to fail at configure time
+# and say so, rather than a thousand lines into the tree.
 set(amberedit_expected_probe "
+  #include <memory>
   #include <string>
   #include <tl/expected.hpp>
   tl::expected<int, std::string> ok() { return 42; }
   tl::expected<void, std::string> bad() {
     return tl::make_unexpected(std::string(\"no\"));
   }
+  using Moved = std::unique_ptr<const std::string>;
+  tl::expected<int, Moved> deep() {
+    return tl::make_unexpected(Moved(new std::string(\"no\")));
+  }
+  tl::expected<void, Moved> deeper() {
+    auto read = deep();
+    if (!read) return tl::make_unexpected(std::move(read).error());
+    return {};
+  }
   int main() {
     if (!ok().has_value() || bad().has_value()) return 1;
     if (ok().value_or(0) != 42 || bad().error() != \"no\") return 1;
+    const auto moved = deeper();
+    if (moved.has_value() || *moved.error() != \"no\") return 1;
     return 0;
   }
 ")
@@ -205,10 +226,12 @@ cmake_pop_check_state()
 
 if(NOT AMBEREDIT_HAVE_TL_EXPECTED)
   message(FATAL_ERROR
-    "AmberEdit needs tl::expected (<tl/expected.hpp>). Install expected-devel "
-    "on RHEL and Fedora, from EPEL on RHEL; libexpected-dev on Debian and "
-    "Ubuntu; `brew install tl-expected` on macOS, where it also wants "
-    "-DCMAKE_PREFIX_PATH=$(brew --prefix tl-expected)."
+    "AmberEdit needs tl::expected (<tl/expected.hpp>), and one that can hold a "
+    "move-only error. Install expected-devel on RHEL and Fedora, from EPEL on "
+    "RHEL; libexpected-dev on Debian and Ubuntu; `brew install tl-expected` on "
+    "macOS, where it also wants "
+    "-DCMAKE_PREFIX_PATH=$(brew --prefix tl-expected). A header that is found "
+    "and still fails this probe is too old for a move-only error type."
   )
 endif()
 
@@ -272,6 +295,7 @@ add_custom_command(
 
 # --- application core --------------------------------------------------------
 add_library(amberedit_core STATIC
+  src/support/error.cpp
   src/domain/ftn_address.cpp
   src/domain/address_pattern.cpp
   src/domain/area.cpp
@@ -331,7 +355,7 @@ target_link_libraries(amberedit_core
   # PUBLIC because everything linking the core — the executable and the tests —
   # uses std::filesystem too, and on GCC 8 that is an extra -l rather than free.
   PUBLIC amberedit_filesystem
-  # PUBLIC because Result<T> stands in the core's own headers, so the nodelist,
+  # PUBLIC because tl::expected stands in the core's own headers, so the nodelist,
   # the echolist, the zip reader, the UI and the tests all include it too.
   PUBLIC amberedit_expected
 )

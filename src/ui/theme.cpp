@@ -73,7 +73,8 @@ const std::array<std::pair<std::string_view, Switch>, 1> kSwitches{{
     {"input_filler_show", &Palette::inputFillerShown},
 }};
 
-Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
+tl::expected<Palette, ErrorPtr> fromEntries(
+    const std::vector<config::CfgEntry>& entries) {
     Palette palette;
 
     for (const auto& entry : entries) {
@@ -81,8 +82,8 @@ Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
             kSwitches.begin(), kSwitches.end(),
             [&entry](const auto& known) { return known.first == entry.key; });
         if (setting != kSwitches.end()) {
-            const auto on = entry.flag();
-            if (!on) return tl::make_unexpected(on.error());
+            auto on = entry.flag();
+            if (!on) return tl::make_unexpected(std::move(on).error());
             palette.*(setting->second) = *on;
             continue;
         }
@@ -95,8 +96,8 @@ Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
                               "' is not a color or a setting this theme knows");
         }
 
-        const auto value = entry.one();
-        if (!value) return tl::make_unexpected(value.error());
+        auto value = entry.one();
+        if (!value) return tl::make_unexpected(std::move(value).error());
 
         // Said with the palette named rather than as a bare "not a number": a
         // theme file is written by hand, and "#rrggbb" is what one predating
@@ -108,8 +109,8 @@ Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
                 "' — themes are written in the terminal's 256-color palette "
                 "rather than in #rrggbb");
         }
-        const auto number = entry.numberIn(0, 255);
-        if (!number) return tl::make_unexpected(number.error());
+        auto number = entry.numberIn(0, 255);
+        if (!number) return tl::make_unexpected(std::move(number).error());
         palette.*(field->second) = Color{static_cast<uint8_t>(*number)};
     }
     return palette;
@@ -117,17 +118,19 @@ Result<Palette> fromEntries(const std::vector<config::CfgEntry>& entries) {
 
 }  // namespace
 
-Result<Palette> parsePalette(const std::string& text, const std::string& originName) {
-    const auto entries = config::parseCfg(text, originName);
-    if (!entries) return tl::make_unexpected(entries.error());
+tl::expected<Palette, ErrorPtr> parsePalette(const std::string& text,
+                                             const std::string& originName) {
+    auto entries = config::parseCfg(text, originName);
+    if (!entries) return tl::make_unexpected(std::move(entries).error());
     return fromEntries(*entries);
 }
 
-Result<Palette> loadPalette(const std::string& path) {
+tl::expected<Palette, ErrorPtr> loadPalette(const std::string& path) {
     const auto text = config::text::readFile(path);
     // Named as a theme rather than as a file: it is the config's `theme` line
     // that sent us here, and that is where the answer is.
-    if (!text) return failure("cannot read theme " + path + ": " + text.error());
+    if (!text)
+        return failure("cannot read theme " + path + ": " + text.error()->message());
     return parsePalette(*text, path);
 }
 

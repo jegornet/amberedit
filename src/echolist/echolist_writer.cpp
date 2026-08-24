@@ -49,8 +49,8 @@ struct Pending {
 /// A tag or a description as the record writes it. Both lengths are written in
 /// two bytes, and a truncated one would be read back as a record boundary in the
 /// wrong place — so a field no echolist has is refused rather than cut.
-Result<uint16_t> fieldLength(const std::string& field, const char* what,
-                             const std::string& path) {
+tl::expected<uint16_t, ErrorPtr> fieldLength(const std::string& field, const char* what,
+                                             const std::string& path) {
     if (field.size() > 0xffff) {
         return failure(path + ": an echolist line has a " + what + " of " +
                        std::to_string(field.size()) +
@@ -61,9 +61,9 @@ Result<uint16_t> fieldLength(const std::string& field, const char* what,
 
 }  // namespace
 
-Result<WriteReport> writeEcholistDb(const std::string& path,
-                                    const std::vector<DbSource>& sources,
-                                    std::time_t builtAt) {
+tl::expected<WriteReport, ErrorPtr> writeEcholistDb(const std::string& path,
+                                                    const std::vector<DbSource>& sources,
+                                                    std::time_t builtAt) {
     std::vector<Pending> pending;
     size_t total = 0;
     for (const auto& source : sources) total += source.entries.size();
@@ -99,11 +99,12 @@ Result<WriteReport> writeEcholistDb(const std::string& path,
         if (records.size() > 0xffffffffu) {
             return failure(path + ": the echolists do not fit in one file");
         }
-        const auto tagLength = fieldLength(item.entry->tag, "tag", path);
-        if (!tagLength) return tl::make_unexpected(tagLength.error());
-        const auto descriptionLength =
+        auto tagLength = fieldLength(item.entry->tag, "tag", path);
+        if (!tagLength) return tl::make_unexpected(std::move(tagLength).error());
+        auto descriptionLength =
             fieldLength(item.entry->description, "description", path);
-        if (!descriptionLength) return tl::make_unexpected(descriptionLength.error());
+        if (!descriptionLength)
+            return tl::make_unexpected(std::move(descriptionLength).error());
 
         appendU32(index, static_cast<uint32_t>(records.size()));
         appendU16(records, *tagLength);

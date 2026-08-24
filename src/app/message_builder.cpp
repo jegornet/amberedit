@@ -358,7 +358,7 @@ StartingText startingText(const BuildRequest& request) {
     } else if (const auto read = config::text::readFile(request.config.templatePath)) {
         templateText = *read;
     } else {
-        out.error = "template: " + read.error();
+        out.error = "template: " + read.error()->message();
         haveTemplate = false;
     }
 

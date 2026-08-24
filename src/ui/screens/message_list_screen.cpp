@@ -244,7 +244,7 @@ const domain::MessageHeader* headerAt(const AppState& state, uint32_t msgNumber)
     return &state.headers[static_cast<size_t>(index)];
 }
 
-Result<void> enterArea(AppState& state, const domain::AreaConfig& area) {
+tl::expected<void, ErrorPtr> enterArea(AppState& state, const domain::AreaConfig& area) {
     auto opened = state.manager.openArea(area);
     if (!opened) return tl::make_unexpected(std::move(opened).error());
 

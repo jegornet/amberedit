@@ -31,8 +31,8 @@ using amberedit::domain::MessageBody;
 using amberedit::domain::MessageDate;
 using amberedit::domain::MessageHeader;
 using amberedit::domain::MessageLine;
-using amberedit::test::TempDir;
 using amberedit::test::contains;
+using amberedit::test::TempDir;
 using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
@@ -54,7 +54,9 @@ Event clickAt(int x, int y) {
 
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return {};
+    }
 };
 
 /// A message on the reader's screen and a directory to write it into.
@@ -205,8 +207,9 @@ TEST_CASE("The export dialog shows directories and nothing else [export_dialog]"
     CHECK(fixture.state.exportPicker->focus == AppState::ExportPicker::Focus::Name);
 }
 
-TEST_CASE("The export dialog opens on nothing where there is no message "
-          "[export_dialog]") {
+TEST_CASE(
+    "The export dialog opens on nothing where there is no message "
+    "[export_dialog]") {
     ExportFixture fixture;
     fixture.state.readHeader.reset();
     fixture.state.readBody.reset();
@@ -440,8 +443,9 @@ TEST_CASE("The export dialog answers the pointer [export_dialog][mouse]") {
     CHECK(picker.nameCursor == 3);
 }
 
-TEST_CASE("The export dialog writes the files the message carries "
-          "[export_dialog][uue]") {
+TEST_CASE(
+    "The export dialog writes the files the message carries "
+    "[export_dialog][uue]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state,
                         {UueFile{"report.zip", "PK\x03\x04"}, UueFile{"note.txt", "hi"}});
@@ -507,14 +511,14 @@ TEST_CASE("A decoded file is written over nothing [export_dialog][uue]") {
     // file whose name was never the user's is not written over at all.
     CHECK(fixture.answer(Event::Return) == export_dialog::Outcome::Ignored);
     REQUIRE(fixture.state.exportPicker);
-    CHECK_MESSAGE(contains(fixture.state.exportPicker->error,
-                           "report.zip"),
+    CHECK_MESSAGE(contains(fixture.state.exportPicker->error, "report.zip"),
                   fixture.state.exportPicker->error);
     CHECK(fixture.fileText("report.zip") == "something of the user's own");
 }
 
-TEST_CASE("The export dialog walks into a directory to write files into "
-          "[export_dialog][uue]") {
+TEST_CASE(
+    "The export dialog walks into a directory to write files into "
+    "[export_dialog][uue]") {
     ExportFixture fixture;
     fixture.makeDirectory("incoming");
     const std::string top = fixture.state.exportDirectory;
@@ -651,8 +655,9 @@ TEST_CASE("The export writes over a file when told to [export_dialog][exists]") 
     CHECK_FALSE_MESSAGE(contains(written, "what was there before"), written);
 }
 
-TEST_CASE("The question about a file answers the pointer "
-          "[export_dialog][exists][mouse]") {
+TEST_CASE(
+    "The question about a file answers the pointer "
+    "[export_dialog][exists][mouse]") {
     ExportFixture fixture;
     fixture.write("digest.txt", "what was there before\n");
     export_dialog::open(fixture.state);
@@ -669,8 +674,9 @@ TEST_CASE("The question about a file answers the pointer "
     CHECK_FALSE_MESSAGE(contains(text, "what was there before"), text);
 }
 
-TEST_CASE("The files a message carries are written by a button "
-          "[export_dialog][uue][mouse]") {
+TEST_CASE(
+    "The files a message carries are written by a button "
+    "[export_dialog][uue][mouse]") {
     ExportFixture fixture;
     export_dialog::open(fixture.state, {UueFile{"report.zip", "PK"}});
     static_cast<void>(fixture.draw());

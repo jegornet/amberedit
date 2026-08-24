@@ -24,7 +24,7 @@ constexpr const char kReplacement[] = "\xEF\xBF\xBD";  // U+FFFD
 
 }  // namespace
 
-Result<void> checkCharset(const std::string& charset) {
+tl::expected<void, ErrorPtr> checkCharset(const std::string& charset) {
     if (charset.empty()) return failure("no charset is named");
 
     // Both directions, because both are what a config asks of a charset: a
@@ -114,7 +114,8 @@ void IconvRecoder::closeDescriptor() {
     currentFrom_.clear();
 }
 
-Result<void> IconvRecoder::ensureDescriptor(const std::string& fromCharset) {
+tl::expected<void, ErrorPtr> IconvRecoder::ensureDescriptor(
+    const std::string& fromCharset) {
     if (descriptor_ != nullptr && currentFrom_ == fromCharset) return {};
     closeDescriptor();
 
@@ -137,7 +138,8 @@ void IconvRecoder::closeOutDescriptor() {
     currentTo_.clear();
 }
 
-Result<void> IconvRecoder::ensureOutDescriptor(const std::string& toCharset) {
+tl::expected<void, ErrorPtr> IconvRecoder::ensureOutDescriptor(
+    const std::string& toCharset) {
     if (outDescriptor_ != nullptr && currentTo_ == toCharset) return {};
     closeOutDescriptor();
 
@@ -153,13 +155,13 @@ Result<void> IconvRecoder::ensureOutDescriptor(const std::string& toCharset) {
     return {};
 }
 
-Result<std::string> IconvRecoder::intoCharset(std::string_view text,
-                                              const std::string& toCharset) {
+tl::expected<std::string, ErrorPtr> IconvRecoder::intoCharset(
+    std::string_view text, const std::string& toCharset) {
     if (text.empty()) return std::string{};
 
     if (toCharset == "UTF-8" || toCharset == "UTF8") return std::string(text);
-    if (const auto opened = ensureOutDescriptor(toCharset); !opened) {
-        return tl::make_unexpected(opened.error());
+    if (auto opened = ensureOutDescriptor(toCharset); !opened) {
+        return tl::make_unexpected(std::move(opened).error());
     }
     iconv(asIconv(outDescriptor_), nullptr, nullptr, nullptr, nullptr);
 
@@ -202,8 +204,8 @@ Result<std::string> IconvRecoder::intoCharset(std::string_view text,
     return out;
 }
 
-Result<std::string> IconvRecoder::intoUtf8(std::string_view text,
-                                           const std::string& fromCharset) {
+tl::expected<std::string, ErrorPtr> IconvRecoder::intoUtf8(
+    std::string_view text, const std::string& fromCharset) {
     if (text.empty()) return std::string{};
 
     // Already UTF-8 — nothing to convert; this also rescues messages carrying
@@ -212,8 +214,8 @@ Result<std::string> IconvRecoder::intoUtf8(std::string_view text,
         if (isValidUtf8(text)) return std::string(text);
     }
 
-    if (const auto opened = ensureDescriptor(fromCharset); !opened) {
-        return tl::make_unexpected(opened.error());
+    if (auto opened = ensureDescriptor(fromCharset); !opened) {
+        return tl::make_unexpected(std::move(opened).error());
     }
 
     // Reset the converter's state before a new string.

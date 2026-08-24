@@ -17,6 +17,7 @@ using amberedit::domain::MsgBaseType;
 using amberedit::msgbase::FtnMsgBase;
 using amberedit::test::TempDir;
 using amberedit::test::TempSquishBase;
+using amberedit::test::valueOf;
 
 namespace fs = std::filesystem;
 
@@ -67,7 +68,7 @@ void checkCreatedBaseTakesAMessage(const AreaConfig& area) {
     FtnMsgBase base;
     REQUIRE(base.open(area).has_value());
     CHECK(base.count() == 0);
-    REQUIRE(base.write(firstMessage()) == 1);
+    REQUIRE(valueOf(base.write(firstMessage())) == 1);
     base.close();
 
     FtnMsgBase again;
@@ -136,7 +137,7 @@ TEST_CASE("A base that is already there is never created over [create]") {
     FtnMsgBase base;
     const auto made = base.create(area);
     CHECK_FALSE(made.has_value());
-    CHECK_FALSE(made.error().empty());
+    CHECK_FALSE(made.error()->message().empty());
 
     // And it is still the base it was.
     FtnMsgBase reader;
@@ -154,7 +155,7 @@ TEST_CASE("An area with no stated type is not one to create [create]") {
     FtnMsgBase base;
     const auto made = base.create(area);
     CHECK_FALSE(made.has_value());
-    CHECK_FALSE(made.error().empty());
+    CHECK_FALSE(made.error()->message().empty());
 }
 
 TEST_CASE("A passthrough area has no base to create [create]") {
@@ -181,7 +182,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
         FtnMsgBase base;
         const auto made = base.create(areaAt(path, MsgBaseType::Squish));
         CHECK_FALSE(made.has_value());
-        CHECK_FALSE(made.error().empty());
+        CHECK_FALSE(made.error()->message().empty());
         CHECK_FALSE(present(path + ".sqd"));
         CHECK_FALSE(present(path + ".sqi"));
     }
@@ -189,7 +190,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
         FtnMsgBase base;
         const auto made = base.create(areaAt(path, MsgBaseType::Jam));
         CHECK_FALSE(made.has_value());
-        CHECK_FALSE(made.error().empty());
+        CHECK_FALSE(made.error()->message().empty());
         CHECK_FALSE(present(path + ".jhr"));
         CHECK_FALSE(present(path + ".jdx"));
         CHECK_FALSE(present(path + ".jdt"));
@@ -198,7 +199,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
         FtnMsgBase base;
         const auto made = base.create(areaAt(path, MsgBaseType::Sdm));
         CHECK_FALSE(made.has_value());
-        CHECK_FALSE(made.error().empty());
+        CHECK_FALSE(made.error()->message().empty());
         CHECK_FALSE(present(path));
     }
 }

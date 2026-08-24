@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::config {
 
@@ -26,6 +26,7 @@ namespace amberedit::config {
 /// made by a config that merely mentions one. A failure says what is wrong with
 /// the directory and what to set instead — the caller is left to say what it
 /// wanted the directory for.
-[[nodiscard]] Result<std::string> makeTempDir(const std::string& configured);
+[[nodiscard]] tl::expected<std::string, ErrorPtr> makeTempDir(
+    const std::string& configured);
 
 }  // namespace amberedit::config

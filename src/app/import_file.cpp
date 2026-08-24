@@ -57,17 +57,18 @@ std::string charsetFor(const std::string& named) {
     return normalized.empty() ? named : normalized;
 }
 
-Result<std::vector<std::string>> importText(const ImportRequest& request) {
-    const auto bytes = config::text::readFile(request.path);
-    if (!bytes) return tl::make_unexpected(bytes.error());
+tl::expected<std::vector<std::string>, ErrorPtr> importText(
+    const ImportRequest& request) {
+    auto bytes = config::text::readFile(request.path);
+    if (!bytes) return tl::make_unexpected(std::move(bytes).error());
 
     // intoUtf8 and not the reader's toUtf8: that one hands the bytes back
     // unchanged, which is right for a message being read and wrong here — the
     // charset was typed a moment ago, and a mistyped one would go into the
     // message as mojibake nobody could undo afterwards.
     encoding::IconvRecoder recoder;
-    const auto utf8 = recoder.intoUtf8(*bytes, charsetFor(request.charset));
-    if (!utf8) return tl::make_unexpected(utf8.error());
+    auto utf8 = recoder.intoUtf8(*bytes, charsetFor(request.charset));
+    if (!utf8) return tl::make_unexpected(std::move(utf8).error());
 
     const std::vector<std::string> read = config::text::splitLines(*utf8);
 
@@ -84,9 +85,9 @@ Result<std::vector<std::string>> importText(const ImportRequest& request) {
     return lines;
 }
 
-Result<std::vector<std::string>> importUue(const ImportRequest& request) {
-    const auto bytes = config::text::readFile(request.path);
-    if (!bytes) return tl::make_unexpected(bytes.error());
+tl::expected<std::vector<std::string>, ErrorPtr> importUue(const ImportRequest& request) {
+    auto bytes = config::text::readFile(request.path);
+    if (!bytes) return tl::make_unexpected(std::move(bytes).error());
 
     // The name the file goes out under, and nothing of the path it was read
     // from: where it stood on this machine is nobody else's business, and
@@ -145,7 +146,8 @@ std::vector<std::string> uuencode(std::string_view bytes, std::string_view name)
     return lines;
 }
 
-Result<std::vector<std::string>> importFile(const ImportRequest& request) {
+tl::expected<std::vector<std::string>, ErrorPtr> importFile(
+    const ImportRequest& request) {
     return request.mode == ImportMode::Uue ? importUue(request) : importText(request);
 }
 

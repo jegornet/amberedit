@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 namespace amberedit::echolist {
 
@@ -121,12 +121,12 @@ public:
     /// Resolves the line, unpacks it where it names an archive, reads it and
     /// decodes it, or says what was looked for and where. `charset` is what the
     /// line stated, empty for the locale's.
-    [[nodiscard]] Result<Loaded> read(const std::string& spec,
-                                      const std::string& charset);
+    [[nodiscard]] tl::expected<Loaded, ErrorPtr> read(const std::string& spec,
+                                                      const std::string& charset);
 
 private:
-    [[nodiscard]] Result<Loaded> readArchive(const SourceState& state,
-                                             const std::string& charset);
+    [[nodiscard]] tl::expected<Loaded, ErrorPtr> readArchive(const SourceState& state,
+                                                             const std::string& charset);
 
     std::string tempDir_;
     std::vector<std::string> unpacked_;

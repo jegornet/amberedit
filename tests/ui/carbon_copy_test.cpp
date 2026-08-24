@@ -54,7 +54,9 @@ private:
 class ListedAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
     explicit ListedAreaSource(std::vector<AreaConfig> areas) : areas_(std::move(areas)) {}
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return areas_; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return areas_;
+    }
 
 private:
     std::vector<AreaConfig> areas_;
@@ -148,7 +150,8 @@ struct CopyFixture {
             nodeOf("2:5020/3456", "Sergey Sergeev"),
             nodeOf("2:5020/4567", "Sergey Petrov"),
         };
-        REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
+        REQUIRE(
+            nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
         config.nodelistDbPath = dir.path("nodelist.db");
     }
 
@@ -284,8 +287,9 @@ TEST_CASE("A CC: line writes a copy to everybody it names [copy][compose]") {
     }
 }
 
-TEST_CASE("A recipient written with a '#' gets the copy and is not named "
-          "[copy][compose]") {
+TEST_CASE(
+    "A recipient written with a '#' gets the copy and is not named "
+    "[copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -422,8 +426,9 @@ TEST_CASE("A name several nodes answer to is asked about [copy][compose][nodelis
     CHECK(fixture.state.errorMessage.empty());
 }
 
-TEST_CASE("A box closed without picking anybody makes no copy "
-          "[copy][compose][nodelist]") {
+TEST_CASE(
+    "A box closed without picking anybody makes no copy "
+    "[copy][compose][nodelist]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("netmail");
@@ -459,8 +464,9 @@ TEST_CASE("Ignore stores the message with its commands as text [copy][compose]")
     CHECK(holds(fixture.textIn("netmail", 1), "CC: Ivan Ivanov"));
 }
 
-TEST_CASE("An echo whose answers go nowhere leaves its CC: lines alone "
-          "[copy][compose]") {
+TEST_CASE(
+    "An echo whose answers go nowhere leaves its CC: lines alone "
+    "[copy][compose]") {
     CopyFixture fixture;
     fixture.giveNodelist();
     fixture.enter("ru.talk");
@@ -474,8 +480,9 @@ TEST_CASE("An echo whose answers go nowhere leaves its CC: lines alone "
     CHECK(fixture.countIn("netmail") == 0);
 }
 
-TEST_CASE("An echo that says where its answers belong copies them there "
-          "[copy][compose]") {
+TEST_CASE(
+    "An echo that says where its answers belong copies them there "
+    "[copy][compose]") {
     CopyFixture fixture(
         "group\n"
         "  member ru.talk\n"
@@ -509,8 +516,9 @@ TEST_CASE("A local area is no place to write copies from [copy][compose]") {
     CHECK(fixture.countIn("netmail") == 0);
 }
 
-TEST_CASE("An XC: line posts the message in every echo its masks name "
-          "[copy][crosspost][compose]") {
+TEST_CASE(
+    "An XC: line posts the message in every echo its masks name "
+    "[copy][crosspost][compose]") {
     CopyFixture fixture;
     fixture.enter("ru.talk");
 
@@ -540,8 +548,9 @@ TEST_CASE("An XC: line posts the message in every echo its masks name "
     CHECK(fixture.kludgesIn("ru.linux", 1) != fixture.kludgesIn("ru.unix", 1));
 }
 
-TEST_CASE("A '#' on the echo being written in leaves 'Originally in' unsaid "
-          "[copy][crosspost][compose]") {
+TEST_CASE(
+    "A '#' on the echo being written in leaves 'Originally in' unsaid "
+    "[copy][crosspost][compose]") {
     CopyFixture fixture;
     fixture.enter("ru.talk");
 
@@ -576,8 +585,9 @@ TEST_CASE("A mask that names no echo at all keeps its line [copy][crosspost]") {
     CHECK(fixture.state.errorMessage.find("no.such.echo") != std::string::npos);
 }
 
-TEST_CASE("What the message keeps of its CC: line is compose_cc_list's "
-          "[copy][compose][list]") {
+TEST_CASE(
+    "What the message keeps of its CC: line is compose_cc_list's "
+    "[copy][compose][list]") {
     const auto textWith = [](CarbonList mode) {
         CopyFixture fixture;
         fixture.config.carbonList = mode;
@@ -613,8 +623,9 @@ TEST_CASE("What the message keeps of its CC: line is compose_cc_list's "
     CHECK(holds(hidden.second, "@CC: Ivan Ivanov 2:5020/1234"));
 }
 
-TEST_CASE("What it keeps of its XC: line is compose_xc_list's "
-          "[copy][crosspost][list]") {
+TEST_CASE(
+    "What it keeps of its XC: line is compose_xc_list's "
+    "[copy][crosspost][list]") {
     const auto textWith = [](CrosspostList mode) {
         CopyFixture fixture;
         fixture.config.crosspostList = mode;

@@ -102,9 +102,9 @@ std::optional<std::string> newestMatch(const std::string& spec) {
     return best->path;
 }
 
-Result<std::string> readWholeFile(const std::string& path) {
-    const auto isFile = config::text::insistItIsAFile(path);
-    if (!isFile) return tl::make_unexpected(isFile.error());
+tl::expected<std::string, ErrorPtr> readWholeFile(const std::string& path) {
+    auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("cannot read the echolist: " + path);
@@ -164,8 +164,8 @@ EcholistSources::~EcholistSources() {
     for (const auto& path : unpacked_) fs::remove(path, ec);
 }
 
-Result<EcholistSources::Loaded> EcholistSources::read(const std::string& spec,
-                                                      const std::string& charset) {
+tl::expected<EcholistSources::Loaded, ErrorPtr> EcholistSources::read(
+    const std::string& spec, const std::string& charset) {
     const SourceState state = stateOf(spec, charset);
     if (state.path.empty()) {
         if (!config::text::hasWildcard(fs::path(spec).filename().string())) {
@@ -184,8 +184,8 @@ Result<EcholistSources::Loaded> EcholistSources::read(const std::string& spec,
     Part part;
     part.readFrom = state.path;
     part.name = fs::path(state.path).filename().string();
-    const auto text = readWholeFile(state.path);
-    if (!text) return tl::make_unexpected(text.error());
+    auto text = readWholeFile(state.path);
+    if (!text) return tl::make_unexpected(std::move(text).error());
     part.text = recoder.toUtf8(*text, charsetToReadIn(charset));
     Loaded loaded;
     loaded.state = state;
@@ -193,8 +193,8 @@ Result<EcholistSources::Loaded> EcholistSources::read(const std::string& spec,
     return loaded;
 }
 
-Result<EcholistSources::Loaded> EcholistSources::readArchive(const SourceState& state,
-                                                             const std::string& charset) {
+tl::expected<EcholistSources::Loaded, ErrorPtr> EcholistSources::readArchive(
+    const SourceState& state, const std::string& charset) {
     const std::string& archivePath = state.path;
 
     // Made here and not when the sources were: a config with `tmpdir` in it and
@@ -204,12 +204,12 @@ Result<EcholistSources::Loaded> EcholistSources::readArchive(const SourceState& 
     const auto workDirMade = config::makeTempDir(tempDir_);
     if (!workDirMade) {
         return failure(state.spec + " names a zipped echolist, and " +
-                       workDirMade.error());
+                       workDirMade.error()->message());
     }
     const std::string& workDir = *workDirMade;
 
-    const auto opened = archive::ZipArchive::open(archivePath);
-    if (!opened) return tl::make_unexpected(opened.error());
+    auto opened = archive::ZipArchive::open(archivePath);
+    if (!opened) return tl::make_unexpected(std::move(opened).error());
     const archive::ZipArchive& zip = *opened;
 
     // Only the echolists are unpacked. An echolist distribution carries reports,
@@ -253,8 +253,8 @@ Result<EcholistSources::Loaded> EcholistSources::readArchive(const SourceState& 
         {
             std::ofstream out(unpacked, std::ios::binary | std::ios::trunc);
             if (!out) return failure(cannotUnpack);
-            const auto text = zip.read(*entry);
-            if (!text) return tl::make_unexpected(text.error());
+            auto text = zip.read(*entry);
+            if (!text) return tl::make_unexpected(std::move(text).error());
             out.write(text->data(), static_cast<std::streamsize>(text->size()));
             out.close();
             if (!out) return failure(cannotUnpack);
@@ -267,8 +267,8 @@ Result<EcholistSources::Loaded> EcholistSources::readArchive(const SourceState& 
         Part part;
         part.readFrom = unpacked.string();
         part.name = entry->baseName();
-        const auto text = readWholeFile(part.readFrom);
-        if (!text) return tl::make_unexpected(text.error());
+        auto text = readWholeFile(part.readFrom);
+        if (!text) return tl::make_unexpected(std::move(text).error());
         part.text = recoder.toUtf8(*text, from);
         loaded.parts.push_back(std::move(part));
     }

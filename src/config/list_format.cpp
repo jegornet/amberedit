@@ -27,8 +27,9 @@ std::string takesInstead(const ListFormatSpec& spec) {
 
 }  // namespace
 
-Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpec& spec,
-                                      const std::string& value) {
+tl::expected<ListFormatRow, ErrorPtr> parseListFormat(const CfgEntry& entry,
+                                                      const ListFormatSpec& spec,
+                                                      const std::string& value) {
     const std::string setting(spec.setting);
     ListFormatRow lines{ListFormatLine{}};
 
@@ -135,7 +136,8 @@ Result<ListFormatRow> parseListFormat(const CfgEntry& entry, const ListFormatSpe
     return lines;
 }
 
-Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec& spec) {
+tl::expected<ListFormats, ErrorPtr> parseListFormats(const CfgEntry& entry,
+                                                     const ListFormatSpec& spec) {
     const std::string setting(spec.setting);
     if (entry.values.empty()) {
         return entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +
@@ -149,8 +151,8 @@ Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec
             " " + quoted(spec.example) + " " + quoted(spec.wideExample));
     }
 
-    const auto narrow = parseListFormat(entry, spec, entry.values.front());
-    if (!narrow) return tl::make_unexpected(narrow.error());
+    auto narrow = parseListFormat(entry, spec, entry.values.front());
+    if (!narrow) return tl::make_unexpected(std::move(narrow).error());
 
     ListFormats formats;
     formats.narrow = *narrow;
@@ -158,14 +160,14 @@ Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec
         formats.wide = formats.narrow;
         return formats;
     }
-    const auto wide = parseListFormat(entry, spec, entry.values.back());
-    if (!wide) return tl::make_unexpected(wide.error());
+    auto wide = parseListFormat(entry, spec, entry.values.back());
+    if (!wide) return tl::make_unexpected(std::move(wide).error());
     formats.wide = *wide;
     return formats;
 }
 
-Result<ListFormatRow> parseOneListFormat(const CfgEntry& entry,
-                                         const ListFormatSpec& spec) {
+tl::expected<ListFormatRow, ErrorPtr> parseOneListFormat(const CfgEntry& entry,
+                                                         const ListFormatSpec& spec) {
     const std::string setting(spec.setting);
     if (entry.values.empty()) {
         return entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +

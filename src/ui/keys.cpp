@@ -182,7 +182,8 @@ KeyMap KeyMap::defaults() {
     return map;
 }
 
-Result<KeyMap> KeyMap::parse(std::string_view text, const std::string& origin) {
+tl::expected<KeyMap, ErrorPtr> KeyMap::parse(std::string_view text,
+                                             const std::string& origin) {
     KeyMap map;
     // What each key is already doing, to answer for a key written twice. The
     // command is kept rather than only the key: what makes the second line
@@ -237,7 +238,7 @@ Result<KeyMap> KeyMap::parse(std::string_view text, const std::string& origin) {
     return map;
 }
 
-Result<KeyMap> KeyMap::loadFromFile(const std::string& path) {
+tl::expected<KeyMap, ErrorPtr> KeyMap::loadFromFile(const std::string& path) {
     const auto text = config::text::readFile(path);
     if (!text) return failure("keys file not found: " + path);
     return parse(*text, path);

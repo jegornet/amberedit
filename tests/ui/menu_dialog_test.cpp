@@ -33,7 +33,8 @@ namespace {
 /// Hands back nothing: these tests are about the menu, not the areas.
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    amberedit::Result<std::vector<amberedit::domain::AreaConfig>> loadAreas() override {
+    tl::expected<std::vector<amberedit::domain::AreaConfig>, amberedit::ErrorPtr>
+    loadAreas() override {
         return {};
     }
 };

@@ -210,7 +210,8 @@ constexpr KludgeMapping kKludgeMappings[] = {
 
 }  // namespace
 
-Result<void> JamBase::open(const std::string& path, bool echo, uint16_t /*defaultZone*/) {
+tl::expected<void, ErrorPtr> JamBase::open(const std::string& path, bool echo,
+                                           uint16_t /*defaultZone*/) {
     close();
     echo_ = echo;
 
@@ -226,7 +227,7 @@ Result<void> JamBase::open(const std::string& path, bool echo, uint16_t /*defaul
     if (auto read = reload(); !read) {
         auto reason = std::move(read).error();
         close();
-        return failure(std::move(reason));
+        return tl::make_unexpected(std::move(reason));
     }
     return {};
 }
@@ -239,7 +240,7 @@ void JamBase::close() {
     active_.clear();
 }
 
-Result<void> JamBase::create(const std::string& path) {
+tl::expected<void, ErrorPtr> JamBase::create(const std::string& path) {
     close();
 
     const std::string headerPath = path + ".jhr";
@@ -295,19 +296,20 @@ Result<void> JamBase::create(const std::string& path) {
     // renumbering the records, so it is a base number and not a count.
     writeU32(raw.data() + 20, 1);
 
-    if (!headers.writeAt(0, raw.data(), raw.size())) {
+    if (const auto io = headers.writeAt(0, raw.data(), raw.size()); io.failed()) {
         auto reason = "cannot write the info block of " + headerPath;
         headers.close();
         giveBack();
-        return failure(std::move(reason));
+        return failure(std::move(reason) + ": " + io.message());
     }
     return {};
 }
 
-Result<void> JamBase::readInfo() {
+tl::expected<void, ErrorPtr> JamBase::readInfo() {
     std::array<unsigned char, kInfoSize> raw{};
-    if (!headers_.readAt(0, raw.data(), raw.size())) {
-        return failure("cannot read the info block of " + headers_.path());
+    if (const auto io = headers_.readAt(0, raw.data(), raw.size()); io.failed()) {
+        return failure("cannot read the info block of " + headers_.path() + ": " +
+                       io.message());
     }
     if (std::memcmp(raw.data(), kSignature, sizeof(kSignature)) != 0) {
         return failure(headers_.path() + " does not carry the JAM signature");
@@ -320,25 +322,27 @@ Result<void> JamBase::readInfo() {
     return {};
 }
 
-Result<void> JamBase::writeInfo() {
+tl::expected<void, ErrorPtr> JamBase::writeInfo() {
     // Read-modify-write: the reserved space is not ours.
     std::array<unsigned char, kInfoSize> raw{};
-    if (!headers_.readAt(0, raw.data(), raw.size())) {
-        return failure("cannot re-read the info block of " + headers_.path());
+    if (const auto io = headers_.readAt(0, raw.data(), raw.size()); io.failed()) {
+        return failure("cannot re-read the info block of " + headers_.path() + ": " +
+                       io.message());
     }
     writeU32(raw.data() + 8, info_.modCounter);
     writeU32(raw.data() + 12, info_.activeMessages);
-    if (!headers_.writeAt(0, raw.data(), raw.size())) {
-        return failure("cannot write the info block of " + headers_.path());
+    if (const auto io = headers_.writeAt(0, raw.data(), raw.size()); io.failed()) {
+        return failure("cannot write the info block of " + headers_.path() + ": " +
+                       io.message());
     }
     return {};
 }
 
-Result<void> JamBase::readHeaderAt(uint32_t offset, Header& out) const {
+tl::expected<void, ErrorPtr> JamBase::readHeaderAt(uint32_t offset, Header& out) const {
     std::array<unsigned char, kFixedHeaderSize> raw{};
-    if (!headers_.readAt(offset, raw.data(), raw.size())) {
+    if (const auto io = headers_.readAt(offset, raw.data(), raw.size()); io.failed()) {
         return failure("cannot read the header at " + std::to_string(offset) + " in " +
-                       headers_.path());
+                       headers_.path() + ": " + io.message());
     }
     if (std::memcmp(raw.data(), kSignature, sizeof(kSignature)) != 0) {
         return failure("no message header at " + std::to_string(offset) + " in " +
@@ -364,7 +368,7 @@ Result<void> JamBase::readHeaderAt(uint32_t offset, Header& out) const {
     return {};
 }
 
-Result<void> JamBase::loadActive() {
+tl::expected<void, ErrorPtr> JamBase::loadActive() {
     active_.clear();
 
     const int64_t indexSize = index_.size();
@@ -377,8 +381,8 @@ Result<void> JamBase::loadActive() {
     if (records == 0) return {};
 
     std::vector<unsigned char> rawIndex(static_cast<size_t>(records) * kIndexRecordSize);
-    if (!index_.readAt(0, rawIndex.data(), rawIndex.size())) {
-        return failure("cannot read " + index_.path());
+    if (const auto io = index_.readAt(0, rawIndex.data(), rawIndex.size()); io.failed()) {
+        return failure("cannot read " + index_.path() + ": " + io.message());
     }
 
     // The headers, in one read where the file is modest. A header at a time
@@ -387,8 +391,9 @@ Result<void> JamBase::loadActive() {
     std::vector<unsigned char> rawHeaders;
     if (headersSize <= kHeadersInCoreLimit) {
         rawHeaders.resize(static_cast<size_t>(headersSize));
-        if (!headers_.readAt(0, rawHeaders.data(), rawHeaders.size())) {
-            return failure("cannot read " + headers_.path());
+        if (const auto io = headers_.readAt(0, rawHeaders.data(), rawHeaders.size());
+            io.failed()) {
+            return failure("cannot read " + headers_.path() + ": " + io.message());
         }
     }
 
@@ -438,9 +443,9 @@ Result<void> JamBase::loadActive() {
     return {};
 }
 
-Result<void> JamBase::reload() {
-    const auto read = readInfo();
-    if (!read) return tl::make_unexpected(read.error());
+tl::expected<void, ErrorPtr> JamBase::reload() {
+    auto read = readInfo();
+    if (!read) return tl::make_unexpected(std::move(read).error());
     return loadActive();
 }
 
@@ -469,16 +474,17 @@ uint32_t JamBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
-Result<void> JamBase::readSubfields(const ActiveMessage& message,
-                                    std::vector<Subfield>& out) const {
+tl::expected<void, ErrorPtr> JamBase::readSubfields(const ActiveMessage& message,
+                                                    std::vector<Subfield>& out) const {
     out.clear();
     if (message.header.subfieldLength == 0) return {};
 
     std::vector<unsigned char> raw(message.header.subfieldLength);
-    if (!headers_.readAt(message.headerOffset + kFixedHeaderSize, raw.data(),
-                         raw.size())) {
+    if (const auto io = headers_.readAt(message.headerOffset + kFixedHeaderSize,
+                                        raw.data(), raw.size());
+        io.failed()) {
         return failure("cannot read the subfields at " +
-                       std::to_string(message.headerOffset));
+                       std::to_string(message.headerOffset) + ": " + io.message());
     }
 
     size_t pos = 0;
@@ -496,7 +502,8 @@ Result<void> JamBase::readSubfields(const ActiveMessage& message,
     return {};
 }
 
-Result<void> JamBase::read(uint32_t index, RawMessage& out, bool withText) const {
+tl::expected<void, ErrorPtr> JamBase::read(uint32_t index, RawMessage& out,
+                                           bool withText) const {
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not in the area");
     }
@@ -527,8 +534,8 @@ Result<void> JamBase::read(uint32_t index, RawMessage& out, bool withText) const
     }
 
     std::vector<Subfield> subfields;
-    const auto done = readSubfields(message, subfields);
-    if (!done) return tl::make_unexpected(done.error());
+    auto done = readSubfields(message, subfields);
+    if (!done) return tl::make_unexpected(std::move(done).error());
 
     // The subfields carry what other formats keep in the header and in the
     // kludges both. The header fields come first; the kludges are rebuilt in
@@ -595,9 +602,11 @@ Result<void> JamBase::read(uint32_t index, RawMessage& out, bool withText) const
     if (withText) {
         if (header.textLength != 0) {
             out.text.assign(header.textLength, '\0');
-            if (!text_.readAt(header.textOffset, &out.text[0], out.text.size())) {
+            if (const auto io =
+                    text_.readAt(header.textOffset, &out.text[0], out.text.size());
+                io.failed()) {
                 return failure("cannot read the text of message " +
-                               std::to_string(index));
+                               std::to_string(index) + ": " + io.message());
             }
         }
         if (!out.text.empty() && out.text.back() != '\r') out.text += '\r';
@@ -673,8 +682,10 @@ domain::MessageInfo JamBase::info(uint32_t index) const {
         report::field("Uid", std::to_string(uidOfEntry(message))),
     };
     std::array<unsigned char, kIndexRecordSize> rawIndex{};
-    if (index_.readAt(static_cast<uint64_t>(message.indexRecord) * kIndexRecordSize,
-                      rawIndex.data(), rawIndex.size())) {
+    if (index_
+            .readAt(static_cast<uint64_t>(message.indexRecord) * kIndexRecordSize,
+                    rawIndex.data(), rawIndex.size())
+            .ok()) {
         indexBlock.fields.push_back(
             report::field("UserCrc", report::hex(readU32(rawIndex.data()))));
         indexBlock.fields.push_back(report::field(
@@ -695,7 +706,7 @@ domain::MessageInfo JamBase::info(uint32_t index) const {
     // lastread files are what a reader keeps — so it is read here rather than
     // held in the info block the driver works from.
     std::array<unsigned char, 4> highWater{};
-    if (headers_.readAt(kHighWaterOffset, highWater.data(), highWater.size())) {
+    if (headers_.readAt(kHighWaterOffset, highWater.data(), highWater.size()).ok()) {
         base.fields.push_back(
             report::field("HighWaterMark", std::to_string(readU32(highWater.data()))));
     }
@@ -822,8 +833,8 @@ void JamBase::encodeDraft(const RawDraft& draft, Header& header,
     header.subfieldLength = static_cast<uint32_t>(subfieldBlock.size());
 }
 
-Result<void> JamBase::writeHeaderAt(uint32_t offset, const Header& header,
-                                    const std::string& subfields) {
+tl::expected<void, ErrorPtr> JamBase::writeHeaderAt(uint32_t offset, const Header& header,
+                                                    const std::string& subfields) {
     std::array<unsigned char, kFixedHeaderSize> rawHeader{};
     std::memcpy(rawHeader.data(), kSignature, sizeof(kSignature));
     writeU16(rawHeader.data() + 4, 1);  // revision
@@ -845,31 +856,35 @@ Result<void> JamBase::writeHeaderAt(uint32_t offset, const Header& header,
     writeU32(rawHeader.data() + 68, header.passwordCrc);
     writeU32(rawHeader.data() + 72, header.cost);
 
-    if (!headers_.writeAt(offset, rawHeader.data(), rawHeader.size()) ||
-        !headers_.writeAt(static_cast<uint64_t>(offset) + kFixedHeaderSize,
-                          subfields.data(), subfields.size())) {
+    if (headers_.writeAt(offset, rawHeader.data(), rawHeader.size()).failed() ||
+        headers_
+            .writeAt(static_cast<uint64_t>(offset) + kFixedHeaderSize, subfields.data(),
+                     subfields.size())
+            .failed()) {
         return failure("cannot write the message header at " + std::to_string(offset) +
                        " in " + headers_.path());
     }
     return {};
 }
 
-Result<void> JamBase::writeIndexRecord(uint32_t record, const std::string& to,
-                                       uint32_t headerOffset) {
+tl::expected<void, ErrorPtr> JamBase::writeIndexRecord(uint32_t record,
+                                                       const std::string& to,
+                                                       uint32_t headerOffset) {
     std::array<unsigned char, kIndexRecordSize> raw{};
     writeU32(raw.data(), jamCrc32(to));
     writeU32(raw.data() + 4, headerOffset);
-    if (!index_.writeAt(static_cast<uint64_t>(record) * kIndexRecordSize, raw.data(),
-                        raw.size())) {
+    if (const auto io = index_.writeAt(static_cast<uint64_t>(record) * kIndexRecordSize,
+                                       raw.data(), raw.size());
+        io.failed()) {
         return failure("cannot write record " + std::to_string(record) + " of " +
-                       index_.path());
+                       index_.path() + ": " + io.message());
     }
     return {};
 }
 
-Result<uint32_t> JamBase::write(const RawDraft& draft) {
+tl::expected<uint32_t, ErrorPtr> JamBase::write(const RawDraft& draft) {
     if (!headers_.isOpen()) {
-        return failure("no area is open");
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
     if (!headers_.writable() || !index_.writable() || !text_.writable()) {
         return failure("the base at " + headers_.path() + " is not ours to write");
@@ -879,10 +894,11 @@ Result<uint32_t> JamBase::write(const RawDraft& draft) {
     // counters and both files' lengths come off the disk under the lock.
     FileLock lock;
     if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
-        return failure(locked.error() + ": the base is busy");
+        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                     locked.error()->message());
     }
-    const auto done = reload();
-    if (!done) return tl::make_unexpected(done.error());
+    auto done = reload();
+    if (!done) return tl::make_unexpected(std::move(done).error());
 
     Header header;
     header.attributes = msgToJamAttributes(draft.header.attributes) |
@@ -910,7 +926,8 @@ Result<uint32_t> JamBase::write(const RawDraft& draft) {
     header.textLength = static_cast<uint32_t>(text.size());
 
     if (!text.empty() &&
-        !text_.writeAt(static_cast<uint64_t>(textEnd), text.data(), text.size())) {
+        text_.writeAt(static_cast<uint64_t>(textEnd), text.data(), text.size())
+            .failed()) {
         return failure("cannot write the text of the new message");
     }
     if (!writeHeaderAt(static_cast<uint32_t>(headerEnd), header, subfieldBlock)) {
@@ -930,8 +947,8 @@ Result<uint32_t> JamBase::write(const RawDraft& draft) {
 
     info_.activeMessages += 1;
     info_.modCounter += 1;
-    const auto done2 = writeInfo();
-    if (!done2) return tl::make_unexpected(done2.error());
+    auto done2 = writeInfo();
+    if (!done2) return tl::make_unexpected(std::move(done2).error());
 
     ActiveMessage message;
     message.indexRecord = record;
@@ -941,9 +958,9 @@ Result<uint32_t> JamBase::write(const RawDraft& draft) {
     return count();
 }
 
-Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
+tl::expected<void, ErrorPtr> JamBase::replace(uint32_t index, const RawDraft& draft) {
     if (!headers_.isOpen()) {
-        return failure("no area is open");
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
     if (!headers_.writable() || !index_.writable() || !text_.writable()) {
         return failure("the base at " + headers_.path() + " is not ours to write");
@@ -951,10 +968,11 @@ Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
 
     FileLock lock;
     if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
-        return failure(locked.error() + ": the base is busy");
+        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                     locked.error()->message());
     }
-    const auto done = reload();
-    if (!done) return tl::make_unexpected(done.error());
+    auto done = reload();
+    if (!done) return tl::make_unexpected(std::move(done).error());
 
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not there to change");
@@ -967,8 +985,8 @@ Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
     // has been read. Only the stamp it is dated by moves: a message written
     // again is written now.
     Header header;
-    const auto done2 = readHeaderAt(message.headerOffset, header);
-    if (!done2) return tl::make_unexpected(done2.error());
+    auto done2 = readHeaderAt(message.headerOffset, header);
+    if (!done2) return tl::make_unexpected(std::move(done2).error());
     header.dateWritten = toUnixStamp(draft.header.written);
     header.attributes = msgToJamAttributes(draft.header.attributes) |
                         (echo_ ? kJamTypeEcho : kJamTypeNet);
@@ -994,7 +1012,8 @@ Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
     header.textOffset =
         textMoves ? static_cast<uint32_t>(textEnd) : message.header.textOffset;
     header.textLength = static_cast<uint32_t>(text.size());
-    if (!text.empty() && !text_.writeAt(header.textOffset, text.data(), text.size())) {
+    if (!text.empty() &&
+        text_.writeAt(header.textOffset, text.data(), text.size()).failed()) {
         return failure("cannot write the text of message " + std::to_string(index));
     }
 
@@ -1024,30 +1043,33 @@ Result<void> JamBase::replace(uint32_t index, const RawDraft& draft) {
         // is what tells a packer to drop it; its text is not dropped with it,
         // the live header holding whatever of it is still in use.
         std::array<unsigned char, kFixedHeaderSize> raw{};
-        if (!headers_.readAt(message.headerOffset, raw.data(), raw.size())) {
+        if (const auto io = headers_.readAt(message.headerOffset, raw.data(), raw.size());
+            io.failed()) {
             return failure("cannot re-read the old header of message " +
-                           std::to_string(index));
+                           std::to_string(index) + ": " + io.message());
         }
         writeU32(raw.data() + 52, readU32(raw.data() + 52) | kJamDeleted);
         writeU32(raw.data() + 64, 0);  // TxtLen: the new header owns the text
-        if (!headers_.writeAt(message.headerOffset, raw.data(), raw.size())) {
+        if (const auto io =
+                headers_.writeAt(message.headerOffset, raw.data(), raw.size());
+            io.failed()) {
             return failure("cannot mark the old header of message " +
-                           std::to_string(index) + " deleted");
+                           std::to_string(index) + " deleted: " + io.message());
         }
     }
 
     info_.modCounter += 1;
-    const auto done3 = writeInfo();
-    if (!done3) return tl::make_unexpected(done3.error());
+    auto done3 = writeInfo();
+    if (!done3) return tl::make_unexpected(std::move(done3).error());
 
     active_[index - 1].headerOffset = headerOffset;
     active_[index - 1].header = header;
     return {};
 }
 
-Result<void> JamBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> JamBase::remove(uint32_t index) {
     if (!headers_.isOpen()) {
-        return failure("no area is open");
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
     if (!headers_.writable() || !index_.writable()) {
         return failure("the base at " + headers_.path() + " is not ours to write");
@@ -1055,10 +1077,11 @@ Result<void> JamBase::remove(uint32_t index) {
 
     FileLock lock;
     if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
-        return failure(locked.error() + ": the base is busy");
+        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                     locked.error()->message());
     }
-    const auto done = reload();
-    if (!done) return tl::make_unexpected(done.error());
+    auto done = reload();
+    if (!done) return tl::make_unexpected(std::move(done).error());
 
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not there to delete");
@@ -1069,36 +1092,42 @@ Result<void> JamBase::remove(uint32_t index) {
     // deleted with no text, and the index record is blanked. The text is left
     // for a packer — the format keeps no free list to give it to.
     std::array<unsigned char, kFixedHeaderSize> raw{};
-    if (!headers_.readAt(message.headerOffset, raw.data(), raw.size())) {
-        return failure("cannot re-read the header of message " + std::to_string(index));
+    if (const auto io = headers_.readAt(message.headerOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot re-read the header of message " + std::to_string(index) +
+                       ": " + io.message());
     }
     writeU32(raw.data() + 52, readU32(raw.data() + 52) | kJamDeleted);
     writeU32(raw.data() + 64, 0);  // TxtLen, so a packer does not keep the text
-    if (!headers_.writeAt(message.headerOffset, raw.data(), raw.size())) {
-        return failure("cannot mark message " + std::to_string(index) + " deleted");
+    if (const auto io = headers_.writeAt(message.headerOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot mark message " + std::to_string(index) +
+                       " deleted: " + io.message());
     }
 
     std::array<unsigned char, kIndexRecordSize> rawIndex{};
     writeU32(rawIndex.data(), kNoRecord);
     writeU32(rawIndex.data() + 4, kNoRecord);
-    if (!index_.writeAt(static_cast<uint64_t>(message.indexRecord) * kIndexRecordSize,
-                        rawIndex.data(), rawIndex.size())) {
+    if (const auto io =
+            index_.writeAt(static_cast<uint64_t>(message.indexRecord) * kIndexRecordSize,
+                           rawIndex.data(), rawIndex.size());
+        io.failed()) {
         return failure("cannot blank the index record of message " +
-                       std::to_string(index));
+                       std::to_string(index) + ": " + io.message());
     }
 
     if (info_.activeMessages != 0) info_.activeMessages -= 1;
     info_.modCounter += 1;
-    const auto done2 = writeInfo();
-    if (!done2) return tl::make_unexpected(done2.error());
+    auto done2 = writeInfo();
+    if (!done2) return tl::make_unexpected(std::move(done2).error());
 
     active_.erase(active_.begin() + static_cast<long>(index) - 1);
     return {};
 }
 
-Result<void> JamBase::markSeen(uint32_t index) {
+tl::expected<void, ErrorPtr> JamBase::markSeen(uint32_t index) {
     if (!headers_.isOpen()) {
-        return failure("no area is open");
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
     if (!headers_.writable()) {
         return failure("the base at " + headers_.path() + " is not ours to write");
@@ -1115,10 +1144,11 @@ Result<void> JamBase::markSeen(uint32_t index) {
 
     FileLock lock;
     if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
-        return failure(locked.error() + ": the base is busy");
+        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                     locked.error()->message());
     }
-    const auto done = reload();
-    if (!done) return tl::make_unexpected(done.error());
+    auto done = reload();
+    if (!done) return tl::make_unexpected(std::move(done).error());
 
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not there to mark");
@@ -1129,8 +1159,10 @@ Result<void> JamBase::markSeen(uint32_t index) {
     // dword at +12 is the only one that changes, and the rest of the record goes
     // back exactly as it came.
     std::array<unsigned char, kFixedHeaderSize> raw{};
-    if (!headers_.readAt(message.headerOffset, raw.data(), raw.size())) {
-        return failure("cannot re-read the header of message " + std::to_string(index));
+    if (const auto io = headers_.readAt(message.headerOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot re-read the header of message " + std::to_string(index) +
+                       ": " + io.message());
     }
     const uint32_t timesRead = readU32(raw.data() + 12);
     if (timesRead != 0) {
@@ -1138,8 +1170,10 @@ Result<void> JamBase::markSeen(uint32_t index) {
         return {};
     }
     writeU32(raw.data() + 12, 1);
-    if (!headers_.writeAt(message.headerOffset, raw.data(), raw.size())) {
-        return failure("cannot mark message " + std::to_string(index) + " read");
+    if (const auto io = headers_.writeAt(message.headerOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot mark message " + std::to_string(index) +
+                       " read: " + io.message());
     }
     active_[index - 1].header.timesRead = 1;
     return {};

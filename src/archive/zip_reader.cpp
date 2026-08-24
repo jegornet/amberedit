@@ -49,8 +49,8 @@ std::time_t dosTime(uint16_t date, uint16_t time) {
 
 /// The complaint with the archive's name in front of it, ready to be returned:
 /// `return fail(path, "is not a zip archive")`.
-[[nodiscard]] tl::unexpected<std::string> fail(const std::string& path,
-                                               const std::string& what) {
+[[nodiscard]] tl::unexpected<ErrorPtr> fail(const std::string& path,
+                                            const std::string& what) {
     return failure(path + ": " + what);
 }
 
@@ -61,9 +61,9 @@ std::string ZipEntry::baseName() const {
     return cut == std::string::npos ? name : name.substr(cut + 1);
 }
 
-Result<ZipArchive> ZipArchive::open(const std::string& path) {
-    const auto isFile = config::text::insistItIsAFile(path);
-    if (!isFile) return tl::make_unexpected(isFile.error());
+tl::expected<ZipArchive, ErrorPtr> ZipArchive::open(const std::string& path) {
+    auto isFile = config::text::insistItIsAFile(path);
+    if (!isFile) return tl::make_unexpected(std::move(isFile).error());
 
     std::ifstream in(path, std::ios::binary);
     if (!in) return failure("cannot read the archive: " + path);
@@ -148,7 +148,7 @@ Result<ZipArchive> ZipArchive::open(const std::string& path) {
     return archive;
 }
 
-Result<std::string> ZipArchive::read(const ZipEntry& entry) const {
+tl::expected<std::string, ErrorPtr> ZipArchive::read(const ZipEntry& entry) const {
     const auto* raw = data_.data();
     const size_t size = data_.size();
 

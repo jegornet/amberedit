@@ -144,7 +144,8 @@ TEST_CASE("the tosser config is read the way AmberEdit will read it [setup]") {
     // mistake this step is for.
     const auto wrong = setup::checkTosserConfig(areasBbs, TosserConfigFormat::SquishCfg);
     REQUIRE_FALSE(wrong.has_value());
-    CHECK_MESSAGE(contains(wrong.error(), "no areas"), wrong.error());
+    CHECK_MESSAGE(contains(wrong.error()->message(), "no areas"),
+                  wrong.error()->message());
 
     // And a directory, or nothing at all, is said so plainly.
     const TempDir dir;

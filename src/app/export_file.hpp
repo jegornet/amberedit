@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "domain/message.hpp"
-#include "support/result.hpp"
+#include "support/error.hpp"
 
 /// A message written out to a text file — what the reader's Export command ends
 /// at, once the directory and the name have been picked.
@@ -62,7 +62,7 @@ struct ExportRequest {
 ///
 /// The rule at the head of each message is what keeps two of them apart where
 /// several are appended into one file.
-[[nodiscard]] Result<void> exportMessage(const ExportRequest& request,
+[[nodiscard]] tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
                                          const domain::MessageHeader& header,
                                          const domain::MessageBody& body);
 
@@ -102,7 +102,7 @@ struct UueFile {
 /// a decoded one cannot be got back. Every name is looked at before any of them
 /// is written, so a name already taken stops the export rather than leaving the
 /// directory half filled.
-[[nodiscard]] Result<void> saveUueFiles(const std::string& directory,
+[[nodiscard]] tl::expected<void, ErrorPtr> saveUueFiles(const std::string& directory,
                                         const std::vector<UueFile>& files);
 
 }  // namespace amberedit::app

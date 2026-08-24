@@ -42,7 +42,7 @@ std::string defaultTempDir() {
 /// belonging to somebody else refuses itself — the permissions over a directory
 /// are the owner's alone to set, so setting them is the question and the answer
 /// at once.
-[[nodiscard]] Result<void> insistItIsOurs(const std::string& path) {
+[[nodiscard]] tl::expected<void, ErrorPtr> insistItIsOurs(const std::string& path) {
     std::error_code ec;
     if (fs::is_symlink(fs::symlink_status(path, ec))) {
         return failure(
@@ -62,7 +62,7 @@ std::string defaultTempDir() {
 
 }  // namespace
 
-Result<std::string> makeTempDir(const std::string& configured) {
+tl::expected<std::string, ErrorPtr> makeTempDir(const std::string& configured) {
     const bool ours = configured.empty();
     const std::string path = ours ? defaultTempDir() : configured;
     if (path.empty()) {
@@ -78,8 +78,8 @@ Result<std::string> makeTempDir(const std::string& configured) {
             "the temporary directory to work in is not one that can be made: " + path);
     }
     if (ours) {
-        const auto checked = insistItIsOurs(path);
-        if (!checked) return tl::make_unexpected(checked.error());
+        auto checked = insistItIsOurs(path);
+        if (!checked) return tl::make_unexpected(std::move(checked).error());
     }
     return path;
 }

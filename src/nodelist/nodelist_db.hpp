@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "support/result.hpp"
+#include "support/error.hpp"
 #include "domain/ftn_address.hpp"
 #include "nodelist/node_entry.hpp"
 #include "nodelist/nodelist_format.hpp"
@@ -39,7 +39,7 @@ public:
     /// Everything the three accessors below read is checked here, which is what
     /// lets them be total: a damaged file is refused at open, where the path can
     /// be named, and not in the middle of a list being drawn.
-    [[nodiscard]] static Result<NodelistDb> open(const std::string& path);
+    [[nodiscard]] static tl::expected<NodelistDb, ErrorPtr> open(const std::string& path);
 
     [[nodiscard]] size_t size() const { return nodeCount_; }
     [[nodiscard]] bool empty() const { return nodeCount_ == 0; }

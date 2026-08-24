@@ -16,7 +16,9 @@ namespace {
 /// Hands back nothing: these tests are about the state, not the areas.
 class EmptyAreaSource final : public amberedit::ports::IAreaConfigSource {
 public:
-    amberedit::Result<std::vector<AreaConfig>> loadAreas() override { return {}; }
+    tl::expected<std::vector<AreaConfig>, amberedit::ErrorPtr> loadAreas() override {
+        return {};
+    }
 };
 
 /// Keeps the manager the state refers to alive for as long as the state is.

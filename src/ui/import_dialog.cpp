@@ -212,7 +212,7 @@ Outcome importPath(AppState& state, Picker& picker, const std::string& path) {
                                            config.importBegin, config.importEnd});
 
     if (!imported) {
-        picker.error = imported.error();
+        picker.error = imported.error()->message();
         return Outcome::Ignored;
     }
     // A file read from somewhere else is where the next import starts looking.

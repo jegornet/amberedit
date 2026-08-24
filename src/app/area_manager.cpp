@@ -123,7 +123,8 @@ std::unique_ptr<ports::IAreaConfigSource> makeTosserSource(const AppConfig& cfg)
 
 }  // namespace
 
-Result<std::unique_ptr<ports::IAreaConfigSource>> makeAreaSource(const AppConfig& cfg) {
+tl::expected<std::unique_ptr<ports::IAreaConfigSource>, ErrorPtr> makeAreaSource(
+    const AppConfig& cfg) {
     auto tosser = makeTosserSource(cfg);
     // A config with neither is refused while it is read, so this is a config
     // built in code — and a null source would be a crash at the first reload.
@@ -146,7 +147,7 @@ AreaManager::AreaManager(std::unique_ptr<ports::IAreaConfigSource> areaSource,
 
 AreaManager::~AreaManager() = default;
 
-Result<void> AreaManager::reload(const ProgressFn& onArea) {
+tl::expected<void, ErrorPtr> AreaManager::reload(const ProgressFn& onArea) {
     closeCurrentArea();
 
     // Built beside the list rather than into it, and put in place at the end.
@@ -161,7 +162,7 @@ Result<void> AreaManager::reload(const ProgressFn& onArea) {
     // A failure coming back here means "the tosser config is unavailable",
     // which is fatal for startup. A failing individual area is not.
     auto sourced = areaSource_->loadAreas();
-    if (!sourced) return tl::make_unexpected(sourced.error());
+    if (!sourced) return tl::make_unexpected(std::move(sourced).error());
 
     for (auto& config : *sourced) {
         AreaEntry entry;
@@ -199,7 +200,7 @@ Result<void> AreaManager::reload(const ProgressFn& onArea) {
 
         msgbase::FtnMsgBase base(cfg.defaultCharset);
         if (const auto opened = base.open(entry.config); !opened) {
-            entry.error = opened.error();
+            entry.error = opened.error()->message();
             loaded.push_back(std::move(entry));
             continue;
         }
@@ -215,7 +216,7 @@ Result<void> AreaManager::reload(const ProgressFn& onArea) {
     return {};
 }
 
-Result<ports::IMsgBase*> AreaManager::openArea(const AreaConfig& area) {
+tl::expected<ports::IMsgBase*, ErrorPtr> AreaManager::openArea(const AreaConfig& area) {
     closeCurrentArea();
 
     // In the charset this area is read in, which an area group may have a word
@@ -233,14 +234,19 @@ Result<ports::IMsgBase*> AreaManager::openArea(const AreaConfig& area) {
         // A base that is half there or there and unreadable is reported as it
         // stands. An empty one written over it would take whatever it holds
         // with it, and that is not a reader's to do.
-        if (!msgbase::FtnMsgBase::isAbsent(area)) {
+        //
+        // The open() that just failed already walked the file system to find
+        // this out, and says so in the error: asking it beats probing a second
+        // time, which is what this did while the error was only a sentence.
+        const auto* why = dynamic_cast<const MsgBaseError*>(opened.error().get());
+        if (why == nullptr || why->kind() != MsgBaseError::Kind::Absent) {
             return tl::make_unexpected(std::move(opened).error());
         }
-        if (const auto made = base->create(area); !made) {
-            return tl::make_unexpected(made.error());
+        if (auto made = base->create(area); !made) {
+            return tl::make_unexpected(std::move(made).error());
         }
-        if (const auto again = base->open(area); !again) {
-            return tl::make_unexpected(again.error());
+        if (auto again = base->open(area); !again) {
+            return tl::make_unexpected(std::move(again).error());
         }
     }
     currentBase_ = std::move(base);

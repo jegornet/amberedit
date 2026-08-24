@@ -14,7 +14,7 @@ Build-Depends: debhelper-compat (= 13),
 # chroot does not — std::expected would need C++23 and the floor is g++ 8.
                libexpected-dev,
 # doctest for the test suite, which dh_auto_test runs. One package name on
-# bookworm, trixie, jammy and noble alike — unlike catch2, which trixie renamed.
+# trixie, jammy and noble alike — unlike catch2, which trixie renamed.
                doctest-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/jegornet/amberedit
