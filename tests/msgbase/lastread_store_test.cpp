@@ -392,7 +392,7 @@ TEST_CASE("A mark is stored as a UID, not as a position [lastread][squish]") {
     const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
 
     amberedit::msgbase::FtnMsgBase msgbase;
-    REQUIRE(msgbase.open(area));
+    REQUIRE(msgbase.open(area).has_value());
     const uint32_t total = msgbase.count();
     REQUIRE(total >= 2);
     const uint32_t uid = msgbase.uidOf(total - 1);

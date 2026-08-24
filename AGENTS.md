@@ -200,6 +200,14 @@ Four things in the build follow from the same floor:
   message — it is what reads `error()->message()`, so a test never spells that
   out — and `contains` is put to it.
 
+  **Never hand a whole `tl::expected` to an assertion macro** — write
+  `CHECK(base.open(area).has_value())` and `CHECK(valueOf(base.write(m)) == 1)`,
+  never `CHECK(base.open(area))` or `CHECK(base.write(m) == 1)`. doctest
+  decomposes the expression by capturing its left-hand side, and up to 2.4.x it
+  captured that *by value* — which is a copy, and the error is a `unique_ptr`.
+  It compiles on 2.5.x, which captures a reference, so a developer's Mac and
+  Fedora say nothing and RHEL 8, RHEL 9 and jammy fail the build.
+
 - **Never give a type a free `toString()`, and this is a build error rather than
   a preference.** To print what a failing `CHECK(a == b)` compared, doctest calls
   an unqualified `toString(a)`, and ADL hands it any free function of that name

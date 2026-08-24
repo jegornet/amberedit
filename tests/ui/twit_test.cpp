@@ -23,6 +23,7 @@ using amberedit::domain::MessageDraft;
 using amberedit::test::AreaFixture;
 using amberedit::test::TempSquishBase;
 using amberedit::ui::term::Event;
+using amberedit::test::valueOf;
 
 namespace message_list = amberedit::ui::screens::message_list;
 namespace message_read = amberedit::ui::screens::message_read;
@@ -60,7 +61,7 @@ void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
         draft.subject = letter.subject;
         draft.origAddr = *FtnAddress::parse(letter.address);
         draft.lines = {"Message number " + std::to_string(i + 1) + "."};
-        REQUIRE(base->write(draft) != 0);
+        REQUIRE(valueOf(base->write(draft)) != 0);
     }
 
     fixture.manager.closeCurrentArea();

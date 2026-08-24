@@ -27,6 +27,7 @@ using amberedit::test::AreaFixture;
 using amberedit::test::TempSquishBase;
 using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
+using amberedit::test::valueOf;
 
 namespace find_dialog = amberedit::ui::find_dialog;
 namespace message_list = amberedit::ui::screens::message_list;
@@ -89,7 +90,7 @@ void putMessages(AreaFixture& fixture, const std::vector<Letter>& letters) {
         draft.lines = letter.lines;
         draft.charset = letter.charset;
         draft.kludges = {"CHRS: " + letter.charset + " 2"};
-        REQUIRE(base->write(draft) != 0);
+        REQUIRE(valueOf(base->write(draft)) != 0);
     }
 
     fixture.manager.closeCurrentArea();

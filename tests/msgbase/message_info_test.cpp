@@ -66,7 +66,8 @@ std::string valueOf(const MessageInfo& info, const std::string& label) {
 TEST_CASE("A Squish message says what the base holds about it [info][squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Squish, "localnet")));
+    REQUIRE(
+        msgbase.open(areaAt(base.path(), MsgBaseType::Squish, "localnet")).has_value());
     REQUIRE(msgbase.count() > 1);
 
     const MessageInfo info = msgbase.info(1);
@@ -108,7 +109,8 @@ TEST_CASE("A Squish message says what the base holds about it [info][squish]") {
 TEST_CASE("An info report is only ever of a message that is there [info][squish]") {
     TempSquishBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Squish, "localnet")));
+    REQUIRE(
+        msgbase.open(areaAt(base.path(), MsgBaseType::Squish, "localnet")).has_value());
 
     CHECK(msgbase.info(0).empty());
     CHECK(msgbase.info(msgbase.count() + 1).empty());
@@ -144,7 +146,7 @@ TEST_CASE("The text in an info report is converted like any other [info][squish]
 TEST_CASE("A JAM message says what its subfields hold [info][jam]") {
     TempJamBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Jam, "area2")));
+    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Jam, "area2")).has_value());
     REQUIRE(msgbase.count() == 1);
 
     const MessageInfo info = msgbase.info(1);
@@ -182,7 +184,7 @@ TEST_CASE("A JAM message says what its subfields hold [info][jam]") {
 TEST_CASE("A Fido *.msg message says which file it is [info][sdm]") {
     TempSdmBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Sdm, "netmail")));
+    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Sdm, "netmail")).has_value());
     REQUIRE(msgbase.count() > 0);
 
     const MessageInfo info = msgbase.info(1);

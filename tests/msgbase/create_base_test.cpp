@@ -17,6 +17,7 @@ using amberedit::domain::MsgBaseType;
 using amberedit::msgbase::FtnMsgBase;
 using amberedit::test::TempDir;
 using amberedit::test::TempSquishBase;
+using amberedit::test::valueOf;
 
 namespace fs = std::filesystem;
 
@@ -67,7 +68,7 @@ void checkCreatedBaseTakesAMessage(const AreaConfig& area) {
     FtnMsgBase base;
     REQUIRE(base.open(area).has_value());
     CHECK(base.count() == 0);
-    REQUIRE(base.write(firstMessage()) == 1);
+    REQUIRE(valueOf(base.write(firstMessage())) == 1);
     base.close();
 
     FtnMsgBase again;
