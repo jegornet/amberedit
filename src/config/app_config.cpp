@@ -139,6 +139,21 @@ const ListFormatSpec& msgFormatSpec() {
     return spec;
 }
 
+/// The same letters again, under the setting that lays the reader's sidebar out.
+/// One format rather than two, and the default is the panel's own: a window that
+/// narrow beside the message has no room for the number column the table has.
+const ListFormatSpec& sidebarFormatSpec() {
+    static const ListFormatSpec spec{
+        "reader_sidebar_msglist_format",
+        {{'a', kAutoWidth}, {'f', 20}, {'t', 20}, {'s', 0}, {'d', kAutoWidth, true}},
+        "a number, f from, t to, s subject, d date",
+        "f0 t0 d(%d %b %H:%M)\\ns",
+        "",
+        "d date",
+    };
+    return spec;
+}
+
 MsgFieldKind msgFieldOf(char letter) {
     switch (letter) {
         case 'a': return MsgFieldKind::Number;
@@ -306,17 +321,23 @@ Result<std::string> readTimeFormat(const CfgEntry& entry) {
 /// Only the message list has any — its Date column — and each is checked before
 /// a line of it is drawn, a stamp that will not write being a mistake worth
 /// stopping for rather than a column of blanks nobody can explain.
+Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormatRow& row) {
+    for (const auto& line : row) {
+        for (const auto& field : line) {
+            if (field.format.empty()) continue;
+            const auto checked = checkTimeFormat(
+                entry, entry.key + "'s " + std::string(1, field.letter) + "(...)",
+                field.format);
+            if (!checked) return tl::make_unexpected(checked.error());
+        }
+    }
+    return true;
+}
+
 Result<bool> checkFieldFormats(const CfgEntry& entry, const ListFormats& formats) {
     for (const ListFormatRow* row : {&formats.narrow, &formats.wide}) {
-        for (const auto& line : *row) {
-            for (const auto& field : line) {
-                if (field.format.empty()) continue;
-                const auto checked = checkTimeFormat(
-                    entry, entry.key + "'s " + std::string(1, field.letter) + "(...)",
-                    field.format);
-                if (!checked) return tl::make_unexpected(checked.error());
-            }
-        }
+        const auto checked = checkFieldFormats(entry, *row);
+        if (!checked) return tl::make_unexpected(checked.error());
     }
     return true;
 }
@@ -755,6 +776,58 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         const auto read = entry.flag();
         if (!read) return tl::make_unexpected(read.error());
         cfg.highlightUnread = *read;
+    } else if (key == "reader_sidebar_threshold") {
+        // Zero is no panel at all, and it is a width rather than a flag: no
+        // window is nought columns wide, so the width that never comes is the
+        // one way of saying never that keeps this a single question — how wide
+        // a window has to be before the panel is worth its columns. `off` is
+        // the same answer spelled out, for whoever would rather read it than
+        // work it out.
+        if (!entry.values.empty() && text::iequals(entry.values.front(), "off")) {
+            if (entry.values.size() != 1) {
+                return entry.fail(
+                    "reader_sidebar_threshold: `off` is the whole of the value");
+            }
+            cfg.readerSidebarThreshold = 0;
+        } else {
+            // The ceiling is `reader_sidebar_width`'s, the two being widths of
+            // the same screen: past it nothing is ever dragged, and a threshold
+            // no window reaches is the panel off for good — which zero says
+            // outright and without the guessing.
+            const auto read = entry.numberIn(0, 255);
+            if (!read) return tl::make_unexpected(read.error());
+            // And the floor is a column over `adaptive_ui_threshold`'s own
+            // default: the panel wants a window wider than a merely wide one,
+            // and at eighty and under there is the message and nothing else.
+            // Refused here rather than by the range above, so that the complaint
+            // can name zero as well — somebody writing 30 wants the panel gone
+            // more often than they want it at thirty columns.
+            if (*read != 0 && *read < 81) {
+                return entry.fail(
+                    "reader_sidebar_threshold is 0 for no sidebar at all, or the width "
+                    "a window has to reach before there is one — 81 columns at the "
+                    "least, a window of eighty being the message and nothing else");
+            }
+            cfg.readerSidebarThreshold = static_cast<int>(*read);
+        }
+    } else if (key == "reader_sidebar_width") {
+        // The floor is a panel that can still hold a name; the ceiling is past
+        // any window a panel is a panel in, and is there to catch a width typed
+        // with a digit too many rather than to say what is sensible. What is
+        // left for the message is not this setting's business — a width the
+        // window has no room for keeps the panel off, and says so by the panel
+        // not being there.
+        const auto read = entry.numberIn(16, 255);
+        if (!read) return tl::make_unexpected(read.error());
+        cfg.readerSidebarWidth = static_cast<int>(*read);
+    } else if (key == "reader_sidebar_msglist_format") {
+        const auto read = parseOneListFormat(entry, sidebarFormatSpec());
+        if (!read) return tl::make_unexpected(read.error());
+        // Held to exactly what `msglist_format`'s `d(...)` is held to: it is the
+        // same column, written by the same strftime, in a narrower place.
+        const auto checked = checkFieldFormats(entry, *read);
+        if (!checked) return tl::make_unexpected(checked.error());
+        cfg.readerSidebarFormat = formatOf<MsgListFormat>(*read, msgFieldFrom);
     } else if (key == "reader_scrollbar") {
         const auto read = entry.flag();
         if (!read) return tl::make_unexpected(read.error());
@@ -829,12 +902,11 @@ Result<bool> applySetting(AppConfig& cfg, const CfgEntry& entry) {
         cfg.twitMode = *read;
     } else if (key == "adaptive_ui_threshold") {
         // The floor is where a window still has room for the things
-        // `when_narrow` puts on the screen — under twenty columns a menu
-        // button has no corner left to stand in — and the ceiling is a window
-        // nothing sane
-        // is dragged past, where every window-led setting would be stuck on
-        // the one side of the line for good.
-        const auto read = entry.numberIn(20, 1000);
+        // `when_narrow` puts on the screen beside a message; the ceiling is a
+        // window nothing is ever dragged past, where every window-led setting
+        // would be stuck on the one side of the line for good. The same 255 the
+        // sidebar's two widths stop at — they are all widths of one screen.
+        const auto read = entry.numberIn(40, 255);
         if (!read) return tl::make_unexpected(read.error());
         cfg.adaptiveUiThreshold = static_cast<int>(*read);
     } else if (key == "back_button") {

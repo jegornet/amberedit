@@ -15,7 +15,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-four constants for the thirty-eight roles below. Each is named after
+/// Twenty-five constants for the thirty-nine roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -93,6 +93,11 @@ inline constexpr Color kError{196};        // #ff0000, red
 /// A message written here that has not gone out yet. Softer than `kError`: it is
 /// a state the user put the message in rather than something that went wrong.
 inline constexpr Color kUnsent{210};  // #ff8787, salmon
+/// Behind the message the reader's sidebar marks: a step above the screen's own
+/// black, dark enough that the panel does not compete with the message beside it
+/// and light enough that the bar is there to be seen. A fill and nothing else —
+/// it is never written in, `selection_text` being what stands on it.
+inline constexpr Color kSidebarSelection{236};  // #303030, two steps above black
 
 }  // namespace builtin_theme
 
@@ -113,6 +118,19 @@ struct Palette {
     /// Written on that fill. Its own role rather than the message text reused:
     /// a theme that selects with a light fill needs something darker here.
     Color selectionText = builtin_theme::kSelectionText;
+    /// Behind the message the reader's sidebar marks. A second selection fill
+    /// because the panel is marking rather than choosing: the message is the one
+    /// on the screen beside it, the keyboard is in the reader and never in the
+    /// panel, and a bar as loud as `selection` would put two chosen rows on one
+    /// screen and leave the eye to work out which of them Enter would act on.
+    ///
+    /// A dark step above the screen's own background here, and the quiet
+    /// `dimmed` grey in the other themes that ship: what the role asks of a
+    /// theme is a fill the eye passes over on its way to the message, and which
+    /// end of the ramp that is depends on where the theme's own background sits.
+    /// What is written on it is `selection_text`, as on the bar in the lists —
+    /// every theme picks something near-white there.
+    Color readerSidebarMsglistSelected = builtin_theme::kSidebarSelection;
     /// Behind a field that is typed into but is not the one being typed into
     /// now: the header block of a message being written. A fill rather than a
     /// border, which would cost a column on each side of every field and a row

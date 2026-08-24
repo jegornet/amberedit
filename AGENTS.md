@@ -674,6 +674,14 @@ Rules that hold the design together:
   on that message. `reflowOffset()` at the top of `render()` holds the selected
   row's screen line when the two formats differ in height, exactly as the area
   list's does.
+- **The header window is asked for by range**, `ensureHeaders(state, first, count)`,
+  and the no-argument form is the list asking for its own. There is one window and
+  whoever asked last has it, which is fine because the two screens are never both
+  in front of the user: the list re-reads its own as it opens, and the reader asks
+  through `ensureReaderHeaders()` — the sidebar's rows where one is up, the
+  message being loaded where none is. Do not put the list's own call back into the
+  reader's paths: `messageOffset` is wherever the list was left, and a window read
+  around it and then around the panel would be read twice per keystroke.
 - **The width falls out in three passes, not two**, which is the one way
   `msg_format::layoutLine()` differs from the area list's. First the fields with a
   width of their own, and the number column, which is as wide as the highest
@@ -786,6 +794,72 @@ Rules that hold the design together:
     it, and it is out of the default `readerMenu` and out of the default
     `readerHints`. Answering somebody the message did not come from is a thing
     wanted now and then and never by accident.
+
+- **The sidebar is the reader's and never has the keyboard.** In a window of
+  `reader_sidebar_threshold` columns or more — **`0` unless the config asks for
+  one**, and `120` is the width `amberedit.cfg.example` names as worth turning it
+  on at —
+  `ui/reader_sidebar.*` puts the messages of the area up the left-hand side, with
+  a `separator`-colored rule between it and the text. The message the reader is
+  showing is the one it marks, read off `readHeader->number` rather than off
+  `messageCursor`: the compose screen loads a message back into the reader
+  directly, and what the panel is for is saying which message is on the screen
+  beside it. A click opens that message through `openMessage()`, the same call a
+  row of the message list opens through — a row of either is a place in the area,
+  so a twit standing there is walked past. The wheel over it scrolls it, through
+  `list_wheel_throttle` like the lists. **Nothing gives it a cursor of its own**:
+  two lists of messages on one screen, each with one, is two places for the
+  reading to be, and `l` still opens the whole message list screen.
+  - `reader_sidebar::follow()` is called from `loadMessage()` and nowhere else,
+    so every way to another message moves the panel with it — the compose
+    screen's way back included, and in a narrow window too, which is what lets
+    dragging the window out open the panel on the right message rather than at
+    the top of the area. It scrolls a row where the message is a row off either
+    edge and centres where it is anywhere else: the first is the reading walking
+    on, the second is a jump — a thread followed, a search landed, an area opened
+    at its mark.
+  - `render()` only clamps the offset to the area, so the wheel can scroll the
+    panel away from the message being read and it stays there. The exception is
+    `readerSidebarItemsShown`: a window resized under the panel can carry that
+    message off it with nothing having been asked for, and then the panel goes
+    back to it.
+  - **Everything the reader draws is measured against `AppState::readerPaneWidth()`**,
+    never `width`: the title, the header block, the rules, `relayout()`'s wrapping
+    and the body's scrollbar. `readerPaneLeft()` is what a click on the Back
+    button is measured from — `back_button::clicked()` takes the column the box
+    starts in, because the button hangs from the top-left of its *screen* and that
+    is no longer the terminal's. The menu button is still measured against
+    `width`, the pane's right edge being the window's.
+  - **`reader_sidebar_width` is the panel, and a fixed strip on purpose** — 39
+    by default, which is `reader_sidebar_threshold` less the eighty columns an
+    FTN message is written to and the rule between them, so the window where the
+    panel first appears is not also the one where the art in a message starts
+    wrapping. Every column of a wider window goes to the message: a panel that
+    re-shared itself with the terminal would shuffle its fields about under a
+    reader who only wanted a wider message. **A width the window has no room
+    beside is not clamped** — `readerSidebarShown()` keeps the panel off where
+    less than `kSidebarMinPane` would be left, since what remains at that point
+    is a strip rather than a message.
+  - **What a row holds is `reader_sidebar_msglist_format`** — `msglist_format`'s
+    letters, `parseOneListFormat()`, and one format rather than two: the panel is
+    only ever up in a wide window, so there is no narrow one to write a second
+    for. `"f0 t0 d(%d %b %H:%M)\ns"` by default, and no number column, the
+    reader's own title carrying which message of how many.
+  - Rows are drawn by `msg_format::drawLine()`, shared with the message list, so
+    a message reads the same in the panel as it does in the table: `Paint` is the
+    ranking — highlighted over unsent over unread — and the `Ink`s are the runs'.
+  - **The panel marks; it does not choose, and its bar says so.**
+    `Paint::Marked` fills the row with `reader_sidebar_msglist_selected` where
+    `Paint::Selected` fills it with `selection`; both write `selection_text` on
+    it, every theme picking something near-white there. The two are never on one
+    screen at once — the row Enter would act on is the list's and the row beside
+    the message is the panel's — and two bars of one loudness would leave the eye
+    to work out which was which. **What goes in the role is the theme's
+    own business**, and nothing here constrains it: `builtin_theme::kSidebarSelection`
+    is a dark step above the built-in palette's near-black, and every file under
+    `themes/` answers for itself. A fill that disappears into one background
+    shouts on the next, so this is a thing chosen by eye against the rest of a
+    palette rather than derived from another role — leave the numbers alone.
 
 - **`reply_to_area` moves the picker's cursor**, and outside this screen says
   where an echo's carbon copies go. `askArea()` looks the tag up in the
@@ -1544,8 +1618,8 @@ taking a row.
   optimisation — index 102 would go out as #000066. Color pairs are allocated as
   first asked for, so the count follows the theme rather than the roles.
 - **Adding a color role means three edits**: the field in `Palette`, the line in
-  `kFields` in `ui/theme.cpp` tying it to its theme-file key, and an entry in
-  every file under `themes/`. Tests load the shipped themes — `black.cfg`
+  `kFields` in `ui/theme.cpp` tying it to its theme-file key (and the array's
+  size with it), and an entry in every file under `themes/`. Tests load the shipped themes — `black.cfg`
   against the defaults field by field, `16_colors.cfg` for the opposite, that no
   field was left at a default, and every file against `black.cfg`'s set of keys —
   so forgetting a file fails the build.
@@ -1925,6 +1999,26 @@ taking a row.
   `show_recd_date` — is answered by `AppState::shown()`, the one place that reads
   a `when_narrow` / `when_wide` from either side. Write the width as the setting,
   never as a literal 80.
+- **`reader_sidebar_threshold` is a second line and deliberately so.**
+  `adaptive_ui_threshold` is where the interface stops laying things side by side;
+  the reader's sidebar is a whole panel rather than a column, and wants a window
+  wider than a merely wide one. Nothing else reads it, and `AppState::shown()`
+  knows nothing about it: it is a width against a width
+  (`AppState::readerSidebarShown()`), not a `Visibility`. **Never is written as a
+  width too** — `0`, spelled `off` for whoever prefers the word — rather than as
+  a second setting beside it: the question the line answers is how wide a window
+  has to be, and a width no window reaches is the answer that keeps it one
+  question. Widths between 1 and 80 are refused, and the complaint names zero: the
+  panel wants a window wider than a merely wide one, so the floor is a column
+  over `adaptive_ui_threshold`'s own default, and the ceiling is
+  `reader_sidebar_width`'s 255.
+  **The default is that zero**: the reader is a screen for reading one message
+  on, and a panel is the screen given over to something else — worth having where
+  somebody asks for it and not worth appearing unasked the first time a terminal
+  is dragged wide. `amberedit.cfg.example` ships the line commented out at 120,
+  which is `reader_sidebar_width` plus its rule plus the eighty columns an FTN
+  message is written to; the tests that drive the panel state a threshold of
+  their own rather than leaning on a default that means "no panel".
 - `FtnMsgBase::open()` confirms the base is on disk with `probeType()` first.
   That one is for the message: the driver would refuse a missing base fine, but
   its error would not say which format was expected, and squish.cfg reaches the

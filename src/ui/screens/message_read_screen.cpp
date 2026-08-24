@@ -23,6 +23,7 @@
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
+#include "ui/reader_sidebar.hpp"
 #include "ui/screens/compose_screen.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/scrollbar.hpp"
@@ -267,7 +268,8 @@ HeaderBlock headerBlock(const AppState& state, const domain::MessageHeader& head
     const bool recd = state.recdRowShown();
     const int stamps =
         std::max(displayWidth(writtenStamp), recd ? displayWidth(arrivedStamp) : 0);
-    const HeaderLayout layout = headerLayout(state.width - kRightPad, column, stamps);
+    const HeaderLayout layout =
+        headerLayout(state.readerPaneWidth() - kRightPad, column, stamps);
     Elements rows{
         headerRow("From", header.from, state.isOwnName(header.from), fromAddr, layout,
                   search),
@@ -498,6 +500,20 @@ uint32_t unskipped(AppState& state, uint32_t number, int step) {
     return 0;
 }
 
+/// The headers the reader wants under it before it draws: the run of them the
+/// sidebar is showing where one is up, and the message being loaded where none
+/// is. One call rather than one for each, so the window is read from disk once
+/// and cannot be pulled two ways in the same keystroke — the message list is
+/// scrolled wherever it was left, and it asks for its own window as it opens.
+void ensureReaderHeaders(AppState& state, uint32_t number) {
+    if (state.readerSidebarShown()) {
+        message_list::ensureHeaders(state, state.readerSidebarOffset,
+                                    state.readerSidebarItems());
+        return;
+    }
+    message_list::ensureHeaders(state, static_cast<int>(number) - 1, 1);
+}
+
 int maxScroll(const AppState& state) {
     return std::max(0, static_cast<int>(state.readLines.size()) - state.readRows());
 }
@@ -664,12 +680,10 @@ void switchMessage(AppState& state, int delta) {
         return;
     }
 
-    state.messageCursor = target;
     // The list cursor has to stay consistent: going back should land the user
     // on the message they were reading. Where the list will be scrolled to is
     // not decided here — it is centred on this message when it is opened.
-    message_list::ensureHeaders(state);
-
+    state.messageCursor = target;
     loadMessage(state, static_cast<uint32_t>(target + 1));
 }
 
@@ -765,6 +779,13 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
         return false;
     }
 
+    // The panel beside the text follows the message about to be shown, and the
+    // headers under both it and this screen are read in the one go. Here rather
+    // than in each of the ways to another message: every one of them comes
+    // through this function, the compose screen's way back included.
+    reader_sidebar::follow(state, msgNumber);
+    ensureReaderHeaders(state, msgNumber);
+
     state.readHeader = state.base->header(msgNumber);
     state.readBody = state.base->body(msgNumber);
     state.readThread = state.base->thread(msgNumber);
@@ -814,6 +835,7 @@ void showEmptyArea(AppState& state) {
     // cleared here rather than left over from the area before.
     state.scrollbarShown = false;
     state.messageCursor = 0;
+    state.readerSidebarOffset = 0;
 }
 
 void openMessage(AppState& state, uint32_t number) {
@@ -838,7 +860,6 @@ void openMessage(AppState& state, uint32_t number) {
     if (target == 0) target = number;
 
     state.messageCursor = static_cast<int>(target) - 1;
-    message_list::ensureHeaders(state);
     loadMessage(state, target);
 }
 
@@ -849,7 +870,6 @@ void goToMessage(AppState& state, uint32_t number) {
     // the reader is showing rather than on wherever it was left. Where the list
     // is scrolled to follows from that when it opens, not from here.
     state.messageCursor = static_cast<int>(number) - 1;
-    message_list::ensureHeaders(state);
     loadMessage(state, number);
 }
 
@@ -952,7 +972,6 @@ void deleteMessage(AppState& state) {
     // what followed it — except at the end of the area, where nothing did.
     const uint32_t next = std::min(number, state.messageCount);
     state.messageCursor = static_cast<int>(next) - 1;
-    message_list::ensureHeaders(state);
     loadMessage(state, next);
 }
 
@@ -1262,10 +1281,12 @@ void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
 
 void relayout(AppState& state) {
     if (!state.readBody) return;
-    // The body spans the window minus the one-column margins the screen sits in.
-    // The terminal can be resized mid-session, so this runs on every frame and
-    // re-lays out as soon as the width actually changes.
-    const int available = std::max(1, state.width);
+    // The body spans the reader's own half of the window — the whole of it
+    // where no sidebar is up, and everything left of the rule where one is. The
+    // terminal can be resized mid-session and the panel comes and goes with it,
+    // so this runs on every frame and re-lays out as soon as the width the text
+    // actually has changes.
+    const int available = std::max(1, state.readerPaneWidth());
     if (available == state.readLayoutWidth) return;
 
     // A twit's text is not laid out at all: what stands in its place is the one
@@ -1429,8 +1450,9 @@ Element render(AppState& state) {
 
     // Rules rather than blank lines: they mark off the title and the header
     // block without costing any extra height.
+    const int paneWidth = state.readerPaneWidth();
     auto rule = [&] {
-        return text(horizontalRule(state.width)) | color(theme::palette.separator);
+        return text(horizontalRule(paneWidth)) | color(theme::palette.separator);
     };
 
     // The two corners the title row shares: the way back on the left and the way
@@ -1439,7 +1461,7 @@ Element render(AppState& state) {
     const bool back = state.backButtonShown();
     const bool menu = state.readerMenuShown();
     const int titleRoom =
-        std::max(1, state.width - (back ? kBackWidth : 0) - (menu ? kMenuWidth : 0));
+        std::max(1, paneWidth - (back ? kBackWidth : 0) - (menu ? kMenuWidth : 0));
     const std::string titleShown = truncateToWidth(titleText, titleRoom);
 
     // Where the message sits in its thread, beside the number that names it:
@@ -1480,7 +1502,7 @@ Element render(AppState& state) {
     const bool pressedBack = state.isPressed(AppState::Pressed::Back);
     const bool pressedMenu = state.isPressed(AppState::Pressed::MenuButton);
     const int ruleWidth = std::max(
-        0, state.width - (back ? kBackWidth + 1 : 0) - (menu ? kMenuWidth + 1 : 0));
+        0, paneWidth - (back ? kBackWidth + 1 : 0) - (menu ? kMenuWidth + 1 : 0));
 
     Elements titleRow;
     Elements ruleRow;
@@ -1511,16 +1533,21 @@ Element render(AppState& state) {
         content.push_back(rule());
     }
     content.insert(content.end(), block.rows.begin(), block.rows.end());
-    content.push_back(closingRule(size, location, block.column, state.width));
+    content.push_back(closingRule(size, location, block.column, paneWidth));
     content.push_back(viewport);
 
-    return vbox(std::move(content));
+    Element reader = vbox(std::move(content));
+    if (!state.readerSidebarShown()) return reader;
+    // The panel first, the reader taking what is left: everything the reader
+    // laid out above was measured against exactly that, so it is handed the
+    // room rather than asked how much it wants.
+    return hbox({reader_sidebar::render(state), std::move(reader) | flex});
 }
 
 bool handleEvent(AppState& state, const Event& event) {
     // The back button, where it is shown, goes the same way Esc does here —
     // out of the area, not back a screen.
-    if (state.backButtonShown() && back_button::clicked(event)) {
+    if (state.backButtonShown() && back_button::clicked(event, state.readerPaneLeft())) {
         state.showClick(AppState::Pressed::Back);
         message_list::leaveArea(state);
         return true;
@@ -1533,6 +1560,20 @@ bool handleEvent(AppState& state, const Event& event) {
         openMenu(state);
         return true;
     }
+    // The sidebar, where it is up. A row clicked is opened in the reader the
+    // same way a row of the message list is — a place in the area, so a twit
+    // standing there is walked past — and the panel never takes the keyboard
+    // with it: what follows is the reader reading the message that was picked.
+    if (const uint32_t picked = reader_sidebar::clickedMessage(state, event);
+        picked != 0) {
+        state.showClick();
+        openMessage(state, picked);
+        return true;
+    }
+    // The wheel turned over the panel scrolls the panel and nothing else.
+    // Before the reader's own wheel handling below, which scrolls the text: the
+    // pointer says which of the two was meant.
+    if (reader_sidebar::wheeled(state, event)) return true;
     // A click on one of the thread markers goes to the message it names.
     if (const auto click = leftClick(event)) {
         for (const auto& link : state.readThreadLinks) {

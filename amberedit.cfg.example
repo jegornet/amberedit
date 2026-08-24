@@ -430,6 +430,27 @@ highlight_unread on
 # Optional; on by default. The `b` key toggles it for the session.
 reader_scrollbar on
 
+# How wide the window has to be before the reader puts the list of messages up
+# its left-hand side, separated from the message by a vertical rule. Optional; 0
+# by default — no panel at any width — and "off" says the same. 81 to 255
+# otherwise; 120 is the width worth turning it on at, leaving the message the 80
+# columns an FTN message is written to.
+##reader_sidebar_threshold 120
+
+# How many columns that panel stands in, the rule beside it not counted.
+# Optional; 39 by default, which leaves the message its 80 columns in a window of
+# 120; 16 to 255. A fixed strip: every column of a wider window goes to the
+# message. A width the window has no room beside leaves the panel off in that
+# window rather than being cut down to fit.
+reader_sidebar_width 39
+
+# What each row of that panel holds. Optional. Written exactly as msglist_format
+# is — the same letters, widths and d(...) — but one format rather than two, the
+# panel being only ever on the screen in a wide window. The default puts the two
+# names and the stamp on one line and the subject on the next; no number column,
+# which the reader's own title carries.
+reader_sidebar_msglist_format "f0 t0 d(%d %b %H:%M)\ns"
+
 # Whether links in the message text are underlined as well as colored.
 # Optional; on by default.
 reader_underline_links on
@@ -539,7 +560,7 @@ compose_xc_list verbose
 
 # The width, in columns, where a window stops counting as a narrow one — the line
 # every "when_narrow" and "when_wide" setting is read against. Optional; 80 by
-# default, 20 to 1000. Under it a window is narrow, at it and over it is wide,
+# default, 40 to 255. Under it a window is narrow, at it and over it is wide,
 # measured again on every frame. The message list reads the same line without a
 # setting of its own: a narrow window drops its To column and gives the room to
 # the subjects.

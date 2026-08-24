@@ -138,6 +138,23 @@ struct AppState {
     int messageCursor{0};
     int messageOffset{0};
 
+    /// Which message stands on the top row of the reader's sidebar, counted
+    /// from zero. Its own scrolling position rather than `messageOffset`: the
+    /// panel and the list screen are two windows on the same area, of different
+    /// heights and with rows of different heights, and neither is ever looking
+    /// at what the other is.
+    ///
+    /// Settled by `reader_sidebar::follow()` as each message is loaded — so it
+    /// tracks the message on the screen even in a window too narrow to show the
+    /// panel, and widening the window puts it up on the right message.
+    int readerSidebarOffset{0};
+    /// How many messages the sidebar held when it was last drawn, and zero
+    /// before it has been drawn at all. A window resized under the panel is what
+    /// this is for: the offset is the user's to scroll where the message being
+    /// read is on it already, and a screen made shorter can carry that message
+    /// off the panel with nothing having been asked for.
+    int readerSidebarItemsShown{0};
+
     /// A window of loaded headers: keeping a whole area in memory (tens of
     /// thousands of messages) is pointless, and the base reads every header from
     /// disk anyway.
@@ -1270,6 +1287,60 @@ struct AppState {
     /// of the screen would be read as one that is all there.
     [[nodiscard]] int messageListItems() const {
         return std::max(1, messageListRows() / msgRowHeight());
+    }
+
+    /// What the message beside the reader's sidebar is never left less than.
+    /// The panel is a width the config states outright, and a config may state
+    /// one the window has no room for: what would be left is not a message but a
+    /// strip, so in that window the panel is simply not up.
+    static constexpr int kSidebarMinPane = 24;
+
+    /// The columns the reader's sidebar stands in, from `reader_sidebar_width`.
+    /// The rule closing it off is a column of its own and no part of this.
+    ///
+    /// A fixed strip rather than a share of the window: what the panel holds is
+    /// two names, a stamp and a subject, and a column of them that re-shared
+    /// itself every time the terminal was dragged would shuffle its fields about
+    /// under a reader who only wanted a wider message. The window grows into the
+    /// message instead, which is what the window is for.
+    [[nodiscard]] int readerSidebarWidth() const { return config.readerSidebarWidth; }
+
+    /// Whether the reader has that panel up: `reader_sidebar_threshold` columns
+    /// or more, and enough left over beside it for a message to be read in.
+    /// `off` is the threshold at zero, and no window is ever wide enough.
+    ///
+    /// Asked on every frame, like every other width the interface answers to.
+    [[nodiscard]] bool readerSidebarShown() const {
+        if (config.readerSidebarThreshold <= 0) return false;
+        if (width < config.readerSidebarThreshold) return false;
+        return width - readerSidebarWidth() - 1 >= kSidebarMinPane;
+    }
+
+    /// The columns the reader itself lays out in — the whole window, less the
+    /// panel and the rule beside it where one is up. Everything the reader
+    /// draws is measured against this rather than against `width`: the title,
+    /// the header block, the rules, the body's wrapping and its scrollbar.
+    [[nodiscard]] int readerPaneWidth() const {
+        return readerSidebarShown() ? width - readerSidebarWidth() - 1 : width;
+    }
+
+    /// Which column the reader itself begins in, which is what a click on
+    /// something in its top-left corner is measured from.
+    [[nodiscard]] int readerPaneLeft() const {
+        return readerSidebarShown() ? readerSidebarWidth() + 1 : 0;
+    }
+
+    /// How many lines tall one row of the sidebar stands: a line per line of
+    /// `reader_sidebar_msglist_format`, and never less than one.
+    [[nodiscard]] int readerSidebarRowHeight() const {
+        return std::max(1, static_cast<int>(config.readerSidebarFormat.size()));
+    }
+
+    /// How many messages the sidebar shows at once. It carries no title and no
+    /// column headings — the reader's own title says which area and which
+    /// message of how many — so it runs the whole height of the screen.
+    [[nodiscard]] int readerSidebarItems() const {
+        return std::max(1, height / readerSidebarRowHeight());
     }
 
     /// Lines available for the area list, which carries no title — the area

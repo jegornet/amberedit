@@ -572,6 +572,63 @@ struct AppConfig {
     /// `areaListScrollbar` where that one is switched on.
     bool messageListScrollbar{true};
 
+    /// The width, in columns, at which the reader puts the list of messages up
+    /// its left-hand side, from `reader_sidebar_threshold`.
+    ///
+    /// Zero is no panel at all, however wide the window is dragged, and it is a
+    /// width rather than a flag: no window is nought columns wide, so the width
+    /// that never comes is the one way of saying never that keeps this a single
+    /// question. The config may write it as `0` or as `off`, which are the same
+    /// answer read two ways.
+    ///
+    /// **Zero unless the config asks for a panel.** The reader is a screen for
+    /// reading one message on, and a panel is the screen given over to something
+    /// else — worth having where somebody wants it and not worth appearing
+    /// unasked the first time a terminal is dragged wide. A hundred and twenty
+    /// is the width to turn it on at: `reader_sidebar_width` and the rule beside
+    /// it come to forty, so a window that size is the narrowest that still
+    /// leaves the message the eighty columns an FTN message is written to.
+    ///
+    /// Its own threshold rather than `adaptive_ui_threshold`: that line is where
+    /// the interface stops laying things side by side, and this is a whole panel
+    /// rather than a column, so it wants a window wider than a merely wide one.
+    ///
+    /// Read on every frame, like every other width the interface answers to: a
+    /// window can be dragged, and the panel comes and goes with it.
+    int readerSidebarThreshold{0};
+
+    /// The columns that panel stands in, from `reader_sidebar_width` — the rule
+    /// closing it off is a column of its own and no part of it.
+    ///
+    /// Thirty-nine by default, which is what leaves the message its eighty
+    /// columns in a window of exactly `reader_sidebar_threshold`: eighty is what
+    /// an FTN message is written to, and the window where the panel first
+    /// appears should not also be the one where the art in a message starts
+    /// wrapping. A wider window gives the whole of the difference to the
+    /// message; the panel is a fixed strip, so the messages in it do not shuffle
+    /// between their columns every time the terminal is dragged.
+    ///
+    /// A width leaving too little beside it is not clamped — the panel simply
+    /// stays off in a window that narrow, which is `readerSidebarShown()`.
+    int readerSidebarWidth{39};
+
+    /// What each row of that panel holds, from `reader_sidebar_msglist_format`
+    /// — `msglist_format`'s letters, read by the same parser, and one format
+    /// rather than two: the panel is only ever on the screen in a window wide
+    /// enough for it, so there is no narrow window to write a second for.
+    ///
+    /// The default is `"f0 t0 d(%d %b %H:%M)\ns"`: the two names sharing what
+    /// the stamp leaves of the first line, and the subject across the whole of
+    /// the second. No number column — which message of how many is in the
+    /// reader's own title, a column of digits down a panel this narrow costs
+    /// the names more than it says.
+    MsgListFormat readerSidebarFormat{{{MsgFieldKind::From, 0},
+                                       {MsgFieldKind::Space, 1},
+                                       {MsgFieldKind::To, 0},
+                                       {MsgFieldKind::Space, 1},
+                                       {MsgFieldKind::Date, kAutoWidth, "%d %b %H:%M"}},
+                                      {{MsgFieldKind::Subject, 0}}};
+
     /// Whether the message list paints a message nobody has read yet in
     /// `msglist_unread`, from `highlight_unread`.
     ///

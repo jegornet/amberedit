@@ -131,4 +131,14 @@ struct ListFormats {
 [[nodiscard]] Result<ListFormats> parseListFormats(const CfgEntry& entry,
                                                    const ListFormatSpec& spec);
 
+/// The one format a setting that has no two sides to it takes — the reader's
+/// sidebar, which is only ever on the screen in a window wide enough for it and
+/// so has no narrow window to name a second format for.
+///
+/// A second value is refused rather than read as the wide window's: a setting
+/// that took two everywhere else and one here would be a rule nobody could
+/// remember, and a format with a space in it is written in quotes either way.
+[[nodiscard]] Result<ListFormatRow> parseOneListFormat(const CfgEntry& entry,
+                                                       const ListFormatSpec& spec);
+
 }  // namespace amberedit::config

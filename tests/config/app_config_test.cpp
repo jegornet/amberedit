@@ -365,11 +365,14 @@ TEST_CASE("AppConfig reads the adaptive UI threshold [app_config]") {
     // `when_wide` are read against.
     CHECK(with("").adaptiveUiThreshold == 80);
     CHECK(with("adaptive_ui_threshold 100\n").adaptiveUiThreshold == 100);
-    CHECK(with("adaptive_ui_threshold 20\n").adaptiveUiThreshold == 20);
+    // The two ends of the range: a window still holding what `when_narrow` puts
+    // on it beside a message, and one nothing is ever dragged past.
+    CHECK(with("adaptive_ui_threshold 40\n").adaptiveUiThreshold == 40);
+    CHECK(with("adaptive_ui_threshold 255\n").adaptiveUiThreshold == 255);
 
     // A width no window is, either way round, is a mistyped one.
-    CHECK_FALSE(loads("adaptive_ui_threshold 19\n"));
-    CHECK_FALSE(loads("adaptive_ui_threshold 1001\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold 39\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold 256\n"));
     CHECK_FALSE(loads("adaptive_ui_threshold wide\n"));
     CHECK_FALSE(loads("adaptive_ui_threshold\n"));
     CHECK_FALSE(loads("adaptive_ui_threshold 80 100\n"));
@@ -922,6 +925,100 @@ TEST_CASE("AppConfig reads the Date column's own format [app_config]") {
     CHECK_MESSAGE(contains(error6, "msglist_format's d(...)"), error6);
     const std::string error7 = formatError("\"s d( )\"");
     CHECK_MESSAGE(contains(error7, "writes no stamp at all"), error7);
+}
+
+TEST_CASE("AppConfig reads what the reader's sidebar holds [app_config]") {
+    using amberedit::config::kAutoWidth;
+    using amberedit::config::MsgFieldKind;
+    using amberedit::config::MsgListFormat;
+    using Line = amberedit::config::MsgListLine;
+
+    const auto formatOf = [](const std::string& value) {
+        return with("reader_sidebar_msglist_format " + value + "\n").readerSidebarFormat;
+    };
+    const auto formatError = [](const std::string& value) {
+        return errorWith("reader_sidebar_msglist_format " + value + "\n");
+    };
+
+    // The default panel row stands two lines tall: the two names and the stamp
+    // on one, the subject across the whole of the next, and no number column —
+    // which message of how many is in the reader's own title.
+    const MsgListFormat standard{Line{{MsgFieldKind::From, 0},
+                                      {MsgFieldKind::Space, 1},
+                                      {MsgFieldKind::To, 0},
+                                      {MsgFieldKind::Space, 1},
+                                      {MsgFieldKind::Date, kAutoWidth, "%d %b %H:%M"}},
+                                 Line{{MsgFieldKind::Subject, 0}}};
+    CHECK(with("").readerSidebarFormat == standard);
+    // And the default written out is the default read back.
+    CHECK(formatOf("\"f0 t0 d(%d %b %H:%M)\\ns\"") == standard);
+
+    // The message list's letters, read by the message list's parser: a width
+    // after the letter, the Date column's own format in brackets, `\n` for the
+    // next line of the row.
+    CHECK(formatOf("\"a4 s\"") == MsgListFormat{Line{{MsgFieldKind::Number, 4},
+                                                    {MsgFieldKind::Space, 1},
+                                                    {MsgFieldKind::Subject, 0}}});
+
+    // One format and not two: the panel is only ever on the screen in a window
+    // wide enough for it, so there is no narrow window to write a second for.
+    const std::string error = formatError("\"f0 s\" \"f t s\"");
+    CHECK_MESSAGE(contains(error, "takes one format and not two"), error);
+    // Everything the other formats refuse is refused here in the same words.
+    const std::string error2 = formatError("\"f z\"");
+    CHECK_MESSAGE(contains(error2, "is not a field"), error2);
+    const std::string error3 = formatError("\"s d(%d%n%H)\"");
+    CHECK_MESSAGE(contains(error3, "reader_sidebar_msglist_format's d(...)"), error3);
+    const std::string error4 = errorWith("reader_sidebar_msglist_format\n");
+    CHECK_MESSAGE(contains(error4, "needs the fields to show"), error4);
+}
+
+TEST_CASE("AppConfig reads how wide a window the reader's sidebar wants [app_config]") {
+    // Zero unless the config asks for a panel: the reader is a screen for
+    // reading one message on, and a panel is the screen given over to something
+    // else — worth having where somebody wants it and not worth appearing
+    // unasked the first time a terminal is dragged wide.
+    CHECK(with("").readerSidebarThreshold == 0);
+    CHECK(with("reader_sidebar_threshold 120\n").readerSidebarThreshold == 120);
+    // The two ends of the range, which are a column over `adaptive_ui_threshold`
+    // and `reader_sidebar_width`'s own ceiling.
+    CHECK(with("reader_sidebar_threshold 81\n").readerSidebarThreshold == 81);
+    CHECK(with("reader_sidebar_threshold 255\n").readerSidebarThreshold == 255);
+    // Zero is the width that never comes, and so no sidebar at any width: the
+    // setting answers one question, and never is one of the answers rather than
+    // a second setting saying so. `off` is that answer spelled out.
+    CHECK(with("reader_sidebar_threshold 0\n").readerSidebarThreshold == 0);
+    CHECK(with("reader_sidebar_threshold off\n").readerSidebarThreshold == 0);
+    CHECK(with("reader_sidebar_threshold OFF\n").readerSidebarThreshold == 0);
+
+    // Between the two, a width no window has a message left beside: refused,
+    // and the complaint names zero as well — somebody writing 30 wants the
+    // sidebar gone more often than they want it at thirty columns.
+    const std::string error = errorWith("reader_sidebar_threshold 80\n");
+    CHECK_MESSAGE(contains(error, "81"), error);
+    CHECK_MESSAGE(contains(error, "0 for no sidebar at all"), error);
+    const std::string error5 = errorWith("reader_sidebar_threshold 300\n");
+    CHECK_MESSAGE(contains(error5, "255"), error5);
+    const std::string error2 = errorWith("reader_sidebar_threshold wide\n");
+    CHECK_MESSAGE(!error2.empty(), error2);
+    const std::string error3 = errorWith("reader_sidebar_threshold off 120\n");
+    CHECK_MESSAGE(contains(error3, "`off` is the whole of the value"), error3);
+}
+
+TEST_CASE("AppConfig reads how wide the reader's sidebar stands [app_config]") {
+    // The default is what leaves the message its eighty columns in a window of
+    // 120, which is the width `amberedit.cfg.example` names as the one to turn
+    // the panel on at. The threshold itself is zero until a config states one,
+    // so the two are tied by that recommendation rather than by their defaults.
+    CHECK(with("").readerSidebarWidth == 39);
+    CHECK(120 - with("").readerSidebarWidth - 1 == 80);
+    CHECK(with("reader_sidebar_width 30\n").readerSidebarWidth == 30);
+
+    // A width a name could not stand in, and one typed with a digit too many.
+    const std::string error = errorWith("reader_sidebar_width 8\n");
+    CHECK_MESSAGE(contains(error, "16"), error);
+    const std::string error2 = errorWith("reader_sidebar_width 390\n");
+    CHECK_MESSAGE(contains(error2, "255"), error2);
 }
 
 TEST_CASE("AppConfig reads the area list order [app_config]") {

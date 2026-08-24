@@ -73,6 +73,7 @@ add_executable(amberedit_tests
   ui/wheel_throttle_test.cpp
   ui/quick_search_test.cpp
   ui/theme_test.cpp
+  ui/reader_sidebar_test.cpp
   ui/text_layout_test.cpp
   ui/bbs_codes_test.cpp
   ui/ansi_canvas_test.cpp
@@ -132,6 +133,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/keys.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/menu_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/nodelist_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/reader_sidebar.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/area_list_format.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/msg_list_format.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/text_layout.cpp

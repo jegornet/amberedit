@@ -439,6 +439,7 @@ add_executable(amberedit
   src/ui/keys.cpp
   src/ui/menu_dialog.cpp
   src/ui/nodelist_dialog.cpp
+  src/ui/reader_sidebar.cpp
   src/ui/reply_dialog.cpp
   src/ui/rescan_dialog.cpp
   src/ui/text_field.cpp

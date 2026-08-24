@@ -164,4 +164,21 @@ Result<ListFormats> parseListFormats(const CfgEntry& entry, const ListFormatSpec
     return formats;
 }
 
+Result<ListFormatRow> parseOneListFormat(const CfgEntry& entry,
+                                         const ListFormatSpec& spec) {
+    const std::string setting(spec.setting);
+    if (entry.values.empty()) {
+        return entry.fail(setting + " needs the fields to show, e.g. " + setting + " " +
+                          quoted(spec.example) +
+                          " — there is no way to ask for an empty row");
+    }
+    if (entry.values.size() > 1) {
+        return entry.fail(setting + " takes one format and not two — what it lays out " +
+                          "is only ever on the screen in a wide window; a format with " +
+                          "a space in it is written in quotes, e.g. " + setting + " " +
+                          quoted(spec.example));
+    }
+    return parseListFormat(entry, spec, entry.values.front());
+}
+
 }  // namespace amberedit::config

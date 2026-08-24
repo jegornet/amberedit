@@ -6,6 +6,7 @@
 
 #include "config/app_config.hpp"
 #include "domain/message.hpp"
+#include "ui/term/element.hpp"
 
 namespace amberedit::ui::msg_format {
 
@@ -131,5 +132,40 @@ std::vector<Run> runs(const Row& row, const Line& columns);
 /// One line of the row for `row` — the line being the one `columns` lays out,
 /// which for a format written on one line is the whole row.
 std::string line(const Row& row, const Line& columns);
+
+/// What a whole drawn line is painted in, over and above the `Ink`s its runs
+/// carry — the four things a screen may have to say about the message the row
+/// is for.
+///
+/// They are ranked rather than combined, and the ranking is the point: the
+/// cases coincide constantly, and a row painted half one way and half another
+/// would read as neither. A highlighted row outranks everything and takes its
+/// cells with it — a name picked out in another color would fight the highlight
+/// rather than add to it. A message that has not gone out outranks one nobody
+/// has read, an unsent message being unread by definition and the one of the two
+/// worth doing something about.
+///
+/// `Marked` is `Selected` said quietly, and the two are never on one screen: a
+/// list the keyboard is in draws the row Enter would act on, and a panel it is
+/// not in draws the row that happens to be on the screen beside it. Two bars of
+/// the same loudness would leave the eye to work out which of them was which.
+enum class Paint {
+    None,      ///< whatever the runs say and nothing more
+    Unread,    ///< nobody has read this message yet
+    Unsent,    ///< written here and still waiting to go out
+    Marked,    ///< the row a panel marks while the keyboard is elsewhere
+    Selected,  ///< the row the cursor stands on
+};
+
+/// One line of `row`, drawn as `columns` lays it out, in exactly `width`
+/// columns: a blank column down the left, the runs, and blanks out to the
+/// right. The margins belong to the line rather than to the screen around it,
+/// so that a highlight covers them too rather than starting a column in.
+///
+/// The table and the reader's sidebar both draw their rows through this, so a
+/// message reads the same in the panel as it does in the list — `columns` is
+/// what differs between them, being what each window's format laid out.
+[[nodiscard]] term::Element drawLine(const Row& row, const Line& columns, int width,
+                                     Paint paint);
 
 }  // namespace amberedit::ui::msg_format

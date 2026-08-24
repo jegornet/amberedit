@@ -56,11 +56,17 @@ constexpr int kWidth = 5;
 }
 
 /// Whether the event is a click on the button: anywhere in the two rows it
-/// occupies. Only the press acts — were the release to act as well, it would
-/// arrive at the screen the first click went back to and act on that.
-[[nodiscard]] inline bool clicked(const term::Event& event) {
+/// occupies, which begin in column `left`. Only the press acts — were the
+/// release to act as well, it would arrive at the screen the first click went
+/// back to and act on that.
+///
+/// `left` is zero on every screen whose corner is the window's own, and the
+/// reader's pane where a sidebar has moved that corner along: the button hangs
+/// from the top-left of the screen it belongs to, and that is not always the
+/// top-left of the terminal.
+[[nodiscard]] inline bool clicked(const term::Event& event, int left = 0) {
     const auto click = leftClick(event);
-    return click && click->x >= 0 && click->x < kWidth && click->y >= 0 &&
+    return click && click->x >= left && click->x < left + kWidth && click->y >= 0 &&
            click->y <= 1;
 }
 

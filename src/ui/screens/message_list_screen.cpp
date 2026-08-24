@@ -201,6 +201,10 @@ void centerCursor(AppState& state) {
 }
 
 void ensureHeaders(AppState& state) {
+    ensureHeaders(state, state.messageOffset, state.messageListItems());
+}
+
+void ensureHeaders(AppState& state, int first, int count) {
     if (state.base == nullptr || state.messageCount == 0) {
         state.headers.clear();
         state.headersStart = 0;
@@ -209,18 +213,20 @@ void ensureHeaders(AppState& state) {
 
     const int total = static_cast<int>(state.messageCount);
     const int loaded = static_cast<int>(state.headers.size());
-    const int windowEnd = state.messageOffset + state.messageListItems();
+    const int wanted = std::max(1, count);
+    const int from = std::clamp(first, 0, std::max(0, total - 1));
+    const int windowEnd = std::min(total, from + wanted);
 
     // The window still covers the visible part — nothing to re-read from disk.
-    if (!state.headers.empty() && state.messageOffset >= state.headersStart &&
+    if (!state.headers.empty() && from >= state.headersStart &&
         windowEnd <= state.headersStart + loaded) {
         return;
     }
 
     // Grab a margin on both sides so that scrolling does not hit the disk on
     // every single row.
-    const int window = std::max(120, state.messageListItems() * 4);
-    const int start = std::max(0, state.messageOffset - (window / 2));
+    const int window = std::max(120, wanted * 4);
+    const int start = std::max(0, from - (window / 2));
     const int limit = std::min(window, total - start);
 
     state.headers.clear();
@@ -286,6 +292,10 @@ void leaveArea(AppState& state) {
     state.readHeader.reset();
     state.readBody.reset();
     state.readLines.clear();
+    // The reader's sidebar was scrolled to somewhere in the area being left,
+    // and the next area is a different area: it opens at its own lastread mark,
+    // which is a jump from the top rather than from wherever this one ended.
+    state.readerSidebarOffset = 0;
     state.manager.closeCurrentArea();
     // Whatever depth the area was left from, the way out is the area list.
     state.navigator.reset();
@@ -363,86 +373,28 @@ Element render(AppState& state) {
 
     auto separator = text(horizontalRule(state.width)) | color(theme::palette.separator);
 
-    // One line of one message's row, drawn.
-    //
-    // A line is drawn in the runs the format cuts it into rather than as one
-    // string: the subject is drawn quiet, as the area list's description is,
-    // and a From or To naming the user keeps `own_name`. The line is padded out
-    // here rather than only when it is selected, so every line is the same
-    // width and the trailing margin belongs to it.
+    // One line of one message's row, drawn — the runs the format cut it into,
+    // and what the screen has to say about the message on top of them. How it is
+    // painted is `msg_format::drawLine()`'s, shared with the reader's sidebar so
+    // that a message reads the same in both.
     const auto lineOf = [&](const msg_format::Row& row, const msg_format::Line& columns) {
-        // The current row is inverted whole, so its cells are left plain and
-        // the decorator paints them together. Picking a name out of it in
-        // another color would fight the highlight rather than add to it, and
-        // the row already has the reader's attention. Every line of it is drawn
-        // selected: a highlight stopping halfway down a row would read as two
-        // messages, one of them chosen.
+        // Every line of the selected row is drawn selected: a highlight
+        // stopping halfway down a row would read as two messages, one of them
+        // chosen.
         const bool selected = row.number - 1 == state.messageCursor;
         // A message of one's own still waiting to go out is marked across the
-        // whole row, and that outranks both the own-name color and the quiet
-        // subject: the cases coincide constantly — an unsent message is one's
-        // own by definition — and a row half red and half something else would
-        // read as neither.
+        // whole row. A message nobody has read yet is marked by the mark the
+        // base itself keeps on it — not the area list's unread count, which is
+        // a position and says how many messages stand after the lastread mark.
         const bool unsent = row.header != nullptr && domain::isUnsent(*row.header);
+        const bool unread =
+            state.config.highlightUnread && row.header != nullptr && !row.header->seen;
 
-        Elements cells;
-        int drawn = 0;
-        const auto styled = [&](std::string piece, msg_format::Ink ink) {
-            Element cell = text(std::move(piece));
-            if (selected) return cell;
-            if (unsent) return std::move(cell) | color(theme::palette.unsent);
-            switch (ink) {
-                // Elsewhere a cell is left in the row's own color rather than
-                // being repainted with the default: the row then reads exactly
-                // as it did before, the marked cells aside. That is what lets
-                // the unread color be painted over the row below while a name
-                // of the user's own keeps `own_name` — the two are about
-                // different things, one about the message and one about that
-                // one name, and there is room on the row to say both.
-                case msg_format::Ink::Dimmed:
-                    return std::move(cell) | color(theme::palette.dimmed);
-                case msg_format::Ink::OwnName:
-                    return std::move(cell) | color(theme::palette.ownName);
-                case msg_format::Ink::Plain: break;
-            }
-            return cell;
-        };
-        const auto push = [&](const std::string& piece, msg_format::Ink ink) {
-            const std::string fitted = substrByWidth(piece, 0, rowWidth - drawn);
-            if (fitted.empty()) return;
-            drawn += displayWidth(fitted);
-            cells.push_back(styled(fitted, ink));
-        };
-
-        // The margin on the left is the row's own, so that the highlight covers
-        // it. What the fields left of the width, and the margin on the right,
-        // are the one blank piece closing the line.
-        push(" ", msg_format::Ink::Plain);
-        for (const auto& run : msg_format::runs(row, columns)) push(run.text, run.ink);
-        cells.push_back(
-            styled(std::string(static_cast<size_t>(rowWidth - drawn) + 1, ' '),
-                   msg_format::Ink::Plain));
-
-        Element line = hbox(std::move(cells));
-        if (selected) {
-            return std::move(line) | bold | color(theme::palette.selectionText) |
-                   bgcolor(theme::palette.selection);
-        }
-        // A message nobody has read yet, by the mark the base itself keeps on
-        // it — not the area list's unread count, which is a position and says
-        // how many messages stand after the lastread mark. The row takes the
-        // color, the number and the date included: a message is unread, not a
-        // column of it. A cell with a color of its own keeps it.
-        //
-        // Behind `unsent` for the same reason `unsent` is ahead of `own_name`:
-        // an unsent message is one nobody has read either, so the two coincide
-        // constantly, and a row painted unread would leave nothing saying that
-        // the message has not gone out — which is the one of the two worth
-        // doing something about.
-        const bool unread = state.config.highlightUnread && row.header != nullptr &&
-                            !row.header->seen && !unsent;
-        if (unread) return std::move(line) | color(theme::palette.msglistUnread);
-        return line;
+        const msg_format::Paint paint = selected ? msg_format::Paint::Selected
+                                        : unsent ? msg_format::Paint::Unsent
+                                        : unread ? msg_format::Paint::Unread
+                                                 : msg_format::Paint::None;
+        return msg_format::drawLine(row, columns, rowWidth + 1, paint);
     };
 
     Elements lines;

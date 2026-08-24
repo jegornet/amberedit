@@ -22,6 +22,13 @@ bool handleEvent(AppState& state, const term::Event& event);
 /// render() calls this too, hence the non-const state.
 void ensureHeaders(AppState& state);
 
+/// The same, for a run of `count` messages beginning at index `first` — what
+/// the reader asks for, the list being scrolled somewhere else entirely while
+/// it walks. There is one window of headers and whoever asks last has it: the
+/// two screens are never both in front of the user, and each asks for its own
+/// as it draws.
+void ensureHeaders(AppState& state, int first, int count);
+
 /// Puts the current message about halfway down the list rather than wherever
 /// the previous scrolling position leaves it. For the moments the list is
 /// arrived at rather than moved about in — opening an area, and bringing the

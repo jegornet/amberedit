@@ -46,6 +46,13 @@ TEST_CASE("Roles the built-in palette shares can be taken apart [theme]") {
     const Palette builtIn;
     CHECK(same(loaded.kludge, Color{196}));
     CHECK(same(loaded.screenButtons, builtIn.screenButtons));
+
+    // The panel's bar is a role of its own and shares with nothing: naming it
+    // moves it and leaves the two colors it could be mistaken for where they are.
+    const Palette apart = valueOf(parsePalette("reader_sidebar_msglist_selected 196\n"));
+    CHECK(same(apart.readerSidebarMsglistSelected, Color{196}));
+    CHECK(same(apart.selection, builtIn.selection));
+    CHECK(same(apart.dimmed, builtIn.dimmed));
 }
 
 TEST_CASE("Colors are palette numbers, across the whole range [theme]") {
@@ -105,6 +112,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.background, builtIn.background));
     CHECK(same(loaded.selection, builtIn.selection));
     CHECK(same(loaded.selectionText, builtIn.selectionText));
+    CHECK(same(loaded.readerSidebarMsglistSelected, builtIn.readerSidebarMsglistSelected));
     CHECK(same(loaded.inputField, builtIn.inputField));
     CHECK(same(loaded.inputText, builtIn.inputText));
     CHECK(same(loaded.focusedField, builtIn.focusedField));

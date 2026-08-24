@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 #include "ui/text_layout.hpp"
+#include "ui/theme.hpp"
 
 namespace amberedit::ui::msg_format {
 namespace {
@@ -250,6 +252,71 @@ std::string line(const Row& row, const Line& columns) {
     std::string text;
     for (const auto& run : runs(row, columns)) text += run.text;
     return text;
+}
+
+term::Element drawLine(const Row& row, const Line& columns, int width, Paint paint) {
+    using namespace term;
+
+    // A highlighted row is painted whole, so its cells are left plain and the
+    // decorator below covers them together. An unsent message is marked cell by
+    // cell instead: the color has to reach the blanks the fields leave as well,
+    // and those are pieces of the line like any other.
+    const bool highlighted = paint == Paint::Selected || paint == Paint::Marked;
+    const auto styled = [&](std::string piece, Ink ink) {
+        Element cell = text(std::move(piece));
+        if (highlighted) return cell;
+        if (paint == Paint::Unsent) return std::move(cell) | color(theme::palette.unsent);
+        switch (ink) {
+            // Elsewhere a cell is left in the row's own color rather than being
+            // repainted with the default: the row then reads exactly as it did
+            // before, the marked cells aside. That is what lets the unread color
+            // be painted over the row below while a name of the user's own keeps
+            // `own_name` — the two are about different things, one about the
+            // message and one about that one name, and there is room on the row
+            // to say both.
+            case Ink::Dimmed: return std::move(cell) | color(theme::palette.dimmed);
+            case Ink::OwnName: return std::move(cell) | color(theme::palette.ownName);
+            case Ink::Plain: break;
+        }
+        return cell;
+    };
+
+    Elements cells;
+    int drawn = 0;
+    const auto push = [&](const std::string& piece, Ink ink) {
+        const std::string fitted = substrByWidth(piece, 0, width - drawn);
+        if (fitted.empty()) return;
+        drawn += displayWidth(fitted);
+        cells.push_back(styled(fitted, ink));
+    };
+
+    // The margin on the left is the line's own, so that a highlight covers it.
+    // What the fields leave, and the margin on the right, are the one blank
+    // piece closing the line.
+    push(" ", Ink::Plain);
+    for (const auto& run : runs(row, columns)) push(run.text, run.ink);
+    if (drawn < width) {
+        push(std::string(static_cast<size_t>(width - drawn), ' '), Ink::Plain);
+    }
+
+    Element drawing = hbox(std::move(cells));
+    if (highlighted) {
+        // The same bar either way, in a quieter fill where the keyboard is
+        // elsewhere. `selection_text` on both: every theme picks something
+        // near-white there, and both fills are dark enough to carry it.
+        const theme::Color fill = paint == Paint::Selected
+                                      ? theme::palette.selection
+                                      : theme::palette.readerSidebarMsglistSelected;
+        return std::move(drawing) | bold | color(theme::palette.selectionText) |
+               bgcolor(fill);
+    }
+    // A message nobody has read yet takes the color across the whole row, the
+    // number and the date included: a message is unread, not a column of it. A
+    // cell with a color of its own keeps it, `Painted` drawing the child after
+    // filling the box.
+    if (paint == Paint::Unread)
+        return std::move(drawing) | color(theme::palette.msglistUnread);
+    return drawing;
 }
 
 }  // namespace amberedit::ui::msg_format
