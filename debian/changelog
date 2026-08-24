@@ -1,3 +1,10 @@
+amberedit (0.3.2-1) unstable; urgency=low
+
+  * Message list side bar
+  * Ubuntu 26.04 build
+
+ -- Yegor Gluhov <git@jegor.net>  Mon, 24 Aug 2026 12:00:00 +0000
+
 amberedit (0.3.1-1) unstable; urgency=low
 
   * Add setup wizard
