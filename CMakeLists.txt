@@ -87,7 +87,9 @@ set(CMAKE_REQUIRED_DEFINITIONS -DNCURSES_WIDECHAR=1)
 string(REPLACE "@header@" "ncursesw/curses.h" amberedit_probe_subdir "${amberedit_curses_probe}")
 check_cxx_source_compiles("${amberedit_probe_subdir}" AMBEREDIT_NCURSESW_SUBDIR)
 
-if(NOT AMBEREDIT_NCURSESW_SUBDIR)
+if(AMBEREDIT_NCURSESW_SUBDIR)
+  message(STATUS "ncurses headers: <ncursesw/curses.h>")
+else()
   string(REPLACE "@header@" "curses.h" amberedit_probe_plain "${amberedit_curses_probe}")
   check_cxx_source_compiles("${amberedit_probe_plain}" AMBEREDIT_CURSES_PLAIN)
   if(NOT AMBEREDIT_CURSES_PLAIN)
@@ -98,6 +100,10 @@ if(NOT AMBEREDIT_NCURSESW_SUBDIR)
       "configure with -DCMAKE_PREFIX_PATH=$(brew --prefix ncurses)."
     )
   endif()
+  # The subdir probe above prints "Failed", which is the normal outcome anywhere
+  # the wide ncurses is the only one installed. Say which header won so the log
+  # does not read as a broken configure.
+  message(STATUS "ncurses headers: <curses.h> (no ncursesw/ subdirectory)")
 endif()
 cmake_pop_check_state()
 
