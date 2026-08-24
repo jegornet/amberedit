@@ -30,8 +30,12 @@ BuildRequires:  pkgconfig
 # wide library; the build probes for cchar_t and init_extended_pair and fails
 # the configure if it got the narrow one.
 BuildRequires:  pkgconfig(ncursesw)
-# zlib to unpack zipped nodelists and echolists
-BuildRequires:  zlib-devel
+# zlib to unpack zipped nodelists and echolists. Asked for by what it provides
+# rather than by name: RHEL 10 and current Fedora replaced zlib with zlib-ng, so
+# the package carrying zlib.h and zlib.pc is zlib-ng-compat-devel there and
+# zlib-devel on RHEL 8 and 9. `pkgconfig(zlib)` is the one spelling that finds
+# whichever of the two the distribution has.
+BuildRequires:  pkgconfig(zlib)
 # tl::expected, which every fallible operation in AmberEdit answers with.
 # Header-only, so it is wanted at build time and never at run time. From EPEL on
 # RHEL, as doctest is — std::expected would need C++23 and the floor is GCC 8.

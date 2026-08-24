@@ -93,9 +93,11 @@ a container, `-Werror=c++20-extensions` on a Clang build catches the language
 half of the same thing.
 
 **CI runs that same command, on every push.** `.github/workflows/ci.yml` walks
-Rocky 8 and 9, Fedora, Debian stable and Ubuntu 22.04 and 24.04 this way, plus
-macOS on both architectures. Two things about it are decisions rather than
-detail:
+Rocky 8, 9 and 10, Fedora, Arch, Debian stable and Ubuntu 22.04, 24.04 and 26.04
+this way, plus macOS on both architectures. Arch is the far end of the span
+whose near end is the floor: rolling, so normally ahead of even Fedora on GCC,
+and the one job where the wide ncurses is the only ncurses there is. Two things about the file
+are decisions rather than detail:
 
 - The Linux jobs run their distribution under `docker run` from an ordinary
   `ubuntu-latest`, **not** through Actions' `container:` key. `container:` makes
@@ -108,7 +110,7 @@ detail:
 
 ## Packaging
 
-Three formats, and one rule holding them together: **`cmake --install` places
+Four formats, and one rule holding them together: **`cmake --install` places
 everything a package ships** — the binary, `default.tpl` and `themes/*.cfg`, the
 last two under `${CMAKE_INSTALL_DATADIR}/amberedit`, which is the path
 `amberedit.cfg.example` names. No package recipe places a data file of its own,
@@ -117,7 +119,11 @@ sample config. Only documentation is each format's own: the README and the two
 example configs go through `%doc`, `debian/amberedit.docs`, or the top of an
 archive.
 
-- `amberedit.spec` — RPM, built for Rocky 8 and 9 and Fedora. It carries one
+- `amberedit.spec` — RPM, built for Rocky 8, 9 and 10 and Fedora. zlib is asked
+  for as `pkgconfig(zlib)` rather than by name, because RHEL 10 and current
+  Fedora replaced zlib with zlib-ng: the package holding `zlib.h` is
+  `zlib-ng-compat-devel` there and `zlib-devel` on 8 and 9, and the one
+  `pkgconfig()` spelling finds whichever the distribution has. It carries one
   dependency nothing can work out on its own: **`glibc-gconv-extra` on RHEL 9 and
   later and on Fedora**, where CP866, CP437 and KOI8-R were split out of the base
   glibc. A gconv module is opened by name at run time, so there is no linkage for
@@ -126,10 +132,22 @@ archive.
   release with them in libc, so the dependency is conditional; Debian, Ubuntu and
   macOS all carry the full set. The CI and release matrices install it too, or
   `%check` fails three charset tests and nothing says why.
-- `debian/` — deb, built for Debian stable and Ubuntu 22.04 and 24.04. `dh` runs
-  the tests as part of the build; `doctest-dev` is the build dependency and is
-  spelled the same on all four. `libexpected-dev` is in *universe* on jammy and
-  noble — the official images enable it and a minimal chroot does not.
+- `debian/` — deb, built for Debian stable and Ubuntu 22.04, 24.04 and 26.04.
+  `dh` runs the tests as part of the build; `doctest-dev` is the build dependency
+  and is spelled the same on all five. `libexpected-dev` is in *universe* on
+  jammy, noble and resolute — the official images enable it and a minimal chroot
+  does not.
+- `PKGBUILD` — Arch: one build and no matrix, Arch being rolling and having one
+  release. `check()` runs the tests, and everything it wants — `ncurses`, `zlib`,
+  `cmake`, `tl-expected`, `doctest` — is in core or extra, so nothing comes from
+  the AUR. No `glibc-gconv-extra` counterpart is in `depends`, because Arch never
+  split those gconv modules out of glibc. `sha256sums` is `SKIP`: GitHub
+  generates its source archives on demand and they are not byte-stable across git
+  versions, so a pinned hash is a package that stops building for a reason that
+  has nothing to do with the release — the release job puts the tarball beside
+  the PKGBUILD instead, where makepkg finds it and fetches nothing, so the
+  package is built from the bytes the RPMs are. `makepkg` refuses to run as root,
+  which is why that job builds as a user it makes on the spot.
 - `.github/workflows/release.yml` — everything a `v*` tag produces. It checks the
   tag against `project(AmberEdit VERSION ...)` before building anything: a tag
   disagreeing with the source is a release nobody can rebuild.
@@ -150,10 +168,11 @@ Four things in the build follow from the same floor:
   floor talking.** `std::expected` is C++23 and GCC 8 has no part of it, so the
   library is the only way the project gets the type at all — and it is packaged
   on every target under one header and one CMake package: `expected-devel` on
-  EPEL 8 and 9 and Fedora, `libexpected-dev` on bookworm, trixie, jammy and
-  noble, `tl-expected` in Homebrew. **What may be used of it is the 1.0.0 API
-  and no more**, because bookworm and jammy carry 1.0.0: `has_value()`,
-  `operator bool`, `operator*`, `error()`, `value_or()` and `tl::make_unexpected`.
+  EPEL 8, 9 and 10 and Fedora, `libexpected-dev` on bookworm, trixie, jammy,
+  noble and resolute, `tl-expected` in Arch's extra and in Homebrew. **What may
+  be used of it is the 1.0.0 API and no more**, because bookworm and jammy carry 1.0.0:
+  `has_value()`, `operator bool`, `operator*`, `error()`, `value_or()` and
+  `tl::make_unexpected`.
   Not `transform`, not `transform_error`, and not the deduced `tl::unexpected` —
   all three are newer, all three compile on Fedora and on a developer's Mac, and
   all three fail the two oldest debs. `support/result.hpp` says the same thing
@@ -161,11 +180,12 @@ Four things in the build follow from the same floor:
 - **The tests are on doctest, and that is a packaging decision rather than a
   taste.** Nothing is fetched, so a package build — which has no network — gets
   the tests too, and doctest is the only framework every target packages under
-  one API: `doctest-devel` on EPEL 8 and 9 and Fedora, `doctest-dev` on bookworm,
-  trixie, jammy and noble, `doctest` in Homebrew, 2.4.8 through 2.5.x and source-
-  compatible across all of them. Catch2 has no such version — EPEL 8 carries only
-  the 2.13 series and trixie, noble and Homebrew carry only v3, and the two are
-  not source-compatible — so it would need a compatibility header forever.
+  one API: `doctest-devel` on EPEL 8, 9 and 10 and Fedora, `doctest-dev` on
+  bookworm, trixie, jammy, noble and resolute, `doctest` in Arch's extra and in
+  Homebrew, 2.4.8 through 2.5.x and source-compatible across all of them. Catch2 has no such
+  version — EPEL 8 carries only the 2.13 series and trixie, noble and Homebrew
+  carry only v3, and the two are not source-compatible — so it would need a
+  compatibility header forever.
 
   What doctest does not have is matchers. A substring assertion is therefore an
   ordinary predicate, `amberedit::test::contains` from `tests/test_strings.hpp`,

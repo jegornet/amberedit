@@ -34,11 +34,13 @@ jobs:
 
       # The version comes off the tag with its leading v taken away, and every
       # file that also states it has to agree. `project(AmberEdit VERSION ...)`
-      # is the one the code reads, through the generated version.hpp; the spec
-      # and debian/changelog are what name the packages. A tag disagreeing with
-      # any of them is a release nobody can rebuild, and the deb one fails
-      # silently — dpkg takes the changelog's number and ships a 0.1.1 package
-      # from a v0.2 tag — so all three are checked here rather than trusted.
+      # is the one the code reads, through the generated version.hpp; the spec,
+      # debian/changelog and PKGBUILD are what name the packages. A tag
+      # disagreeing with any of them is a release nobody can rebuild, and the deb
+      # one fails silently — dpkg takes the changelog's number and ships a 0.1.1
+      # package from a v0.2 tag — so all four are checked here rather than
+      # trusted. PKGBUILD's pkgver is checked for a second reason: it is also
+      # what names the tarball makepkg looks for.
       - id: v
         name: Work out and check the version
         run: |
@@ -48,9 +50,10 @@ jobs:
           cmake_v=$(sed -n 's/^project(AmberEdit VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           spec_v=$(sed -n 's/^Version: *\([0-9.]*\).*/\1/p' amberedit.spec)
           deb_v=$(sed -n '1s/^amberedit (\([0-9.]*\)-[0-9]*).*/\1/p' debian/changelog)
+          arch_v=$(sed -n 's/^pkgver=\([0-9.]*\).*/\1/p' PKGBUILD)
 
           fail=0
-          for pair in "CMakeLists.txt:$cmake_v" "amberedit.spec:$spec_v" "debian/changelog:$deb_v"; do
+          for pair in "CMakeLists.txt:$cmake_v" "amberedit.spec:$spec_v" "debian/changelog:$deb_v" "PKGBUILD:$arch_v"; do
             file="${pair%%:*}"; got="${pair#*:}"
             if [ "$got" != "$version" ]; then
               echo "::error::tag $tag says $version, $file says '${got:-nothing}'"
@@ -81,7 +84,7 @@ jobs:
       matrix:
         include:
           # One job and no more writes the source RPM — see the step below for
-          # why one is enough. This is the one, being the oldest rpm of the three.
+          # why one is enough. This is the one, being the oldest rpm of the four.
           - name: el8
             image: rockylinux:8
             srpm: true
@@ -92,6 +95,14 @@ jobs:
           - name: el9
             image: rockylinux:9
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
+          # `rockylinux/rockylinux`, not `rockylinux`: the Docker Official image
+          # stops at 9 and Rocky publishes 10 under its own namespace.
+          # zlib-ng-compat-devel is zlib on RHEL 10 — the spec asks for
+          # `pkgconfig(zlib)` and gets the right one of the two either way, but
+          # the container has to be told a real name.
+          - name: el10
+            image: rockylinux/rockylinux:10
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel glibc-gconv-extra
           - name: fedora
             image: fedora:latest
             deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
@@ -124,9 +135,9 @@ jobs:
             # The source RPM is built a second time and only once for the whole
             # matrix, with no dist tag. A source RPM is the spec and the tarball
             # and nothing else, and the spec inside it keeps %{?dist} unexpanded,
-            # so whichever of these three built it the rebuild stamps itself with
-            # the dist of the machine doing the rebuilding. Three of them would
-            # therefore be the same package three times over, under names that
+            # so whichever of these four built it the rebuild stamps itself with
+            # the dist of the machine doing the rebuilding. Four of them would
+            # therefore be the same package four times over, under names that
             # each claim a distribution the package is not tied to. Writing
             # straight to out/ saves matching a name that changes with Release.
             if [ "${SRPM:-}" = true ]; then
@@ -153,6 +164,8 @@ jobs:
             image: ubuntu:22.04
           - name: ubuntu-24.04
             image: ubuntu:24.04
+          - name: ubuntu-26.04
+            image: ubuntu:26.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -161,8 +174,8 @@ jobs:
       # dpkg-buildpackage writes its output beside the source directory, so the
       # tree is copied one level down and the .deb collected from the parent.
       #
-      # The distribution goes into the version, and it has to: three builds of
-      # 0.1.1-1 for three distributions are three different packages with one
+      # The distribution goes into the version, and it has to: four builds of
+      # 0.1.1-1 for four distributions are four different packages with one
       # file name, and uploading them to a release silently leaves whichever
       # landed last. What survives then is not marked, so a deb built against
       # Ubuntu 24.04's glibc is offered to 22.04, where it cannot install.
@@ -203,6 +216,51 @@ jobs:
         with:
           name: deb-${{ matrix.name }}
           path: out/*.deb
+
+  arch:
+    name: Arch package
+    needs: tarball
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+
+      # Arch is rolling and has one release, so unlike the rpm and deb jobs there
+      # is nothing here to matrix over and no suffix to stamp into the version.
+      #
+      # makepkg refuses to run as root and has no override for it, so a build
+      # user is made and the tree handed to it. Every dependency is installed by
+      # pacman first, which is why makepkg wants neither -s nor sudo — but
+      # base-devel is wanted, because makepkg itself needs fakeroot.
+      #
+      # The tarball is copied in beside the PKGBUILD, where makepkg finds it and
+      # downloads nothing: the package is built from the same bytes as the RPMs.
+      - name: Build the package
+        run: |
+          mkdir -p out
+          docker run --rm -v "$PWD":/src archlinux:latest sh -c '
+            set -eu
+            pacman -Syu --noconfirm --needed base-devel cmake ncurses zlib tl-expected doctest
+            useradd -m builder
+            mkdir /build
+            cp /src/PKGBUILD /src/amberedit-*.tar.gz /build/
+            chown -R builder:builder /build
+            cd /build && su builder -c "makepkg --noconfirm"
+            # `debug` is in the stock makepkg.conf OPTIONS, so makepkg writes an
+            # amberedit-debug package beside the real one — twenty times its size
+            # and of no use on a release page, the same as rpm debuginfo and
+            # Debian dbgsym.
+            find /build -maxdepth 1 -name "*.pkg.tar.zst" ! -name "*-debug-*" \
+                 -exec cp {} /src/out/ \;'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: out/*.pkg.tar.zst
 
   macos:
     name: macOS ${{ matrix.arch }}
@@ -246,7 +304,7 @@ jobs:
 
   publish:
     name: Publish the release
-    needs: [tarball, rpm, deb, macos]
+    needs: [tarball, rpm, deb, arch, macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
