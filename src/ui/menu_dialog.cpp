@@ -44,11 +44,11 @@ int buttonWidth(const AppState& state) {
 /// One button. The label is against the left edge rather than centred: a menu is
 /// read down its left-hand side, and words that start in a different column on
 /// every row are words the eye has to go looking for.
-Element button(const AppState::MenuView::Item& item, int inner, int icon,
-               bool selected, bool pressed) {
+Element button(const AppState::MenuView::Item& item, int inner, int icon, bool selected,
+               bool pressed) {
     const Commands::Info& command = Commands::of(item.command);
     const std::string label =
-        labelLine(command.icon, command.label, inner - kIndent, icon);
+        labelLine(command.icon, Commands::labelOf(item.command), inner - kIndent, icon);
     const int room = std::max(0, inner - kIndent - displayWidth(label));
     const std::string line = " " + label + std::string(static_cast<size_t>(room), ' ');
 
@@ -163,12 +163,11 @@ Element render(AppState& state, Element background) {
     for (size_t i = 0; i < view.items.size(); ++i) {
         const bool pressed =
             state.isPressed(AppState::Pressed::Menu, static_cast<uint32_t>(i));
-        rows.push_back(hbox(
-            {text(side),
-             button(view.items[i], inner, icon, static_cast<int>(i) == view.cursor,
-                    pressed) |
-                 reflect(view.items[i].box),
-             text(side)}));
+        rows.push_back(hbox({text(side),
+                             button(view.items[i], inner, icon,
+                                    static_cast<int>(i) == view.cursor, pressed) |
+                                 reflect(view.items[i].box),
+                             text(side)}));
     }
     for (int i = 0; i < kMarginY; ++i) rows.push_back(text(blank));
 

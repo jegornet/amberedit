@@ -15,6 +15,7 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "encoding/iconv_recoder.hpp"
+#include "i18n/i18n.hpp"
 
 namespace amberedit::app {
 namespace {
@@ -210,10 +211,10 @@ tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
     const auto how =
         request.write == ExportWrite::Overwrite ? std::ios::trunc : std::ios::app;
     std::ofstream file(request.path, std::ios::binary | how);
-    if (!file) return failure("cannot write file: " + request.path);
+    if (!file) return failure(i18n::format(_("cannot write file: {0}"), {request.path}));
     file.write(out.data(), static_cast<std::streamsize>(out.size()));
     file.flush();
-    if (!file) return failure("cannot write file: " + request.path);
+    if (!file) return failure(i18n::format(_("cannot write file: {0}"), {request.path}));
     return {};
 }
 
@@ -249,7 +250,7 @@ std::vector<UueFile> uueFiles(const domain::MessageBody& body) {
 
 tl::expected<void, ErrorPtr> saveUueFiles(const std::string& directory,
                                           const std::vector<UueFile>& files) {
-    if (files.empty()) return failure("nothing to save");
+    if (files.empty()) return failure(_("nothing to save"));
 
     // Every name is looked at before any of them is written. These names are the
     // message's rather than the user's and there is nowhere to change one, so a
@@ -258,7 +259,9 @@ tl::expected<void, ErrorPtr> saveUueFiles(const std::string& directory,
     for (const auto& file : files) {
         const fs::path path = fs::path(directory) / file.name;
         std::error_code ec;
-        if (fs::exists(path, ec)) return failure("file exists: " + file.name);
+        if (fs::exists(path, ec)) {
+            return failure(i18n::format(_("file exists: {0}"), {file.name}));
+        }
     }
 
     for (const auto& file : files) {
@@ -266,10 +269,14 @@ tl::expected<void, ErrorPtr> saveUueFiles(const std::string& directory,
         // Asked afterwards whether it took it: a full disk fails on the write
         // and not on the open.
         std::ofstream out(path.string(), std::ios::binary | std::ios::trunc);
-        if (!out) return failure("cannot write file: " + file.name);
+        if (!out) {
+            return failure(i18n::format(_("cannot write file: {0}"), {file.name}));
+        }
         out.write(file.bytes.data(), static_cast<std::streamsize>(file.bytes.size()));
         out.flush();
-        if (!out) return failure("cannot write file: " + file.name);
+        if (!out) {
+            return failure(i18n::format(_("cannot write file: {0}"), {file.name}));
+        }
     }
     return {};
 }

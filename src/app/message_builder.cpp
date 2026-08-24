@@ -9,6 +9,7 @@
 #include "app/msg_template.hpp"
 #include "app/quoting.hpp"
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 #include "version.hpp"
 
 namespace amberedit::app {
@@ -358,7 +359,7 @@ StartingText startingText(const BuildRequest& request) {
     } else if (const auto read = config::text::readFile(request.config.templatePath)) {
         templateText = *read;
     } else {
-        out.error = "template: " + read.error()->message();
+        out.error = i18n::format(_("template: {0}"), {read.error()->message()});
         haveTemplate = false;
     }
 

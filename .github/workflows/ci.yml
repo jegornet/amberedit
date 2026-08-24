@@ -37,10 +37,10 @@ jobs:
           # EPEL supplies expected-devel here too, and Fedora carries its own.
           - name: Rocky Linux 8 (GCC 8, the floor)
             image: rockylinux:8
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext
           - name: Rocky Linux 9
             image: rockylinux:9
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # Two things are not typos. The image is `rockylinux/rockylinux`, not
           # the `rockylinux` the two above are: the Docker Official image stops
           # at 9 and Rocky publishes 10 itself. And zlib on RHEL 10 is zlib-ng
@@ -48,12 +48,12 @@ jobs:
           # `zlib-ng-compat-devel` is what carries zlib.h and zlib.pc.
           - name: Rocky Linux 10
             image: rockylinux/rockylinux:10
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # The newest GCC any point release carries, which is where a warning or
           # a tightened header shows up years before it reaches an LTS.
           - name: Fedora latest (newest GCC)
             image: fedora:latest
-            deps: dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # Rolling, so normally ahead of even Fedora: the ceiling of this matrix
           # against Rocky 8's floor. `-Syu` rather than `-S` because partial
           # upgrades are unsupported on Arch and the base image lags the mirrors.
@@ -61,24 +61,24 @@ jobs:
           # which this job has no use for — so the four tools are named instead.
           - name: Arch Linux (rolling)
             image: archlinux:latest
-            deps: pacman -Syu --noconfirm --needed gcc cmake make pkgconf ncurses zlib tl-expected doctest
+            deps: pacman -Syu --noconfirm --needed gcc cmake make pkgconf ncurses zlib tl-expected doctest gettext
           # doctest-dev is one name across all four of these, and across the
           # three RHEL rebuilds above under doctest-devel.
           - name: Debian stable
             image: debian:stable
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
           - name: Ubuntu 22.04
             image: ubuntu:22.04
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
           - name: Ubuntu 24.04
             image: ubuntu:24.04
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
           # The first target carrying CMake 4, which refuses the compatibility of
           # anything older than 3.5. The floor is 3.16 and so is accepted, but
           # this is the job that says so.
           - name: Ubuntu 26.04
             image: ubuntu:26.04
-            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
     steps:
       - uses: actions/checkout@v4
 
@@ -116,13 +116,13 @@ jobs:
       # Homebrew one is asked for by prefix. This pair of jobs is also the only
       # coverage the two CMake branches that are dead on glibc get: iconv as a
       # separate library, and the header under ncursesw/.
-      - name: Install ncurses, tl-expected and doctest
-        run: brew install ncurses tl-expected doctest
+      - name: Install ncurses, tl-expected, doctest and gettext
+        run: brew install ncurses tl-expected doctest gettext
 
       - name: Configure
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest)"
+                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest);$(brew --prefix gettext)"
 
       - name: Build
         run: cmake --build build -j"$(sysctl -n hw.ncpu)"

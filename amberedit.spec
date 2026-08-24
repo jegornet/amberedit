@@ -40,6 +40,10 @@ BuildRequires:  pkgconfig(zlib)
 # Header-only, so it is wanted at build time and never at run time. From EPEL on
 # RHEL, as doctest is — std::expected would need C++23 and the floor is GCC 8.
 BuildRequires:  expected-devel
+# msgfmt, which compiles po/*.po into the catalogs the interface is drawn from,
+# and %%find_lang below, which places them. Build time only on this platform:
+# gettext's runtime lives in glibc here, so there is nothing extra to require.
+BuildRequires:  gettext
 
 # The single-byte charsets FidoNet runs on — CP866, CP437, KOI8-R — are not in
 # the base glibc on RHEL 9 and later or on Fedora: the gconv modules for them
@@ -81,12 +85,18 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %endif
 
 %install
-# The binary, the template and the themes all come from the CMake install, which
-# places them where amberedit.cfg.example says they are. Nothing is placed here
-# by hand: a second copy of those paths is a second thing to keep in step.
+# The binary, the template, the themes and the message catalogs all come from the
+# CMake install, which places them where amberedit.cfg.example says they are.
+# Nothing is placed here by hand: a second copy of those paths is a second thing
+# to keep in step.
 %cmake_install
 
-%files
+# The catalogs go under %%{_datadir}/locale, which is where gettext looks and so
+# the only place they can go. %%find_lang is what turns them into per-language
+# %%lang() entries, and it is why the %%files list below names no locale at all.
+%find_lang %{name}
+
+%files -f %{name}.lang
 %license LICENSE
 # The sample config stays documentation: AmberEdit looks for its config where
 # the user keeps it, and this one is here to be copied.

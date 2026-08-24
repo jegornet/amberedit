@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -28,12 +29,12 @@ Element render(const AppState& state, Element background) {
     // Before the first area is reached there is no area to name: what is being
     // waited on then is the tosser config itself.
     const std::string doing = state.rescanArea.empty()
-                                  ? std::string("reading the tosser config")
-                                  : "reading " + state.rescanArea;
+                                  ? std::string(_("reading the tosser config"))
+                                  : i18n::format(_("reading {0}"), {state.rescanArea});
 
     const int width = std::max(1, std::min(kLineWidth, state.width - 6));
     auto content = vbox({
-        text(truncateToWidth("Rescanning areas...", width)) | bold |
+        text(truncateToWidth(_("Rescanning areas..."), width)) | bold |
             color(theme::palette.dialogText) | center,
         text(""),
         text(padRight(truncateToWidth(doing, width), width)) |

@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
@@ -55,7 +56,7 @@ Element rowOf(const std::string& text_, bool selected) {
 
 /// The top of the frame, with the title in the middle of it.
 Element titleBar(int width) {
-    const std::string label = " Replies ";
+    const std::string label = _(" Replies ");
     const int left = std::max(0, (width - displayWidth(label)) / 2);
     const int right = std::max(0, width - left - displayWidth(label));
     return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.dialogBorder),

@@ -9,14 +9,31 @@ yourself is the rest of this file.
 ## What it needs
 
 CMake ≥ 3.16, a C++17 compiler (GCC 8, Clang 7, Apple Clang 11), iconv (in libc
-or libiconv), zlib, tl::expected and the wide-character ncurses, plus doctest if
-the tests are to be built. Nothing is downloaded during the build. There are no
-other dependencies.
+or libiconv), zlib, tl::expected, gettext and the wide-character ncurses, plus
+doctest if the tests are to be built. Nothing is downloaded during the build.
+There are no other dependencies.
 
 tl::expected and doctest are header-only and wanted only while building; the
 packages are `expected-devel` and `doctest-devel` on RHEL and Fedora,
 `libexpected-dev` and `doctest-dev` on Debian and Ubuntu, `tl-expected` and
 `doctest` in Arch's extra and in Homebrew.
+
+gettext is two things here. Its `msgfmt` compiles `po/*.po` into the catalogs the
+interface is drawn from, and that half is wanted only while building — without it
+the build says so and goes on, and the interface is the English the program is
+written in. Its runtime, `libintl`, is what reads a catalog, and that half is
+required: on glibc it is part of libc and there is nothing to install, on macOS
+and the BSDs it is a library of its own. The package is called `gettext`
+everywhere named below.
+
+One thing gettext needs is the system's rather than AmberEdit's: **the locale
+you ask for has to exist**. A stock Debian or Ubuntu generates none at all — only
+`C`, `C.UTF-8` and `POSIX`, which gettext treats as no locale — so
+`apt install locales && locale-gen ru_RU.UTF-8` is what makes `LANG=ru_RU.UTF-8
+amberedit` Russian. RHEL and Fedora ship enough already; where they do not,
+`dnf install glibc-langpack-ru`. AmberEdit says so on startup when the language
+asked for is one it has and the system cannot install, and runs in English
+meanwhile.
 
 That floor is chosen so that RHEL 8 and its rebuilds build AmberEdit out of the
 box with nothing but the stock toolchain — no devtoolset, no newer CMake.
@@ -30,7 +47,7 @@ blocks are alternatives, not steps — and then build.
 
 ```bash
 sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
-                 expected-devel doctest-devel glibc-gconv-extra
+                 expected-devel doctest-devel gettext glibc-gconv-extra
 ```
 
 **RHEL 9 and its clones (Rocky, Alma)** — `expected-devel` and `doctest-devel` come
@@ -39,7 +56,7 @@ from EPEL:
 ```bash
 sudo dnf install epel-release
 sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
-                 expected-devel doctest-devel glibc-gconv-extra
+                 expected-devel doctest-devel gettext glibc-gconv-extra
 ```
 
 **RHEL 10 and its clones** — the same, except that zlib is zlib-ng there and the
@@ -49,7 +66,7 @@ install:
 ```bash
 sudo dnf install epel-release
 sudo dnf install gcc-c++ cmake git ncurses-devel zlib-ng-compat-devel \
-                 expected-devel doctest-devel glibc-gconv-extra
+                 expected-devel doctest-devel gettext glibc-gconv-extra
 ```
 
 **RHEL 8 and its clones** — the same, without `glibc-gconv-extra`: it is the
@@ -59,20 +76,21 @@ package for it.
 ```bash
 sudo dnf install epel-release
 sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
-                 expected-devel doctest-devel
+                 expected-devel doctest-devel gettext
 ```
 
 **Debian, Ubuntu** — on Ubuntu `libexpected-dev` is in universe:
 
 ```bash
 sudo apt install g++ cmake git libncurses-dev zlib1g-dev \
-                 libexpected-dev doctest-dev
+                 libexpected-dev doctest-dev gettext
 ```
 
 **Arch**
 
 ```bash
-sudo pacman -S --needed base-devel cmake git ncurses zlib tl-expected doctest
+sudo pacman -S --needed base-devel cmake git ncurses zlib tl-expected doctest \
+                        gettext
 ```
 
 Then, on any of them:
@@ -117,10 +135,23 @@ The ncurses Apple ships is 5.7 and has no wide characters at all, so a newer one
 is needed:
 
 ```bash
-brew install ncurses tl-expected doctest
+brew install ncurses tl-expected doctest gettext
 cmake -S . -B build \
       -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest)"
 ```
+
+Homebrew keeps gettext keg-only, which matters twice. Its `msgfmt` is not on the
+PATH — the build looks in `$(brew --prefix)/opt/gettext/bin` and needs no help —
+and its `libintl` is not where CMake looks by default, so the prefix has to be
+named alongside the others:
+
+```bash
+cmake -S . -B build \
+      -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest);$(brew --prefix gettext)"
+```
+
+Unlike on Linux, `libintl` is then a library the finished binary links, not only
+a build-time tool.
 
 ## Running it
 

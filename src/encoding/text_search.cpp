@@ -56,11 +56,9 @@ char32_t nextChar(std::string_view text, size_t& at) {
     return code;
 }
 
-/// The lower-case form of a code point, over the alphabets FTN mail is written
-/// in: ASCII, the Latin-1 supplement and Cyrillic. Everything else is left as it
-/// stands — a charset holding letters outside these is not one any of the three
-/// tosser formats has ever named an area's default.
-char32_t lowered(char32_t code) {
+}  // namespace
+
+char32_t loweredCodePoint(char32_t code) {
     if (code >= U'A' && code <= U'Z') return code + 0x20;
     // À-Þ, less the multiplication sign standing in the middle of the block.
     if (code >= 0x00C0 && code <= 0x00DE && code != 0x00D7) return code + 0x20;
@@ -70,6 +68,8 @@ char32_t lowered(char32_t code) {
     if (code == 0x0490) return 0x0491;  // Ґ, which stands outside both runs
     return code;
 }
+
+namespace {
 
 /// The Russian language support quirks, applied to an already lower-cased code point.
 ///
@@ -128,7 +128,7 @@ void TextSearch::setCharset(std::string_view charset) {
 void TextSearch::refold() {
     needle_.clear();
     for (size_t at = 0; at < query_.size();) {
-        const char32_t code = lowered(nextChar(query_, at));
+        const char32_t code = loweredCodePoint(nextChar(query_, at));
         needle_.push_back(quirks_ ? quirked(code) : code);
     }
 }
@@ -154,7 +154,7 @@ std::vector<TextMatch> TextSearch::search(std::string_view text, bool firstOnly)
     offsets.reserve(text.size() + 1);
     for (size_t at = 0; at < text.size();) {
         offsets.push_back(at);
-        const char32_t code = lowered(nextChar(text, at));
+        const char32_t code = loweredCodePoint(nextChar(text, at));
         units.push_back(quirks_ ? quirked(code) : code);
     }
     offsets.push_back(text.size());

@@ -35,6 +35,8 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **A setup wizard**: `amberedit --setup` asks what a first config has to say and
   writes one, so you don't have to edit it by hand before the first start
 - **Color Themes** in the terminal's own 256 colors
+- **Russian and English interface**: the words on the screen come from a gettext
+  catalog the config names by path, so adding a language is a `.po` file
 - **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental,
   turned on per echo area rather than for all your mail (see *Experimental options*
   at the end of `amberedit.cfg.example`).
@@ -288,6 +290,46 @@ with when the config names no theme, and the file to copy and edit.
 `themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
 customizing the pallete in your terminal app.
 Also, we have `themes/blue.cfg` and `themes/white.cfg`
+
+### Language
+
+The language is the environment's, as it is for every other program on the
+system — `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`, in that order of
+preference. Nothing goes in the config:
+
+```bash
+LANG=ru_RU.UTF-8 amberedit          # Russian
+LANGUAGE=ru amberedit               # Russian, leaving the rest of the locale alone
+amberedit                           # whatever your shell already says
+```
+
+This works straight out of `cmake --build` as well — the build's own catalogs are
+compiled in ahead of the installed ones, so `LANG=ru_RU.UTF-8 ./build/bin/amberedit`
+is Russian before anything has been installed.
+
+One thing is the system's rather than AmberEdit's: **the locale you ask for has
+to exist**. A stock Debian or Ubuntu generates none at all, and gettext will not
+translate under `C`:
+
+```bash
+sudo apt install locales && sudo locale-gen ru_RU.UTF-8
+```
+
+`locale -a` lists what a system already has. AmberEdit says so on startup when
+the language you asked for is one it has and the system cannot install, and runs
+in English meanwhile.
+
+Russian ships with it. To add a language, or to fix a word in one:
+
+```bash
+cmake --build build --target pot        # refresh po/amberedit.pot from the source
+msginit --input=po/amberedit.pot --locale=de --output=po/de.po
+cmake -S . -B build && cmake --build build
+```
+
+`msgfmt` from gettext is what compiles them; a build without it is a build with
+the English. `cmake --build build --target update-po` merges a refreshed
+`amberedit.pot` into the translations that are already there.
 
 ### Configuration
 

@@ -8,9 +8,11 @@
 #include "config/app_config.hpp"
 #include "echolist/echolist_area_source.hpp"
 #include "echolist/echolist_compiler.hpp"
+#include "i18n/i18n.hpp"
 #include "msgbase/msgbase_lastread_store.hpp"
 #include "nodelist/nodelist_compiler.hpp"
 #include "ui/app_shell.hpp"
+#include "ui/error_log.hpp"
 #include "ui/keys.hpp"
 #include "ui/setup/setup_run.hpp"
 #include "ui/theme.hpp"
@@ -19,21 +21,30 @@
 namespace {
 
 void printUsage(const char* program) {
-    std::cerr
-        << "AmberEdit — a Fidonet mail editor.\n\n"
-        << "Usage:\n  " << program << " [-c <config>] [--compile]\n  " << program
-        << " --setup\n\n"
-        << "Options:\n"
-        << "  -c, --config <path>   path to the AmberEdit config\n"
-        << "      --setup           ask what a first config should say and write\n"
-        << "                        one; refused where there is a config already\n"
-        << "      --compile         compile the nodelists and echolists before\n"
-        << "                        starting, whether or not they look like they\n"
-        << "                        have changed\n"
-        << "  -h, --help            this help\n"
-        << "  -V, --version         the version AmberEdit signs its messages with\n\n"
-        << "Without -c the config is looked up in: $AMBEREDIT_CONFIG,\n"
-        << "./amberedit.cfg, ~/.ambereditrc\n";
+    // One message and not fifteen: the whole page is laid out as a page, and a
+    // translator moving a column or lengthening an option name has to be able to
+    // move the rest of the row with it. `{0}` is the name the program was run
+    // under, and it stands in the two places the two ways of starting it do.
+    std::cerr << amberedit::i18n::format(
+        _("AmberEdit — a Fidonet mail editor.\n"
+          "\n"
+          "Usage:\n"
+          "  {0} [-c <config>] [--compile]\n"
+          "  {0} --setup\n"
+          "\n"
+          "Options:\n"
+          "  -c, --config <path>   path to the AmberEdit config\n"
+          "      --setup           ask what a first config should say and write\n"
+          "                        one; refused where there is a config already\n"
+          "      --compile         compile the nodelists and echolists before\n"
+          "                        starting, whether or not they look like they\n"
+          "                        have changed\n"
+          "  -h, --help            this help\n"
+          "  -V, --version         the version AmberEdit signs its messages with\n"
+          "\n"
+          "Without -c the config is looked up in: $AMBEREDIT_CONFIG,\n"
+          "./amberedit.cfg, ~/.ambereditrc\n"),
+        {program});
 }
 
 /// Compiles the nodelists the config names, where they need it.
@@ -54,12 +65,25 @@ void compileNodelists(const amberedit::config::AppConfig& config, bool force) {
 
     const auto report = amberedit::nodelist::refreshNodelist(options, force, &std::cout);
     if (report.written) {
-        std::cout << report.nodes << " nodes";
-        if (report.points != 0) std::cout << " and " << report.points << " points";
-        std::cout << " into " << options.dbPath << "\n";
+        // The points are a clause and not a second sentence: an English plural
+        // is one word and a Russian one is three, and neither language builds
+        // the count into the line the same way.
+        const std::string counted = amberedit::i18n::format(
+            amberedit::i18n::plural("{0} node", "{0} nodes", report.nodes),
+            {std::to_string(report.nodes)});
+        const std::string andPoints =
+            report.points == 0
+                ? std::string{}
+                : amberedit::i18n::format(
+                      amberedit::i18n::plural(" and {0} point", " and {0} points",
+                                              report.points),
+                      {std::to_string(report.points)});
+        std::cout << amberedit::i18n::format(_("{0}{1} into {2}"),
+                                             {counted, andPoints, options.dbPath})
+                  << "\n";
     }
     for (const auto& problem : report.problems) {
-        std::cerr << "warning: " << problem << "\n";
+        std::cerr << amberedit::i18n::format(_("warning: {0}"), {problem}) << "\n";
     }
 }
 
@@ -82,10 +106,14 @@ void compileEcholists(const amberedit::config::AppConfig& config, bool force) {
 
     const auto report = amberedit::echolist::refreshEcholist(options, force, &std::cout);
     if (report.written) {
-        std::cout << report.areas << " areas into " << options.dbPath << "\n";
+        std::cout << amberedit::i18n::format(
+                         amberedit::i18n::plural("{0} area into {1}",
+                                                 "{0} areas into {1}", report.areas),
+                         {std::to_string(report.areas), options.dbPath})
+                  << "\n";
     }
     for (const auto& problem : report.problems) {
-        std::cerr << "warning: " << problem << "\n";
+        std::cerr << amberedit::i18n::format(_("warning: {0}"), {problem}) << "\n";
     }
 }
 
@@ -95,6 +123,12 @@ int main(int argc, char* argv[]) {
     std::string configPath;
     bool forceCompile = false;
     bool setup = false;
+
+    // Before a word is printed, and before anything is read: the usage page,
+    // every complaint about an argument and every startup failure are drawn from
+    // the catalogs this binds, and the language is the environment's. What went
+    // wrong is held until there is somewhere to say it.
+    const amberedit::i18n::Started started = amberedit::i18n::start();
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -124,25 +158,37 @@ int main(int argc, char* argv[]) {
         }
         if (arg == "-c" || arg == "--config") {
             if (i + 1 >= argc) {
-                std::cerr << "error: " << arg << " needs a value\n";
+                std::cerr << amberedit::i18n::format(_("error: {0} needs a value"), {arg})
+                          << "\n";
                 return 2;
             }
             configPath = argv[++i];
             continue;
         }
-        std::cerr << "error: unknown option '" << arg << "'\n";
+        std::cerr << amberedit::i18n::format(_("error: unknown option '{0}'"), {arg})
+                  << "\n";
         printUsage(argv[0]);
         return 2;
     }
 
     try {
+        // Said here rather than beside the theme below, so that `--setup` says it
+        // too: the wizard is as much of an interface as the reader, and this is
+        // the last point both modes still pass through. `--help` and `--version`
+        // have already returned, and neither wanted the noise.
+        if (!started.warning.empty()) {
+            std::cerr << amberedit::i18n::format(_("warning: {0}"), {started.warning})
+                      << "\n";
+        }
+
         if (setup) {
             // -c says which config to read, and this reads none. Where the two
             // are written together it is not clear which of them was meant, and
             // guessing at that would be guessing at where a config goes.
             if (!configPath.empty()) {
-                std::cerr << "error: --setup writes a config of its own, so it does "
-                             "not take -c\n";
+                std::cerr << _("error: --setup writes a config of its own, so it "
+                               "does not take -c")
+                          << "\n";
                 printUsage(argv[0]);
                 return 2;
             }
@@ -150,9 +196,11 @@ int main(int argc, char* argv[]) {
                     amberedit::config::AppConfig::findDefaultConfigPath()) {
                 // Named rather than said generally: with three places to look,
                 // "there is already a config" leaves the user hunting for which.
-                std::cerr << "error: there is already an AmberEdit config: " << *found
-                          << "\n"
-                          << "Edit it, or move it aside and run --setup again.\n";
+                std::cerr << amberedit::i18n::format(
+                                 _("error: there is already an AmberEdit config: {0}\n"
+                                   "Edit it, or move it aside and run --setup again."),
+                                 {*found})
+                          << "\n";
                 return 1;
             }
             return amberedit::ui::setup::runSetup(argv[0]);
@@ -161,11 +209,13 @@ int main(int argc, char* argv[]) {
         if (configPath.empty()) {
             auto found = amberedit::config::AppConfig::findDefaultConfigPath();
             if (!found) {
-                std::cerr << "error: no AmberEdit config found.\n"
-                          << "Run " << argv[0]
-                          << " --setup to be asked what one should say, or copy "
-                             "amberedit.cfg.example to ./amberedit.cfg or "
-                             "~/.ambereditrc.\n";
+                std::cerr << amberedit::i18n::format(
+                                 _("error: no AmberEdit config found.\n"
+                                   "Run {0} --setup to be asked what one should say, "
+                                   "or copy amberedit.cfg.example to ./amberedit.cfg "
+                                   "or ~/.ambereditrc."),
+                                 {argv[0]})
+                          << "\n";
                 return 1;
             }
             configPath = *found;
@@ -173,10 +223,19 @@ int main(int argc, char* argv[]) {
 
         const auto loaded = amberedit::config::AppConfig::loadFromFile(configPath);
         if (!loaded) {
-            std::cerr << "error: " << loaded.error()->message() << "\n";
+            std::cerr << amberedit::i18n::format(_("error: {0}"),
+                                                 {loaded.error()->message()})
+                      << "\n";
             return 1;
         }
         const amberedit::config::AppConfig& appConfig = *loaded;
+
+        // Into the log as well, where the config names one — a warning printed
+        // before the interface came up is a warning that scrolled away with it.
+        if (!started.warning.empty()) {
+            amberedit::ui::error_log::open(appConfig.errorLogPath);
+            amberedit::ui::error_log::write("language", started.warning);
+        }
 
         // The keyboard layout, read here so that a `keys` file that cannot be
         // read is said out loud like any other startup failure. A config naming
@@ -185,7 +244,9 @@ int main(int argc, char* argv[]) {
         if (!appConfig.keysPath.empty()) {
             auto read = amberedit::ui::KeyMap::loadFromFile(appConfig.keysPath);
             if (!read) {
-                std::cerr << "error: " << read.error()->message() << "\n";
+                std::cerr << amberedit::i18n::format(_("error: {0}"),
+                                                     {read.error()->message()})
+                          << "\n";
                 return 1;
             }
             keys = std::move(*read);
@@ -197,7 +258,9 @@ int main(int argc, char* argv[]) {
         if (!appConfig.themePath.empty()) {
             const auto palette = amberedit::ui::theme::loadPalette(appConfig.themePath);
             if (!palette) {
-                std::cerr << "error: " << palette.error()->message() << "\n";
+                std::cerr << amberedit::i18n::format(_("error: {0}"),
+                                                     {palette.error()->message()})
+                          << "\n";
                 return 1;
             }
             amberedit::ui::theme::palette = *palette;
@@ -210,7 +273,9 @@ int main(int argc, char* argv[]) {
 
         auto source = amberedit::app::makeAreaSource(appConfig);
         if (!source) {
-            std::cerr << "error: " << source.error()->message() << "\n";
+            std::cerr << amberedit::i18n::format(_("error: {0}"),
+                                                 {source.error()->message()})
+                      << "\n";
             return 1;
         }
 
@@ -220,7 +285,9 @@ int main(int argc, char* argv[]) {
                 appConfig.lastreadUser, appConfig.userName),
             appConfig);
         if (const auto read = manager.reload(); !read) {
-            std::cerr << "error: " << read.error()->message() << "\n";
+            std::cerr << amberedit::i18n::format(_("error: {0}"),
+                                                 {read.error()->message()})
+                      << "\n";
             return 1;
         }
 
@@ -232,7 +299,7 @@ int main(int argc, char* argv[]) {
         // says so in place of the screen, a keystroke that throws leaves the
         // state as it was, and both go to the `error_log` where the config names
         // one.
-        std::cerr << "error: " << e.what() << "\n";
+        std::cerr << amberedit::i18n::format(_("error: {0}"), {e.what()}) << "\n";
         return 1;
     }
 }

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "i18n/i18n.hpp"
 #include "msgbase/null_lastread_store.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
@@ -113,6 +114,36 @@ TEST_CASE(
     // buttons, and the keys as a `keys` file spells them.
     fixture.config.hintBarCapitalize = true;
     CHECK(hint_bar::text(fixture.state) == "Q Reply  Ctrl-F Find  W Export");
+}
+
+TEST_CASE(
+    "hint_bar_capitalize off lower-cases a word that is not in ASCII "
+    "[hintbar][i18n]") {
+    // The words are the interface's, and the interface has a language. Lowering
+    // a Russian one a byte at a time leaves it exactly as it was — every byte of
+    // it is above ASCII — so this is `encoding::loweredCodePoint()`'s to do and
+    // the row would otherwise be capitals whatever the config said.
+    Fixture fixture(ScreenId::MessageRead);
+    fixture.config.readerHints = {Command::ReaderReply};
+    fixture.config.hintBarCapitalize = false;
+
+    ::setenv("LANGUAGE", "ru", 1);
+    for (const char* locale : {"", "C.UTF-8", "C.utf8", "en_US.UTF-8", "UTF-8"}) {
+        if (locale[0] == '\0') {
+            ::unsetenv("LC_ALL");
+        } else {
+            ::setenv("LC_ALL", locale, 1);
+        }
+        static_cast<void>(amberedit::i18n::start());
+        if (amberedit::i18n::translating()) break;
+    }
+
+    if (amberedit::i18n::translating()) {
+        CHECK(hint_bar::text(fixture.state) == "q ответ");
+    }
+
+    ::unsetenv("LC_ALL");
+    amberedit::i18n::clear();
 }
 
 TEST_CASE(

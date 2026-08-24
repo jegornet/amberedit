@@ -11,6 +11,7 @@
 
 #include "app/export_file.hpp"
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/dir_listing.hpp"
 #include "ui/event_util.hpp"
@@ -60,17 +61,34 @@ constexpr int kExistingNameWidth = 40;
 constexpr int kMaxNameRows = 5;
 
 /// What the bottom rule says the keys do.
-constexpr const char* kHint = "Enter write · Tab move · Esc close";
-constexpr const char* kFilesHint = "Enter save · Tab move · Esc close";
-constexpr const char* kNameLabel = " File: ";
-constexpr const char* kFilesLabel = " Files: ";
+///
+/// Functions and not constants: what each of them says is the interface's own
+/// language, and a catalog is read at startup rather than compiled in.
+const char* hint() {
+    return _("Enter write · Tab move · Esc close");
+}
+const char* filesHint() {
+    return _("Enter save · Tab move · Esc close");
+}
+const char* nameLabel() {
+    return _(" File: ");
+}
+const char* filesLabel() {
+    return _(" Files: ");
+}
 /// The button that writes them, which is what the ring stops on where a text
 /// export stops on the box its name is typed into.
-constexpr const char* kSaveLabel = "  Save  ";
+std::string saveLabel() {
+    return i18n::format("  {0}  ", {_("Save")});
+}
 /// What a path that is not there is answered with.
-constexpr const char* kNotFound = "Path not found";
+const char* notFound() {
+    return _("Path not found");
+}
 /// And what a name that is no name at all is.
-constexpr const char* kNoName = "No file name";
+const char* noName() {
+    return _("No file name");
+}
 
 /// Whether the box is writing the files the message carries rather than the
 /// message itself — which is what it was opened with and never changes while it
@@ -258,7 +276,7 @@ Outcome runExport(AppState& state, Picker& picker) {
 
     const std::string name(config::text::trim(state.exportName));
     if (name.empty()) {
-        picker.error = kNoName;
+        picker.error = noName();
         return Outcome::Ignored;
     }
 
@@ -309,7 +327,7 @@ Outcome goToPath(AppState& state, Picker& picker) {
         return Outcome::Ignored;
     }
 
-    picker.error = kNotFound;
+    picker.error = notFound();
     return Outcome::Ignored;
 }
 
@@ -358,18 +376,18 @@ Element existingQuestion(AppState& state, Picker& picker) {
     };
 
     auto content = vbox({
-        text("File exists:") | bold | color(theme::palette.dialogText),
+        text(_("File exists:")) | bold | color(theme::palette.dialogText),
         text("  " + truncateToWidth(fs::path(existing.path).filename().string(),
                                     kExistingNameWidth)) |
             color(theme::palette.dialogLabel),
         text(""),
         hbox({
-            answer("Overwrite", Answer::Overwrite, existing.overwriteBox),
+            answer(_("Overwrite"), Answer::Overwrite, existing.overwriteBox),
             text("   "),
-            answer("Append", Answer::Append, existing.appendBox),
+            answer(_("Append"), Answer::Append, existing.appendBox),
         }) | center,
         text(""),
-        text("←→ choose · Enter confirm · o/a · Esc cancel") |
+        text(_("←→ choose · Enter confirm · o/a · Esc cancel")) |
             color(theme::palette.dialogHint),
     });
 
@@ -639,12 +657,13 @@ Element render(AppState& state, Element background) {
     const int inner = picker.inner;
     const auto total = static_cast<int>(picker.entries.size());
 
-    std::string label = writingFiles(picker) ? " Export files " : " Export message ";
+    std::string label =
+        writingFiles(picker) ? _(" Export files ") : _(" Export message ");
     theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
-        label = " Dir: " + picker.search + "▌ ";
+        label = i18n::format(_(" Dir: {0}▌ "), {picker.search});
         tint = findByPrefix(picker.entries, picker.search) ? theme::palette.dialogTitle
                                                            : theme::palette.error;
     }
@@ -699,7 +718,7 @@ Element render(AppState& state, Element background) {
         // them and nothing to pick among them, so the ring does not stop here
         // and no fill says it might. What acts is the button under it.
         const auto shown = static_cast<size_t>(nameRows(picker));
-        const auto labelWidth = static_cast<size_t>(displayWidth(kFilesLabel));
+        const auto labelWidth = static_cast<size_t>(displayWidth(filesLabel()));
         const int nameRoom = std::max(1, inner - static_cast<int>(labelWidth));
         // The label stands against the first row only, the rest lining up under
         // it: one row is one file, and a label repeated down the block would be
@@ -708,11 +727,11 @@ Element render(AppState& state, Element background) {
         for (size_t i = 0; i < shown; ++i) {
             const bool counting = i + 1 == shown && picker.files.size() > shown;
             const std::string name =
-                counting
-                    ? "… and " + std::to_string(picker.files.size() - shown + 1) + " more"
-                    : picker.files[i].name;
+                counting ? i18n::format(_("… and {0} more"),
+                                        {std::to_string(picker.files.size() - shown + 1)})
+                         : picker.files[i].name;
             lines.push_back(
-                dialog::framed(text((i == 0 ? std::string(kFilesLabel) : blank) +
+                dialog::framed(text((i == 0 ? std::string(filesLabel()) : blank) +
                                     padRight(truncateToWidth(name, nameRoom), nameRoom)) |
                                color(theme::palette.dialogLabel)));
         }
@@ -720,7 +739,7 @@ Element render(AppState& state, Element background) {
         // The button that writes them, which is the ring's third stop where a
         // text export has its name box: something has to take the Enter, and a
         // label cannot.
-        Element save = text(kSaveLabel);
+        Element save = text(saveLabel());
         if (state.isPressed(AppState::Pressed::ExportSave)) {
             save = std::move(save) | color(theme::palette.dialogFlash);
         }
@@ -732,7 +751,7 @@ Element render(AppState& state, Element background) {
         // Centred by measuring rather than by a filler: a row of this box is as
         // wide as it is written, and a row narrower than the rest would take the
         // frame in with it.
-        const int spare = std::max(0, inner - displayWidth(kSaveLabel));
+        const int spare = std::max(0, inner - displayWidth(saveLabel()));
         lines.push_back(dialog::framed(
             hbox({text(std::string(static_cast<size_t>(spare / 2), ' ')),
                   std::move(save) | reflect(picker.nameBox),
@@ -740,14 +759,14 @@ Element render(AppState& state, Element background) {
     } else {
         // The name it goes under. A file already there is added to, not written
         // over, which is why this is typed rather than picked off the list above.
-        const int nameWidth = std::max(1, inner - displayWidth(kNameLabel));
+        const int nameWidth = std::max(1, inner - displayWidth(nameLabel()));
         lines.push_back(dialog::framed(hbox(
-            {text(kNameLabel) | color(theme::palette.dialogLabel),
+            {text(nameLabel()) | color(theme::palette.dialogLabel),
              box(state.exportName, picker.nameCursor, nameWidth,
                  picker.focus == Focus::Name, &picker.nameOrigin, picker.nameBox)})));
     }
 
-    lines.push_back(dialog::bottomBar(writingFiles(picker) ? kFilesHint : kHint,
+    lines.push_back(dialog::bottomBar(writingFiles(picker) ? filesHint() : hint(),
                                       picker.error, inner));
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's

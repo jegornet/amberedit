@@ -392,6 +392,10 @@ struct AppConfig {
     /// the column is concerned: `@CDESC` and the rest speak for the message
     /// being written, and "no description" in a message would be a line the
     /// program wrote in the user's name.
+    ///
+    /// The one default here that is a word and not a number or a path, and so
+    /// the one a translation replaces: `fromEntries()` sets it from the catalog,
+    /// which is not loaded yet where this initializer runs.
     std::string areaDescriptionDefault{"no description"};
 
     /// The keyboard layout to read, from `keys`. Empty where the config names

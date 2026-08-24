@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/theme.hpp"
@@ -83,19 +84,18 @@ Element render(AppState& state, Element background) {
     };
 
     Elements buttons{
-        answer("Forward", Mode::Forward, picker.forwardBox),
-        text("   "),
-        answer("Move", Mode::Move, picker.moveBox),
-        text("   "),
-        answer("Copy", Mode::Copy, picker.copyBox),
+        answer(_("Forward"), Mode::Forward, picker.forwardBox), text("   "),
+        answer(_("Move"), Mode::Move, picker.moveBox),          text("   "),
+        answer(_("Copy"), Mode::Copy, picker.copyBox),
     };
 
     auto content = vbox({
-        text("Pass the message on:") | bold | color(theme::palette.dialogText) | center,
+        text(_("Message actions:")) | bold | color(theme::palette.dialogText) |
+            center,
         text(""),
         hbox(std::move(buttons)) | center,
         text(""),
-        text("←→ choose · Enter confirm · f/m/c · Esc cancel") |
+        text(_("←→ choose · Enter confirm · f/m/c · Esc cancel")) |
             color(theme::palette.dialogHint),
     });
 

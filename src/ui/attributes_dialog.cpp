@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "domain/message.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
@@ -43,23 +44,23 @@ struct Attribute {
 /// checkbox is there to be pointed at, and a terminal that cannot say Ctrl-M is
 /// no reason to hide one.
 constexpr Attribute kAttributes[] = {
-    {"Private", 'p', domain::attr::kPrivate},
-    {"Crash", 'c', domain::attr::kCrash},
-    {"Received", 'r', domain::attr::kRead},
-    {"Sent", 's', domain::attr::kSent},
-    {"File Attach", 'a', domain::attr::kFile},
-    {"Transit", 'j', domain::attr::kInTransit},
-    {"Orphan", 'o', domain::attr::kOrphan},
-    {"Kill/Sent", 'k', domain::attr::kKillSent},
-    {"Local", 'l', domain::attr::kLocal},
-    {"Hold", 'h', domain::attr::kHold},
-    {"File Request", 'f', domain::attr::kFileRequest},
-    {"Return Rcpt Request", 'm', domain::attr::kReceiptRequest},
-    {"Return Rcpt", 'n', domain::attr::kIsReceipt},
-    {"Audit Request", 't', domain::attr::kAuditRequest},
-    {"File Update Request", 'u', domain::attr::kUpdateRequest},
-    {"Direct", 'd', domain::attr::kDirect},
-    {"Immediate", 'i', domain::attr::kImmediate},
+    {N_("Private"), 'p', domain::attr::kPrivate},
+    {N_("Crash"), 'c', domain::attr::kCrash},
+    {N_("Received"), 'r', domain::attr::kRead},
+    {N_("Sent"), 's', domain::attr::kSent},
+    {N_("File Attach"), 'a', domain::attr::kFile},
+    {N_("Transit"), 'j', domain::attr::kInTransit},
+    {N_("Orphan"), 'o', domain::attr::kOrphan},
+    {N_("Kill/Sent"), 'k', domain::attr::kKillSent},
+    {N_("Local"), 'l', domain::attr::kLocal},
+    {N_("Hold"), 'h', domain::attr::kHold},
+    {N_("File Request"), 'f', domain::attr::kFileRequest},
+    {N_("Return Rcpt Request"), 'm', domain::attr::kReceiptRequest},
+    {N_("Return Rcpt"), 'n', domain::attr::kIsReceipt},
+    {N_("Audit Request"), 't', domain::attr::kAuditRequest},
+    {N_("File Update Request"), 'u', domain::attr::kUpdateRequest},
+    {N_("Direct"), 'd', domain::attr::kDirect},
+    {N_("Immediate"), 'i', domain::attr::kImmediate},
 };
 constexpr int kAttributeCount =
     static_cast<int>(sizeof(kAttributes) / sizeof(kAttributes[0]));
@@ -67,12 +68,28 @@ constexpr int kAttributeCount =
 /// The letter that clears every attribute at once, GoldED's "Zap all attribs".
 constexpr char kZapKey = 'z';
 
-/// "Return Rcpt Request" and "File Update Request" are the longest names, at
-/// nineteen columns; the column is that wide so that the chords line up under
-/// one another whatever is above them.
-constexpr int kNameWidth = 19;
+/// The widest of the names as the interface has them, so that the chords line
+/// up under one another whatever is above them.
+///
+/// Measured and not counted: "Return Rcpt Request" is the longest of the
+/// English names at nineteen columns, and a translation of it is as long as it
+/// is. Measured once, on the first frame the dialog is drawn on — the catalog is
+/// loaded before anything is drawn and does not change under a running program.
+int nameWidth() {
+    static const int width = [] {
+        int widest = 0;
+        for (const Attribute& attribute : kAttributes) {
+            widest = std::max(widest, displayWidth(_(attribute.name)));
+        }
+        return widest;
+    }();
+    return width;
+}
+
 /// "[x] " + the name + two spaces + "Ctrl-P".
-constexpr int kCellWidth = 4 + kNameWidth + 2 + 6;
+int cellWidth() {
+    return 4 + nameWidth() + 2 + 6;
+}
 /// Between the two columns, and the margin the box keeps inside its frame.
 constexpr int kGap = 2;
 constexpr int kSideMargin = 1;
@@ -81,7 +98,7 @@ constexpr int kFrame = 2;
 
 /// Two columns where the window has room for them, one where it has not.
 int columnsFor(int width) {
-    return width >= (2 * kCellWidth) + kGap + (2 * kSideMargin) + kFrame ? 2 : 1;
+    return width >= (2 * cellWidth()) + kGap + (2 * kSideMargin) + kFrame ? 2 : 1;
 }
 
 /// How many rows a column of attributes stands on.
@@ -100,10 +117,10 @@ int linesFor(int columns) {
 Element checkbox(const Attribute& attribute, uint32_t attributes, bool current) {
     const bool on = (attributes & attribute.bit) != 0;
     const std::string label = std::string(on ? "[x] " : "[ ] ") +
-                              padRight(attribute.name, kNameWidth) + "  Ctrl-" +
+                              padRight(_(attribute.name), nameWidth()) + "  Ctrl-" +
                               static_cast<char>(attribute.key - 'a' + 'A');
 
-    Element cell = text(padRight(label, kCellWidth));
+    Element cell = text(padRight(label, cellWidth()));
     if (current) {
         return std::move(cell) | bold | color(theme::palette.selectionText) |
                bgcolor(theme::palette.selection);
@@ -114,12 +131,14 @@ Element checkbox(const Attribute& attribute, uint32_t attributes, bool current) 
 
 /// What the button that closes the dialog says, and how wide that leaves it —
 /// measured rather than counted, so the two cannot drift apart.
-constexpr const char* kDoneLabel = "  Done  ";
+std::string doneLabel() {
+    return i18n::format("  {0}  ", {_("Done")});
+}
 
 /// The button itself. Drawn selected, as the only thing Enter could mean here,
 /// and lit for the length of a click on it.
 Element doneButton(bool pressed) {
-    auto label = text(kDoneLabel);
+    auto label = text(doneLabel());
     if (pressed) label = std::move(label) | color(theme::palette.dialogFlash);
     return std::move(label) | bold | color(theme::palette.selectionText) |
            bgcolor(theme::palette.selection);
@@ -173,14 +192,15 @@ Element render(AppState& state, Element background) {
 
     const int columns = columnsFor(state.width);
     const int lines = linesFor(columns);
-    const int inner = (columns * kCellWidth) + ((columns - 1) * kGap) + (2 * kSideMargin);
+    const int inner =
+        (columns * cellWidth()) + ((columns - 1) * kGap) + (2 * kSideMargin);
 
     // The room is reserved before anything is reflected into it: the boxes are
     // written while the frame is laid out, and a vector that grew under them
     // would leave the earlier rows pointing at freed memory.
     picker.boxes.assign(kAttributeCount, Box::Nowhere());
 
-    Elements rows{titleBar(" Message attributes ", inner)};
+    Elements rows{titleBar(_(" Message attributes "), inner)};
     for (int line = 0; line < lines; ++line) {
         Elements cells{text(std::string(kSideMargin, ' '))};
         for (int column = 0; column < columns; ++column) {
@@ -189,7 +209,7 @@ Element render(AppState& state, Element background) {
             const int index = (column * lines) + line;
             if (column > 0) cells.push_back(text(std::string(kGap, ' ')));
             if (index >= kAttributeCount) {
-                cells.push_back(text(std::string(kCellWidth, ' ')));
+                cells.push_back(text(std::string(static_cast<size_t>(cellWidth()), ' ')));
                 continue;
             }
             cells.push_back(checkbox(kAttributes[static_cast<size_t>(index)],
@@ -204,13 +224,13 @@ Element render(AppState& state, Element background) {
     const Element button =
         doneButton(state.isPressed(AppState::Pressed::AttributesDone)) |
         reflect(picker.doneBox);
-    const int buttonWidth = displayWidth(kDoneLabel);
+    const int buttonWidth = displayWidth(doneLabel());
     const int left = std::max(0, (inner - buttonWidth) / 2);
     rows.push_back(framed(
         hbox({text(std::string(static_cast<size_t>(left), ' ')), button,
               text(std::string(
                   static_cast<size_t>(std::max(0, inner - left - buttonWidth)), ' '))})));
-    rows.push_back(centred("space toggle · ctrl-z clear · enter done · esc cancel",
+    rows.push_back(centred(_("space toggle · ctrl-z clear · enter done · esc cancel"),
                            inner, theme::palette.dialogHint));
     rows.push_back(text("╰" + horizontalRule(inner) + "╯") |
                    color(theme::palette.dialogBorder));

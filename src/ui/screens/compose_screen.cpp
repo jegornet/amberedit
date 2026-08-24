@@ -16,6 +16,7 @@
 #include "domain/area.hpp"
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/attributes_dialog.hpp"
 #include "ui/back_button.hpp"
 #include "ui/delete_line_button.hpp"
@@ -41,8 +42,9 @@ namespace {
 
 /// " From : ", " To   : ", " Subj : " — the same label column the reader
 /// draws, indent included, so a message being written lines up with one being
-/// read.
-constexpr int kLabelWidth = 8;
+/// read. Measured there and asked for here, so that the two cannot part company
+/// in a language whose words are a different length.
+using screens::message_read::header_labels::labelColumn;
 constexpr int kRightPad = 1;
 /// "65535:65535/65535.65535": the widest a 4D address can be. Fixed rather
 /// than measured, so the column does not shuffle sideways as it is typed into.
@@ -68,7 +70,7 @@ constexpr int kMaxNameWidth = static_cast<int>(kMaxNameChars) + 1;
 constexpr int kMaxSubjectWidth = static_cast<int>(kMaxSubjectChars) + 1;
 
 int nameWidth(int screenWidth) {
-    const int room = screenWidth - kRightPad - kLabelWidth - kAddressWidth;
+    const int room = screenWidth - kRightPad - labelColumn() - kAddressWidth;
     return std::clamp(room, 1, kMaxNameWidth);
 }
 
@@ -129,9 +131,9 @@ Element field(const std::string& value, size_t cursor, int width, bool active,
 /// its own, and the edge where one ends and the next begins is what a column of
 /// blank between them used to be there to draw.
 Element row(const std::string& label, Element name, Element address) {
-    Elements cells{
-        text(" " + padRight(label, 4) + " : ") | bold | color(theme::palette.header),
-        std::move(name)};
+    Elements cells{text(screens::message_read::header_labels::labelCell(label)) | bold |
+                       color(theme::palette.header),
+                   std::move(name)};
     if (address) cells.push_back(std::move(address));
     return hbox(std::move(cells));
 }
@@ -231,7 +233,7 @@ Elements headerRows(AppState& state, bool editing) {
     // What is left of the row once the labels and the names are taken off —
     // wider than the address column above it, since the names stop at
     // kMaxNameWidth and a roomy window leaves the rest over.
-    const int trailing = std::max(1, state.width - kRightPad - kLabelWidth - names);
+    const int trailing = std::max(1, state.width - kRightPad - labelColumn() - names);
 
     // The Date row the reader draws, over a message that has no stamp of its
     // own yet: what is being written is written now, read afresh on every
@@ -268,20 +270,22 @@ Elements headerRows(AppState& state, bool editing) {
         app::localStamp(when).format(state.config.readerDateTimeFormat);
 
     Elements rows{
-        row("From", cell(kFromName, names), cell(kFromAddr, kAddressWidth)),
+        row(screens::message_read::header_labels::from(), cell(kFromName, names),
+            cell(kFromAddr, kAddressWidth)),
         // Echomail is addressed to the area, so the row carries a name and
         // nothing else — the same as the reader shows for it.
-        row("To", cell(kToName, names),
+        row(screens::message_read::header_labels::to(), cell(kToName, names),
             state.compose.netmail ? cell(kToAddr, kAddressWidth) : Element{}),
         // The subject runs across both columns, as it does in the reader — but
         // no further than what it will hold: a box stretching across a wide
         // window would offer room the base has none for.
-        row("Subj", cell(kSubject, std::min(names + trailing, kMaxSubjectWidth)),
-            Element{}),
+        row(screens::message_read::header_labels::subject(),
+            cell(kSubject, std::min(names + trailing, kMaxSubjectWidth)), Element{}),
         // The stamp in the block's own color, and on no fill: it is the one
         // value here that is shown rather than typed into, and the fills above
         // are what say which of them the typing may go to.
-        row("Date", field(now, 0, names, false, theme::palette.header),
+        row(screens::message_read::header_labels::date(),
+            field(now, 0, names, false, theme::palette.header),
             attributesColumn(state, trailing,
                              editing && state.composeField == kAttributes)),
     };
@@ -302,11 +306,11 @@ std::string titleText(const AppState& state) {
     // going where the message says it belongs, and the area named beside this
     // word is that echo. Nothing was moved but the screen.
     const bool movedByHand = state.compose.moved && !state.compose.direct;
-    const std::string what = state.compose.changing  ? "change"
-                             : state.compose.forward ? "forward"
-                             : movedByHand           ? "moved reply"
-                             : state.compose.reply   ? "reply"
-                                                     : "new message";
+    const char* what = state.compose.changing  ? _("change")
+                       : state.compose.forward ? _("forward")
+                       : movedByHand           ? _("moved reply")
+                       : state.compose.reply   ? _("reply")
+                                               : _("new message");
     return " " + state.composeArea().tag + " — " + what;
 }
 
@@ -1137,8 +1141,10 @@ void reportUnresolved(AppState& state, const std::vector<std::string>& unresolve
         if (!named.empty()) named += ", ";
         named += what;
     }
-    state.errorMessage = "No copy was made for: " + named +
-                         ". The lines naming them are still in the message.";
+    state.errorMessage = i18n::format(
+        _("No copy was made for: {0}. The lines naming them are still in the "
+          "message."),
+        {named});
     state.errorEndsScreen = false;
 }
 

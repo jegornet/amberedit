@@ -31,7 +31,8 @@ struct TextMatch {
 ///   states is a subset of those, so folding the decoded text is the same
 ///   answer folding the stored bytes would give, and it is also the right
 ///   answer for a message that states UTF-8.
-/// - **CP866 alone carries the Russian language support quirks**: a message written in it may
+/// - **CP866 alone carries the Russian language support quirks**: a message written in it
+/// may
 ///   spell Н, р and у with the Latin letters that look the same on a DOS screen
 ///   — H, p and y — because the two are a keyboard layout apart. Those pairs are
 ///   folded together, and only there: in a western area they are six different
@@ -40,6 +41,19 @@ struct TextMatch {
 /// The query and the charset are set apart from each other because a search
 /// runs over a whole area: the words are typed once and the charset changes
 /// message by message, most areas never changing it at all.
+/// The lower-case form of a code point, over the alphabets FTN mail is written
+/// in: ASCII, the Latin-1 supplement and Cyrillic. Everything else is left as it
+/// stands.
+///
+/// Here rather than inside the search because the interface lower-cases too —
+/// `hint_bar_capitalize off` writes a command's word in small letters, and that
+/// word is Russian in a Russian interface. One table, and this is it.
+///
+/// **The CP866 quirks are not part of it.** Folding н onto h is what lets a word
+/// typed half in each layout be *found*; doing it to something being drawn would
+/// spell the word wrong.
+[[nodiscard]] char32_t loweredCodePoint(char32_t code);
+
 class TextSearch {
 public:
     TextSearch() = default;

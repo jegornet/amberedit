@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 #include "nodelist/nodelist_source.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
@@ -49,18 +50,20 @@ constexpr int kWindowMargin = 2;
 /// last step it is what writes the config.
 const char* hintFor(const SetupState& state) {
     switch (state.stop) {
-        case Stop::Picker: return "Enter open · Tab move · Esc leave";
-        case Stop::Back: return "Enter goes back · Tab move · Esc leave";
-        case Stop::Skip: return "Enter skips this · Tab move · Esc leave";
+        case Stop::Picker: return _("Enter open · Tab move · Esc leave");
+        case Stop::Back: return _("Enter goes back · Tab move · Esc leave");
+        case Stop::Skip: return _("Enter skips this · Tab move · Esc leave");
         case Stop::Next:
             return state.step == Step::Summary
-                       ? "Enter writes the config · Tab move · Esc leave"
-                       : "Enter goes on · Tab move · Esc leave";
+                       ? _("Enter writes the config · Tab move · Esc leave")
+                       : _("Enter goes on · Tab move · Esc leave");
         default: break;
     }
-    return "Enter next field · Tab move · Esc leave";
+    return _("Enter next field · Tab move · Esc leave");
 }
-constexpr const char* kLeaving = "Esc again to leave — nothing has been written";
+const char* leaving() {
+    return _("Esc again to leave — nothing has been written");
+}
 
 /// The three tosser formats, in the order the step offers them.
 constexpr config::TosserConfigFormat kFormats[] = {
@@ -75,17 +78,17 @@ const char* formatLabel(config::TosserConfigFormat format) {
         case config::TosserConfigFormat::SquishCfg: return "squish.cfg";
         case config::TosserConfigFormat::Fidoconfig: break;
     }
-    return "HPT (Fidoconfig)";
+    return _("HPT (Fidoconfig)");
 }
 
 /// What the file step says it is looking for.
 std::string lookingFor(config::TosserConfigFormat format) {
     switch (format) {
-        case config::TosserConfigFormat::AreasBbs: return "Looking for an areas.bbs.";
-        case config::TosserConfigFormat::SquishCfg: return "Looking for a squish.cfg.";
+        case config::TosserConfigFormat::AreasBbs: return _("Looking for an areas.bbs.");
+        case config::TosserConfigFormat::SquishCfg: return _("Looking for a squish.cfg.");
         case config::TosserConfigFormat::Fidoconfig: break;
     }
-    return "An HPT config is called whatever your sysop called it.";
+    return _("An HPT config is called whatever your sysop called it.");
 }
 
 /// Settles how big the box is, once — and again only where the window itself
@@ -228,7 +231,7 @@ void takeFileUnderCursor(SetupState& state) {
 /// The tosser config as it stands, said out loud where it will not do.
 [[nodiscard]] tl::expected<void, ErrorPtr> checkPickedTosser(SetupState& state) {
     if (state.tosserConfigPath.empty()) {
-        return failure("pick your tosser's config — it is where the areas come from");
+        return failure(_("pick your tosser's config — it is where the areas come from"));
     }
     auto areas = checkTosserConfig(state.tosserConfigPath, state.format);
     if (!areas) return tl::make_unexpected(std::move(areas).error());
@@ -313,11 +316,11 @@ Outcome advance(SetupState& state) {
             takeFileUnderCursor(state);
             if (state.nodelistPath.empty()) {
                 state.error =
-                    "pick a nodelist, or Skip — AmberEdit reads mail without one";
+                    _("pick a nodelist, or Skip — AmberEdit reads mail without one");
                 return Outcome::Ignored;
             }
             if (config::text::trim(state.nodelistDb.value).empty()) {
-                state.error = "say where the compiled nodelist goes";
+                state.error = _("say where the compiled nodelist goes");
                 state.stop = Stop::NodelistDb;
                 return Outcome::Ignored;
             }
@@ -431,9 +434,9 @@ Element buttons(SetupState& state, int inner) {
         used += displayWidth(" [ " + label + " ] ");
     };
 
-    if (state.step == Step::Nodelist) add("Skip", Stop::Skip, state.skipBox);
-    if (state.step != Step::Identity) add("Back", Stop::Back, state.backBox);
-    add(state.step == Step::Summary ? "Save" : "Next", Stop::Next, state.nextBox);
+    if (state.step == Step::Nodelist) add(_("Skip"), Stop::Skip, state.skipBox);
+    if (state.step != Step::Identity) add(_("Back"), Stop::Back, state.backBox);
+    add(state.step == Step::Summary ? _("Save") : _("Next"), Stop::Next, state.nextBox);
 
     Elements line{text(std::string(static_cast<size_t>(std::max(0, inner - used)), ' '))};
     for (auto& element : row) line.push_back(std::move(element));
@@ -448,26 +451,27 @@ Element buttons(SetupState& state, int inner) {
 /// it has on what the user knew before they started.
 std::string titleOf(const SetupState& state) {
     switch (state.step) {
-        case Step::Identity: return " General parameters — step 1 of 6 ";
-        case Step::TosserFile: return " Tosser config file — step 2 of 6 ";
-        case Step::ReadCharset: return " Incoming charset — step 3 of 6 ";
-        case Step::ComposeCharset: return " Outgoing charset — step 4 of 6 ";
-        case Step::Nodelist: return " Nodelist file — step 5 of 6 ";
+        case Step::Identity: return _(" General parameters — step 1 of 6 ");
+        case Step::TosserFile: return _(" Tosser config file — step 2 of 6 ");
+        case Step::ReadCharset: return _(" Incoming charset — step 3 of 6 ");
+        case Step::ComposeCharset: return _(" Outgoing charset — step 4 of 6 ");
+        case Step::Nodelist: return _(" Nodelist file — step 5 of 6 ");
         case Step::Summary: break;
     }
-    return " The config to write — step 6 of 6 ";
+    return _(" The config to write — step 6 of 6 ");
 }
 
 void renderIdentity(SetupState& state, Elements& lines, int inner) {
+    lines.push_back(note(_("Who the messages you write are from."), inner,
+                         theme::palette.dialogText));
     lines.push_back(
-        note("Who the messages you write are from.", inner, theme::palette.dialogText));
+        labelledField(_(" Name:    "), state.name, inner, state.stop == Stop::Name));
+    lines.push_back(labelledField(_(" Address: "), state.address, inner,
+                                  state.stop == Stop::Address));
     lines.push_back(
-        labelledField(" Name:    ", state.name, inner, state.stop == Stop::Name));
-    lines.push_back(
-        labelledField(" Address: ", state.address, inner, state.stop == Stop::Address));
-    lines.push_back(note("e.g. John Doe, 2:382/736", inner, theme::palette.dialogHint));
+        note(_("e.g. John Doe, 2:382/9999"), inner, theme::palette.dialogHint));
     lines.push_back(dialog::divider(inner));
-    lines.push_back(note("Your areas come from your tosser's config, which is:", inner,
+    lines.push_back(note(_("Your areas come from your tosser's config, which is:"), inner,
                          theme::palette.dialogText));
     for (size_t i = 0; i < std::size(kFormats); ++i) {
         lines.push_back(radio(formatLabel(kFormats[i]), state.format == kFormats[i],
@@ -486,30 +490,30 @@ void renderPickerStep(SetupState& state, Elements& lines, int inner,
 void renderCharset(SetupState& state, Elements& lines, int inner) {
     const bool incoming = state.step == Step::ReadCharset;
     lines.push_back(note(incoming
-                             ? "The charset in which the message you READ, when it has"
-                             : "The charset in which the message you WRITE is",
+                             ? _("The charset in which the message you READ, when it has")
+                             : _("The charset in which the message you WRITE is"),
                          inner, theme::palette.dialogText));
     if (incoming) {
-        lines.push_back(note("no CHRS kludge — or it says something like IBMPC 2.", inner,
-                             theme::palette.dialogText));
+        lines.push_back(note(_("no CHRS kludge — or it says something like IBMPC 2."),
+                             inner, theme::palette.dialogText));
     }
-    lines.push_back(labelledField(" Charset: ", charsetField(state), inner,
+    lines.push_back(labelledField(_(" Charset: "), charsetField(state), inner,
                                   state.stop == Stop::Charset));
-    lines.push_back(note(incoming ? "e.g. CP866 or CP437 or LATIN-1"
-                                  : "e.g. UTF-8 or CP866 or CP437 or LATIN-1",
+    lines.push_back(note(incoming ? _("e.g. CP866 or CP437 or LATIN-1")
+                                  : _("e.g. UTF-8 or CP866 or CP437 or LATIN-1"),
                          inner, theme::palette.dialogHint));
 }
 
 void renderNodelist(SetupState& state, Elements& lines, int inner) {
-    lines.push_back(note("A nodelist, to look addresses and sysops up in.", inner,
+    lines.push_back(note(_("A nodelist, to look addresses and sysops up in."), inner,
                          theme::palette.dialogText));
-    lines.push_back(note("It may be a ZIP archive. Skip if you have none.", inner,
+    lines.push_back(note(_("It may be a ZIP archive. Skip if you have none."), inner,
                          theme::palette.dialogHint));
     // A row shorter than the other picker step, the compiled file taking one.
     state.picker.rows = std::max(1, state.rows - 1);
     lines.push_back(setup::render(state.picker, inner));
     lines.push_back(dialog::divider(inner));
-    lines.push_back(labelledField(" Compiled to: ", state.nodelistDb, inner,
+    lines.push_back(labelledField(_(" Compiled to: "), state.nodelistDb, inner,
                                   state.stop == Stop::NodelistDb));
 }
 
@@ -528,33 +532,39 @@ std::string fitPath(const std::string& path, int room) {
 }
 
 void renderSummary(SetupState& state, Elements& lines, int inner) {
+    // The labels are padded to the widest of them rather than to a number, so
+    // that the values line up whatever language the words are in.
+    const int labels = std::max({displayWidth(_("Name:")), displayWidth(_("Address:")),
+                                 displayWidth(_("Areas:")), displayWidth(_("Charset:")),
+                                 displayWidth(_("Nodelist:"))});
     const auto say = [&](const std::string& label, const std::string& value) {
-        const std::string written = padRight(label, 10);
+        const std::string written = padRight(label, labels + 1);
         lines.push_back(note(written + fitPath(value, inner - displayWidth(written) - 1),
                              inner, theme::palette.dialogText));
     };
-    say("Name:", state.name.value);
-    say("Address:", state.address.value);
-    say("Areas:",
+    say(_("Name:"), state.name.value);
+    say(_("Address:"), state.address.value);
+    say(_("Areas:"),
         state.tosserConfigPath + " (" + std::to_string(state.tosserAreas) + ")");
-    say("Charset:",
-        state.readCharset.value + " read, " + state.composeCharset.value + " written");
-    say("Nodelist:", state.nodelistPath.empty() ? "none" : state.nodelistPath);
+    say(_("Charset:"),
+        i18n::format(_("{0} read, {1} written"),
+                     {state.readCharset.value, state.composeCharset.value}));
+    say(_("Nodelist:"), state.nodelistPath.empty() ? _("none") : state.nodelistPath);
     lines.push_back(dialog::divider(inner));
     lines.push_back(
-        labelledField(" Config: ", state.target, inner, state.stop == Stop::Target));
-    lines.push_back(note("The whole commented config, with your answers in it.", inner,
+        labelledField(_(" Config: "), state.target, inner, state.stop == Stop::Target));
+    lines.push_back(note(_("The whole commented config, with your answers in it."), inner,
                          theme::palette.dialogHint));
 }
 
 /// What the wizard says instead of itself in a window it does not fit in.
 Element tooSmall(const SetupState& state) {
-    const std::string said = "The setup wizard needs " + std::to_string(kMinWidth) + "x" +
-                             std::to_string(kMinHeight) + ", this window is " +
-                             std::to_string(state.width) + "x" +
-                             std::to_string(state.height) + ".";
+    const std::string said =
+        i18n::format(_("The setup wizard needs {0}x{1}, this window is {2}x{3}."),
+                     {std::to_string(kMinWidth), std::to_string(kMinHeight),
+                      std::to_string(state.width), std::to_string(state.height)});
     return vbox({text(said) | color(theme::palette.error),
-                 text("Make it bigger, or Esc to leave.") |
+                 text(_("Make it bigger, or Esc to leave.")) |
                      color(theme::palette.dialogHint)}) |
            center;
 }
@@ -665,7 +675,7 @@ Element render(SetupState& state) {
         switch (state.step) {
             case Step::Identity: renderIdentity(state, lines, inner); break;
             case Step::TosserFile:
-                renderPickerStep(state, lines, inner, "Where your tosser's config is.",
+                renderPickerStep(state, lines, inner, _("Where your tosser's config is."),
                                  lookingFor(state.format));
                 break;
             case Step::ReadCharset:
@@ -716,7 +726,7 @@ Outcome handleEvent(SetupState& state, const Event& event) {
         // twice.
         if (!state.leaving) {
             state.leaving = true;
-            state.error = kLeaving;
+            state.error = leaving();
             return Outcome::Ignored;
         }
         return Outcome::Cancelled;

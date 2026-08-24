@@ -7,8 +7,10 @@
 #include <vector>
 
 #include "config/text_util.hpp"
+#include "encoding/text_search.hpp"
 #include "ui/event_util.hpp"
 #include "ui/keys.hpp"
+#include "ui/term/utf8.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
@@ -42,6 +44,23 @@ struct Hint {
     std::string text;
 };
 
+/// A word in small letters, over the alphabets an interface can be written in.
+///
+/// Not `config::text::toLower`, which is ASCII by design and rightly so — it
+/// reads config keys and charset names, which are ASCII by definition. A
+/// command's word is not: in a Russian interface `Ответ` has to come out
+/// `ответ`, and lower-casing it a byte at a time leaves it exactly as it was.
+/// The table is `encoding::loweredCodePoint()`, the one the search folds with.
+std::string lowered(std::string_view label) {
+    std::string out;
+    out.reserve(label.size());
+    size_t at = 0;
+    while (at < label.size()) {
+        out += term::encodeUtf8(encoding::loweredCodePoint(term::decodeUtf8(label, at)));
+    }
+    return out;
+}
+
 /// The hints for whichever screen is up.
 ///
 /// A command the layout leaves unbound is left out: there is no key to put in
@@ -58,11 +77,10 @@ std::vector<Hint> hintsOf(const AppState& state) {
         // second name for one thing. Its case is the row's own, from
         // `hint_bar_capitalize`, and the key is written to match.
         const bool capitals = state.config.hintBarCapitalize;
-        const std::string_view label = Commands::of(command).label;
+        const std::string_view label = Commands::labelOf(command);
         hints.push_back({command, *key,
                          hintSpellingOf(*key, capitals) + " " +
-                             (capitals ? std::string(label)
-                                       : config::text::toLower(label))});
+                             (capitals ? std::string(label) : lowered(label))});
     }
     return hints;
 }

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -231,7 +232,7 @@ TEST_CASE("every label the menus offer fits the default width [menu]") {
         // word has left cannot be worked out by counting characters.
         const Commands::Info& command = Commands::of(item.command);
         const std::string line =
-            menu_dialog::labelLine(command.icon, command.label, 99, icon);
+            menu_dialog::labelLine(command.icon, command.labelId, 99, icon);
         INFO(line);
         CHECK(displayWidth(line) <= 19);  // 22 less the two sides and the indent
     }
@@ -244,15 +245,15 @@ TEST_CASE("a label is a glyph and a word, kept apart [menu]") {
     // what the hint bars and the keyboard read as well.
     const Commands::Info& command = Commands::of(Command::ReaderNodelist);
     CHECK(command.icon == "⚲");
-    CHECK(command.label == "Nodelist");
-    CHECK(menu_dialog::labelLine(command.icon, command.label, 99) == "⚲ Nodelist");
+    CHECK(std::string_view(command.labelId) == "Nodelist");
+    CHECK(menu_dialog::labelLine(command.icon, command.labelId, 99) == "⚲ Nodelist");
 
     // The word is what gives way when the room runs out; the glyph stays,
     // however many columns the platform draws it in.
     const int icon = displayWidth(command.icon);
-    CHECK(menu_dialog::labelLine(command.icon, command.label, icon + 4) == "⚲ No…");
-    CHECK(menu_dialog::labelLine(command.icon, command.label, icon + 1) == "⚲");
-    CHECK(menu_dialog::labelLine(command.icon, command.label, 0).empty());
+    CHECK(menu_dialog::labelLine(command.icon, command.labelId, icon + 4) == "⚲ No…");
+    CHECK(menu_dialog::labelLine(command.icon, command.labelId, icon + 1) == "⚲");
+    CHECK(menu_dialog::labelLine(command.icon, command.labelId, 0).empty());
 
     // A glyph narrower than the column it is set in is padded out to it, so that
     // the words below one another line up. The column is stated in columns, not

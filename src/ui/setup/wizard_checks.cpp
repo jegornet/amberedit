@@ -15,6 +15,7 @@
 #include "domain/area.hpp"
 #include "encoding/charset_detector.hpp"
 #include "encoding/iconv_recoder.hpp"
+#include "i18n/i18n.hpp"
 
 namespace amberedit::ui::setup {
 namespace {
@@ -27,7 +28,7 @@ namespace text = config::text;  // no term::text here, so the short name is free
 [[nodiscard]] tl::expected<void, ErrorPtr> withoutQuotes(std::string_view typed,
                                                          const char* what) {
     if (typed.find('"') != std::string_view::npos) {
-        return failure(std::string(what) + " cannot hold a double quote");
+        return failure(i18n::format(_("{0} cannot hold a double quote"), {what}));
     }
     return {};
 }
@@ -48,35 +49,38 @@ namespace text = config::text;  // no term::text here, so the short name is free
 
 tl::expected<void, ErrorPtr> checkName(std::string_view typed) {
     if (text::trim(typed).empty()) {
-        return failure("a name is what a message you write is from — it cannot be empty");
+        return failure(
+            _("a name is what a message you write is from — it cannot be empty"));
     }
-    return withoutQuotes(typed, "a name");
+    return withoutQuotes(typed, _("a name"));
 }
 
 tl::expected<domain::FtnAddress, ErrorPtr> checkAddress(std::string_view typed) {
     const std::string_view trimmed = text::trim(typed);
-    if (trimmed.empty()) return failure("an address is required, as 2:5020/9999");
+    if (trimmed.empty()) return failure(_("an address is required, as 2:5020/9999"));
 
     const auto parsed = domain::FtnAddress::parse(trimmed);
     if (!parsed || !parsed->isValid()) {
-        return failure("'" + std::string(trimmed) +
-                       "' is not an FTN address — it is written zone:net/node, "
-                       "as 2:5020/9999 or 2:5020/9999.1");
+        return failure(i18n::format(
+            _("'{0}' is not an FTN address — it is written zone:net/node, as "
+              "2:5020/9999 or 2:5020/9999.1"),
+            {trimmed}));
     }
     return *parsed;
 }
 
 tl::expected<void, ErrorPtr> checkCharsetAnswer(std::string_view typed) {
     const std::string charset(text::trim(typed));
-    if (charset.empty()) return failure("a charset is required, as CP866");
+    if (charset.empty()) return failure(_("a charset is required, as CP866"));
     for (char c : charset) {
         // A charset is read as a single value, so a second word would be
         // refused by the config with less to say about it than this.
         if (text::asciiIsSpace(c)) {
-            return failure("a charset is one word — '" + charset + "' is more than one");
+            return failure(i18n::format(
+                _("a charset is one word — '{0}' is more than one"), {charset}));
         }
     }
-    if (auto quotes = withoutQuotes(charset, "a charset"); !quotes)
+    if (auto quotes = withoutQuotes(charset, _("a charset")); !quotes)
         return tl::make_unexpected(std::move(quotes).error());
 
     // Through AmberEdit's own alias table first, and iconv second: the config
@@ -85,8 +89,9 @@ tl::expected<void, ErrorPtr> checkCharsetAnswer(std::string_view typed) {
     // particular and normalizes to nothing, which is what this catches.
     const std::string normalized = encoding::CharsetDetector::normalize(charset);
     if (normalized.empty()) {
-        return failure("'" + charset +
-                       "' names no charset in particular — say which one, as CP866");
+        return failure(i18n::format(
+            _("'{0}' names no charset in particular — say which one, as CP866"),
+            {charset}));
     }
     return encoding::checkCharset(normalized);
 }
@@ -104,11 +109,11 @@ std::string defaultReadCharset(const domain::FtnAddress& address) {
 
 tl::expected<size_t, ErrorPtr> checkTosserConfig(const std::string& path,
                                                  config::TosserConfigFormat format) {
-    if (path.empty()) return failure("no tosser config is named");
+    if (path.empty()) return failure(_("no tosser config is named"));
     if (auto isFile = text::insistItIsAFile(path); !isFile) {
         return tl::make_unexpected(std::move(isFile).error());
     }
-    if (auto quotes = withoutQuotes(path, "a path"); !quotes) {
+    if (auto quotes = withoutQuotes(path, _("a path")); !quotes) {
         return tl::make_unexpected(std::move(quotes).error());
     }
 
@@ -129,8 +134,8 @@ tl::expected<size_t, ErrorPtr> checkTosserConfig(const std::string& path,
     // An empty answer is nearly always the wrong file or the wrong format, and
     // the user is standing right here to say which.
     if (areas->empty()) {
-        return failure("no areas in " + path + " — is it really a " +
-                       std::string(config::formatWord(format)) + "?");
+        return failure(i18n::format(_("no areas in {0} — is it really a {1}?"),
+                                    {path, config::formatWord(format)}));
     }
     return areas->size();
 }
@@ -186,18 +191,24 @@ tl::expected<std::string, ErrorPtr> ensureTemplate(const std::string& configPath
     if (fs::exists(beside, ec)) {
         // The probe has already tried to read it, so if it is here and was not
         // taken it cannot be read — and it is somebody's file either way.
-        return failure("there is a default.tpl at " + beside.string() +
-                       " that cannot be read — the config needs a template it can");
+        return failure(i18n::format(
+            _("there is a default.tpl at {0} that cannot be read — the config "
+              "needs a template it can"),
+            {beside.string()}));
     }
 
     const std::string_view content = config::resources::defaultTemplate();
     std::ofstream out(beside, std::ios::binary | std::ios::trunc);
-    if (!out) return failure("cannot write the message template: " + beside.string());
+    if (!out) {
+        return failure(
+            i18n::format(_("cannot write the message template: {0}"), {beside.string()}));
+    }
     out.write(content.data(), static_cast<std::streamsize>(content.size()));
     out.close();
     if (!out) {
         fs::remove(beside, ec);
-        return failure("cannot write the message template: " + beside.string());
+        return failure(
+            i18n::format(_("cannot write the message template: {0}"), {beside.string()}));
     }
 
     const fs::path absolute = fs::weakly_canonical(beside, ec);
@@ -205,22 +216,25 @@ tl::expected<std::string, ErrorPtr> ensureTemplate(const std::string& configPath
 }
 
 tl::expected<void, ErrorPtr> checkTargetPath(const std::string& path) {
-    if (text::trim(path).empty()) return failure("say where the config is to be written");
-    if (auto quotes = withoutQuotes(path, "a path"); !quotes)
+    if (text::trim(path).empty()) {
+        return failure(_("say where the config is to be written"));
+    }
+    if (auto quotes = withoutQuotes(path, _("a path")); !quotes)
         return tl::make_unexpected(std::move(quotes).error());
 
     const fs::path target(path);
     std::error_code ec;
     if (fs::exists(target, ec)) {
         return failure(fs::is_directory(target, ec)
-                           ? path + " is a directory"
-                           : "there is already a file at " + path);
+                           ? i18n::format(_("{0} is a directory"), {path})
+                           : i18n::format(_("there is already a file at {0}"), {path}));
     }
 
     const fs::path directory =
         target.has_parent_path() ? target.parent_path() : fs::path(".");
     if (!fs::is_directory(directory, ec)) {
-        return failure("there is no directory " + directory.string());
+        return failure(
+            i18n::format(_("there is no directory {0}"), {directory.string()}));
     }
     return {};
 }

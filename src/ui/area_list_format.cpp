@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <string>
 
+#include "i18n/i18n.hpp"
 #include "ui/text_layout.hpp"
 
 namespace amberedit::ui::area_format {
@@ -22,12 +23,12 @@ bool isNumeric(AreaFieldKind kind) {
 /// say less about it than the stars underneath already do.
 std::string headingOf(AreaFieldKind kind) {
     switch (kind) {
-        case AreaFieldKind::Number: return "#";
-        case AreaFieldKind::Echoid: return "Area";
-        case AreaFieldKind::Description: return "Description";
-        case AreaFieldKind::Group: return "Grp";
-        case AreaFieldKind::Total: return "Msgs";
-        case AreaFieldKind::Unread: return "New";
+        case AreaFieldKind::Number: return C_("area list column", "#");
+        case AreaFieldKind::Echoid: return C_("area list column", "Area");
+        case AreaFieldKind::Description: return C_("area list column", "Description");
+        case AreaFieldKind::Group: return C_("area list column", "Grp");
+        case AreaFieldKind::Total: return C_("area list column", "Msgs");
+        case AreaFieldKind::Unread: return C_("area list column", "New");
         case AreaFieldKind::UnreadFlag: return "";
         case AreaFieldKind::Space: return " ";
     }

@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
@@ -23,11 +24,11 @@ bool isNumeric(MsgFieldKind kind) {
 /// What stands over a column.
 std::string headingOf(MsgFieldKind kind) {
     switch (kind) {
-        case MsgFieldKind::Number: return "#";
-        case MsgFieldKind::From: return "From";
-        case MsgFieldKind::To: return "To";
-        case MsgFieldKind::Subject: return "Subject";
-        case MsgFieldKind::Date: return "Date";
+        case MsgFieldKind::Number: return C_("message list column", "#");
+        case MsgFieldKind::From: return C_("message list column", "From");
+        case MsgFieldKind::To: return C_("message list column", "To");
+        case MsgFieldKind::Subject: return C_("message list column", "Subject");
+        case MsgFieldKind::Date: return C_("message list column", "Date");
         case MsgFieldKind::Space: return " ";
     }
     return "";

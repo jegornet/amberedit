@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
@@ -135,7 +136,7 @@ void layout(AppState::InfoView& view, int columns) {
     }
     // A message the base would not read at all. Saying so is the whole of what
     // there is to say: the box was asked for, so it opens either way.
-    if (view.lines.empty()) row("this base says nothing about the message", false);
+    if (view.lines.empty()) row(_("this base says nothing about the message"), false);
 }
 
 /// One side of the frame, and one of the two bars closing it — the same frame
@@ -148,10 +149,10 @@ Element bar(int width, const std::string& left, const std::string& right,
             const std::string& label) {
     const int room = std::max(0, width - displayWidth(label));
     const int before = room / 2;
-    return hbox(
-        {text(left + horizontalRule(before)) | color(theme::palette.dialogBorder),
-         text(label) | color(theme::palette.dialogTitle),
-         text(horizontalRule(room - before) + right) | color(theme::palette.dialogBorder)});
+    return hbox({text(left + horizontalRule(before)) | color(theme::palette.dialogBorder),
+                 text(label) | color(theme::palette.dialogTitle),
+                 text(horizontalRule(room - before) + right) |
+                     color(theme::palette.dialogBorder)});
 }
 
 }  // namespace
@@ -183,7 +184,7 @@ Element render(AppState& state, Element background) {
     view.rows = std::max(1, std::min(total, state.height - 2));
     view.scroll = std::clamp(view.scroll, 0, std::max(0, total - view.rows));
 
-    Elements lines{bar(inner, "╭", "╮", " Message info ")};
+    Elements lines{bar(inner, "╭", "╮", _(" Message info "))};
     for (int i = 0; i < view.rows; ++i) {
         const int at = view.scroll + i;
         const bool heading = at < total && view.lines[static_cast<size_t>(at)].heading;

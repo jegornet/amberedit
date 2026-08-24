@@ -13,6 +13,7 @@
 #include "config/cfg_file.hpp"
 #include "config/text_util.hpp"
 #include "domain/message.hpp"
+#include "i18n/i18n.hpp"
 
 namespace amberedit::config {
 namespace {
@@ -1472,6 +1473,13 @@ tl::expected<void, ErrorPtr> readManualAreas(const std::vector<Block>& blocks,
 tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entries,
                                               const std::string& originName) {
     AppConfig cfg;
+    // The one default of a setting that is a word rather than a number or a
+    // path, so the one that a translation replaces. Written here rather than in
+    // the member initializer because a catalog is loaded by then and was not
+    // when `AppConfig` was declared; a config stating the setting overwrites it
+    // below, its value being the user's and not the catalog's.
+    cfg.areaDescriptionDefault = _("no description");
+
     std::set<std::string> seen;
     std::vector<const CfgEntry*> akas;
     std::vector<Block> groupBlocks;

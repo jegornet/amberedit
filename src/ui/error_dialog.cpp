@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
@@ -25,7 +26,7 @@ constexpr int kLineWidth = 56;
 /// click on it being shown before it is acted on, exactly as the confirmation
 /// shows one.
 Element button(bool pressed) {
-    auto element = text("  OK  ");
+    auto element = text(i18n::format("  {0}  ", {_("OK")}));
     if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
     return std::move(element) | bold | color(theme::palette.selectionText) |
            bgcolor(theme::palette.selection);
@@ -47,7 +48,7 @@ Element render(AppState& state, Element background) {
     Element ok = button(state.isPressed(AppState::Pressed::ErrorOk));
     content.push_back(std::move(ok) | reflect(state.errorOkBox) | center);
     content.push_back(text(""));
-    content.push_back(text("Enter · Esc") | color(theme::palette.dialogHint) | center);
+    content.push_back(text(_("Enter · Esc")) | color(theme::palette.dialogHint) | center);
 
     // The same frame round the same margins as the other two boxes: one of them
     // looking like the others is what makes any of them read as a box.

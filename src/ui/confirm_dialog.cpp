@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/theme.hpp"
@@ -35,18 +36,18 @@ Element button(const std::string& label, bool selected, bool pressed) {
 /// would be three copies of the same buttons and the same hit-testing.
 std::string question(AppState::Confirm confirm) {
     switch (confirm) {
-        case AppState::Confirm::SaveMessage: return "Save the message?";
-        case AppState::Confirm::DropMessage: return "Drop the message?";
-        case AppState::Confirm::DeleteMessage: return "Delete this message?";
+        case AppState::Confirm::SaveMessage: return _("Save the message?");
+        case AppState::Confirm::DropMessage: return _("Drop the message?");
+        case AppState::Confirm::DeleteMessage: return _("Delete this message?");
         case AppState::Confirm::ChangeForeignMessage:
-            return "Change this message? It is not from you!";
+            return _("Change this message? It is not from you!");
         case AppState::Confirm::ChangeSentMessage:
-            return "Change this message? It has already been sent.";
-        case AppState::Confirm::ProcessCopies: return "XC and/or CC commands found.";
+            return _("Change this message? It has already been sent.");
+        case AppState::Confirm::ProcessCopies: return _("XC and/or CC commands found.");
         case AppState::Confirm::Quit:
         case AppState::Confirm::None: break;
     }
-    return "Quit AmberEdit?";
+    return _("Quit AmberEdit?");
 }
 
 /// What the two answers are called. Yes and No for a question that is one —
@@ -58,8 +59,10 @@ struct Answers {
     std::string no;
 };
 Answers answersTo(AppState::Confirm confirm) {
-    if (confirm == AppState::Confirm::ProcessCopies) return {"Process", "Ignore"};
-    return {"Yes", "No"};
+    if (confirm == AppState::Confirm::ProcessCopies) {
+        return {_("Process"), _("Ignore")};
+    }
+    return {_("Yes"), _("No")};
 }
 
 /// Moves the selection to the other answer. There are two of them, so a step
@@ -95,8 +98,8 @@ Element render(AppState& state, Element background) {
         // the question has no way out: the commands are ignored and the message
         // is stored, which is what pressing Ignore does.
         text(state.confirm == AppState::Confirm::ProcessCopies
-                 ? "←→ choose · Enter confirm · y/n · Esc ignores"
-                 : "←→ choose · Enter confirm · y/n · Esc cancel") |
+                 ? _("←→ choose · Enter confirm · y/n · Esc ignores")
+                 : _("←→ choose · Enter confirm · y/n · Esc cancel")) |
             color(theme::palette.dialogHint),
     });
 
@@ -139,8 +142,8 @@ Outcome handleEvent(AppState& state, const Event& event) {
         state.confirm = AppState::Confirm::None;
         return Outcome::Dismissed;
     }
-    if (event == Event::ArrowRight || event == Event::ArrowLeft ||
-        event == Event::Tab || event == Event::TabReverse) {
+    if (event == Event::ArrowRight || event == Event::ArrowLeft || event == Event::Tab ||
+        event == Event::TabReverse) {
         step(state);
         return Outcome::Ignored;
     }

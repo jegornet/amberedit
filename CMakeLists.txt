@@ -34,6 +34,11 @@ endif()
 
 option(AMBEREDIT_BUILD_TESTS "Build AmberEdit unit tests" ON)
 
+# Up here rather than beside the install() rules, because the message catalogs
+# are found through a path compiled into the binary and that path is
+# ${CMAKE_INSTALL_FULL_LOCALEDIR} — which is empty until this has run.
+include(GNUInstallDirs)
+
 # --- ncursesw ----------------------------------------------------------------
 # The wide-character ncurses, which every distribution ships and none of them
 # agrees on the spelling of. Three things have to be established, and none can be
@@ -119,6 +124,52 @@ if(NOT ICONV_IN_LIBC)
   target_link_libraries(amberedit_iconv INTERFACE ${ICONV_LIBRARY})
   target_include_directories(amberedit_iconv INTERFACE ${ICONV_INCLUDE_DIR})
 endif()
+
+# --- libintl -----------------------------------------------------------------
+# gettext's runtime, which is what draws the interface in a language other than
+# the English it is written in. On glibc it is part of libc and there is nothing
+# to link; on macOS and the BSDs it is a library of its own, and Homebrew's is
+# keg-only, so the prefix has to be named. CMake's own FindIntl settles which of
+# the two this is — by variables and not by the `Intl::Intl` target, which is
+# CMake 3.20 and the floor here is 3.16.
+# Not REQUIRED: its stock "Could NOT find Intl" says nothing about which package
+# to install, and on macOS the answer is not obvious — the library is there but
+# Homebrew keeps gettext keg-only, so the prefix has to be handed to CMake.
+find_package(Intl QUIET)
+
+if(NOT Intl_FOUND)
+  message(FATAL_ERROR
+    "AmberEdit needs gettext's runtime (<libintl.h>), which is what draws the "
+    "interface in a language other than English. On glibc it is part of libc and "
+    "should have been found; install glibc-devel / libc6-dev if it was not. On "
+    "macOS it is `brew install gettext`, and because Homebrew keeps that keg-only "
+    "the prefix has to be named: -DCMAKE_PREFIX_PATH=$(brew --prefix gettext)."
+  )
+endif()
+
+add_library(amberedit_intl INTERFACE)
+if(Intl_LIBRARIES)
+  target_link_libraries(amberedit_intl INTERFACE ${Intl_LIBRARIES})
+endif()
+if(Intl_INCLUDE_DIRS)
+  target_include_directories(amberedit_intl INTERFACE ${Intl_INCLUDE_DIRS})
+endif()
+
+# `_nl_msg_cat_cntr` is how a program that changes `LANGUAGE` while it runs tells
+# gettext to look again — without it the first answer is cached for the life of
+# the process. glibc and GNU libintl both export it and gettext's own manual is
+# where it is documented, but it is in no header, so it is declared by hand and
+# probed for rather than assumed: a C library that has gettext and not this
+# should still build, and simply not be able to put a catalog back down.
+cmake_push_check_state()
+set(CMAKE_REQUIRED_LIBRARIES ${Intl_LIBRARIES})
+set(CMAKE_REQUIRED_INCLUDES ${Intl_INCLUDE_DIRS})
+check_cxx_source_compiles("
+  #include <libintl.h>
+  extern \"C\" { extern int _nl_msg_cat_cntr; }
+  int main() { ++_nl_msg_cat_cntr; return gettext(\"\")[0]; }
+" AMBEREDIT_HAVE_NL_MSG_CAT_CNTR)
+cmake_pop_check_state()
 
 # --- zlib --------------------------------------------------------------------
 # A zone's pointlist arrives as a zip, and unpacking one is deflate and a CRC —
@@ -296,6 +347,7 @@ add_custom_command(
 # --- application core --------------------------------------------------------
 add_library(amberedit_core STATIC
   src/support/error.cpp
+  src/i18n/i18n.cpp
   src/domain/ftn_address.cpp
   src/domain/address_pattern.cpp
   src/domain/area.cpp
@@ -350,8 +402,29 @@ string(TOLOWER "${CMAKE_SYSTEM_NAME}" AMBEREDIT_SYSTEM)
 configure_file(src/version.hpp.in ${CMAKE_BINARY_DIR}/generated/version.hpp @ONLY)
 
 target_include_directories(amberedit_core PUBLIC src ${CMAKE_BINARY_DIR}/generated)
+if(AMBEREDIT_HAVE_NL_MSG_CAT_CNTR)
+  target_compile_definitions(amberedit_core PRIVATE AMBEREDIT_HAVE_NL_MSG_CAT_CNTR)
+endif()
+
+# Where the message catalogs are, compiled in because `bindtextdomain()` has to
+# be told and there is nothing at run time that could work it out.
+#
+# Two of them, and the build's own comes first. An installed AmberEdit finds its
+# catalogs under the install prefix and needs nothing said anywhere; one that has
+# only been built finds them in its own build directory, so `LANG=ru_RU.UTF-8
+# ./build/bin/amberedit` is Russian straight out of `cmake --build`. The build
+# path simply does not exist on any machine the binary is shipped to, so the
+# first check falls through and the installed one answers.
+target_compile_definitions(amberedit_core PRIVATE
+  AMBEREDIT_LOCALEDIR="${CMAKE_INSTALL_FULL_LOCALEDIR}"
+  AMBEREDIT_BUILD_LOCALEDIR="${CMAKE_BINARY_DIR}/locale"
+)
 target_link_libraries(amberedit_core
   PRIVATE amberedit_iconv
+  # gettext's runtime, which `i18n/` is the whole of the use of. PUBLIC because
+  # `i18n/i18n.hpp` is included all over the tree — every screen draws words —
+  # and on macOS that header is Homebrew's rather than the system's.
+  PUBLIC amberedit_intl
   # PUBLIC because everything linking the core — the executable and the tests —
   # uses std::filesystem too, and on GCC 8 that is an extra -l rather than free.
   PUBLIC amberedit_filesystem
@@ -495,7 +568,6 @@ target_link_libraries(amberedit PRIVATE amberedit_nodelist amberedit_echolist
 #
 # The sample configs, the README and INSTALL.md stay out: they are documentation,
 # and each package format has its own place for that.
-include(GNUInstallDirs)
 install(TARGETS amberedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)
 # The exclusion is not paranoia: `._blue.cfg` beside `blue.cfg` matches
@@ -504,6 +576,111 @@ install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)
 # built from a tarball made on a Mac ships them.
 install(DIRECTORY themes/ DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit/themes
         FILES_MATCHING PATTERN "*.cfg" PATTERN "._*" EXCLUDE)
+
+# --- message catalogs --------------------------------------------------------
+# The interface's own language. `po/*.po` are the translations and `msgfmt` turns
+# each into the `.mo` libintl reads.
+#
+# **The layout is gettext's own** — `<dir>/<language>/LC_MESSAGES/amberedit.mo` —
+# and not a shape of ours, because `bindtextdomain()` is the only way in and that
+# is the only shape it looks in. The config's `language` line names the whole
+# path of one of those files and `i18n::load()` takes it apart again into the
+# three things libintl wants.
+#
+# Built into the build directory under exactly the name it is installed under, so
+# that a binary that has never been installed can be pointed at one: `language
+# build/locale/ru/LC_MESSAGES/amberedit.mo` works out of a fresh checkout, which
+# is the whole reason the setting takes a path rather than a language name.
+#
+# `msgfmt` is not required. A build without it is a build with the English the
+# source is written in, which is every string the program has; the catalogs are
+# what a package ships beside them, and `amberedit.spec`, `debian/control` and
+# `PKGBUILD` all ask for gettext so that a package always has them.
+# The Homebrew hints are for the same reason the ncurses block above has its
+# own: gettext is keg-only there, so `brew install gettext` puts msgfmt in the
+# cellar and not on the PATH. Both prefixes are named because Apple silicon and
+# Intel use different ones, and neither exists anywhere else.
+set(amberedit_gettext_hints /opt/homebrew/opt/gettext/bin /usr/local/opt/gettext/bin)
+find_program(AMBEREDIT_MSGFMT msgfmt HINTS ${amberedit_gettext_hints})
+find_program(AMBEREDIT_XGETTEXT xgettext HINTS ${amberedit_gettext_hints})
+find_program(AMBEREDIT_MSGMERGE msgmerge HINTS ${amberedit_gettext_hints})
+
+file(GLOB amberedit_po ${CMAKE_CURRENT_SOURCE_DIR}/po/*.po)
+if(AMBEREDIT_MSGFMT)
+  set(amberedit_mo "")
+  foreach(po IN LISTS amberedit_po)
+    get_filename_component(language ${po} NAME_WE)
+    set(mo_dir ${CMAKE_BINARY_DIR}/locale/${language}/LC_MESSAGES)
+    set(mo ${mo_dir}/amberedit.mo)
+    add_custom_command(
+      OUTPUT ${mo}
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${mo_dir}
+      # --check is what keeps a translation honest: it refuses a `.po` whose
+      # header is malformed, whose plural forms do not match what the header
+      # declares, or whose translation of a `{0}` message has lost the `{0}`.
+      COMMAND ${AMBEREDIT_MSGFMT} --check --output-file=${mo} ${po}
+      DEPENDS ${po}
+      COMMENT "Compiling ${language}/LC_MESSAGES/amberedit.mo"
+      VERBATIM)
+    list(APPEND amberedit_mo ${mo})
+    # ${CMAKE_INSTALL_LOCALEDIR} and not a directory of ours: this is the layout
+    # libintl looks in, and putting a private copy of it under share/amberedit
+    # would be the same three levels in a place no packaging tool knows about.
+    # It is also what `%find_lang` in the spec walks.
+    install(FILES ${mo}
+            DESTINATION ${CMAKE_INSTALL_LOCALEDIR}/${language}/LC_MESSAGES)
+  endforeach()
+  # Part of `all`, so that a plain build leaves the catalogs beside the binary.
+  add_custom_target(amberedit_catalogs ALL DEPENDS ${amberedit_mo})
+elseif(amberedit_po)
+  message(WARNING
+    "msgfmt was not found, so the translations in po/ will not be built or "
+    "installed and the interface will be in English. Install gettext to have "
+    "them.")
+endif()
+
+# `cmake --build . --target pot` writes po/amberedit.pot out of the tree, and
+# `--target update-po` merges it into every translation beside it. Neither runs
+# as part of a build: what they touch is source, and a build does not edit its
+# own inputs.
+if(AMBEREDIT_XGETTEXT)
+  file(GLOB_RECURSE amberedit_translatable
+       RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+  list(SORT amberedit_translatable)
+  # Relative names and a working directory in the source tree, so that the `#:`
+  # lines in the .pot say `src/ui/find_dialog.cpp:38` and not where this
+  # particular checkout happens to live.
+  add_custom_target(pot
+    COMMAND ${AMBEREDIT_XGETTEXT}
+            --from-code=UTF-8 --language=C++ --sort-by-file
+            # `_` and `C_` are the two the interface is written with, `N_` marks
+            # a literal that is translated where it is drawn rather than where it
+            # stands, and `plural` is `i18n::plural(one, many, n)`.
+            --keyword=_ --keyword=N_ --keyword=C_:1c,2 --keyword=plural:1,2
+            --add-comments=TRANSLATORS
+            --package-name=AmberEdit --package-version=${PROJECT_VERSION}
+            --copyright-holder=${PROJECT_NAME}
+            --msgid-bugs-address=https://github.com/jegornet/amberedit/issues
+            -o po/amberedit.pot
+            ${amberedit_translatable}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Extracting po/amberedit.pot"
+    VERBATIM)
+endif()
+
+if(AMBEREDIT_MSGMERGE AND amberedit_po)
+  set(amberedit_merges "")
+  foreach(po IN LISTS amberedit_po)
+    get_filename_component(language ${po} NAME_WE)
+    list(APPEND amberedit_merges
+         COMMAND ${AMBEREDIT_MSGMERGE} --update --backup=none --quiet
+                 ${po} ${CMAKE_CURRENT_SOURCE_DIR}/po/amberedit.pot)
+  endforeach()
+  add_custom_target(update-po ${amberedit_merges}
+    COMMENT "Merging po/amberedit.pot into the translations"
+    VERBATIM)
+endif()
 
 # --- tests -------------------------------------------------------------------
 if(AMBEREDIT_BUILD_TESTS)

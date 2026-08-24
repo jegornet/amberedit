@@ -95,9 +95,17 @@ public:
         /// `shortName` is the rest.
         std::string_view name;
         CommandScreen screen{};
-        /// The word a button and a hint are written with, and the only part a
-        /// translation replaces.
-        std::string_view label;
+        /// The English word a button and a hint are written with — **the msgid,
+        /// and not the label to draw**. `labelOf()` is what a button draws; this
+        /// is what it asks the catalog with.
+        ///
+        /// A `const char*` and not a `string_view` like the fields around it,
+        /// because that is what a msgid is: `gettext` is handed a C string, and
+        /// a view would only have to be turned back into one at the call. The
+        /// `Id` in the name is the warning that goes with it — comparing two of
+        /// these with `==` compares the pointers, so anything reading it as text
+        /// says `std::string_view(info.labelId)`.
+        const char* labelId{};
         /// The glyph the menu marks the command with, or empty for a command
         /// that goes without one.
         ///
@@ -130,6 +138,14 @@ public:
 
     /// One command, by its own value.
     [[nodiscard]] static const Info& of(Command command);
+
+    /// The word to draw for it, in the interface's own language.
+    ///
+    /// Apart from `of(command).labelId` because the table is built before the
+    /// config that names a catalog has been read — the config itself names
+    /// commands, in `reader_menu` and the hint bars — so a translation cached in
+    /// the table would be the English one every time. This asks as it draws.
+    [[nodiscard]] static const char* labelOf(Command command);
 
     /// The part of the name after the screen it belongs to: `reader.reply_elsewhere`
     /// reads as `reply_elsewhere`. What a menu and a hint list name a command by, the
