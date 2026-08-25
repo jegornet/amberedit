@@ -1,3 +1,10 @@
+amberedit (0.4-1) unstable; urgency=low
+
+  * Add Russian localization
+  * Override Home, End keys ESC sequences
+
+ -- Yegor Gluhov <git@jegor.net>  Tue, 25 Aug 2026 12:00:00 +0000
+
 amberedit (0.3.2-1) unstable; urgency=low
 
   * Message list side bar
