@@ -480,6 +480,13 @@ struct AppState {
     /// relayout(), because it depends on whether the wrapped body overflows.
     bool scrollbarShown{false};
 
+    /// The number being typed to go to a message, digit by digit. Empty means
+    /// nothing is being typed, and then the reader's title shows which message
+    /// of how many as usual — the field has no state of its own beyond this
+    /// string, the way the area list's quick search has none beyond
+    /// `areaSearch`.
+    std::string readGoto;
+
     /// The Find dialog: what to look for and how much of a message to look in.
     /// Absent when it is not up — it is modal, and what it was answered with is
     /// kept in `lastFind` below rather than in the box.

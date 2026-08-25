@@ -21,6 +21,7 @@
 #include "ui/export_mode_dialog.hpp"
 #include "ui/find_dialog.hpp"
 #include "ui/info_dialog.hpp"
+#include "ui/input_field.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
@@ -827,6 +828,11 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     // highlight has to be taken off — findMessage() puts it back on after the
     // message it landed on has been loaded.
     state.findHighlight.clear();
+    // And a number half typed was a way to some other message than this one.
+    // Cleared here for the same reason, so that a click in the sidebar or on a
+    // thread marker puts the title back rather than leaving a field standing
+    // over the message it did not open.
+    state.readGoto.clear();
 
     if (state.base == nullptr || msgNumber == 0 || msgNumber > state.messageCount) {
         return false;
@@ -892,6 +898,9 @@ void showEmptyArea(AppState& state) {
     state.scrollbarShown = false;
     state.messageCursor = 0;
     state.readerSidebarOffset = 0;
+    // There is no message to go to in an empty area, so nothing is left half
+    // typed over one.
+    state.readGoto.clear();
 }
 
 void openMessage(AppState& state, uint32_t number) {
@@ -1400,6 +1409,41 @@ void toggleScrollbar(AppState& state) {
     relayout(state);
 }
 
+/// How many digits the goto field takes. Nine, which is more than the messages
+/// of any base ever written, and few enough that what has been typed cannot
+/// overflow the `uint32_t` a message number is — a base holding 999999999
+/// messages is not the case being guarded against here.
+constexpr size_t kGotoDigits = 9;
+
+/// The digit an event types into the goto field, if it types one. Digits and
+/// nothing else: the field is a message number, and every other key means what
+/// it means on this screen.
+std::optional<char> gotoDigit(const Event& event) {
+    if (!event.is_character() || event.input().size() != 1) return std::nullopt;
+    if (event.ctrl() || event.alt()) return std::nullopt;
+    const char c = event.input()[0];
+    if (c < '0' || c > '9') return std::nullopt;
+    return c;
+}
+
+/// Goes to the message the typed number names, and puts the title back whether
+/// or not there was one: a number naming no message is answered by the field
+/// closing on it, which is the reader saying it has nowhere to go. Nothing else
+/// is said — the user typed a number into a title that has the last one in it,
+/// and an error box over a mistyped digit is more than the mistake is worth.
+///
+/// `goToMessage()` is what the thread markers go through, so the message asked
+/// for is the message shown: a twit standing there opens behind its notice
+/// rather than being walked past, the number having named it outright.
+void applyGoto(AppState& state) {
+    uint32_t number = 0;
+    for (const char digit : state.readGoto) {
+        number = number * 10 + static_cast<uint32_t>(digit - '0');
+    }
+    state.readGoto.clear();
+    goToMessage(state, number);
+}
+
 }  // namespace
 
 Element render(AppState& state) {
@@ -1434,13 +1478,27 @@ Element render(AppState& state) {
             ? i18n::format(_(" from {0}"), {posted})
             : "";
 
+    // Which message of how many, the pair the title ends in.
+    const std::string numbers =
+        std::to_string(header.number) + "/" + std::to_string(state.messageCount);
+
+    // The number typed to go somewhere stands where that pair does, so the
+    // title says either where the reader is or where it is being sent — never
+    // both, since the second is on its way to being the first. Empty means
+    // nothing is being typed; see `AppState::readGoto`.
+    const bool goingTo = !state.readGoto.empty();
+
     // Built as a string rather than an element: the Back button, when it is
     // shown, takes the corner the title used to start in, and what is left
     // decides how much of the title fits.
+    // The space in front of the pair is the title's own, and stays the title's
+    // while the field stands in the pair's columns: the box is those columns
+    // and nothing besides, so what sets it off from the area's name is the
+    // space that set the pair off from it.
     const std::string titleText = " " + state.currentArea.tag + from + aka +
-                                  (empty ? std::string(_(" empty"))
-                                         : " " + std::to_string(header.number) + "/" +
-                                               std::to_string(state.messageCount));
+                                  (empty     ? std::string(_(" empty"))
+                                   : goingTo ? std::string(" ")
+                                             : " " + numbers);
 
     // "-10 +12 +15": this message answers the tenth, and the twelfth and
     // fifteenth answer it. The links come from the base's own thread fields,
@@ -1551,7 +1609,36 @@ Element render(AppState& state) {
     const bool menu = state.readerMenuShown();
     const int titleRoom =
         std::max(1, paneWidth - (back ? kBackWidth : 0) - (menu ? kMenuWidth : 0));
-    const std::string titleShown = truncateToWidth(titleText, titleRoom);
+    // What is being typed, drawn exactly as a field of the header block is:
+    // `ui::inputField()` on the fill the focused one carries, the text in
+    // `focused_text`, the room it has left in underscores and the cursor an
+    // inverted cell. The same call the compose screen's From and Subj come
+    // through, so a box asking for a number reads as the boxes asking for a
+    // name and a subject do — and it is a box asking for something, rather than
+    // a piece of the title that has started changing under the reader.
+    //
+    // **It is `12/44`'s own columns and no more**, fixed at that whatever is
+    // typed into it: nothing on the row moves as the digits arrive, which
+    // matters most for the thread markers beside it — a click on one is tested
+    // against where it was drawn. A number longer than the box scrolls sideways
+    // under the cursor, which `inputField()` does itself.
+    Element gotoField;
+    int gotoWidth = 0;
+    if (goingTo) {
+        // Never more of the row than there is, in a window too narrow for the
+        // whole box: the corner buttons keep their columns.
+        gotoWidth = std::max(1, std::min(displayWidth(numbers), titleRoom));
+        gotoField = inputField(state.readGoto, state.readGoto.size(), gotoWidth, true,
+                               theme::palette.focusedText,
+                               fieldFiller(theme::palette.inputFiller)) |
+                    bgcolor(theme::palette.focusedField);
+    }
+
+    // The field keeps its columns and the area's name gives them up: what is
+    // being typed is the one thing on the row the user is looking at, and a
+    // name cut short still says which area this is.
+    const std::string titleShown =
+        truncateToWidth(titleText, std::max(goingTo ? 0 : 1, titleRoom - gotoWidth));
 
     // Where the message sits in its thread, beside the number that names it:
     // what it answers with a minus, what answers it with a plus. Service data
@@ -1563,10 +1650,11 @@ Element render(AppState& state) {
     // boxes are written into while the frame is laid out, and a vector that
     // grew under them would leave the earlier ones pointing at freed memory.
     Elements titleCells{text(titleShown) | bold | color(theme::palette.tableHeader)};
+    if (goingTo) titleCells.push_back(std::move(gotoField));
     state.readThreadLinks.clear();
     state.readThreadLinks.reserve(markers.size());
 
-    int titleLeft = titleRoom - displayWidth(titleShown);
+    int titleLeft = titleRoom - displayWidth(titleShown) - gotoWidth;
     for (const auto& marker : markers) {
         const int width = displayWidth(marker.text);
         if (width > titleLeft) break;  // the window has no room for the rest
@@ -1698,6 +1786,36 @@ bool handleEvent(AppState& state, const Event& event) {
         scrollBy(state, wheel);
         return true;
     }
+    // While a message number is being typed, the keys that build it are the
+    // field's: the digits, Enter to go, Esc to think better of it, and Backspace
+    // taking them back one at a time — an emptied field is a closed one, so the
+    // last Backspace puts the title back the way Esc does.
+    //
+    // Every other key closes the field and is then answered as it always is:
+    // once something else is being asked for, the number has said what it had
+    // to say. A click is answered before this and closes it through
+    // `loadMessage()` instead, that being where every way to another message
+    // goes.
+    if (!state.readGoto.empty()) {
+        if (const auto digit = gotoDigit(event)) {
+            if (state.readGoto.size() < kGotoDigits) state.readGoto += *digit;
+            return true;
+        }
+        if (event == Event::Return) {
+            applyGoto(state);
+            return true;
+        }
+        if (event == Event::Escape) {
+            state.readGoto.clear();
+            return true;
+        }
+        if (event == Event::Backspace) {
+            state.readGoto.pop_back();
+            return true;
+        }
+        state.readGoto.clear();
+    }
+
     // Moving between messages is the arrow keys' job alone. Everything else on
     // this screen stays inside the message being read, so paging never carries
     // the reader off the end of it.
@@ -1811,6 +1929,17 @@ bool handleEvent(AppState& state, const Event& event) {
         openList(state);
         return true;
     }
+    // A digit is how the field opens — after every command, so a layout that
+    // binds one keeps it: a key made into a command stops being a digit the
+    // reader can be sent anywhere by. An empty area is nowhere to go, and there
+    // the digits do nothing at all.
+    if (state.messageCount > 0) {
+        if (const auto digit = gotoDigit(event)) {
+            state.readGoto = std::string(1, *digit);
+            return true;
+        }
+    }
+
     if (event == Event::ArrowDown) {
         scrollBy(state, 1);
         return true;

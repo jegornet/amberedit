@@ -111,6 +111,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | `←` `→` | previous, next message — off either end leaves the area (`reader_edge_exit`) |
 | `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
 | `Home`, `End` | top, bottom                                                                  |
+| any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |
 | `q` / `F4` | reply                                                                        |
 | `e` | write a new message                                                          |
 | `n` / `F5` | reply into another area                                                      |

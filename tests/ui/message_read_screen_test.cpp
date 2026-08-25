@@ -1554,3 +1554,267 @@ TEST_CASE("The reader answers the layout it was given [messageread][keys]") {
     CHECK(message_read::handleEvent(fixture.state, Event::PageDown));
     CHECK(message_read::handleEvent(fixture.state, Event::Escape));
 }
+
+TEST_CASE("A digit turns the message number into a field, and Enter goes there "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const uint32_t total = fixture.total();
+    REQUIRE(total >= 12);
+
+    // The title says where the reader is until the first digit is typed, and
+    // then it says where it is being sent instead.
+    const std::string count = "/" + std::to_string(total);
+    REQUIRE(rowsOf(fixture)[0].find(count) != std::string::npos);
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    CHECK(fixture.state.readGoto == "1");
+    std::string title = rowsOf(fixture)[0];
+    CHECK(title.find("localnet 1") != std::string::npos);
+    CHECK(title.find(count) == std::string::npos);
+
+    // The digits build the number up rather than replacing it.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('2')));
+    CHECK(fixture.state.readGoto == "12");
+    CHECK(rowsOf(fixture)[0].find("localnet 12") != std::string::npos);
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Return));
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 12);
+    // The list's cursor follows, the same as it does down a thread.
+    CHECK(fixture.state.messageCursor == 11);
+    // And the field is gone, its number with it.
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(rowsOf(fixture)[0].find("12" + count) != std::string::npos);
+}
+
+TEST_CASE("Esc puts the number away and leaves the reader where it was "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const int cursor = fixture.state.messageCursor;
+    const std::string title = rowsOf(fixture)[0];
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('7')));
+    REQUIRE(fixture.state.readGoto == "7");
+
+    // Esc is the field's while one is being typed: it closes it rather than
+    // leaving the area, which is what the key does with no field up.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Escape));
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.messageCursor == cursor);
+    CHECK(rowsOf(fixture)[0] == title);
+
+    // And with nothing being typed it leaves the area as it always did.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Escape));
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+}
+
+TEST_CASE("A number naming no message closes the field and says nothing "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const int cursor = fixture.state.messageCursor;
+    const std::string title = rowsOf(fixture)[0];
+
+    for (const char digit : std::string("999999")) {
+        REQUIRE(message_read::handleEvent(fixture.state, Event::Character(digit)));
+    }
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Return));
+
+    // The title comes back and nothing else happens: no box, and the reader
+    // still on the message it was showing.
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(fixture.state.errorMessage.empty());
+    CHECK(fixture.state.messageCursor == cursor);
+    CHECK(rowsOf(fixture)[0] == title);
+
+    // Zero is the same answer, there being no message numbered nought.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('0')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Return));
+    CHECK(fixture.state.messageCursor == cursor);
+    CHECK(rowsOf(fixture)[0] == title);
+}
+
+TEST_CASE("Backspace takes the digits back, and the last one closes the field "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('2')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Backspace));
+    CHECK(fixture.state.readGoto == "1");
+
+    // The field emptied is the field closed, and the reader stays where it is:
+    // erasing a number is not a way out of the area.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Backspace));
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+
+    // With nothing being typed it leaves the area, as it always did.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Backspace));
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+}
+
+TEST_CASE("The field takes digits and nothing else [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const bool kludges = fixture.state.showKludges;
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(fixture.state.readGoto == "1");
+
+    // A letter is answered the way it is answered on this screen; the number
+    // half typed is put away, having been overtaken by something else asked for.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('k')));
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(fixture.state.showKludges != kludges);
+
+    // And a letter opens no field of its own, bound to a command or not.
+    CHECK_FALSE(message_read::handleEvent(fixture.state, Event::Character('z')));
+    CHECK(fixture.state.readGoto.empty());
+}
+
+TEST_CASE("Moving on drops whatever was half typed [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('9')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(fixture.state.messageCursor == 2);
+
+    // A message opened by anything else — a click in the sidebar, a thread
+    // marker — comes through loadMessage(), which is where the field is put
+    // away for all of them.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('9')));
+    message_read::goToMessage(fixture.state, 1);
+    CHECK(fixture.state.readGoto.empty());
+}
+
+TEST_CASE("An empty area has nowhere to go [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    emptyTheArea(fixture);
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCount == 0);
+
+    CHECK_FALSE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    CHECK(fixture.state.readGoto.empty());
+    CHECK(rowsOf(fixture)[0].find("empty") != std::string::npos);
+}
+
+TEST_CASE("The number being typed is drawn as a header block field is "
+          "[messageread][squish]") {
+    namespace theme = amberedit::ui::theme;
+
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = Visibility::Off;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader);
+    REQUIRE(fixture.state.readHeader->number == 1);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('2')));
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+
+    // " localnet " and then the field: the fill the focused one carries in the
+    // header block, over the columns "1/43" took and no others — the space in
+    // front of it is the title's, as it was in front of the pair.
+    const int start = static_cast<int>(std::string(" localnet ").size());
+    const int width = static_cast<int>(("1/" + std::to_string(fixture.total())).size());
+    for (int x = start; x < start + width; ++x) {
+        CHECK(screen.at(x, 0).bg == theme::palette.focusedField);
+    }
+    // And the row either side of it is the title's own colors.
+    CHECK(screen.at(start - 1, 0).bg != theme::palette.focusedField);
+    CHECK(screen.at(start + width, 0).bg != theme::palette.focusedField);
+
+    // What is in it is what a field of the block holds: the digits in
+    // `focused_text`, the cursor an inverted cell on the blank after them, and
+    // the room it has left underscored.
+    CHECK(screen.at(start, 0).glyph == "1");
+    CHECK(screen.at(start, 0).fg == theme::palette.focusedText);
+    CHECK(screen.at(start + 1, 0).glyph == "2");
+    CHECK(screen.at(start + 2, 0).glyph == " ");
+    CHECK((screen.at(start + 2, 0).attrs & term::kInverted) != 0);
+    REQUIRE(theme::palette.inputFillerShown);
+    CHECK(screen.at(start + 3, 0).glyph == "_");
+    CHECK(screen.at(start + 3, 0).fg == theme::palette.inputFiller);
+}
+
+TEST_CASE("The field is the number pair's own columns, whatever is typed into it "
+          "[messageread][squish]") {
+    namespace theme = amberedit::ui::theme;
+
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = Visibility::Off;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    // Something after the field, so that the row says whether anything moved:
+    // a marker is tested for a click against where it was drawn.
+    fixture.state.readThread.replies = {7};
+
+    // Where the field stands and how wide it is, read off the fill.
+    const auto fieldOf = [&fixture] {
+        term::Screen screen(fixture.state.width, fixture.state.height);
+        term::render(screen, message_read::render(fixture.state));
+        std::pair<int, int> found{-1, 0};
+        for (int x = 0; x < fixture.state.width; ++x) {
+            if (screen.at(x, 0).bg != theme::palette.focusedField) continue;
+            if (found.first < 0) found.first = x;
+            ++found.second;
+        }
+        return found;
+    };
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    const auto opened = fieldOf();
+    const std::string row = rowsOf(fixture)[0];
+    CHECK(opened.second ==
+          static_cast<int>(("1/" + std::to_string(fixture.total())).size()));
+
+    // Every further digit is typed into the same columns: a number longer than
+    // the box scrolls sideways under the cursor rather than widening it, and
+    // the marker beside it has not moved.
+    for (const char digit : std::string("23456789")) {
+        REQUIRE(message_read::handleEvent(fixture.state, Event::Character(digit)));
+        CHECK(fieldOf() == opened);
+    }
+    CHECK(rowsOf(fixture)[0].find(" +7") == row.find(" +7"));
+    // What is on show is the end of it, the digits just typed and the cursor.
+    CHECK(rowsOf(fixture)[0].find("789") != std::string::npos);
+    CHECK(rowsOf(fixture)[0].find("123") == std::string::npos);
+}
+
+TEST_CASE("A window with no room for the field shows the end of it "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = Visibility::Off;
+    fixture.config.menuButton = Visibility::Off;
+    fixture.state.width = 5;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('2')));
+
+    // The area's name is given up entirely and the box is narrowed to the row:
+    // what is being typed is the one thing there is room for, and the corner
+    // buttons — off here — would keep their columns either way.
+    const std::string title = rowsOf(fixture)[0];
+    CHECK(title.find("12") != std::string::npos);
+    CHECK(title.find("localnet") == std::string::npos);
+}

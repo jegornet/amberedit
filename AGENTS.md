@@ -825,6 +825,44 @@ Rules that hold the design together:
   an area opens, on the area list, the area under the cursor — which reopens on
   the message just left, at its end, ready to be walked off again. It is a
   general hook, but nothing else asks for it yet.
+- **A digit opens the goto field**, which is `AppState::readGoto` and nothing
+  else: while it holds anything the title shows what is being typed in place of
+  the `12/44` that says where the reader stands — the second is on its way to
+  being the first, and the title says one or the other and never both. Enter
+  goes there through `goToMessage()`, the call a thread marker goes through, so
+  the message named is the message shown and a twit standing at that number
+  opens behind its notice rather than being walked past.
+  - **It is drawn by `ui::inputField()`**, the call the compose screen's From
+    and Subj come through, on `focused_field` with `focused_text` on it and
+    `input_filler` underscoring the room it has left. A box asking for a number
+    should read as the boxes asking for a name and a subject do, and the cursor
+    in it is the inverted cell it is everywhere else — nothing here draws a
+    cursor of its own.
+  - **The box is `12/44`'s own columns and nothing besides**, fixed at that
+    whatever is typed into it. The space in front of it is the title's, the one
+    that set the pair off from the area's name, and the space behind it is the
+    first thread marker's own: the row is column for column what it was, which
+    is what a click on a marker needs — it is tested against where the marker
+    was drawn. A number longer than the box scrolls sideways under the cursor,
+    which `inputField()` does itself, and a window with no room for the whole
+    box narrows it rather than pushing the corner buttons off the row.
+  - **A number naming no message is answered by the field closing on it**, as
+    Esc closes it and as the last Backspace does. There is nowhere on this
+    screen to say more, and a box over a mistyped digit is more than the mistake
+    is worth: `goToMessage()` already does nothing with a number outside the
+    area, so `applyGoto()` clears the field and lets it.
+  - Nine digits at most, which is more than any base has ever held and few
+    enough that what has been typed cannot overflow the `uint32_t` a message
+    number is.
+  - **Digits are claimed after every command**, so a layout binding one keeps
+    it — the key then runs the command and stops being a digit the reader can be
+    sent anywhere by, exactly as a bare letter bound on the area list stops
+    being one a tag is searched by. Once the field is open the digits are the
+    field's, bound or not.
+  - Every other key closes the field and is then answered as it always is, and a
+    click closes it through `loadMessage()` — where the highlight and the
+    revealed twit are dropped too, that being the one place every way to another
+    message goes.
 - **The scrollbar is drawn only when the body overflows**, so `relayout()` lays
   out twice: at the full width, and again a column narrower if that overflowed.
   The two are entangled — the bar costs the columns that decide whether it is
