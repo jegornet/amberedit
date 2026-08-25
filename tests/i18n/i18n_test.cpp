@@ -166,7 +166,7 @@ TEST_CASE("A loaded catalog answers in its own language [i18n]") {
     CHECK(std::string(_("Save the message?")) == "Сохранить сообщение?");
     // A context makes one English word two Russian ones.
     CHECK(std::string(_("New")) == "Новое");
-    CHECK(std::string(C_("area list column", "New")) == "Нов");
+    CHECK(std::string(C_("area list column", "New")) == "Нов.");
     // A message the catalog has not got is still the literal.
     CHECK(std::string(_("no such message is in the catalog")) ==
           "no such message is in the catalog");
