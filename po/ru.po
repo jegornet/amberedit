@@ -411,7 +411,7 @@ msgstr "Кол."
 #: src/ui/area_list_format.cpp:31
 msgctxt "area list column"
 msgid "New"
-msgstr "Нов"
+msgstr "Нов."
 
 #: src/ui/attributes_dialog.cpp:47
 msgid "Private"
