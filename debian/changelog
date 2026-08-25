@@ -1,3 +1,9 @@
+amberedit (0.4.2-1) unstable; urgency=low
+
+  * Reader: go to message by number
+
+ -- Yegor Gluhov <git@jegor.net>  Tue, 25 Aug 2026 12:00:00 +0000
+
 amberedit (0.4.1-1) unstable; urgency=low
 
   * Run shell

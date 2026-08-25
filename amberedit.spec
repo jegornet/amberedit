@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.4.1
+Version:        0.4.2
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -107,6 +107,9 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Tue Aug 25 2026 Yegor Gluhov <git@jegor.net> - 0.4.2-1
+- Reader: go to message by number
+
 * Tue Aug 25 2026 Yegor Gluhov <git@jegor.net> - 0.4.1-1
 - Run shell
 
