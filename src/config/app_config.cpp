@@ -846,6 +846,22 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.underlineLinks = *read;
+    } else if (key == "urlhandler") {
+        if (entry.values.empty()) return entry.fail("urlhandler names no program");
+        // The link has to land somewhere in what runs, and only the line can
+        // say where: a browser takes it as an argument, a script may want it
+        // inside one. A command that never writes it down would open whatever
+        // it opens with no link in it at all, every time, which is a mistake
+        // worth stopping for rather than a handler that quietly does nothing.
+        const auto names = [](const std::string& word) {
+            return word.find(AppConfig::kUrlPlaceholder) != std::string::npos;
+        };
+        if (!std::any_of(entry.values.begin(), entry.values.end(), names)) {
+            return entry.fail("urlhandler says nowhere to put the link: write " +
+                              std::string(AppConfig::kUrlPlaceholder) +
+                              " where the program takes it");
+        }
+        cfg.urlHandler = entry.values;
     } else if (key == "reader_stylecodes") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

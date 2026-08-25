@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/url_handler.hpp"
 #include "app/user_shell.hpp"
 #include "i18n/i18n.hpp"
 #include "ui/app_state.hpp"
@@ -276,6 +277,30 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             }
             // Whatever was typed at the prompt after the shell had gone belongs
             // to the shell rather than to the screen coming back.
+            terminal.flushInput();
+            continue;
+        }
+
+        // The program a link is opened with, the same way and for the same
+        // reasons: asked for on the frame before, handed the terminal for as
+        // long as it runs — a text browser wants the screen, and one that opens
+        // a window elsewhere is done before the screen has been missed.
+        if (!state.urlRequested.empty()) {
+            const std::string url = state.urlRequested;
+            state.urlRequested.clear();
+            std::string failed;
+            terminal.handOver([&state, &url, &failed] {
+                const auto ran = app::runUrlHandler(state.config.urlHandler, url);
+                if (!ran) failed = ran.error()->message();
+            });
+            if (!failed.empty()) {
+                state.errorMessage = failed;
+                // The reader is still standing behind the box, and is where
+                // acknowledging it leaves the user.
+                state.errorEndsScreen = false;
+            }
+            // Whatever was typed while the program had the terminal was aimed
+            // at it and not at the message coming back.
             terminal.flushInput();
             continue;
         }

@@ -22,17 +22,19 @@ msgstr "файл уже есть: {0}"
 msgid "template: {0}"
 msgstr "шаблон: {0}"
 
-#: src/app/user_shell.cpp:80 src/app/user_shell.cpp:88
+#: src/app/url_handler.cpp:116 src/app/url_handler.cpp:124
+#: src/app/url_handler.cpp:165 src/app/user_shell.cpp:45
+#: src/app/user_shell.cpp:53
 #, c++-format
 msgid "cannot run {0}: {1}"
 msgstr "не удаётся запустить {0}: {1}"
 
-#: src/app/user_shell.cpp:111
+#: src/app/url_handler.cpp:159 src/app/user_shell.cpp:76
 #, c++-format
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1481
+#: src/config/app_config.cpp:1497
 msgid "no description"
 msgstr "нет описания"
 
@@ -183,7 +185,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-25 04:53+0200\n"
+"POT-Creation-Date: 2026-08-25 06:02+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -353,16 +355,16 @@ msgstr "{0}: база занята"
 msgid "{0}: the message is busy"
 msgstr "{0}: сообщение занято"
 
-#: src/ui/app_shell.cpp:107
+#: src/ui/app_shell.cpp:108
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:502
+#: src/ui/app_shell.cpp:527
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:316 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:333 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -810,40 +812,40 @@ msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr "Копия не сделана для: {0}. Строки с ними остались в сообщении."
 
-#: src/ui/screens/message_read_screen.cpp:494
+#: src/ui/screens/message_read_screen.cpp:539
 msgid "This is a twit message. Press Space to view it"
 msgstr "Сообщение из твит-листа. Нажмите пробел, чтобы прочитать его"
 
-#: src/ui/screens/message_read_screen.cpp:1386
+#: src/ui/screens/message_read_screen.cpp:1434
 #, c++-format
 msgid " from {0}"
 msgstr " из {0}"
 
-#: src/ui/screens/message_read_screen.cpp:1393
+#: src/ui/screens/message_read_screen.cpp:1441
 msgid " empty"
 msgstr " пусто"
 
-#: src/ui/screens/message_read_screen.cpp:1765
+#: src/ui/screens/message_read_screen.cpp:1863
 msgctxt "header block"
 msgid "From"
 msgstr "От"
 
-#: src/ui/screens/message_read_screen.cpp:1768
+#: src/ui/screens/message_read_screen.cpp:1866
 msgctxt "header block"
 msgid "To"
 msgstr "Кому"
 
-#: src/ui/screens/message_read_screen.cpp:1771
+#: src/ui/screens/message_read_screen.cpp:1869
 msgctxt "header block"
 msgid "Subj"
 msgstr "Тема"
 
-#: src/ui/screens/message_read_screen.cpp:1774
+#: src/ui/screens/message_read_screen.cpp:1872
 msgctxt "header block"
 msgid "Date"
 msgstr "Дата"
 
-#: src/ui/screens/message_read_screen.cpp:1777
+#: src/ui/screens/message_read_screen.cpp:1875
 msgctxt "header block"
 msgid "Recd"
 msgstr "Получ"

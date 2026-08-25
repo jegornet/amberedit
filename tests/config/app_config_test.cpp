@@ -220,6 +220,25 @@ TEST_CASE("AppConfig reads the link underline setting [app_config]") {
     CHECK_FALSE(loads("reader_underline_links 1\n"));
 }
 
+TEST_CASE("AppConfig reads the URL handler [app_config]") {
+    // Nothing by default, which is what makes a click on a link do nothing.
+    CHECK(with("").urlHandler.empty());
+    CHECK(with("urlhandler lynx $url\n").urlHandler ==
+          std::vector<std::string>{"lynx", "$url"});
+    // The command line is kept as it was written, quotes and all: it is run
+    // through an exec and not through a shell, so an argument with a space in
+    // it stays one argument.
+    CHECK(with("urlhandler /usr/bin/env browser \"open $url\"\n").urlHandler ==
+          std::vector<std::string>{"/usr/bin/env", "browser", "open $url"});
+
+    // A handler with nowhere to put the link would open the same nothing every
+    // time it was clicked.
+    const std::string nowhere = errorWith("urlhandler lynx\n");
+    CHECK_MESSAGE(contains(nowhere, "$url"), nowhere);
+    const std::string nothing = errorWith("urlhandler\n");
+    CHECK_MESSAGE(contains(nothing, "urlhandler"), nothing);
+}
+
 TEST_CASE("AppConfig reads the style codes setting [app_config]") {
     CHECK_FALSE(with("").styleCodes);  // off unless the config asks for it
     CHECK(with("reader_stylecodes on\n").styleCodes);

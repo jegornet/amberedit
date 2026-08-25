@@ -652,6 +652,23 @@ struct AppConfig {
     /// the underline says "address" whatever the colors do.
     bool underlineLinks{true};
 
+    /// The program a click on a link in the message text runs, from
+    /// `urlhandler`: the command and its arguments as they were written, with
+    /// `$url` still standing wherever it was — the link is put in its place at
+    /// the moment the program is run, and a command naming it nowhere is
+    /// refused as the config is read.
+    ///
+    /// Empty by default, which is what makes a click on a link do nothing:
+    /// there is no browser every machine has, and guessing at one would open
+    /// something the user never named.
+    std::vector<std::string> urlHandler;
+
+    /// What `urlhandler` writes the link in place of, wherever in an argument
+    /// it stands. Spelled here rather than where the program is run: the config
+    /// is what refuses a command that names it nowhere, and the two have to
+    /// agree on the word.
+    static constexpr std::string_view kUrlPlaceholder = "$url";
+
     /// Whether the reader acts on the style codes in a message: `_underlined_`,
     /// `*bold*`, `/italic/`, `#inverted#`. Off by default — the markers are
     /// punctuation as often as they are markup, and a message that never meant

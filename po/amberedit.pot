@@ -22,17 +22,19 @@ msgstr ""
 msgid "template: {0}"
 msgstr ""
 
-#: src/app/user_shell.cpp:80 src/app/user_shell.cpp:88
+#: src/app/url_handler.cpp:116 src/app/url_handler.cpp:124
+#: src/app/url_handler.cpp:165 src/app/user_shell.cpp:45
+#: src/app/user_shell.cpp:53
 #, c++-format
 msgid "cannot run {0}: {1}"
 msgstr ""
 
-#: src/app/user_shell.cpp:111
+#: src/app/url_handler.cpp:159 src/app/user_shell.cpp:76
 #, c++-format
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1481
+#: src/config/app_config.cpp:1497
 msgid "no description"
 msgstr ""
 
@@ -176,7 +178,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-25 04:53+0200\n"
+"POT-Creation-Date: 2026-08-25 06:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -319,16 +321,16 @@ msgstr ""
 msgid "{0}: the message is busy"
 msgstr ""
 
-#: src/ui/app_shell.cpp:107
+#: src/ui/app_shell.cpp:108
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:502
+#: src/ui/app_shell.cpp:527
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:316 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:333 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -776,40 +778,40 @@ msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:494
+#: src/ui/screens/message_read_screen.cpp:539
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1386
+#: src/ui/screens/message_read_screen.cpp:1434
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1393
+#: src/ui/screens/message_read_screen.cpp:1441
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1765
+#: src/ui/screens/message_read_screen.cpp:1863
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1768
+#: src/ui/screens/message_read_screen.cpp:1866
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1771
+#: src/ui/screens/message_read_screen.cpp:1869
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1774
+#: src/ui/screens/message_read_screen.cpp:1872
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1777
+#: src/ui/screens/message_read_screen.cpp:1875
 msgctxt "header block"
 msgid "Recd"
 msgstr ""

@@ -387,7 +387,11 @@ Element closingRule(const std::string& size, const std::string& location, int co
 
 /// How one stretch of a body line is drawn: its color and its emphasis.
 struct RunStyle {
-    bool link{false};
+    /// Which link of the frame covers it, counted over the whole of what is on
+    /// screen rather than over the line, or -1 where no link does. The number
+    /// is what a click is answered with, so it has to name the same link
+    /// `AppState::readUrlLinks` holds under it.
+    int link{-1};
     /// The style code covering it, or '\0' for plain text.
     char marker{'\0'};
     /// The BBS color codes in force over it, or a plain one where the line
@@ -413,10 +417,14 @@ struct RunStyle {
 /// than each splitting the line in turn: a link, a phrase and a color can start
 /// and end wherever they like, and only the bytes know which of them they are
 /// under.
-Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
-                 const AppState& state) {
+///
+/// `links` are the byte ranges of the links in this very line, worked out by
+/// the caller so that the frame knows how many of them it is about to draw, and
+/// `firstLink` is the place of the first of them among the frame's own — where
+/// the boxes a click is tested against are written back to.
+Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppState& state,
+                 const std::vector<std::pair<size_t, size_t>>& links, size_t firstLink) {
     const std::string& line = source.text;
-    const auto links = findLinks(line);
     std::vector<StyleSpan> spans;
     // The area's own answer: markup in one echo is punctuation in another. A
     // canvas row is neither — every character in it was drawn where it stands,
@@ -428,14 +436,17 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
     }
 
     std::vector<RunStyle> styles(line.size());
-    for (const auto& [begin, end] : links) {
-        for (size_t i = begin; i < end; ++i) styles[i].link = true;
+    for (size_t which = 0; which < links.size(); ++which) {
+        const auto& [begin, end] = links[which];
+        for (size_t i = begin; i < end; ++i) {
+            styles[i].link = static_cast<int>(firstLink + which);
+        }
     }
     for (const auto& span : spans) {
         // An address is written the way it is written: a marker inside one is
         // part of it, not markup around it.
         bool overLink = false;
-        for (size_t i = span.begin; i < span.end; ++i) overLink |= styles[i].link;
+        for (size_t i = span.begin; i < span.end; ++i) overLink |= styles[i].link >= 0;
         if (overLink) continue;
         for (size_t i = span.begin; i < span.end; ++i) styles[i].marker = span.marker;
     }
@@ -450,19 +461,48 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
         }
     }
 
+    // Whether the boxes are worth keeping at all: with no `urlhandler` named,
+    // a click on a link does nothing and there is nothing to test one against.
+    const bool following = !state.readUrlLinks.empty();
+
     Elements runs;
+    // The stretches of one link, gathered into an element of their own before
+    // they join the line: a search landing inside an address splits it into
+    // several runs, and where the link was drawn is the one box around all of
+    // them rather than a box per stretch.
+    Elements linkRuns;
+    int inLink = -1;
+    const auto closeLink = [&] {
+        if (linkRuns.empty()) return;
+        Element whole = hbox(std::move(linkRuns));
+        linkRuns.clear();
+        if (following) whole |= reflect(state.readUrlLinks[inLink].box);
+        runs.push_back(std::move(whole));
+    };
+
     for (size_t at = 0; at < line.size();) {
         size_t end = at + 1;
         while (end < line.size() && styles[end] == styles[at]) ++end;
 
+        if (styles[at].link != inLink) {
+            closeLink();
+            inLink = styles[at].link;
+        }
+
+        // A click on a link is shown on the link itself, in the moment between
+        // the press and the program opening it starting.
+        const bool pressed =
+            inLink >= 0 && state.isPressed(AppState::Pressed::UrlLink,
+                                           static_cast<uint32_t>(inLink) + 1);
         // A link keeps the link color wherever it stands, a message's own color
         // answers for the rest, and the theme answers where the message said
         // nothing — the same order the quote colors are already under.
         const bbs::Color coded = styles[at].coded;
-        const theme::Color fg = styles[at].found  ? theme::palette.background
-                                : styles[at].link ? theme::palette.link
-                                : coded.fg >= 0   ? bbs::paletteColor(coded.fg)
-                                                  : base;
+        const theme::Color fg = pressed            ? theme::palette.animatedButtonText
+                                : styles[at].found ? theme::palette.background
+                                : inLink >= 0      ? theme::palette.link
+                                : coded.fg >= 0    ? bbs::paletteColor(coded.fg)
+                                                   : base;
 
         Element run = text(line.substr(at, end - at)) | color(fg);
         // What a search found wins over the message's own colors outright: the
@@ -473,7 +513,7 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
         } else if (coded.bg >= 0) {
             run = std::move(run) | bgcolor(bbs::paletteColor(coded.bg));
         }
-        if (styles[at].link && state.underlineLinks) run = std::move(run) | underlined;
+        if (inLink >= 0 && state.underlineLinks) run = std::move(run) | underlined;
         switch (styles[at].marker) {
             case '_': run = std::move(run) | underlined; break;
             case '*': run = std::move(run) | bold; break;
@@ -481,9 +521,14 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
             case '#': run = std::move(run) | inverted; break;
             default: break;
         }
-        runs.push_back(std::move(run));
+        if (inLink >= 0) {
+            linkRuns.push_back(std::move(run));
+        } else {
+            runs.push_back(std::move(run));
+        }
         at = end;
     }
+    closeLink();
     return hbox(std::move(runs));
 }
 
@@ -837,6 +882,9 @@ void showEmptyArea(AppState& state) {
     // area's title, pointing at numbers that are not there.
     state.readThread = {};
     state.readThreadLinks.clear();
+    // Likewise the links in the text that is going away: nothing will be drawn
+    // over the boxes they name until a message is opened again.
+    state.readUrlLinks.clear();
     state.readLines.clear();
     state.readScroll = 0;
     // relayout() has no body to work from and leaves this alone, so it is
@@ -1424,12 +1472,43 @@ Element render(AppState& state) {
     const int firstLine = std::clamp(state.readScroll, 0, std::max(0, totalLines));
     const int lastLine = std::min(totalLines, firstLine + viewportHeight);
 
+    // The links in the rows about to be drawn, found before any of them is laid
+    // out. Two things want them: the rows themselves, which color and underline
+    // what they cover, and `readUrlLinks`, which is what a click is tested
+    // against — and that one has to be the size it will end at before the
+    // laying out starts, since the boxes are written into while it happens and
+    // a vector that grew under them would leave the earlier ones pointing at
+    // freed memory.
+    //
+    // One entry per row, empty for the rows that carry no link, so that a row
+    // and its links are found under the same index.
+    std::vector<std::vector<std::pair<size_t, size_t>>> rowLinks(
+        static_cast<size_t>(std::max(0, lastLine - firstLine)));
+    std::vector<AppState::UrlLink> found;
+    for (int i = firstLine; i < lastLine; ++i) {
+        const auto& source = state.readLines[i];
+        // Nothing in a service line is a link worth pointing at — a MSGID is
+        // not an address anyone follows.
+        if (source.kludge) continue;
+        auto& links = rowLinks[static_cast<size_t>(i - firstLine)];
+        links = findLinks(source.text);
+        for (const auto& [begin, end] : links) {
+            found.push_back({source.text.substr(begin, end - begin), {}});
+        }
+    }
+    // Kept only where there is a program to open one with: with no `urlhandler`
+    // named a click on a link does nothing, and a frame that remembered where
+    // every address landed would be remembering it for nobody.
+    state.readUrlLinks.clear();
+    if (!state.config.urlHandler.empty()) state.readUrlLinks = std::move(found);
+
+    size_t linkAt = 0;
     for (int i = firstLine; i < lastLine; ++i) {
         const auto& source = state.readLines[i];
         if (source.kludge) {
             // Service lines render darker, so they read as service data wherever in
-            // the message they happen to sit. Nothing in them is a link worth
-            // pointing at — a MSGID is not an address anyone follows.
+            // the message they happen to sit, and are drawn whole: nothing in one
+            // is a link, as the gathering above says.
             bodyLines.push_back(text(source.text) | color(theme::palette.kludge));
             continue;
         }
@@ -1443,7 +1522,9 @@ Element render(AppState& state) {
                                               : theme::palette.quoteEven)
                 : theme::palette.text;
 
-        bodyLines.push_back(bodyLine(source, base, state));
+        const auto& links = rowLinks[static_cast<size_t>(i - firstLine)];
+        bodyLines.push_back(bodyLine(source, base, state, links, linkAt));
+        linkAt += links.size();
     }
     while (static_cast<int>(bodyLines.size()) < viewportHeight)
         bodyLines.push_back(text(""));
@@ -1582,7 +1663,9 @@ bool handleEvent(AppState& state, const Event& event) {
     // Before the reader's own wheel handling below, which scrolls the text: the
     // pointer says which of the two was meant.
     if (reader_sidebar::wheeled(state, event)) return true;
-    // A click on one of the thread markers goes to the message it names.
+    // A click on one of the thread markers goes to the message it names, and a
+    // click on a link in the text hands it to `urlhandler`. Both are tested
+    // against where the last frame drew them.
     if (const auto click = leftClick(event)) {
         for (const auto& link : state.readThreadLinks) {
             if (link.number == 0 || !link.box.Contain(click->x, click->y)) continue;
@@ -1592,6 +1675,21 @@ bool handleEvent(AppState& state, const Event& event) {
             const uint32_t number = link.number;
             state.showClick(AppState::Pressed::ThreadLink, number);
             goToMessage(state, number);
+            return true;
+        }
+        // Only ever filled where a handler is named, so this loop is what makes
+        // a click on a link do nothing when there is none — see render().
+        for (size_t at = 0; at < state.readUrlLinks.size(); ++at) {
+            if (!state.readUrlLinks[at].box.Contain(click->x, click->y)) continue;
+            // Copied out for the same reason the number above is: the frame the
+            // press is shown on is built afresh, over the very vector this is
+            // being read from.
+            const std::string url = state.readUrlLinks[at].url;
+            state.showClick(AppState::Pressed::UrlLink, static_cast<uint32_t>(at) + 1);
+            // Run on the next frame rather than here, so that what the user
+            // sees while the program has the terminal is the message they
+            // clicked in — the same way the shell is asked for.
+            state.urlRequested = url;
             return true;
         }
     }

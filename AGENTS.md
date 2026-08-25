@@ -1659,7 +1659,14 @@ taking a row.
   line, which is why a body line is an hbox of pieces rather than one text when
   it holds one. Only `http://`, `https://` and `ftp://` count: a schemeless
   `www.` or a bare domain would mean recoloring ordinary words. Kludge lines are
-  not scanned.
+  not scanned. The runs of one link are gathered into an element of their own so
+  that where it landed is a single box: a search lighting part of an address
+  splits it into several runs, and a click has to be tested against the whole of
+  it. Those boxes are `AppState::readUrlLinks`, filled by the reader's
+  `render()` — and only where `urlhandler` names a program, since with none a
+  click on a link does nothing and there is nothing to test it against. The
+  vector is built to its final size before the frame is laid out, for the reason
+  `readThreadLinks` is.
 - **The palette is one struct, `ui::theme::palette`.** No screen names a color of
   its own; a role not in `Palette` does not exist. Its fields are RGB numbers in
   the terminal's own 256-color palette — `term::Color` holds one, and there is no
@@ -2656,6 +2663,18 @@ AmberEdit's own layout or the file a `keys` line named.
   paints all of it. The reader is neither: it sets `AppState::shellRequested` and
   `runApp()` answers it on the next pass, because a screen has no terminal to
   hand over. The rescan is asked for the same way and for the same reason.
+- **Opening a link is that same shape**, and shares the middle of it.
+  `app/url_handler` is the fork, the exec and the wait; the reader sets
+  `AppState::urlRequested` from the box a click landed in and `runApp()` hands
+  the terminal over on the next pass, since a text browser wants the screen.
+  `app/interrupts_aside.hpp` is the one copy of the SIGINT/SIGQUIT handling both
+  want. Two things differ from the shell and neither is incidental: the program
+  is `execvp`'d, so `urlhandler lynx $url` names it the way a prompt would, and
+  what went wrong is asked of the child down a close-on-exec pipe rather than of
+  `access()` beforehand — there is no path to have asked about. The link reaches
+  it as one argument of that exec and never through a shell, which is what makes
+  the quoting question not arise: an address is written by whoever sent the
+  message.
 - **The hint bar reads the layout rather than naming keys of its own**
   (`ui/hint_bar.*`). Which commands each screen offers is the config's —
   `arealist_hints`, `msglist_hints`, `reader_hints`, `compose_hints`, one list

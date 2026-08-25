@@ -1064,6 +1064,76 @@ TEST_CASE("The reader replays the ANSI a message was drawn with "
     CHECK(fixture.state.readLines.front().canvas);
 }
 
+namespace {
+
+/// The middle of a box, which is where a click on what was drawn in it lands.
+Event pressIn(const term::Box& box) {
+    return pressAt((box.x_min + box.x_max) / 2, (box.y_min + box.y_max) / 2);
+}
+
+}  // namespace
+
+TEST_CASE("A click on a link asks for the handler to open it "
+          "[messageread][urlhandler][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.urlHandler = {"lynx", "$url"};
+    showBody(fixture, {"see http://ftn.example/x and http://ftn.example/y"});
+    drawFrame(fixture);
+
+    REQUIRE(fixture.state.readUrlLinks.size() == 2);
+    CHECK(fixture.state.readUrlLinks[0].url == "http://ftn.example/x");
+    CHECK(fixture.state.readUrlLinks[1].url == "http://ftn.example/y");
+
+    // The second of the two, so that a click is answered with the link under
+    // it rather than with the first one on the line.
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressIn(fixture.state.readUrlLinks[1].box)));
+    CHECK(fixture.state.urlRequested == "http://ftn.example/y");
+}
+
+TEST_CASE("A link found by a search is still one link to click "
+          "[messageread][urlhandler][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.urlHandler = {"lynx", "$url"};
+    showBody(fixture, {"see http://ftn.example/x"});
+    // What a search lit inside the address splits it into three stretches of
+    // color; where the link was drawn is still the one box around all of them.
+    fixture.state.findHighlight = "example";
+    fixture.state.readLayoutWidth = 0;
+    message_read::relayout(fixture.state);
+    drawFrame(fixture);
+
+    REQUIRE(fixture.state.readUrlLinks.size() == 1);
+    const term::Box box = fixture.state.readUrlLinks.front().box;
+    CHECK(box.x_max - box.x_min + 1 == 20);  // http://ftn.example/x
+
+    REQUIRE(message_read::handleEvent(fixture.state, pressIn(box)));
+    CHECK(fixture.state.urlRequested == "http://ftn.example/x");
+}
+
+TEST_CASE("With no handler named a click on a link does nothing "
+          "[messageread][urlhandler][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    // Drawn once with a handler, to find where the link lands, and then again
+    // without one: the address is in the same place either way, and what
+    // changes is whether anything answers for a click on it.
+    fixture.config.urlHandler = {"lynx", "$url"};
+    showBody(fixture, {"see http://ftn.example/x"});
+    drawFrame(fixture);
+    REQUIRE(fixture.state.readUrlLinks.size() == 1);
+    const Event press = pressIn(fixture.state.readUrlLinks.front().box);
+
+    fixture.config.urlHandler.clear();
+    drawFrame(fixture);
+    CHECK(fixture.state.readUrlLinks.empty());
+
+    static_cast<void>(message_read::handleEvent(fixture.state, press));
+    CHECK(fixture.state.urlRequested.empty());
+}
+
 TEST_CASE("The trailer is never part of the picture [messageread][ansi][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());

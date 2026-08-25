@@ -5,10 +5,10 @@
 #include <unistd.h>
 
 #include <cerrno>
-#include <csignal>
 #include <cstdlib>
 #include <cstring>
 
+#include "app/interrupts_aside.hpp"
 #include "i18n/i18n.hpp"
 
 namespace amberedit::app {
@@ -22,41 +22,6 @@ std::string shellFromPasswd() {
     if (entry == nullptr || entry->pw_shell == nullptr) return {};
     return entry->pw_shell;
 }
-
-/// Puts SIGINT and SIGQUIT aside for as long as the shell is running, and back
-/// afterwards.
-///
-/// The child is left in AmberEdit's own process group, so a Ctrl-C typed at the
-/// shell's prompt reaches this process as well — and the reader is not what the
-/// user meant to interrupt. An interactive shell takes over the terminal's
-/// foreground group as it starts and answers for the keys after that; this
-/// covers the moment before it has, and the shells that never do.
-///
-/// It is the parent that ignores them, and the child that has to put them back
-/// before exec: an ignored signal stays ignored across an exec, and a shell
-/// started deaf to Ctrl-C would stay deaf for as long as it ran.
-class InterruptsAside {
-public:
-    InterruptsAside() {
-        interrupt_ = std::signal(SIGINT, SIG_IGN);
-        quit_ = std::signal(SIGQUIT, SIG_IGN);
-    }
-    ~InterruptsAside() { restore(); }
-
-    InterruptsAside(const InterruptsAside&) = delete;
-    InterruptsAside& operator=(const InterruptsAside&) = delete;
-    InterruptsAside(InterruptsAside&&) = delete;
-    InterruptsAside& operator=(InterruptsAside&&) = delete;
-
-    void restore() const {
-        if (interrupt_ != SIG_ERR) std::signal(SIGINT, interrupt_);
-        if (quit_ != SIG_ERR) std::signal(SIGQUIT, quit_);
-    }
-
-private:
-    void (*interrupt_)(int){SIG_ERR};
-    void (*quit_)(int){SIG_ERR};
-};
 
 }  // namespace
 

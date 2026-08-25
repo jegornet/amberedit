@@ -457,6 +457,21 @@ reader_sidebar_msglist_format "f0 t0 d(%d %b %H:%M)\ns"
 # Optional; on by default.
 reader_underline_links on
 
+# The program a click on a link in the message text opens it with: the command
+# and its arguments, with $url standing where the link goes. Optional, and not
+# set by default — with no handler named, clicking a link does nothing at all.
+#
+# The link is written wherever $url appears, in as many arguments as name it, and
+# the program is run directly rather than through a shell: it is looked for on
+# $PATH the way a name typed at a prompt is, an argument with a space in it is
+# written in double quotes, and nothing in a link needs escaping, since there is
+# no shell to escape it for. AmberEdit hands the terminal over for as long as the
+# program runs and takes it back when it ends, so a text browser has the screen
+# and a program that opens a window elsewhere is gone before the screen is
+# missed. `xdg-open $url` is the other command worth naming here — it hands the
+# link to whatever the desktop opens links with.
+##urlhandler lynx $url
+
 # Whether the reader acts on the style codes a message may be written with:
 # _underlined_, *bold*, /italic/ and #inverted# phrases. Optional; off by
 # default; may be set per area in a group block. A marker only counts where a

@@ -188,6 +188,23 @@ struct AppState {
     };
     std::vector<ThreadLink> readThreadLinks;
 
+    /// One link in the message text, and where it was last drawn. Filled in by
+    /// the reader's render() only where `urlhandler` names a program to open
+    /// one with: with no handler a click on a link does nothing, and there is
+    /// nothing for the frame to remember.
+    struct UrlLink {
+        std::string url;
+        term::Box box;
+    };
+    std::vector<UrlLink> readUrlLinks;
+
+    /// The link a click landed on, waiting for `urlhandler` to be run on it.
+    /// The reader sets it and the shell clears it, having handed the terminal
+    /// over and taken it back — the same way `shellRequested` above works, and
+    /// for the same reason: a program wanting the screen cannot start while a
+    /// frame is being drawn on it.
+    std::string urlRequested;
+
     /// The replies dialog: one row per message answering the one on screen,
     /// with what each row shows already read off its header. Empty when the
     /// dialog is not up — it only comes up where there is a choice to make.
@@ -1158,6 +1175,7 @@ struct AppState {
         FindScope,         ///< one of the find dialog's two, which `pressedLink` says
         FindButton,        ///< the button that runs the search
         ThreadLink,        ///< one of the thread markers beside the message number
+        UrlLink,           ///< a link in the message text, by its place in the frame
         MenuButton,        ///< the menu button in the top-right corner
         DeleteLine,        ///< the editor's delete-line button, beside the cursor
         Menu,              ///< one of the buttons in the menu it opens
