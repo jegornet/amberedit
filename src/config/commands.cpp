@@ -28,7 +28,7 @@ constexpr Commands::Info kCommands[] = {
     {Command::ReaderReplyElsewhere, "reader.reply_elsewhere", CommandScreen::Reader,
      N_("Reply elsewhere"), "↪", "n F5", true},
     {Command::ReaderCommentReply, "reader.comment_reply", CommandScreen::Reader,
-     N_("Comment"), "⇄", "Alt-Q", true},
+     N_("Comment-reply"), "⇄", "Alt-Q", true},
     {Command::ReaderNew, "reader.new", CommandScreen::Reader, N_("New"), "✎", "e", true},
     {Command::ReaderForward, "reader.forward", CommandScreen::Reader, N_("Fwd / Copy"),
      "↗", "m", true},

@@ -57,7 +57,7 @@ msgid "Reply elsewhere"
 msgstr ""
 
 #: src/config/commands.cpp:31
-msgid "Comment"
+msgid "Comment-reply"
 msgstr ""
 
 #: src/config/commands.cpp:32

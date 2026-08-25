@@ -54,10 +54,10 @@ msgstr "Ответ"
 
 #: src/config/commands.cpp:29
 msgid "Reply elsewhere"
-msgstr "Ответ в другую"
+msgstr "Ответ в др. обл."
 
 #: src/config/commands.cpp:31
-msgid "Comment"
+msgid "Comment-reply"
 msgstr "Комментарий"
 
 #: src/config/commands.cpp:32
