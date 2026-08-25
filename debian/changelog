@@ -1,3 +1,9 @@
+amberedit (0.4.1-1) unstable; urgency=low
+
+  * Run shell
+
+ -- Yegor Gluhov <git@jegor.net>  Tue, 25 Aug 2026 12:00:00 +0000
+
 amberedit (0.4-1) unstable; urgency=low
 
   * Add Russian localization
