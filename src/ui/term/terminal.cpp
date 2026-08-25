@@ -122,6 +122,30 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     registerKey("\x1b[27;2;32~", shiftSpace);
 }
 
+/// Home and End, in the forms `khome` and `kend` do not name.
+///
+/// A terminfo entry names one sequence per key — the one the terminal it was
+/// written for sends — and on this pair the terminals never agreed. xterm's
+/// entry says `ESC O H` and `ESC O F`; a VT220, the Linux console, screen and
+/// PuTTY send `ESC [ 1 ~` and `ESC [ 4 ~`; rxvt sends `ESC [ 7 ~` and
+/// `ESC [ 8 ~`. Wherever TERM describes a different terminal from the one at
+/// the other end — a login over ssh, a serial console, an emulator set to
+/// VT220 — the key arrives as bytes ncurses cannot name and does nothing at
+/// all. Which form is missing is not something this side can know, and none of
+/// them means anything else anywhere, so every one is claimed rather than
+/// guessed at: registering a form terminfo already resolves leaves it meaning
+/// what it already meant. The two that a VT220 keyboard calls Find and Select
+/// are read as Home and End, as every editor on that keyboard has read them,
+/// and nothing here binds Find or Select.
+void registerNavigationKeys() {
+    for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
+        registerKey(form, Event::Home);
+    }
+    for (const char* form : {"\x1b[4~", "\x1b[8~", "\x1b[F", "\x1bOF"}) {
+        registerKey(form, Event::End);
+    }
+}
+
 /// Asks the terminal to report modified keys, and puts it back on the way out.
 ///
 /// Terminals do not do this by default: Shift+Space arrives as a plain space,
@@ -359,6 +383,7 @@ Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
     flowControl = std::make_unique<FlowControlOff>();
     keyReporting = std::make_unique<ModifiedKeyReporting>();
     registerModifiedKeys(altLetters, altBackspace);
+    registerNavigationKeys();
 
     screen_.resize(COLS, LINES);
 }

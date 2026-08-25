@@ -510,6 +510,16 @@ Rules that hold the design together:
   named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
   naming the arrows and it; by default it is `compose.delete_word` beside
   `Ctrl-W`.
+- **Home and End are claimed in every form, through the same `define_key()`.**
+  `khome` and `kend` name the one sequence the terminal their entry was written
+  for sends, and terminals never agreed on this pair, so a session whose TERM
+  describes a different terminal from the one at the other end loses the key
+  entirely. `registerNavigationKeys()` in `ui/term/terminal.cpp` registers all
+  four forms of each — the xterm pair, the VT220 one the Linux console, screen
+  and PuTTY also send, and rxvt's — and none of them is ambiguous, so none waits
+  on the layout the way `ESC`+letter does. Do not narrow it to the forms one
+  terminal happens to need. No other named key needs this: the rest are spelled
+  the same way everywhere.
 - Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`,
   without it ncurses resolves the ambiguity on its own timer
   (`set_escdelay(25)`).
