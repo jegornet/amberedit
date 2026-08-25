@@ -163,7 +163,7 @@ TEST_CASE("A loaded catalog answers in its own language [i18n]") {
     if (!russian.ok()) return;
 
     CHECK(i18n::translating());
-    CHECK(std::string(_("Save the message?")) == "Сохранить письмо?");
+    CHECK(std::string(_("Save the message?")) == "Сохранить сообщение?");
     // A context makes one English word two Russian ones.
     CHECK(std::string(_("New")) == "Новое");
     CHECK(std::string(C_("area list column", "New")) == "Нов");
@@ -284,7 +284,7 @@ TEST_CASE("A dialog is drawn in the interface's language [i18n]") {
     const WithRussian russian;
     if (!russian.ok()) return;
     const std::string translated = drawn(fixture.state);
-    CHECK(contains(translated, "Удалить это письмо?"));
+    CHECK(contains(translated, "Удалить это сообщение?"));
     CHECK(contains(translated, "Да"));
     CHECK(contains(translated, "Нет"));
     CHECK_FALSE(contains(translated, "Delete this message?"));

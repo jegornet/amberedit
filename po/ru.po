@@ -499,7 +499,7 @@ msgstr "Сохранить сообщение?"
 
 #: src/ui/confirm_dialog.cpp:40
 msgid "Drop the message?"
-msgstr "Отказаться от собщения?"
+msgstr "Отказаться от сообщения?"
 
 #: src/ui/confirm_dialog.cpp:41
 msgid "Delete this message?"
