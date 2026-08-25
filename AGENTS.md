@@ -56,6 +56,14 @@ echolists AmberEdit unpacks itself — tl::expected, which every fallible operat
 answers with, and doctest for the tests, all of them found on the system and none
 of them fetched.
 
+It also produces the message catalogs, one
+`build/locale/<lang>/LC_MESSAGES/amberedit.mo` per `po/*.po`, where `msgfmt` is on
+the system. `msgfmt` is not required and the build warns rather than stopping: a
+build without it is a build with the English the source is written in, which is
+every string the program has. gettext's *runtime* — `libintl`, part of libc on
+glibc and a library of its own on macOS — is required, since it is what reads a
+catalog.
+
 Test cases carry their tags inside the name — `TEST_CASE("... [nodelist][ui]")` —
 because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
 with `-tc`, which matches the whole name by wildcard:
@@ -111,9 +119,10 @@ are decisions rather than detail:
 ## Packaging
 
 Four formats, and one rule holding them together: **`cmake --install` places
-everything a package ships** — the binary, `default.tpl` and `themes/*.cfg`, the
-last two under `${CMAKE_INSTALL_DATADIR}/amberedit`, which is the path
-`amberedit.cfg.example` names. No package recipe places a data file of its own,
+everything a package ships** — the binary, `default.tpl` and `themes/*.cfg` under
+`${CMAKE_INSTALL_DATADIR}/amberedit`, which is the path `amberedit.cfg.example`
+names, and the message catalogs under `${CMAKE_INSTALL_LOCALEDIR}`, which is
+where gettext looks and so the only place they can go. No package recipe places a data file of its own,
 because a second copy of those paths is a second thing to keep in step with the
 sample config. Only documentation is each format's own: the README and the two
 example configs go through `%doc`, `debian/amberedit.docs`, or the top of an
@@ -265,9 +274,15 @@ Adapters (FtnMsgBase over the msgbase/ format drivers, AppConfig,
           FidoconfigParser, AreasBbsParser, CharsetDetector, IconvRecoder,
           MsgBaseLastReadStore)
 
-Support (Error) — the bottom. It includes nothing of the project and
-                  every layer above may include it.
+Support (Error) + i18n — the bottom. Neither includes anything of the project
+                  but the other, and every layer above may include both.
 ```
+
+`i18n/` is the interface's own language: `_()` and gettext behind it. It sits
+beside `support/` because everything draws words — the UI, the setup wizard, the
+error sentences in `support/error.cpp` and the command table in `config/` — and
+it includes nothing of the project but `support/error.hpp`. It is the whole of
+what links libintl; see **The interface's language**.
 
 `nodelist/` and `echolist/` stand beside the adapters and lean on the domain, on
 `config/` and on `archive/zip_reader` only — nothing in the core knows either is
@@ -304,9 +319,12 @@ Rules that hold the design together:
   saying why; adding one means adding the reason with it.
 - Const member functions that only compute a value are `[[nodiscard]]`.
 - **Everything in the repository is written in English** — comments, UI strings,
-  exception messages, test names, commit messages. The only Cyrillic in the tree
-  is deliberate test data (charset conversion, UTF-8 column alignment, a token
-  that must not parse as an FTN address); do not "translate" those literals.
+  exception messages, test names, commit messages. The two exceptions are
+  `po/*.po`, where the translations live and Cyrillic is the point, and
+  deliberate test data (charset conversion, UTF-8 column alignment, a token that
+  must not parse as an FTN address); do not "translate" either. **A string the
+  user reads is still written in English in the source** — it is the msgid, and
+  the catalog is what answers with anything else.
 - Comments explain why, not what, and describe the code as it stands — no "this
   used to be", no note about what a function was called before. See the rule at
   the head of this file: it covers the comments as much as the documents.
@@ -1568,7 +1586,8 @@ taking a row.
   decides, not the labels**. The column stands clear of the box edge by
   `kMarginX`/`kMarginY`, and `dialog::surface()` fills those margins with it.
   - **A label is a glyph and a word, and `config::Commands::Info` carries the
-    two apart** — `icon` and `label`, `↗` and `Fwd / Copy`, `⚲` and `Nodelist`.
+    two apart** — `icon` and `labelId`, `↗` and `Fwd / Copy`, `⚲` and `Nodelist`.
+    `labelId` is the English msgid and `Commands::labelOf()` is what is drawn.
     The word is the half a translation replaces and the half a hint bar shows;
     the glyph says the same thing in every language and is the menu's alone.
     `labelLine()` puts them together for drawing, in a glyph column
@@ -1848,6 +1867,101 @@ taking a row.
   the high half of the byte range and would make two differently spelled Cyrillic
   names compare equal. Use `text::asciiLower`/`asciiIsSpace` and the local
   equivalents in `domain/` and `encoding/`.
+
+### The interface's language
+
+- **Every word AmberEdit draws is written in English in the source and passed
+  through `_()`.** That macro is `i18n::translate` and it is the one macro in the
+  tree; it is spelled the way it is because `xgettext` knows the name and because
+  it stands in front of several hundred literals. `C_(context, msgid)` is the
+  same with a `msgctxt` in front, and `N_()` marks a literal that is translated
+  where it is drawn rather than where it stands.
+- **The language is the environment's, and there is no setting for it.**
+  `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG` — gettext's own order, read by
+  gettext itself. `LANG=ru_RU.UTF-8 amberedit` is Russian. `i18n::start()` runs
+  at the top of `main()`, before a word is printed, and touches **only
+  `LC_MESSAGES`**: `LC_CTYPE` is `term::ensureUtf8Locale()`'s and is settled for
+  reasons that have nothing to do with which language the words are in.
+- **Where the catalogs are is compiled in, and there are two.**
+  `AMBEREDIT_BUILD_LOCALEDIR` — this build's own `locale/` — is checked first and
+  `AMBEREDIT_LOCALEDIR` (`${CMAKE_INSTALL_FULL_LOCALEDIR}`) behind it, so a
+  binary that has only been built is already translated and `LANG=ru_RU.UTF-8
+  ./build/bin/amberedit` works out of a fresh checkout. The build path does not
+  exist on a machine the binary was shipped to, so the first check falls through.
+  `bindtextdomain()` has to be told and nothing at run time could work it out.
+- **A locale the system has not generated is where this goes wrong, and it is a
+  warning.** gettext will not translate under `C` or `POSIX`, nor under `C.UTF-8`
+  from about glibc 2.35 — and a stock Debian 13 or Ubuntu 24.04 generates nothing
+  else, so `LANG=ru_RU.UTF-8` there is refused by `setlocale` and the interface
+  stays English. `i18n::start()` answers with `Started{locale, warning}`,
+  `main()` prints the warning to stderr and to the `error_log`, and AmberEdit
+  runs. Nothing here is ever a failure.
+- **The warning is narrow on purpose.** It fires only where the language asked
+  for is one there is a catalog for *and* gettext is still not answering — so a
+  language AmberEdit has no translation into is silent, and so is an environment
+  that asked for nothing. **Whether gettext is answering is asked of gettext
+  itself**, because nothing in the API reports it: `gettext("")` gives the
+  catalog's header entry when one is open and the empty string when none is.
+- **`_nl_msg_cat_cntr` is how a changed `LANGUAGE` is made to take.** Without it
+  gettext answers from its cache for the life of the process, and `i18n::clear()`
+  — which is what a test uses to put a catalog back down — would do nothing. It
+  is in no header, so it is declared by hand and the build probes for it
+  (`AMBEREDIT_HAVE_NL_MSG_CAT_CNTR`).
+- **What comes out of a catalog is UTF-8.** `bind_textdomain_codeset()` settles
+  it whatever the `.po` was compiled in, because everything above `ui/term` is
+  UTF-8 and the terminal layer is what encodes on the way out. It lives as long
+  as the program, which is libintl's own guarantee and is what lets a translation
+  stand where a string literal stood: `Commands::Info::labelId` is the msgid and
+  `Commands::labelOf()` is what a button draws. It is a `const char*` because
+  that is what gettext takes, and the `Id` is the warning that goes with it —
+  `==` on two of those compares pointers, so read it as
+  `std::string_view(info.labelId)`.
+- **A message with something of the user's in it is one message, not a
+  concatenation.** `i18n::format(_("cannot open base {0}: {1}"), {base, why})` —
+  numbered so that a translation may put the parts in another order, which is
+  exactly what a translation does. A translator's `{0}` is text somebody else
+  wrote: `format()` leaves a `{` that is not a placeholder alone and never reads
+  past the end of the argument list.
+- **A count is `i18n::plural()`, and how many forms there are is the catalog's to
+  say.** English has two, Russian three, and nothing in the code knows that —
+  the rule is the `Plural-Forms:` line of the `.po`, read as the C expression it
+  is written as.
+- **A width is measured and never counted.** A label is drawn into a column, and
+  a translation of it is as long as it is: `header_labels::labelWidth()` measures
+  the header block's labels and `attributes_dialog`'s `nameWidth()` measures the
+  attribute names, both once, so that neither block is laid out against the width
+  of the English word. Do not write a constant that is the length of a literal.
+- **What is not translated, and why**:
+  - **The glyphs.** `≡`, `←`, `↩`, `⚠︎` say the same thing in every language and
+    are kept apart from the words for it — `Commands::Info::icon` beside
+    `label`.
+  - **Anything that becomes message content**: `* Origin:`, the tearline, `CC:`,
+    a template's own output. It is read by somebody else's reader, and FTN
+    service lines are what they are.
+  - **The `error_log`.** It is a file the config names, read by whoever runs the
+    system, and a log in the interface's language is a log that cannot be
+    grepped for a phrase from a bug report.
+  - **The config, theme and `keys` diagnostics** — `config/`, `ui/theme.cpp`,
+    `ui/keys.cpp`. They name the keys of a config file, which are English by
+    definition, and they are read while editing that file rather than while
+    reading mail.
+  - **The message-info report.** `Msgbase`, `DateWritten`, `TxtLen` are the field
+    names JAM-001 and Squish give them, and are printed under the names GoldED+
+    prints them under so that a report read here and one read there are the same
+    report.
+- **Adding a language is a `.po` file and nothing else.**
+  `cmake --build build --target pot` writes `po/amberedit.pot` out of the tree,
+  `--target update-po` merges it into every translation beside it, and a
+  `po/<lang>.po` dropped in is compiled and installed by the next configure.
+  Neither target runs as part of a build: what they touch is source.
+- **The catalogs install under `${CMAKE_INSTALL_LOCALEDIR}`** and not under
+  `share/amberedit` with the themes, because that is where gettext looks. It is
+  also what `%find_lang` walks, which is why `amberedit.spec` names no locale in
+  its `%files` list.
+- **A translation may not be longer than the box it goes in.** There is no
+  reflow: a label past its column is cut with an ellipsis and a hint past the
+  width of its dialog is cut at the edge. Keep the words on the buttons and in
+  the column headings short.
 
 ### Config and area groups
 

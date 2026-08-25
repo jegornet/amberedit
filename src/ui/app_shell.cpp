@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "i18n/i18n.hpp"
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
 #include "ui/attributes_dialog.hpp"
@@ -102,7 +103,8 @@ Element document(AppState& state) {
         // still says so once the next frame has painted over it.
         error_log::write(screenName(state.navigator.current()),
                          "drawing the screen: " + std::string(e.what()));
-        body = text(" error: " + std::string(e.what())) | color(theme::palette.error);
+        body = text(i18n::format(_(" error: {0}"), {e.what()})) |
+               color(theme::palette.error);
     }
 
     // Eleven modals, and only ever one of them at a time: the context menu is
@@ -469,7 +471,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 if (screens::message_read::findMessage(state, query, scope)) {
                     state.findPicker.reset();
                 } else if (state.findPicker) {
-                    state.findPicker->error = "Not found";
+                    state.findPicker->error = _("Not found");
                 }
             }
             continue;

@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 
+#include "i18n/i18n.hpp"
 #include "ui/area_list_format.hpp"
 #include "ui/event_util.hpp"
 #include "ui/list_page.hpp"
@@ -142,9 +143,10 @@ void openSelected(AppState& state) {
 
     // Nothing was left half open — enterArea() goes on only once the base is
     // there — so saying why is the whole of what is left to do.
-    state.errorMessage = "Cannot open the area: " + (entered.error()->message().empty()
-                                                         ? "the base could not be opened"
-                                                         : entered.error()->message());
+    const std::string why = entered.error()->message().empty()
+                                ? std::string(_("the base could not be opened"))
+                                : entered.error()->message();
+    state.errorMessage = i18n::format(_("Cannot open the area: {0}"), {why});
 }
 
 /// The next area holding unread messages, starting below the cursor and going
@@ -202,8 +204,8 @@ Element render(AppState& state) {
     // menu button in the corner: beyond opening an area the list has two
     // commands, Ctrl-R and `/`, and neither is worth a row of furniture.
     if (areas.empty()) {
-        return vbox({text(" The tosser config declares no areas."),
-                     text(" Check general.tosser_config in the AmberEdit config.")});
+        return vbox({text(_(" The tosser config declares no areas.")),
+                     text(_(" Check general.tosser_config in the AmberEdit config."))});
     }
 
     // Where the cursor stands on the screen is kept across a change in how tall
@@ -247,7 +249,7 @@ Element render(AppState& state) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         const bool matched = findAreaByPrefix(areas, state.areaSearch).has_value();
-        header = text(truncateToWidth(" Area: " + state.areaSearch + "▌",
+        header = text(truncateToWidth(i18n::format(_(" Area: {0}▌"), {state.areaSearch}),
                                       std::max(1, state.width))) |
                  bold |
                  color(matched ? theme::palette.tableHeader : theme::palette.error);

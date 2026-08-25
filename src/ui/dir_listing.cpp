@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 
 namespace amberedit::ui {
 namespace {
@@ -62,7 +63,7 @@ std::vector<DirEntry> readDirectory(const std::string& directory, bool directori
         found.push_back(std::move(entry));
     }
     if (ec) {
-        error = "cannot read " + directory;
+        error = i18n::format(_("cannot read {0}"), {directory});
         return entries;
     }
 

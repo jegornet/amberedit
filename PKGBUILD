@@ -16,7 +16,9 @@ license=('GPL-2.0-or-later')
 depends=('glibc' 'ncurses' 'zlib')
 # tl::expected and doctest are header-only, so both are wanted while building
 # and neither at run time.
-makedepends=('cmake' 'tl-expected' 'doctest')
+# gettext for msgfmt, which compiles po/*.po into the catalogs the interface is
+# drawn from — build time only, since nothing here links libintl.
+makedepends=('cmake' 'tl-expected' 'doctest' 'gettext')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver/$pkgname-$pkgver.tar.gz")
 # GitHub generates its source archives on demand and they are not byte-stable
 # across git versions, so a pinned hash is a package that stops building for a

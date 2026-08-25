@@ -24,6 +24,7 @@
 #include "config/app_config.hpp"
 #include "config/text_util.hpp"
 #include "domain/message.hpp"
+#include "i18n/i18n.hpp"
 #include "nodelist/nodelist_db.hpp"
 #include "ports/i_msgbase.hpp"
 #include "ui/bbs_codes.hpp"
@@ -307,7 +308,8 @@ struct AppState {
             nodelistOpened = true;
             if (config.nodelistDbPath.empty()) {
                 nodelistProblem =
-                    "no nodelist — append nodelist and nodelist_db lines to the config";
+                    _("no nodelist — append nodelist and nodelist_db lines to the "
+                      "config");
             } else if (auto opened = nodelist::NodelistDb::open(config.nodelistDbPath)) {
                 nodelistDb = std::move(*opened);
             } else {

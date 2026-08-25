@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "i18n/i18n.hpp"
+
 namespace amberedit::app {
 namespace {
 
@@ -74,14 +76,16 @@ tl::expected<void, ErrorPtr> runUserShell() {
     // the same number on the way back, and only one of the two is worth
     // reporting. Here there is still an errno to say which of the two it is.
     if (access(shell.c_str(), X_OK) != 0) {
-        return failure("cannot run " + shell + ": " + std::strerror(errno));
+        return failure(
+            i18n::format(_("cannot run {0}: {1}"), {shell, std::strerror(errno)}));
     }
 
     const InterruptsAside interrupts;
 
     const pid_t child = fork();
     if (child < 0) {
-        return failure("cannot run " + shell + ": " + std::strerror(errno));
+        return failure(
+            i18n::format(_("cannot run {0}: {1}"), {shell, std::strerror(errno)}));
     }
     if (child == 0) {
         // The shell answers for these itself; see InterruptsAside.
@@ -104,7 +108,8 @@ tl::expected<void, ErrorPtr> runUserShell() {
         // A signal arriving while waiting is not the shell ending. Anything
         // else is: there is one child, and it is this one.
         if (errno != EINTR) {
-            return failure("cannot wait for " + shell + ": " + std::strerror(errno));
+            return failure(i18n::format(_("cannot wait for {0}: {1}"),
+                                        {shell, std::strerror(errno)}));
         }
     }
     return {};

@@ -75,7 +75,7 @@ Checks: >
 # The subdirectories are named explicitly on purpose: a bare '.*/src/.*' also
 # matches _deps/catch2-src/src, which drags Catch2's own headers into every
 # report.
-HeaderFilterRegex: '.*/src/(app|config|domain|encoding|msgbase|ports|ui)/.*'
+HeaderFilterRegex: '.*/src/(app|config|domain|encoding|i18n|msgbase|ports|ui)/.*'
 
 WarningsAsErrors: ''
 FormatStyle: file

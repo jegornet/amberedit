@@ -15,7 +15,11 @@ Build-Depends: debhelper-compat (= 13),
                libexpected-dev,
 # doctest for the test suite, which dh_auto_test runs. One package name on
 # trixie, jammy and noble alike — unlike catch2, which trixie renamed.
-               doctest-dev
+               doctest-dev,
+# msgfmt, which compiles po/*.po into the catalogs the interface is drawn from.
+# A build dependency and never a runtime one: AmberEdit reads a compiled catalog
+# itself and links no libintl.
+               gettext
 Standards-Version: 4.6.2
 Homepage: https://github.com/jegornet/amberedit
 Rules-Requires-Root: no

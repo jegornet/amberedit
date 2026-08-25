@@ -6,6 +6,7 @@
 #include <system_error>
 #include <utility>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/list_page.hpp"
@@ -128,7 +129,7 @@ PickOutcome goToPath(FilePicker& picker) {
     std::error_code ec;
     const fs::file_status status = fs::status(wanted, ec);
     if (ec || !fs::exists(status)) {
-        picker.error = "Path not found";
+        picker.error = _("Path not found");
         return PickOutcome::Ignored;
     }
     if (fs::is_directory(status)) {

@@ -88,13 +88,13 @@ jobs:
           - name: el8
             image: rockylinux:8
             srpm: true
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext
           # EPEL 9 and later carry the 2.13 series the tests want as
           # makes the same distinction, so these two lines and the spec have to
           # agree.
           - name: el9
             image: rockylinux:9
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # `rockylinux/rockylinux`, not `rockylinux`: the Docker Official image
           # stops at 9 and Rocky publishes 10 under its own namespace.
           # zlib-ng-compat-devel is zlib on RHEL 10 — the spec asks for
@@ -102,10 +102,10 @@ jobs:
           # the container has to be told a real name.
           - name: el10
             image: rockylinux/rockylinux:10
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel gettext glibc-gconv-extra
           - name: fedora
             image: fedora:latest
-            deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel glibc-gconv-extra
+            deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
     steps:
       - uses: actions/checkout@v4
         with:
@@ -195,7 +195,7 @@ jobs:
           docker run --rm -v "$PWD":/src -e DEBIAN_FRONTEND=noninteractive "$IMAGE" sh -c '
             set -eu
             apt-get update
-            apt-get -y install --no-install-recommends build-essential devscripts debhelper cmake pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev
+            apt-get -y install --no-install-recommends build-essential devscripts debhelper cmake pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
             mkdir -p /build/amberedit && cp -a /src/. /build/amberedit/
             rm -rf /build/amberedit/build /build/amberedit/cmake-build-debug /build/amberedit/out
             cd /build/amberedit
@@ -244,7 +244,7 @@ jobs:
           mkdir -p out
           docker run --rm -v "$PWD":/src archlinux:latest sh -c '
             set -eu
-            pacman -Syu --noconfirm --needed base-devel cmake ncurses zlib tl-expected doctest
+            pacman -Syu --noconfirm --needed base-devel cmake ncurses zlib tl-expected doctest gettext
             useradd -m builder
             mkdir /build
             cp /src/PKGBUILD /src/amberedit-*.tar.gz /build/
@@ -281,10 +281,10 @@ jobs:
 
       - name: Build and stage
         run: |
-          brew install ncurses tl-expected
+          brew install ncurses tl-expected gettext
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
                 -DAMBEREDIT_BUILD_TESTS=OFF \
-                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected)"
+                -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix gettext)"
           cmake --build build -j"$(sysctl -n hw.ncpu)"
           cmake --install build --prefix stage
 

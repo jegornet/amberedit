@@ -13,6 +13,7 @@
 #include "app/message_search.hpp"
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/ansi_canvas.hpp"
 #include "ui/back_button.hpp"
 #include "ui/event_util.hpp"
@@ -36,9 +37,10 @@ using namespace term;
 
 namespace {
 
-/// " From : ", " To   : ", " Subj : " — the label column, indent included,
-/// since the screen carries no outer margin.
-constexpr int kLabelWidth = 8;
+/// " From : ", " To   : ", " Subj : " — the indent in front of a label and the
+/// " : " behind it, the screen carrying no outer margin of its own. The label
+/// between them is `header_labels::labelWidth()`, which is measured.
+constexpr int kLabelChrome = 4;
 constexpr int kBackWidth = back_button::kWidth;
 constexpr int kMenuWidth = menu_button::kWidth;
 /// A column of margin at the right end of the header block, so the addresses —
@@ -84,18 +86,20 @@ HeaderLayout headerLayout(int width, int addressWidth, int stampsWidth) {
     HeaderLayout layout;
     layout.address = addressWidth;
 
-    const auto nameRoom = [&] { return width - kLabelWidth - layout.address; };
+    const auto nameRoom = [&] {
+        return width - header_labels::labelColumn() - layout.address;
+    };
     // A window too narrow for both drops the column at the right: who the
     // message is from and to is what the rows are for.
     if (nameRoom() < kMinNameWidth) layout.address = 0;
 
     layout.name = std::clamp(nameRoom(), 1, std::max(kMaxNameWidth, stampsWidth));
-    layout.subject = std::max(1, width - kLabelWidth);
+    layout.subject = std::max(1, width - header_labels::labelColumn());
     return layout;
 }
 
 Element headerLabel(const std::string& label) {
-    return text(" " + padRight(label, 4) + " : ") | bold | color(theme::palette.header);
+    return text(header_labels::labelCell(label)) | bold | color(theme::palette.header);
 }
 
 /// A stretch of text with what a search found in it lit up: the theme's `found`
@@ -165,7 +169,7 @@ Element headerRow(const std::string& label, const std::string& name, bool ownNam
 /// beside it would drop the end of a subject a wide window has room for.
 Element subjectRow(const std::string& subject, const HeaderLayout& layout,
                    const encoding::TextSearch* search) {
-    return hbox({headerLabel("Subj"),
+    return hbox({headerLabel(header_labels::subject()),
                  headerCell(subject, layout.subject, theme::palette.header, search)});
 }
 
@@ -173,7 +177,7 @@ Element subjectRow(const std::string& subject, const HeaderLayout& layout,
 /// stand, and the attributes in the column the addresses stand in above.
 Element dateRow(const std::string& written, const std::string& attributes,
                 const HeaderLayout& layout) {
-    Elements cells{headerLabel("Date"),
+    Elements cells{headerLabel(header_labels::date()),
                    headerCell(written, layout.name, theme::palette.header, nullptr)};
     if (layout.address > 0) {
         cells.push_back(
@@ -194,7 +198,7 @@ Element dateRow(const std::string& written, const std::string& attributes,
 /// Nothing goes in the column beside it: the attributes on the Date row above are
 /// message's, said once.
 Element recdRow(const std::string& arrived, const HeaderLayout& layout) {
-    return hbox({headerLabel("Recd"),
+    return hbox({headerLabel(header_labels::received()),
                  headerCell(arrived, layout.name, theme::palette.header, nullptr)});
 }
 
@@ -271,14 +275,15 @@ HeaderBlock headerBlock(const AppState& state, const domain::MessageHeader& head
     const HeaderLayout layout =
         headerLayout(state.readerPaneWidth() - kRightPad, column, stamps);
     Elements rows{
-        headerRow("From", header.from, state.isOwnName(header.from), fromAddr, layout,
-                  search),
-        headerRow("To", header.to, state.isOwnName(header.to), toAddr, layout, search),
+        headerRow(header_labels::from(), header.from, state.isOwnName(header.from),
+                  fromAddr, layout, search),
+        headerRow(header_labels::to(), header.to, state.isOwnName(header.to), toAddr,
+                  layout, search),
         subjectRow(header.subject, layout, search),
         dateRow(writtenStamp, trailing, layout),
     };
     if (recd) rows.push_back(recdRow(arrivedStamp, layout));
-    return {std::move(rows), kLabelWidth + layout.name};
+    return {std::move(rows), header_labels::labelColumn() + layout.name};
 }
 
 /// Where the message was written, as the nodelist gives it for the address it
@@ -485,7 +490,9 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base,
 /// What stands in place of a twit's text until the reader is asked for it. One
 /// line, and it names the key: a message hidden with no way back would be a
 /// message the reader had decided about on the user's behalf.
-constexpr char kTwitNotice[] = "This is a twit message. Press Space to view it";
+const char* twitNotice() {
+    return _("This is a twit message. Press Space to view it");
+}
 
 /// The message the reader is to land on when it is sent to `number`: that one,
 /// or — where `twit_mode` walks past it — the first one from there on in
@@ -1294,7 +1301,7 @@ void relayout(AppState& state) {
     // for. There is nothing to scroll and so nothing for the scrollbar to say.
     if (state.twitHidden()) {
         state.readLines.assign(
-            1, AppState::DisplayLine{kTwitNotice, false, 0, false, {}, {}});
+            1, AppState::DisplayLine{twitNotice(), false, 0, false, {}, {}});
         state.scrollbarShown = false;
         state.readLayoutWidth = available;
         state.readScroll = 0;
@@ -1375,14 +1382,14 @@ Element render(AppState& state) {
         state.readBody ? app::areaTagOf(*state.readBody) : std::string{};
     const std::string from =
         !posted.empty() && !config::text::iequals(posted, state.currentArea.tag)
-            ? " from " + posted
+            ? i18n::format(_(" from {0}"), {posted})
             : "";
 
     // Built as a string rather than an element: the Back button, when it is
     // shown, takes the corner the title used to start in, and what is left
     // decides how much of the title fits.
     const std::string titleText = " " + state.currentArea.tag + from + aka +
-                                  (empty ? " empty"
+                                  (empty ? std::string(_(" empty"))
                                          : " " + std::to_string(header.number) + "/" +
                                                std::to_string(state.messageCount));
 
@@ -1744,5 +1751,48 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     return false;
 }
+
+namespace header_labels {
+
+const char* from() {
+    return C_("header block", "From");
+}
+const char* to() {
+    return C_("header block", "To");
+}
+const char* subject() {
+    return C_("header block", "Subj");
+}
+const char* date() {
+    return C_("header block", "Date");
+}
+const char* received() {
+    return C_("header block", "Recd");
+}
+
+int labelWidth() {
+    // Measured once. The catalog is loaded before anything is drawn and does not
+    // change under a running program, and this is asked for every row of every
+    // frame. Never under four: the English labels are that wide, and a language
+    // with shorter words has no business narrowing the block.
+    static const int width = [] {
+        int widest = 4;
+        for (const char* label : {from(), to(), subject(), date(), received()}) {
+            widest = std::max(widest, displayWidth(label));
+        }
+        return widest;
+    }();
+    return width;
+}
+
+int labelColumn() {
+    return kLabelChrome + labelWidth();
+}
+
+std::string labelCell(const std::string& label) {
+    return " " + padRight(label, labelWidth()) + " : ";
+}
+
+}  // namespace header_labels
 
 }  // namespace amberedit::ui::screens::message_read

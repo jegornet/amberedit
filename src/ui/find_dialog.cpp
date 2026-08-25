@@ -9,6 +9,7 @@
 
 #include "app/message_search.hpp"
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/input_field.hpp"
@@ -33,18 +34,36 @@ constexpr int kMinInner = 30;
 /// The frame itself, a column on each side.
 constexpr int kFrame = 2;
 
-constexpr const char* kTitle = " Find ";
-constexpr const char* kLabel = " Text: ";
-constexpr const char* kHint = "Enter find · Tab move · Esc close";
+/// The words the box is written with.
+///
+/// Functions and not constants: what each of them says is the interface's own
+/// language, and a catalog is read at startup rather than compiled in.
+const char* title() {
+    return _(" Find ");
+}
+const char* label() {
+    return _(" Text: ");
+}
+const char* hint() {
+    return _("Enter find · Tab move · Esc close");
+}
 /// What an Enter on an empty field is answered with. A search for nothing has
 /// not been asked for, and running one would walk the whole area to land on the
 /// message it started from.
-constexpr const char* kNoQuery = "Nothing to look for";
+const char* noQuery() {
+    return _("Nothing to look for");
+}
 
 /// The two answers as they are written, and the button under them.
-constexpr const char* kBothLabel = "Header + text";
-constexpr const char* kHeaderLabel = "Header only";
-constexpr const char* kFindLabel = "  Find  ";
+const char* bothLabel() {
+    return _("Header + text");
+}
+const char* headerLabel() {
+    return _("Header only");
+}
+std::string findLabel() {
+    return i18n::format("  {0}  ", {_("Find")});
+}
 
 /// The two answers in the order they are drawn and stepped through.
 constexpr Scope kScopes[] = {Scope::HeaderAndText, Scope::Header};
@@ -100,7 +119,7 @@ Element radio(const std::string& label, bool chosen, bool current, int inner) {
 /// measured rather than centred by a filler, since every row here is as wide as
 /// it is written and one narrower than the rest would take the frame in with it.
 Element findButton(const AppState& state, Picker& picker, int inner) {
-    auto element = text(kFindLabel);
+    auto element = text(findLabel());
     // Innermost, so that it is the color that lands: a parent paints its whole
     // box and the child paints over it.
     if (state.isPressed(AppState::Pressed::FindButton)) {
@@ -111,7 +130,7 @@ Element findButton(const AppState& state, Picker& picker, int inner) {
                         bgcolor(theme::palette.selection)
                   : std::move(element) | color(theme::palette.dialogText);
 
-    const int spare = std::max(0, inner - displayWidth(kFindLabel));
+    const int spare = std::max(0, inner - displayWidth(findLabel()));
     const int left = spare / 2;
     return dialog::framed(
         hbox({text(std::string(static_cast<size_t>(left), ' ')),
@@ -145,7 +164,7 @@ void focusAfter(Picker& picker, int step) {
 Outcome runFind(Picker& picker) {
     picker.error.clear();
     if (config::text::trim(picker.query).empty()) {
-        picker.error = kNoQuery;
+        picker.error = noQuery();
         return Outcome::Ignored;
     }
     return Outcome::Search;
@@ -178,7 +197,7 @@ Element render(AppState& state, Element background) {
     const bool typing = picker.focus == Focus::Query;
 
     picker.queryBox = Box::Nowhere();
-    const int fieldWidth = std::max(1, inner - displayWidth(kLabel));
+    const int fieldWidth = std::max(1, inner - displayWidth(label()));
     Element field =
         inputField(picker.query, picker.cursor, fieldWidth, typing,
                    typing ? theme::palette.selectionText : theme::palette.dialogLabel,
@@ -192,22 +211,22 @@ Element render(AppState& state, Element background) {
     picker.findBox = Box::Nowhere();
 
     Elements lines{
-        dialog::titleBar(kTitle, inner),
+        dialog::titleBar(title(), inner),
         dialog::framed(
-            hbox({text(kLabel) | color(theme::palette.dialogLabel), std::move(field)})),
+            hbox({text(label()) | color(theme::palette.dialogLabel), std::move(field)})),
         dialog::divider(inner),
         // The question the answers are to, so that neither of them has to say
         // "look in" as well as what it names.
-        dialog::line(" Look in:", inner, theme::palette.dialogLabel),
-        radio(kBothLabel, picker.scope == Scope::HeaderAndText,
+        dialog::line(_(" Look in:"), inner, theme::palette.dialogLabel),
+        radio(bothLabel(), picker.scope == Scope::HeaderAndText,
               onScope && picker.scope == Scope::HeaderAndText, inner) |
             reflect(picker.bothBox),
-        radio(kHeaderLabel, picker.scope == Scope::Header,
+        radio(headerLabel(), picker.scope == Scope::Header,
               onScope && picker.scope == Scope::Header, inner) |
             reflect(picker.headerBox),
         dialog::divider(inner),
         findButton(state, picker, inner),
-        dialog::bottomBar(kHint, picker.error, inner),
+        dialog::bottomBar(hint(), picker.error, inner),
     };
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's

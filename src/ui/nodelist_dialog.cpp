@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "i18n/i18n.hpp"
 #include "nodelist/nodelist_format.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
@@ -271,7 +272,8 @@ std::string sourceLabel(const AppState& state, const AppState::NodelistView& vie
                         int total) {
     if (!state.nodelistDb || state.nodelistDb->empty()) {
         return state.nodelistProblem.empty()
-                   ? "no nodelist — append nodelist and nodelist_db lines to the config"
+                   ? _("no nodelist — append nodelist and nodelist_db lines to "
+                       "the config")
                    : state.nodelistProblem;
     }
     if (total == 0) return {};
@@ -382,7 +384,7 @@ Element render(AppState& state, Element background) {
     Elements lines{
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
-        dialog::titleBar(" Lookup: " + view.lookup + "▌ ", inner,
+        dialog::titleBar(i18n::format(_(" Lookup: {0}▌ "), {view.lookup}), inner,
                          view.found ? theme::palette.dialogTitle : theme::palette.error),
         dialog::line(first, inner, theme::palette.dialogLabel),
         dialog::line(second, inner, theme::palette.dialogText),

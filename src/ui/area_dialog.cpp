@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/list_page.hpp"
@@ -80,12 +81,12 @@ int innerWidth(const AppState& state) {
 /// for afterwards.
 std::string titleFor(AppState::AreaPicker::For purpose) {
     switch (purpose) {
-        case AppState::AreaPicker::For::Forward: return " Forward to area ";
-        case AppState::AreaPicker::For::Move: return " Move to area ";
-        case AppState::AreaPicker::For::Copy: return " Copy to area ";
+        case AppState::AreaPicker::For::Forward: return _(" Forward to area ");
+        case AppState::AreaPicker::For::Move: return _(" Move to area ");
+        case AppState::AreaPicker::For::Copy: return _(" Copy to area ");
         case AppState::AreaPicker::For::Reply: break;
     }
-    return " Reply in area ";
+    return _(" Reply in area ");
 }
 
 /// The top of the frame, with a label in the middle of it — the title, or the
@@ -119,7 +120,7 @@ Element render(AppState& state, Element background) {
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
-        label = " Area: " + picker.search + "▌ ";
+        label = i18n::format(_(" Area: {0}▌ "), {picker.search});
         tint = findAreaByPrefix(areas, picker.search) ? theme::palette.dialogTitle
                                                       : theme::palette.error;
     }

@@ -11,6 +11,7 @@
 #include "config/manual_area_source.hpp"
 #include "config/squish_cfg_parser.hpp"
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 #include "msgbase/ftn_msgbase.hpp"
 
 namespace amberedit::app {
@@ -130,7 +131,7 @@ tl::expected<std::unique_ptr<ports::IAreaConfigSource>, ErrorPtr> makeAreaSource
     // built in code — and a null source would be a crash at the first reload.
     if (!tosser && cfg.manualAreas.empty()) {
         return failure(
-            "the config names no tosser config and declares no areas of its own");
+            _("the config names no tosser config and declares no areas of its own"));
     }
     // Unwrapped where there is nothing to add: the common config declares no
     // areas of its own, and it should reach the same parser it always did.

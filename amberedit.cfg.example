@@ -338,7 +338,9 @@ arealist_description_priority area
 # What the area list's description column shows for an area nothing describes —
 # neither the tosser config nor an echolist. Optional; "no description" by
 # default, so that the column reads as a missing description rather than an
-# unfinished row.
+# unfinished row. Left commented out here because it is the one default that is
+# a word: unset, it is said in whatever language the interface is in, and a line
+# written here is that line in every language.
 # Written empty (arealist_description_default "") the column stays blank, which
 # is what it did before this setting existed. The description column is drawn in
 # the theme's "dimmed" color throughout, quiet like a kludge line — what the area
@@ -347,7 +349,7 @@ arealist_description_priority area
 # the counts beside it are what the list is read down. Only the column is
 # concerned: the @CDESC/@ODESC template tokens are still empty where there is no
 # description.
-arealist_description_default "no description"
+#arealist_description_default "no description"
 
 # Whether the area list draws the reader's scrollbar in its rightmost column.
 # Optional; off by default. It is drawn only where the list is longer than the
@@ -676,7 +678,7 @@ compose_delete_line_button when_narrow
 #                 comment_reply    answer it addressed to whoever it was
 #                                  written to, as Alt-Q does
 #                 new              write a new message
-#                 forward          pass the message on into another area,
+#                 forward          forward / copy /move the message to another area,
 #                                  as `m` does
 #                 find             look for a message in the area, as ^F does
 #                 change           change the message, as `c`/F2 does
@@ -792,6 +794,17 @@ template_time_format "%H:%M"
 #theme /usr/share/amberedit/themes/blue.cfg          # a navy screen
 #theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
 #theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
+
+# The interface's own language is the environment's, as it is for every other
+# program on the system: LANGUAGE, LC_ALL, LC_MESSAGES, LANG, in that order of
+# preference. `LANG=ru_RU.UTF-8 amberedit` is Russian, and there is no setting
+# here for it — where the catalogs live is compiled in.
+#
+# One thing is the system's rather than AmberEdit's: the locale you ask for has
+# to exist. A stock Debian or Ubuntu generates none at all, and gettext cannot
+# translate under `C` — `apt install locales && locale-gen ru_RU.UTF-8` settles
+# it, and `locale -a` lists what a system already has. AmberEdit says so on
+# startup when the locale you asked for is not there, and runs in English.
 
 # The GoldED-style message template. Required and has to be readable; may be set
 # per area in a group block.

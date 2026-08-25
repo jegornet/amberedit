@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "app/export_file.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/text_layout.hpp"
@@ -76,7 +77,9 @@ std::optional<Mode> modeFor(const Event& event) {
 /// The line over the names. It says what the encoding is called rather than how
 /// many files there are: what the question turns on is that the message holds
 /// something that is not text at all, and the names under it are the count.
-constexpr const char* kHeading = "The message contains UUE-encoded file(s):";
+const char* heading() {
+    return _("The message contains UUE-encoded file(s):");
+}
 
 /// The names as they are listed, the last of them counting whatever is left
 /// where there are more than the box shows.
@@ -92,7 +95,8 @@ std::vector<std::string> namesShown(const std::vector<app::UueFile>& files) {
     for (int i = 0; i < kMaxNames - 1; ++i) {
         rows.push_back(truncateToWidth(files[static_cast<size_t>(i)].name, kNameWidth));
     }
-    rows.push_back("… and " + std::to_string(total - (kMaxNames - 1)) + " more");
+    rows.push_back(
+        i18n::format(_("… and {0} more"), {std::to_string(total - (kMaxNames - 1))}));
     return rows;
 }
 
@@ -110,7 +114,7 @@ Element render(AppState& state, Element background) {
     AppState::ExportModePicker& picker = *state.exportModePicker;
 
     Elements rows{
-        text(kHeading) | bold | color(theme::palette.dialogText),
+        text(heading()) | bold | color(theme::palette.dialogText),
         text(""),
     };
     for (const auto& name : namesShown(picker.files)) {
@@ -127,13 +131,13 @@ Element render(AppState& state, Element background) {
                reflect(box);
     };
     rows.push_back(hbox({
-                       answer("Files", Mode::Uue, picker.filesBox),
+                       answer(_("Files"), Mode::Uue, picker.filesBox),
                        text("   "),
-                       answer("Text", Mode::Text, picker.textBox),
+                       answer(_("Text"), Mode::Text, picker.textBox),
                    }) |
                    center);
     rows.push_back(text(""));
-    rows.push_back(text("←→ choose · Enter confirm · f/t · Esc cancel") |
+    rows.push_back(text(_("←→ choose · Enter confirm · f/t · Esc cancel")) |
                    color(theme::palette.dialogHint));
 
     // The frame is drawn round a padded box: without the margins the hint line

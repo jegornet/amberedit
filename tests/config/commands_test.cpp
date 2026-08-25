@@ -26,7 +26,7 @@ TEST_CASE("Every command is one row of the one table [commands]") {
         // answers it: everything a menu, a hint bar and a `keys` file need of a
         // command, and nothing any of them keeps a second list of.
         CHECK_FALSE(info.name.empty());
-        CHECK_FALSE(info.label.empty());
+        CHECK_FALSE(std::string_view(info.labelId).empty());
         const size_t dot = info.name.find('.');
         REQUIRE(dot != std::string_view::npos);
         CHECK_FALSE(Commands::shortNameOf(command).empty());
@@ -87,8 +87,8 @@ TEST_CASE("The older spelling of a name is still read [commands]") {
     CHECK(Commands::named("READER.REPLY-ELSEWHERE")->command ==
           Command::ReaderReplyElsewhere);
 
-    const auto* hint = Commands::namedOn(CommandScreen::Compose, "delete-line",
-                                         Commands::In::HintBar);
+    const auto* hint =
+        Commands::namedOn(CommandScreen::Compose, "delete-line", Commands::In::HintBar);
     REQUIRE(hint != nullptr);
     CHECK(hint->command == Command::ComposeDeleteLine);
 

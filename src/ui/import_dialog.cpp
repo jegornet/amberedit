@@ -14,6 +14,7 @@
 #include "app/message_builder.hpp"
 #include "config/text_util.hpp"
 #include "domain/message.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/area_list_format.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/dir_listing.hpp"
@@ -71,10 +72,17 @@ constexpr int kChromeRows = 6;
 constexpr int kWindowMargin = 2;
 
 /// What the bottom rule says the keys do.
-constexpr const char* kHint = "Enter open · Tab move · Esc close";
+///
+/// A function and not a constant: what it says is the interface's own language,
+/// and a catalog is read at startup rather than compiled in.
+const char* hint() {
+    return _("Enter open · Tab move · Esc close");
+}
 
 /// What a path that is not there is answered with.
-constexpr const char* kNotFound = "Path not found";
+const char* notFound() {
+    return _("Path not found");
+}
 
 /// Settles how big the box is, once — and again only where the window itself has
 /// changed size.
@@ -255,7 +263,7 @@ Outcome goToPath(AppState& state, Picker& picker) {
     std::error_code ec;
     const fs::file_status status = fs::status(wanted, ec);
     if (ec || !fs::exists(status)) {
-        picker.error = kNotFound;
+        picker.error = notFound();
         return Outcome::Ignored;
     }
 
@@ -275,7 +283,9 @@ Outcome goToPath(AppState& state, Picker& picker) {
 // --- drawing -----------------------------------------------------------------
 
 /// The row under the list, and what it leaves for the blank beside it.
-constexpr const char* kModeLabel = " Mode:    ";
+const char* modeLabel() {
+    return _(" Mode:    ");
+}
 /// Between the two mode markers.
 constexpr const char* kModeGap = "   ";
 
@@ -571,12 +581,12 @@ Element render(AppState& state, Element background) {
     // Which label the frame carries. A query that matches nothing turns red and
     // leaves the cursor where it was, as it does on the area list: erasing it
     // takes the user back to what was still matching.
-    std::string label = " Import file ";
+    std::string label = _(" Import file ");
     theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
-        label = " File: " + picker.search + "▌ ";
+        label = i18n::format(_(" File: {0}▌ "), {picker.search});
         tint = findByPrefix(picker.entries, picker.search) ? theme::palette.dialogTitle
                                                            : theme::palette.error;
     }
@@ -640,21 +650,21 @@ Element render(AppState& state, Element background) {
     picker.uueModeBox = Box::Nowhere();
     const bool onMode = picker.focus == Focus::Mode;
 
-    const int modeUsed = displayWidth(kModeLabel) + displayWidth(kModeGap) +
-                         markWidth("Text") + markWidth("UUE");
+    const int modeUsed = displayWidth(modeLabel()) + displayWidth(kModeGap) +
+                         markWidth(_("Text")) + markWidth(_("UUE"));
     lines.push_back(dialog::framed(hbox(
-        {text(kModeLabel) | color(theme::palette.dialogLabel),
-         modeMark("Text", state.importMode == app::ImportMode::Text, onMode) |
+        {text(modeLabel()) | color(theme::palette.dialogLabel),
+         modeMark(_("Text"), state.importMode == app::ImportMode::Text, onMode) |
              reflect(picker.textModeBox),
          text(kModeGap),
-         modeMark("UUE", state.importMode == app::ImportMode::Uue, onMode) |
+         modeMark(_("UUE"), state.importMode == app::ImportMode::Uue, onMode) |
              reflect(picker.uueModeBox),
          text(std::string(static_cast<size_t>(std::max(0, inner - modeUsed)), ' '))})));
 
     // The keys, and — in their place where there is one — what went wrong with
     // the last attempt: the dialog is still up, and the answer that caused it is
     // on the screen to be corrected.
-    lines.push_back(dialog::bottomBar(kHint, picker.error, inner));
+    lines.push_back(dialog::bottomBar(hint(), picker.error, inner));
 
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows
