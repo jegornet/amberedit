@@ -54,6 +54,8 @@ constexpr Commands::Info kCommands[] = {
      "", "-", false},
     {Command::ReaderThreadDown, "reader.thread_down", CommandScreen::Reader,
      N_("Thread down"), "", "+ =", false},
+    {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"), "❯", "o",
+     true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"), "✓",
      "Ctrl-S F2", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,

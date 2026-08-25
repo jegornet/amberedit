@@ -34,6 +34,8 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Echolists**, compiled at startup on the same terms
 - **A setup wizard**: `amberedit --setup` asks what a first config has to say and
   writes one, so you don't have to edit it by hand before the first start
+- **Your own shell**, on `o` in the reader: the terminal is handed over until you
+  leave the shell, and the message comes back where you left it
 - **Color Themes** in the terminal's own 256 colors
 - **Russian and English interface**: the words on the screen come from a gettext
   catalog the config names by path, so adding a language is a `.po` file
@@ -121,6 +123,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | `l` / `F9` | the list of messages                                                         |
 | `k` | show the kludges — a reply then quotes them, a forward carries them          |
 | `b` | toggle the scrollbar                                                         |
+| `o` | run your own shell — leaving it comes straight back to the message           |
 | `i` | technical info from the message base                                         |
 | `w` / `F7` | export the message to a text file or decode UUE if any                       |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
@@ -180,7 +183,7 @@ own and may be bound — and the dialogs answer for themselves entirely.
 The commands are `app.quit`; `arealist.next_unread` and `arealist.rescan`;
 `reader.` `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`,
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
-`thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
+`shell`, `thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
 `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`,
 `word_left`, `word_right`, `line_start` and `line_end`.
 

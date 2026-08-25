@@ -627,7 +627,7 @@ hint_bar_capitalize off
 #
 #   reader_hints    reply  reply_elsewhere  comment_reply  new  forward  change
 #                   delete  export  find  list  info  nodelist  kludges
-#                   scrollbar  thread_up  thread_down  quit
+#                   scrollbar  shell  thread_up  thread_down  quit
 #
 #   compose_hints   save  attributes  import  header_back  delete_line
 #                   restore_line  delete_quote  delete_word  word_left
@@ -685,6 +685,8 @@ compose_delete_line_button when_narrow
 #                 info             what the base holds about it, as `i` does
 #                 export           write it out to a text file, as `w` does
 #                 nodelist         look an address or a sysop up, as Ctrl-N does
+#                 shell            hand the terminal to your own shell until you
+#                                  leave it, as `o` does
 #
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does
@@ -698,11 +700,11 @@ compose_delete_line_button when_narrow
 # "comment_reply" are left out of the reader's — write them in to have them:
 #
 #   reader_menu list reply reply_elsewhere comment_reply new forward find
-#               change info export nodelist
+#               change info export nodelist shell
 #
 # The area list and the message list carry no menu button and have no setting for
 # one.
-reader_menu list reply reply_elsewhere new forward find nodelist
+reader_menu list reply reply_elsewhere new forward find nodelist shell
 compose_menu save import
 
 # Whether the reader and the editor show the menu button at all. Optional;

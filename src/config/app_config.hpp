@@ -925,7 +925,7 @@ struct AppConfig {
     std::vector<Command> readerMenu{Command::ReaderList,           Command::ReaderReply,
                                     Command::ReaderReplyElsewhere, Command::ReaderNew,
                                     Command::ReaderForward,        Command::ReaderFind,
-                                    Command::ReaderNodelist};
+                                    Command::ReaderNodelist,       Command::ReaderShell};
 
     /// The editor's two: storing the message and reading a file into it. The
     /// rest of what it does is editing, which is the keyboard's — Ctrl-Y and

@@ -112,52 +112,56 @@ msgstr ""
 msgid "Thread down"
 msgstr ""
 
-#: src/config/commands.cpp:57 src/ui/export_dialog.cpp:82
+#: src/config/commands.cpp:57
+msgid "Shell"
+msgstr ""
+
+#: src/config/commands.cpp:59 src/ui/export_dialog.cpp:82
 #: src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr ""
 
-#: src/config/commands.cpp:60
+#: src/config/commands.cpp:62
 msgid "Attributes"
 msgstr ""
 
-#: src/config/commands.cpp:61
+#: src/config/commands.cpp:63
 msgid "Import"
 msgstr ""
 
-#: src/config/commands.cpp:64
+#: src/config/commands.cpp:66
 msgid "Header"
 msgstr ""
 
-#: src/config/commands.cpp:66
+#: src/config/commands.cpp:68
 msgid "Delete line"
 msgstr ""
 
-#: src/config/commands.cpp:68
+#: src/config/commands.cpp:70
 msgid "Restore line"
 msgstr ""
 
-#: src/config/commands.cpp:70
+#: src/config/commands.cpp:72
 msgid "Delete quote"
 msgstr ""
 
-#: src/config/commands.cpp:72
+#: src/config/commands.cpp:74
 msgid "Delete word"
 msgstr ""
 
-#: src/config/commands.cpp:74
+#: src/config/commands.cpp:76
 msgid "Word left"
 msgstr ""
 
-#: src/config/commands.cpp:76
+#: src/config/commands.cpp:78
 msgid "Word right"
 msgstr ""
 
-#: src/config/commands.cpp:78
+#: src/config/commands.cpp:80
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:79
+#: src/config/commands.cpp:81
 msgid "Line end"
 msgstr ""
 
@@ -172,7 +176,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-25 01:24+0200\n"
+"POT-Creation-Date: 2026-08-25 04:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -315,16 +319,16 @@ msgstr ""
 msgid "{0}: the message is busy"
 msgstr ""
 
-#: src/ui/app_shell.cpp:106
+#: src/ui/app_shell.cpp:107
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:474
+#: src/ui/app_shell.cpp:502
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:311 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:316 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -776,36 +780,36 @@ msgstr ""
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1385
+#: src/ui/screens/message_read_screen.cpp:1386
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1392
+#: src/ui/screens/message_read_screen.cpp:1393
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1758
+#: src/ui/screens/message_read_screen.cpp:1765
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1761
+#: src/ui/screens/message_read_screen.cpp:1768
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1764
+#: src/ui/screens/message_read_screen.cpp:1771
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1767
+#: src/ui/screens/message_read_screen.cpp:1774
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1770
+#: src/ui/screens/message_read_screen.cpp:1777
 msgctxt "header block"
 msgid "Recd"
 msgstr ""
@@ -932,7 +936,7 @@ msgid " Address: "
 msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:472
-msgid "Russian language support quirks"
+msgid "e.g. John Doe, 2:382/9999"
 msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:474

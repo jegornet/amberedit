@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/user_shell.hpp"
 #include "i18n/i18n.hpp"
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
@@ -248,6 +249,33 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         if (state.rescanning) {
             screens::area_list::rescan(state);
             state.rescanning = false;
+            terminal.flushInput();
+            continue;
+        }
+
+        // The shell, for as long as the user is in it. Asked for on the frame
+        // before, so that the menu the button was picked from is already off the
+        // screen the shell is handed: what they see when their prompt scrolls up
+        // is the reader, not a box over it.
+        //
+        // What went wrong is carried out rather than said inside: until handOver
+        // has returned there is no screen to draw a box on. A shell that ran and
+        // exited non-zero is not a failure — see app/user_shell.hpp.
+        if (state.shellRequested) {
+            state.shellRequested = false;
+            std::string failed;
+            terminal.handOver([&failed] {
+                const auto ran = app::runUserShell();
+                if (!ran) failed = ran.error()->message();
+            });
+            if (!failed.empty()) {
+                state.errorMessage = failed;
+                // The reader is still standing behind the box, and is where
+                // acknowledging it leaves the user.
+                state.errorEndsScreen = false;
+            }
+            // Whatever was typed at the prompt after the shell had gone belongs
+            // to the shell rather than to the screen coming back.
             terminal.flushInput();
             continue;
         }

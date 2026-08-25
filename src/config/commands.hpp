@@ -36,6 +36,7 @@ enum class Command : uint8_t {
     ReaderScrollbar,       ///< reader.scrollbar
     ReaderThreadUp,        ///< reader.thread_up
     ReaderThreadDown,      ///< reader.thread_down
+    ReaderShell,           ///< reader.shell
     ComposeSave,           ///< compose.save
     ComposeAttributes,     ///< compose.attributes
     ComposeImport,         ///< compose.import

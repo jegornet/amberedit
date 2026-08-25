@@ -759,6 +759,7 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ReaderFind: find_dialog::open(state); break;
         case Command::ReaderNodelist: nodelist_dialog::open(state); break;
         case Command::ReaderList: openList(state); break;
+        case Command::ReaderShell: state.shellRequested = true; break;
         // Everything the reader answers with a key of its own and nothing a
         // button stands for, which `reader_menu` cannot name.
         default: break;
@@ -1700,6 +1701,12 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (state.keys.is(event, Command::ReaderScrollbar)) {
         toggleScrollbar(state);
+        return true;
+    }
+    // Asked for here and run by runApp(): handing the terminal over is the
+    // terminal's, and the reader has none.
+    if (state.keys.is(event, Command::ReaderShell)) {
+        state.shellRequested = true;
         return true;
     }
     if (state.keys.is(event, Command::ReaderList)) {

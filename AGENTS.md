@@ -2646,6 +2646,16 @@ AmberEdit's own layout or the file a `keys` line named.
 - **A bare letter bound in the area list stops being a letter the quick search
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.
+- **The one command that is not about a message is `reader.shell`**, and it is
+  written as three things that know nothing of each other. `app/user_shell`
+  is the fork, the exec and the wait, and draws nothing: a shell that ran and
+  exited non-zero is not a failure it reports, since what the user typed in it is
+  between them and it. `Terminal::handOver()` is the screen — everything the
+  constructor put on comes off in the destructor's order and goes back on in the
+  constructor's, and ncurses is told to forget the screen so the frame after
+  paints all of it. The reader is neither: it sets `AppState::shellRequested` and
+  `runApp()` answers it on the next pass, because a screen has no terminal to
+  hand over. The rescan is asked for the same way and for the same reason.
 - **The hint bar reads the layout rather than naming keys of its own**
   (`ui/hint_bar.*`). Which commands each screen offers is the config's —
   `arealist_hints`, `msglist_hints`, `reader_hints`, `compose_hints`, one list
@@ -2749,7 +2759,7 @@ descriptions they carry over the area list; twits, by name, address or subject, 
 answers to what becomes of one; finding a message in the area behind `reader.find`, folded
 by the charset the message declares; the `CC:` and `XC:`/`XP:` lines a message
 being written may carry, and the copies and crossposts they ask for; a keyboard
-layout of one's own, from `keys`.
+layout of one's own, from `keys`; the user's own shell behind `reader.shell`.
 
 Deliberately out of scope until asked for:
 

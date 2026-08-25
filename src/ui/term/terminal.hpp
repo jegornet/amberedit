@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -51,6 +52,21 @@ public:
     /// as Event::Resize and anything the terminal sent that nothing here binds
     /// is swallowed rather than passed on.
     [[nodiscard]] Event poll();
+
+    /// Gives the terminal back to whatever `work` runs on it, and takes it again
+    /// when that returns.
+    ///
+    /// For the one thing AmberEdit does that is not drawing: the user's own
+    /// shell, which wants the terminal the way they found it — their prompt on
+    /// the normal screen, their own tty modes, no mouse reporting and nothing
+    /// asking for modified keys. Everything the constructor put on is taken off
+    /// here in the destructor's order and put back in the constructor's, and the
+    /// screen is forgotten on the way in so that the next `draw()` paints all of
+    /// it rather than a difference against what the shell scrolled away.
+    ///
+    /// `work` is called once and its own failures are its own: this hands the
+    /// terminal over and takes it back, and nothing between the two is looked at.
+    void handOver(const std::function<void()>& work);
 
     /// Throws away whatever has been typed but not yet read.
     ///

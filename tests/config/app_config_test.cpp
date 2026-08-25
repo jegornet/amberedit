@@ -440,9 +440,9 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     const auto defaults = with("");
     CHECK(defaults.readerMenu ==
           std::vector<Command>{Command::ReaderList, Command::ReaderReply,
-                                   Command::ReaderReplyElsewhere, Command::ReaderNew,
-                                   Command::ReaderForward, Command::ReaderFind,
-                                   Command::ReaderNodelist});
+                               Command::ReaderReplyElsewhere, Command::ReaderNew,
+                               Command::ReaderForward, Command::ReaderFind,
+                               Command::ReaderNodelist, Command::ReaderShell});
     CHECK(defaults.composeMenu ==
           std::vector<Command>{Command::ComposeSave, Command::ComposeImport});
     CHECK(with("compose_menu import save\n").composeMenu ==

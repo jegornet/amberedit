@@ -45,6 +45,7 @@ add_executable(amberedit_tests
   app/copy_commands_test.cpp
   app/msg_template_test.cpp
   app/message_builder_test.cpp
+  app/user_shell_test.cpp
   app/navigator_test.cpp
   ui/app_state_test.cpp
   ui/area_list_screen_test.cpp

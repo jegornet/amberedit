@@ -467,6 +467,45 @@ void Terminal::draw(const Element& document) {
     wrefresh(stdscr);
 }
 
+void Terminal::handOver(const std::function<void()>& work) {
+    // Out, in the destructor's order and for the destructor's reason: the
+    // terminal has to be told to stop reporting modified keys, and to stop
+    // reporting the mouse, while it is still the one being talked to. A shell
+    // handed a terminal still sending those would see them as typing.
+    //
+    // def_prog_mode() then keeps whatever modes are left for reset_prog_mode()
+    // to put back, since endwin() is about to hand the shell's own back. It is
+    // asked after FlowControlOff has gone rather than before, so that what is
+    // kept is what ncurses set up and flow control is turned off again on the
+    // way in — by the same object, in the same order, as at the start of the run.
+    keyReporting.reset();
+    flowControl.reset();
+    mousemask(0, nullptr);
+    curs_set(1);
+    def_prog_mode();
+    endwin();
+
+    work();
+
+    // And back, in the constructor's. Nothing is initialised again — the colors
+    // and the keys defined with define_key belong to the SCREEN, which endwin()
+    // suspends rather than destroys.
+    reset_prog_mode();
+    mousemask(mouseEvents(), nullptr);
+    mouseinterval(0);
+    flowControl = std::make_unique<FlowControlOff>();
+    keyReporting = std::make_unique<ModifiedKeyReporting>();
+    curs_set(cursorVisible_ ? 1 : 0);
+
+    // What ncurses believes is on the screen is whatever was there before the
+    // shell wrote over it, so it is told to forget all of it rather than draw
+    // the difference against something the user cannot see. The size is settled
+    // at the same time: the window may have been resized while the shell had it,
+    // and nothing was reading KEY_RESIZE to notice.
+    wclear(stdscr);
+    syncSize();
+}
+
 void Terminal::flushInput() { flushinp(); }
 
 Event Terminal::poll() {

@@ -169,6 +169,11 @@ struct AppState {
     bool discardTypeahead{false};
 
     // --- message reader ---------------------------------------------------
+    /// Whether the user's own shell has been asked for. The reader sets it and
+    /// the shell clears it, having handed the terminal over and taken it back:
+    /// a screen has no terminal — `runApp()` is what holds one — and giving it
+    /// away is the terminal's own, as `Terminal::handOver()` says.
+    bool shellRequested{false};
     std::optional<domain::MessageHeader> readHeader;
     std::optional<domain::MessageBody> readBody;
     /// What the message on screen answers and what answers it, as the title

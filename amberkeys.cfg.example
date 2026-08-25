@@ -81,6 +81,7 @@ Ctrl-N          reader.nodelist
 F10             reader.nodelist
 k               reader.kludges
 b               reader.scrollbar
+o               reader.shell
 -               reader.thread_up
 +               reader.thread_down
 =               reader.thread_down

@@ -1392,6 +1392,44 @@ TEST_CASE("w asks first where the message carries a file [messageread][uue][squi
     CHECK(picker.mode == amberedit::ui::AppState::ExportPicker::Mode::Uue);
 }
 
+TEST_CASE("o asks for the shell rather than running it [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    // The whole of what the reader does about it: handing the terminal over is
+    // the terminal's, and only runApp() holds one — so the key raises the flag
+    // and the shell answers it on the next pass, as a rescan is answered.
+    CHECK_FALSE(fixture.state.shellRequested);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('o')));
+    CHECK(fixture.state.shellRequested);
+    // Nothing else moved: the screen is where it was, with no box over it.
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.errorMessage.empty());
+
+    // The menu button says the same thing the key does.
+    fixture.state.shellRequested = false;
+    message_read::runMenuCommand(fixture.state, amberedit::config::Command::ReaderShell);
+    CHECK(fixture.state.shellRequested);
+}
+
+TEST_CASE("The shell is offered in an empty area [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    emptyTheArea(fixture);
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCount == 0);
+
+    // Everything that acts on the message needs one to act on. The shell is not
+    // one of those, so its button is offered rather than drawn quietly.
+    message_read::openMenu(fixture.state);
+    REQUIRE(fixture.state.menuView);
+    const auto& items = fixture.state.menuView->items;
+    REQUIRE(!items.empty());
+    CHECK(items.back().command == amberedit::config::Command::ReaderShell);
+    CHECK(items.back().enabled);
+}
+
 TEST_CASE("The function keys answer beside the letters they double "
           "[messageread][squish]") {
     TempSquishBase base;
