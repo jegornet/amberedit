@@ -1024,6 +1024,14 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.numberIn(0, 2000);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.listWheelThrottleMs = static_cast<int>(*read);
+    } else if (key == "wheel_settle_ms") {
+        // Zero is meaningful — it is how the tail is left to land where it
+        // falls — and the ceiling is where a wheel turned steadily across a
+        // change of screen would sit dead for longer than anybody would take
+        // for a fault of the program.
+        auto read = entry.numberIn(0, 5000);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.wheelSettleMs = static_cast<int>(*read);
     } else if (key == "reader_datetime_format") {
         auto read = readTimeFormat(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());

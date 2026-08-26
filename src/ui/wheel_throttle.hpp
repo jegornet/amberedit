@@ -66,4 +66,69 @@ struct WheelThrottle {
     }
 };
 
+/// How quiet the wheel has to go for the flick a change of what is in front of
+/// the user ended to be over: two notches further apart than this are two movements of
+/// the wheel and not one. The same span as `list_wheel_throttle_ms` defaults to, and
+/// deliberately not that setting — turning the counting of notches off says
+/// nothing about a tail landing on the wrong screen, and this is not a length
+/// anybody has a reason to tune.
+inline constexpr Millis kWheelSettleMs = 200;
+
+/// Keeps what is left of a flick of the wheel off whatever comes next.
+///
+/// A notch arrives long after the hand that asked for it: a trackpad goes on
+/// reporting them once the finger has left it, and a wheel turned faster than
+/// the frames can be drawn leaves them waiting to be read. So the notches still
+/// coming when Escape closes the reader were aimed at the message it closed, and
+/// answering them runs the list underneath to its end under a hand that has
+/// already stopped. Entering an area is the same the other way about, and so is
+/// a box opening over the reader: the tail scrolls the list inside it.
+///
+/// A change of what the wheel is aimed at therefore ends whatever run was in
+/// flight: its notches are swallowed for as long as they keep arriving, and the
+/// wheel is live again on the first notch that comes after a gap of `settleMs`,
+/// on the first one turning the other way, or once `capMs` — `wheel_settle_ms`
+/// — has passed since the change. A fresh flick begun inside that window is
+/// lost with the tail — nothing the terminal reports says which of the two a
+/// notch belongs to — which is why the window is as short as it is.
+struct WheelSettle {
+    /// Which way the run so far is going, -1 up and +1 down, and 0 before the
+    /// wheel has been touched at all.
+    int direction{0};
+    /// When the last notch arrived, swallowed or not: what a gap tells apart is
+    /// a tail from a hand, and a swallowed notch is as much part of a tail as an
+    /// answered one.
+    Millis last{0};
+    /// When what the wheel is aimed at last changed.
+    Millis since{0};
+    /// Whether a run left over from what it was aimed at before may still be
+    /// arriving.
+    bool blocking{false};
+
+    /// Something else is in front of the user as of `now` — another screen, or
+    /// a box opened over one, or the box that has taken another's place.
+    void focusChanged(Millis now) {
+        blocking = true;
+        since = now;
+    }
+
+    /// Whether this notch belongs to the flick that change ended, and is to be
+    /// answered by nothing at all. `delta` is what `wheelDelta()` read off the
+    /// event, so 0 — anything that is not a notch — is never swallowed.
+    bool swallows(int delta, Millis now, Millis settleMs, Millis capMs) {
+        if (delta == 0) return false;
+        // `wheel_settle_ms 0` is the guard turned off: nothing is swallowed,
+        // and the run being swallowed when it goes off ends there — the notches
+        // of it left are the wheel, and the setting says to answer them.
+        // `direction == delta` also settles the case of a change coming before
+        // the wheel has been touched: direction is 0 then, and no notch matches.
+        const bool leftOver = capMs > 0 && blocking && direction == delta &&
+                              now - last <= settleMs && now - since <= capMs;
+        direction = delta;
+        last = now;
+        blocking = leftOver;
+        return leftOver;
+    }
+};
+
 }  // namespace amberedit::ui

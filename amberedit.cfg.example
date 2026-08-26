@@ -760,6 +760,20 @@ list_wheel_throttle on
 # to.
 list_wheel_throttle_ms 200
 
+# For how long the tail of a flick of the wheel is kept off what has just come
+# up in front of the user, in milliseconds. Optional; 1500 by default, 0 to
+# 5000. A notch arrives after the hand that asked for it — a trackpad goes on
+# reporting them once the finger has left it — so the ones still coming when Esc
+# closes the reader, when a box opens over it or when the right arrow walks to
+# the next message were aimed at what has just been put away, and would scroll
+# what took its place instead. They are swallowed while they keep arriving, and
+# this is how long that may go on for; past it a hand that keeps turning the
+# wheel gets what is now in front of it. A flick begun inside that time is lost
+# with the tail — nothing the terminal reports tells the two apart — so raise
+# this only as far as the tails you actually see. 0 turns it off, and the tail
+# lands where it falls.
+wheel_settle_ms 1500
+
 # --- dates --------------------------------------------------------------------
 
 # How every stamp shown while reading is written: the two in the reader's header

@@ -1054,6 +1054,20 @@ struct AppConfig {
     /// to.
     int listWheelThrottleMs{200};
 
+    /// For how long the tail of a flick of the wheel is kept off what has just
+    /// come up in front of the user, in milliseconds, from `wheel_settle_ms`.
+    /// 1500 by default.
+    ///
+    /// A notch arrives after the hand that asked for it — a trackpad goes on
+    /// reporting them once the finger has left it — so the ones still coming
+    /// when Escape closes the reader, when a box opens over it or when → walks
+    /// to the next message were aimed at what has just been put away. They are
+    /// swallowed while they keep arriving, and this is how long that may go on
+    /// for: a tail dies out well inside it, and past it a hand that keeps
+    /// turning the wheel gets what is now in front of it. Zero turns the whole
+    /// of it off, and the tail lands where it falls.
+    int wheelSettleMs{1500};
+
     /// How every stamp the reader shows is written, from
     /// `reader_datetime_format`: the two in the header block — when the message
     /// was written and when it arrived — and the one beside each answer in the

@@ -645,6 +645,22 @@ TEST_CASE("AppConfig reads the wheel throttle [app_config]") {
     CHECK_FALSE(loads("list_wheel_throttle_ms briefly\n"));
 }
 
+TEST_CASE("AppConfig reads how long a flick's tail is kept off [app_config]") {
+    // A second and a half by default, which is what a trackpad goes on
+    // reporting for after a hard flick.
+    CHECK(with("").wheelSettleMs == 1500);
+
+    CHECK(with("wheel_settle_ms 400\n").wheelSettleMs == 400);
+    // Zero is a setting rather than a mistake: it is how the guard is turned
+    // off, and the tail lands wherever the change of screen left it.
+    CHECK(with("wheel_settle_ms 0\n").wheelSettleMs == 0);
+
+    CHECK_FALSE(loads("wheel_settle_ms 5001\n"));
+    CHECK_FALSE(loads("wheel_settle_ms -1\n"));
+    CHECK_FALSE(loads("wheel_settle_ms a while\n"));
+    CHECK_FALSE(loads("wheel_settle_ms\n"));
+}
+
 TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     using amberedit::config::AreaFieldKind;
     using amberedit::config::AreaListFormat;

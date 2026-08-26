@@ -20,6 +20,7 @@
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
 #include "ui/find_dialog.hpp"
+#include "ui/focus.hpp"
 #include "ui/forward_dialog.hpp"
 #include "ui/hint_bar.hpp"
 #include "ui/import_dialog.hpp"
@@ -228,7 +229,21 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         std::this_thread::sleep_for(std::chrono::milliseconds(state.clickAnimationMs));
     };
 
+    // What the last frame was drawn from — the screen, the box over it, and the
+    // message the reader has loaded. The wheel is the whole of the reason it is
+    // remembered: a flick still arriving when Escape closes the reader was aimed
+    // at the message it closed, and the list underneath is not to be run to its
+    // end by it — see AppState::wheelLeftOver. It is read here rather than at
+    // each place that opens or closes something, so that every way of putting
+    // something else in front of the user is covered by the one test.
+    Focus shown = focusOf(state);
+
     while (terminal.running()) {
+        if (const Focus now = focusOf(state); now != shown) {
+            shown = now;
+            state.wheelFocusChanged();
+        }
+
         state.width = terminal.width();
         state.height = terminal.height();
         // The hint bar's row comes off the height every screen lays itself out
@@ -305,7 +320,23 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             continue;
         }
 
-        const Event event = terminal.poll();
+        Event event = terminal.poll();
+
+        // What is left of a flick of the wheel that ended on the screen, the box
+        // or the message before is answered by nothing at all: the notches were
+        // aimed at what has since been put away, and they are dropped ahead of
+        // every modal below for that reason.
+        //
+        // Dropped here rather than by going round the loop, and that is the
+        // whole of why this is a loop of its own: nothing changed, so drawing
+        // the frame again would only lay the message out afresh for a notch that
+        // did nothing — and a wheel flicked hard leaves hundreds of them waiting,
+        // which at a frame apiece takes seconds to get through. Those seconds
+        // are what a tail has to outlive to reach the screen, so draining them
+        // at once is what keeps `wheel_settle_ms` measuring the flick rather
+        // than the redrawing. Anything that is not a notch — a keystroke, a
+        // resize — ends the drain and is answered below as it always is.
+        while (state.wheelLeftOver(event)) event = terminal.poll();
 
         // A resize is not a keystroke: the frame above has already been drawn to
         // the new size, and there is nothing else for it to mean.

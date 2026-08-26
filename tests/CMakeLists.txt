@@ -75,6 +75,7 @@ add_executable(amberedit_tests
   ui/dialog_frame_test.cpp
   ui/list_page_test.cpp
   ui/wheel_throttle_test.cpp
+  ui/focus_test.cpp
   ui/quick_search_test.cpp
   ui/theme_test.cpp
   ui/reader_sidebar_test.cpp

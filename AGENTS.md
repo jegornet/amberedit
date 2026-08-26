@@ -561,6 +561,43 @@ Rules that hold the design together:
   with `list_wheel_throttle off`, every notch moves a row. **A swallowed notch is
   still handled** — the screen returns true and does nothing — or the event would
   fall through to whatever is under the list.
+- **Putting something else in front of the user ends the flick that was in
+  flight.** A notch arrives after the hand that asked for it — a trackpad reports
+  them once the finger has left it, and a wheel turned faster than the frames are
+  drawn leaves them waiting to be read — so the ones still coming when Escape
+  closes the reader would run the list underneath to its end, the ones still
+  coming when a box opens over it would run the list inside the box, and the ones
+  still coming when → walks to the next message would scroll a message nobody has
+  looked at yet. `ui::focusOf()` (`ui/focus.hpp`) answers all three at once: the
+  screen, which of the modals stands over it, and the message the reader has
+  loaded. The loop in `app_shell.cpp` reads it at the top of every pass and hands
+  `ui::WheelSettle` (`ui/wheel_throttle.hpp`) the moment that answer changes;
+  from there its notches are swallowed at the head of the dispatch chain, ahead
+  of every modal in it. The wheel is live again on the first notch after a gap of
+  `kWheelSettleMs`, on the first one turning the other way, or once
+  `wheel_settle_ms` has passed since the change — that setting is what keeps a
+  hand that goes on turning from meeting a dead wheel, and it is set against how
+  long a hard flick reports for: 1500 by default, and 0 leaves the tail to land
+  where it falls. **Every event goes through `AppState::wheelLeftOver()`**,
+  swallowing or not: the guard has no other way to see when a run ends. The gap
+  that ends a run is a constant and not a setting, and the tail cannot be told
+  from a flick begun inside the window — the same limit of what the terminal
+  reports that the bullet on horizontal scrolling below turns on.
+- **A swallowed notch draws no frame.** The loop polls again from inside the
+  guard rather than going round the top, and that is not an optimisation: a wheel
+  flicked hard leaves hundreds of notches waiting, laying the message out afresh
+  for each of them takes seconds, and those are seconds the tail has to outlive
+  to reach the screen. Draining them at once is what leaves `wheel_settle_ms`
+  measuring the flick and not the redrawing. Nothing changed while they were
+  dropped, so there is nothing a frame would show.
+- **The focus reads `readHeader`'s number and never `messageCursor`.** The reader
+  and the message list share that cursor, and the wheel moves it a row at a time:
+  a cursor in the focus would make every notch over the list a change of what is
+  in front of the user, and the guard would answer by swallowing the rest of the
+  flick. `ui/focus_test.cpp` holds that case, and it is the one to keep passing.
+  `addresseeOf()` is to be kept in step with the dispatch chain in `app_shell.cpp`
+  in the same way: the two list the same modals in the same order, and a box left
+  out of the first is one the tail of a flick can still scroll.
 - Horizontal scrolling is deliberately unhandled, and "swipe to the next message"
   is not to be reached for again without a new signal: nothing the terminal
   reports carries an event's phase, so a trackpad's momentum tail cannot be told

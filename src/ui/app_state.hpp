@@ -29,6 +29,7 @@
 #include "ports/i_msgbase.hpp"
 #include "ui/bbs_codes.hpp"
 #include "ui/dir_listing.hpp"
+#include "ui/event_util.hpp"
 #include "ui/keys.hpp"
 #include "ui/text_editor.hpp"
 #include "ui/wheel_throttle.hpp"
@@ -1230,6 +1231,28 @@ struct AppState {
         if (!config.listWheelThrottle) return delta;
         return listWheel.step(delta, rowHeight, monotonicMs(),
                               config.listWheelThrottleMs);
+    }
+
+    /// What is left of the flick the last change of what is in front of the user
+    /// ended. One counter again, and for the same reason: there is one wheel,
+    /// and what it is still sending has nothing to do with what has since come
+    /// up in front of it.
+    WheelSettle wheelSettle;
+
+    /// Says that something else is now in front of the user — another screen, a
+    /// box opened over one, or a box put away. The shell calls it, being the one
+    /// place that sees every way that happens: Escape, a click, an area opened
+    /// out of a dialog, one dialog handing the question to the next.
+    void wheelFocusChanged() { wheelSettle.focusChanged(monotonicMs()); }
+
+    /// Whether this event is a notch of the wheel left over from what was in
+    /// front of the user before, which nothing is to be done about. Every event
+    /// goes through this on its way to a screen: the wheel is watched whether or
+    /// not a run is being swallowed, there being no other way to know when the
+    /// next one ends.
+    [[nodiscard]] bool wheelLeftOver(const term::Event& event) {
+        return wheelSettle.swallows(wheelDelta(event), monotonicMs(), kWheelSettleMs,
+                                    config.wheelSettleMs);
     }
 
     /// Draws the interface as it stands, at once. Filled in by the shell, which
