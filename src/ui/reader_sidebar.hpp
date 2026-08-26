@@ -6,9 +6,10 @@
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
 
-/// The list of messages the reader puts up its left-hand side in a window wide
+/// The list of messages the reader puts up one side of itself in a window wide
 /// enough for it — `reader_sidebar_threshold`, and `AppState::readerSidebarShown()`
-/// is the whole of the question. What a row holds is
+/// is the whole of the question; which side is `reader_sidebar_position`, and
+/// nothing but the order of the two columns turns on it. What a row holds is
 /// `reader_sidebar_msglist_format`, laid out by `ui/msg_list_format.*` and drawn
 /// by the same `drawLine()` the message list draws its rows with, so a message
 /// reads the same in the panel as it does in the table.
@@ -22,8 +23,9 @@
 namespace amberedit::ui::reader_sidebar {
 
 /// The panel, `AppState::readerSidebarWidth()` columns of it, with the rule that
-/// closes it off in the column after — so what comes back is one column wider
-/// than the panel and stands the whole height of the screen.
+/// closes it off in the column beside — after it where the panel stands left of
+/// the message, before it where it stands right — so what comes back is one
+/// column wider than the panel and stands the whole height of the screen.
 [[nodiscard]] term::Element render(AppState& state);
 
 /// Scrolls the panel so that message `number` is on it: a step off either edge

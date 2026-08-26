@@ -1371,6 +1371,24 @@ struct AppState {
         return width - readerSidebarWidth() - 1 >= kSidebarMinPane;
     }
 
+    /// Which side of the message the panel stands on, from
+    /// `reader_sidebar_position`. The rule closing it off goes with it, so this
+    /// is the whole of the question — everything else about the panel is the
+    /// same setting on either side.
+    [[nodiscard]] bool readerSidebarOnLeft() const {
+        return config.readerSidebarPosition == config::SidebarPosition::Left;
+    }
+
+    /// Which column the panel begins in: the window's first where it stands on
+    /// the left, and the one that puts its last column against the right edge
+    /// where it stands on the right. What a click on the panel is measured
+    /// from, as `readerPaneLeft()` is what a click on the reader is measured
+    /// from.
+    [[nodiscard]] int readerSidebarLeft() const {
+        if (!readerSidebarShown() || readerSidebarOnLeft()) return 0;
+        return width - readerSidebarWidth();
+    }
+
     /// The columns the reader itself lays out in — the whole window, less the
     /// panel and the rule beside it where one is up. Everything the reader
     /// draws is measured against this rather than against `width`: the title,
@@ -1380,9 +1398,18 @@ struct AppState {
     }
 
     /// Which column the reader itself begins in, which is what a click on
-    /// something in its top-left corner is measured from.
+    /// something in its top-left corner is measured from. The window's own
+    /// first column unless a panel stands to the left of the message.
     [[nodiscard]] int readerPaneLeft() const {
-        return readerSidebarShown() ? readerSidebarWidth() + 1 : 0;
+        return readerSidebarShown() && readerSidebarOnLeft() ? readerSidebarWidth() + 1
+                                                             : 0;
+    }
+
+    /// The column after the reader's last, which is what a click on something
+    /// in its top-right corner is measured against. The window's width unless a
+    /// panel stands to the right of the message.
+    [[nodiscard]] int readerPaneRight() const {
+        return readerPaneLeft() + readerPaneWidth();
     }
 
     /// How many lines tall one row of the sidebar stands: a line per line of

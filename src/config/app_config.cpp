@@ -257,6 +257,17 @@ tl::expected<HintAlign, ErrorPtr> parseHintAlign(const CfgEntry& entry) {
                       "' does not say where the hints stand (left | center | right)");
 }
 
+tl::expected<SidebarPosition, ErrorPtr> parseSidebarPosition(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "left") return SidebarPosition::Left;
+    if (value == "right") return SidebarPosition::Right;
+    return entry.fail(entry.key + ": '" + *only +
+                      "' does not say which side of the message the panel stands on "
+                      "(left | right)");
+}
+
 tl::expected<Visibility, ErrorPtr> parseVisibility(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -830,6 +841,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.numberIn(16, 255);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerSidebarWidth = static_cast<int>(*read);
+    } else if (key == "reader_sidebar_position") {
+        auto read = parseSidebarPosition(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerSidebarPosition = *read;
     } else if (key == "reader_sidebar_msglist_format") {
         auto read = parseOneListFormat(entry, sidebarFormatSpec());
         if (!read) return tl::make_unexpected(std::move(read).error());

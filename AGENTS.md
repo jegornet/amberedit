@@ -953,8 +953,9 @@ Rules that hold the design together:
   `reader_sidebar_threshold` columns or more — **`0` unless the config asks for
   one**, and `120` is the width `amberedit.cfg.example` names as worth turning it
   on at —
-  `ui/reader_sidebar.*` puts the messages of the area up the left-hand side, with
-  a `separator`-colored rule between it and the text. The message the reader is
+  `ui/reader_sidebar.*` puts the messages of the area up one side of the reader,
+  with a `separator`-colored rule between it and the text — the right by default,
+  and `reader_sidebar_position` is the whole of that question. The message the reader is
   showing is the one it marks, read off `readHeader->number` rather than off
   `messageCursor`: the compose screen loads a message back into the reader
   directly, and what the panel is for is saying which message is on the screen
@@ -980,10 +981,21 @@ Rules that hold the design together:
   - **Everything the reader draws is measured against `AppState::readerPaneWidth()`**,
     never `width`: the title, the header block, the rules, `relayout()`'s wrapping
     and the body's scrollbar. `readerPaneLeft()` is what a click on the Back
-    button is measured from — `back_button::clicked()` takes the column the box
-    starts in, because the button hangs from the top-left of its *screen* and that
-    is no longer the terminal's. The menu button is still measured against
-    `width`, the pane's right edge being the window's.
+    button is measured from and `readerPaneRight()` what a click on the menu
+    button is measured against — the two buttons hang from the corners of their
+    *screen*, and with a panel on one side or the other those are no longer the
+    terminal's. Neither reads `width`, and neither reads the panel's side: the
+    pane's edges answer for it.
+  - **Which side is `reader_sidebar_position`, and nothing but the order of two
+    columns turns on it.** `readerSidebarOnLeft()` puts the panel and its rule
+    either side of the reader in `render()`, `readerSidebarLeft()` is the column
+    the panel begins in and what `clickedMessage()` and `wheeled()` measure a
+    pointer from. **The right by default**: the message is what the screen is
+    for, and a message beginning in the window's first column begins where the
+    eye already is. Everything else about the panel — the threshold, the width,
+    the format, the following and the marking — is one setting on either side,
+    and a test that says "left" of anything here is a test that will lie the
+    moment the config says otherwise.
   - **`reader_sidebar_width` is the panel, and a fixed strip on purpose** — 39
     by default, which is `reader_sidebar_threshold` less the eighty columns an
     FTN message is written to and the rule between them, so the window where the

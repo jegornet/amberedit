@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -15,6 +16,8 @@
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
+using amberedit::config::SidebarPosition;
+using amberedit::config::Visibility;
 using amberedit::test::AreaFixture;
 using amberedit::test::TempSquishBase;
 using amberedit::ui::AppState;
@@ -52,13 +55,32 @@ std::vector<std::string> rowsOf(AreaFixture& fixture) {
 /// The column the rule between the panel and the reader stands in, as it was
 /// drawn: read off the frame rather than worked out again, so that a test
 /// noticing the two have drifted apart is possible at all.
+///
+/// The column carrying it on every row, rather than the first row's first bar:
+/// with the panel on the right the reader's own corner comes first, and a box
+/// two rows tall is not the rule that runs the whole height of the screen.
 int ruleColumn(const std::vector<std::string>& rows) {
     for (size_t x = 0; x < rows.front().size(); ++x) {
-        if (amberedit::ui::substrByWidth(rows.front(), static_cast<int>(x), 1) == "│") {
-            return static_cast<int>(x);
-        }
+        const auto column = static_cast<int>(x);
+        const bool whole = std::all_of(rows.begin(), rows.end(), [&](const auto& row) {
+            return amberedit::ui::substrByWidth(row, column, 1) == "│";
+        });
+        if (whole) return column;
     }
     return -1;
+}
+
+/// Where that rule belongs, worked out from the setting: beyond the panel where
+/// it stands on the left, and in front of it where it stands on the right.
+int ruleFor(const AppState& state) {
+    return state.readerSidebarOnLeft() ? state.readerSidebarWidth()
+                                       : state.readerSidebarLeft() - 1;
+}
+
+/// A column inside the panel, whichever side it is on — what a click meant for
+/// a row is aimed at.
+int inPanel(const AppState& state) {
+    return state.readerSidebarLeft() + 1;
 }
 
 Event pressAt(int x, int y) {
@@ -86,9 +108,12 @@ uint32_t reading(const AreaFixture& fixture) {
 }
 
 /// Opens the area in the reader, in a window of the given width — a panel up
-/// unless a test asks for one too narrow for it.
-void openWide(AreaFixture& fixture, int width = kWide) {
+/// unless a test asks for one too narrow for it — on the side asked for, which
+/// is the side a config saying nothing gets.
+void openWide(AreaFixture& fixture, int width = kWide,
+              SidebarPosition side = SidebarPosition::Right) {
     fixture.config.readerSidebarThreshold = kThreshold;
+    fixture.config.readerSidebarPosition = side;
     fixture.state.width = width;
     fixture.state.height = 24;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
@@ -150,7 +175,22 @@ TEST_CASE("The panel is reader_sidebar_width wide and the message has the rest "
         CHECK(fixture.state.readerSidebarWidth() == 39);
         // The panel, the rule beside it and the message are the whole window.
         CHECK(fixture.state.readerPaneWidth() == width - 40);
+        // On the right unless a config says otherwise, so the message begins in
+        // the window's own first column and stops where the rule does.
+        CHECK(fixture.state.readerSidebarLeft() == width - 39);
+        CHECK(fixture.state.readerPaneLeft() == 0);
+        CHECK(fixture.state.readerPaneRight() == width - 40);
+    }
+
+    // Moved to the other side, the same three widths change hands: the panel
+    // starts the window and the message runs to its edge.
+    fixture.config.readerSidebarPosition = SidebarPosition::Left;
+    for (const int width : {121, 200, 400}) {
+        fixture.state.width = width;
+        CHECK(fixture.state.readerPaneWidth() == width - 40);
+        CHECK(fixture.state.readerSidebarLeft() == 0);
         CHECK(fixture.state.readerPaneLeft() == 40);
+        CHECK(fixture.state.readerPaneRight() == width);
     }
 
     // What the setting says is what it stands at.
@@ -179,23 +219,29 @@ TEST_CASE("A panel the window has no room beside is not up at all [sidebar][squi
 }
 
 TEST_CASE(
-    "The panel stands left of a rule, with the reader's own corner beyond it "
+    "The panel stands beside a rule, on the side reader_sidebar_position names "
     "[sidebar][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    openWide(fixture);
+    SidebarPosition side = SidebarPosition::Right;
+    SUBCASE("right, which is what a config saying nothing gets") {
+        side = SidebarPosition::Right;
+    }
+    SUBCASE("left") { side = SidebarPosition::Left; }
+    openWide(fixture, kWide, side);
 
     const std::vector<std::string> rows = rowsOf(fixture);
     const int rule = ruleColumn(rows);
-    CHECK(rule == fixture.state.readerSidebarWidth());
+    CHECK(rule == ruleFor(fixture.state));
     // Every row carries it: the panel runs the whole height of the screen.
     for (const std::string& row : rows) {
         CHECK(amberedit::ui::substrByWidth(row, rule, 1) == "│");
     }
-    // The reader's title begins in the column after the rule rather than in the
-    // window's own first one.
-    const std::string pane =
-        amberedit::ui::substrByWidth(rows[0], rule + 1, fixture.state.readerPaneWidth());
+    // The reader's title begins in the reader's own first column — the window's
+    // where the panel is beyond the message, and the one after the rule where
+    // it is in front of it.
+    const std::string pane = amberedit::ui::substrByWidth(
+        rows[0], fixture.state.readerPaneLeft(), fixture.state.readerPaneWidth());
     CHECK(pane.find(" " + fixture.state.currentArea.tag) == 0);
 }
 
@@ -207,9 +253,10 @@ TEST_CASE(
     openWide(fixture);
 
     const std::vector<std::string> rows = rowsOf(fixture);
+    const int left = fixture.state.readerSidebarLeft();
     const int width = fixture.state.readerSidebarWidth();
-    const std::string first = amberedit::ui::substrByWidth(rows[0], 0, width);
-    const std::string second = amberedit::ui::substrByWidth(rows[1], 0, width);
+    const std::string first = amberedit::ui::substrByWidth(rows[0], left, width);
+    const std::string second = amberedit::ui::substrByWidth(rows[1], left, width);
 
     // The default is two lines: the names and the stamp above, the subject
     // across the whole of the line under them.
@@ -224,13 +271,19 @@ TEST_CASE(
 TEST_CASE("A click on the panel opens that message in the reader [sidebar][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    openWide(fixture);
+    SidebarPosition side = SidebarPosition::Right;
+    SUBCASE("right, which is what a config saying nothing gets") {
+        side = SidebarPosition::Right;
+    }
+    SUBCASE("left") { side = SidebarPosition::Left; }
+    openWide(fixture, kWide, side);
     REQUIRE(reading(fixture) == 1);
 
     // The fourth row of the panel, which stands two lines tall.
     const int row = 3;
     CHECK(message_read::handleEvent(
-        fixture.state, pressAt(1, row * fixture.state.readerSidebarRowHeight())));
+        fixture.state, pressAt(inPanel(fixture.state),
+                               row * fixture.state.readerSidebarRowHeight())));
     CHECK(reading(fixture) == static_cast<uint32_t>(row) + 1);
     // The list's cursor came with it, so going to the list lands on it.
     CHECK(fixture.state.messageCursor == row);
@@ -243,7 +296,7 @@ TEST_CASE(
     AreaFixture fixture(base.path());
     openWide(fixture);
 
-    CHECK(message_read::handleEvent(fixture.state, pressAt(1, 5)));
+    CHECK(message_read::handleEvent(fixture.state, pressAt(inPanel(fixture.state), 5)));
     CHECK(reading(fixture) == 3);
 }
 
@@ -253,13 +306,21 @@ TEST_CASE(
     TempSquishBase base;
     AreaFixture fixture(base.path());
     openWide(fixture);
-    const int rule = fixture.state.readerSidebarWidth();
+    const int rule = ruleFor(fixture.state);
 
     CHECK(reader_sidebar::clickedMessage(fixture.state, pressAt(rule, 4)) == 0);
+    // Nor does anything the other side of the panel: with it against the right
+    // edge, the column past its last is off the window altogether.
+    CHECK(reader_sidebar::clickedMessage(
+              fixture.state,
+              pressAt(fixture.state.readerSidebarLeft() +
+                          fixture.state.readerSidebarWidth(),
+                      4)) == 0);
     // Fewer messages than rows: what is drawn under them is blank and points at
     // nothing.
     fixture.state.messageCount = 2;
-    CHECK(reader_sidebar::clickedMessage(fixture.state, pressAt(1, 20)) == 0);
+    CHECK(reader_sidebar::clickedMessage(fixture.state,
+                                         pressAt(inPanel(fixture.state), 20)) == 0);
 }
 
 TEST_CASE("Nothing on the panel takes the keyboard [sidebar][squish]") {
@@ -287,8 +348,9 @@ TEST_CASE("The panel marks the message the reader is showing [sidebar][squish]")
     openWide(fixture);
 
     message_read::goToMessage(fixture.state, 5);
-    const std::vector<std::string> rows = rowsOf(fixture);
-    const int rule = fixture.state.readerSidebarWidth();
+    static_cast<void>(rowsOf(fixture));
+    const int rule = ruleFor(fixture.state);
+    const int left = fixture.state.readerSidebarLeft();
     // The marked row is drawn in the selection's colors, every line of it, and
     // no other row is.
     const int marked = 4 * fixture.state.readerSidebarRowHeight();
@@ -296,14 +358,14 @@ TEST_CASE("The panel marks the message the reader is showing [sidebar][squish]")
     term::Screen screen(fixture.state.width, fixture.state.height);
     term::render(screen, message_read::render(fixture.state));
     const auto selected = [&](int y) {
-        return screen.at(0, y).bg == screen.at(0, marked).bg;
+        return screen.at(left, y).bg == screen.at(left, marked).bg;
     };
     // The panel marks rather than chooses — the keyboard is in the reader — so
     // the bar is `reader_sidebar_msglist_selected` and not the one the lists
     // pick a row out with.
-    CHECK(screen.at(0, marked).bg ==
+    CHECK(screen.at(left, marked).bg ==
           amberedit::ui::theme::palette.readerSidebarMsglistSelected);
-    CHECK_FALSE(screen.at(0, marked).bg == amberedit::ui::theme::palette.selection);
+    CHECK_FALSE(screen.at(left, marked).bg == amberedit::ui::theme::palette.selection);
     CHECK(selected(marked));
     CHECK(selected(marked + 1));
     CHECK_FALSE(selected(marked - 1));
@@ -374,13 +436,15 @@ TEST_CASE(
     openWide(fixture);
     fixture.config.listWheelThrottle = false;
 
-    REQUIRE(message_read::handleEvent(fixture.state, wheelAt(1, /*down=*/true)));
+    REQUIRE(message_read::handleEvent(
+        fixture.state, wheelAt(inPanel(fixture.state), /*down=*/true)));
     CHECK(fixture.state.readerSidebarOffset == 1);
     // Scrolling the panel is not choosing off it: the reader is still on the
     // message it was, and the mark is still on that message.
     CHECK(reading(fixture) == 1);
 
-    REQUIRE(message_read::handleEvent(fixture.state, wheelAt(1, /*down=*/false)));
+    REQUIRE(message_read::handleEvent(
+        fixture.state, wheelAt(inPanel(fixture.state), /*down=*/false)));
     CHECK(fixture.state.readerSidebarOffset == 0);
 
     // Over the text it is the text the wheel reaches, as it always was — the
@@ -400,7 +464,8 @@ TEST_CASE(
     static_cast<void>(rowsOf(fixture));
 
     for (int i = 0; i < 4; ++i) {
-        REQUIRE(message_read::handleEvent(fixture.state, wheelAt(1, /*down=*/true)));
+        REQUIRE(message_read::handleEvent(
+            fixture.state, wheelAt(inPanel(fixture.state), /*down=*/true)));
     }
     CHECK(fixture.state.readerSidebarOffset == 4);
     // Drawing it does not drag it back: the offset is the user's until the
@@ -452,6 +517,7 @@ TEST_CASE("An area holding nothing draws the panel empty [sidebar][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.readerSidebarThreshold = kThreshold;
+    fixture.config.readerSidebarPosition = SidebarPosition::Right;
     fixture.state.width = kWide;
     fixture.state.height = 24;
     fixture.state.messageCount = 0;
@@ -459,11 +525,47 @@ TEST_CASE("An area holding nothing draws the panel empty [sidebar][squish]") {
 
     const std::vector<std::string> rows = rowsOf(fixture);
     const int rule = ruleColumn(rows);
-    CHECK(rule == fixture.state.readerSidebarWidth());
+    CHECK(rule == ruleFor(fixture.state));
+    const int left = fixture.state.readerSidebarLeft();
+    const int width = fixture.state.readerSidebarWidth();
     for (const std::string& row : rows) {
-        CHECK(amberedit::ui::substrByWidth(row, 0, rule) ==
-              std::string(static_cast<size_t>(rule), ' '));
+        CHECK(amberedit::ui::substrByWidth(row, left, width) ==
+              std::string(static_cast<size_t>(width), ' '));
     }
+}
+
+TEST_CASE(
+    "The reader's corners are its own, and the panel does not swallow them "
+    "[sidebar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    // Both boxes are `when_narrow` by default and a window wide enough for the
+    // panel is not narrow, so a test about the corners asks for them outright.
+    fixture.config.backButton = Visibility::On;
+    fixture.config.menuButton = Visibility::On;
+    openWide(fixture);
+    REQUIRE(fixture.state.readerMenuShown());
+
+    // With the panel beyond the message, the reader's right-hand corner is the
+    // rule and not the window's last column: the menu button hangs from that.
+    REQUIRE(message_read::handleEvent(
+        fixture.state, pressAt(fixture.state.readerPaneRight() - 1, 0)));
+    CHECK(fixture.state.menuView);
+    fixture.state.menuView.reset();
+
+    // The window's own last column is the panel, which opens the message it
+    // marks rather than a menu.
+    REQUIRE(
+        message_read::handleEvent(fixture.state, pressAt(fixture.state.width - 1, 0)));
+    CHECK_FALSE(fixture.state.menuView);
+    CHECK(reading(fixture) == 1);
+
+    // And the way back hangs from the reader's left-hand corner, which on this
+    // side of the message is the window's own. It goes out of the area, the way
+    // Esc does here.
+    CHECK(fixture.state.readerPaneLeft() == 0);
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(0, 0)));
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::AreaList);
 }
 
 TEST_CASE("The message list itself has no panel [sidebar][squish]") {

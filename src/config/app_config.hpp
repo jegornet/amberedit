@@ -271,6 +271,14 @@ enum class HintAlign {
     Right,   ///< against the right edge, the rule in front of them
 };
 
+/// Which side of the message the reader's sidebar stands on, from
+/// `reader_sidebar_position`. The rule closing the panel off goes with it, so
+/// this is the whole of the difference between the two.
+enum class SidebarPosition {
+    Left,   ///< between the window's edge and the message
+    Right,  ///< past the message, against the window's other edge
+};
+
 /// Format of the tosser config the area list comes from.
 /// It is stated explicitly in the config: guessing it from the file contents
 /// is one more source of surprises, and users know their own tosser.
@@ -615,6 +623,20 @@ struct AppConfig {
     /// A width leaving too little beside it is not clamped — the panel simply
     /// stays off in a window that narrow, which is `readerSidebarShown()`.
     int readerSidebarWidth{39};
+
+    /// Which side of the message that panel stands on, from
+    /// `reader_sidebar_position`.
+    ///
+    /// The right by default. The message is what the screen is for, and a
+    /// message that begins in the window's first column begins where the eye
+    /// already is: the panel is the thing glanced at, so it goes where a thing
+    /// glanced at goes. `left` is for whoever reads it as the message list it
+    /// came out of and wants it standing where a list stands.
+    ///
+    /// Nothing else about the panel changes with it — the threshold, the width
+    /// and the format are one setting on either side, and the rule closing it
+    /// off moves with the panel.
+    SidebarPosition readerSidebarPosition{SidebarPosition::Right};
 
     /// What each row of that panel holds, from `reader_sidebar_msglist_format`
     /// — `msglist_format`'s letters, read by the same parser, and one format

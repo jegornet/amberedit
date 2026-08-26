@@ -433,11 +433,11 @@ highlight_unread on
 reader_scrollbar on
 
 # How wide the window has to be before the reader puts the list of messages up
-# its left-hand side, separated from the message by a vertical rule. Optional; 0
+# one side of itself, separated from the message by a vertical rule. Optional; 0
 # by default — no panel at any width — and "off" says the same. 81 to 255
 # otherwise; 120 is the width worth turning it on at, leaving the message the 80
 # columns an FTN message is written to.
-##reader_sidebar_threshold 120
+#reader_sidebar_threshold 120
 
 # How many columns that panel stands in, the rule beside it not counted.
 # Optional; 39 by default, which leaves the message its 80 columns in a window of
@@ -445,6 +445,11 @@ reader_scrollbar on
 # message. A width the window has no room beside leaves the panel off in that
 # window rather than being cut down to fit.
 reader_sidebar_width 39
+
+# Which side of the message that panel stands on: left or right. Optional; right
+# by default, which leaves the message beginning in the window's first column.
+# The rule between the two moves with the panel; nothing else about it changes.
+reader_sidebar_position right
 
 # What each row of that panel holds. Optional. Written exactly as msglist_format
 # is — the same letters, widths and d(...) — but one format rather than two, the

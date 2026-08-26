@@ -1715,10 +1715,14 @@ Element render(AppState& state) {
 
     Element reader = vbox(std::move(content));
     if (!state.readerSidebarShown()) return reader;
-    // The panel first, the reader taking what is left: everything the reader
-    // laid out above was measured against exactly that, so it is handed the
-    // room rather than asked how much it wants.
-    return hbox({reader_sidebar::render(state), std::move(reader) | flex});
+    // The panel on the hand `reader_sidebar_position` names, the reader taking
+    // what is left: everything the reader laid out above was measured against
+    // exactly that, so it is handed the room rather than asked how much it
+    // wants.
+    if (state.readerSidebarOnLeft()) {
+        return hbox({reader_sidebar::render(state), std::move(reader) | flex});
+    }
+    return hbox({std::move(reader) | flex, reader_sidebar::render(state)});
 }
 
 bool handleEvent(AppState& state, const Event& event) {
@@ -1732,7 +1736,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // The menu button in the other corner, which puts the menu up over this
     // screen. What it holds is decided as it opens, on the message that is in
     // front of the user now.
-    if (state.readerMenuShown() && menu_button::clicked(event, state.width)) {
+    if (state.readerMenuShown() && menu_button::clicked(event, state.readerPaneRight())) {
         state.showClick(AppState::Pressed::MenuButton);
         openMenu(state);
         return true;

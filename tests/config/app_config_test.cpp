@@ -1056,6 +1056,24 @@ TEST_CASE("AppConfig reads how wide the reader's sidebar stands [app_config]") {
     CHECK_MESSAGE(contains(error2, "255"), error2);
 }
 
+TEST_CASE("AppConfig reads which side the reader's sidebar stands on [app_config]") {
+    using amberedit::config::SidebarPosition;
+
+    // The right unless a config says otherwise: the message is what the screen
+    // is for, so it begins in the window's own first column.
+    CHECK(with("").readerSidebarPosition == SidebarPosition::Right);
+    CHECK(with("reader_sidebar_position left\n").readerSidebarPosition ==
+          SidebarPosition::Left);
+    CHECK(with("reader_sidebar_position RIGHT\n").readerSidebarPosition ==
+          SidebarPosition::Right);
+
+    // There are two sides and the complaint names both.
+    const std::string error = errorWith("reader_sidebar_position top\n");
+    CHECK_MESSAGE(contains(error, "left | right"), error);
+    CHECK_FALSE(errorWith("reader_sidebar_position left right\n").empty());
+    CHECK_FALSE(errorWith("reader_sidebar_position\n").empty());
+}
+
 TEST_CASE("AppConfig reads the area list order [app_config]") {
     using amberedit::config::AreaSortCriterion;
     using amberedit::config::AreaSortKey;

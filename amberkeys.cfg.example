@@ -7,10 +7,10 @@
 # A config naming no file at all gets exactly this layout, so there is nothing
 # to copy unless something is to change.
 #
-# THE FILE IS THE LAYOUT ENTIRE. A command no line here names has no key at all
-# — this is a layout rather than a list of corrections, so copy the whole of it
-# and edit what you want moved. A command may be named on several lines, and it
-# then answers to each of those keys.
+# THE FILE DESCRIBES THE ENTIRE LAYOUT. A command no line here names has no key
+# at all  — this is a layout rather than a list of corrections, so copy the
+# whole of it and edit what you want moved. A command may be named on several
+# lines, and it then answers to each of those keys.
 #
 # A line is a key and a command, in that order:
 #

@@ -99,7 +99,8 @@ uint32_t clickedMessage(const AppState& state, const Event& event) {
     // The rule closing the panel off is the reader's edge rather than the
     // panel's last column: a click on it has landed between the two and picks
     // neither.
-    if (click->x < 0 || click->x >= state.readerSidebarWidth()) return 0;
+    const int left = state.readerSidebarLeft();
+    if (click->x < left || click->x >= left + state.readerSidebarWidth()) return 0;
     if (click->y < 0) return 0;
 
     const int row = click->y / state.readerSidebarRowHeight();
@@ -113,7 +114,9 @@ uint32_t clickedMessage(const AppState& state, const Event& event) {
 bool wheeled(AppState& state, const Event& event) {
     if (!state.readerSidebarShown()) return false;
     const auto mouse = mouseOf(event);
-    if (!mouse || mouse->x < 0 || mouse->x >= state.readerSidebarWidth()) return false;
+    const int left = state.readerSidebarLeft();
+    if (!mouse || mouse->x < left || mouse->x >= left + state.readerSidebarWidth())
+        return false;
 
     const int wheel = wheelDelta(event);
     if (wheel == 0) return false;
@@ -194,13 +197,18 @@ Element render(AppState& state) {
 
     // The rule down the side, in the color every other separator on the screen
     // is drawn in: the panel and the message are two things beside one another,
-    // and the line is what says so.
+    // and the line is what says so. It stands between them, so which hand it is
+    // on is `reader_sidebar_position` read the other way round.
     Elements rule;
     rule.reserve(static_cast<size_t>(height));
     for (int i = 0; i < height; ++i) rule.push_back(text("│"));
 
-    return hbox({vbox(std::move(lines)),
-                 vbox(std::move(rule)) | color(theme::palette.separator)});
+    Element panel = vbox(std::move(lines));
+    Element edge = vbox(std::move(rule)) | color(theme::palette.separator);
+    if (state.readerSidebarOnLeft()) {
+        return hbox({std::move(panel), std::move(edge)});
+    }
+    return hbox({std::move(edge), std::move(panel)});
 }
 
 }  // namespace amberedit::ui::reader_sidebar
