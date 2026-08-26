@@ -31,8 +31,14 @@ void openMenu(AppState& state);
 /// else.
 void runMenuCommand(AppState& state, Command command);
 
-/// Loads message msgNumber (1-based) into the reader state. False means there
-/// was no such message to load and the screen was left as it was.
+/// Loads message msgNumber (1-based) into the reader state.
+///
+/// Whatever the last message left behind goes first, and unconditionally: the
+/// header and body, the laid-out lines, where the text was scrolled to, a twit
+/// shown after all, what a search lit, a number half typed. False means there
+/// was no such message to load — the base is not open, or the number is past
+/// the end of the area — and the reader is then left showing nothing rather
+/// than still showing the message before it.
 bool loadMessage(AppState& state, uint32_t msgNumber);
 
 /// Opens the area *at* msgNumber: that message, or the nearest one to it the

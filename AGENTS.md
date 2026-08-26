@@ -2771,6 +2771,41 @@ AmberEdit's own layout or the file a `keys` line named.
   shell, which is what makes the quoting question not arise: an argument is one
   argument however many spaces it holds, and an address is written by whoever
   sent the message.
+- **What the shell and the utilities may have done to the base is read again on
+  the way back**, and `ui/after_handover` is the whole of it. Not the link
+  handler: a browser does not write to a message base, and reopening one after
+  every click on an address would be a file opened for nothing.
+
+  **It is a reopen and not a re-read, and that is the driver's doing.** Every
+  format driver reads its index into memory when the area is opened and re-reads
+  it only under the write lock — `SquishBase`'s index, `JamBase`'s active table,
+  `SdmBase`'s directory listing — so a base another program has written to goes
+  on answering from the index it was opened with, and `header(n)` asked a second
+  time answers the same stale thing. There is no reindex on `IMsgBase` to ask
+  for; `AreaManager::openArea()` is what there is, and it hands back a new
+  pointer, so `state.base` is dropped before anything reopens and the window of
+  headers is thrown away after.
+
+  Three things follow from the order. `AreaManager::reload()` opens by closing
+  the base being read, so `rescan_on_return`'s full rescan runs *before* the
+  area is opened again and never after — and synchronously, inside the helper,
+  because deferring it to `AppState::rescanning` and the frame after would leave
+  a frame standing with nothing to read the area through. The message is found by
+  the UID it was read under and not by its number, the rule a lastread mark
+  follows and for the same reason; `indexOfUid()` answering zero means every
+  survivor is *newer* than the message that went, so the nearest one is the
+  first. And what belongs to the reader rather than to the message — where the
+  text was scrolled to, a twit shown after all, what a search lit — is put back
+  only where the same message came back: onto whatever stood in its place it
+  would be showing a stranger's message unasked, which is why `loadMessage()`
+  clears all three in the first place. Landing anywhere other than on that same
+  message goes through `openMessage()`, so `twit_mode` decides what is walked
+  past exactly as it does on the way into an area.
+
+  **The editor is left alone entirely.** Nothing on it comes off the base, and an
+  area that will not open again drops the screen — and a half-written message
+  with it. The reader underneath is read again when the editor is left, which is
+  when it is next looked at.
 - **The external utilities are thirty commands and ten programs.**
   `extern_util0` through `extern_util9` are what the config names — a title and
   then the command, the title first because the parser hands the line over as
@@ -2899,7 +2934,8 @@ by the charset the message declares; the `CC:` and `XC:`/`XP:` lines a message
 being written may carry, and the copies and crossposts they ask for; a keyboard
 layout of one's own, from `keys`; the user's own shell behind `reader.shell`;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
-a menu button or a hint on the area list, in the reader or in the editor.
+a menu button or a hint on the area list, in the reader or in the editor, with
+the area they may have written to read again on the way back.
 
 Deliberately out of scope until asked for:
 

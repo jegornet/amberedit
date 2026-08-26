@@ -916,6 +916,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readExternUtil(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.externUtils[*slot] = std::move(*read);
+    } else if (key == "rescan_on_return") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.rescanOnReturn = *read;
     } else if (key == "reader_stylecodes") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

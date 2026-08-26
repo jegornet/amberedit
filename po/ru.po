@@ -34,7 +34,7 @@ msgstr "не удаётся запустить {0}: {1}"
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1560
+#: src/config/app_config.cpp:1563
 msgid "no description"
 msgstr "нет описания"
 
@@ -187,9 +187,9 @@ msgstr "Утилита"
 #: src/i18n/i18n.cpp:51
 msgid ""
 msgstr ""
-"Project-Id-Version: AmberEdit 0.4.3\n"
+"Project-Id-Version: AmberEdit 0.4.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-27 00:06+0200\n"
+"POT-Creation-Date: 2026-08-27 00:47+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -364,12 +364,21 @@ msgstr "{0}: база занята"
 msgid "{0}: the message is busy"
 msgstr "{0}: сообщение занято"
 
-#: src/ui/app_shell.cpp:110
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:148
+msgid "the base could not be opened"
+msgstr "базу не удалось открыть"
+
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:150
+#, c++-format
+msgid "Cannot open the area: {0}"
+msgstr "Не удаётся открыть область: {0}"
+
+#: src/ui/app_shell.cpp:111
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:583
+#: src/ui/app_shell.cpp:607
 msgid "Not found"
 msgstr "Не найдено"
 
@@ -772,15 +781,6 @@ msgstr "читается {0}"
 #: src/ui/rescan_dialog.cpp:37
 msgid "Rescanning areas..."
 msgstr "Пересканирование областей..."
-
-#: src/ui/screens/area_list_screen.cpp:148
-msgid "the base could not be opened"
-msgstr "базу не удалось открыть"
-
-#: src/ui/screens/area_list_screen.cpp:150
-#, c++-format
-msgid "Cannot open the area: {0}"
-msgstr "Не удаётся открыть область: {0}"
 
 #: src/ui/screens/area_list_screen.cpp:208
 msgid " The tosser config declares no areas."

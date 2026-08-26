@@ -58,6 +58,7 @@ add_executable(amberedit_tests
   ui/twit_test.cpp
   ui/find_test.cpp
   ui/export_dialog_test.cpp
+  ui/after_handover_test.cpp
   ui/hint_bar_test.cpp
   ui/import_dialog_test.cpp
   ui/setup_wizard_test.cpp
@@ -122,6 +123,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/error_log.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/extern_util.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/after_handover.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_mode_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/find_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/attributes_dialog.cpp

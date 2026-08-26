@@ -282,6 +282,19 @@ TEST_CASE("AppConfig reads the external utilities [app_config]") {
     CHECK_FALSE(loads("group\n  member *\n  extern_util0 \"Files\" mc\nendgroup\n"));
 }
 
+TEST_CASE("AppConfig reads the rescan-on-return setting [app_config]") {
+    // Off unless the config asks: the area being read is reopened either way,
+    // and this is the whole list on top of it.
+    CHECK_FALSE(with("").rescanOnReturn);
+    CHECK(with("rescan_on_return on\n").rescanOnReturn);
+    CHECK_FALSE(with("rescan_on_return off\n").rescanOnReturn);
+    CHECK_FALSE(loads("rescan_on_return 1\n"));
+
+    // The whole config's rather than one area's: what happens when a program
+    // hands the terminal back is not a property of the area being read.
+    CHECK_FALSE(loads("group\n  member *\n  rescan_on_return on\nendgroup\n"));
+}
+
 TEST_CASE("A menu or a hint may only name a utility the config set [app_config]") {
     const std::string set = "extern_util3 \"Files\" /usr/bin/mc\n";
     CHECK(with(set + "reader_menu extern_util3\n").readerMenu ==

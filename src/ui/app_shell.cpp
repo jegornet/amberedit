@@ -12,6 +12,7 @@
 #include "app/url_handler.hpp"
 #include "app/user_shell.hpp"
 #include "i18n/i18n.hpp"
+#include "ui/after_handover.hpp"
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
 #include "ui/attributes_dialog.hpp"
@@ -165,8 +166,10 @@ Element document(AppState& state) {
     if (!state.errorMessage.empty()) {
         body = error_dialog::render(state, std::move(body));
     }
-    // Over both of them, though it never meets either: a rescan is asked for on
-    // the area list, where neither of the other two can be up.
+    // Over whichever screen is up. Ctrl-R asks for one from the area list, and
+    // `rescan_on_return` asks for one on the way back from a program that had
+    // the terminal — which is the reader or the area list, the box standing over
+    // the message being read as readily as over the list.
     if (state.rescanning) {
         body = rescan_dialog::render(state, std::move(body));
     }
@@ -230,6 +233,21 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         std::this_thread::sleep_for(std::chrono::milliseconds(state.clickAnimationMs));
     };
 
+    // The window as it stands, which every screen lays itself out against. A
+    // lambda rather than two lines at the top of the loop because the handovers
+    // want it as well: the window may have been resized while another program
+    // had the terminal, and what runs on the way back — the rescan's modal, a
+    // message wrapped afresh — would otherwise be measured against the old one.
+    const auto takeSize = [&state, &terminal] {
+        state.width = terminal.width();
+        state.height = terminal.height();
+        // The hint bar's row comes off the height every screen lays itself out
+        // against, here rather than in each of them: a screen has no business
+        // knowing what stands under it, and the ones that draw no hints are a
+        // row shorter all the same so that moving between them moves nothing.
+        if (state.hintBarShown() && state.height > 1) --state.height;
+    };
+
     // What the last frame was drawn from — the screen, the box over it, and the
     // message the reader has loaded. The wheel is the whole of the reason it is
     // remembered: a flick still arriving when Escape closes the reader was aimed
@@ -245,13 +263,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             state.wheelFocusChanged();
         }
 
-        state.width = terminal.width();
-        state.height = terminal.height();
-        // The hint bar's row comes off the height every screen lays itself out
-        // against, here rather than in each of them: a screen has no business
-        // knowing what stands under it, and the ones that draw no hints are a
-        // row shorter all the same so that moving between them moves nothing.
-        if (state.hintBarShown() && state.height > 1) --state.height;
+        takeSize();
         terminal.draw(document(state));
 
         // A rescan is asked for on one frame and done on the next. Opening every
@@ -290,6 +302,13 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 // The reader is still standing behind the box, and is where
                 // acknowledging it leaves the user.
                 state.errorEndsScreen = false;
+            } else {
+                // What the shell did to the base while it had the screen, which
+                // is anything at all. Not where it never started: nothing can
+                // have changed, and the refresh has a box of its own to raise
+                // that would stand over the one just written above.
+                takeSize();
+                after_handover::refresh(state);
             }
             // Whatever was typed at the prompt after the shell had gone belongs
             // to the shell rather than to the screen coming back.
@@ -314,6 +333,11 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 // Whichever screen asked is still standing behind the box, and
                 // is where acknowledging it leaves the user.
                 state.errorEndsScreen = false;
+            } else {
+                // And the same on the way back, for the same reason: a utility
+                // is a program that had the base to itself.
+                takeSize();
+                after_handover::refresh(state);
             }
             // Whatever was typed while the utility had the terminal was aimed
             // at it and not at the screen coming back.

@@ -722,6 +722,18 @@ struct AppConfig {
     /// never wrote down.
     std::array<ExternUtil, kExternUtilCount> externUtils;
 
+    /// Whether coming back from a program that had the terminal — the shell
+    /// behind `reader.shell`, or one of the utilities above — also rescans the
+    /// whole area list, from `rescan_on_return`. Off by default.
+    ///
+    /// The area being read is reopened either way: a program that wrote to the
+    /// base while it had the screen has left every driver's in-memory index
+    /// behind, and one area is one file to open however long the list is. This
+    /// is the other half of it — every *other* area's counts — and it costs an
+    /// open per area and the modal Ctrl-R puts up, so it is asked for rather
+    /// than assumed. A utility that runs a tosser is what it is for.
+    bool rescanOnReturn{false};
+
     /// What `urlhandler` writes the link in place of, wherever in an argument
     /// it stands. Spelled here rather than where the program is run: the config
     /// is what refuses a command that names it nowhere, and the two have to

@@ -1,3 +1,10 @@
+amberedit (0.4.4-1) unstable; urgency=low
+
+  * Reader: sidebar position setting
+  * External utilities
+
+ -- Yegor Gluhov <git@jegor.net>  Thu, 27 Aug 2026 12:00:00 +0000
+
 amberedit (0.4.3-1) unstable; urgency=low
 
   * Ignore the wheel's tail after a change

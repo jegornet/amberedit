@@ -513,6 +513,31 @@ reader_underline_links on
 # one, are both refused as AmberEdit starts: a button with nothing behind it is
 # a mistake nobody would ever find on the screen.
 
+# Whether coming back from a program that had the terminal — one of the
+# utilities above, or your own shell behind reader.shell — also reads every
+# other area again, the way Ctrl-R does on the area list. Optional; off by
+# default.
+#
+# The area you are reading is re-read either way, and that is not optional: a
+# program with the terminal may have changed the message in front of you,
+# delivered into the area, deleted from it or packed it, and every message base
+# reads its index once when the area is opened. So AmberEdit opens that one area
+# again and puts you back on the message you were reading — found by the
+# identifier that outlives a pack, so a packed area leaves you on the same
+# message and not on whatever took its number. A message that has since been
+# deleted leaves you on the nearest one before it, exactly as a lastread mark on
+# a deleted message does. Where you had scrolled to stays where you left it.
+#
+# What this setting adds is every *other* area's counts, which is what you want
+# after a utility that runs your tosser. It costs one open per area and puts the
+# same modal on the screen that Ctrl-R does, so on a long area list it is a
+# noticeable pause after every utility — which is why it is asked for rather
+# than assumed.
+#
+# The link handler is deliberately not covered by either half: a browser does
+# not write to a message base.
+rescan_on_return off
+
 # Whether the reader acts on the style codes a message may be written with:
 # _underlined_, *bold*, /italic/ and #inverted# phrases. Optional; off by
 # default; may be set per area in a group block. A marker only counts where a

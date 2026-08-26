@@ -39,6 +39,12 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **External utilities**: up to ten programs an `extern_util0`..`extern_util9`
   line names, run the same way from a key, a menu button or a hint on the area
   list, in the reader or in the editor
+- **The area is read again** when the shell or a utility gives the terminal back:
+  a program that changed the message, delivered into the area, deleted from it or
+  packed it leaves you on the same message all the same — found by the identifier
+  that outlives a pack — scrolled where you left it. `rescan_on_return` re-reads
+  every other area's counts too, which is what a utility running your tosser
+  wants
 - **Color Themes** in the terminal's own 256 colors
 - **Russian and English interface**: the words on the screen come from a gettext
   catalog the config names by path, so adding a language is a `.po` file
