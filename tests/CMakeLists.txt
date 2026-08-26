@@ -45,6 +45,7 @@ add_executable(amberedit_tests
   app/copy_commands_test.cpp
   app/msg_template_test.cpp
   app/message_builder_test.cpp
+  app/run_program_test.cpp
   app/url_handler_test.cpp
   app/user_shell_test.cpp
   app/navigator_test.cpp
@@ -120,6 +121,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/error_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/error_log.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/extern_util.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_mode_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/find_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/attributes_dialog.cpp

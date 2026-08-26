@@ -394,6 +394,7 @@ add_library(amberedit_core STATIC
   src/app/message_search.cpp
   src/app/user_shell.cpp
   src/app/url_handler.cpp
+  src/app/run_program.cpp
   src/app/navigator.cpp
 )
 # The version reaches the code through a generated header, so that
@@ -532,6 +533,7 @@ add_executable(amberedit
   src/ui/attributes_dialog.cpp
   src/ui/forward_dialog.cpp
   src/ui/hint_bar.cpp
+  src/ui/extern_util.cpp
   src/ui/import_dialog.cpp
   src/ui/info_dialog.cpp
   src/ui/input_field.cpp

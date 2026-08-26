@@ -1,6 +1,8 @@
 #include "config/commands.hpp"
 
+#include <array>
 #include <iterator>
+#include <string>
 
 #include "config/text_util.hpp"
 #include "i18n/i18n.hpp"
@@ -82,13 +84,76 @@ constexpr Commands::Info kCommands[] = {
      "", "Ctrl-E", false},
 };
 
-static_assert(sizeof(kCommands) / sizeof(kCommands[0]) == kCommandCount,
+/// The screens an external utility can be run from, in the order their commands
+/// stand at the end of the enumeration, and what each writes in front of the
+/// name — `arealist.extern_util0` and the two beside it.
+///
+/// The message list is not among them: every key on it moves the cursor or
+/// searches the names, and a screen one passes through on the way to a message
+/// is not where a program is reached for.
+constexpr struct ExternUtilScreen {
+    CommandScreen screen;
+    std::string_view prefix;
+} kExternUtilScreens[] = {
+    {CommandScreen::AreaList, "arealist"},
+    {CommandScreen::Reader, "reader"},
+    {CommandScreen::Compose, "compose"},
+};
+
+constexpr size_t kExternUtilScreenCount =
+    sizeof(kExternUtilScreens) / sizeof(kExternUtilScreens[0]);
+
+/// How many utility commands there are in all: a slot on each of those screens.
+constexpr size_t kExternUtilCommandCount = kExternUtilScreenCount * kExternUtilCount;
+
+static_assert((sizeof(kCommands) / sizeof(kCommands[0])) + kExternUtilCommandCount ==
+                  kCommandCount,
               "every command needs a name, a screen, a label and its defaults");
 
+/// The utility command that many places past the first of them, the thirty
+/// standing together at the end of the enumeration in exactly this order.
+Command externUtilCommandAt(size_t at) {
+    return static_cast<Command>(static_cast<size_t>(Command::AreaListExternUtil0) + at);
+}
+
 /// The table as a list, built once: what `all()` hands out.
+///
+/// The utilities are put together here rather than written out above, because
+/// they are one row said thirty times over: ten slots on each of three screens,
+/// differing in nothing but the name. Their names are built beside the table and
+/// live as long as it does, the rows holding views of them.
+///
+/// A utility carries the same word as every other one — its own is the `title`
+/// the config gives it, which `AppConfig::labelOf()` answers with. This is what
+/// is left when a utility has no title, and nothing that draws reaches it: a
+/// menu or a hint naming a slot no `extern_utilN` line sets is refused where it
+/// is written.
 const std::vector<Commands::Info>& table() {
-    static const std::vector<Commands::Info> kAll(std::begin(kCommands),
-                                                  std::end(kCommands));
+    static const std::array<std::string, kExternUtilCommandCount> kNames = [] {
+        std::array<std::string, kExternUtilCommandCount> names;
+        size_t at = 0;
+        for (const ExternUtilScreen& on : kExternUtilScreens) {
+            for (size_t slot = 0; slot < kExternUtilCount; ++slot) {
+                names[at++] =
+                    std::string(on.prefix) + ".extern_util" + std::to_string(slot);
+            }
+        }
+        return names;
+    }();
+
+    static const std::vector<Commands::Info> kAll = [] {
+        std::vector<Commands::Info> all;
+        all.reserve(kCommandCount);
+        all.insert(all.end(), std::begin(kCommands), std::end(kCommands));
+        size_t at = 0;
+        for (const ExternUtilScreen& on : kExternUtilScreens) {
+            for (size_t slot = 0; slot < kExternUtilCount; ++slot, ++at) {
+                all.push_back({externUtilCommandAt(at), kNames[at], on.screen,
+                               N_("Utility"), "⚒", "", true});
+            }
+        }
+        return all;
+    }();
     return kAll;
 }
 
@@ -166,6 +231,24 @@ std::vector<Command> Commands::offeredOn(CommandScreen screen, In where) {
         if (offers(info, screen, where)) commands.push_back(info.command);
     }
     return commands;
+}
+
+std::optional<size_t> Commands::externUtilOf(Command command) {
+    const auto at = static_cast<size_t>(command);
+    const auto first = static_cast<size_t>(Command::AreaListExternUtil0);
+    if (at < first) return std::nullopt;
+    // The screen is the block it falls in and the slot is its place inside one,
+    // which is the whole of why the thirty stand together.
+    return (at - first) % kExternUtilCount;
+}
+
+std::optional<Command> Commands::externUtilOn(CommandScreen screen, size_t slot) {
+    if (slot >= kExternUtilCount) return std::nullopt;
+    for (size_t block = 0; block < kExternUtilScreenCount; ++block) {
+        if (kExternUtilScreens[block].screen != screen) continue;
+        return externUtilCommandAt((block * kExternUtilCount) + slot);
+    }
+    return std::nullopt;
 }
 
 std::string Commands::offeredNamesOn(CommandScreen screen, In where) {

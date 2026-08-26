@@ -10,6 +10,7 @@
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
+#include "ui/keys.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/screens/message_list_screen.hpp"
@@ -1481,6 +1482,38 @@ TEST_CASE("o asks for the shell rather than running it [messageread][squish]") {
     fixture.state.shellRequested = false;
     message_read::runMenuCommand(fixture.state, amberedit::config::Command::ReaderShell);
     CHECK(fixture.state.shellRequested);
+}
+
+TEST_CASE(
+    "An external utility is asked for the same way the shell is "
+    "[messageread][squish][keys]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    fixture.config.externUtils[0] = {"Files", {"/usr/bin/mc"}};
+    fixture.state.keys = amberedit::test::valueOf(
+        amberedit::ui::KeyMap::parse("Alt-F1 reader.extern_util0\n", "keys"));
+
+    CHECK_FALSE(fixture.state.externUtilRequested);
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      Event::Named(Event::Name::F1, false, true)));
+    CHECK(fixture.state.externUtilRequested == 0);
+    // Nothing else moved: the screen is where it was, with no box over it.
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.errorMessage.empty());
+
+    // The menu button says the same thing the key does.
+    fixture.state.externUtilRequested.reset();
+    message_read::runMenuCommand(fixture.state,
+                                 amberedit::config::Command::ReaderExternUtil0);
+    CHECK(fixture.state.externUtilRequested == 0);
+
+    // A slot the config never set is not run: the config and `main()` between
+    // them refuse one being named, and nothing happens where one slips through.
+    fixture.state.externUtilRequested.reset();
+    message_read::runMenuCommand(fixture.state,
+                                 amberedit::config::Command::ReaderExternUtil7);
+    CHECK_FALSE(fixture.state.externUtilRequested);
 }
 
 TEST_CASE("The shell is offered in an empty area [messageread][squish]") {

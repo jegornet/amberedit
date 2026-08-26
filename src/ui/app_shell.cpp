@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/run_program.hpp"
 #include "app/url_handler.hpp"
 #include "app/user_shell.hpp"
 #include "i18n/i18n.hpp"
@@ -292,6 +293,30 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             }
             // Whatever was typed at the prompt after the shell had gone belongs
             // to the shell rather than to the screen coming back.
+            terminal.flushInput();
+            continue;
+        }
+
+        // An external utility, which is the shell with the program named in
+        // advance: the same frame's wait, the same handover, and the same
+        // silence about what it exited with. Which screen asked is nothing to
+        // this — a slot is one utility however many commands reach it.
+        if (state.externUtilRequested) {
+            const size_t slot = *state.externUtilRequested;
+            state.externUtilRequested.reset();
+            std::string failed;
+            terminal.handOver([&state, slot, &failed] {
+                const auto ran = app::runProgram(state.config.externUtils[slot].command);
+                if (!ran) failed = ran.error()->message();
+            });
+            if (!failed.empty()) {
+                state.errorMessage = failed;
+                // Whichever screen asked is still standing behind the box, and
+                // is where acknowledging it leaves the user.
+                state.errorEndsScreen = false;
+            }
+            // Whatever was typed while the utility had the terminal was aimed
+            // at it and not at the screen coming back.
             terminal.flushInput();
             continue;
         }

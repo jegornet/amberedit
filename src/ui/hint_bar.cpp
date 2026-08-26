@@ -72,15 +72,16 @@ std::vector<Hint> hintsOf(const AppState& state) {
         const auto key = state.keys.preferredKey(command);
         if (!key) continue;
         // The word beside the key is the one the menu writes on a button for
-        // the same command, `Commands::Info::label`: what a command is called is
-        // settled in one place, and a row calling it something else would be a
+        // the same command, `AppConfig::labelOf()`: what a command is called is
+        // settled in one place — a utility's own title, everything else's word
+        // out of the catalog — and a row calling it something else would be a
         // second name for one thing. Its case is the row's own, from
         // `hint_bar_capitalize`, and the key is written to match.
         const bool capitals = state.config.hintBarCapitalize;
-        const std::string_view label = Commands::labelOf(command);
-        hints.push_back({command, *key,
-                         hintSpellingOf(*key, capitals) + " " +
-                             (capitals ? std::string(label) : lowered(label))});
+        const std::string label = state.config.labelOf(command);
+        hints.push_back(
+            {command, *key,
+             hintSpellingOf(*key, capitals) + " " + (capitals ? label : lowered(label))});
     }
     return hints;
 }

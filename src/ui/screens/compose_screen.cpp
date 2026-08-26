@@ -22,6 +22,7 @@
 #include "ui/delete_line_button.hpp"
 #include "ui/edit_layout.hpp"
 #include "ui/event_util.hpp"
+#include "ui/extern_util.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/input_field.hpp"
 #include "ui/menu_button.hpp"
@@ -1358,8 +1359,9 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ComposeSave: askToSave(state); break;
         case Command::ComposeImport: import_dialog::open(state); break;
         // Everything the editor answers with a chord of its own and the
-        // reader's own besides, which `compose_menu` cannot name.
-        default: break;
+        // reader's own besides, which `compose_menu` cannot name — and the ten
+        // utilities, which are one case rather than ten.
+        default: static_cast<void>(extern_util::run(state, command)); break;
     }
 }
 
@@ -1978,6 +1980,10 @@ bool handleEvent(AppState& state, const Event& event) {
         import_dialog::open(state);
         return true;
     }
+    // The external utilities, before either half of the editor swallows the
+    // chord they are bound with — see `headerKey()` and `textKey()`, which end
+    // on every Ctrl and Alt the layout does not name.
+    if (extern_util::handleKey(state, event, CommandScreen::Compose)) return true;
     // Back up into the header, asked only from the text — in the header Tab is
     // the next field.
     //

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -24,6 +25,32 @@ namespace amberedit::config {
 struct AkaMatch {
     domain::FtnAddress aka;
     std::vector<domain::AddressPattern> patterns;
+};
+
+/// One `extern_util0`..`extern_util9` line: a program AmberEdit hands the
+/// terminal over to, and the word a menu button and a hint call it by.
+///
+/// It is the shell of `reader.shell` with the program named in advance —
+/// everything wanted mid-read that is not a mail editor's work, reached by one
+/// key instead of a prompt and a command line. What it does while it has the
+/// terminal is between it and the user: a utility that ran and exited non-zero
+/// is not a failure AmberEdit reports, exactly as a shell is not.
+struct ExternUtil {
+    /// What the menu and the hint bar write it as — the first value of the
+    /// line, and the reason a utility is written `extern_util0 "title" program`
+    /// rather than as a program alone. It is the user's own word and no catalog
+    /// answers for it: a title is not a msgid.
+    std::string title;
+    /// The program and the arguments after it, as they were written. The
+    /// program is `execvp`'d, so a bare name is looked for on `$PATH` the way a
+    /// prompt would look for it, and nothing goes through a shell — an argument
+    /// is one argument however many spaces the quotes around it hold.
+    std::vector<std::string> command;
+
+    /// Whether any `extern_utilN` line set this slot. A slot nothing sets can
+    /// be named nowhere: the config refuses it in a menu or a hint list, and
+    /// `main()` refuses a key bound to it.
+    [[nodiscard]] bool isSet() const { return !command.empty(); }
 };
 
 /// One `address_macro` line: a short word typed where a netmail recipient goes,
@@ -685,6 +712,16 @@ struct AppConfig {
     /// something the user never named.
     std::vector<std::string> urlHandler;
 
+    /// The ten external utilities, from `extern_util0` through `extern_util9` —
+    /// the slot is the digit in the setting's name, so the file's order settles
+    /// nothing and a config may set as few of them as it likes.
+    ///
+    /// None are set by default, and a slot nothing set is a command no key may
+    /// run and no menu or hint list may name. There is no program every machine
+    /// has, and one guessed at here would be a key that ran something the user
+    /// never wrote down.
+    std::array<ExternUtil, kExternUtilCount> externUtils;
+
     /// What `urlhandler` writes the link in place of, wherever in an argument
     /// it stands. Spelled here rather than where the program is run: the config
     /// is what refuses a command that names it nowhere, and the two have to
@@ -1281,6 +1318,20 @@ struct AppConfig {
     /// carries a domain, so an address out of one could never match a 5D
     /// spelling in the config.
     [[nodiscard]] bool isOwnAddress(const domain::FtnAddress& addr) const;
+
+    /// The word a menu button or a hint is written with: the utility's own
+    /// `title` where the command runs one, and `Commands::labelOf()` — the
+    /// English word through the catalog — for everything else.
+    ///
+    /// Here rather than in `config::Commands` because a title is the config's
+    /// and the table is not: the table is built before any config has been read,
+    /// and a utility's word is whatever this file gave it.
+    [[nodiscard]] std::string labelOf(Command command) const;
+
+    /// The utility that command runs, or nullptr where it runs none — which is
+    /// every command that is not an `extern_utilN`, and every slot no
+    /// `extern_utilN` line set.
+    [[nodiscard]] const ExternUtil* externUtilFor(Command command) const;
 
     /// Reads a config file, or says why it could not be read or parsed, or
     /// which required field is missing.

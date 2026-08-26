@@ -175,6 +175,18 @@ struct AppState {
     /// a screen has no terminal — `runApp()` is what holds one — and giving it
     /// away is the terminal's own, as `Terminal::handOver()` says.
     bool shellRequested{false};
+
+    /// The `extern_utilN` slot whose program has been asked for, and nothing
+    /// where none has. Set by whichever screen ran the command and cleared by
+    /// the shell, having handed the terminal over and taken it back — the same
+    /// way `shellRequested` above works and for the same reason.
+    ///
+    /// A slot rather than a command, because a slot is what a utility is: the
+    /// screen a key was pressed on decides which command ran and nothing about
+    /// what runs. It is not the reader's, either — the area list and the editor
+    /// ask for one the same way.
+    std::optional<size_t> externUtilRequested;
+
     std::optional<domain::MessageHeader> readHeader;
     std::optional<domain::MessageBody> readBody;
     /// What the message on screen answers and what answers it, as the title

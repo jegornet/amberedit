@@ -194,6 +194,41 @@ MsgListField msgFieldFrom(const ListFormatField& field) {
     return MsgListField{msgFieldOf(field.letter), field.width, field.format};
 }
 
+/// The slot an `extern_utilN` key names, or nothing where the key is not one of
+/// them. `extern_util10` is not a key: the slot is one digit, and the ten of
+/// them are all there are.
+std::optional<size_t> externUtilKey(const std::string& key) {
+    constexpr std::string_view kPrefix = "extern_util";
+    if (key.size() != kPrefix.size() + 1) return std::nullopt;
+    if (!text::startsWith(key, kPrefix)) return std::nullopt;
+    const char digit = key.back();
+    if (digit < '0' || digit > '9') return std::nullopt;
+    return static_cast<size_t>(digit - '0');
+}
+
+/// One `extern_utilN "title" program [arguments]` line.
+///
+/// The title comes first and is always written, quotes or no quotes: the parser
+/// hands the line over as words, so nothing in `diff -u` could say which of them
+/// was meant as the name on a button. One value is a line that named the program
+/// and forgot what to call it — or called it something and named no program —
+/// and either way there is no guessing which.
+tl::expected<ExternUtil, ErrorPtr> readExternUtil(const CfgEntry& entry) {
+    if (entry.values.size() < 2) {
+        return entry.fail(entry.key + " is a title and then the program to run, as in " +
+                          entry.key + " \"Files\" /usr/bin/mc");
+    }
+    ExternUtil util;
+    util.title = entry.values.front();
+    if (text::trim(util.title).empty()) {
+        return entry.fail(entry.key +
+                          ": the title is what a menu button and a hint call the "
+                          "utility, and cannot be blank");
+    }
+    util.command.assign(entry.values.begin() + 1, entry.values.end());
+    return util;
+}
+
 /// The commands a menu or a hint list names, as the key writes them: the part
 /// of each name after the screen it belongs to, the config key already saying
 /// which screen is meant — `reply_elsewhere` is `reader.reply_elsewhere`.
@@ -877,6 +912,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                               " where the program takes it");
         }
         cfg.urlHandler = entry.values;
+    } else if (const auto slot = externUtilKey(key)) {
+        auto read = readExternUtil(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.externUtils[*slot] = std::move(*read);
     } else if (key == "reader_stylecodes") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1638,6 +1677,32 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
             "echolist lines into, and the file AmberEdit reads them back from");
     }
 
+    // A menu button or a hint naming a utility the config never set would be a
+    // button with nothing behind it and no word on it. Asked once the whole file
+    // has been read rather than where the list was written, since a
+    // `reader_menu` line may stand above the `extern_util0` line it names.
+    const std::pair<const char*, const std::vector<Command>*> kNamedLists[] = {
+        {"reader_menu", &cfg.readerMenu},       {"compose_menu", &cfg.composeMenu},
+        {"arealist_hints", &cfg.arealistHints}, {"msglist_hints", &cfg.msglistHints},
+        {"reader_hints", &cfg.readerHints},     {"compose_hints", &cfg.composeHints},
+    };
+    for (const auto& [setting, commands] : kNamedLists) {
+        for (const Command command : *commands) {
+            const auto slot = Commands::externUtilOf(command);
+            if (!slot || cfg.externUtils[*slot].isSet()) continue;
+            const std::string named = "extern_util" + std::to_string(*slot);
+            std::string wrong = originName;
+            wrong += ": ";
+            wrong += setting;
+            wrong += " names ";
+            wrong += named;
+            wrong += ", which no ";
+            wrong += named;
+            wrong += " line sets — write the utility, or take the name out";
+            return failure(wrong);
+        }
+    }
+
     if (auto read = readAkas(akas, cfg); !read) {
         return tl::make_unexpected(std::move(read).error());
     }
@@ -1742,6 +1807,18 @@ const AddressMacro* AppConfig::addressMacroFor(std::string_view typed) const {
         if (text::iequals(macro.macro, word)) return &macro;
     }
     return nullptr;
+}
+
+std::string AppConfig::labelOf(Command command) const {
+    if (const ExternUtil* util = externUtilFor(command)) return util->title;
+    return Commands::labelOf(command);
+}
+
+const ExternUtil* AppConfig::externUtilFor(Command command) const {
+    const auto slot = Commands::externUtilOf(command);
+    if (!slot) return nullptr;
+    const ExternUtil& util = externUtils[*slot];
+    return util.isSet() ? &util : nullptr;
 }
 
 bool AppConfig::isOwnAddress(const domain::FtnAddress& addr) const {

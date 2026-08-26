@@ -121,13 +121,15 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK(keyNamed("-") == Event::Character('-'));
     CHECK(keyNamed("Alt-Left") == Event::Named(Event::Name::ArrowLeft, false, true));
     CHECK(keyNamed("alt-backspace") == Event::Named(Event::Name::Backspace, false, true));
+    CHECK(keyNamed("Alt-F1") == Event::Named(Event::Name::F1, false, true));
+    CHECK(keyNamed("alt-f12") == Event::Named(Event::Name::F12, false, true));
 
-    // Ctrl goes with a letter and Alt with a letter, an arrow or Backspace:
-    // nothing else is a key a terminal can be made to report.
+    // Ctrl goes with a letter and Alt with a letter, an arrow, a function key
+    // or Backspace: nothing else is a key a terminal can be made to report.
     CHECK_FALSE(keyNamed("Ctrl-F5"));
     CHECK_FALSE(keyNamed("Ctrl-+"));
     CHECK_FALSE(keyNamed("Ctrl-Backspace"));
-    CHECK_FALSE(keyNamed("Alt-F5"));
+    CHECK_FALSE(keyNamed("Alt-F13"));
     CHECK_FALSE(keyNamed("Alt-Home"));
     CHECK_FALSE(keyNamed("F13"));
     CHECK_FALSE(keyNamed("Ctrl"));
@@ -135,7 +137,7 @@ TEST_CASE("A key is read the way it is written [keys]") {
 
     // And what is written back out reads the same again.
     for (const char* spelling :
-         {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left", "Alt-Backspace"}) {
+         {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left", "Alt-Backspace", "Alt-F1"}) {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(keyNamed(spellingOf(*key)) == key);

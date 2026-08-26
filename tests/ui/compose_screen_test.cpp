@@ -19,6 +19,7 @@
 #include "ui/app_state.hpp"
 #include "ui/attributes_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
+#include "ui/keys.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -1167,6 +1168,37 @@ TEST_CASE("A Ctrl chord is not typed into the field it was pressed in [compose]"
     // An ordinary letter still goes in.
     compose::handleEvent(state, Event::Character('x'));
     CHECK(state.compose.subject == "x");
+}
+
+TEST_CASE(
+    "An external utility is asked for from either half of the editor "
+    "[compose][keys]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.externUtils[1] = {"Spell", {"aspell", "check"}};
+    state.keys = amberedit::test::valueOf(
+        amberedit::ui::KeyMap::parse("Alt-F2 compose.extern_util1\n", "keys"));
+    const Event chord = Event::Named(Event::Name::F2, false, true);
+
+    // From the header, where the typing starts.
+    compose::startNew(state);
+    REQUIRE(state.composeInHeader);
+    REQUIRE(compose::handleEvent(state, chord));
+    CHECK(state.externUtilRequested == 1);
+
+    // And from the text, which would otherwise swallow the chord: both halves
+    // end on every Ctrl and Alt the layout does not name, so a utility has to
+    // be answered before either of them sees it.
+    state.externUtilRequested.reset();
+    fixture.walkToText();
+    REQUIRE_FALSE(state.composeInHeader);
+    REQUIRE(compose::handleEvent(state, chord));
+    CHECK(state.externUtilRequested == 1);
+
+    // The menu button says the same thing the chord does.
+    state.externUtilRequested.reset();
+    compose::runMenuCommand(state, Command::ComposeExternUtil1);
+    CHECK(state.externUtilRequested == 1);
 }
 
 TEST_CASE("A name stops at 35 characters and the subject at 71 [compose]") {

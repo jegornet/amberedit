@@ -19,6 +19,7 @@
 #include "ui/event_util.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
+#include "ui/extern_util.hpp"
 #include "ui/find_dialog.hpp"
 #include "ui/info_dialog.hpp"
 #include "ui/input_field.hpp"
@@ -807,8 +808,9 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ReaderList: openList(state); break;
         case Command::ReaderShell: state.shellRequested = true; break;
         // Everything the reader answers with a key of its own and nothing a
-        // button stands for, which `reader_menu` cannot name.
-        default: break;
+        // button stands for, which `reader_menu` cannot name — and the ten
+        // utilities, which are one case rather than ten.
+        default: static_cast<void>(extern_util::run(state, command)); break;
     }
 }
 
@@ -1933,6 +1935,9 @@ bool handleEvent(AppState& state, const Event& event) {
         openList(state);
         return true;
     }
+    // The external utilities, asked for here and run by runApp() exactly as the
+    // shell above is, and for the same reason.
+    if (extern_util::handleKey(state, event, CommandScreen::Reader)) return true;
     // A digit is how the field opens — after every command, so a layout that
     // binds one keeps it: a key made into a command stops being a digit the
     // reader can be sent anywhere by. An empty area is nowhere to go, and there

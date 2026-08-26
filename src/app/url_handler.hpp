@@ -22,6 +22,9 @@
 /// The link reaches the program as one argument of an `exec`, never through a
 /// shell: an address is written by whoever sent the message, and no quoting of
 /// it can be got wrong where there is nothing to quote it for.
+///
+/// Filling the link in is the whole of what is here. Running the command and
+/// waiting for it is `app/run_program`, which the external utilities share.
 namespace amberedit::app {
 
 /// `handler` with `$url` replaced by `url` wherever it stands, which is the

@@ -2,9 +2,11 @@
 
 #include <doctest/doctest.h>
 
+#include <cstddef>
 #include <set>
 #include <string>
 #include <string_view>
+#include <utility>
 
 using amberedit::config::Command;
 using amberedit::config::Commands;
@@ -131,4 +133,52 @@ TEST_CASE("What a screen offers is named once and told the same way [commands]")
                                     Commands::In::HintBar) != nullptr);
         }
     }
+}
+
+TEST_CASE("An external utility is one slot on each of three screens [commands]") {
+    using amberedit::config::kExternUtilCount;
+
+    // Ten of them, and each named on the area list, in the reader and in the
+    // editor — the screen in front of the dot being where the key is pressed
+    // and the digit after it being which utility runs.
+    for (size_t slot = 0; slot < kExternUtilCount; ++slot) {
+        const std::string digit = std::to_string(slot);
+        for (const auto& [screen, prefix] :
+             {std::pair<CommandScreen, std::string>{CommandScreen::AreaList, "arealist"},
+              {CommandScreen::Reader, "reader"},
+              {CommandScreen::Compose, "compose"}}) {
+            const std::string name = prefix + ".extern_util" + digit;
+            INFO(name);
+            const Commands::Info* found = Commands::named(name);
+            REQUIRE(found != nullptr);
+            CHECK(found->screen == screen);
+            // The slot is the digit and nothing else: one utility however many
+            // commands reach it.
+            CHECK(Commands::externUtilOf(found->command) == slot);
+            CHECK(Commands::externUtilOn(screen, slot) == found->command);
+
+            // A hint may name it, and so may a menu — a program is exactly what
+            // a button stands for.
+            const std::string shortName = "extern_util" + digit;
+            CHECK(Commands::shortNameOf(found->command) == shortName);
+            CHECK(Commands::namedOn(screen, shortName, Commands::In::HintBar) != nullptr);
+            CHECK(Commands::namedOn(screen, shortName, Commands::In::Menu) != nullptr);
+        }
+    }
+
+    // The message list runs none: every key on it moves the cursor or searches
+    // the names.
+    CHECK_FALSE(Commands::externUtilOn(CommandScreen::MessageList, 0));
+    CHECK(Commands::namedOn(CommandScreen::MessageList, "extern_util0",
+                            Commands::In::HintBar) == nullptr);
+
+    // Ten and no more: the slot is one digit.
+    CHECK(Commands::named("reader.extern_util10") == nullptr);
+    CHECK_FALSE(Commands::externUtilOn(CommandScreen::Reader, kExternUtilCount));
+
+    // Nothing else is one, and none of them is bound by default: a utility is
+    // reached only where something was written down to reach it by.
+    CHECK_FALSE(Commands::externUtilOf(Command::ReaderShell));
+    CHECK(Commands::of(Command::ReaderExternUtil0).keys.empty());
+    CHECK(Commands::of(Command::AreaListExternUtil9).icon == "⚒");
 }

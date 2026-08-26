@@ -18,7 +18,7 @@
 /// than no row at all. The key is written in the case the row is —
 /// `hint_bar_capitalize`, by way of `hintSpellingOf()` — and the word beside it
 /// is the one the menu writes on a button for the same command,
-/// `config::Commands` answering for both. Where the hints stand in the row is
+/// `AppConfig::labelOf()` answering for both. Where the hints stand in the row is
 /// `hint_bar_align`.
 ///
 /// Which commands each screen offers is the config's — `arealist_hints`,

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -49,10 +50,54 @@ enum class Command : uint8_t {
     ComposeWordRight,      ///< compose.word_right
     ComposeLineStart,      ///< compose.line_start
     ComposeLineEnd,        ///< compose.line_end
+    // The external utilities, ten to a screen and every one of them the same
+    // command with another program behind it. They stand together at the end
+    // because that is what lets a slot and a screen be worked out from the
+    // value — see `Commands::externUtilOf()` — rather than written out thirty
+    // times over.
+    AreaListExternUtil0,  ///< arealist.extern_util0
+    AreaListExternUtil1,
+    AreaListExternUtil2,
+    AreaListExternUtil3,
+    AreaListExternUtil4,
+    AreaListExternUtil5,
+    AreaListExternUtil6,
+    AreaListExternUtil7,
+    AreaListExternUtil8,
+    AreaListExternUtil9,
+    ReaderExternUtil0,  ///< reader.extern_util0
+    ReaderExternUtil1,
+    ReaderExternUtil2,
+    ReaderExternUtil3,
+    ReaderExternUtil4,
+    ReaderExternUtil5,
+    ReaderExternUtil6,
+    ReaderExternUtil7,
+    ReaderExternUtil8,
+    ReaderExternUtil9,
+    ComposeExternUtil0,  ///< compose.extern_util0
+    ComposeExternUtil1,
+    ComposeExternUtil2,
+    ComposeExternUtil3,
+    ComposeExternUtil4,
+    ComposeExternUtil5,
+    ComposeExternUtil6,
+    ComposeExternUtil7,
+    ComposeExternUtil8,
+    ComposeExternUtil9,
 };
 
 /// One past the last command, which is the width of the table a `KeyMap` keeps.
-inline constexpr size_t kCommandCount = static_cast<size_t>(Command::ComposeLineEnd) + 1;
+inline constexpr size_t kCommandCount =
+    static_cast<size_t>(Command::ComposeExternUtil9) + 1;
+
+/// How many external utilities a config may name: `extern_util0` through
+/// `extern_util9`, and one command per slot on every screen that runs them.
+///
+/// Ten because a hand of them is what a row of keys holds and a menu can be read
+/// down; the digit in the name is the slot, so the count and the last digit are
+/// one and the same thing.
+inline constexpr size_t kExternUtilCount = 10;
 
 /// Which screen answers a command.
 ///
@@ -146,6 +191,9 @@ public:
     /// config that names a catalog has been read — the config itself names
     /// commands, in `reader_menu` and the hint bars — so a translation cached in
     /// the table would be the English one every time. This asks as it draws.
+    ///
+    /// **What draws asks `AppConfig::labelOf()` rather than this**, an external
+    /// utility's word being the `title` its config line gave it and no catalog's.
     [[nodiscard]] static const char* labelOf(Command command);
 
     /// The part of the name after the screen it belongs to: `reader.reply_elsewhere`
@@ -173,6 +221,20 @@ public:
     /// Those names, in one line — `list, reply, reply_elsewhere, …`, which is how a
     /// setting says what it would have taken.
     [[nodiscard]] static std::string offeredNamesOn(CommandScreen screen, In where);
+
+    /// Which `extern_utilN` the command runs, or nothing where it is not one of
+    /// them at all.
+    ///
+    /// The slot is the digit in the name and nothing else: `arealist.extern_util3`,
+    /// `reader.extern_util3` and `compose.extern_util3` are three commands and
+    /// one utility, so the screen a key was pressed on decides nothing about
+    /// what runs.
+    [[nodiscard]] static std::optional<size_t> externUtilOf(Command command);
+
+    /// That screen's command for the slot, or nothing where the screen runs no
+    /// utilities — which the message list does not.
+    [[nodiscard]] static std::optional<Command> externUtilOn(CommandScreen screen,
+                                                             size_t slot);
 };
 
 }  // namespace amberedit::config

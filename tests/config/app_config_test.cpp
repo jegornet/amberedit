@@ -14,6 +14,7 @@
 #include "test_strings.hpp"
 
 using amberedit::config::AppConfig;
+using amberedit::config::Command;
 using amberedit::config::TosserConfigFormat;
 using amberedit::domain::FtnAddress;
 using amberedit::test::contains;
@@ -237,6 +238,72 @@ TEST_CASE("AppConfig reads the URL handler [app_config]") {
     CHECK_MESSAGE(contains(nowhere, "$url"), nowhere);
     const std::string nothing = errorWith("urlhandler\n");
     CHECK_MESSAGE(contains(nothing, "urlhandler"), nothing);
+}
+
+TEST_CASE("AppConfig reads the external utilities [app_config]") {
+    // None of them set, which is what leaves every one of the thirty commands
+    // with nothing behind it.
+    const AppConfig none = with("");
+    for (const auto& util : none.externUtils) CHECK_FALSE(util.isSet());
+
+    const AppConfig cfg = with(
+        "extern_util0 \"Files\" /usr/bin/mc\n"
+        "extern_util9 \"Disk free\" df -h\n");
+    CHECK(cfg.externUtils[0].title == "Files");
+    CHECK(cfg.externUtils[0].command == std::vector<std::string>{"/usr/bin/mc"});
+    // The slot is the digit in the key and nothing about the file's order.
+    CHECK(cfg.externUtils[9].title == "Disk free");
+    CHECK(cfg.externUtils[9].command == std::vector<std::string>{"df", "-h"});
+    CHECK_FALSE(cfg.externUtils[5].isSet());
+
+    // The command is kept as it was written, quotes and all: it is run through
+    // an exec and not through a shell, so an argument with a space in it stays
+    // one argument.
+    CHECK(with("extern_util1 \"Grep\" grep -e \"two words\"\n").externUtils[1].command ==
+          std::vector<std::string>{"grep", "-e", "two words"});
+
+    // The title comes first and is always written: a line of one word said
+    // either what to call it or what to run, and there is no telling which.
+    const std::string alone = errorWith("extern_util0 /usr/bin/mc\n");
+    CHECK_MESSAGE(contains(alone, "extern_util0"), alone);
+    const std::string blank = errorWith("extern_util0 \" \" /usr/bin/mc\n");
+    CHECK_MESSAGE(contains(blank, "title"), blank);
+    CHECK_FALSE(loads("extern_util0\n"));
+
+    // Ten of them and no more, and one written twice is a contradiction like
+    // any other setting.
+    CHECK_FALSE(loads("extern_util10 \"Files\" /usr/bin/mc\n"));
+    CHECK_FALSE(loads("extern_utilx \"Files\" /usr/bin/mc\n"));
+    CHECK_FALSE(
+        loads("extern_util0 \"Files\" /usr/bin/mc\n"
+              "extern_util0 \"Other\" /usr/bin/vi\n"));
+
+    // A utility is the whole config's rather than one area's.
+    CHECK_FALSE(loads("group\n  member *\n  extern_util0 \"Files\" mc\nendgroup\n"));
+}
+
+TEST_CASE("A menu or a hint may only name a utility the config set [app_config]") {
+    const std::string set = "extern_util3 \"Files\" /usr/bin/mc\n";
+    CHECK(with(set + "reader_menu extern_util3\n").readerMenu ==
+          std::vector<Command>{Command::ReaderExternUtil3});
+    // The check is made once the whole file has been read, so the list may
+    // stand above the line it names.
+    CHECK(with("compose_hints extern_util3\n" + set).composeHints ==
+          std::vector<Command>{Command::ComposeExternUtil3});
+
+    // A button with nothing behind it and no word on it is a mistake nobody
+    // would find on the screen, so it is one the config stops for.
+    for (const char* line :
+         {"reader_menu extern_util3\n", "compose_menu extern_util3\n",
+          "arealist_hints extern_util3\n", "msglist_hints extern_util3\n",
+          "reader_hints extern_util3\n", "compose_hints extern_util3\n"}) {
+        INFO(line);
+        const std::string unset = errorWith(line);
+        CHECK_MESSAGE(contains(unset, "extern_util3"), unset);
+    }
+    // The message list runs none at all, so its row cannot name one however the
+    // config is written.
+    CHECK_FALSE(loads(set + "msglist_hints extern_util3\n"));
 }
 
 TEST_CASE("AppConfig reads the style codes setting [app_config]") {

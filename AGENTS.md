@@ -2736,7 +2736,12 @@ AmberEdit's own layout or the file a `keys` line named.
 - **Two things follow the layout rather than a key.** `Terminal` claims
   `ESC`+letter only for `KeyMap::altLetters()` and `ESC`+DEL only for
   `KeyMap::altBackspace()`, and the boxes that close on the key that opened
-  them — Info, the nodelist — ask the layout what that key is.
+  them — Info, the nodelist — ask the layout what that key is. Everything else
+  a modifier reaches AmberEdit through is a CSI sequence and so ambiguous with
+  nothing: Alt with an arrow, Alt with a function key — `Alt-F1` and its eleven
+  fellows, the row the utilities are meant to be bound with — and both
+  protocols' spelling of Alt-Backspace are registered whether a layout binds
+  them or not.
 - **A bare letter bound in the area list stops being a letter the quick search
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.
@@ -2750,18 +2755,45 @@ AmberEdit's own layout or the file a `keys` line named.
   paints all of it. The reader is neither: it sets `AppState::shellRequested` and
   `runApp()` answers it on the next pass, because a screen has no terminal to
   hand over. The rescan is asked for the same way and for the same reason.
-- **Opening a link is that same shape**, and shares the middle of it.
-  `app/url_handler` is the fork, the exec and the wait; the reader sets
-  `AppState::urlRequested` from the box a click landed in and `runApp()` hands
-  the terminal over on the next pass, since a text browser wants the screen.
-  `app/interrupts_aside.hpp` is the one copy of the SIGINT/SIGQUIT handling both
-  want. Two things differ from the shell and neither is incidental: the program
-  is `execvp`'d, so `urlhandler lynx $url` names it the way a prompt would, and
-  what went wrong is asked of the child down a close-on-exec pipe rather than of
-  `access()` beforehand — there is no path to have asked about. The link reaches
-  it as one argument of that exec and never through a shell, which is what makes
-  the quoting question not arise: an address is written by whoever sent the
-  message.
+- **Opening a link and running an external utility are that same shape**, and
+  the three share the middle of it. `app/run_program` is the fork, the `execvp`,
+  the wait and the close-on-exec pipe the child reports a failed exec down —
+  asked of the child rather than read off what it exited with, since a program
+  that never started and one that ran and said 127 are the same number on the
+  way back and the name is looked for on `$PATH`, so there is no file to have
+  asked `access()` about beforehand. `app/url_handler` is what is left of the
+  link: `$url` written into the words, and nothing else.
+  `app/interrupts_aside.hpp` is the one copy of the SIGINT/SIGQUIT handling all
+  three want. The reader sets `AppState::urlRequested` from the box a click
+  landed in, a screen sets `AppState::externUtilRequested` to a slot, and
+  `runApp()` hands the terminal over on the next pass — a text browser wants the
+  screen, and so does whatever `extern_util0` names. Nothing goes through a
+  shell, which is what makes the quoting question not arise: an argument is one
+  argument however many spaces it holds, and an address is written by whoever
+  sent the message.
+- **The external utilities are thirty commands and ten programs.**
+  `extern_util0` through `extern_util9` are what the config names — a title and
+  then the command, the title first because the parser hands the line over as
+  words and nothing in `diff -u` could say which of them was meant as the name on
+  a button. Each slot is a command on each of three screens
+  (`arealist.extern_util0`, `reader.extern_util0`, `compose.extern_util0`), so
+  what a key means is where it was pressed and what runs is the digit alone. The
+  thirty rows are built in `table()` rather than written out, being one row said
+  thirty times over, and stand together at the end of the enumeration so that
+  `Commands::externUtilOf()` can read a slot off a value. The message list has
+  none: every key on it moves the cursor or searches the names.
+
+  Three things follow from a title being the config's and not the table's.
+  `AppConfig::labelOf()` is what a menu button and a hint are written with — the
+  title for a utility, `Commands::labelOf()` for everything else — and nothing
+  that draws asks the table directly any more. `Commands::Info::labelId` for a
+  utility is the same word for all thirty and is never drawn: a menu or a hint
+  naming a slot no `extern_utilN` line set is refused as the config is read
+  (after the whole file, since a `reader_menu` line may stand above the
+  `extern_util0` line it names), and `main()` refuses a layout that binds one —
+  the one check that wants both files at once, which is why it is there and not
+  in either of them. A key that ran nothing at all is exactly the shape of a
+  mistake nobody finds.
 - **The hint bar reads the layout rather than naming keys of its own**
   (`ui/hint_bar.*`). Which commands each screen offers is the config's —
   `arealist_hints`, `msglist_hints`, `reader_hints`, `compose_hints`, one list
@@ -2785,7 +2817,7 @@ AmberEdit's own layout or the file a `keys` line named.
   leaves it whole. It is drawn after the modals in `document()`, so it says what
   the screen behind them does.
 - **The word beside a key is the one the menu writes on a button**, from
-  `Commands::Info::label`: what a command is called is settled in one place, and
+  `AppConfig::labelOf()`: what a command is called is settled in one place, and
   a row calling it something else would be a second name for one thing. The
   glyph is the menu's and stays there — a row is one line, and a column of
   glyphs in it is width the words want.
@@ -2865,7 +2897,9 @@ descriptions they carry over the area list; twits, by name, address or subject, 
 answers to what becomes of one; finding a message in the area behind `reader.find`, folded
 by the charset the message declares; the `CC:` and `XC:`/`XP:` lines a message
 being written may carry, and the copies and crossposts they ask for; a keyboard
-layout of one's own, from `keys`; the user's own shell behind `reader.shell`.
+layout of one's own, from `keys`; the user's own shell behind `reader.shell`;
+the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
+a menu button or a hint on the area list, in the reader or in the editor.
 
 Deliberately out of scope until asked for:
 

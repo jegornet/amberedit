@@ -182,6 +182,26 @@ TEST_CASE(
     CHECK(hint_bar::text(fixture.state) == "q reply  alt-n new  ctrl-l list");
 }
 
+TEST_CASE("A utility is written under the title its config line gave it [hintbar]") {
+    // The word beside the key is the utility's own: nothing in the command
+    // table could say what `extern_util0` is called, and a row saying "utility"
+    // three times would name none of the three.
+    Fixture fixture(ScreenId::MessageRead);
+    fixture.config.externUtils[0] = {"Files", {"/usr/bin/mc"}};
+    fixture.config.externUtils[1] = {"Disk Free", {"df", "-h"}};
+    fixture.config.readerHints = {Command::ReaderExternUtil0, Command::ReaderExternUtil1};
+    fixture.state.keys =
+        amberedit::test::valueOf(KeyMap::parse("Alt-F1 reader.extern_util0\n"
+                                               "Alt-F2 reader.extern_util1\n",
+                                               "keys"));
+
+    CHECK(hint_bar::text(fixture.state) == "alt-f1 files  alt-f2 disk free");
+
+    // The case is the row's, as it is for every other word in it.
+    fixture.config.hintBarCapitalize = true;
+    CHECK(hint_bar::text(fixture.state) == "Alt-F1 Files  Alt-F2 Disk Free");
+}
+
 TEST_CASE("hint_bar decides whether the row is there at all [hintbar]") {
     Fixture fixture(ScreenId::AreaList);
     fixture.config.adaptiveUiThreshold = 80;

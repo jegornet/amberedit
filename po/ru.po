@@ -22,150 +22,154 @@ msgstr "файл уже есть: {0}"
 msgid "template: {0}"
 msgstr "шаблон: {0}"
 
-#: src/app/url_handler.cpp:116 src/app/url_handler.cpp:124
-#: src/app/url_handler.cpp:165 src/app/user_shell.cpp:45
+#: src/app/run_program.cpp:97 src/app/run_program.cpp:105
+#: src/app/run_program.cpp:146 src/app/user_shell.cpp:45
 #: src/app/user_shell.cpp:53
 #, c++-format
 msgid "cannot run {0}: {1}"
 msgstr "не удаётся запустить {0}: {1}"
 
-#: src/app/url_handler.cpp:159 src/app/user_shell.cpp:76
+#: src/app/run_program.cpp:140 src/app/user_shell.cpp:76
 #, c++-format
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1497
+#: src/config/app_config.cpp:1560
 msgid "no description"
 msgstr "нет описания"
 
-#: src/config/commands.cpp:20
+#: src/config/commands.cpp:22
 msgid "Quit"
 msgstr "Выход"
 
-#: src/config/commands.cpp:23
+#: src/config/commands.cpp:25
 msgid "Next unread"
 msgstr "След. непрочит."
 
-#: src/config/commands.cpp:24
+#: src/config/commands.cpp:26
 msgid "Rescan"
 msgstr "Обновить"
 
-#: src/config/commands.cpp:26
+#: src/config/commands.cpp:28
 msgid "Reply"
 msgstr "Ответ"
 
-#: src/config/commands.cpp:29
+#: src/config/commands.cpp:31
 msgid "Reply elsewhere"
 msgstr "Ответ в др. обл."
 
-#: src/config/commands.cpp:31
+#: src/config/commands.cpp:33
 msgid "Comment-reply"
 msgstr "Комментарий"
 
-#: src/config/commands.cpp:32
+#: src/config/commands.cpp:34
 msgid "New"
 msgstr "Новое"
 
-#: src/config/commands.cpp:33
+#: src/config/commands.cpp:35
 msgid "Fwd / Copy"
 msgstr "Переслать/копия"
 
-#: src/config/commands.cpp:35
+#: src/config/commands.cpp:37
 msgid "Change"
 msgstr "Править"
 
-#: src/config/commands.cpp:37
+#: src/config/commands.cpp:39
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/config/commands.cpp:39
+#: src/config/commands.cpp:41
 msgid "Export"
 msgstr "Экспорт"
 
-#: src/config/commands.cpp:41 src/ui/find_dialog.cpp:65
+#: src/config/commands.cpp:43 src/ui/find_dialog.cpp:65
 msgid "Find"
 msgstr "Поиск"
 
-#: src/config/commands.cpp:43
+#: src/config/commands.cpp:45
 msgid "List"
 msgstr "Список"
 
-#: src/config/commands.cpp:45
+#: src/config/commands.cpp:47
 msgid "Info"
 msgstr "Инфо"
 
-#: src/config/commands.cpp:47
+#: src/config/commands.cpp:49
 msgid "Nodelist"
 msgstr "Нодлист"
 
-#: src/config/commands.cpp:49
+#: src/config/commands.cpp:51
 msgid "Kludges"
 msgstr "Клуджи"
 
-#: src/config/commands.cpp:51
+#: src/config/commands.cpp:53
 msgid "Scrollbar"
 msgstr "Прокрутка"
 
-#: src/config/commands.cpp:53
+#: src/config/commands.cpp:55
 msgid "Thread up"
 msgstr "Вверх по треду"
 
-#: src/config/commands.cpp:56
+#: src/config/commands.cpp:58
 msgid "Thread down"
 msgstr "Вниз по треду"
 
-#: src/config/commands.cpp:57
+#: src/config/commands.cpp:59
 msgid "Shell"
 msgstr "Шелл"
 
-#: src/config/commands.cpp:59 src/ui/export_dialog.cpp:82
+#: src/config/commands.cpp:61 src/ui/export_dialog.cpp:82
 #: src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr "Сохранить"
 
-#: src/config/commands.cpp:62
+#: src/config/commands.cpp:64
 msgid "Attributes"
 msgstr "Атрибуты"
 
-#: src/config/commands.cpp:63
+#: src/config/commands.cpp:65
 msgid "Import"
 msgstr "Импорт"
 
-#: src/config/commands.cpp:66
+#: src/config/commands.cpp:68
 msgid "Header"
 msgstr "Заголовок"
 
-#: src/config/commands.cpp:68
+#: src/config/commands.cpp:70
 msgid "Delete line"
 msgstr "Удалить строку"
 
-#: src/config/commands.cpp:70
+#: src/config/commands.cpp:72
 msgid "Restore line"
 msgstr "Вернуть строку"
 
-#: src/config/commands.cpp:72
+#: src/config/commands.cpp:74
 msgid "Delete quote"
 msgstr "Удалить цитату"
 
-#: src/config/commands.cpp:74
+#: src/config/commands.cpp:76
 msgid "Delete word"
 msgstr "Удалить слово"
 
-#: src/config/commands.cpp:76
+#: src/config/commands.cpp:78
 msgid "Word left"
 msgstr "Слово влево"
 
-#: src/config/commands.cpp:78
+#: src/config/commands.cpp:80
 msgid "Word right"
 msgstr "Слово вправо"
 
-#: src/config/commands.cpp:80
+#: src/config/commands.cpp:82
 msgid "Line start"
 msgstr "В начало строки"
 
-#: src/config/commands.cpp:81
+#: src/config/commands.cpp:83
 msgid "Line end"
 msgstr "В конец строки"
+
+#: src/config/commands.cpp:152
+msgid "Utility"
+msgstr "Утилита"
 
 # Russian translation of AmberEdit.
 # This file is distributed under the same license as the AmberEdit package.
@@ -185,7 +189,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4.3\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-25 06:02+0200\n"
+"POT-Creation-Date: 2026-08-27 00:06+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -258,7 +262,7 @@ msgstr[2] " и {0} поинтов"
 msgid "{0}{1} into {2}"
 msgstr "{0}{1} в {2}"
 
-#: src/main.cpp:86 src/main.cpp:116 src/main.cpp:180
+#: src/main.cpp:86 src/main.cpp:116 src/main.cpp:204
 #, c++-format
 msgid "warning: {0}"
 msgstr "предупреждение: {0}"
@@ -271,21 +275,26 @@ msgstr[0] "{0} область в {1}"
 msgstr[1] "{0} области в {1}"
 msgstr[2] "{0} областей в {1}"
 
-#: src/main.cpp:161
+#: src/main.cpp:138
+#, c++-format
+msgid "{0} is bound to {1}, which no {2} line sets"
+msgstr "{0} назначена на {1}, но ни одна строка {2} её не задаёт"
+
+#: src/main.cpp:185
 #, c++-format
 msgid "error: {0} needs a value"
 msgstr "ошибка: {0} требует значения"
 
-#: src/main.cpp:168
+#: src/main.cpp:192
 #, c++-format
 msgid "error: unknown option '{0}'"
 msgstr "ошибка: неизвестный ключ «{0}»"
 
-#: src/main.cpp:189
+#: src/main.cpp:213
 msgid "error: --setup writes a config of its own, so it does not take -c"
 msgstr "ошибка: --setup пишет свой собственный конфиг и потому не принимает -c"
 
-#: src/main.cpp:200
+#: src/main.cpp:224
 #, c++-format
 msgid ""
 "error: there is already an AmberEdit config: {0}\n"
@@ -294,7 +303,7 @@ msgstr ""
 "ошибка: конфиг AmberEdit уже есть: {0}\n"
 "Правьте его или отодвиньте в сторону и запустите --setup снова."
 
-#: src/main.cpp:213
+#: src/main.cpp:237
 #, c++-format
 msgid ""
 "error: no AmberEdit config found.\n"
@@ -305,8 +314,8 @@ msgstr ""
 "Запустите {0} --setup, чтобы вас спросили, что в нём писать, или скопируйте "
 "amberedit.cfg.example в ./amberedit.cfg или ~/.ambereditrc."
 
-#: src/main.cpp:226 src/main.cpp:247 src/main.cpp:261 src/main.cpp:276
-#: src/main.cpp:288 src/main.cpp:302
+#: src/main.cpp:250 src/main.cpp:271 src/main.cpp:282 src/main.cpp:292
+#: src/main.cpp:307 src/main.cpp:319 src/main.cpp:333
 #, c++-format
 msgid "error: {0}"
 msgstr "ошибка: {0}"
@@ -355,16 +364,16 @@ msgstr "{0}: база занята"
 msgid "{0}: the message is busy"
 msgstr "{0}: сообщение занято"
 
-#: src/ui/app_shell.cpp:108
+#: src/ui/app_shell.cpp:110
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:527
+#: src/ui/app_shell.cpp:583
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:333 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:346 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -764,88 +773,88 @@ msgstr "читается {0}"
 msgid "Rescanning areas..."
 msgstr "Пересканирование областей..."
 
-#: src/ui/screens/area_list_screen.cpp:147
+#: src/ui/screens/area_list_screen.cpp:148
 msgid "the base could not be opened"
 msgstr "базу не удалось открыть"
 
-#: src/ui/screens/area_list_screen.cpp:149
+#: src/ui/screens/area_list_screen.cpp:150
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
 
-#: src/ui/screens/area_list_screen.cpp:207
+#: src/ui/screens/area_list_screen.cpp:208
 msgid " The tosser config declares no areas."
 msgstr " В конфиге тоссера нет ни одной области."
 
-#: src/ui/screens/area_list_screen.cpp:208
+#: src/ui/screens/area_list_screen.cpp:209
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr " Проверьте general.tosser_config в конфиге AmberEdit."
 
-#: src/ui/screens/area_list_screen.cpp:252
+#: src/ui/screens/area_list_screen.cpp:253
 #, c++-format
 msgid " Area: {0}▌"
 msgstr " Область: {0}▌"
 
-#: src/ui/screens/compose_screen.cpp:309
+#: src/ui/screens/compose_screen.cpp:310
 msgid "change"
 msgstr "правка"
 
-#: src/ui/screens/compose_screen.cpp:310
+#: src/ui/screens/compose_screen.cpp:311
 msgid "forward"
 msgstr "пересылка"
 
-#: src/ui/screens/compose_screen.cpp:311
+#: src/ui/screens/compose_screen.cpp:312
 msgid "moved reply"
 msgstr "ответ в другой области"
 
-#: src/ui/screens/compose_screen.cpp:312
+#: src/ui/screens/compose_screen.cpp:313
 msgid "reply"
 msgstr "ответ"
 
-#: src/ui/screens/compose_screen.cpp:313
+#: src/ui/screens/compose_screen.cpp:314
 msgid "new message"
 msgstr "новое сообщение"
 
-#: src/ui/screens/compose_screen.cpp:1145
+#: src/ui/screens/compose_screen.cpp:1146
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr "Копия не сделана для: {0}. Строки с ними остались в сообщении."
 
-#: src/ui/screens/message_read_screen.cpp:539
+#: src/ui/screens/message_read_screen.cpp:541
 msgid "This is a twit message. Press Space to view it"
 msgstr "Сообщение из твит-листа. Нажмите пробел, чтобы прочитать его"
 
-#: src/ui/screens/message_read_screen.cpp:1434
+#: src/ui/screens/message_read_screen.cpp:1480
 #, c++-format
 msgid " from {0}"
 msgstr " из {0}"
 
-#: src/ui/screens/message_read_screen.cpp:1441
+#: src/ui/screens/message_read_screen.cpp:1501
 msgid " empty"
 msgstr " пусто"
 
-#: src/ui/screens/message_read_screen.cpp:1863
+#: src/ui/screens/message_read_screen.cpp:2001
 msgctxt "header block"
 msgid "From"
 msgstr "От"
 
-#: src/ui/screens/message_read_screen.cpp:1866
+#: src/ui/screens/message_read_screen.cpp:2004
 msgctxt "header block"
 msgid "To"
 msgstr "Кому"
 
-#: src/ui/screens/message_read_screen.cpp:1869
+#: src/ui/screens/message_read_screen.cpp:2007
 msgctxt "header block"
 msgid "Subj"
 msgstr "Тема"
 
-#: src/ui/screens/message_read_screen.cpp:1872
+#: src/ui/screens/message_read_screen.cpp:2010
 msgctxt "header block"
 msgid "Date"
 msgstr "Дата"
 
-#: src/ui/screens/message_read_screen.cpp:1875
+#: src/ui/screens/message_read_screen.cpp:2013
 msgctxt "header block"
 msgid "Recd"
 msgstr "Получ"

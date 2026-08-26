@@ -117,6 +117,30 @@ void compileEcholists(const amberedit::config::AppConfig& config, bool force) {
     }
 }
 
+/// What is wrong where the layout binds an external utility the config never
+/// named, or nothing where every binding has a program behind it.
+///
+/// Asked here because it is the one place both files are in hand: a `keys` file
+/// is the layout entire and knows nothing of a config, and a config carries the
+/// path to a layout and nothing else. A key that ran nothing at all would be
+/// exactly the shape of a mistake nobody finds — the utility simply never
+/// happens, and there is no screen to say so on.
+std::string unnamedUtility(const amberedit::config::AppConfig& config,
+                           const amberedit::ui::KeyMap& keys) {
+    using amberedit::config::Commands;
+    for (const Commands::Info& info : Commands::all()) {
+        const auto slot = Commands::externUtilOf(info.command);
+        if (!slot || config.externUtils[*slot].isSet()) continue;
+        const auto key = keys.preferredKey(info.command);
+        if (!key) continue;
+        const std::string named = "extern_util" + std::to_string(*slot);
+        return amberedit::i18n::format(
+            _("{0} is bound to {1}, which no {2} line sets"),
+            {amberedit::ui::spellingOf(*key), std::string(info.name), named});
+    }
+    return {};
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -250,6 +274,13 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
             keys = std::move(*read);
+        }
+
+        // A key with no program behind it, said before the screen is taken
+        // over: after that there is nowhere left to say it.
+        if (const std::string wrong = unnamedUtility(appConfig, keys); !wrong.empty()) {
+            std::cerr << amberedit::i18n::format(_("error: {0}"), {wrong}) << "\n";
+            return 1;
         }
 
         // And the theme, for the same reason and before anything is drawn:

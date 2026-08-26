@@ -200,6 +200,21 @@ TEST_CASE("the menu is a column of buttons of one stated width [menu]") {
     CHECK(drawn.at(second.y_min + 1, second.x_min, 22) == "│ ⚲ Nodelist         │");
 }
 
+TEST_CASE("a utility's button carries its own title under the ⚒ glyph [menu]") {
+    Fixture fixture;
+    fixture.config.externUtils[0] = {"Files", {"/usr/bin/mc"}};
+    menu_dialog::open(fixture.state, itemsOf({{Command::ReaderExternUtil0}}));
+    REQUIRE(fixture.state.menuView);
+
+    // The word is the config's — every utility carries the same one in the
+    // command table, and a menu of three of them would say nothing about any.
+    // The glyph is the table's, as every other glyph is: it says the same thing
+    // in every language.
+    const Rendered drawn = draw(fixture.state);
+    const Box box = fixture.state.menuView->items[0].box;
+    CHECK(drawn.at(box.y_min + 1, box.x_min, 22) == "│ ⚒ Files            │");
+}
+
 TEST_CASE("every label the menus offer fits the default width [menu]") {
     // Nothing in either menu is cut at the default width until the user narrows
     // the buttons or the window, and no word is set against the frame: the

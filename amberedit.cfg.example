@@ -477,6 +477,42 @@ reader_underline_links on
 # link to whatever the desktop opens links with.
 ##urlhandler lynx $url
 
+# The external utilities: up to ten programs, extern_util0 through extern_util9,
+# each written as a title and then the command to run it by. Optional, and none
+# are set by default.
+#
+#   extern_util0 "Scan"  /usr/local/bin/hpt scan
+#   extern_util1 "Files" mc
+#   extern_util2 "Browser" lynx
+#
+# The title comes first and is always written: it is the word a menu button and
+# a hint are drawn with, and nothing else in the line could be read as one. What
+# follows it is the program and its arguments — run directly rather than through
+# a shell, so the program is looked for on $PATH the way a name typed at a
+# prompt is, an argument with a space in it is written in double quotes, and
+# nothing goes near a shell to be escaped for one.
+#
+# AmberEdit hands the terminal over for as long as the utility runs and takes it
+# back when it ends, exactly as it does for your own shell behind reader.shell.
+# What the utility did while it had the screen is between it and you: one that
+# ran and exited non-zero is not reported.
+#
+# Nothing runs them until something names them. A utility is reached three ways,
+# and every one of them is written down by hand:
+#
+#   * a key, in the "keys" file, on the area list, in the reader or in the
+#     editor — "Alt-F1 reader.extern_util0", "Alt-F2 compose.extern_util1",
+#     "Alt-F3 arealist.extern_util2". The slot is the digit and nothing else, so
+#     those three lines are three keys and three different utilities;
+#   * a button in a context menu — "extern_util0" in reader_menu or in
+#     compose_menu, drawn under the ⚒ glyph every utility carries;
+#   * a hint — "extern_util0" in arealist_hints, reader_hints or compose_hints,
+#     which shows the title under whichever key runs it.
+#
+# A menu or a hint naming a slot no extern_utilN line sets, and a key bound to
+# one, are both refused as AmberEdit starts: a button with nothing behind it is
+# a mistake nobody would ever find on the screen.
+
 # Whether the reader acts on the style codes a message may be written with:
 # _underlined_, *bold*, /italic/ and #inverted# phrases. Optional; off by
 # default; may be set per area in a group block. A marker only counts where a
@@ -653,6 +689,10 @@ hint_bar_capitalize off
 #                   restore_line  delete_quote  delete_word  word_left
 #                   word_right  line_start  line_end  quit
 #
+# The area list, the reader and the editor each name "extern_util0" through
+# "extern_util9" besides — see extern_utilN above. A hint for one shows the
+# title that line gave it.
+#
 # What each of them does is written beside its key in amberkeys.cfg.example.
 #
 # "none" on its own is a row with nothing in it, which is what the message list
@@ -710,6 +750,10 @@ compose_delete_line_button when_narrow
 #
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does
+#
+# Both lists may name "extern_util0" through "extern_util9" as well — see
+# extern_utilN above. Such a button is drawn under the ⚒ glyph, with the title
+# that line gave the utility beside it.
 #
 # A menu holds what a button can stand for, which is less than a hint bar may
 # name: the rest of what the editor does is editing, and there is no button for

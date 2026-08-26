@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "ui/term/color.hpp"
 #include "ui/term/ncurses.hpp"
@@ -99,6 +100,42 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         const Event alt = Event::Named(name, false, true, false);
         registerKey(std::string("\x1b[1;3") + final, alt);
         registerKey(std::string("\x1b[1;9") + final, alt);
+    }
+
+    // Alt with a function key, which is what the external utilities are bound
+    // with. Both families are CSI sequences and neither is ambiguous with
+    // anything, so all twelve are registered whether the layout binds one or
+    // not. F1 to F4 are the ones with a final letter of their own — xterm turns
+    // `ESC O P` into `CSI 1 ; m P` under a modifier — and F5 upwards keep their
+    // number and take the modifier as a second parameter. The numbers skip 16
+    // and 22, as they have since the VT220.
+    const std::array<std::pair<char, Event::Name>, 4> firstFour{{
+        {'P', Event::Name::F1},
+        {'Q', Event::Name::F2},
+        {'R', Event::Name::F3},
+        {'S', Event::Name::F4},
+    }};
+    for (const auto& [final, name] : firstFour) {
+        const Event alt = Event::Named(name, false, true, false);
+        registerKey(std::string("\x1b[1;3") + final, alt);
+        registerKey(std::string("\x1b[1;9") + final, alt);
+        registerKey(std::string("\x1bO1;3") + final, alt);
+    }
+    const std::array<std::pair<int, Event::Name>, 8> theRest{{
+        {15, Event::Name::F5},
+        {17, Event::Name::F6},
+        {18, Event::Name::F7},
+        {19, Event::Name::F8},
+        {20, Event::Name::F9},
+        {21, Event::Name::F10},
+        {23, Event::Name::F11},
+        {24, Event::Name::F12},
+    }};
+    for (const auto& [number, name] : theRest) {
+        const Event alt = Event::Named(name, false, true, false);
+        const std::string code = std::to_string(number);
+        registerKey("\x1b[" + code + ";3~", alt);
+        registerKey("\x1b[" + code + ";9~", alt);
     }
 
     // Alt with Backspace, the other way a word is taken out. Both protocols

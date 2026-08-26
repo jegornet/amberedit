@@ -47,12 +47,18 @@ bool isArrow(Event::Name name) {
            name == Event::Name::ArrowLeft || name == Event::Name::ArrowRight;
 }
 
+bool isFunctionKey(Event::Name name) {
+    return name >= Event::Name::F1 && name <= Event::Name::F12;
+}
+
 /// Whether a named key is one a terminal will report with Alt held. The arrows
-/// are, and so is Backspace — Alt with it is the other way a word is taken out.
-/// Nothing else is worth spelling: a key that would never arrive is a binding
-/// that would never fire.
+/// are, and so is Backspace — Alt with it is the other way a word is taken out —
+/// and so are the function keys: `Alt-F1` is a row of chords nothing else in
+/// AmberEdit wants, which is what makes it the row the external utilities are
+/// reached by. Nothing else is worth spelling: a key that would never arrive is
+/// a binding that would never fire.
 bool takesAlt(Event::Name name) {
-    return isArrow(name) || name == Event::Name::Backspace;
+    return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace;
 }
 
 bool isAsciiLetter(char c) {
@@ -116,9 +122,9 @@ std::optional<Event> keyNamed(std::string_view spelling) {
     if (parsed.body.empty()) return std::nullopt;
 
     if (const NamedKey* named = namedKey(parsed.body)) {
-        // Alt with an arrow or with Backspace is a key a terminal can be asked
-        // to report; nothing else carries a modifier here, and a spelling that
-        // asks for one is a key that would never arrive.
+        // Alt with an arrow, a function key or Backspace is one a terminal can
+        // be asked to report; nothing else carries a modifier here, and a
+        // spelling that asks for one is a key that would never arrive.
         if (parsed.ctrl) return std::nullopt;
         if (parsed.alt && !takesAlt(named->name)) return std::nullopt;
         return Event::Named(named->name, false, parsed.alt);

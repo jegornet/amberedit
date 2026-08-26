@@ -32,6 +32,7 @@
 #   Ctrl-<letter>        Ctrl-N            case does not matter after Ctrl-
 #   Alt-<letter>         Alt-F
 #   Alt-<arrow>          Alt-Left  Alt-Right  Alt-Up  Alt-Down
+#   Alt-<function key>   Alt-F1 ... Alt-F12
 #
 # Moving about cannot be rebound, and naming one of those keys here is an error
 # rather than a line that is quietly dropped: the arrows, PgUp and PgDn, Home and
@@ -103,3 +104,17 @@ Alt-F           compose.word_right
 Alt-Right       compose.word_right
 Ctrl-A          compose.line_start
 Ctrl-E          compose.line_end
+
+# --- the external utilities ---------------------------------------------------
+# The ten programs an "extern_util0".."extern_util9" line in amberedit.cfg names,
+# each of them reachable from the area list, the reader and the editor. Nothing
+# binds them by default, and a key bound to a slot no extern_utilN line sets
+# stops AmberEdit at startup rather than doing nothing. Alt with the function
+# keys is a row of chords nothing else here wants:
+#
+#   Alt-F1          reader.extern_util0
+#   Alt-F2          compose.extern_util1
+#   Alt-F3          arealist.extern_util2
+#
+# The digit is the slot and the screen in front of the dot is only where the key
+# is pressed, so those three lines run three different utilities.

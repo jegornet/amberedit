@@ -36,6 +36,9 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
   writes one, so you don't have to edit it by hand before the first start
 - **Your own shell**, on `o` in the reader: the terminal is handed over until you
   leave the shell, and the message comes back where you left it
+- **External utilities**: up to ten programs an `extern_util0`..`extern_util9`
+  line names, run the same way from a key, a menu button or a hint on the area
+  list, in the reader or in the editor
 - **Color Themes** in the terminal's own 256 colors
 - **Russian and English interface**: the words on the screen come from a gettext
   catalog the config names by path, so adding a language is a `.po` file
@@ -172,7 +175,7 @@ to every key listed for it.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ctrl-` and a letter, or `Alt-`
-and a letter, an arrow or `Backspace`. Two screens may share a key, as `F2`
+and a letter, an arrow, a function key or `Backspace`. Two screens may share a key, as `F2`
 does between the reader and the editor; two commands of one screen may not, and
 a layout that tries says which line clashes with which.
 
@@ -186,7 +189,9 @@ The commands are `app.quit`; `arealist.next_unread` and `arealist.rescan`;
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
 `shell`, `thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
 `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`,
-`word_left`, `word_right`, `line_start` and `line_end`.
+`word_left`, `word_right`, `line_start` and `line_end`. Every one of the three
+screens also has `extern_util0` through `extern_util9`, for the programs
+`amberedit.cfg` names — `Alt-F1 reader.extern_util0`.
 
 ### Finding a message
 

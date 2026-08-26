@@ -18,9 +18,10 @@
 /// well, so the menu says what a screen offers rather than offering anything
 /// else.
 ///
-/// What each command is called and which glyph marks it is `config::Commands`,
-/// the one list the keyboard and the hint bars read too; a menu lays those out
-/// and decides nothing about them.
+/// Which glyph marks a command is `config::Commands`, the one list the keyboard
+/// and the hint bars read too, and what it is called is `AppConfig::labelOf()` —
+/// that word alone being the config's, where the command runs one of the
+/// external utilities. A menu lays those out and decides nothing about them.
 ///
 /// The buttons are all one width, the widest label deciding, and stand a blank
 /// row apart: a menu is read down, and a column of boxes of different widths

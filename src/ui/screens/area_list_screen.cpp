@@ -8,6 +8,7 @@
 #include "i18n/i18n.hpp"
 #include "ui/area_list_format.hpp"
 #include "ui/event_util.hpp"
+#include "ui/extern_util.hpp"
 #include "ui/list_page.hpp"
 #include "ui/quick_search.hpp"
 #include "ui/screens/message_list_screen.hpp"
@@ -426,6 +427,11 @@ bool handleEvent(AppState& state, const Event& event) {
         }
         return true;
     }
+
+    // The external utilities, ahead of the quick search for the same reason:
+    // a letter bound to one is a letter an area's name can no longer be
+    // searched by.
+    if (extern_util::handleKey(state, event, CommandScreen::AreaList)) return true;
 
     // Typing a name is how the search starts, so the letters are claimed before
     // anything that would rather have them — which is why the list has no g/G
