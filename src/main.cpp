@@ -273,7 +273,12 @@ int main(int argc, char* argv[]) {
                           << "\n";
                 return 1;
             }
-            keys = std::move(*read);
+            // `keys_mode` is what the file is read against: on its own it is the
+            // layout entire, and merged it is laid over the defaults, where a
+            // key it moves is taken off whatever had it and the rest stays.
+            keys = appConfig.keysMode == amberedit::config::KeysMode::Merge
+                       ? read->mergedOnto(keys)
+                       : std::move(*read);
         }
 
         // A key with no program behind it, said before the screen is taken

@@ -250,6 +250,13 @@ enum class DescriptionPriority {
     Echolist,  ///< `echolist` — what the echolists say
 };
 
+/// What a `keys` file does to the layout that is already there, from
+/// `keys_mode`.
+enum class KeysMode {
+    Merge,  ///< `merge` — the file is read on top of AmberEdit's own layout
+    Clear,  ///< `clear` — the file is the layout entire, and nothing is kept
+};
+
 /// One `echolist` line: the file it names, and the charset that file is written
 /// in.
 struct EcholistSource {
@@ -436,11 +443,21 @@ struct AppConfig {
     /// The keyboard layout to read, from `keys`. Empty where the config names
     /// none, which is the ordinary case and means AmberEdit's own layout.
     ///
-    /// A file that is named is the layout **entire**: a command it does not
-    /// mention has no key at all. Reading it is `ui::KeyMap`'s — a layout is
-    /// about keystrokes and screens, neither of which this layer knows anything
-    /// about — and all this holds is where it is.
+    /// Reading it is `ui::KeyMap`'s — a layout is about keystrokes and screens,
+    /// neither of which this layer knows anything about — and all this holds is
+    /// where it is and what to do with it.
     std::string keysPath;
+
+    /// What that file does to the layout AmberEdit already has, from
+    /// `keys_mode`. `Merge` by default: a file of a few lines then says what
+    /// those keys do and leaves the rest of the layout alone, which is what a
+    /// short file looks like it should do.
+    ///
+    /// `Clear` is the layout **entire**: a command the file does not mention
+    /// has no key at all, which is what `amberkeys.cfg.example` is written out
+    /// for. Which of the two it is decides nothing here — `main.cpp` reads the
+    /// file and puts the two layouts together.
+    KeysMode keysMode{KeysMode::Merge};
 
     /// A directory for work that needs one, from `tmpdir`. Today that is
     /// unpacking a zipped nodelist or echolist; it is not a nodelist setting as

@@ -268,12 +268,25 @@ reader_show_message_size off
 # A keyboard layout. Optional; without one AmberEdit uses its own, which is what
 # README's key tables describe and what amberkeys.cfg.example holds written out.
 #
-# The file is a key and a command per line — "l reader.list", "F2 reader.change"
-# — and it is the layout ENTIRE: a command it does not name has no key at all,
-# so copy amberkeys.cfg.example and edit that rather than writing a short file of
-# corrections. Moving about is not bindable; naming one of those keys is an error
-# rather than a line quietly dropped.
+# The file is a key and a command per line — "l reader.list", "F2 reader.change".
+# Moving about is not bindable; naming one of those keys is an error rather than
+# a line quietly dropped.
 #keys ~/ftn/etc/amberkeys.cfg
+
+# What that file does to the layout AmberEdit already has. Optional; "merge" by
+# default. Says nothing without a "keys" line.
+#   merge   the file is read on top of the standard layout: a command it does
+#           not name keeps the key it has, and a key it gives to something else
+#           is taken off whatever had it — a clash is settled for the file. Two
+#           screens go on sharing a key, as F2 does between the reader and the
+#           editor, so a line moving one of those two leaves the other alone.
+#           A file of three lines then says what three keys do and nothing more.
+#   clear   the standard layout is thrown away first and the file is the layout
+#           ENTIRE: a command it does not name has no key at all. Copy
+#           amberkeys.cfg.example — the defaults written out — and edit that,
+#           rather than starting from an empty file and finding half the
+#           program unreachable.
+#keys_mode merge
 
 # --- area list ----------------------------------------------------------------
 

@@ -3,14 +3,22 @@
 # Point at it with a "keys" line in amberedit.cfg:
 #
 #   keys ~/ftn/etc/amberkeys.cfg
+#   keys_mode clear
 #
 # A config naming no file at all gets exactly this layout, so there is nothing
 # to copy unless something is to change.
 #
-# THE FILE DESCRIBES THE ENTIRE LAYOUT. A command no line here names has no key
-# at all  — this is a layout rather than a list of corrections, so copy the
-# whole of it and edit what you want moved. A command may be named on several
-# lines, and it then answers to each of those keys.
+# WHAT A FILE DOES TO THIS LAYOUT IS "keys_mode"'s TO SAY, and this file is
+# written for "keys_mode clear": that word throws the standard layout away and
+# the file is then the layout ENTIRE — a command no line names has no key at
+# all — so the whole of it is here to be copied and edited. Under "keys_mode
+# merge", which is the default, a file is read on top of the standard layout
+# instead: a command it does not name keeps the key it has, and a key it gives
+# to something else is taken off whatever had it. A file meant for merging is
+# the handful of lines that change, not this one.
+#
+# A command may be named on several lines, and it then answers to each of those
+# keys.
 #
 # A line is a key and a command, in that order:
 #

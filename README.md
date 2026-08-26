@@ -173,11 +173,18 @@ l    reader.list
 F2   reader.change
 ```
 
-**The keys config file defines the entire layout.** Any command not listed
-in it has no keybinding at all. So copy `amberkeys.cfg.example` (which contains 
-the default bindings, spelled out) and edit that instead of starting from
-a blank file. A command can appear on multiple lines, in which case it responds
-to every key listed for it.
+A `keys_mode` line says what that file does to the layout AmberEdit already
+has — `merge` by default:
+
+**`keys_mode merge` reads the file on top of the standard layout.** A command the file
+does not name keeps the key it has, and a key the file gives to something else
+is taken off whatever had it: a clash is settled for the file. So a file of
+three lines says what three keys do and changes nothing else.
+
+**`keys_mode clear` throws the standard layout away first, and the file is then
+the entire layout.** Any command not listed in it has no keybinding at all, so
+copy `amberkeys.cfg.example` (which contains the default bindings, spelled out)
+and edit that instead of starting from a blank file.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ctrl-` and a letter, or `Alt-`

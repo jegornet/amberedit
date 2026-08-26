@@ -58,13 +58,13 @@ using config::kCommandCount;
 
 /// Which keys run which commands.
 ///
-/// Built from the defaults `config::Commands` states, or read whole from the
-/// file a `keys` line names. **The file is the layout entire**: a command it does
-/// not name has no key at all, rather than keeping the one it has there. That is
-/// what makes a layout a layout — the alternative is a file that can add a key
-/// but never take one away — and it is why `amberkeys.cfg.example` is the whole
-/// of the defaults written out, to be copied and edited rather than composed
-/// from nothing.
+/// Built from the defaults `config::Commands` states, or read from the file a
+/// `keys` line names. **What the file is read against is `keys_mode`'s to say**,
+/// and this class does both halves of it: `parse()` reads the file on its own —
+/// the layout entire, a command it does not name having no key at all, which is
+/// what `amberkeys.cfg.example` is the defaults written out for — and
+/// `mergedOnto()` lays that reading over another layout, which is what a file of
+/// a few lines wants. Neither knows which was asked for; `main.cpp` does.
 class KeyMap {
 public:
     /// The layout AmberEdit has when no `keys` file is named.
@@ -81,6 +81,21 @@ public:
     /// text by.
     [[nodiscard]] static tl::expected<KeyMap, ErrorPtr> parse(std::string_view text,
                                                               const std::string& origin);
+
+    /// This layout laid over that one: every key this one binds, and then every
+    /// key `base` binds that this one has not already claimed.
+    ///
+    /// A key is claimed where this layout gave it to a command that `base` gave
+    /// it to as well, or to another command on the same screen — the clash a
+    /// file is stopped for when it makes one twice over, settled here in favour
+    /// of the file, that being what `keys_mode merge` says to do. Two screens
+    /// go on sharing a key: `F2` is Change in the reader and Save in the
+    /// editor, and a file binding one of them takes nothing from the other.
+    ///
+    /// The file's own keys stand in front of the ones kept, so that a command
+    /// given a second key is hinted under the key the file chose rather than
+    /// the one it was already answering to.
+    [[nodiscard]] KeyMap mergedOnto(const KeyMap& base) const;
 
     /// Whether that keystroke runs that command.
     [[nodiscard]] bool is(const term::Event& event, Command command) const;
@@ -116,6 +131,10 @@ public:
 
 private:
     void bind(Command command, term::Event key);
+
+    /// Whether this layout has that key on a command near enough to `command`
+    /// for the two to clash — see `mergedOnto()`.
+    [[nodiscard]] bool claims(const term::Event& key, Command command) const;
 
     std::vector<std::vector<term::Event>> bound_{kCommandCount};
 };

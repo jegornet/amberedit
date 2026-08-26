@@ -2685,8 +2685,9 @@ terms the nodelist's does.
 
 `src/config/commands.*` is the one list of commands there is, and `src/ui/keys.*`
 holds every binding over it. A screen never compares a keystroke against a key of
-its own: it asks `state.keys.is(event, command)`, and what that answers is either
-AmberEdit's own layout or the file a `keys` line named.
+its own: it asks `state.keys.is(event, command)`, and what that answers is
+AmberEdit's own layout, the file a `keys` line named, or the two of them put
+together — `keys_mode` says which.
 
 - **`config::Command` is the whole of what can be bound, offered or named**, and
   `kCommands` in `config/commands.cpp` is the one place a command's name, its
@@ -2714,10 +2715,23 @@ AmberEdit's own layout or the file a `keys` line named.
   dialog stay where they are, so that no layout can leave a screen with no way
   out of it. `isReservedKey()` refuses those spellings outright rather than
   quietly dropping the line.
-- **A file is the layout entire.** A command it does not name has no key, which
-  is why `amberkeys.cfg.example` is the defaults written out: it is the thing to
-  copy. A test parses that file and compares it against `KeyMap::defaults()`
-  command by command, so the two cannot drift.
+- **What a file does to the layout is `keys_mode`'s to say.** `merge`, the
+  default, reads it on top of the defaults: `KeyMap::mergedOnto()` keeps the
+  file's own bindings and then adds every default one the file has not claimed,
+  so a file of three lines says what three keys do and leaves the rest alone.
+  `clear` is the file alone, and then a command it does not name has no key —
+  which is why `amberkeys.cfg.example` is the defaults written out: it is the
+  thing to copy, and it is written for `clear`. A test parses that file and
+  compares it against `KeyMap::defaults()` command by command, so the two cannot
+  drift.
+- **A merged clash is settled for the file, by the rule that refuses one.** A
+  default key goes only where the file gave it to a command `clash()` says it
+  meets — the same screen, or one of the two answered before every screen — the
+  same function the parser stops a file for making a clash with itself. So `k`
+  moved to `reader.list` leaves `reader.kludges` with no key at all, and `F2`
+  given to a reader command takes nothing from `compose.save`. The file's keys
+  stand in front of the kept ones, so a hint is drawn under the key the user
+  chose.
 - **`CommandScreen` is what lets one key mean two things.** `F2` is Change in the
   reader and Save in the editor; two commands of *one* screen may not share a
   key, and `app.quit` is answered before every screen and so shares with nothing.
@@ -2725,9 +2739,10 @@ AmberEdit's own layout or the file a `keys` line named.
   refused where it is written rather than becoming a button that does nothing.
 - **The layout is read in `main.cpp`**, before the terminal is taken over, so a
   file that cannot be read is reported like any other startup failure rather than
-  falling back on defaults the user did not ask for. `config::AppConfig` carries
-  the path and nothing else: a layout is about keystrokes and screens, and the
-  config layer knows nothing of either.
+  falling back on defaults the user did not ask for. It is also where the two
+  layouts are put together, since `config::AppConfig` carries the path and the
+  `KeysMode` word and nothing more: a layout is about keystrokes and screens,
+  and the config layer knows nothing of either.
 - **A chord the layout does not bind is never typed.** Both halves of the
   editor swallow one — `headerKey()` and `textKey()` each end on
   `event.ctrl() || event.alt()` — since on a terminal reporting modified keys a

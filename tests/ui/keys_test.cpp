@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "config/text_util.hpp"
 #include "temp_dir.hpp"
@@ -189,6 +190,82 @@ TEST_CASE("A layout written with the older names is still read [keys]") {
         "Alt-J compose.word-left\nCtrl-Y compose.delete-line\n", "keys"));
     CHECK(keys.is(alt('j'), Command::ComposeWordLeft));
     CHECK(keys.is(ctrl('y'), Command::ComposeDeleteLine));
+}
+
+TEST_CASE("A merged layout keeps what the file did not move [keys]") {
+    // `keys_mode merge`: the file is a handful of corrections, and everything
+    // it says nothing about goes on working as it did.
+    const KeyMap file = valueOf(KeyMap::parse("k reader.list\n", "keys"));
+    const KeyMap keys = file.mergedOnto(KeyMap::defaults());
+
+    CHECK(keys.is(Event::Character('k'), Command::ReaderList));
+    // The keys the default layout had for it are keys the file took nothing
+    // from, so the command answers to all three: merging adds a key and does
+    // not move one — `keys_mode clear` is what moves a key.
+    CHECK(keys.is(Event::Character('l'), Command::ReaderList));
+    CHECK(keys.is(Event::F9, Command::ReaderList));
+    CHECK(keys.keysOf(Command::ReaderList) ==
+          std::vector<Event>{Event::Character('k'), Event::Character('l'), Event::F9});
+    // And the file's own key is the one a hint is drawn from: it is the key the
+    // user asked this command to be under.
+    CHECK(keys.preferredKey(Command::ReaderList) == Event::Character('k'));
+    // A command the file never names is untouched, whichever screen it is on.
+    CHECK(keys.is(ctrl('q'), Command::AppQuit));
+    CHECK(keys.is(Event::Character('i'), Command::ReaderInfo));
+    CHECK(keys.keysOf(Command::ComposeSave) == std::vector<Event>{ctrl('s'), Event::F2});
+}
+
+TEST_CASE("A merged layout settles a clash in the file's favour [keys]") {
+    // `k` was Kludges and `l` was List, and the file has given `k` to List: the
+    // two are one screen, so the key leaves the command that had it rather than
+    // running both.
+    const KeyMap file = valueOf(KeyMap::parse("k reader.list\n", "keys"));
+    const KeyMap keys = file.mergedOnto(KeyMap::defaults());
+
+    CHECK_FALSE(keys.is(Event::Character('k'), Command::ReaderKludges));
+    // Kludges had that one key and now has none — the file said what `k` does,
+    // and nothing says what Kludges is under instead.
+    CHECK(keys.keysOf(Command::ReaderKludges).empty());
+
+    // A command answered before every screen meets all of them, so it loses a
+    // key to any screen's command.
+    const KeyMap quit = valueOf(KeyMap::parse("Ctrl-Q compose.import\n", "keys"))
+                            .mergedOnto(KeyMap::defaults());
+    CHECK(quit.is(ctrl('q'), Command::ComposeImport));
+    CHECK(quit.keysOf(Command::AppQuit).empty());
+}
+
+TEST_CASE("A merged layout leaves the other screen its key [keys]") {
+    // `F2` is Change in the reader and Save in the editor, and the two never
+    // meet: a file moving one of them takes nothing from the other.
+    const KeyMap keys =
+        valueOf(KeyMap::parse("F2 reader.info\n", "keys")).mergedOnto(KeyMap::defaults());
+
+    CHECK(keys.is(Event::F2, Command::ReaderInfo));
+    CHECK_FALSE(keys.is(Event::F2, Command::ReaderChange));
+    CHECK(keys.is(Event::F2, Command::ComposeSave));
+    // Change keeps the key the file did not ask about.
+    CHECK(keys.is(Event::Character('c'), Command::ReaderChange));
+}
+
+TEST_CASE("A merged layout writes no key twice [keys]") {
+    // A file that copies a line out of the defaults and then changes another is
+    // the ordinary way one is written, and the copied line must leave the
+    // command answering to that key once rather than twice.
+    const KeyMap keys =
+        valueOf(KeyMap::parse("l reader.list\nAlt-J compose.word_left\n", "keys"))
+            .mergedOnto(KeyMap::defaults());
+
+    CHECK(keys.keysOf(Command::ReaderList) ==
+          std::vector<Event>{Event::Character('l'), Event::F9});
+    // The letters the terminal is told about are both layouts' — the file's
+    // Alt-J and the defaults the file left alone.
+    CHECK(keys.altLetters() == "bfhjq");
+    CHECK(keys.altBackspace());
+    // And the default key for the command the file moved is still there: a
+    // chord and a letter on one command is what merging leaves.
+    CHECK(keys.is(alt('j'), Command::ComposeWordLeft));
+    CHECK(keys.is(alt('b'), Command::ComposeWordLeft));
 }
 
 TEST_CASE("A layout is read from the file the config names [keys]") {

@@ -93,6 +93,15 @@ Spelling withoutModifiers(std::string_view spelling) {
     return out;
 }
 
+/// Whether one key on both of these commands is a clash. Two screens may share
+/// a key and never meet — `F2` is Change in the reader and Save in the editor —
+/// and a command answered before every screen meets all of them.
+bool clash(Command a, Command b) {
+    const CommandScreen x = Commands::of(a).screen;
+    const CommandScreen y = Commands::of(b).screen;
+    return x == y || x == CommandScreen::Anywhere || y == CommandScreen::Anywhere;
+}
+
 /// How near the front of the queue a key stands when one of several has to be
 /// shown: a bare key, then Ctrl, then Alt, then a key with a name of its own.
 int reachOf(const Event& key) {
@@ -227,13 +236,7 @@ tl::expected<KeyMap, ErrorPtr> KeyMap::parse(std::string_view text,
         if (!key) return failure(where + "no key is called " + tokens[0]);
 
         for (const auto& [earlier, other] : taken) {
-            if (!(earlier == *key)) continue;
-            // Two screens may share a key and never meet; one screen may not.
-            const CommandScreen a = command->screen;
-            const CommandScreen b = Commands::of(other).screen;
-            if (a != b && a != CommandScreen::Anywhere && b != CommandScreen::Anywhere) {
-                continue;
-            }
+            if (!(earlier == *key) || !clash(command->command, other)) continue;
             return failure(where + tokens[0] + " is already " +
                            std::string(Commands::of(other).name));
         }
@@ -248,6 +251,33 @@ tl::expected<KeyMap, ErrorPtr> KeyMap::loadFromFile(const std::string& path) {
     const auto text = config::text::readFile(path);
     if (!text) return failure("keys file not found: " + path);
     return parse(*text, path);
+}
+
+KeyMap KeyMap::mergedOnto(const KeyMap& base) const {
+    // This layout as it stands, and then what `base` still has to add: the
+    // file's keys are the ones written first, and so the ones a hint is drawn
+    // from where a command ends up with two.
+    KeyMap merged = *this;
+    for (size_t i = 0; i < kCommandCount; ++i) {
+        const auto command = static_cast<Command>(i);
+        for (const Event& key : base.bound_[i]) {
+            if (!claims(key, command)) merged.bind(command, key);
+        }
+    }
+    return merged;
+}
+
+bool KeyMap::claims(const Event& key, Command command) const {
+    for (size_t i = 0; i < kCommandCount; ++i) {
+        const auto mine = static_cast<Command>(i);
+        if (!clash(mine, command)) continue;
+        const auto& keys = bound_[i];
+        if (std::any_of(keys.begin(), keys.end(),
+                        [&key](const Event& bound) { return bound == key; })) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void KeyMap::bind(Command command, Event key) {

@@ -445,6 +445,17 @@ tl::expected<DescriptionPriority, ErrorPtr> parseDescriptionPriority(
                       "' (expected area | echolist)");
 }
 
+/// The `keys_mode` word: what the `keys` file does to the layout that is
+/// already there.
+tl::expected<KeysMode, ErrorPtr> parseKeysMode(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "merge") return KeysMode::Merge;
+    if (value == "clear") return KeysMode::Clear;
+    return entry.fail("unknown keys_mode: '" + value + "' (expected merge | clear)");
+}
+
 tl::expected<domain::FtnAddress, ErrorPtr> readAddress(const CfgEntry& entry,
                                                        const std::string& value) {
     const auto address = domain::FtnAddress::parse(value);
@@ -759,6 +770,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readPath(entry, "a keyboard layout");
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.keysPath = *read;
+    } else if (key == "keys_mode") {
+        auto read = parseKeysMode(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.keysMode = *read;
     } else if (key == "tmpdir") {
         auto read = readPath(entry, "a directory to work in");
         if (!read) return tl::make_unexpected(std::move(read).error());

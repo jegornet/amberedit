@@ -1400,6 +1400,26 @@ TEST_CASE("AppConfig reads the error log path [app_config]") {
     CHECK_MESSAGE(contains(error2, "set twice"), error2);
 }
 
+TEST_CASE("AppConfig reads the keyboard layout and what to do with it [app_config]") {
+    using amberedit::config::KeysMode;
+
+    // A path like every other path, and a word beside it for what the file does
+    // to the layout that is already there.
+    CHECK(contains(with("keys ~/ftn/etc/amberkeys.cfg\n").keysPath,
+                   "/ftn/etc/amberkeys.cfg"));
+    CHECK(with("keys_mode clear\n").keysMode == KeysMode::Clear);
+    CHECK(with("keys_mode MERGE\n").keysMode == KeysMode::Merge);
+
+    // Merge by default: a file of a few lines is what a config that names one
+    // usually holds, and it says what those keys do and nothing else.
+    CHECK(with("").keysMode == KeysMode::Merge);
+    CHECK(with("keys ~/ftn/etc/amberkeys.cfg\n").keysMode == KeysMode::Merge);
+
+    const std::string error = errorWith("keys_mode replace\n");
+    CHECK_MESSAGE(contains(error, "unknown keys_mode: 'replace'"), error);
+    CHECK_MESSAGE(contains(error, "merge | clear"), error);
+}
+
 TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_config]") {
     const std::string error = errorWith("nodelist /ftn/nodelist/nodelist.ndl\n");
     CHECK_MESSAGE(contains(error, "nodelist_db is not set"), error);

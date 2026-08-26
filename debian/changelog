@@ -2,6 +2,7 @@ amberedit (0.4.4-1) unstable; urgency=low
 
   * Reader: sidebar position setting
   * External utilities
+  * keys_mode option: merge a keys file onto the defaults
 
  -- Yegor Gluhov <git@jegor.net>  Thu, 27 Aug 2026 12:00:00 +0000
 
