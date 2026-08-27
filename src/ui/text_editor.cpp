@@ -140,7 +140,10 @@ void insertNewline(TextBuffer& buffer) {
     buffer.line() = line.substr(0, buffer.col);
     buffer.lines.insert(buffer.lines.begin() + buffer.row + 1, prefix + tail);
     ++buffer.row;
-    buffer.col = prefix.size();
+    // At the start of the new line, prefix or no prefix: a split leaves the
+    // cursor where an unquoted one leaves it, and the prefix it carried is
+    // text ahead of the cursor like any other.
+    buffer.col = 0;
 }
 
 void deleteBefore(TextBuffer& buffer) {

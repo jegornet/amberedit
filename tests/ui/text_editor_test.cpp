@@ -91,7 +91,7 @@ TEST_CASE("A quoted word with nowhere to break is cut at the margin [editor]") {
 TEST_CASE("Enter carries the quote prefix onto the new line [editor]") {
     TextBuffer buffer = bufferOf({" AB> hello world"}, 0, 10);
     insertNewline(buffer);
-    CHECK(shown(buffer) == " AB> hello| AB> ^ world");
+    CHECK(shown(buffer) == " AB> hello|^ AB>  world");
 
     // An ordinary line splits without one.
     TextBuffer plain = bufferOf({"hello world"}, 0, 5);
@@ -113,7 +113,7 @@ TEST_CASE("Enter at the start of a quote puts a line above it [editor]") {
 
     TextBuffer after = bufferOf({" AB> hello"}, 0, 5);
     insertNewline(after);
-    CHECK(shown(after) == " AB> | AB> ^hello");
+    CHECK(shown(after) == " AB> |^ AB> hello");
 }
 
 TEST_CASE("Enter at the end of a quote leaves the new line empty [editor]") {
