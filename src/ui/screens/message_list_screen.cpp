@@ -7,6 +7,8 @@
 
 #include "ui/back_button.hpp"
 #include "ui/event_util.hpp"
+#include "ui/goto_field.hpp"
+#include "ui/input_field.hpp"
 #include "ui/list_page.hpp"
 #include "ui/msg_list_format.hpp"
 #include "ui/screens/message_read_screen.hpp"
@@ -173,12 +175,42 @@ std::vector<msg_format::Row> visibleRows(const AppState& state) {
 /// back onto it — otherwise the arrow keys there would carry on from wherever
 /// the list was left.
 void returnToReader(AppState& state) {
+    // Whatever was half typed is left behind with the screen it was typed on:
+    // the list comes back up on the message being read, not on a number nobody
+    // finished.
+    state.listGoto.clear();
     if (state.readHeader) {
         state.messageCursor = static_cast<int>(state.readHeader->number) - 1;
         clampCursor(state);
         ensureHeaders(state);
     }
     state.navigator.pop();
+}
+
+/// Goes to the message the typed number names, and puts the title back whether
+/// or not there was one: a number naming no message is answered by the field
+/// closing on it, which is the list saying it has nowhere to go. Nothing else is
+/// said, exactly as in the reader — there is no room on this screen for more,
+/// and a box over a mistyped digit is more than the mistake is worth.
+///
+/// What going means is `msglist_goto_field_opens`: on, the message is opened,
+/// the field being the quick way to it; off, the cursor lands on the row and
+/// the list stays up, and the row is then opened by Enter on it like any other.
+///
+/// Either way the cursor is centred first, `centerCursor()` being what a jump
+/// across the area asks for — the row landed on has the area either side of it,
+/// where the least scrolling that shows it would leave it against the top or
+/// the bottom edge. It is what the list comes back up on where a message opened
+/// from here is left by the way that returns to it.
+void applyGoto(AppState& state) {
+    const uint32_t number = goto_field::numberOf(state.listGoto);
+    state.listGoto.clear();
+    if (number == 0 || number > state.messageCount) return;
+
+    state.messageCursor = static_cast<int>(number) - 1;
+    centerCursor(state);
+    ensureHeaders(state);
+    if (state.config.messageListGotoFieldOpens) openSelected(state);
 }
 
 }  // namespace
@@ -310,12 +342,24 @@ Element render(AppState& state) {
     const std::string aka = state.currentArea.address.isValid()
                                 ? " (" + state.currentArea.address.toString() + ")"
                                 : "";
-    // The list is only ever opened from the reader, on a message: an area with
-    // none opens the reader on nothing instead, and `l` there says so rather
-    // than bringing up a table of no rows.
-    const std::string titleText = " " + state.currentArea.tag + aka + " " +
-                                  std::to_string(state.messageCursor + 1) + "/" +
-                                  std::to_string(state.messageCount);
+    // Which message of how many, the pair the title ends in. The list is only
+    // ever opened from the reader, on a message: an area with none opens the
+    // reader on nothing instead, and `l` there says so rather than bringing up
+    // a table of no rows.
+    const std::string numbers = std::to_string(state.messageCursor + 1) + "/" +
+                                std::to_string(state.messageCount);
+
+    // The number typed to be taken somewhere stands where that pair does, the
+    // reader's rule on the reader's title: the title says either where the
+    // cursor is or where it is being sent, never both. Empty means nothing is
+    // being typed; see `AppState::listGoto`.
+    const bool goingTo = !state.listGoto.empty();
+
+    // The space in front of the pair is the title's own and stays the title's
+    // while the field stands in the pair's columns — what sets the box off from
+    // the area's name is the space that set the pair off from it.
+    const std::string titleText =
+        " " + state.currentArea.tag + aka + (goingTo ? " " : " " + numbers);
 
     // Where the cursor stands on the screen is kept across a change in how tall
     // a row is, which is what dragging the window across the threshold can do.
@@ -420,8 +464,33 @@ Element render(AppState& state) {
 
     const int titleRoom =
         std::max(1, state.width - (state.backButtonShown() ? back_button::kWidth : 0));
-    Element title = text(truncateToWidth(titleText, static_cast<size_t>(titleRoom))) |
+
+    // What is being typed, drawn exactly as the reader draws it: `inputField()`
+    // on the fill a focused field carries, the digits in `focused_text`, the
+    // room left underscored and the cursor an inverted cell — the box asking
+    // for a number reads the same on both screens showing the area.
+    //
+    // It is the pair's own columns and no more, fixed at that whatever is typed
+    // into it: a longer number scrolls sideways under the cursor, which
+    // `inputField()` does itself, and a window too narrow for the whole box
+    // narrows it rather than pushing the Back button off the row.
+    int gotoWidth = 0;
+    Element gotoField;
+    if (goingTo) {
+        gotoWidth = std::max(1, std::min(displayWidth(numbers), titleRoom));
+        gotoField = inputField(state.listGoto, state.listGoto.size(), gotoWidth, true,
+                               theme::palette.focusedText,
+                               fieldFiller(theme::palette.inputFiller)) |
+                    bgcolor(theme::palette.focusedField);
+    }
+
+    // The field keeps its columns and the area's name gives them up, as in the
+    // reader: what is being typed is the one thing on the row the user is
+    // looking at, and a name cut short still says which area this is.
+    const int titleWidth = std::max(goingTo ? 0 : 1, titleRoom - gotoWidth);
+    Element title = text(truncateToWidth(titleText, static_cast<size_t>(titleWidth))) |
                     bold | color(theme::palette.tableHeader);
+    if (goingTo) title = hbox({std::move(title), std::move(gotoField)});
     if (state.backButtonShown()) {
         title = hbox({back_button::topRow(pressedBack), std::move(title)});
     }
@@ -464,6 +533,9 @@ bool handleEvent(AppState& state, const Event& event) {
     // A click opens the message it landed on, cursor and all: the row under the
     // pointer is the one meant, wherever the cursor happened to be.
     if (const auto clicked = clickedMessage(state, event)) {
+        // A row picked with the pointer is the row meant, and the number half
+        // typed is put away with it — the click said where to go.
+        state.listGoto.clear();
         state.messageCursor = *clicked;
         clampCursor(state);
         ensureHeaders(state);
@@ -474,6 +546,47 @@ bool handleEvent(AppState& state, const Event& event) {
         openSelected(state);
         return true;
     }
+    // While a message number is being typed, the keys that build it are the
+    // field's: the digits, Enter to go there, Esc to think better of it, and
+    // Backspace taking them back one at a time — an emptied field is a closed
+    // one, so the last Backspace puts the title back the way Esc does. All four
+    // mean something else on this screen with no field up, and the field has
+    // them while it is up.
+    //
+    // Every other key closes the field and is then answered as it always is:
+    // once something else is being asked for, the number has said what it had
+    // to say. That covers the wheel below as it covers ↑↓ — the cursor being
+    // moved by hand is the number given up on.
+    if (!state.listGoto.empty()) {
+        if (const auto digit = goto_field::digitOf(event)) {
+            if (state.listGoto.size() < goto_field::kDigits) state.listGoto += *digit;
+            return true;
+        }
+        if (event == Event::Return) {
+            applyGoto(state);
+            return true;
+        }
+        if (event == Event::Escape) {
+            state.listGoto.clear();
+            return true;
+        }
+        if (event == Event::Backspace) {
+            state.listGoto.pop_back();
+            return true;
+        }
+        state.listGoto.clear();
+    }
+
+    // A digit is how the field opens. Nothing on this screen is bound to one —
+    // the list takes no commands of its own — so a digit is always the number
+    // being started.
+    if (state.messageCount > 0) {
+        if (const auto digit = goto_field::digitOf(event)) {
+            state.listGoto = std::string(1, *digit);
+            return true;
+        }
+    }
+
     // The wheel moves the cursor a line at a time, the same as ↑↓ — through
     // `list_wheel_throttle`, which where a row stands more than one line tall
     // spends a row's worth of notches on each message, so that a flick moves

@@ -436,6 +436,14 @@ msglist_format "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)"
 # on the same terms as arealist_scrollbar. Optional; on by default.
 msglist_scrollbar on
 
+# What Enter does to a number typed into the message list's goto field, where
+# any digit turns the title's msg/total into a box to type a message number into.
+# Optional; on by default, and then the message is opened, the field being the
+# quick way to it. Off puts the cursor on that row and leaves the list up, for
+# looking around the number before opening anything — the row is then opened by
+# Enter on it, like any other.
+msglist_goto_field_opens on
+
 # Whether a message user hasn't read yet is drawn in the theme's msglist_unread
 # color across the whole row. Optional; on by default. A From or To naming you
 # keeps the own_name color. What counts as unread is the mark the base itself

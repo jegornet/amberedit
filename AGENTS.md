@@ -759,13 +759,14 @@ Rules that hold the design together:
 ### The message list
 
 - **It comes up centred on the current message**, through
-  `message_list::centerCursor()`, called at the two moments the list is arrived
-  at — `enterArea()` and `l` in the reader — and nowhere else: moving inside the
-  list scrolls a row at a time, and a table that re-centred on every keystroke
-  would slide under the cursor. Centring is what the lastread mark asks for: the
-  mark is usually partway down the area with the unread messages after it, and
-  plain "keep the cursor on screen" arithmetic lands it on the bottom row with
-  exactly those messages below the screen. Because the offset is decided when the
+  `message_list::centerCursor()`, called at the moments the list is arrived at
+  or jumped across — `enterArea()`, `l` in the reader, and a number typed into
+  the goto field — and nowhere else: moving inside the list scrolls a row at a
+  time, and a table that re-centred on every keystroke would slide under the
+  cursor. Centring is what the lastread mark asks for: the mark is usually
+  partway down the area with the unread messages after it, and plain "keep the
+  cursor on screen" arithmetic lands it on the bottom row with exactly those
+  messages below the screen. Because the offset is decided when the
   list opens, the reader moves the cursor alone as it walks between messages.
 - **What a row holds is `msglist_format`'s**, read the way `arealist_format` is
   and laid out by `ui/msg_list_format.*` — `a` number, `f` from, `t` to,
@@ -798,6 +799,25 @@ Rules that hold the design together:
   message being loaded where none is. Do not put the list's own call back into the
   reader's paths: `messageOffset` is wherever the list was left, and a window read
   around it and then around the panel would be read twice per keystroke.
+- **A digit opens the goto field here too**, `AppState::listGoto`, and it is the
+  reader's field on the other screen showing the same area: the same columns —
+  the pair the title ends in — drawn by the same `ui::inputField()` call on
+  `focused_field`, taking the same digits through `ui/goto_field.hpp`, with
+  Enter to go, Esc to close, Backspace back a digit and an emptied field closed.
+  A number naming no message closes the field and nothing else is said. The one
+  difference is what going means, and that is `msglist_goto_field_opens`: **on
+  by default, the message is opened** — through `openSelected()`, so the number
+  reaches it exactly as Enter on its row does, `twit_mode` and all — and **off,
+  the cursor lands on the row and the list stays up**, for reading around the
+  number before opening anything. The reader's field is not asked about: there
+  is nothing on that screen but the message, so a number typed there can only
+  mean show that one. Either way the cursor is centred first, through
+  `centerCursor()` — a number is a jump across the area, and the least scrolling
+  that shows the row would leave it against the top or the bottom edge.
+  Everything else closes the field and is then answered as it always is, the
+  wheel and the arrows included: the cursor moved by hand is the number given up
+  on. A click on a row closes it, and so does going back to the reader — what
+  was half typed stays on the screen it was typed on.
 - **The width falls out in three passes, not two**, which is the one way
   `msg_format::layoutLine()` differs from the area list's. First the fields with a
   width of their own, and the number column, which is as wide as the highest
@@ -896,6 +916,11 @@ Rules that hold the design together:
     sent anywhere by, exactly as a bare letter bound on the area list stops
     being one a tag is searched by. Once the field is open the digits are the
     field's, bound or not.
+  - **The digits themselves are `ui/goto_field.hpp`**, which is the whole of
+    what the two screens taking a number share: how many digits a field holds,
+    which events are digits, and what the digits come to. The message list has
+    the same field in the same columns of its own title — see its section
+    below — and a rule about typing a number is written there once.
   - Every other key closes the field and is then answered as it always is, and a
     click closes it through `loadMessage()` — where the highlight and the
     revealed twit are dropped too, that being the one place every way to another

@@ -860,6 +860,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.messageListScrollbar = *read;
+    } else if (key == "msglist_goto_field_opens") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.messageListGotoFieldOpens = *read;
     } else if (key == "highlight_unread") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

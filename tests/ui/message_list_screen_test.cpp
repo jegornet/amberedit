@@ -808,3 +808,239 @@ TEST_CASE("A name of the user's own keeps its color on an unread row "
     fixture.state.areaConfig.userName = "Nobody At All";
     CHECK(cellColor(fixture, unread, from) == theme::palette.msglistUnread);
 }
+
+TEST_CASE("A digit turns the list's number pair into a field, and Enter goes there "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    const int total = static_cast<int>(fixture.total());
+    REQUIRE(total >= 12);
+
+    // The title says where the cursor is until the first digit is typed, and
+    // then it says where it is being sent instead.
+    const std::string count = "/" + std::to_string(total);
+    REQUIRE(rowsOf(fixture)[0].find(count) != std::string::npos);
+
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('1')));
+    CHECK(fixture.state.listGoto == "1");
+    std::string title = rowsOf(fixture)[0];
+    CHECK(title.find("localnet 1") != std::string::npos);
+    CHECK(title.find(count) == std::string::npos);
+
+    // The digits build the number up rather than replacing it.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('2')));
+    CHECK(fixture.state.listGoto == "12");
+    CHECK(rowsOf(fixture)[0].find("localnet 12") != std::string::npos);
+
+    // The number names a message and Enter opens it, which is what
+    // `msglist_goto_field_opens` says to do by default: the field is the quick
+    // way to a message rather than a way of scrolling the table.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Return));
+    CHECK(fixture.state.messageCursor == 11);
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 12);
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageRead);
+    // And the field is gone, its number with it.
+    CHECK(fixture.state.listGoto.empty());
+}
+
+TEST_CASE("msglist_goto_field_opens off moves the cursor and leaves the list up "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.messageListGotoFieldOpens = false;
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    REQUIRE(fixture.state.readHeader);
+    const uint32_t reading = fixture.state.readHeader->number;
+    const std::string count = "/" + std::to_string(fixture.total());
+
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('2')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Return));
+
+    // The cursor alone moves: the row is opened by Enter on it, as any row is,
+    // and the list is still what the user is looking at — with the reader
+    // behind it still on the message it was showing.
+    CHECK(fixture.state.messageCursor == 11);
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageList);
+    CHECK(fixture.state.readHeader->number == reading);
+    // The title says where the cursor now is, the field having closed on it.
+    CHECK(fixture.state.listGoto.empty());
+    CHECK(rowsOf(fixture)[0].find("12" + count) != std::string::npos);
+
+    // And Enter on the row opens it, the number having named a row like any
+    // other.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Return));
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageRead);
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 12);
+}
+
+TEST_CASE("A number jumped to on the list lands halfway down it "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    // The list has to be left up for where it is scrolled to to be worth asking
+    // about, so the number moves the cursor rather than opening the message.
+    fixture.config.messageListGotoFieldOpens = false;
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+
+    const int total = static_cast<int>(fixture.total());
+    const int rows = fixture.state.messageListRows();
+    // Far enough from either end that the centring is not cut short by one.
+    const int target = total / 2;
+    REQUIRE(target - rows / 2 > 0);
+    REQUIRE(target + rows / 2 < total);
+
+    for (const char digit : std::to_string(target)) {
+        REQUIRE(message_list::handleEvent(fixture.state, Event::Character(digit)));
+    }
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Return));
+
+    CHECK(fixture.state.messageCursor == target - 1);
+    // A jump across the area has the area either side of it, exactly as the
+    // list opening on a message does.
+    CHECK(fixture.cursorRow() == rows / 2);
+}
+
+TEST_CASE("Esc and Backspace put the number away and leave the list up "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    const int cursor = fixture.state.messageCursor;
+    const std::string title = rowsOf(fixture)[0];
+
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('7')));
+    REQUIRE(fixture.state.listGoto == "7");
+
+    // Esc is the field's while one is being typed: it closes it rather than
+    // going back to the reader, which is what the key does with no field up.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Escape));
+    CHECK(fixture.state.listGoto.empty());
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageList);
+    CHECK(fixture.state.messageCursor == cursor);
+    CHECK(rowsOf(fixture)[0] == title);
+
+    // Backspace takes the digits back one at a time, and the field emptied is
+    // the field closed — it is not a way back to the reader either.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('2')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Backspace));
+    CHECK(fixture.state.listGoto == "1");
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Backspace));
+    CHECK(fixture.state.listGoto.empty());
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageList);
+
+    // With nothing being typed both keys go back to the reader, as they always
+    // did.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Backspace));
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageRead);
+}
+
+TEST_CASE("A number naming no message closes the list's field and says nothing "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    const int cursor = fixture.state.messageCursor;
+    const std::string title = rowsOf(fixture)[0];
+
+    for (const char digit : std::string("999999")) {
+        REQUIRE(message_list::handleEvent(fixture.state, Event::Character(digit)));
+    }
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Return));
+
+    // The title comes back and nothing else happens: no box, and the cursor on
+    // the row it was on.
+    CHECK(fixture.state.listGoto.empty());
+    CHECK(fixture.state.errorMessage.empty());
+    CHECK(fixture.state.messageCursor == cursor);
+    CHECK(rowsOf(fixture)[0] == title);
+
+    // Zero is the same answer, there being no message numbered nought.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('0')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Return));
+    CHECK(fixture.state.messageCursor == cursor);
+    CHECK(rowsOf(fixture)[0] == title);
+}
+
+TEST_CASE("Moving the cursor by hand drops what was half typed on the list "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    const int cursor = fixture.state.messageCursor;
+
+    // Every other key closes the field and is then answered as it always is.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('9')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::ArrowDown));
+    CHECK(fixture.state.listGoto.empty());
+    CHECK(fixture.state.messageCursor == cursor + 1);
+
+    // The wheel is the cursor moved by hand too.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('9')));
+    REQUIRE(message_list::handleEvent(fixture.state, wheel(true)));
+    CHECK(fixture.state.listGoto.empty());
+
+    // And going back to the reader leaves nothing behind on the screen left.
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('9')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Escape));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('9')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Escape));
+    CHECK(fixture.state.listGoto.empty());
+}
+
+TEST_CASE("The list draws the number being typed as a header block field is "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = amberedit::config::Visibility::Off;
+    fixture.state.height = 24;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    REQUIRE(fixture.state.messageCursor == 0);
+
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('1')));
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character('2')));
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_list::render(fixture.state));
+
+    // " localnet " and then the field: the fill a focused field carries, over
+    // the columns "1/43" took and no others — the space in front of it is the
+    // title's, as it was in front of the pair.
+    const int start = static_cast<int>(std::string(" localnet ").size());
+    const int width = static_cast<int>(("1/" + std::to_string(fixture.total())).size());
+    for (int x = start; x < start + width; ++x) {
+        CHECK(screen.at(x, 0).bg == theme::palette.focusedField);
+    }
+    // And the row either side of it is the title's own colors.
+    CHECK(screen.at(start - 1, 0).bg != theme::palette.focusedField);
+    CHECK(screen.at(start + width, 0).bg != theme::palette.focusedField);
+
+    // What is in it is what a field of the block holds: the digits in
+    // `focused_text`, the cursor an inverted cell on the blank after them, and
+    // the room it has left underscored.
+    CHECK(screen.at(start, 0).glyph == "1");
+    CHECK(screen.at(start, 0).fg == theme::palette.focusedText);
+    CHECK(screen.at(start + 1, 0).glyph == "2");
+    CHECK(screen.at(start + 2, 0).glyph == " ");
+    CHECK((screen.at(start + 2, 0).attrs & term::kInverted) != 0);
+    REQUIRE(theme::palette.inputFillerShown);
+    CHECK(screen.at(start + 3, 0).glyph == "_");
+    CHECK(screen.at(start + 3, 0).fg == theme::palette.inputFiller);
+}

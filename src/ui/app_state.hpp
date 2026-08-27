@@ -139,6 +139,12 @@ struct AppState {
     int msgRowHeightShown{0};
     int messageCursor{0};
     int messageOffset{0};
+    /// The number being typed to go to a message on the list, digit by digit —
+    /// the reader's `readGoto` on the other screen showing the same area, and
+    /// the same field in the same columns of the same title. Empty means
+    /// nothing is being typed, and then the title says which message of how
+    /// many as usual.
+    std::string listGoto;
 
     /// Which message stands on the top row of the reader's sidebar, counted
     /// from zero. Its own scrolling position rather than `messageOffset`: the
@@ -551,7 +557,8 @@ struct AppState {
     /// nothing is being typed, and then the reader's title shows which message
     /// of how many as usual — the field has no state of its own beyond this
     /// string, the way the area list's quick search has none beyond
-    /// `areaSearch`.
+    /// `areaSearch`. The message list types into `listGoto` above, its own
+    /// screen's.
     std::string readGoto;
 
     /// The Find dialog: what to look for and how much of a message to look in.

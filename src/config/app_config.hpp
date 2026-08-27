@@ -647,6 +647,18 @@ struct AppConfig {
     /// `areaListScrollbar` where that one is switched on.
     bool messageListScrollbar{true};
 
+    /// What Enter does to a number typed into the message list's goto field,
+    /// from `msglist_goto_field_opens`.
+    ///
+    /// On by default: the number names a message and Enter opens it, the field
+    /// being a quicker way to the message than finding its row and pressing
+    /// Enter on that. Off puts the cursor on the row and leaves the list up,
+    /// for reading around the number before opening anything — the row is then
+    /// opened by Enter on it, like any other. The reader's own field is not
+    /// asked about: there is nothing there but the message, so a number typed
+    /// into it can only mean open that one.
+    bool messageListGotoFieldOpens{true};
+
     /// The width, in columns, at which the reader puts the list of messages up
     /// its left-hand side, from `reader_sidebar_threshold`.
     ///

@@ -21,6 +21,7 @@
 #include "ui/export_mode_dialog.hpp"
 #include "ui/extern_util.hpp"
 #include "ui/find_dialog.hpp"
+#include "ui/goto_field.hpp"
 #include "ui/info_dialog.hpp"
 #include "ui/input_field.hpp"
 #include "ui/menu_button.hpp"
@@ -1411,23 +1412,6 @@ void toggleScrollbar(AppState& state) {
     relayout(state);
 }
 
-/// How many digits the goto field takes. Nine, which is more than the messages
-/// of any base ever written, and few enough that what has been typed cannot
-/// overflow the `uint32_t` a message number is — a base holding 999999999
-/// messages is not the case being guarded against here.
-constexpr size_t kGotoDigits = 9;
-
-/// The digit an event types into the goto field, if it types one. Digits and
-/// nothing else: the field is a message number, and every other key means what
-/// it means on this screen.
-std::optional<char> gotoDigit(const Event& event) {
-    if (!event.is_character() || event.input().size() != 1) return std::nullopt;
-    if (event.ctrl() || event.alt()) return std::nullopt;
-    const char c = event.input()[0];
-    if (c < '0' || c > '9') return std::nullopt;
-    return c;
-}
-
 /// Goes to the message the typed number names, and puts the title back whether
 /// or not there was one: a number naming no message is answered by the field
 /// closing on it, which is the reader saying it has nowhere to go. Nothing else
@@ -1438,10 +1422,7 @@ std::optional<char> gotoDigit(const Event& event) {
 /// for is the message shown: a twit standing there opens behind its notice
 /// rather than being walked past, the number having named it outright.
 void applyGoto(AppState& state) {
-    uint32_t number = 0;
-    for (const char digit : state.readGoto) {
-        number = number * 10 + static_cast<uint32_t>(digit - '0');
-    }
+    const uint32_t number = goto_field::numberOf(state.readGoto);
     state.readGoto.clear();
     goToMessage(state, number);
 }
@@ -1803,8 +1784,8 @@ bool handleEvent(AppState& state, const Event& event) {
     // `loadMessage()` instead, that being where every way to another message
     // goes.
     if (!state.readGoto.empty()) {
-        if (const auto digit = gotoDigit(event)) {
-            if (state.readGoto.size() < kGotoDigits) state.readGoto += *digit;
+        if (const auto digit = goto_field::digitOf(event)) {
+            if (state.readGoto.size() < goto_field::kDigits) state.readGoto += *digit;
             return true;
         }
         if (event == Event::Return) {
@@ -1943,7 +1924,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // reader can be sent anywhere by. An empty area is nowhere to go, and there
     // the digits do nothing at all.
     if (state.messageCount > 0) {
-        if (const auto digit = gotoDigit(event)) {
+        if (const auto digit = goto_field::digitOf(event)) {
             state.readGoto = std::string(1, *digit);
             return true;
         }

@@ -459,6 +459,16 @@ TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     CHECK_FALSE(loads("msglist_scrollbar 1\n"));
 }
 
+TEST_CASE("AppConfig reads what the message list's goto field does [app_config]") {
+    // The number typed there opens the message unless the config says to move
+    // the cursor and leave the list up.
+    CHECK(with("").messageListGotoFieldOpens);
+    CHECK(with("msglist_goto_field_opens on\n").messageListGotoFieldOpens);
+    CHECK_FALSE(with("msglist_goto_field_opens off\n").messageListGotoFieldOpens);
+    CHECK_FALSE(loads("msglist_goto_field_opens yes\n"));
+    CHECK_FALSE(loads("msglist_goto_field_opens\n"));
+}
+
 TEST_CASE("AppConfig reads the lastread user number [app_config]") {
     CHECK(with("").lastreadUser == 0);  // the single-user default
     CHECK(with("lastread_user 3\n").lastreadUser == 3);
