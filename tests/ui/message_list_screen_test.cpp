@@ -4,7 +4,9 @@
 #include <string>
 #include <vector>
 
+#include "app/message_builder.hpp"
 #include "domain/message.hpp"
+#include "msgbase/ftn_msgbase.hpp"
 #include "temp_squish_base.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/screens/message_list_screen.hpp"
@@ -1043,4 +1045,36 @@ TEST_CASE("The list draws the number being typed as a header block field is "
     REQUIRE(theme::palette.inputFillerShown);
     CHECK(screen.at(start + 3, 0).glyph == "_");
     CHECK(screen.at(start + 3, 0).fg == theme::palette.inputFiller);
+}
+
+TEST_CASE("Leaving an area counts what it holds now [messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const uint32_t startedWith = fixture.total();
+    // Nothing has been read here, so every message in the area is unread.
+    REQUIRE(fixture.manager.areas()[0].unread == startedWith);
+
+    // The tosser, delivering into the area between the list being built and the
+    // area being entered: a second handle on the same files, which is what the
+    // row underneath knows nothing of.
+    {
+        amberedit::msgbase::FtnMsgBase other("CP866");
+        REQUIRE(other.open(fixture.area).has_value());
+        REQUIRE(other.write(amberedit::app::copyOf(other.header(1), other.body(1),
+                                                   /*netmail=*/false))
+                    .has_value());
+        other.close();
+    }
+
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    // What the reader found on the way in — one more than the list was showing.
+    REQUIRE(fixture.state.messageCount == startedWith + 1);
+
+    message_list::leaveArea(fixture.state);
+
+    // And that is what the row says now, without every other base in the list
+    // being opened again. The first message was read on the way in, so the rest
+    // of the area — the delivered message included — stands unread.
+    CHECK(fixture.total() == startedWith + 1);
+    CHECK(fixture.manager.areas()[0].unread == startedWith);
 }

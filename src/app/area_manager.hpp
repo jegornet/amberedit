@@ -79,7 +79,9 @@ public:
 
     /// Reads one area's statistics again — the total and the unread count the
     /// area list shows — after something has changed the base under them: a
-    /// message written into it, or one taken out of it.
+    /// message written into it, one taken out of it, or a tosser delivering
+    /// into it while it was being read, which is what leaving an area asks
+    /// about.
     ///
     /// Both counts come off the base and the mark on disk rather than being
     /// adjusted by hand, so a base another program has also written to comes

@@ -318,6 +318,13 @@ tl::expected<void, ErrorPtr> enterArea(AppState& state, const domain::AreaConfig
 }
 
 void leaveArea(AppState& state) {
+    // What the area holds now, taken off the base still open on it, before that
+    // base is closed: a tosser delivering into an area while it is being read
+    // leaves the row underneath counting what was there when the list was built,
+    // and the mark has moved wherever the reading went. Both counts are read
+    // again here rather than a rescan being asked for: it is this one area's
+    // own base, and every other row stands as it was.
+    state.manager.refreshArea(state.currentArea);
     state.base = nullptr;
     state.headers.clear();
     state.headersStart = 0;
