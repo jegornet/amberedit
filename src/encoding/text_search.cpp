@@ -73,7 +73,7 @@ namespace {
 
 /// The Russian language support quirks, applied to an already lower-cased code point.
 ///
-/// A message written in CP866 may spell н, р and у with the Latin h, p and y:
+/// A message written in CP866 may spell Н, р and у with the Latin H, p and y:
 /// on a DOS screen the glyphs are the same and the keys are one layout apart, so
 /// a word typed half in each is ordinary rather than exceptional. Folding the
 /// pairs together is what lets it be found by either spelling — and it follows
@@ -81,7 +81,7 @@ namespace {
 /// being h before this is asked.
 char32_t quirked(char32_t code) {
     switch (code) {
-        case 0x043D: return U'h';  // н
+        case 0x043D: return U'h';  // Н
         case 0x0440: return U'p';  // р
         case 0x0443: return U'y';  // у
         default: return code;
