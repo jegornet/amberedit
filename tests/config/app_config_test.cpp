@@ -2560,3 +2560,33 @@ TEST_CASE("A group covers an area declared by hand like any other [app_config]")
     REQUIRE(cfg.manualAreas.size() == 1);
     CHECK(cfg.effectiveFor(cfg.manualAreas.front().area).composeCharset == "UTF-8");
 }
+
+TEST_CASE("netmail_skip_template names the robots a new netmail skips the "
+          "template for [app_config]") {
+    // The six the FTN world runs on, unless the config says otherwise.
+    const auto stock = with("");
+    CHECK(stock.netmailSkipTemplate ==
+          std::vector<std::string>{"AreaFix", "AreaMgr", "AllFix", "FileFix", "T-Fix",
+                                   "FaqServer"});
+    CHECK(stock.skipsTemplate("AreaFix"));
+    // The name however it is spelled, and whatever is around it: case is folded
+    // and the field is trimmed.
+    CHECK(stock.skipsTemplate("areafix"));
+    CHECK(stock.skipsTemplate("  FaqServer  "));
+    // The whole name and not a name holding it, or every Fixov would be a robot.
+    CHECK_FALSE(stock.skipsTemplate("AreaFixov"));
+    CHECK_FALSE(stock.skipsTemplate("Vasya Pupkin"));
+    CHECK_FALSE(stock.skipsTemplate(""));
+
+    // The line stands in place of those six rather than adding to them, and a
+    // robot with a space in its name is written in quotes.
+    const auto own = with("netmail_skip_template hpt \"Robot Fixov\"\n");
+    CHECK(own.netmailSkipTemplate == std::vector<std::string>{"hpt", "Robot Fixov"});
+    CHECK(own.skipsTemplate("robot fixov"));
+    CHECK_FALSE(own.skipsTemplate("AreaFix"));
+
+    // Which makes an empty line the way to say nobody at all.
+    const auto nobody = with("netmail_skip_template\n");
+    CHECK(nobody.netmailSkipTemplate.empty());
+    CHECK_FALSE(nobody.skipsTemplate("AreaFix"));
+}

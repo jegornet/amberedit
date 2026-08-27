@@ -1271,6 +1271,27 @@ struct AppConfig {
     /// parses a config without standing in for the machine one would run on.
     std::string templatePath;
 
+    /// The recipients a *new* netmail is written to with no template expanded
+    /// into it at all, from `netmail_skip_template`: the robots. Names, one per
+    /// word, a name with a space in it in quotes, compared case-insensitively
+    /// whole against the To name — `skipsTemplate()`.
+    ///
+    /// AreaFix and its like read the message as commands, and a template's
+    /// greeting and sign-off are lines the robot answers with complaints about
+    /// commands it does not know. So the editor opens on nothing: the text is
+    /// the user's to type, and the tearline and origin closing every message
+    /// stand under it as they always do — a robot stops reading at the tearline,
+    /// which is exactly what it is for.
+    ///
+    /// A *new* message only. A reply to a robot's answer is answering somebody
+    /// who wrote, quote and all: `@quote` is the one thing the message cannot be
+    /// written without, and the robots are the ones who wrote it.
+    ///
+    /// The six the FTN world runs on unless the config says otherwise. An empty
+    /// `netmail_skip_template` line is how a config says nobody.
+    std::vector<std::string> netmailSkipTemplate{"AreaFix", "AreaMgr", "AllFix",
+                                                 "FileFix", "T-Fix",   "FaqServer"};
+
     /// The directory the config was read from, which is where a file named
     /// without a path is looked for — the `@file` a `CC:` or an `XC:` command
     /// may name its recipients in. Empty for a config that was not read from a
@@ -1360,6 +1381,12 @@ struct AppConfig {
     /// make every macro a word nobody could write to: an `af` found in `Olaf`
     /// would address the message to the robot.
     [[nodiscard]] const AddressMacro* addressMacroFor(std::string_view typed) const;
+
+    /// Whether a new netmail to this recipient is begun with no template —
+    /// whether `netmail_skip_template` names them. The whole name, trimmed and
+    /// folded for ASCII: a robot is written to by its name and not by a name
+    /// holding it, or an `AreaFixov` would be one.
+    [[nodiscard]] bool skipsTemplate(std::string_view toName) const;
 
     /// Whether the address is one of ours — the `address` line or one of the
     /// AKAs. Compared over the four numbers only: nothing in a message base

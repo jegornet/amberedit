@@ -1141,6 +1141,12 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.templatePath = expandTilde(*read);
+    } else if (key == "netmail_skip_template") {
+        // The line stands in place of the built-in names rather than adding to
+        // them: a config that names two robots has two, and there would
+        // otherwise be no way to be rid of one. An empty line is that same
+        // statement about all six — the whole list, replaced by nothing.
+        cfg.netmailSkipTemplate = entry.values;
     } else if (key == "quote_string") {
         // One '>' and no more: it is what quote levels are counted in, so a
         // second one would send a first-level quote out looking like a
@@ -1842,6 +1848,16 @@ const AddressMacro* AppConfig::addressMacroFor(std::string_view typed) const {
         if (text::iequals(macro.macro, word)) return &macro;
     }
     return nullptr;
+}
+
+bool AppConfig::skipsTemplate(std::string_view toName) const {
+    const std::string_view name = text::trim(toName);
+    if (name.empty()) return false;
+
+    for (const auto& robot : netmailSkipTemplate) {
+        if (text::iequals(robot, name)) return true;
+    }
+    return false;
 }
 
 std::string AppConfig::labelOf(Command command) const {

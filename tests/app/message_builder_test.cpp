@@ -875,3 +875,96 @@ TEST_CASE("A message carries the settings of the area group it is written in "
     CHECK(ordinary.charset == "CP866");
     CHECK(ordinary.lines.back().find("Somewhere in the world") != std::string::npos);
 }
+
+TEST_CASE("A new netmail to a robot is begun with no template [builder]") {
+    const TempFile tpl(
+        "@quoted@oname wrote:\n"
+        "@quote\n"
+        "Hello @tname.\n"
+        "@position\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    const AreaConfig area = areaOf(AreaKind::Netmail);
+
+    ComposeFields fields = netmailFields();
+    // Written as the user typed it: the list folds case, and a robot answers to
+    // its name however it is spelled.
+    fields.toName = "areafix";
+    fields.toAddr = "2:382/736";
+
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto text = startingText(request);
+
+    // Not a template that failed: nothing was read and nothing is said.
+    CHECK(text.error.empty());
+    // A line to type the commands on, and the pair closing the message under it
+    // — a robot stops reading at the tearline, which is what it is for.
+    REQUIRE(text.lines.size() == 3);
+    CHECK(text.lines[0].empty());
+    CHECK(text.lines[1] == kTearline);
+    CHECK(text.lines[2] == kOrigin);
+    CHECK(text.cursorLine == 0);
+}
+
+TEST_CASE("Everything but a new netmail to the name keeps its template "
+          "[builder]") {
+    const TempFile tpl(
+        "@quoted@oname wrote:\n"
+        "@quote\n"
+        "Hello @tname.\n"
+        "@position\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    const AreaConfig net = areaOf(AreaKind::Netmail);
+    const AreaConfig echo = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.toName = "AreaFix";
+    fields.toAddr = "2:382/736";
+
+    const BuildRequest netmail{cfg,     net,     fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    REQUIRE(startingText(netmail).lines.size() == 3);
+
+    // A name holding one of theirs is somebody else: the whole name is what is
+    // matched, or every Fixov would be a robot.
+    ComposeFields person = fields;
+    person.toName = "AreaFixov";
+    const BuildRequest toPerson{cfg,     net,     person,     nullptr,
+                                nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto written = startingText(toPerson);
+    REQUIRE(written.lines.size() == 4);
+    CHECK(written.lines[0] == "Hello AreaFixov.");
+    CHECK(written.cursorLine == 1);
+
+    // An echo addressed to the same word is addressed to nobody in particular.
+    ComposeFields posted = fields;
+    posted.netmail = false;
+    const BuildRequest inEcho{cfg,     echo,    posted,     nullptr,
+                              nullptr, nullptr, 0x68A1B2C3, 180};
+    REQUIRE(startingText(inEcho).lines.size() == 4);
+
+    // An answer to what the robot wrote back is an answer like any other, and
+    // the quote is what the template puts in.
+    MessageHeader original;
+    original.from = "AreaFix";
+    MessageBody body;
+    body.lines = {{"OK: ru.linux", false}};
+    const BuildRequest answer{cfg,   net,     fields,     &original,
+                              &body, nullptr, 0x68A1B2C3, 180};
+    const auto reply = startingText(answer);
+    REQUIRE(reply.lines.size() == 6);
+    CHECK(reply.lines[0] == "AreaFix wrote:");
+    CHECK(reply.lines[1].find("OK: ru.linux") != std::string::npos);
+
+    // And a config naming nobody skips nothing.
+    cfg.netmailSkipTemplate.clear();
+    const BuildRequest nobody{cfg,     net,     fields,     nullptr,
+                              nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto whole = startingText(nobody);
+    REQUIRE(whole.lines.size() == 4);
+    CHECK(whole.lines[0] == "Hello AreaFix.");
+}

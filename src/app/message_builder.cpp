@@ -350,11 +350,27 @@ StartingText startingText(const BuildRequest& request) {
     StartingText out;
     const TemplateContext context = contextFor(request);
 
+    // A message begun to one of the robots `netmail_skip_template` names — the
+    // AreaFix at the uplink and its like — is begun with nothing in it: what
+    // goes to a robot is commands, and a template's greeting and sign-off are
+    // lines it answers with complaints about commands it does not know.
+    //
+    // A new netmail and nothing else. A forward carries a message and is not a
+    // message somebody typed; a reply answers what the robot wrote back, quote
+    // and all — the template is what puts the quote in, and an answer to a robot
+    // is an answer to whoever it is that wrote. The tearline and origin still
+    // close it: they are the message's, not the template's, and a robot stops
+    // reading at the tearline, which is what a tearline is for.
+    const bool robot = context.isNet && context.isNew && !context.isForward &&
+                       request.config.skipsTemplate(request.fields.toName);
+
     std::string templateText;
     bool haveTemplate = true;
-    if (request.config.templatePath.empty()) {
-        // No template configured: a reply still opens on the quote, which is
-        // the one thing it cannot be written without.
+    if (robot || request.config.templatePath.empty()) {
+        // A robot was never asked for one, and a config may name none. Neither
+        // is a template that failed, so neither has anything to say out loud;
+        // and a reply still opens on the quote, which is the one thing it
+        // cannot be written without.
         haveTemplate = false;
     } else if (const auto read = config::text::readFile(request.config.templatePath)) {
         templateText = *read;

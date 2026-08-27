@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <ctime>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -545,6 +546,38 @@ TEST_CASE(
     fixture.walkToText();
     CHECK(textHas(state, "(2:5020/2)"));
     CHECK(textHas(state, "!"));
+}
+
+TEST_CASE("A netmail to a robot loses its template on the way down [compose]") {
+    const amberedit::test::TempDir dir;
+    const std::string tpl = dir.path("msg.tpl");
+    {
+        std::ofstream out(tpl);
+        out << "Hello @tname.\n@position\n";
+    }
+
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    fixture.config.templatePath = tpl;
+    auto& state = fixture.state;
+
+    // Begun with nobody named, which is how a new netmail begins: the template
+    // is expanded over a To name the user has yet to type.
+    compose::startNew(state);
+    REQUIRE(textHas(state, "Hello"));
+
+    // And then they type the robot's name. Leaving the header is where that is
+    // known, so what the template made of the message goes: what a robot reads
+    // is commands, and nothing else is left in front of them.
+    state.compose.toName = "areafix";
+    state.compose.toAddr = "2:5020/1";
+    fixture.walkToText();
+    CHECK_FALSE(textHas(state, "Hello"));
+    // The pair closing the message stays: it is the message's and not the
+    // template's, and a robot stops reading at the tearline.
+    CHECK(textHas(state, " * Origin:"));
+    REQUIRE(state.edit.lines.size() == 3);
+    CHECK(state.edit.lines[0].empty());
+    CHECK(state.edit.row == 0);
 }
 
 TEST_CASE(

@@ -1207,6 +1207,19 @@ decides what an occurrence is.
   nothing to rebuild, and rebuilding would throw away where the user had scrolled
   to) and the text still equals `composeStartText` (one character typed makes the
   message the user's, and it is never rewritten after that).
+- **A new netmail to a robot is begun with no template at all.**
+  `netmail_skip_template` names them — AreaFix, AreaMgr, AllFix, FileFix, T-Fix
+  and FaqServer unless the config says otherwise — and `startingText()` asks
+  `AppConfig::skipsTemplate()` about the To name, whole and case-folded, before
+  it reads the template file. What a robot is sent is commands, and a template's
+  greeting and sign-off come back as complaints about commands it does not know.
+  A **new netmail and nothing else**: a forward carries somebody's message and a
+  reply carries the quote, which is what the template puts in. The tearline and
+  the origin still close it — `closeMessage()` is about the message and not
+  about the template, and a robot stops reading at the tearline. Because
+  `refreshTemplate()` expands again when the header changes, typing the name (or
+  an `address_macro` that fills it in) into a message already opened on the
+  template empties it on the way down into the text.
 - **The addresses are checked when the message is stored, not when the header is
   left.** `addressesReady()` wants the sender's always — it is what the MSGID is
   made of — and the recipient's in netmail. Missing and malformed are one case

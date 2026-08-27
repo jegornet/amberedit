@@ -974,6 +974,10 @@ template_time_format "%H:%M"
 # per area in a group block.
 template /usr/share/amberedit/default.tpl
 
+# Skip template for the robots (new netmails only)
+# Default: AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
+#netmail_skip_template AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
+
 # What a quoted line is prefixed with. Optional; " FL> " by default, which is
 # GoldED's — the letters before the ">" stand for the initials of whoever is
 # being quoted. Exactly one ">" is required: that character is what quote levels
