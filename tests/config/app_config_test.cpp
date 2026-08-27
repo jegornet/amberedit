@@ -533,6 +533,37 @@ TEST_CASE("AppConfig reads the back button setting [app_config]") {
     CHECK_FALSE(loads("back_button adaptive\n"));
 }
 
+TEST_CASE("AppConfig reads how tall a dialog's buttons stand [app_config]") {
+    using amberedit::config::Visibility;
+
+    // The window decides unless the config says otherwise, as it does for the
+    // back button: a narrow window is the one being pointed at with a finger,
+    // and a finger wants more than one row to land on.
+    CHECK(with("").dialogTallButtons == Visibility::WhenNarrow);
+    CHECK(with("dialog_tall_buttons on\n").dialogTallButtons == Visibility::On);
+    CHECK(with("dialog_tall_buttons off\n").dialogTallButtons == Visibility::Off);
+    CHECK(with("dialog_tall_buttons when_narrow\n").dialogTallButtons ==
+          Visibility::WhenNarrow);
+    CHECK(with("dialog_tall_buttons when_wide\n").dialogTallButtons ==
+          Visibility::WhenWide);
+    // The key is read case-folded, as every key and every one of these words is.
+    CHECK(with("dialog_tall_buttons WHEN_WIDE\n").dialogTallButtons ==
+          Visibility::WhenWide);
+
+    // What is refused says which four words it wanted, so that a config with
+    // `tall` or `3` in it is answered with the answer rather than with a No.
+    const std::string wrong = errorWith("dialog_tall_buttons tall\n");
+    CHECK(wrong.find("when_narrow") != std::string::npos);
+    CHECK(wrong.find("when_wide") != std::string::npos);
+
+    CHECK_FALSE(loads("dialog_tall_buttons 3\n"));
+    CHECK_FALSE(loads("dialog_tall_buttons\n"));
+    CHECK_FALSE(loads("dialog_tall_buttons on off\n"));
+    // Set twice is a config whose author meant one of the two and cannot be
+    // asked which: it is not a repeatable setting.
+    CHECK_FALSE(loads("dialog_tall_buttons on\ndialog_tall_buttons off\n"));
+}
+
 TEST_CASE("AppConfig reads whether the header block carries the Recd row "
           "[app_config]") {
     using amberedit::config::Visibility;

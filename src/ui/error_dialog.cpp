@@ -25,11 +25,8 @@ constexpr int kLineWidth = 56;
 /// there is no choice to make, only something to acknowledge. `pressed` is a
 /// click on it being shown before it is acted on, exactly as the confirmation
 /// shows one.
-Element button(bool pressed) {
-    auto element = text(i18n::format("  {0}  ", {_("OK")}));
-    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
-    return std::move(element) | bold | color(theme::palette.selectionText) |
-           bgcolor(theme::palette.selection);
+Element button(bool pressed, bool tall) {
+    return dialog::button(_("OK"), /*selected=*/true, pressed, tall);
 }
 
 }  // namespace
@@ -45,7 +42,8 @@ Element render(AppState& state, Element background) {
         content.push_back(text(padRight(line, width)) | color(theme::palette.error));
     }
     content.push_back(text(""));
-    Element ok = button(state.isPressed(AppState::Pressed::ErrorOk));
+    Element ok = button(state.isPressed(AppState::Pressed::ErrorOk),
+                        state.dialogTallButtons());
     content.push_back(std::move(ok) | reflect(state.errorOkBox) | center);
     content.push_back(text(""));
     content.push_back(text(_("Enter · Esc")) | color(theme::palette.dialogHint) | center);

@@ -129,19 +129,18 @@ Element checkbox(const Attribute& attribute, uint32_t attributes, bool current) 
     return std::move(cell) | color(theme::palette.dialogHint);
 }
 
-/// What the button that closes the dialog says, and how wide that leaves it —
-/// measured rather than counted, so the two cannot drift apart.
+/// What the button that closes the dialog says. The bare word: the spaces
+/// either side of it, or the frame in their place, are `dialog::button()`'s,
+/// and `dialog::buttonWidth()` is what the row below is centred by, so the two
+/// cannot drift apart.
 std::string doneLabel() {
-    return i18n::format("  {0}  ", {_("Done")});
+    return _("Done");
 }
 
 /// The button itself. Drawn selected, as the only thing Enter could mean here,
 /// and lit for the length of a click on it.
-Element doneButton(bool pressed) {
-    auto label = text(doneLabel());
-    if (pressed) label = std::move(label) | color(theme::palette.dialogFlash);
-    return std::move(label) | bold | color(theme::palette.selectionText) |
-           bgcolor(theme::palette.selection);
+Element doneButton(bool pressed, bool tall) {
+    return dialog::button(doneLabel(), /*selected=*/true, pressed, tall);
 }
 
 /// The top of the frame, with the title in the middle of it — the same bar the
@@ -221,15 +220,19 @@ Element render(AppState& state, Element background) {
     }
 
     rows.push_back(centred("", inner, theme::palette.dialogText));
+    const bool tall = state.dialogTallButtons();
     const Element button =
-        doneButton(state.isPressed(AppState::Pressed::AttributesDone)) |
+        doneButton(state.isPressed(AppState::Pressed::AttributesDone), tall) |
         reflect(picker.doneBox);
-    const int buttonWidth = displayWidth(doneLabel());
+    const int buttonWidth = dialog::buttonWidth(doneLabel(), tall);
     const int left = std::max(0, (inner - buttonWidth) / 2);
-    rows.push_back(framed(
+    // dialog::framed() rather than the local one: the sides have to be drawn
+    // down every row of a button that stands more than one tall.
+    rows.push_back(dialog::framed(
         hbox({text(std::string(static_cast<size_t>(left), ' ')), button,
               text(std::string(
-                  static_cast<size_t>(std::max(0, inner - left - buttonWidth)), ' '))})));
+                  static_cast<size_t>(std::max(0, inner - left - buttonWidth)), ' '))}),
+        dialog::buttonRows(tall)));
     rows.push_back(centred(_("space toggle · ctrl-z clear · enter done · esc cancel"),
                            inner, theme::palette.dialogHint));
     rows.push_back(text("╰" + horizontalRule(inner) + "╯") |

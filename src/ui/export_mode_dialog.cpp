@@ -42,21 +42,6 @@ int indexOf(Mode mode) {
     return mode == Mode::Uue ? 0 : 1;
 }
 
-/// One of the two answers, drawn as the forward dialog's three are — the same
-/// fill under whatever Enter would act on, and the same color under a click
-/// being shown before it acts.
-Element button(const std::string& label, bool selected, bool pressed) {
-    auto element = text("  " + label + "  ");
-    // Innermost, so that it is the color that lands: a parent paints its whole
-    // box and the child paints over it.
-    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
-    if (selected) {
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
-    }
-    return std::move(element) | color(theme::palette.dialogText);
-}
-
 void step(AppState::ExportModePicker& picker, int delta) {
     const int next = (indexOf(picker.mode) + delta + kModeCount) % kModeCount;
     picker.mode = kModes[next];
@@ -122,12 +107,14 @@ Element render(AppState& state, Element background) {
     }
     rows.push_back(text(""));
 
+    const bool tall = state.dialogTallButtons();
     const auto answer = [&](const std::string& label, Mode mode, term::Box& box) {
         // reflect() writes back where the button landed once the box has been
         // centred, which is what handleEvent() hit-tests a click on.
-        return button(label, picker.mode == mode,
-                      state.isPressed(AppState::Pressed::ExportChoice,
-                                      static_cast<uint32_t>(indexOf(mode)))) |
+        return dialog::button(label, picker.mode == mode,
+                              state.isPressed(AppState::Pressed::ExportChoice,
+                                              static_cast<uint32_t>(indexOf(mode))),
+                              tall) |
                reflect(box);
     };
     rows.push_back(hbox({

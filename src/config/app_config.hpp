@@ -1142,6 +1142,24 @@ struct AppConfig {
     /// other label in the interface is.
     int menuButtonsWidth{22};
 
+    /// Whether a button in a dialog stands in a frame, three rows tall, from
+    /// `dialog_tall_buttons`. `when_narrow` unless the config says otherwise,
+    /// and read against `adaptive_ui_threshold` like everything else adaptive.
+    ///
+    /// A one-row button is a word with two spaces either side of it, and on a
+    /// touch screen it is a target one row tall: the narrow window is exactly
+    /// the window being pointed at with a finger rather than a mouse. The frame
+    /// is what the menu's buttons and the editor's delete-line button already
+    /// stand in, so a dialog that takes it up is following the interface rather
+    /// than growing a shape of its own.
+    ///
+    /// The context menu is not answered by this and neither is the setup
+    /// wizard: the menu's buttons are framed whatever this says — a column of
+    /// frames that meet is what makes it read as a list rather than as a heap of
+    /// words — and the wizard writes the first config, so at the moment it is on
+    /// the screen there is no setting for it to read.
+    Visibility dialogTallButtons{Visibility::WhenNarrow};
+
     /// How long a click is shown before it is acted on, in milliseconds — the
     /// button under the pointer drawn inverted, the row under it drawn as the
     /// current one. 100ms by default, which is long enough to be seen and short

@@ -14,24 +14,6 @@ using namespace term;
 
 namespace {
 
-/// One of the two answers. `pressed` is a click on it being shown before it is
-/// acted on — the label in the theme's `dialog_flash` for the length of
-/// the click animation, whichever of the two it is and whether or not it was
-/// the selected one.
-Element button(const std::string& label, bool selected, bool pressed) {
-    auto element = text("  " + label + "  ");
-    // Innermost, so that it is the color that lands: a parent paints its whole
-    // box and the child paints over it, which is what the fill below relies on.
-    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
-    if (selected) {
-        // The same fill as the current row in the lists: one color for
-        // whatever Enter would act on, wherever the user is.
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
-    }
-    return std::move(element) | color(theme::palette.dialogText);
-}
-
 /// What each confirmation asks. One dialog serves them all: three of these
 /// would be three copies of the same buttons and the same hit-testing.
 std::string question(AppState::Confirm confirm) {
@@ -77,15 +59,18 @@ void step(AppState& state) {
 
 Element render(AppState& state, Element background) {
     const Answers answers = answersTo(state.confirm);
+    const bool tall = state.dialogTallButtons();
     Elements buttons{
         // reflect() writes back where each button landed once the box has
-        // been centred, which is what handleEvent() hit-tests a click on.
-        button(answers.yes, state.confirmChoice == AppState::ConfirmChoice::Yes,
-               state.isPressed(AppState::Pressed::ConfirmYes)) |
+        // been centred, which is what handleEvent() hit-tests a click on —
+        // three rows of it where the buttons are framed, since the box a
+        // button was drawn in is the box the click is measured against.
+        dialog::button(answers.yes, state.confirmChoice == AppState::ConfirmChoice::Yes,
+                       state.isPressed(AppState::Pressed::ConfirmYes), tall) |
             reflect(state.confirmYesBox),
         text("   "),
-        button(answers.no, state.confirmChoice == AppState::ConfirmChoice::No,
-               state.isPressed(AppState::Pressed::ConfirmNo)) |
+        dialog::button(answers.no, state.confirmChoice == AppState::ConfirmChoice::No,
+                       state.isPressed(AppState::Pressed::ConfirmNo), tall) |
             reflect(state.confirmNoBox),
     };
 

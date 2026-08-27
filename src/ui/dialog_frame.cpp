@@ -82,9 +82,52 @@ Element surface(Element box) {
                   theme::palette.dialogShadow, kShadowRight, kShadowDown);
 }
 
-Element framed(Element content) {
-    const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
+Element framed(Element content, int rows) {
+    // A side per row rather than one side stretched: text() paints its top row
+    // and leaves the rest of the box it was given alone, so a lone │ beside a
+    // button three rows tall would draw a frame with two rows missing out of it.
+    const auto side = [rows]() -> Element {
+        if (rows <= 1) return text("│") | color(theme::palette.dialogBorder);
+        Elements column;
+        column.reserve(static_cast<size_t>(rows));
+        for (int i = 0; i < rows; ++i) column.push_back(text("│"));
+        return vbox(std::move(column)) | color(theme::palette.dialogBorder);
+    };
     return hbox({side(), std::move(content), side()});
+}
+
+int buttonRows(bool tall) {
+    return tall ? 3 : 1;
+}
+
+int buttonWidth(const std::string& label, bool tall) {
+    // The same number either way, and deliberately: framed, the two columns the
+    // frame takes are the two the wider padding takes without it. A box that
+    // centres its button by measuring therefore puts it on the same column
+    // whichever shape the button is drawn in, and nothing shifts under the user
+    // as a window is dragged past the threshold.
+    (void)tall;
+    return displayWidth(label) + 4;
+}
+
+Element button(const std::string& label, bool selected, bool pressed, bool tall) {
+    const int inner = displayWidth(label) + 2;
+    Element element = tall ? vbox({text("┌" + rule(inner) + "┐"),
+                                   text("│ " + label + " │"),
+                                   text("└" + rule(inner) + "┘")})
+                           : text("  " + label + "  ");
+
+    // Innermost, so that it is the color that lands: a parent paints its whole
+    // box and the child paints over it, which is what the fill below relies on.
+    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
+    if (selected) {
+        // The same fill as the current row in the lists: one color for whatever
+        // Enter would act on, wherever the user is — frame and all, so that a
+        // button is picked out from across the box.
+        return std::move(element) | bold | color(theme::palette.selectionText) |
+               bgcolor(theme::palette.selection);
+    }
+    return std::move(element) | color(theme::palette.dialogText);
 }
 
 Element divider(int width) {

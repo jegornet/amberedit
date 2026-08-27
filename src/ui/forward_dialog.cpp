@@ -32,21 +32,6 @@ int indexOf(Mode mode) {
     return 0;  // unreachable; a Mode is one of the three
 }
 
-/// One of the three answers, drawn as the confirmation's are — the same fill
-/// under whatever Enter would act on, and the same color under a click being
-/// shown before it acts.
-Element button(const std::string& label, bool selected, bool pressed) {
-    auto element = text("  " + label + "  ");
-    // Innermost, so that it is the color that lands: a parent paints its whole
-    // box and the child paints over it.
-    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
-    if (selected) {
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
-    }
-    return std::move(element) | color(theme::palette.dialogText);
-}
-
 /// Moves the selection along the row, stopping at neither end: three answers
 /// side by side are a ring, and a user holding → is asking for the next one.
 void step(AppState::ForwardPicker& picker, int delta) {
@@ -74,12 +59,14 @@ std::optional<Mode> modeFor(const Event& event) {
 Element render(AppState& state, Element background) {
     AppState::ForwardPicker& picker = *state.forwardPicker;
 
+    const bool tall = state.dialogTallButtons();
     const auto answer = [&](const std::string& label, Mode mode, term::Box& box) {
         // reflect() writes back where the button landed once the box has been
         // centred, which is what handleEvent() hit-tests a click on.
-        return button(label, picker.mode == mode,
-                      state.isPressed(AppState::Pressed::ForwardChoice,
-                                      static_cast<uint32_t>(indexOf(mode)))) |
+        return dialog::button(label, picker.mode == mode,
+                              state.isPressed(AppState::Pressed::ForwardChoice,
+                                              static_cast<uint32_t>(indexOf(mode))),
+                              tall) |
                reflect(box);
     };
 

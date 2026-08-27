@@ -50,7 +50,32 @@ namespace amberedit::ui::dialog {
 [[nodiscard]] term::Element surface(term::Element box);
 
 /// One row of the box: the sides, and `content` between them.
-[[nodiscard]] term::Element framed(term::Element content);
+///
+/// `rows` is how tall `content` stands, and the sides are drawn down all of it.
+/// A side is a `text()`, and a `text()` paints its top row and no other, so a
+/// single `│` beside a button three rows tall would leave the frame open on the
+/// two under it.
+[[nodiscard]] term::Element framed(term::Element content, int rows = 1);
+
+/// How tall a button stands: one row, or three where it is drawn in a frame.
+/// What `dialog_tall_buttons` comes to, for the boxes that count their own rows.
+[[nodiscard]] int buttonRows(bool tall);
+
+/// How wide a button with `label` on it stands, frame included — for the boxes
+/// that centre a button by measuring it rather than with a `filler()`.
+[[nodiscard]] int buttonWidth(const std::string& label, bool tall);
+
+/// A button: `label` with a space either side of it, and a frame round the two
+/// where `tall` says so — the frame the menu's buttons and the editor's
+/// delete-line button already stand in.
+///
+/// `selected` is whatever Enter would act on, drawn in the fill every list gives
+/// its current row so that one color means one thing wherever the user is.
+/// `pressed` is a click being shown before it acts, in `dialog_flash`, whether
+/// or not the button was the selected one. Both land on the whole of the button,
+/// frame and all: what the cursor is on has to be visible from across the box.
+[[nodiscard]] term::Element button(const std::string& label, bool selected, bool pressed,
+                                   bool tall);
 
 /// A rule across the box, marking one part of it off from the next.
 [[nodiscard]] term::Element divider(int width);

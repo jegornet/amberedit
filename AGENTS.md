@@ -2372,9 +2372,26 @@ taking a row.
   (`wideWindow()`, `AppState::shown()`) rather than settled at startup, because a
   window can be dragged and the config is read off `AppState::config` each time.
   Every `config::Visibility` setting — `menu_button`, `back_button`,
-  `show_recd_date` — is answered by `AppState::shown()`, the one place that reads
-  a `when_narrow` / `when_wide` from either side. Write the width as the setting,
-  never as a literal 80.
+  `show_recd_date`, `dialog_tall_buttons` — is answered by `AppState::shown()`,
+  the one place that reads a `when_narrow` / `when_wide` from either side. Write
+  the width as the setting, never as a literal 80.
+- **A button in a dialog is `dialog::button()` and nothing else**, and
+  `dialog_tall_buttons` is how tall it stands: one row, or three in a frame.
+  Both shapes are the same width — the frame takes the two columns the wider
+  padding takes without it — so a box that centres a button by measuring puts it
+  on the same column either way. A box that counts its own rows counts them with
+  `dialog::buttonRows()`; `export_dialog`'s `belowRows()` is the only one that
+  does. Nothing hit-tests a height: every button is `reflect()`ed, so the box a
+  click is measured against is the box the button was drawn in.
+  **`dialog::framed()` takes the button's height** where it wraps one — a
+  `text()` paints its top row and no other, so a lone `│` beside a framed button
+  would leave the frame open on the two rows under it.
+  - **The context menu does not ask and neither does the wizard.** The menu's
+    buttons are framed whatever the setting says: a column of frames that meet is
+    what makes it read as a list rather than as a heap of words. `--setup` writes
+    the first config, so at the moment it is on the screen there is no setting for
+    it to read, and a wizard that guessed one off the window would hand the user a
+    shape they cannot then turn off.
 - **`reader_sidebar_threshold` is a second line and deliberately so.**
   `adaptive_ui_threshold` is where the interface stops laying things side by side;
   the reader's sidebar is a whole panel rather than a column, and wants a window

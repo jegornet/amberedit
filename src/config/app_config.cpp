@@ -1111,6 +1111,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.numberIn(4, 100);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.menuButtonsWidth = static_cast<int>(*read);
+    } else if (key == "dialog_tall_buttons") {
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.dialogTallButtons = *read;
     } else if (key == "click_animation_ms") {
         // Zero is meaningful — it is how the animation is turned off — and
         // the ceiling is a second, past which a click stops reading as

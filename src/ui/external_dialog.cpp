@@ -34,21 +34,6 @@ int indexOf(Answer answer) {
     return 0;  // unreachable; an Answer is one of the four
 }
 
-/// One of the four, drawn as the forward box draws its three — the same fill
-/// under whatever Enter would act on, and the same color under a click being
-/// shown before it acts.
-Element button(const std::string& label, bool selected, bool pressed) {
-    auto element = text("  " + label + "  ");
-    // Innermost, so that it is the color that lands: a parent paints its whole
-    // box and the child paints over it.
-    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
-    if (selected) {
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
-    }
-    return std::move(element) | color(theme::palette.dialogText);
-}
-
 /// Moves the selection along the row, stopping at neither end: four answers
 /// side by side are a ring, and a user holding → is asking for the next one.
 void step(AppState::ExternalReview& review, int delta) {
@@ -73,12 +58,14 @@ std::optional<Answer> answerFor(const Event& event) {
 Element render(AppState& state, Element background) {
     AppState::ExternalReview& review = *state.externalReview;
 
+    const bool tall = state.dialogTallButtons();
     const auto choice = [&](const std::string& label, Answer answer, term::Box& box) {
         // reflect() writes back where the button landed once the box has been
         // centred, which is what handleEvent() hit-tests a click on.
-        return button(label, review.answer == answer,
-                      state.isPressed(AppState::Pressed::ExternalChoice,
-                                      static_cast<uint32_t>(indexOf(answer)))) |
+        return dialog::button(label, review.answer == answer,
+                              state.isPressed(AppState::Pressed::ExternalChoice,
+                                              static_cast<uint32_t>(indexOf(answer))),
+                              tall) |
                reflect(box);
     };
 

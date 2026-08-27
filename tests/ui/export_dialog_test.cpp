@@ -504,6 +504,48 @@ TEST_CASE("The export dialog lists the files it is to write [export_dialog][uue]
     CHECK(fixture.state.exportPicker->focus == AppState::ExportPicker::Focus::Name);
 }
 
+TEST_CASE("A tall Save button takes its rows out of the listing "
+          "[export_dialog][uue]") {
+    ExportFixture fixture;
+    // The one box whose own arithmetic the button's height reaches: the listing
+    // gives up the rows the button takes, or the names run past the rule that
+    // closes the box.
+    fixture.config.dialogTallButtons = amberedit::config::Visibility::On;
+    std::vector<UueFile> files;
+    files.reserve(9);
+    for (int i = 0; i < 9; ++i) {
+        files.push_back(UueFile{"part" + std::to_string(i) + ".zip", "x"});
+    }
+    export_dialog::open(fixture.state, files);
+
+    const auto frame = fixture.draw();
+    // Three rows of button between the last name and the bottom rule, and the
+    // frame is drawn down all three rather than on the first of them.
+    const std::string names = fixture.rowText(frame.bottom - 4);
+    CHECK_MESSAGE(contains(names, "… and 5 more"), names);
+    const std::string top = fixture.rowText(frame.bottom - 3);
+    CHECK_MESSAGE(contains(top, "┌"), top);
+    const std::string middle = fixture.rowText(frame.bottom - 2);
+    CHECK_MESSAGE(contains(middle, "Save"), middle);
+    const std::string bottom = fixture.rowText(frame.bottom - 1);
+    CHECK_MESSAGE(contains(bottom, "└"), bottom);
+    // Every one of the three stands inside the box's own sides: a lone │ beside
+    // a button three rows tall would leave the frame open on two of them.
+    CHECK(top.at(static_cast<size_t>(frame.left)) == middle.at(
+              static_cast<size_t>(frame.left)));
+    CHECK(bottom.at(static_cast<size_t>(frame.left)) == middle.at(
+              static_cast<size_t>(frame.left)));
+
+    // A click lands on the button wherever on it the pointer came down: the
+    // button is reflect()ed, so the box hit-tested is the box drawn.
+    const amberedit::ui::term::Box& where = fixture.state.exportPicker->nameBox;
+    CHECK(where.y_max - where.y_min + 1 == 3);
+    CHECK(fixture.answer(clickAt(where.x_min, where.y_max)) ==
+          export_dialog::Outcome::Written);
+    CHECK(std::filesystem::exists(std::filesystem::path(fixture.state.exportDirectory) /
+                                  "part0.zip"));
+}
+
 TEST_CASE("A decoded file is written over nothing [export_dialog][uue]") {
     ExportFixture fixture;
     fixture.write("report.zip", "something of the user's own");

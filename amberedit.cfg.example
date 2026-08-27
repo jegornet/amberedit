@@ -826,6 +826,24 @@ menu_button when_narrow
 # left for it is cut, as every other label in the interface is.
 menu_buttons_width 22
 
+# Whether a button in a dialog stands in a frame, three rows tall instead of one.
+# Optional; "when_narrow" by default, the same four values as back_button and the
+# same line they are read against.
+#   on           always, whatever the window is
+#   off          never — a button is a word with a space either side of it
+#   when_narrow  only where the window is narrower than adaptive_ui_threshold
+#   when_wide    the other way round: only at that width and over
+#
+# A one-row button is a target one row tall, and a narrow window is the window
+# being pointed at with a finger rather than with a mouse. The button is the same
+# width either way: the frame takes the two columns the wider padding takes
+# without it, so nothing shifts sideways as a window is dragged past the line.
+#
+# This doesn't affect the context menu — its buttons are framed whatever this
+# says, a column of frames that meet being what makes it read as a list — and
+# neither is the setup wizard, which is on the screen before there is a config.
+dialog_tall_buttons when_narrow
+
 # How long a click is shown before it acts, in milliseconds. Optional; 100 by
 # default, 0 turning the animation off. A click on a button draws it in the
 # theme's animated_button_text color for that long — dialog_flash where the

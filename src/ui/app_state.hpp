@@ -1602,6 +1602,16 @@ struct AppState {
         return !externalEditing() && shown(config.composeDeleteLineButton);
     }
 
+    /// Whether a button in a dialog stands in a frame three rows tall, from
+    /// `dialog_tall_buttons` — asked on every frame like every other
+    /// `Visibility`, since a window can be dragged past the threshold while a
+    /// box is up and the box has to follow it.
+    ///
+    /// The context menu does not ask: its buttons are framed whatever this
+    /// says. Neither does the setup wizard, which is on the screen before there
+    /// is a config to read.
+    [[nodiscard]] bool dialogTallButtons() const { return shown(config.dialogTallButtons); }
+
     /// Whether the message is written in a program of the user's own rather
     /// than in AmberEdit — `external_editor` naming one.
     ///

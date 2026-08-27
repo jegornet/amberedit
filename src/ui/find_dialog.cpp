@@ -61,8 +61,10 @@ const char* bothLabel() {
 const char* headerLabel() {
     return _("Header only");
 }
+/// The bare word: the spaces either side of it, or the frame in their place,
+/// are `dialog::button()`'s.
 std::string findLabel() {
-    return i18n::format("  {0}  ", {_("Find")});
+    return _("Find");
 }
 
 /// The two answers in the order they are drawn and stepped through.
@@ -119,23 +121,17 @@ Element radio(const std::string& label, bool chosen, bool current, int inner) {
 /// measured rather than centred by a filler, since every row here is as wide as
 /// it is written and one narrower than the rest would take the frame in with it.
 Element findButton(const AppState& state, Picker& picker, int inner) {
-    auto element = text(findLabel());
-    // Innermost, so that it is the color that lands: a parent paints its whole
-    // box and the child paints over it.
-    if (state.isPressed(AppState::Pressed::FindButton)) {
-        element = std::move(element) | color(theme::palette.dialogFlash);
-    }
-    element = picker.focus == Focus::Button
-                  ? std::move(element) | bold | color(theme::palette.selectionText) |
-                        bgcolor(theme::palette.selection)
-                  : std::move(element) | color(theme::palette.dialogText);
+    const bool tall = state.dialogTallButtons();
+    Element element =
+        dialog::button(findLabel(), picker.focus == Focus::Button,
+                       state.isPressed(AppState::Pressed::FindButton), tall);
 
-    const int spare = std::max(0, inner - displayWidth(findLabel()));
+    const int spare = std::max(0, inner - dialog::buttonWidth(findLabel(), tall));
     const int left = spare / 2;
-    return dialog::framed(
-        hbox({text(std::string(static_cast<size_t>(left), ' ')),
-              std::move(element) | reflect(picker.findBox),
-              text(std::string(static_cast<size_t>(spare - left), ' '))}));
+    return dialog::framed(hbox({text(std::string(static_cast<size_t>(left), ' ')),
+                                std::move(element) | reflect(picker.findBox),
+                                text(std::string(static_cast<size_t>(spare - left), ' '))}),
+                          dialog::buttonRows(tall));
 }
 
 /// Moves the answer along, stopping at neither end: two answers one under the

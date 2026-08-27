@@ -77,9 +77,10 @@ const char* filesLabel() {
     return _(" Files: ");
 }
 /// The button that writes them, which is what the ring stops on where a text
-/// export stops on the box its name is typed into.
+/// export stops on the box its name is typed into. The bare word: the spaces
+/// either side of it, or the frame in their place, are `dialog::button()`'s.
 std::string saveLabel() {
-    return i18n::format("  {0}  ", {_("Save")});
+    return _("Save");
 }
 /// What a path that is not there is answered with.
 const char* notFound() {
@@ -106,8 +107,12 @@ int nameRows(const Picker& picker) {
 
 /// Rows between the last rule and the bottom of the frame: the box a name is
 /// typed into, or the names listed and the button that writes them.
-int belowRows(const Picker& picker) {
-    return writingFiles(picker) ? nameRows(picker) + 1 : 1;
+///
+/// `tall` is `dialog_tall_buttons`, and only the files mode reads it — the one
+/// row a text export keeps here is the box its name is typed into, which is a
+/// field and not a button.
+int belowRows(const Picker& picker, bool tall) {
+    return writingFiles(picker) ? nameRows(picker) + dialog::buttonRows(tall) : 1;
 }
 
 /// Settles how big the box is, once — and again only where the window has
@@ -121,8 +126,12 @@ void fitBox(const AppState& state, Picker& picker) {
     picker.layoutWidth = state.width;
     picker.layoutHeight = state.height;
     picker.inner = std::min(kInnerWidth, std::max(kMinInner, state.width - kFrame));
-    picker.rows =
-        std::max(1, state.height - kChromeRows - kWindowMargin - (belowRows(picker) - 1));
+    // The window is the whole of the cache key, `dialog_tall_buttons` included:
+    // the setting is read off a config that does not change while the program
+    // runs, and where it is `when_narrow` or `when_wide` it is the width above
+    // that answers it.
+    picker.rows = std::max(1, state.height - kChromeRows - kWindowMargin -
+                                  (belowRows(picker, state.dialogTallButtons()) - 1));
 }
 
 /// The row as it is written. Everything in the listing is a directory, so the
@@ -346,33 +355,20 @@ Element box(const std::string& value, size_t cursor, int width, bool focused,
            reflect(where);
 }
 
-/// One of the question's two answers, drawn as the forward dialog's three are —
-/// the same fill under whatever Enter would act on, and the same color under a
-/// click being shown before it acts.
-Element answerButton(const std::string& label, bool selected, bool pressed) {
-    auto element = text("  " + label + "  ");
-    // Innermost, so that it is the color that lands: a parent paints its whole
-    // box and the child paints over it.
-    if (pressed) element = std::move(element) | color(theme::palette.dialogFlash);
-    if (selected) {
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
-    }
-    return std::move(element) | color(theme::palette.dialogText);
-}
-
 /// The question a file already there raises, drawn over the box that raised it:
 /// the export dialog is still the screen, and the name being asked about is
 /// standing in it.
 Element existingQuestion(AppState& state, Picker& picker) {
     Picker::Existing& existing = *picker.existing;
 
+    const bool tall = state.dialogTallButtons();
     const auto answer = [&](const std::string& label, Answer which, term::Box& where) {
         // reflect() writes back where the button landed once the box has been
         // centred, which is what handleEvent() hit-tests a click on.
-        return answerButton(label, existing.answer == which,
-                            state.isPressed(AppState::Pressed::ExistingChoice,
-                                            static_cast<uint32_t>(which))) |
+        return dialog::button(label, existing.answer == which,
+                              state.isPressed(AppState::Pressed::ExistingChoice,
+                                              static_cast<uint32_t>(which)),
+                              tall) |
                reflect(where);
     };
 
@@ -740,23 +736,21 @@ Element render(AppState& state, Element background) {
         // The button that writes them, which is the ring's third stop where a
         // text export has its name box: something has to take the Enter, and a
         // label cannot.
-        Element save = text(saveLabel());
-        if (state.isPressed(AppState::Pressed::ExportSave)) {
-            save = std::move(save) | color(theme::palette.dialogFlash);
-        }
-        save = picker.focus == Focus::Name
-                   ? std::move(save) | bold | color(theme::palette.selectionText) |
-                         bgcolor(theme::palette.selection)
-                   : std::move(save) | color(theme::palette.dialogText);
+        const bool tall = state.dialogTallButtons();
+        Element save = dialog::button(saveLabel(), picker.focus == Focus::Name,
+                                      state.isPressed(AppState::Pressed::ExportSave),
+                                      tall);
 
         // Centred by measuring rather than by a filler: a row of this box is as
         // wide as it is written, and a row narrower than the rest would take the
-        // frame in with it.
-        const int spare = std::max(0, inner - displayWidth(saveLabel()));
+        // frame in with it. The spacers either side are one row of the button's
+        // own height — blanks, which the dialog's fill has already painted.
+        const int spare = std::max(0, inner - dialog::buttonWidth(saveLabel(), tall));
         lines.push_back(dialog::framed(
             hbox({text(std::string(static_cast<size_t>(spare / 2), ' ')),
                   std::move(save) | reflect(picker.nameBox),
-                  text(std::string(static_cast<size_t>(spare - (spare / 2)), ' '))})));
+                  text(std::string(static_cast<size_t>(spare - (spare / 2)), ' '))}),
+            dialog::buttonRows(tall)));
     } else {
         // The name it goes under. A file already there is added to, not written
         // over, which is why this is typed rather than picked off the list above.
