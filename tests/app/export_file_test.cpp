@@ -9,6 +9,7 @@
 #include "app/export_file.hpp"
 #include "app/import_file.hpp"
 #include "config/text_util.hpp"
+#include "domain/area.hpp"
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "temp_dir.hpp"
@@ -20,6 +21,8 @@ using amberedit::app::ExportRequest;
 using amberedit::app::saveUueFiles;
 using amberedit::app::uueFiles;
 using amberedit::app::uueFilesIn;
+using amberedit::domain::AreaConfig;
+using amberedit::domain::AreaKind;
 using amberedit::domain::FtnAddress;
 using amberedit::domain::MessageBody;
 using amberedit::domain::MessageDate;
@@ -35,6 +38,22 @@ namespace {
 /// round, here in the direction a message leaves in.
 const std::string kPrivetCp866 = "\x8F\xE0\xA8\xA2\xA5\xE2";
 const std::string kPrivetUtf8 = "Привет";
+
+/// The area the message is read in — an echo unless a test says otherwise, that
+/// being what most of a message base is.
+AreaConfig echoArea() {
+    AreaConfig area;
+    area.tag = "ru.linux";
+    area.kind = AreaKind::Echo;
+    return area;
+}
+
+AreaConfig netmailArea() {
+    AreaConfig area;
+    area.tag = "netmail";
+    area.kind = AreaKind::Netmail;
+    return area;
+}
 
 MessageHeader header() {
     MessageHeader head;
@@ -92,25 +111,45 @@ MessageBody bodyOf(const std::vector<std::string>& lines) {
 }  // namespace
 
 TEST_CASE("exportedLines writes the header the reader draws [export]") {
-    const auto lines = exportedLines(header(), body(), kFormat);
+    const auto lines = exportedLines(echoArea(), header(), body(), kFormat);
 
-    REQUIRE(lines.size() >= 5);
-    // The same labels and the same four rows the reader's block carries, so a
-    // file reads the way the screen did — the address in brackets after the
+    REQUIRE(lines.size() >= 6);
+    // Where the message was read, which the file has no title bar to say — and
+    // then the same labels and the same four rows the reader's block carries, so
+    // a file reads the way the screen did: the address in brackets after the
     // name, where the base kept one.
-    CHECK(lines[0] == "From : Ivan Ivanov (2:5020/1)");
+    CHECK(lines[0] == "Area : ru.linux");
+    CHECK(lines[1] == "From : Ivan Ivanov (2:5020/1)");
     // A JAM echo keeps no sender address; a row with none is just the name.
-    CHECK(lines[1] == "To   : All");
-    CHECK(lines[2] == "Subj : About the weather");
-    CHECK(lines[3] == "Date : 14 Aug 26 20:15 +0300");
-    CHECK(lines[4] == std::string(72, '-'));
+    CHECK(lines[2] == "To   : All");
+    CHECK(lines[3] == "Subj : About the weather");
+    CHECK(lines[4] == "Date : 14 Aug 26 20:15 +0300");
+    CHECK(lines[5] == std::string(72, '-'));
 
     // Then the message: its own lines, the service ones left out as the reader
     // leaves them out, and the tearline kept — it is a line of the message.
-    CHECK(lines[5] == "Hello, All!");
-    CHECK(lines[6].empty());
-    CHECK(lines[7] == "--- AmberEdit/linux 0.1");
-    CHECK(lines.size() == 8);
+    CHECK(lines[6] == "Hello, All!");
+    CHECK(lines[7].empty());
+    CHECK(lines[8] == "--- AmberEdit/linux 0.1");
+    CHECK(lines.size() == 9);
+}
+
+TEST_CASE("exportedLines writes the recipient's address in netmail alone [export]") {
+    MessageHeader head = header();
+    head.to = "Petr Petrov";
+    head.destAddr = *FtnAddress::parse("2:5020/2");
+
+    // In netmail the destination names the node the message was written to.
+    const auto sent = exportedLines(netmailArea(), head, body(), kFormat);
+    REQUIRE(sent.size() >= 3);
+    CHECK(sent[0] == "Area : netmail");
+    CHECK(sent[2] == "To   : Petr Petrov (2:5020/2)");
+
+    // In an echo it holds whatever the writing editor left there and addresses
+    // nobody, so the row is the name and the file says no more than the screen.
+    const auto posted = exportedLines(echoArea(), head, body(), kFormat);
+    REQUIRE(posted.size() >= 3);
+    CHECK(posted[2] == "To   : Petr Petrov");
 }
 
 TEST_CASE("exportMessage writes the file in the charset it is given [export]") {
@@ -119,8 +158,8 @@ TEST_CASE("exportMessage writes the file in the charset it is given [export]") {
 
     MessageHeader head = header();
     head.subject = kPrivetUtf8;
-    REQUIRE(
-        exportMessage(ExportRequest{path, "CP866", kFormat}, head, body()).has_value());
+    REQUIRE(exportMessage(ExportRequest{path, "CP866", kFormat}, echoArea(), head, body())
+                .has_value());
 
     const std::string written =
         amberedit::test::valueOf(amberedit::config::text::readFile(path));
@@ -135,18 +174,18 @@ TEST_CASE("exportMessage adds to a file rather than writing over it [export]") {
     const std::string path = dir.path("out.txt");
     const ExportRequest request{path, "UTF-8", kFormat};
 
-    REQUIRE(exportMessage(request, header(), body()).has_value());
+    REQUIRE(exportMessage(request, echoArea(), header(), body()).has_value());
     MessageHeader second = header();
     second.subject = "And another thing";
-    REQUIRE(exportMessage(request, second, body()).has_value());
+    REQUIRE(exportMessage(request, echoArea(), second, body()).has_value());
 
     // Exporting one message after another into one file is what an export is
     // usually for, so the second is added to the first rather than losing it.
     const auto lines = amberedit::config::text::splitLines(
         amberedit::test::valueOf(amberedit::config::text::readFile(path)));
-    CHECK(lines.size() == 16);
-    CHECK(lines[2] == "Subj : About the weather");
-    CHECK(lines[10] == "Subj : And another thing");
+    CHECK(lines.size() == 18);
+    CHECK(lines[3] == "Subj : About the weather");
+    CHECK(lines[12] == "Subj : And another thing");
 }
 
 TEST_CASE("uueFiles takes the file back out of the message [export][uue]") {
@@ -259,8 +298,9 @@ TEST_CASE("exportMessage says where it could not write [export]") {
     const TempDir dir;
     // A directory that is not there: the name was given a moment ago and the
     // dialog is still up to be given another.
-    const auto result = exportMessage(
-        ExportRequest{dir.path("nowhere/out.txt"), "UTF-8", kFormat}, header(), body());
+    const auto result =
+        exportMessage(ExportRequest{dir.path("nowhere/out.txt"), "UTF-8", kFormat},
+                      echoArea(), header(), body());
     CHECK_FALSE(result.has_value());
     const std::string error = errorOf(result);
     CHECK_MESSAGE(contains(error, "out.txt"), error);

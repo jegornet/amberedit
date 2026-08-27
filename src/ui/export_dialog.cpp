@@ -226,7 +226,8 @@ Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
     const app::ExportRequest request{path, ensureUtf8Locale(),
                                      state.config.readerDateTimeFormat, how};
 
-    const auto written_ = app::exportMessage(request, *state.readHeader, *state.readBody);
+    const auto written_ = app::exportMessage(request, state.currentArea,
+                                             *state.readHeader, *state.readBody);
     if (!written_) {
         picker.error = written_.error()->message();
         return Outcome::Ignored;

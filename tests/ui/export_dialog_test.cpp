@@ -229,6 +229,8 @@ TEST_CASE("The export dialog writes the message [export_dialog]") {
     CHECK_FALSE(fixture.state.exportPicker);
 
     const std::string written = fixture.fileText("localnet-44.txt");
+    // The area the reader was in, which only the state can say.
+    CHECK_MESSAGE(contains(written, "Area : localnet"), written);
     CHECK_MESSAGE(contains(written, "From : Ivan Ivanov"), written);
     CHECK_MESSAGE(contains(written, "Subj : About the weather"), written);
     CHECK_MESSAGE(contains(written, "Hello, All!"), written);

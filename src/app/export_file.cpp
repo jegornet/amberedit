@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "config/text_util.hpp"
+#include "domain/area.hpp"
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "encoding/iconv_recoder.hpp"
@@ -167,17 +168,28 @@ std::optional<std::string> readUueBlock(const std::vector<std::string>& lines,
 
 }  // namespace
 
-std::vector<std::string> exportedLines(const domain::MessageHeader& header,
+std::vector<std::string> exportedLines(const domain::AreaConfig& area,
+                                       const domain::MessageHeader& header,
                                        const domain::MessageBody& body,
                                        const std::string& dateFormat) {
     std::vector<std::string> lines;
-    lines.reserve(body.lines.size() + 6);
+    lines.reserve(body.lines.size() + 7);
 
-    // The header block the reader draws, field for field, and the rule that
-    // closes it off — which is also what keeps one message apart from the next
-    // where several are exported into the same file.
+    // The area over the header block the reader draws, field for field, and the
+    // rule that closes it off — which is also what keeps one message apart from
+    // the next where several are exported into the same file.
+    //
+    // The tag is what the reader's title bar names the area by, and the file has
+    // no title bar: without this row a digest of messages appended one after
+    // another says nothing about where any of them was read.
+    lines.push_back(labelled("Area", area.tag));
     lines.push_back(labelled("From", withAddress(header.from, header.origAddr)));
-    lines.push_back(labelled("To", withAddress(header.to, header.destAddr)));
+    // The destination address names a recipient in netmail and nothing at all in
+    // an echo, where it holds whatever the writing editor left there. The name
+    // is the row either way; only the address is the area's to allow.
+    lines.push_back(labelled("To", area.hasAddressedRecipient()
+                                       ? withAddress(header.to, header.destAddr)
+                                       : header.to));
     lines.push_back(labelled("Subj", header.subject));
     lines.push_back(labelled("Date", header.date.format(dateFormat, header.utcOffset)));
     lines.emplace_back(72, '-');
@@ -189,6 +201,7 @@ std::vector<std::string> exportedLines(const domain::MessageHeader& header,
 }
 
 tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
+                                           const domain::AreaConfig& area,
                                            const domain::MessageHeader& header,
                                            const domain::MessageBody& body) {
     encoding::IconvRecoder recoder;
@@ -198,7 +211,7 @@ tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
     // afterwards cannot be told from a message that had them in it. That is why
     // this goes through intoCharset and not the reader's fromUtf8.
     std::string out;
-    for (const auto& line : exportedLines(header, body, request.dateFormat)) {
+    for (const auto& line : exportedLines(area, header, body, request.dateFormat)) {
         auto encoded = recoder.intoCharset(line, request.charset);
         if (!encoded) return tl::make_unexpected(std::move(encoded).error());
         out += *encoded;

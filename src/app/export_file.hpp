@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "domain/area.hpp"
 #include "domain/message.hpp"
 #include "support/error.hpp"
 
@@ -47,14 +48,22 @@ struct ExportRequest {
 };
 
 
-/// The message as the file holds it: the header block the reader draws, a rule
-/// under it, and then the text.
+/// The message as the file holds it: an `Area` row naming the area it came from,
+/// the header block the reader draws under it, a rule, and then the text.
+///
+/// The area is the one thing the message cannot answer for itself, and it
+/// answers two questions here. It names itself on the first row — a file, and
+/// most of all a file several messages have been appended into, has no title bar
+/// to say where any of them was read. And it says whether the To row carries an
+/// address: only netmail is addressed to a node, so outside it a destination
+/// address addresses nobody and is left off exactly as the reader leaves it off.
 ///
 /// Service lines are left out, exactly as the reader leaves them out: MSGID and
 /// SEEN-BY are this network's business and not the message's, and what is being
 /// exported is what somebody wrote. The tearline and the origin stay — they are
 /// lines of the message like any other, and the reader shows them.
-[[nodiscard]] std::vector<std::string> exportedLines(const domain::MessageHeader& header,
+[[nodiscard]] std::vector<std::string> exportedLines(const domain::AreaConfig& area,
+                                                     const domain::MessageHeader& header,
                                                      const domain::MessageBody& body,
                                                      const std::string& dateFormat);
 
@@ -62,9 +71,9 @@ struct ExportRequest {
 ///
 /// The rule at the head of each message is what keeps two of them apart where
 /// several are appended into one file.
-[[nodiscard]] tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
-                                         const domain::MessageHeader& header,
-                                         const domain::MessageBody& body);
+[[nodiscard]] tl::expected<void, ErrorPtr> exportMessage(
+    const ExportRequest& request, const domain::AreaConfig& area,
+    const domain::MessageHeader& header, const domain::MessageBody& body);
 
 /// One file the message carries uuencoded: the name its `begin` line gave it,
 /// and the bytes that stood between that line and `end`.

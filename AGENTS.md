@@ -1716,11 +1716,17 @@ taking a row.
   - **Nothing invents a name.** The box holds what the last export was called and
     nothing at all until one has been; Enter on an empty one answers `No file
     name`. The name a file *was* written under stays, as does the directory.
-  - **What is written is the reader's own header block and then the text** —
-    From, To, Subj and Date under the same labels, the rule, and the message with
-    its service lines left out exactly as the reader leaves them out. The stamp
-    is `reader_datetime_format`, so the file says what the screen said, and the
-    rule under each header block is what keeps two appended messages apart.
+  - **What is written is the area, the reader's own header block and then the
+    text** — an `Area` row naming the area's tag over From, To, Subj and Date
+    under the same labels, the rule, and the message with its service lines left
+    out exactly as the reader leaves them out. The area is the one thing the
+    message cannot answer for itself, so `exportedLines()` and `exportMessage()`
+    take it: it names itself on the first row, a file having no title bar to say
+    where a message was read, and it says whether the To row carries an address —
+    only netmail addresses a node, so an echo's destination address is left off
+    exactly as the reader leaves it off. The stamp is `reader_datetime_format`,
+    so the file says what the screen said, and the rule under each header block
+    is what keeps two appended messages apart.
   - **The charset is the locale's**, as for an import; `ExportRequest::charset`
     is still the caller's to name.
 - **A message carrying uuencoded files is asked about before it is written.**
