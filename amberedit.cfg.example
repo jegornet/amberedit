@@ -153,6 +153,11 @@ lastread_user 0
 # stands for itself.
 #
 # "The newest" is the modification time, with the higher number breaking a tie.
+#
+# After the path, optionally, the character set that nodelist is written in —
+# for example, UTF-8. A line that states none is read in the charset your locale
+# names.
+#
 # AmberEdit compiles them itself at startup whenever they have changed, so a
 # nodelist that arrives while it is not running is compiled the next time it is;
 # "amberedit --compile" compiles them anyway. A nodelist that is missing or will

@@ -415,6 +415,23 @@ tl::expected<std::string, ErrorPtr> readPath(const CfgEntry& entry, const char* 
     return path;
 }
 
+/// A `nodelist` line: the path, and the charset that file is written in where
+/// the line says. Two values at most — the charset is one word, and a path with
+/// a space in it is written in quotes like every other value.
+tl::expected<NodelistSource, ErrorPtr> readNodelist(const CfgEntry& entry) {
+    if (entry.values.empty() || entry.values.size() > 2) {
+        return entry.fail(
+            "nodelist takes the path of a nodelist, and after it the charset it is "
+            "written in where that is not the locale's — e.g. nodelist "
+            "~/ftn/nodelist/nodelist.ndl CP866");
+    }
+    NodelistSource source;
+    source.path = expandTilde(entry.values[0]);
+    if (source.path.empty()) return entry.fail("nodelist needs the path of a nodelist");
+    if (entry.values.size() == 2) source.charset = entry.values[1];
+    return source;
+}
+
 /// An `echolist` line: the path, and the charset that file is written in where
 /// the line says. Two values at most — the charset is one word, and a path with
 /// a space in it is written in quotes like every other value.
@@ -737,7 +754,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.tosserConfigFormat = *read;
     } else if (key == "nodelist") {
-        auto read = readPath(entry, "a nodelist file");
+        auto read = readNodelist(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.nodelistSources.push_back(*read);
     } else if (key == "address_macro") {

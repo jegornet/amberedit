@@ -215,12 +215,14 @@ tl::expected<WriteReport, ErrorPtr> writeNodelistDb(const std::string& path,
     }
 
     // --- the table of the nodelists this was made of -------------------------
-    // The line the config wrote, the file it named, and what that file was: the
-    // first is what a node says it came from, and the other three are what the
-    // next start compares against to find out whether anything has changed.
+    // The line the config wrote, the charset it stated, the file it named and
+    // what that file was: the first is what a node says it came from, and the
+    // rest are what the next start compares against to find out whether
+    // anything has changed.
     std::string sourceTable;
     for (const auto& source : sources) {
         appendString(sourceTable, source.state.spec);
+        appendString(sourceTable, source.state.charset);
         appendString(sourceTable, source.state.path);
         appendU64(sourceTable, source.state.modified);
         appendU64(sourceTable, source.state.size);

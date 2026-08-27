@@ -20,8 +20,8 @@ TEST_CASE("the nodelist and the pointlist in testdata compile into one file "
     test::TempDir dir;
 
     nodelist::CompileOptions options;
-    options.sources = {test::projectPath("testdata/nodelist/Z2DAILY.999"),
-                       test::projectPath("testdata/nodelist/Z2PNT.Z99")};
+    options.sources = {{test::projectPath("testdata/nodelist/Z2DAILY.999")},
+                       {test::projectPath("testdata/nodelist/Z2PNT.Z99")}};
     options.dbPath = dir.path("nodelist.db");
     options.tempDir = dir.path("tmp");
 
@@ -46,7 +46,7 @@ TEST_CASE("the nodelist and the pointlist in testdata compile into one file "
     REQUIRE(db.sources().size() == 2);
     // A node remembers the line the config wrote and not the file it happened
     // to resolve to today, which is a different file tomorrow.
-    CHECK(db.sources()[1].spec == options.sources[1]);
+    CHECK(db.sources()[1].spec == options.sources[1].path);
 
     const auto node = db.find(*domain::FtnAddress::parse("2:221/6"));
     REQUIRE(node);
@@ -93,6 +93,38 @@ TEST_CASE("the nodelist and the pointlist in testdata compile into one file "
     CHECK(written.find("pointlist") != std::string::npos);
 }
 
+TEST_CASE("a nodelist compiles in the charset its line states [nodelist]") {
+    test::TempDir dir;
+    {
+        // "Москва" in CP866: the location of a Russian node, which nothing but
+        // the config line can say the charset of.
+        std::ofstream out(dir.path("NODELIST.225"), std::ios::binary);
+        out << "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n"
+            << "Host,6000,Some_Net,\x8C\xAE\xE1\xAA\xA2\xA0,Some_Sysop,"
+               "-Unpublished-,300\r\n";
+    }
+
+    nodelist::CompileOptions options;
+    options.sources = {{dir.path("NODELIST.999"), "CP866"}};
+    options.dbPath = dir.path("nodelist.db");
+    options.tempDir = dir.path("tmp");
+
+    CHECK(nodelist::compileNodelists(options, nullptr).written);
+
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(options.dbPath));
+    const auto node = db.find(*domain::FtnAddress::parse("2:6000/0"));
+    REQUIRE(node);
+    CHECK(db.entry(*node).location == "Москва");
+
+    // The charset is part of what the compiled file answers for: correcting it
+    // in the config is a compile, though the nodelist itself has not moved.
+    REQUIRE(db.sources().size() == 1);
+    CHECK(db.sources()[0].charset == "CP866");
+    CHECK_FALSE(nodelist::nodelistNeedsCompiling(options));
+    options.sources[0].charset = "KOI8-R";
+    CHECK(nodelist::nodelistNeedsCompiling(options));
+}
+
 TEST_CASE("a nodelist that is not there is said out loud and never thrown "
           "[nodelist]") {
     test::TempDir dir;
@@ -101,8 +133,8 @@ TEST_CASE("a nodelist that is not there is said out loud and never thrown "
     // still compiled, and the compiled file is still written. AmberEdit starts
     // either way — that is the whole point of it not throwing.
     nodelist::CompileOptions options;
-    options.sources = {dir.path("nothing.ndl"),
-                       test::projectPath("testdata/nodelist/Z2DAILY.225")};
+    options.sources = {{dir.path("nothing.ndl")},
+                       {test::projectPath("testdata/nodelist/Z2DAILY.225")}};
     options.dbPath = dir.path("nodelist.db");
     options.tempDir = dir.path("tmp");
 
@@ -122,7 +154,7 @@ TEST_CASE("a nodelist that is not there is said out loud and never thrown "
     // nothing it was: that is what stops the next start compiling again.
     const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(options.dbPath));
     REQUIRE(db.sources().size() == 2);
-    CHECK(db.sources()[0].spec == options.sources[0]);
+    CHECK(db.sources()[0].spec == options.sources[0].path);
     CHECK(db.sources()[0].path.empty());
     CHECK_FALSE(nodelist::nodelistNeedsCompiling(options));
 }
@@ -132,7 +164,7 @@ TEST_CASE("a config with nowhere to compile to says so and writes nothing "
     test::TempDir dir;
 
     nodelist::CompileOptions options;
-    options.sources = {test::projectPath("testdata/nodelist/Z2DAILY.225")};
+    options.sources = {{test::projectPath("testdata/nodelist/Z2DAILY.225")}};
 
     const auto report = nodelist::compileNodelists(options, nullptr);
     CHECK_FALSE(report.written);
@@ -162,7 +194,7 @@ TEST_CASE("the nodelists are compiled again when, and only when, they change "
     }
 
     nodelist::CompileOptions options;
-    options.sources = {dir.path("NODELIST.999")};
+    options.sources = {{dir.path("NODELIST.999")}};
     options.dbPath = dir.path("nodelist.db");
     options.tempDir = dir.path("tmp");
 
@@ -211,7 +243,7 @@ TEST_CASE("the nodelists are compiled again when, and only when, they change "
     CHECK_FALSE(nodelist::nodelistNeedsCompiling(options));
 
     // A config line added is a config that no longer matches what was compiled.
-    options.sources.push_back(test::projectPath("testdata/nodelist/Z2DAILY.225"));
+    options.sources.push_back({test::projectPath("testdata/nodelist/Z2DAILY.225")});
     CHECK(nodelist::nodelistNeedsCompiling(options));
 }
 
@@ -219,7 +251,7 @@ TEST_CASE("a compiled nodelist that cannot be read is compiled again [nodelist]"
     test::TempDir dir;
 
     nodelist::CompileOptions options;
-    options.sources = {test::projectPath("testdata/nodelist/Z2DAILY.225")};
+    options.sources = {{test::projectPath("testdata/nodelist/Z2DAILY.225")}};
     options.dbPath = dir.path("nodelist.db");
     CHECK(nodelist::refreshNodelist(options, /*force=*/false, nullptr).written);
 

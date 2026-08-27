@@ -59,7 +59,10 @@ void printUsage(const char* program) {
 /// is already the answer for the nodelists on disk.
 void compileNodelists(const amberedit::config::AppConfig& config, bool force) {
     amberedit::nodelist::CompileOptions options;
-    options.sources = config.nodelistSources;
+    options.sources.reserve(config.nodelistSources.size());
+    for (const auto& source : config.nodelistSources) {
+        options.sources.push_back({source.path, source.charset});
+    }
     options.dbPath = config.nodelistDbPath;
     options.tempDir = config.tempDirPath;
 

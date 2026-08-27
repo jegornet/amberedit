@@ -131,14 +131,17 @@ TEST_CASE("a wildcard that covers nothing says what it was looking for [nodelist
     writeAt(dir.path("NODELIST.TXT"), minutesAgo(0));
 
     nodelist::NodelistSources sources(dir.path("tmp"));
-    const std::string error = amberedit::test::errorOf(sources.read(dir.path("nodelist.*")));
+    const std::string error =
+        amberedit::test::errorOf(sources.read(dir.path("nodelist.*"), ""));
     CHECK_MESSAGE(contains(error, "001 to 366"), error);
-    const std::string error2 = amberedit::test::errorOf(sources.read(dir.path("nodelist.z*")));
+    const std::string error2 =
+        amberedit::test::errorOf(sources.read(dir.path("nodelist.z*"), ""));
     CHECK_MESSAGE(contains(error2, "Z and two digits"), error2);
     // A glob over a whole filename has no kind to describe, so it says only
     // that nothing answered to it — and never "nodelist not found", which
     // would name a file nobody wrote.
-    const std::string error3 = amberedit::test::errorOf(sources.read(dir.path("nothing*.ndl")));
+    const std::string error3 =
+        amberedit::test::errorOf(sources.read(dir.path("nothing*.ndl"), ""));
     CHECK_MESSAGE(contains(error3, "no nodelist matching"), error3);
 }
 
@@ -177,19 +180,70 @@ TEST_CASE("a pattern that covers nothing says what it was looking for [nodelist]
     writeAt(dir.path("NODELIST.TXT"), minutesAgo(0));
 
     nodelist::NodelistSources sources(dir.path("tmp"));
-    const std::string error = amberedit::test::errorOf(sources.read(dir.path("NODELIST.999")));
+    const std::string error =
+        amberedit::test::errorOf(sources.read(dir.path("NODELIST.999"), ""));
     CHECK_MESSAGE(contains(error, "001 to 366"), error);
-    const std::string error2 = amberedit::test::errorOf(sources.read(dir.path("NODELIST.Z99")));
+    const std::string error2 =
+        amberedit::test::errorOf(sources.read(dir.path("NODELIST.Z99"), ""));
     CHECK_MESSAGE(contains(error2, "Z and two digits"), error2);
-    const std::string error3 = amberedit::test::errorOf(sources.read(dir.path("nowhere.ndl")));
+    const std::string error3 =
+        amberedit::test::errorOf(sources.read(dir.path("nowhere.ndl"), ""));
     CHECK_MESSAGE(contains(error3, "nodelist not found"), error3);
+}
+
+TEST_CASE("the charset a nodelist line states is part of its state [nodelist]") {
+    test::TempDir dir;
+    const std::string path = dir.path("NODELIST.225");
+
+    // A line naming a file that is not there has a state like any other: it is
+    // what stops the next start from trying to compile it again.
+    const auto missing = nodelist::stateOf(path, "CP866");
+    CHECK(missing.spec == path);
+    CHECK(missing.charset == "CP866");
+    CHECK(missing.path.empty());
+    CHECK(missing.size == 0);
+
+    writeAt(path, minutesAgo(5));
+    const auto present = nodelist::stateOf(path, "CP866");
+    CHECK(present.path == path);
+    CHECK(present.size > 0);
+    CHECK(present != missing);
+
+    // A line whose charset has been corrected is a line that has to be read
+    // again, though the file has not moved.
+    CHECK(nodelist::stateOf(path, "KOI8-R") != present);
+}
+
+TEST_CASE("a nodelist is read in the charset the line states [nodelist]") {
+    test::TempDir dir;
+    const std::string path = dir.path("NODELIST.225");
+    {
+        // "Москва" in CP866, which is what a Russian nodelist is written in and
+        // what nothing but the config line can say.
+        std::ofstream out(path, std::ios::binary);
+        out << "Zone,2,Europe,Somewhere,Nobody,-Unpublished-,300\r\n"
+            << "Host,6000,Some_Net,\x8C\xAE\xE1\xAA\xA2\xA0,Some_Sysop,"
+               "-Unpublished-,300\r\n";
+    }
+
+    nodelist::NodelistSources sources(dir.path("tmp"));
+    const auto loaded = amberedit::test::valueOf(sources.read(path, "CP866"));
+    // Everything above the file is UTF-8, here as everywhere else.
+    CHECK(contains(loaded.text, "Москва"));
+
+    // And a line that states none is read in the locale's, which for a file of
+    // ASCII is every charset there is.
+    const auto bare = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/Z2DAILY.225"), ""));
+    CHECK(config::text::startsWith(bare.text, ";A FidoNet Nodelist"));
 }
 
 TEST_CASE("a nodelist named by its own name is read as it stands [nodelist]") {
     test::TempDir dir;
     nodelist::NodelistSources sources(dir.path("tmp"));
 
-    const auto loaded = amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/Z2DAILY.225")));
+    const auto loaded = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/Z2DAILY.225"), ""));
     CHECK(loaded.archive.empty());
     CHECK(config::text::startsWith(loaded.text, ";A FidoNet Nodelist"));
 }
@@ -198,7 +252,8 @@ TEST_CASE("a day-number pattern finds the nodelist in testdata [nodelist]") {
     test::TempDir dir;
     nodelist::NodelistSources sources(dir.path("tmp"));
 
-    const auto loaded = amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/Z2DAILY.999")));
+    const auto loaded = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/Z2DAILY.999"), ""));
     CHECK(fs::path(loaded.readFrom).filename() == "Z2DAILY.225");
     CHECK(loaded.archive.empty());
     CHECK(config::text::startsWith(loaded.text, ";A FidoNet Nodelist"));
@@ -212,7 +267,7 @@ TEST_CASE("a zipped pointlist is unpacked without paths and taken away again "
 
     {
         nodelist::NodelistSources sources(temporary);
-        const auto loaded = amberedit::test::valueOf(sources.read(archive));
+        const auto loaded = amberedit::test::valueOf(sources.read(archive, ""));
 
         // The archive holds Z2PNT.219, and it is unpacked under that name and
         // in the temporary directory — not under whatever path the archive may
@@ -241,7 +296,8 @@ TEST_CASE("the wildcard spellings find the same files in testdata [nodelist]") {
     nodelist::NodelistSources sources(dir.path("tmp"));
 
     // `.*` where `.999` stood.
-    const auto daily = amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/z2daily.*")));
+    const auto daily = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/z2daily.*"), ""));
     CHECK(fs::path(daily.readFrom).filename() == "Z2DAILY.225");
     CHECK(daily.archive.empty());
     CHECK(config::text::startsWith(daily.text, ";A FidoNet Nodelist"));
@@ -249,13 +305,15 @@ TEST_CASE("the wildcard spellings find the same files in testdata [nodelist]") {
     // `.z*` where `.Z99` stood — and the pointlist inside the archive is still
     // found, since it is the archive's own name that names it and not the line
     // that found the archive.
-    const auto zipped = amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/z2pnt.z*")));
+    const auto zipped = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/z2pnt.z*"), ""));
     CHECK(fs::path(zipped.archive).filename() == "Z2PNT.Z19");
     CHECK(fs::path(zipped.readFrom).filename() == "Z2PNT.219");
     CHECK(config::text::startsWith(zipped.text, ";A Zone 2 Fidonet pointlist"));
 
     // A glob over the name reaches it too.
-    const auto globbed = amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/z2*.z*")));
+    const auto globbed = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/z2*.z*"), ""));
     CHECK(fs::path(globbed.archive).filename() == "Z2PNT.Z19");
     CHECK(fs::path(globbed.readFrom).filename() == "Z2PNT.219");
 }
@@ -275,7 +333,8 @@ TEST_CASE("a config naming no tmpdir unpacks under the system's temporary direct
     {
         nodelist::NodelistSources sources("");
         const auto loaded =
-            amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/Z2PNT.Z99")));
+            amberedit::test::valueOf(sources.read(
+                test::projectPath("testdata/nodelist/Z2PNT.Z99"), ""));
 
         CHECK(fs::path(loaded.readFrom).filename() == "Z2PNT.219");
         CHECK(fs::path(loaded.readFrom).parent_path() == fs::path(expected));
@@ -300,7 +359,7 @@ TEST_CASE("a directory that cannot be worked in says what it was wanted for "
     const std::string archive = test::projectPath("testdata/nodelist/Z2PNT.Z99");
 
     nodelist::NodelistSources sources("");
-    const std::string error = amberedit::test::errorOf(sources.read(archive));
+    const std::string error = amberedit::test::errorOf(sources.read(archive, ""));
     CHECK_MESSAGE(contains(error, archive + " names a zipped nodelist"), error);
     CHECK_MESSAGE(contains(error, "tmpdir has to name one"), error);
 }
@@ -312,7 +371,8 @@ TEST_CASE("a tmpdir with no zipped nodelist under it is left unmade [nodelist]")
     const std::string temporary = dir.path("tmp");
 
     nodelist::NodelistSources sources(temporary);
-    static_cast<void>(amberedit::test::valueOf(sources.read(test::projectPath("testdata/nodelist/Z2DAILY.225"))));
+    static_cast<void>(amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/Z2DAILY.225"), "")));
     CHECK_FALSE(fs::exists(temporary));
 }
 

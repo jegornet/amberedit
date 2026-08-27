@@ -1380,11 +1380,32 @@ TEST_CASE("AppConfig reads the nodelist lines in the order they were written "
     const std::string at(home);
 
     REQUIRE(cfg.nodelistSources.size() == 3);
-    CHECK(cfg.nodelistSources[0] == at + "/ftn/nodelist/nodelist.ndl");
-    CHECK(cfg.nodelistSources[1] == at + "/ftn/nodelist/Z2DAILY.999");
-    CHECK(cfg.nodelistSources[2] == at + "/ftn/nodelist/with a space.999");
+    CHECK(cfg.nodelistSources[0].path == at + "/ftn/nodelist/nodelist.ndl");
+    CHECK(cfg.nodelistSources[1].path == at + "/ftn/nodelist/Z2DAILY.999");
+    CHECK(cfg.nodelistSources[2].path == at + "/ftn/nodelist/with a space.999");
     CHECK(cfg.nodelistDbPath == at + "/ftn/nodelist/nodelist.db");
     CHECK(cfg.tempDirPath == at + "/ftn/tmp");
+}
+
+TEST_CASE("AppConfig reads the charset a nodelist line states [app_config]") {
+    const auto cfg = with(
+        "nodelist /ftn/nodelist/nodelist.ndl CP866\n"
+        "nodelist /ftn/nodelist/Z2DAILY.999\n"
+        "nodelist \"/ftn/nodelist/with a space.999\" KOI8-R\n"
+        "nodelist_db /ftn/nodelist/nodelist.db\n");
+
+    REQUIRE(cfg.nodelistSources.size() == 3);
+    CHECK(cfg.nodelistSources[0].charset == "CP866");
+    // A line that states no charset is stored as the nothing it stated: what
+    // the locale answers is worked out when the file is read.
+    CHECK(cfg.nodelistSources[1].charset.empty());
+    CHECK(cfg.nodelistSources[2].path == "/ftn/nodelist/with a space.999");
+    CHECK(cfg.nodelistSources[2].charset == "KOI8-R");
+
+    // Two values at most: a third word is a path somebody forgot to quote.
+    const std::string error =
+        errorWith("nodelist /ftn/nodelist/with a space.999 CP866\n");
+    CHECK_MESSAGE(contains(error, "takes the path"), error);
 }
 
 TEST_CASE("AppConfig has no nodelist unless one is named [app_config]") {
@@ -1443,7 +1464,7 @@ TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_confi
     const std::string error = errorWith("nodelist /ftn/nodelist/nodelist.ndl\n");
     CHECK_MESSAGE(contains(error, "nodelist_db is not set"), error);
     const std::string error2 = errorWith("nodelist\n");
-    CHECK_MESSAGE(contains(error2, "needs a value"), error2);
+    CHECK_MESSAGE(contains(error2, "takes the path"), error2);
     // An empty path is not a path, and it would otherwise read back as the
     // setting never having been written.
     const std::string error3 = errorWith("nodelist_db \"\"\n");

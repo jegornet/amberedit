@@ -125,7 +125,7 @@ TEST_CASE("a nodelist is written with the compiled file beside it [config_writer
     const AppConfig config = valueOf(AppConfig::loadFromString(text, "written.cfg"));
 
     REQUIRE(config.nodelistSources.size() == 1);
-    CHECK(config.nodelistSources[0] == "/home/ftn/nodelist/z2daily.999");
+    CHECK(config.nodelistSources[0].path == "/home/ftn/nodelist/z2daily.999");
     CHECK(config.nodelistDbPath == "/home/ftn/nodelist/amberndl.db");
     // The other two samples are still samples.
     CHECK(stated(text, "nodelist") == 1);

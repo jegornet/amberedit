@@ -257,6 +257,23 @@ enum class KeysMode {
     Clear,  ///< `clear` — the file is the layout entire, and nothing is kept
 };
 
+/// One `nodelist` line: the file it names, and the charset that file is written
+/// in.
+struct NodelistSource {
+    /// The path, with a leading `~/` expanded — a filename, or one of the two
+    /// patterns a nodelist arrives under.
+    std::string path;
+    /// The charset the line stated, and empty where it stated none — which is
+    /// the locale's, worked out when the file is read rather than here. Stored
+    /// as the nothing it was, so that the compiled file records what the config
+    /// said and not what the machine happened to answer.
+    std::string charset;
+
+    friend bool operator==(const NodelistSource& a, const NodelistSource& b) {
+        return a.path == b.path && a.charset == b.charset;
+    }
+};
+
 /// One `echolist` line: the file it names, and the charset that file is written
 /// in.
 struct EcholistSource {
@@ -387,8 +404,9 @@ struct AppConfig {
     /// number, and `Z2PNT.Z99` for the newest of the zip archives whose
     /// extension is `Z` and two digits, the nodelist being the file inside it.
     /// Which one a line is, is settled by `nodelist::NodelistSpec`; nothing here
-    /// looks at the disk.
-    std::vector<std::string> nodelistSources;
+    /// looks at the disk. The optional second value is the charset that file is
+    /// written in, and a line that states none is read in the locale's.
+    std::vector<NodelistSource> nodelistSources;
 
     /// Where the compiled nodelist is — the file the `nodelist` lines are
     /// compiled into and read back from, from `nodelist_db`. Required as soon as

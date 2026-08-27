@@ -50,7 +50,10 @@ namespace amberedit::nodelist {
 ///  36  u32      name pool offset        NUL-terminated folded sysop names
 ///  40  u32      name pool size
 ///  44  u32      source count
-///  48  u32      source table offset     count * (u16 length + bytes)
+///  48  u32      source table offset     count * (the line, the charset it
+///                                     stated and the file it named, each a
+///                                     u16 length and its bytes, then u64
+///                                     modified and u64 size)
 ///  52  u64      built at, seconds since the epoch
 ///  60  u32      reserved, zero
 ///
@@ -67,7 +70,7 @@ inline constexpr char kMagic[8] = {'A', 'M', 'B', 'E', 'R', 'N', 'D', 'L'};
 /// code that reads it — never for a change that only adds to the end of the
 /// header, since `headerSize` already says how far the header a writer knew
 /// about reached.
-inline constexpr uint16_t kVersion = 1;
+inline constexpr uint16_t kVersion = 2;
 
 inline constexpr size_t kHeaderSize = 64;
 inline constexpr size_t kAddressEntrySize = 12;

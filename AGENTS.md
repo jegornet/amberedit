@@ -2063,8 +2063,8 @@ taking a row.
   not reach for `iconv` for this. `Terminal::codeset()` says what the locale
   settled on and nothing reports it to the user.
 - **A file on disk that declares nothing is read in the locale's charset.**
-  `encoding::localeCharset()` is `LC_CTYPE` from the environment, and the one
-  thing that asks is an `echolist` line stating no charset of its own. It is not
+  `encoding::localeCharset()` is `LC_CTYPE` from the environment, and what asks
+  is a `nodelist` or an `echolist` line stating no charset of its own. It is not
   a fallback for a *message*: a message declares its charset in a CHRS kludge and
   falls back on `default_charset`, and neither has anything to do with the
   terminal's.
@@ -2554,15 +2554,16 @@ back through its own drivers and through any other FTN software.
 `src/nodelist/` reads FTS-5000 nodelists and compiles them into one binary file,
 which `ui/nodelist_dialog` then searches. Its own library because zlib is wanted
 for it and for nothing else, and because nothing in the core knows it is there.
-Three config lines: `nodelist`, `nodelist_db` and `tmpdir`.
+Three config lines: `nodelist` — the file and, after it, the charset it is
+written in — `nodelist_db` and `tmpdir`.
 
 **Compiling happens at startup, and only when it is needed.** `main.cpp` calls
 `refreshNodelist()` before the terminal is taken over — the only place left to
 say anything about it — and that compares what each `nodelist` line names *now*
 against what the compiled file says it named *then*: the path, the modification
-time and the length, written into the file as a `SourceState` per line. A listing
-and a stat per line, nothing read and no archive unpacked. `--compile` compiles
-anyway.
+time, the length and the charset the line stated, written into the file as a
+`SourceState` per line. A listing and a stat per line, nothing read and no
+archive unpacked. `--compile` compiles anyway.
 
 **Nothing in the compiling fails as a whole.** A nodelist that is missing or will
 not read is a line in `CompileReport::problems`, and its `SourceState` is
@@ -2639,9 +2640,16 @@ Three more things before changing any of it:
 - Where two entries stand at one address, **the first source named wins**, and
   within one source the first line does. The config's order of `nodelist` lines
   is the only statement of precedence anybody has made.
-- A nodelist is ASCII by FTS-5000 and a few of them are not — a Latin-1 byte in a
-  Scandinavian name. Nothing decodes them: the byte reaches the terminal layer
-  and is drawn as its replacement glyph. There is no charset to read one by.
+- A nodelist is ASCII by FTS-5000 and a few of them are not — a Latin-1 byte in
+  a Scandinavian name, a whole Russian region in CP866. **The charset is the
+  `nodelist` line's second value**, the `echolist` line's terms exactly: what it
+  states is normalised as a CHRS kludge is, a line that states none is read in
+  the locale's, and the state records the nothing it stated rather than what the
+  machine answered — so a line whose charset has been corrected is compiled
+  again though the file has not moved. `NodelistSources::read` decodes into
+  UTF-8 through `IconvRecoder::toUtf8`, which is the lenient one: a byte the
+  charset has no meaning for becomes U+FFFD rather than costing the nodelist, so
+  what is compiled is UTF-8 like everything else above the file.
 
 `ui/nodelist_dialog` is what a user sees of all this. What was typed into the
 Lookup line is an address when it parses as the beginning of one and a sysop's

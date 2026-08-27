@@ -9,10 +9,19 @@
 
 namespace amberedit::nodelist {
 
+/// One `nodelist` line: the file it names, and the charset it says that file is
+/// written in — empty for the locale's, which is what a line that states none
+/// means. Not `NodelistSpec`, which is that path taken apart into the kind of
+/// pattern it is; this is the line as the config wrote it.
+struct SourceSpec {
+    std::string path;
+    std::string charset;
+};
+
 /// What to compile, where to put it, and where to unpack an archive on the way
 /// — the three config lines `nodelist`, `nodelist_db` and `tmpdir`.
 struct CompileOptions {
-    std::vector<std::string> sources;
+    std::vector<SourceSpec> sources;
     std::string dbPath;
     std::string tempDir;
     /// How many of a nodelist's own bad lines are worth naming before the count

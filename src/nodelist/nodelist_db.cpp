@@ -122,7 +122,8 @@ tl::expected<NodelistDb, ErrorPtr> NodelistDb::open(const std::string& path) {
     };
     for (uint32_t i = 0; i < sourceCount; ++i) {
         SourceState state;
-        if (!readString(state.spec) || !readString(state.path) || !within(at, 16, size)) {
+        if (!readString(state.spec) || !readString(state.charset) ||
+            !readString(state.path) || !within(at, 16, size)) {
             return failure("the compiled nodelist is truncated: " + path);
         }
         state.modified = readU64(raw + at);

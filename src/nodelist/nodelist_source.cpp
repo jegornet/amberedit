@@ -10,6 +10,9 @@
 #include "archive/zip_reader.hpp"
 #include "config/temp_dir.hpp"
 #include "config/text_util.hpp"
+#include "encoding/charset_detector.hpp"
+#include "encoding/iconv_recoder.hpp"
+#include "encoding/locale_charset.hpp"
 
 namespace amberedit::nodelist {
 namespace {
@@ -110,6 +113,18 @@ tl::expected<std::string, ErrorPtr> readWholeFile(const std::string& path) {
                      std::istreambuf_iterator<char>{});
     if (in.bad()) return failure("cannot read the nodelist: " + path);
     return text;
+}
+
+/// The charset a nodelist is read in: the one the line stated, and the locale's
+/// where it stated none. The stated one goes through the same normalisation a
+/// CHRS kludge does, so that the Fidonet spellings — `+7_FIDO`, a bare `866` —
+/// mean here what they mean everywhere else in AmberEdit; a name that identifies
+/// no particular encoding (`IBMPC`) says nothing, and the locale answers for it
+/// as though the line had been left bare.
+std::string charsetToReadIn(const std::string& stated) {
+    std::string normalized = encoding::CharsetDetector::normalize(stated);
+    if (!normalized.empty()) return normalized;
+    return encoding::localeCharset();
 }
 
 }  // namespace
@@ -219,9 +234,10 @@ std::optional<std::string> newestMatch(const NodelistSpec& spec) {
     return best->path;
 }
 
-SourceState stateOf(const std::string& spec) {
+SourceState stateOf(const std::string& spec, const std::string& charset) {
     SourceState state;
     state.spec = spec;
+    state.charset = charset;
     const auto found = newestMatch(NodelistSpec::of(spec));
     if (!found) return state;
     // Between the listing above and the stat below the file could in principle
@@ -249,7 +265,7 @@ NodelistSources::~NodelistSources() {
 }
 
 tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::read(
-    const std::string& spec) {
+    const std::string& spec, const std::string& charset) {
     const NodelistSpec pattern = NodelistSpec::of(spec);
     const auto found = newestMatch(pattern);
     if (!found) {
@@ -273,20 +289,24 @@ tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::read(
     // about to be read, and a second listing could land on a different one.
     SourceState state;
     state.spec = spec;
+    state.charset = charset;
     state.path = *found;
     if (const auto file = fileState(*found)) {
         state.modified = file->modified;
         state.size = file->size;
     }
 
-    if (pattern.kind == SpecKind::ZipArchive) return readArchive(pattern, state);
+    if (pattern.kind == SpecKind::ZipArchive) {
+        return readArchive(pattern, state, charset);
+    }
     auto text = readWholeFile(*found);
     if (!text) return tl::make_unexpected(std::move(text).error());
-    return Loaded{state, *found, {}, std::move(*text)};
+    encoding::IconvRecoder recoder;
+    return Loaded{state, *found, {}, recoder.toUtf8(*text, charsetToReadIn(charset))};
 }
 
 tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::readArchive(
-    const NodelistSpec& spec, const SourceState& state) {
+    const NodelistSpec& spec, const SourceState& state, const std::string& charset) {
     const std::string& archivePath = state.path;
 
     // Made here and not when the sources were: a config with `tmpdir` in it and
@@ -353,7 +373,9 @@ tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::readArchive(
     // there, and a temporary directory that cannot hold it says so now.
     auto text = readWholeFile(unpacked.string());
     if (!text) return tl::make_unexpected(std::move(text).error());
-    return Loaded{state, unpacked.string(), archivePath, std::move(*text)};
+    encoding::IconvRecoder recoder;
+    return Loaded{state, unpacked.string(), archivePath,
+                  recoder.toUtf8(*text, charsetToReadIn(charset))};
 }
 
 }  // namespace amberedit::nodelist

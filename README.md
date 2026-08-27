@@ -253,6 +253,10 @@ The nodelist filename may be a wildcard — `nodelist ~/ftn/nodelist/z2daily.999
 or `z2daily.*` takes the newest file it matches. You can also specify ZIP-packed
 nodelists like `nodelist ~/ftn/nodelist/nodelist.z99` or `nodelist.z*`.
 
+You can specify the nodelist's charset (`nodelist ~/ftn/nodelist/nodelist.ndl
+UTF-8`), which is what a nodelist carrying names and locations outside ASCII
+needs; a line that states none is read in the charset your locale names.
+
 **Ctrl-N (or F10) in the reader** opens the nodelist on whoever wrote the message
 on screen. The Lookup line takes an address, whole or in part — `2`, `2:382`,
 `2:382/736` — or any part of a sysop's name, and Enter walks through everything

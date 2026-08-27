@@ -73,13 +73,14 @@ struct NodelistSpec {
 [[nodiscard]] std::optional<std::string> newestMatch(const NodelistSpec& spec);
 
 /// What a `nodelist` line stood for when the compiled file was written: the file
-/// it named then, and what that file was.
+/// it named then, what that file was, and what it was read in.
 ///
 /// This is what makes AmberEdit able to compile only when it has to. The state is
 /// written into the compiled file and worked out again at every start, and the
 /// two being equal is the whole of "nothing has changed" — a new day's nodelist
-/// is a different name, and a nodelist replaced in place is a different stamp or
-/// a different length.
+/// is a different name, a nodelist replaced in place is a different stamp or a
+/// different length, and a line whose charset has been corrected is a different
+/// state though the file is the same.
 ///
 /// A spec that matches nothing has an empty path and no stamp, and that is a
 /// state like any other: a nodelist that was missing yesterday and is missing
@@ -87,6 +88,11 @@ struct NodelistSpec {
 struct SourceState {
     /// The `nodelist` line, exactly as the config wrote it.
     std::string spec;
+    /// The charset the line stated, and empty where it stated none — which
+    /// means the locale's, and is deliberately stored as the nothing it was: a
+    /// machine whose locale changes is a machine whose nodelists read
+    /// differently, and the state should say what the config said.
+    std::string charset;
     /// The file it named — the archive itself where the line names one, since
     /// that is the file that is there to be looked at without unpacking
     /// anything. Empty where nothing matched.
@@ -96,12 +102,12 @@ struct SourceState {
     uint64_t modified{0};
     uint64_t size{0};
 
-    /// Whether the two name the same file in the same state. The spec is part
-    /// of it: a config whose lines have been reordered or replaced is one whose
-    /// compiled file no longer answers for it.
+    /// Whether the two name the same file, in the same state, read the same
+    /// way. The spec is part of it: a config whose lines have been reordered or
+    /// replaced is one whose compiled file no longer answers for it.
     friend bool operator==(const SourceState& a, const SourceState& b) {
-        return a.spec == b.spec && a.path == b.path && a.modified == b.modified &&
-               a.size == b.size;
+        return a.spec == b.spec && a.charset == b.charset && a.path == b.path &&
+               a.modified == b.modified && a.size == b.size;
     }
     friend bool operator!=(const SourceState& a, const SourceState& b) {
         return !(a == b);
@@ -111,9 +117,10 @@ struct SourceState {
 /// What the spec stands for right now — a directory listing and a stat, and
 /// nothing read, nothing unpacked. This runs at every start, so it is
 /// deliberately the cheapest question that can be asked about a nodelist.
-[[nodiscard]] SourceState stateOf(const std::string& spec);
+[[nodiscard]] SourceState stateOf(const std::string& spec, const std::string& charset);
 
-/// Reads the nodelists a config names, unpacking the ones that come zipped.
+/// Reads the nodelists a config names, unpacking the ones that come zipped and
+/// decoding them into UTF-8.
 ///
 /// The unpacking is what this class is for: an archive is unpacked **without
 /// paths** into the temporary directory — only the entry that carries the
@@ -145,16 +152,20 @@ public:
         std::string readFrom;
         /// The archive it was unpacked from, empty where there was none.
         std::string archive;
+        /// UTF-8, whatever the file was written in.
         std::string text;
     };
 
     /// Resolves the spec, unpacks it where it is an archive, and reads it, or
-    /// says what was looked for and where.
-    [[nodiscard]] tl::expected<Loaded, ErrorPtr> read(const std::string& spec);
+    /// says what was looked for and where. `charset` is what the line stated,
+    /// and empty for the locale's.
+    [[nodiscard]] tl::expected<Loaded, ErrorPtr> read(const std::string& spec,
+                                                     const std::string& charset);
 
 private:
     [[nodiscard]] tl::expected<Loaded, ErrorPtr> readArchive(const NodelistSpec& spec,
-                                                             const SourceState& state);
+                                                             const SourceState& state,
+                                                             const std::string& charset);
 
     std::string tempDir_;
     std::vector<std::string> unpacked_;

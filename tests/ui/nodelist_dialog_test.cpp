@@ -121,7 +121,8 @@ struct Fixture {
         sender = area.state.readHeader->origAddr.toString();
 
         nodelist::DbSource nodes{
-            {"~/ftn/nodelist/Z2DAILY.999", "/home/user/ftn/nodelist/Z2DAILY.225", 1, 2},
+            {"~/ftn/nodelist/Z2DAILY.999", "", "/home/user/ftn/nodelist/Z2DAILY.225", 1,
+             2},
             {
                 node("2:222/0", "Southwest Finland", "Kim Heino", "Turku"),
                 node("2:240/0", "Host Nordnetz", "Torsten Bamberg", "Hamburg"),
@@ -132,7 +133,7 @@ struct Fixture {
                 node(sender, "The Sender", "Some Sysop", "Nowhere"),
             }};
         nodelist::DbSource points{
-            {"~/ftn/nodelist/Z2PNT.Z99", "/home/user/ftn/nodelist/Z2PNT.Z19", 3, 4},
+            {"~/ftn/nodelist/Z2PNT.Z99", "", "/home/user/ftn/nodelist/Z2PNT.Z19", 3, 4},
             {node("2:240/1120.8", "Point #8", "Werner Krammer", "Dieburg")}};
         REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {nodes, points}, 0).has_value());
         area.config.nodelistDbPath = dir.path("nodelist.db");
@@ -179,7 +180,7 @@ TEST_CASE("Ctrl-N on a point nobody lists opens on the node it hangs off "
     amberedit::domain::FtnAddress boss = sender;
     boss.point = 0;
     nodelist::DbSource source{
-        {"nodelist", "/home/user/ftn/nodelist/NODELIST.225", 1, 2},
+        {"nodelist", "", "/home/user/ftn/nodelist/NODELIST.225", 1, 2},
         {node(boss.toString(), "The Boss", "Some Sysop", "Nowhere")}};
     REQUIRE(nodelist::writeNodelistDb(dir.path("nodelist.db"), {source}, 0).has_value());
     area.config.nodelistDbPath = dir.path("nodelist.db");

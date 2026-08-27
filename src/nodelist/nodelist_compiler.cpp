@@ -31,18 +31,19 @@ CompileReport compileNodelists(const CompileOptions& options, std::ostream* log)
         CompiledSource summary;
         std::vector<NodeEntry> entries;
 
-        auto read = reader.read(spec);
+        auto read = reader.read(spec.path, spec.charset);
         if (!read) {
             // The state is taken anyway — what the spec names now, even where
             // that is nothing — so that the compiled file records this attempt
             // and the next start tries again only once the file itself has
             // changed. A nodelist that is not there is not an error here: it is
             // a nodelist that is not there.
-            summary.state = stateOf(spec);
+            summary.state = stateOf(spec.path, spec.charset);
             summary.problem = read.error()->message();
             report.problems.emplace_back(read.error()->message());
             if (log != nullptr) {
-                *log << "nodelist  " << spec << ": " << read.error()->message() << "\n";
+                *log << "nodelist  " << spec.path << ": " << read.error()->message()
+                     << "\n";
             }
         } else {
             NodelistSources::Loaded loaded = std::move(*read);
@@ -101,7 +102,9 @@ bool nodelistNeedsCompiling(const CompileOptions& options) {
 
     std::vector<SourceState> now;
     now.reserve(options.sources.size());
-    for (const auto& spec : options.sources) now.push_back(stateOf(spec));
+    for (const auto& spec : options.sources) {
+        now.push_back(stateOf(spec.path, spec.charset));
+    }
 
     // Missing, unreadable, or written by another version of the format — all of
     // them come back out of open() as a failure, and all of them mean the same
