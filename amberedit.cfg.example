@@ -167,10 +167,11 @@ lastread_user 0
 # by any part of a sysop's name.
 #nodelist_db ~/ftn/nodelist/amberndl.db
 
-# A directory to work in — today that is unpacking a zipped nodelist or echolist.
+# A directory to work in — unpacking a zipped nodelist or echolist, and the file
+# a message is handed over in where external_editor names one.
 # Optional: without it an "amberedit" directory of your own under the system's
-# temporary one is used ($TMPDIR or /tmp), made the first time something is
-# unpacked. Name one here to work somewhere else — a filesystem with room on it,
+# temporary one is used ($TMPDIR or /tmp), made the first time something needs
+# it. Name one here to work somewhere else — a filesystem with room on it,
 # or one a reboot does not empty. Nothing is left in it either way.
 #tmpdir ~/ftn/tmp
 
@@ -923,6 +924,51 @@ template_time_format "%H:%M"
 # translate under `C` — `apt install locales && locale-gen ru_RU.UTF-8` settles
 # it, and `locale -a` lists what a system already has. AmberEdit says so on
 # startup when the locale you asked for is not there, and runs in English.
+
+# The editor a message is written in: the command and its arguments, with $msg
+# standing where the file holding the message goes. Optional, and not set by
+# default — with none named, messages are written in AmberEdit's own editor.
+#
+#   external_editor mcedit $msg
+#   external_editor vim -c "set tw=72" $msg
+#   external_editor emacs -nw $msg
+#
+# The file is written wherever $msg appears, in as many arguments as name it,
+# and the program is run directly rather than through a shell: it is looked for
+# on $PATH the way a name typed at a prompt is, an argument with a space in it
+# is written in double quotes, and nothing needs escaping since there is no
+# shell to escape it for. AmberEdit hands the terminal over for as long as the
+# editor runs and takes it back when it ends.
+#
+# How a message is written with one named:
+#
+#   * a new message and a forward ask their header first, exactly as they always
+#     did. Enter off the subject, Tab off the last stop, or a click in the
+#     message below the block hands it over — the text you would have been given
+#     to type into is what the editor opens on, template and all;
+#   * a reply, a comment reply, a reply into another area and a message being
+#     changed go straight to the editor: their headers are filled in already;
+#   * the file is written in the character set your terminal uses, under tmpdir,
+#     and is taken away again when the message is stored or dropped. Nothing is
+#     left behind.
+#
+# What happens when the editor ends is decided by the file:
+#
+#   * left without writing — not one byte different — is how you say you did not
+#     want the message, PROVIDED you have not been asked the question below yet.
+#     Nothing is stored and the reader comes back. Once that question has been
+#     on the screen, going back into the editor and changing nothing simply
+#     brings it back — Discard is on it already, and that is where throwing the
+#     message away belongs;
+#   * written, and AmberEdit shows what you wrote under the header block and
+#     asks: Save it, Discard it, Continue editing (the same editor on the same
+#     file again), or edit the Header. Esc is the last of those — it neither
+#     stores nor throws anything away.
+#
+# The message is SHOWN and never typed into while an editor is named: there is
+# no half-and-half, and the commands that edit text — reading a file in above
+# all — do nothing here. The header block works exactly as it always did.
+#external_editor mcedit $msg
 
 # The GoldED-style message template. Required and has to be readable; may be set
 # per area in a group block.

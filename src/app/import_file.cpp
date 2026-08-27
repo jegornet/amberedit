@@ -21,32 +21,6 @@ namespace {
 /// no mailer has ever had trouble with.
 constexpr size_t kBytesPerLine = 45;
 
-/// Where a tab lands, opened out. Eight columns is what a tab has meant since
-/// the teletype, and it is what the file was written against.
-constexpr size_t kTabStop = 8;
-
-/// One line of the file as a message can carry it: tabs opened out to the next
-/// stop, and every other control byte dropped.
-///
-/// A NUL is the one that matters — FTS-0001 ends a message at the first one, so
-/// a single byte of a file read as text could cut the message off — but none of
-/// them is anything a reader would show, and a file imported as text is being
-/// imported to be read. What is dropped is judged byte by byte, which is safe
-/// on UTF-8: every byte of a multi-byte character has its high bit set.
-std::string sanitize(std::string_view line) {
-    std::string out;
-    out.reserve(line.size());
-    for (const char byte : line) {
-        if (byte == '\t') {
-            out.append(kTabStop - (out.size() % kTabStop), ' ');
-            continue;
-        }
-        if (static_cast<unsigned char>(byte) < 0x20 || byte == 0x7F) continue;
-        out += byte;
-    }
-    return out;
-}
-
 /// The charset as iconv is to be asked for it. FTN names its charsets its own
 /// way — `+7_FIDO` and `866` are both CP866 — and a user typing one into the
 /// dialog means the same thing by it as a CHRS kludge does, so the same table
@@ -79,7 +53,7 @@ tl::expected<std::vector<std::string>, ErrorPtr> importText(
     // being read into the message as text, and a command in it is one the
     // writer of the file asked for rather than the writer of the message.
     for (const auto& line : read) {
-        lines.push_back(disarmCopyCommand(sanitize(line)));
+        lines.push_back(disarmCopyCommand(config::text::messageLine(line)));
     }
     if (!request.endLine.empty()) lines.push_back(request.endLine);
     return lines;

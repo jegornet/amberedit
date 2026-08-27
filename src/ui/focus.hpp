@@ -23,6 +23,7 @@ enum class Addressee : uint8_t {
     Forward,
     Area,
     Import,
+    External,
     ExportMode,
     Export,
     Find,
@@ -39,6 +40,7 @@ enum class Addressee : uint8_t {
     if (state.forwardPicker) return Addressee::Forward;
     if (state.areaPicker) return Addressee::Area;
     if (state.importPicker) return Addressee::Import;
+    if (state.externalReview) return Addressee::External;
     if (state.exportModePicker) return Addressee::ExportMode;
     if (state.exportPicker) return Addressee::Export;
     if (state.findPicker) return Addressee::Find;

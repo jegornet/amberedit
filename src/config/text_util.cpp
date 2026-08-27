@@ -27,4 +27,21 @@ tl::expected<std::string, ErrorPtr> readFile(const std::string& path) {
     return buffer.str();
 }
 
+std::string messageLine(std::string_view line) {
+    // Where a tab lands, opened out.
+    constexpr size_t kTabStop = 8;
+
+    std::string out;
+    out.reserve(line.size());
+    for (const char byte : line) {
+        if (byte == '\t') {
+            out.append(kTabStop - (out.size() % kTabStop), ' ');
+            continue;
+        }
+        if (static_cast<unsigned char>(byte) < 0x20 || byte == 0x7F) continue;
+        out += byte;
+    }
+    return out;
+}
+
 }  // namespace amberedit::config::text

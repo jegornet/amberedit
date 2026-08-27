@@ -18,6 +18,17 @@
 /// where the recipient has to be named, and a reply opens in the text.
 /// `Alt-H` goes back up into the header, `Enter` off its last field comes back
 /// down.
+///
+/// **Where `external_editor` names a program, the text is shown and never typed
+/// into.** The header block works exactly as it always did; leaving it downwards
+/// — Enter off the subject, Tab off the last stop, a click in the text — hands
+/// the message to that program instead of the cursor, and a reply, a comment, a
+/// forward moved elsewhere and a message being changed go straight there, their
+/// headers having been filled in already. What comes back is drawn under the
+/// block with no cursor in it and the review box over it, whose four answers are
+/// the whole of what can be done next. There is no half-way house: the internal
+/// editor is not a fallback for a key the external one left unsatisfied, and
+/// every command that edits text — the import above all — is dead here.
 namespace amberedit::ui::screens::compose {
 
 /// The stops of the header, in the order Tab walks them. The To address is
@@ -131,6 +142,35 @@ void saveMessage(AppState& state);
 
 /// Leaves the editor with nothing stored, the answer to the other question.
 void dropMessage(AppState& state);
+
+/// Asks for the program `external_editor` names, on the message as it stands —
+/// what the review box's Continue answer does, and what the shell then runs.
+/// Nothing happens here beyond the asking: a screen has no terminal.
+void requestExternalEditor(AppState& state);
+
+/// What that editor left, once the shell has taken the terminal back.
+///
+/// `changed` false is the file coming back byte for byte as it was handed over.
+/// What that means depends on whether the review box has stood over this
+/// message yet — see `AppState::externalReviewShown`: before it ever has, it is
+/// the user saying they did not want the message, and the message is dropped
+/// with the reader coming back, nothing stored and nothing asked; after it has,
+/// it is the user having looked and changed nothing, and the box comes back.
+///
+/// Otherwise `lines` become the message, the template is never expanded over it
+/// again, and the review box goes up over it.
+void externalEditReturned(AppState& state, bool changed,
+                          std::vector<std::string> lines);
+
+/// The editor not having run at all — no such program, a `tmpdir` that will not
+/// take the file. The message is untouched and the typing goes back into the
+/// header; the shell puts the error box up over it.
+void externalEditFailed(AppState& state);
+
+/// The message moved `delta` rows under the window, the cursor left where it
+/// is: how the review box scrolls what it is asking about, and what the page
+/// keys do on a screen whose text is shown rather than typed into.
+void scrollText(AppState& state, int delta);
 
 /// Carries out the `CC:` and `XC:`/`XP:` commands the message carries and then
 /// stores it — the Process answer to the question storing it asked.

@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/external_editor.hpp"
 #include "app/run_program.hpp"
 #include "app/url_handler.hpp"
 #include "app/user_shell.hpp"
@@ -21,6 +22,7 @@
 #include "ui/error_log.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
+#include "ui/external_dialog.hpp"
 #include "ui/find_dialog.hpp"
 #include "ui/focus.hpp"
 #include "ui/forward_dialog.hpp"
@@ -147,6 +149,12 @@ Element document(AppState& state) {
     }
     if (state.importPicker) {
         body = import_dialog::render(state, std::move(body));
+    }
+    // And this one over the editor as well, where the message came back from a
+    // program of the user's own: it asks what is to become of what that program
+    // left, and the message stands behind it to be read.
+    if (state.externalReview) {
+        body = external_dialog::render(state, std::move(body));
     }
     // And these two over the reader, which is the one screen either opens from —
     // the second in the first's place, the two being one question in two halves
@@ -341,6 +349,65 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             }
             // Whatever was typed while the utility had the terminal was aimed
             // at it and not at the screen coming back.
+            terminal.flushInput();
+            continue;
+        }
+
+        // The editor the message is written in, where the config names one.
+        // The same frame's wait and the same handover as the two above, and
+        // one thing neither of them has: what the program left behind is the
+        // message, so the file is written before it starts and read after it
+        // ends — `app/external_editor.cpp` doing both, this having no business
+        // with charsets.
+        //
+        // The base is not read again on the way back, exactly as it is not
+        // after a utility run from this screen: `after_handover::refresh()`
+        // leaves the editor alone on purpose — nothing on it comes off the
+        // base, and reopening the area could drop the screen and the
+        // half-written message with it.
+        if (state.externalEditRequested) {
+            state.externalEditRequested = false;
+            std::string failed;
+            // Made before the handover rather than inside it: a `tmpdir` that
+            // will not take the file is a failure with nothing to hand over
+            // for, and the box saying so wants the screen this still has.
+            if (state.externalEditPath.empty()) {
+                auto path = app::externalEditPath(state.config.tempDirPath);
+                if (path) {
+                    state.externalEditPath = *path;
+                } else {
+                    failed = path.error()->message();
+                }
+            }
+            app::ExternalEdit edited;
+            if (failed.empty()) {
+                terminal.handOver([&state, &edited, &failed] {
+                    // The terminal's own charset: the editor runs in this
+                    // terminal, and a file it can show is one written the way
+                    // this terminal reads one.
+                    auto ran = app::runExternalEditor(
+                        state.config.externalEditor, state.externalEditPath,
+                        state.edit.lines, ensureUtf8Locale());
+                    if (!ran) {
+                        failed = ran.error()->message();
+                    } else {
+                        edited = std::move(*ran);
+                    }
+                });
+            }
+            takeSize();
+            if (!failed.empty()) {
+                state.errorMessage = failed;
+                // The editor is still standing behind the box, with the message
+                // untouched, and is where acknowledging it leaves the user.
+                state.errorEndsScreen = false;
+                screens::compose::externalEditFailed(state);
+            } else {
+                screens::compose::externalEditReturned(state, edited.changed,
+                                                       std::move(edited.lines));
+            }
+            // Whatever was typed while the editor had the terminal was aimed at
+            // it and not at the screen coming back.
             terminal.flushInput();
             continue;
         }
@@ -552,6 +619,37 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                     std::move(state.importPicker->lines);
                 state.importPicker.reset();
                 screens::compose::insertImported(state, lines);
+            }
+            continue;
+        }
+
+        // The review box is modal in the same way, and stands over the editor
+        // until it is answered. Its four answers are the whole of what can be
+        // done with a message written elsewhere, so the box is put away before
+        // any of them is acted on: three of the four can put a box of their own
+        // up, and two modals at once is not something this loop can mean.
+        if (state.externalReview) {
+            if (external_dialog::handleEvent(state, event) ==
+                external_dialog::Outcome::Picked) {
+                const auto answer = state.externalReview->answer;
+                state.externalReview.reset();
+                switch (answer) {
+                    // Straight to storing it, without the confirmation Ctrl-S
+                    // raises: this box *is* that question, asked of a message
+                    // the user has just been shown.
+                    case AppState::ExternalReview::Answer::Save:
+                        screens::compose::saveMessage(state);
+                        break;
+                    case AppState::ExternalReview::Answer::Drop:
+                        screens::compose::dropMessage(state);
+                        break;
+                    case AppState::ExternalReview::Answer::Again:
+                        screens::compose::requestExternalEditor(state);
+                        break;
+                    case AppState::ExternalReview::Answer::Header:
+                        screens::compose::editHeader(state);
+                        break;
+                }
             }
             continue;
         }

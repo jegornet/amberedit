@@ -394,6 +394,7 @@ add_library(amberedit_core STATIC
   src/app/message_search.cpp
   src/app/user_shell.cpp
   src/app/url_handler.cpp
+  src/app/external_editor.cpp
   src/app/run_program.cpp
   src/app/navigator.cpp
 )
@@ -529,6 +530,7 @@ add_executable(amberedit
   src/ui/error_log.cpp
   src/ui/export_dialog.cpp
   src/ui/export_mode_dialog.cpp
+  src/ui/external_dialog.cpp
   src/ui/find_dialog.cpp
   src/ui/attributes_dialog.cpp
   src/ui/forward_dialog.cpp

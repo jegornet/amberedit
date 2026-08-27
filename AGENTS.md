@@ -1349,7 +1349,80 @@ decides what an occurrence is.
   `wheelScroll()`, a row per notch. The cursor stays where it was written while
   it is on the screen and is carried onto the nearest row still showing when the
   window passes it by. It cannot be left off: `render()` calls `scrollToCursor()`
-  on every frame.
+  on every frame. Both halves of that fall away under an external editor, where
+  the cursor is not in the text at all: `scrollBy()` moves the message and leaves
+  it, and `render()` only holds the scroll inside the message — a frame that
+  scrolled to the cursor would drag the message back wherever it was left
+  standing.
+
+### The external editor
+
+- **`external_editor` takes the internal editor away entirely.** The setting is
+  a command with `$msg` standing where the file goes, the same shape
+  `urlhandler` has and refused the same way — `app_config.cpp` will not read a
+  line that writes the placeholder nowhere, since such a command would open the
+  editor on nothing every time. `AppState::externalEditing()` is the one place
+  the question is asked, and the answer is all-or-nothing: **there is no
+  half-way house** where the internal editor picks up a key the external one
+  left unsatisfied. The header block is untouched; the text below it is drawn,
+  scrolled and never typed into.
+- **Every way down out of the header hands the message over.** `leaveHeader()`
+  is that one door — Enter off the subject, Tab off the last stop, Shift-Tab off
+  the first, `↓` past the button, and a click in the text, which
+  `clickToCursor()` answers by calling it rather than by placing a cursor.
+  `openCompose()` and `openWithText()` call it for the messages that would have
+  opened *in* the text: a reply, a comment reply, a reply moved elsewhere and a
+  message being changed have their headers already, and there is nothing left to
+  ask. A new message and a forward still ask their header first, as they always
+  did.
+- **Nothing runs from the screen.** `askExternalEditor()` sets
+  `AppState::externalEditRequested` and `runApp()` answers it on the next pass,
+  exactly as `reader.shell` and the ten utilities are answered: a screen has no
+  terminal, and the frame the user is looking at while the editor starts is the
+  compose screen rather than a box over it. `app/external_editor.cpp` writes the
+  file, calls `runProgram()` and reads it back; `app_shell.cpp` holds no charset
+  and no filename.
+- **The base is not read again on the way back.** `after_handover::refresh()`
+  returns on the compose screen and this is one more reason why: reopening the
+  area can drop the screen, and the half-written message with it.
+- **A refusal is an untouched file the review box has never stood over.** Both
+  halves are the rule and `AppState::externalReviewShown` is the second of them,
+  counted from the moment the message was begun — `openCompose()` and
+  `openWithText()` clear it, `externalEditReturned()` sets it with the box
+  itself, and `leaveEditor()` clears it again.
+  - The comparison is **the bytes written against the bytes read, not the
+    mtime**: `:wq` in vi rewrites the file unchanged, and a message dropped
+    because a timestamp moved would be a message lost to a habit.
+  - **Box never shown**: `dropMessage()`, straight back to the reader with
+    nothing stored and nothing asked. The editor was the only thing in front of
+    the user, so leaving it without writing is the one way they had of saying no.
+  - **Box shown at any point since**: the box comes back over the message, and
+    it makes no difference how the editor was reached again — Continue, or
+    Header and back down through the block. There is a Discard button on the
+    screen by then, so an untouched file says "I looked and changed nothing" and
+    nothing more. Reading it as "throw the message away" would put an hour's
+    writing behind `:q` and would buy nothing.
+- **What comes back is held to what a message may hold.**
+  `config::text::messageLine()` opens tabs out to the eight-column stop and drops
+  every other control byte, and `splitLines()` takes the line endings off
+  whichever kind the editor wrote. Both are shared with the import, which faces
+  the same problem: bytes from a file somebody else's program wrote. The charset
+  either way is the terminal's own (`ensureUtf8Locale()`) — the editor runs in
+  this terminal — and a message the charset cannot carry is a failure rather
+  than a file full of question marks, the export's rule exactly.
+- **The template is never expanded again over it.** `externalEditReturned()`
+  clears `composeStartText`, which nothing can equal afterwards: the message is
+  the user's from the moment their editor wrote it, and a header changed later
+  changes the kludges and not a word of the text.
+- **One file for the whole message**, `AppState::externalEditPath`, named for the
+  process under `tmpdir` — Continue opens the same file again, which is what
+  makes it a continuation. `leaveEditor()` unlinks it, so a message stored or
+  dropped leaves `tmpdir` as it was found.
+- **The commands that edit text are dead, not merely quiet.** `compose.import`
+  is refused by key and by menu button alike (`commandEnabled()`), and
+  `composeDeleteLineShown()` answers false however the config set it: a button
+  the menu drew dim can still be walked onto and pressed, so the refusal is in
+  both places.
 
 ### Carbon copies and crossposts
 
@@ -1546,6 +1619,20 @@ taking a row.
     directory and picks a file, and picking one puts the typing on Next. `main.cpp` refuses it where `findDefaultConfigPath()` already
   answers, and refuses it with `-c`: it writes a config rather than reading one.
 
+- **The review box is the one dialog with four answers**, `ui/external_dialog.*`,
+  and it comes up over the editor whenever `external_editor`'s program was left
+  having written something. Save stores the message as `Ctrl-S` would — without
+  the confirmation, this box *being* that question, asked of a message the user
+  has just been shown; Discard leaves the editor with nothing stored; Continue
+  opens the same file in the same editor again; Header puts the typing into the
+  block above. **Esc is Header** and never Discard: Escape must not be the key
+  that throws an hour's writing away, and Header is the answer that stores
+  nothing, drops nothing and leaves every other route a keystroke away. The
+  fourth button is not a luxury — with the writing done elsewhere there is no
+  cursor on the screen to walk up into the header with, so the way to the fields
+  has to be a button like the rest. `←→` walk the buttons and `↑↓`, the page keys
+  and the wheel scroll the message behind the box, which is what is being asked
+  about and can be longer than the window.
 - **`i` shows what the base holds about the message** — the storage rather than
   the message: the stored header field by field, the records naming it, and a
   hexdump of the bytes each is made of. `ui/info_dialog.*` shows and does not
@@ -1584,9 +1671,10 @@ taking a row.
     its own `begin 644 …`/`end`, so nothing is written round it. A zero goes out
     as a backquote rather than the space the original encoding used — mail strips
     a trailing space and the line would arrive a byte short.
-  - **What is read is made safe to carry.** Tabs are opened out to the next
-    eight-column stop and every other control byte is dropped. The NUL is the one
-    that matters: FTS-0001 ends a message at the first one.
+  - **What is read is made safe to carry**, `config::text::messageLine()`. Tabs
+    are opened out to the next eight-column stop and every other control byte is
+    dropped. The NUL is the one that matters: FTS-0001 ends a message at the
+    first one. The external editor shares that call, facing the same problem.
   - **The charset is the locale's**, the one `term::ensureUtf8Locale()` settled
     on. `ImportRequest::charset` is still the caller's to name, since `app/` has
     no business reaching into the terminal's locale.
@@ -2786,6 +2874,15 @@ together — `keys_mode` says which.
   shell, which is what makes the quoting question not arise: an argument is one
   argument however many spaces it holds, and an address is written by whoever
   sent the message.
+- **`external_editor` is the fourth of that shape and the only one with a file
+  in the middle of it.** `app/external_editor` writes the message into `tmpdir`
+  in the terminal's charset, calls `runProgram()` on the words with `$msg`
+  filled in, and reads back what is there; the compose screen sets
+  `AppState::externalEditRequested` and `runApp()` hands the terminal over on the
+  next pass, exactly as the other three are answered. What it adds is an
+  *answer*: the bytes read against the bytes written say whether the user wanted
+  the message at all. `ui/after_handover` is not called — the editor is left
+  alone, for the reason the foot of this section gives.
 - **What the shell and the utilities may have done to the base is read again on
   the way back**, and `ui/after_handover` is the whole of it. Not the link
   handler: a browser does not write to a message base, and reopening one after
@@ -2852,7 +2949,9 @@ together — `keys_mode` says which.
   key with its name beside it, so there is nothing a key does that a hint cannot
   say. The key in front of each is `KeyMap::preferredKey()` — a bare key before a
   chord, Ctrl before Alt, a chord before a function key — and a command the
-  layout leaves unbound is left out of the row, as is one the window has no room
+  layout leaves unbound is left out of the row, as is one the screen cannot run
+  at all (`liveOn()`: with `external_editor` named, the commands that edit text
+  have nothing to act on) and one the window has no room
   for: `hint_bar` is **on** by default, at every width, and a row longer than the
   window drops whole hints off its end rather than being squeezed — every hint
   losing its last letters at once turns `q reply  n reply elsewhere` into

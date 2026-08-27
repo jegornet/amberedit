@@ -459,9 +459,10 @@ struct AppConfig {
     /// file and puts the two layouts together.
     KeysMode keysMode{KeysMode::Merge};
 
-    /// A directory for work that needs one, from `tmpdir`. Today that is
-    /// unpacking a zipped nodelist or echolist; it is not a nodelist setting as
-    /// such, which is why it is not named after one.
+    /// A directory for work that needs one, from `tmpdir`. Unpacking a zipped
+    /// nodelist or echolist, and the file a message is handed over in where
+    /// `external_editor` names one; it is not a nodelist setting as such, which
+    /// is why it is not named after one.
     ///
     /// Empty where the config states none, and that is not a failure: this is
     /// what `config::makeTempDir` is handed, and it falls back on the system's
@@ -729,6 +730,18 @@ struct AppConfig {
     /// something the user never named.
     std::vector<std::string> urlHandler;
 
+    /// The program a message is written in, from `external_editor`: the command
+    /// and its arguments as they were written, with `$msg` still standing
+    /// wherever it was — the file the message is handed over in is put in its
+    /// place at the moment the program is run, and a command naming it nowhere
+    /// is refused as the config is read.
+    ///
+    /// Empty by default, which is what leaves the writing to AmberEdit's own
+    /// editor. A config that names one takes that editor away altogether: the
+    /// text of a message is shown on the compose screen and never typed into
+    /// there — see `ui/screens/compose_screen.hpp`.
+    std::vector<std::string> externalEditor;
+
     /// The ten external utilities, from `extern_util0` through `extern_util9` —
     /// the slot is the digit in the setting's name, so the file's order settles
     /// nothing and a config may set as few of them as it likes.
@@ -756,6 +769,12 @@ struct AppConfig {
     /// is what refuses a command that names it nowhere, and the two have to
     /// agree on the word.
     static constexpr std::string_view kUrlPlaceholder = "$url";
+
+    /// What `external_editor` writes the file the message is in in place of,
+    /// wherever in an argument it stands. Spelled here for the same reason
+    /// `kUrlPlaceholder` above is: the config is what refuses a command that
+    /// names it nowhere, and the two have to agree on the word.
+    static constexpr std::string_view kMsgPlaceholder = "$msg";
 
     /// Whether the reader acts on the style codes in a message: `_underlined_`,
     /// `*bold*`, `/italic/`, `#inverted#`. Off by default — the markers are

@@ -22,6 +22,9 @@ namespace amberedit::config {
 /// config named is used exactly as the user made it — where they put it and who
 /// may write there is their business, not ours to second-guess.
 ///
+/// Three things want it: a zipped nodelist, a zipped echolist, and the file a
+/// message is handed over in where `external_editor` names one.
+///
 /// Called by whoever needs the directory, at the moment they need it: nothing is
 /// made by a config that merely mentions one. A failure says what is wrong with
 /// the directory and what to set instead — the caller is left to say what it

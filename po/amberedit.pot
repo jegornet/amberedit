@@ -4,6 +4,7 @@ msgstr ""
 
 #: src/app/export_file.cpp:214 src/app/export_file.cpp:217
 #: src/app/export_file.cpp:273 src/app/export_file.cpp:278
+#: src/app/external_editor.cpp:23 src/app/external_editor.cpp:28
 #, c++-format
 msgid "cannot write file: {0}"
 msgstr ""
@@ -34,7 +35,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1563
+#: src/config/app_config.cpp:1594
 msgid "no description"
 msgstr ""
 
@@ -119,7 +120,7 @@ msgid "Shell"
 msgstr ""
 
 #: src/config/commands.cpp:61 src/ui/export_dialog.cpp:82
-#: src/ui/setup/setup_wizard.cpp:439
+#: src/ui/external_dialog.cpp:86 src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr ""
 
@@ -131,7 +132,7 @@ msgstr ""
 msgid "Import"
 msgstr ""
 
-#: src/config/commands.cpp:68
+#: src/config/commands.cpp:68 src/ui/external_dialog.cpp:92
 msgid "Header"
 msgstr ""
 
@@ -182,7 +183,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-27 00:47+0200\n"
+"POT-Creation-Date: 2026-08-27 04:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -280,8 +281,8 @@ msgid ""
 "amberedit.cfg.example to ./amberedit.cfg or ~/.ambereditrc."
 msgstr ""
 
-#: src/main.cpp:250 src/main.cpp:271 src/main.cpp:282 src/main.cpp:292
-#: src/main.cpp:307 src/main.cpp:319 src/main.cpp:333
+#: src/main.cpp:250 src/main.cpp:271 src/main.cpp:287 src/main.cpp:297
+#: src/main.cpp:312 src/main.cpp:324 src/main.cpp:338
 #, c++-format
 msgid "error: {0}"
 msgstr ""
@@ -339,16 +340,16 @@ msgstr ""
 msgid "Cannot open the area: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:111
+#: src/ui/app_shell.cpp:113
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:607
+#: src/ui/app_shell.cpp:705
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:346 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:400 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -624,6 +625,22 @@ msgstr ""
 msgid "←→ choose · Enter confirm · f/t · Esc cancel"
 msgstr ""
 
+#: src/ui/external_dialog.cpp:88
+msgid "Discard"
+msgstr ""
+
+#: src/ui/external_dialog.cpp:90
+msgid "Continue"
+msgstr ""
+
+#: src/ui/external_dialog.cpp:96
+msgid "The message, as your editor left it:"
+msgstr ""
+
+#: src/ui/external_dialog.cpp:101
+msgid "←→ choose · Enter confirm · s/d/c/h · ↑↓ scroll · Esc header"
+msgstr ""
+
 #: src/ui/find_dialog.cpp:42
 msgid " Find "
 msgstr ""
@@ -761,27 +778,27 @@ msgstr ""
 msgid " Area: {0}▌"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:310
+#: src/ui/screens/compose_screen.cpp:312
 msgid "change"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:311
+#: src/ui/screens/compose_screen.cpp:313
 msgid "forward"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:312
+#: src/ui/screens/compose_screen.cpp:314
 msgid "moved reply"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:313
+#: src/ui/screens/compose_screen.cpp:315
 msgid "reply"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:314
+#: src/ui/screens/compose_screen.cpp:316
 msgid "new message"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1146
+#: src/ui/screens/compose_screen.cpp:1216
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."

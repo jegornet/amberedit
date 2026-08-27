@@ -187,6 +187,60 @@ struct AppState {
     /// ask for one the same way.
     std::optional<size_t> externUtilRequested;
 
+    // --- the external editor ------------------------------------------------
+    /// Whether the program `external_editor` names has been asked for. The
+    /// compose screen sets it and the shell clears it, having handed the
+    /// terminal over and taken it back — the same way `shellRequested` above
+    /// works and for the same reason.
+    bool externalEditRequested{false};
+
+    /// The file the message being written is handed over in, for as long as it
+    /// is being written, and empty where no editor has been asked for yet.
+    ///
+    /// One file for the whole message and not one per trip into the editor:
+    /// Continue editing opens the editor again on what it left, which is what
+    /// makes it a continuation rather than a second message. `leaveEditor()`
+    /// takes it away, so nothing is left in `tmpdir` once the message has been
+    /// stored or dropped.
+    std::string externalEditPath;
+
+    /// Whether the review box has been up for this message yet — counted from
+    /// the moment the message was begun, and the whole of what an untouched
+    /// file means.
+    ///
+    /// **A refusal is an untouched file with the box never having been shown.**
+    /// Until it has, the editor is the *only* thing in front of the user, so
+    /// leaving it without writing is the one way they have of saying they did
+    /// not want the message, and it is taken as that. Once the box has stood
+    /// there is a Discard button on the screen, and going back into the editor,
+    /// looking and changing nothing says exactly that — the box comes back with
+    /// the message still under it. Reading it as "throw it away" would put an
+    /// hour's writing behind `:q` and would buy nothing, the way to discard
+    /// being on the screen already.
+    bool externalReviewShown{false};
+
+    /// The four answers to what the editor left, and where each button was
+    /// drawn. Absent when the box is not up, which is every moment the editor
+    /// is not being come back from.
+    ///
+    /// It is the one dialog with more than two answers, and the reason is that
+    /// it stands where the internal editor's screen would: with no text to type
+    /// into, everything the user could want to do next has to be a button.
+    struct ExternalReview {
+        enum class Answer {
+            Save,    ///< store the message, as Ctrl-S does
+            Drop,    ///< leave the editor with nothing stored
+            Again,   ///< back into the editor, on the same file
+            Header,  ///< the typing into the header block behind the box
+        };
+        Answer answer{Answer::Save};
+        term::Box saveBox;
+        term::Box dropBox;
+        term::Box againBox;
+        term::Box headerBox;
+    };
+    std::optional<ExternalReview> externalReview;
+
     std::optional<domain::MessageHeader> readHeader;
     std::optional<domain::MessageBody> readBody;
     /// What the message on screen answers and what answers it, as the title
@@ -1197,6 +1251,7 @@ struct AppState {
         ThreadLink,        ///< one of the thread markers beside the message number
         UrlLink,           ///< a link in the message text, by its place in the frame
         MenuButton,        ///< the menu button in the top-right corner
+        ExternalChoice,    ///< one of the review box's four, which `pressedLink` says
         DeleteLine,        ///< the editor's delete-line button, beside the cursor
         Menu,              ///< one of the buttons in the menu it opens
         ChangeAttributes,  ///< the button opening the attributes dialog, on the header
@@ -1541,7 +1596,20 @@ struct AppState {
     /// as before it is drawn: the three columns come off the width the lines are
     /// broken at, so this is what the soft wrap is decided against.
     [[nodiscard]] bool composeDeleteLineShown() const {
-        return shown(config.composeDeleteLineButton);
+        // Never where the message is written elsewhere: it is a button that
+        // edits the text, and with an external editor the text is shown rather
+        // than edited. See `externalEditing()` below.
+        return !externalEditing() && shown(config.composeDeleteLineButton);
+    }
+
+    /// Whether the message is written in a program of the user's own rather
+    /// than in AmberEdit — `external_editor` naming one.
+    ///
+    /// It is the whole of the question everywhere it is asked: a config that
+    /// names an editor takes the internal one away entirely, so the compose
+    /// screen shows the text and never lets a key into it.
+    [[nodiscard]] bool externalEditing() const {
+        return !config.externalEditor.empty();
     }
 
     /// Rows the header block stands on whatever the config says, in the reader

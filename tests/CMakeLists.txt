@@ -47,6 +47,7 @@ add_executable(amberedit_tests
   app/message_builder_test.cpp
   app/run_program_test.cpp
   app/url_handler_test.cpp
+  app/external_editor_test.cpp
   app/user_shell_test.cpp
   app/navigator_test.cpp
   ui/app_state_test.cpp
@@ -67,6 +68,7 @@ add_executable(amberedit_tests
   ui/keys_test.cpp
   ui/nodelist_dialog_test.cpp
   ui/compose_screen_test.cpp
+  ui/external_editor_test.cpp
   ui/change_message_test.cpp
   ui/other_area_test.cpp
   ui/carbon_copy_test.cpp
@@ -125,6 +127,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/extern_util.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/after_handover.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/export_mode_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/external_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/find_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/attributes_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/forward_dialog.cpp

@@ -4,9 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -550,6 +552,17 @@ void moveRows(AppState& state, int delta) {
     moveByRows(state.edit, layout.rows, delta, layout.width);
 }
 
+/// The text moved `delta` rows under the window, the cursor left exactly where
+/// it is — what scrolling a message nobody is typing into comes to, and the
+/// whole of what the wheel and the page keys do while `external_editor` names
+/// the program the writing is done in.
+void scrollBy(AppState& state, int delta) {
+    const int rows = std::max(1, editorRows(state));
+    const TextLayout layout = textLayout(state);
+    const int bottom = std::max(0, static_cast<int>(layout.rows.size()) - rows);
+    state.editScroll = std::clamp(state.editScroll + delta, 0, bottom);
+}
+
 /// The wheel over the message: the text moves a row per notch, as the reader's
 /// body does, and the cursor comes along when the window has passed it by.
 ///
@@ -560,6 +573,12 @@ void moveRows(AppState& state, int delta) {
 /// frame scrolls to, so one left off it would have the next frame put the text
 /// straight back where it was.
 void wheelScroll(AppState& state, int delta) {
+    // Nothing to drag where the cursor is not in the text: the message came
+    // back from somebody else's editor and is being read here, not written.
+    if (state.externalEditing()) {
+        scrollBy(state, delta);
+        return;
+    }
     const int rows = std::max(1, editorRows(state));
     const TextLayout layout = textLayout(state);
     const int bottom = std::max(0, static_cast<int>(layout.rows.size()) - rows);
@@ -615,8 +634,23 @@ void fillFromTemplate(AppState& state) {
     // is nearly the whole way down anyway — the message being passed on stands
     // above the greeting — so the end of what is carried comes on screen with
     // the line the writing starts on.
+    //
+    // Where the writing is done elsewhere there is no cursor in the text and
+    // nothing to scroll to: the message is shown from its first line, which is
+    // where reading one starts.
     state.editScroll = 0;
-    scrollToCursor(state);
+    if (!state.externalEditing()) scrollToCursor(state);
+}
+
+/// Asks for the program `external_editor` names, on the message as it now
+/// stands. Nothing runs from here: a screen has no terminal — `runApp()` is
+/// what holds one — so this leaves the slot for the next pass to answer, the
+/// same way the reader asks for a shell.
+void askExternalEditor(AppState& state) {
+    // The typing is in the header for as long as this screen is up. There is
+    // no other half of it to be in: the text is shown and never typed into.
+    state.composeInHeader = true;
+    state.externalEditRequested = true;
 }
 
 /// Opens the compose screen on a message whose fields have just been prefilled,
@@ -624,7 +658,17 @@ void fillFromTemplate(AppState& state) {
 void openCompose(AppState& state, bool inHeader) {
     state.navigator.push(app::ScreenId::Compose);
     state.composeInHeader = inHeader;
+    // Counted from here, which is what "since the message was begun" means:
+    // `leaveEditor()` clears it as well, and this is the other end of the same
+    // statement rather than a second one.
+    state.externalReviewShown = false;
     fillFromTemplate(state);
+    // With an editor of the user's own, a message that would have opened in the
+    // text opens in that editor instead — a reply has every field filled in
+    // from what it answers, and there is nothing here left to ask. One that
+    // opens in the header is asked its header first, exactly as it always was,
+    // and reaches the editor when the block is left.
+    if (state.externalEditing() && !inHeader) askExternalEditor(state);
 }
 
 /// Opens it on text that is already written — the message being changed, which
@@ -634,6 +678,7 @@ void openCompose(AppState& state, bool inHeader) {
 void openWithText(AppState& state, std::vector<std::string> lines) {
     state.navigator.push(app::ScreenId::Compose);
     state.composeInHeader = false;
+    state.externalReviewShown = false;
     state.edit.lines = std::move(lines);
     if (state.edit.lines.empty()) state.edit.lines.emplace_back();
     // Nothing to expand again, and nothing to compare against: refreshTemplate()
@@ -644,6 +689,10 @@ void openWithText(AppState& state, std::vector<std::string> lines) {
     state.edit.row = 0;
     state.edit.col = 0;
     state.editScroll = 0;
+    // The same as every other message that opens in the text: it goes to the
+    // user's own editor, the header having been filled in from the message
+    // being changed.
+    if (state.externalEditing()) askExternalEditor(state);
 }
 
 /// Expands the template again where nothing has been written over it yet.
@@ -664,9 +713,19 @@ void refreshTemplate(AppState& state) {
 }
 
 /// Gives the cursor back to the text, the header having been filled in.
+///
+/// Where `external_editor` names one, that is where it goes: leaving the block
+/// downwards is the user saying they are done with it and have come to write
+/// the message, and the message is written elsewhere. Enter off the subject, a
+/// click in the text, Tab off the last stop — every way down leads to the same
+/// place, there being nothing on this screen for a way down to lead to.
 void leaveHeader(AppState& state) {
-    state.composeInHeader = false;
     refreshTemplate(state);
+    if (state.externalEditing()) {
+        askExternalEditor(state);
+        return;
+    }
+    state.composeInHeader = false;
     scrollToCursor(state);
 }
 
@@ -687,6 +746,17 @@ void leaveEditor(AppState& state) {
     // to a question about a message that has been stored, and the next one is
     // asked about afresh.
     state.copyRun.reset();
+    // The file the external editor was handed goes with the message too: the
+    // message is stored or dropped, and `tmpdir` is promised to be left as it
+    // was found. A failure to unlink it is nothing to say out loud — the
+    // message is written either way, and there is no screen left to say it on.
+    state.externalReview.reset();
+    state.externalReviewShown = false;
+    if (!state.externalEditPath.empty()) {
+        std::error_code ec;
+        std::filesystem::remove(state.externalEditPath, ec);
+        state.externalEditPath.clear();
+    }
     state.navigator.pop();
 }
 
@@ -1202,6 +1272,17 @@ bool clickToCursor(AppState& state, const MouseEvent& click) {
         if (!spot.box.Contain(click.x, click.y)) continue;
         if (state.edit.lines.empty()) return true;
 
+        // Pointing at the message is asking to write it, and where an editor of
+        // the user's own writes it that is where the click leads — the same
+        // departure Enter off the subject makes, and not a quieter one: the To
+        // address is left the way leaving it by hand leaves it. Which character
+        // was pointed at means nothing here, there being no cursor to put on it.
+        if (state.externalEditing()) {
+            leavingFor(kFieldCount);
+            leaveHeader(state);
+            return true;
+        }
+
         // What the row showed, read off the scroll and the layout the frame was
         // drawn with: leaving the header can expand the template again
         // underneath it, and what was pointed at is what was on screen. A row
@@ -1339,15 +1420,26 @@ void beginReply(AppState& state, bool comment) {
 
 }  // namespace
 
+namespace {
+
+/// Whether the editor's own menu offers that button. Only one of them is ever
+/// dead: reading a file into the message is the internal editor's work, and
+/// there is no internal editor where `external_editor` names one. Everything
+/// else — saving, the attributes, the utilities — is about the message rather
+/// than about the line the cursor is on, so none of them goes quiet while the
+/// typing is up in the header.
+bool commandEnabled(const AppState& state, Command command) {
+    if (command == Command::ComposeImport) return !state.externalEditing();
+    return true;
+}
+
+}  // namespace
+
 void openMenu(AppState& state) {
     std::vector<AppState::MenuView::Item> items;
     items.reserve(state.config.composeMenu.size());
-    // Both of the editor's commands are about the message rather than about the
-    // line the cursor is on, so neither goes quiet while the typing is up in the
-    // header: a file read in from there goes into the text, which is the only
-    // place a file could go, and the typing follows it down.
     for (const Command command : state.config.composeMenu) {
-        items.push_back({command, true, {}});
+        items.push_back({command, commandEnabled(state, command), {}});
     }
     menu_dialog::open(state, std::move(items));
 }
@@ -1357,7 +1449,12 @@ void runMenuCommand(AppState& state, Command command) {
         // Save asks the same question Ctrl-S asks rather than storing the
         // message outright: a click is no surer than a key.
         case Command::ComposeSave: askToSave(state); break;
-        case Command::ComposeImport: import_dialog::open(state); break;
+        // Refused rather than merely drawn dim: a button the menu dimmed can
+        // still be walked onto and pressed, and the file would have nowhere to
+        // go — the text on this screen is what an editor of the user's own left.
+        case Command::ComposeImport:
+            if (commandEnabled(state, command)) import_dialog::open(state);
+            break;
         // Everything the editor answers with a chord of its own and the
         // reader's own besides, which `compose_menu` cannot name — and the ten
         // utilities, which are one case rather than ten.
@@ -1782,7 +1879,16 @@ Element render(AppState& state) {
     // has been resized has a scroll worked out against rows that are no longer
     // there. Asking again here is what keeps the cursor on screen across a
     // resize; on a frame nothing has moved for it changes nothing.
-    scrollToCursor(state);
+    //
+    // With the writing done elsewhere the cursor is not in the text, and a
+    // frame that scrolled to it would drag the message back to wherever it was
+    // left standing. The scroll is only held inside the message instead, which
+    // is what a resize can take it out of.
+    if (state.externalEditing()) {
+        scrollBy(state, 0);
+    } else {
+        scrollToCursor(state);
+    }
 
     // The text as it falls into rows of the window. A line wider than the
     // window is shown over several of them and is still one line: the message
@@ -1975,8 +2081,11 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     // A file into the message, from anywhere on the screen — the header
     // included, since what is read goes into the text either way and the typing
-    // follows it there.
+    // follows it there. Nowhere at all where the message is written elsewhere:
+    // the text here is what came back from that editor, and a file put into it
+    // would be a line nobody typed.
     if (state.keys.is(event, Command::ComposeImport)) {
+        if (state.externalEditing()) return true;
         import_dialog::open(state);
         return true;
     }
@@ -1984,6 +2093,17 @@ bool handleEvent(AppState& state, const Event& event) {
     // chord they are bound with — see `headerKey()` and `textKey()`, which end
     // on every Ctrl and Alt the layout does not name.
     if (extern_util::handleKey(state, event, CommandScreen::Compose)) return true;
+    // The page keys walk the message down the window while the typing is in the
+    // header, which under an external editor is the only place it ever is. The
+    // header block binds neither of them, so nothing is taken away from it; what
+    // is added is the one way of reading a long message on a screen that has no
+    // cursor in the text to move.
+    if (state.externalEditing() &&
+        (event == Event::PageUp || event == Event::PageDown)) {
+        const int rows = std::max(1, editorRows(state));
+        scrollBy(state, event == Event::PageDown ? rows : -rows);
+        return true;
+    }
     // Back up into the header, asked only from the text — in the header Tab is
     // the next field.
     //
@@ -2171,6 +2291,67 @@ void useCarbonCopy(AppState& state, const nodelist::NodeEntry* node) {
 
 void dropMessage(AppState& state) {
     leaveEditor(state);
+}
+
+void requestExternalEditor(AppState& state) {
+    askExternalEditor(state);
+}
+
+void externalEditReturned(AppState& state, bool changed,
+                          std::vector<std::string> lines) {
+    if (!changed) {
+        // The file came back exactly as it was handed over, and what that says
+        // depends on whether the review box has stood over this message yet.
+        //
+        // It has: they went back in, looked, and changed nothing — which says
+        // nothing about whether the message is wanted. The box comes back over
+        // it with Discard still on it, that being where a decision to throw the
+        // message away belongs.
+        //
+        // It has not: the editor was the only thing in front of them, being
+        // left without writing is how every editor there is says no, and the
+        // message is dropped with the reader coming back — nothing asked and
+        // nothing stored. See `AppState::externalReviewShown`.
+        if (state.externalReviewShown) {
+            state.externalReview = AppState::ExternalReview{};
+            return;
+        }
+        dropMessage(state);
+        return;
+    }
+
+    state.edit.lines = std::move(lines);
+    if (state.edit.lines.empty()) state.edit.lines.emplace_back();
+    // The message is read from its first line: it is being looked over rather
+    // than written, and where the editor left its own cursor is that editor's
+    // business.
+    state.edit.row = 0;
+    state.edit.col = 0;
+    state.editScroll = 0;
+    // The template is never expanded over it again, whatever the header does
+    // next. `refreshTemplate()` rebuilds only text still standing exactly as
+    // the template left it, and nothing can now equal an empty snapshot — which
+    // is the plainest way of saying that the message is the user's from here on.
+    state.composeStartText.clear();
+    state.composeStartHeader = headerSnapshot(state);
+
+    state.composeInHeader = true;
+    // Set with the box rather than beside it: what the flag says is that the
+    // box has been shown, and the two must not be able to part company.
+    state.externalReviewShown = true;
+    state.externalReview = AppState::ExternalReview{};
+}
+
+void externalEditFailed(AppState& state) {
+    // Nothing was written and the message is still here. The typing goes back
+    // into the header, which is the only half of this screen that takes any —
+    // and off the subject is the way back into the editor, once whatever
+    // stopped it has been seen to.
+    editHeader(state);
+}
+
+void scrollText(AppState& state, int delta) {
+    scrollBy(state, delta);
 }
 
 void insertImported(AppState& state, const std::vector<std::string>& lines) {

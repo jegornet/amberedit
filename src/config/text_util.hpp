@@ -185,4 +185,19 @@ inline std::vector<std::string> splitLines(std::string_view text) {
 /// which is the one thing a caller cannot add and a reader needs.
 [[nodiscard]] tl::expected<std::string, ErrorPtr> readFile(const std::string& path);
 
+/// One line of a file as a message can carry it: tabs opened out to the next
+/// eight-column stop — which is what a tab has meant since the teletype, and
+/// what the file was written against — and every other control byte dropped.
+///
+/// A NUL is the one that matters — FTS-0001 ends a message at the first one, so
+/// a single byte could cut the message off — but none of them is anything a
+/// reader would show. What is dropped is judged byte by byte, which is safe on
+/// UTF-8: every byte of a multi-byte character has its high bit set.
+///
+/// **Everything a message takes in from a file comes through here**: a file
+/// read into it by the import, and a message written in the user's own editor
+/// and read back off disk. The internal editor needs none of it — it refuses a
+/// control byte where the character is typed.
+[[nodiscard]] std::string messageLine(std::string_view line);
+
 }  // namespace amberedit::config::text

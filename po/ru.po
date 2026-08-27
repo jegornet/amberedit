@@ -4,6 +4,7 @@ msgstr "конфиг не называет конфиг тоссера и не �
 
 #: src/app/export_file.cpp:214 src/app/export_file.cpp:217
 #: src/app/export_file.cpp:273 src/app/export_file.cpp:278
+#: src/app/external_editor.cpp:23 src/app/external_editor.cpp:28
 #, c++-format
 msgid "cannot write file: {0}"
 msgstr "не удаётся записать файл: {0}"
@@ -34,7 +35,7 @@ msgstr "не удаётся запустить {0}: {1}"
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1563
+#: src/config/app_config.cpp:1594
 msgid "no description"
 msgstr "нет описания"
 
@@ -119,7 +120,7 @@ msgid "Shell"
 msgstr "Шелл"
 
 #: src/config/commands.cpp:61 src/ui/export_dialog.cpp:82
-#: src/ui/setup/setup_wizard.cpp:439
+#: src/ui/external_dialog.cpp:86 src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr "Сохранить"
 
@@ -131,7 +132,7 @@ msgstr "Атрибуты"
 msgid "Import"
 msgstr "Импорт"
 
-#: src/config/commands.cpp:68
+#: src/config/commands.cpp:68 src/ui/external_dialog.cpp:92
 msgid "Header"
 msgstr "Заголовок"
 
@@ -189,7 +190,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-27 00:47+0200\n"
+"POT-Creation-Date: 2026-08-27 04:35+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -314,8 +315,8 @@ msgstr ""
 "Запустите {0} --setup, чтобы вас спросили, что в нём писать, или скопируйте "
 "amberedit.cfg.example в ./amberedit.cfg или ~/.ambereditrc."
 
-#: src/main.cpp:250 src/main.cpp:271 src/main.cpp:282 src/main.cpp:292
-#: src/main.cpp:307 src/main.cpp:319 src/main.cpp:333
+#: src/main.cpp:250 src/main.cpp:271 src/main.cpp:287 src/main.cpp:297
+#: src/main.cpp:312 src/main.cpp:324 src/main.cpp:338
 #, c++-format
 msgid "error: {0}"
 msgstr "ошибка: {0}"
@@ -373,16 +374,16 @@ msgstr "базу не удалось открыть"
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
 
-#: src/ui/app_shell.cpp:111
+#: src/ui/app_shell.cpp:113
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:607
+#: src/ui/app_shell.cpp:705
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:346 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:400 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -658,6 +659,22 @@ msgstr "Текст"
 msgid "←→ choose · Enter confirm · f/t · Esc cancel"
 msgstr "←→ выбор · Enter подтвердить · f/t · Esc отмена"
 
+#: src/ui/external_dialog.cpp:88
+msgid "Discard"
+msgstr "Отказаться"
+
+#: src/ui/external_dialog.cpp:90
+msgid "Continue"
+msgstr "Продолжить"
+
+#: src/ui/external_dialog.cpp:96
+msgid "The message, as your editor left it:"
+msgstr "Сообщение, каким его оставил ваш редактор:"
+
+#: src/ui/external_dialog.cpp:101
+msgid "←→ choose · Enter confirm · s/d/c/h · ↑↓ scroll · Esc header"
+msgstr "←→ выбор · Enter подтвердить · s/d/c/h · ↑↓ прокрутка · Esc заголовок"
+
 #: src/ui/find_dialog.cpp:42
 msgid " Find "
 msgstr " Поиск "
@@ -795,27 +812,27 @@ msgstr " Проверьте general.tosser_config в конфиге AmberEdit."
 msgid " Area: {0}▌"
 msgstr " Область: {0}▌"
 
-#: src/ui/screens/compose_screen.cpp:310
+#: src/ui/screens/compose_screen.cpp:312
 msgid "change"
 msgstr "правка"
 
-#: src/ui/screens/compose_screen.cpp:311
+#: src/ui/screens/compose_screen.cpp:313
 msgid "forward"
 msgstr "пересылка"
 
-#: src/ui/screens/compose_screen.cpp:312
+#: src/ui/screens/compose_screen.cpp:314
 msgid "moved reply"
 msgstr "ответ в другой области"
 
-#: src/ui/screens/compose_screen.cpp:313
+#: src/ui/screens/compose_screen.cpp:315
 msgid "reply"
 msgstr "ответ"
 
-#: src/ui/screens/compose_screen.cpp:314
+#: src/ui/screens/compose_screen.cpp:316
 msgid "new message"
 msgstr "новое сообщение"
 
-#: src/ui/screens/compose_screen.cpp:1146
+#: src/ui/screens/compose_screen.cpp:1216
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."

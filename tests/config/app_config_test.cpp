@@ -240,6 +240,25 @@ TEST_CASE("AppConfig reads the URL handler [app_config]") {
     CHECK_MESSAGE(contains(nothing, "urlhandler"), nothing);
 }
 
+TEST_CASE("AppConfig reads the external editor [app_config]") {
+    // Nothing by default, which is what leaves the writing to AmberEdit's own
+    // editor.
+    CHECK(with("").externalEditor.empty());
+    CHECK(with("external_editor mcedit $msg\n").externalEditor ==
+          std::vector<std::string>{"mcedit", "$msg"});
+    // Kept as it was written, quotes and all: it is run through an exec and not
+    // through a shell, so an argument with a space in it stays one argument.
+    CHECK(with("external_editor vim -c \"set tw=72\" $msg\n").externalEditor ==
+          std::vector<std::string>{"vim", "-c", "set tw=72", "$msg"});
+
+    // An editor with nowhere to put the message would open on nothing at all,
+    // every time.
+    const std::string nowhere = errorWith("external_editor mcedit\n");
+    CHECK_MESSAGE(contains(nowhere, "$msg"), nowhere);
+    const std::string nothing = errorWith("external_editor\n");
+    CHECK_MESSAGE(contains(nothing, "external_editor"), nothing);
+}
+
 TEST_CASE("AppConfig reads the external utilities [app_config]") {
     // None of them set, which is what leaves every one of the thirty commands
     // with nothing behind it.

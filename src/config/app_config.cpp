@@ -927,6 +927,22 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                               " where the program takes it");
         }
         cfg.urlHandler = entry.values;
+    } else if (key == "external_editor") {
+        if (entry.values.empty()) return entry.fail("external_editor names no program");
+        // The same rule the handler above is held to, and for the same reason:
+        // the message has to land somewhere in what runs, and only the line can
+        // say where — an editor takes the file as an argument, a wrapper script
+        // may want it inside one. A command that never writes it down would open
+        // the editor on nothing at all, every time.
+        const auto names = [](const std::string& word) {
+            return word.find(AppConfig::kMsgPlaceholder) != std::string::npos;
+        };
+        if (!std::any_of(entry.values.begin(), entry.values.end(), names)) {
+            return entry.fail("external_editor says nowhere to put the message: write " +
+                              std::string(AppConfig::kMsgPlaceholder) +
+                              " where the program takes the file to edit");
+        }
+        cfg.externalEditor = entry.values;
     } else if (const auto slot = externUtilKey(key)) {
         auto read = readExternUtil(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
