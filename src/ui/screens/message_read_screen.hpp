@@ -91,16 +91,45 @@ bool findMessage(AppState& state, const std::string& query, app::SearchScope sco
 /// last, and blank rows where it was the only one.
 void deleteMessage(AppState& state);
 
+/// Takes every marked message out of the base — the Marked answer to the box
+/// `reader.delete` puts up while anything is marked — and leaves the reader on
+/// the message it was showing, or on the nearest one before it where that was
+/// among them. The marks go with the messages: there is nothing left for them to
+/// name.
+///
+/// Backwards through the area, for the reason `killTwits()` sweeps backwards:
+/// deleting a message moves the number of every message after it, and a sweep
+/// running forwards would step over whatever moved up into the place of the one
+/// just removed.
+void deleteMarked(AppState& state);
+
+/// Puts up the dialog asking what is to become of the message on screen before
+/// asking where it is to go — the first half of what `m` and the Forward button
+/// do here. The three answers are a message of one's own carrying this one, this
+/// message moved into another area, and this message copied there; `askArea()`
+/// follows whichever is given, and the shell is what puts it up.
+///
+/// `marked` is the scope box's answer carried in — the marked messages rather
+/// than the one on screen — and it takes **Forward off the box**, leaving Copy
+/// and Move and opening on Copy: a forward is a message of one's own with
+/// another quoted in it, and there is no one message a whole set could go into.
+///
+/// Public because the answer to the scope box is acted on by the shell, which is
+/// where one modal hands the question to the next.
+void askForward(AppState& state, bool marked);
+
 /// Puts up the dialog asking which area a message is to go into — what `n` asks
-/// outright, and what the Forward dialog's three answers all lead to. Does
-/// nothing where there is no message to write about, or no area to write into.
+/// outright, and what the Forward dialog's answers all lead to. `marked` says the
+/// answer is to be carried out on the marked messages rather than on the one on
+/// screen, which only Move and Copy can be. Does nothing where there is no
+/// message to write about, or no area to write into.
 ///
 /// The cursor opens on the first area of the list, which is the top of the same
 /// list the area list screen shows: the area being read is the one place the
 /// message is usually not going, `q` and `e` writing here already. A reply
 /// opens on the area `reply_to_area` names instead, where the config names one
 /// the list holds.
-void askArea(AppState& state, AppState::AreaPicker::For purpose);
+void askArea(AppState& state, AppState::AreaPicker::For purpose, bool marked = false);
 
 /// Puts the message on screen into `target` as it stands — the same message in
 /// two areas, which is what Copy asks for. The reader does not move: what it is
@@ -118,6 +147,22 @@ void copyMessage(AppState& state, const domain::AreaConfig& target);
 /// that failed would otherwise cost the message both places. `target` naming the
 /// area being read does nothing at all — the message is already there.
 void moveMessage(AppState& state, const domain::AreaConfig& target);
+
+/// The marked messages into `target`, in the order they stand in the area, and
+/// left here as well — Copy answered for a marked set. The set stands afterwards:
+/// the messages are still where they were, and a working set is not spent by
+/// being read.
+///
+/// The target's base is opened **once** for the lot, where one message at a time
+/// would open and close the same two bases as many times as there are marks.
+void copyMarked(AppState& state, const domain::AreaConfig& target);
+
+/// The same, and then every message that went in is taken out of here — Move
+/// answered for a marked set. Only those: one the other area refused stays where
+/// it is, a message that is not somewhere else not being one to take out of
+/// anywhere. The set is emptied and the reader lands where `deleteMarked()`
+/// leaves it.
+void moveMarked(AppState& state, const domain::AreaConfig& target);
 
 /// The words down the left of the header block, and the column they stand in.
 ///

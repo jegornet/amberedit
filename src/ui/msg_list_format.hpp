@@ -40,12 +40,17 @@ using Layout = std::vector<Line>;
 /// from the header's date.
 ///
 /// Whether a name is the user's own is settled by the screen, which knows what
-/// the area is signed with; nothing here compares names.
+/// the area is signed with; nothing here compares names. Whether the message is
+/// marked is settled there too — a mark is a UID in `AppState::marks`, and
+/// nothing here knows what a UID is.
 struct Row {
     const domain::MessageHeader* header{nullptr};
     int number{0};
     bool fromIsOwn{false};
     bool toIsOwn{false};
+    /// Whether the user has marked this message, which the `m` column draws a
+    /// star for.
+    bool marked{false};
 };
 
 /// The stamp `column` writes for `row`, whole — before the column has had a
@@ -145,15 +150,19 @@ std::string line(const Row& row, const Line& columns);
 /// has read, an unsent message being unread by definition and the one of the two
 /// worth doing something about.
 ///
-/// `Marked` is `Selected` said quietly, and the two are never on one screen: a
+/// `Current` is `Selected` said quietly, and the two are never on one screen: a
 /// list the keyboard is in draws the row Enter would act on, and a panel it is
 /// not in draws the row that happens to be on the screen beside it. Two bars of
 /// the same loudness would leave the eye to work out which of them was which.
+///
+/// None of them is about a message the user has *marked*: that is the `m`
+/// column's star and no bar at all, a mark being something the reader chose and
+/// a row's paint being where the message stands.
 enum class Paint {
     None,      ///< whatever the runs say and nothing more
     Unread,    ///< nobody has read this message yet
     Unsent,    ///< written here and still waiting to go out
-    Marked,    ///< the row a panel marks while the keyboard is elsewhere
+    Current,   ///< the row a panel shows the reader's message on, quietly
     Selected,  ///< the row the cursor stands on
 };
 

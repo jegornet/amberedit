@@ -966,11 +966,11 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
         return with("msglist_format " + value + "\n").messageListFormatWide;
     };
 
-    // The default narrow row stands two lines tall: the number, the two names
-    // and the day on one, the subject on the next.
+    // The default narrow row stands two lines tall: the number and its mark
+    // column, the two names and the day on one, the subject on the next.
     CHECK(with("").messageListFormatNarrow ==
           MsgListFormat{Line{{MsgFieldKind::Number, kAutoWidth},
-                             {MsgFieldKind::Space, 1},
+                             {MsgFieldKind::Marked, 1},
                              {MsgFieldKind::From, 0},
                              {MsgFieldKind::Space, 1},
                              {MsgFieldKind::To, 0},
@@ -981,7 +981,7 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
     // the minute beside the day.
     CHECK(with("").messageListFormatWide ==
           MsgListFormat{Line{{MsgFieldKind::Number, kAutoWidth},
-                             {MsgFieldKind::Space, 1},
+                             {MsgFieldKind::Marked, 1},
                              {MsgFieldKind::From, 20},
                              {MsgFieldKind::Space, 1},
                              {MsgFieldKind::To, 20},
@@ -989,9 +989,12 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
                              {MsgFieldKind::Subject, 0},
                              {MsgFieldKind::Space, 1},
                              {MsgFieldKind::Date, kAutoWidth, "%d %b %y %H:%M"}}});
-    CHECK(formatOf("\"a f0 t0 d(%d %b %y)\\ns\"") == with("").messageListFormatNarrow);
-    CHECK(wideFormatOf("\"a f0 t0 d(%d %b %y)\\ns\" \"a f t s d(%d %b %y %H:%M)\"") ==
+    CHECK(formatOf("\"amf0 t0 d(%d %b %y)\\ns\"") == with("").messageListFormatNarrow);
+    CHECK(wideFormatOf("\"amf0 t0 d(%d %b %y)\\ns\" \"amf t s d(%d %b %y %H:%M)\"") ==
           with("").messageListFormatWide);
+    // The mark column stands where the blank between the number and the first
+    // name used to: a row with nothing marked in it is the row it always was.
+    CHECK(formatOf("\"amf0 t0\"")[0][1].width == formatOf("\"a f0 t0\"")[0][1].width);
 
     // The letters and the widths they stand at where none is written: the names
     // at twenty, the subject taking what is left, and the number and the stamp
@@ -1003,6 +1006,9 @@ TEST_CASE("AppConfig reads what a row of the message list holds [app_config]") {
                                                   {MsgFieldKind::Date, kAutoWidth}}});
     // Case means nothing here either.
     CHECK(formatOf("AFTSD") == formatOf("aftsd"));
+    // The mark is a column wide and takes no format of its own.
+    CHECK(formatOf("m") == MsgListFormat{Line{{MsgFieldKind::Marked, 1}}});
+    CHECK(formatOf("m3") == MsgListFormat{Line{{MsgFieldKind::Marked, 3}}});
 
     // A width follows the letter it belongs to, and 0 is a width like any other
     // to write — including after a letter whose own default is worked out.

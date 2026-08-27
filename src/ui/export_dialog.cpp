@@ -17,6 +17,7 @@
 #include "ui/event_util.hpp"
 #include "ui/input_field.hpp"
 #include "ui/list_page.hpp"
+#include "ui/message_marks.hpp"
 #include "ui/quick_search.hpp"
 #include "ui/term/utf8.hpp"
 #include "ui/text_layout.hpp"
@@ -226,6 +227,17 @@ void focusAfter(Picker& picker, int step) {
         kRing[static_cast<size_t>(((index + step) % kStops + kStops) % kStops)];
 }
 
+/// Where the export leaves the dialog for the next one: the directory it wrote
+/// into and the name it wrote under. The message after this one usually belongs
+/// beside it, and appending is one of the two answers the question offers.
+void rememberPath(AppState& state, const std::string& path) {
+    const fs::path written(path);
+    if (written.has_parent_path()) {
+        state.exportDirectory = written.parent_path().string();
+    }
+    state.exportName = written.filename().string();
+}
+
 /// Writes the message to `path`, `how` saying what becomes of a file already
 /// standing there — which is what the question above this one was asked for.
 Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
@@ -242,15 +254,57 @@ Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
         return Outcome::Ignored;
     }
 
-    // Where it went is where the next one starts from, name and all: the
-    // message after this one usually belongs beside it, and appending is one of
-    // the two answers the question offers.
-    const fs::path written(path);
-    if (written.has_parent_path()) {
-        state.exportDirectory = written.parent_path().string();
-    }
-    state.exportName = written.filename().string();
+    rememberPath(state, path);
     return Outcome::Written;
+}
+
+/// The same for the marked messages: all of them into the one file, in the order
+/// they stand in the area.
+///
+/// `how` is the **first** one's — what the question about a file already there
+/// was answered with — and every one after it is appended, since each writing
+/// afresh would leave the file holding the last message alone. The rule
+/// `exportMessage()` puts at the head of each is what keeps them apart.
+///
+/// A write that fails stops the run and says so, with what went in before it
+/// left in the file: there is nothing here that could put a file back the way it
+/// was, and the honest thing is to name the failure rather than to go on writing
+/// into a file that is already wrong.
+Outcome writeMarked(AppState& state, Picker& picker, const std::string& path,
+                    app::ExportWrite how) {
+    if (state.base == nullptr) return Outcome::Ignored;
+
+    // The numbers before anything is written: nothing here touches the base, but
+    // gathering once is what makes the run the set the user was shown.
+    std::vector<uint32_t> numbers;
+    for (uint32_t number = 1; number <= state.messageCount; ++number) {
+        if (marks::isMarked(state, number)) numbers.push_back(number);
+    }
+    if (numbers.empty()) return Outcome::Ignored;
+
+    app::ExportWrite next = how;
+    for (const uint32_t number : numbers) {
+        const app::ExportRequest request{path, ensureUtf8Locale(),
+                                         state.config.readerDateTimeFormat, next};
+        const auto written_ =
+            app::exportMessage(request, state.currentArea, state.base->header(number),
+                               state.base->body(number));
+        if (!written_) {
+            picker.error = written_.error()->message();
+            return Outcome::Ignored;
+        }
+        next = app::ExportWrite::Append;
+    }
+
+    rememberPath(state, path);
+    return Outcome::Written;
+}
+
+/// Whichever of the two the box was opened for.
+Outcome writeExport(AppState& state, Picker& picker, const std::string& path,
+                    app::ExportWrite how) {
+    return picker.marked ? writeMarked(state, picker, path, how)
+                         : writeMessage(state, picker, path, how);
 }
 
 /// Writes the message where the two boxes between them say.
@@ -302,7 +356,7 @@ Outcome runExport(AppState& state, Picker& picker) {
         picker.existing = std::move(existing);
         return Outcome::Ignored;
     }
-    return writeMessage(state, picker, path, app::ExportWrite::Append);
+    return writeExport(state, picker, path, app::ExportWrite::Append);
 }
 
 /// What Enter on the path box does: walk into what it names, or say it is not
@@ -408,9 +462,9 @@ Outcome answerExisting(AppState& state, Picker& picker, Answer answer) {
     // Copied out before the question is put away, which is what holds it.
     const std::string path = picker.existing->path;
     picker.existing.reset();
-    return writeMessage(state, picker, path,
-                        answer == Answer::Overwrite ? app::ExportWrite::Overwrite
-                                                    : app::ExportWrite::Append);
+    return writeExport(state, picker, path,
+                       answer == Answer::Overwrite ? app::ExportWrite::Overwrite
+                                                   : app::ExportWrite::Append);
 }
 
 /// Everything while the question is up: it is modal over the box the way the
@@ -620,7 +674,7 @@ Outcome filesKey(AppState& state, Picker& picker, const Event& event) {
 
 }  // namespace
 
-void open(AppState& state, std::vector<app::UueFile> files) {
+void open(AppState& state, std::vector<app::UueFile> files, bool marked) {
     // Nothing to write: an empty area opens the reader on blank rows, and the
     // button for this is drawn dimmed there.
     if (!state.readHeader || !state.readBody) return;
@@ -638,6 +692,9 @@ void open(AppState& state, std::vector<app::UueFile> files) {
     Picker picker;
     picker.mode = files.empty() ? Picker::Mode::Text : Picker::Mode::Uue;
     picker.files = std::move(files);
+    // Only a text export can be about a set: the files were decoded out of the
+    // message on screen, and there is no set of them to write.
+    picker.marked = marked && picker.mode == Picker::Mode::Text;
     picker.nameCursor = state.exportName.size();
     state.exportPicker = std::move(picker);
     fitBox(state, *state.exportPicker);
@@ -654,8 +711,9 @@ Element render(AppState& state, Element background) {
     const int inner = picker.inner;
     const auto total = static_cast<int>(picker.entries.size());
 
-    std::string label =
-        writingFiles(picker) ? _(" Export files ") : _(" Export message ");
+    std::string label = writingFiles(picker) ? _(" Export files ")
+                        : picker.marked      ? _(" Export marked ")
+                                             : _(" Export message ");
     theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the

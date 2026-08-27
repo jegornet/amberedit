@@ -28,6 +28,8 @@ enum class Addressee : uint8_t {
     Export,
     Find,
     Nodelist,
+    Mark,
+    Scope,
     Info,
     Replies,
 };
@@ -45,6 +47,8 @@ enum class Addressee : uint8_t {
     if (state.exportPicker) return Addressee::Export;
     if (state.findPicker) return Addressee::Find;
     if (state.nodelistView) return Addressee::Nodelist;
+    if (state.markPicker) return Addressee::Mark;
+    if (state.scopePicker) return Addressee::Scope;
     if (state.infoView) return Addressee::Info;
     if (!state.replyChoices.empty()) return Addressee::Replies;
     return Addressee::Screen;

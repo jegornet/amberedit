@@ -25,6 +25,10 @@ bool isNumeric(MsgFieldKind kind) {
 std::string headingOf(MsgFieldKind kind) {
     switch (kind) {
         case MsgFieldKind::Number: return C_("message list column", "#");
+        // Nothing stands over the mark column, as nothing stands over the area
+        // list's unread marker: a star needs no word to say what it is, and a
+        // heading over one column would only be a letter cut out of a word.
+        case MsgFieldKind::Marked: return "";
         case MsgFieldKind::From: return C_("message list column", "From");
         case MsgFieldKind::To: return C_("message list column", "To");
         case MsgFieldKind::Subject: return C_("message list column", "Subject");
@@ -81,6 +85,7 @@ std::string cellText(const Row& row, const Column& column) {
     switch (column.kind) {
         case MsgFieldKind::Number:
             return truncateToWidth(std::to_string(std::max(0, row.number)), column.width);
+        case MsgFieldKind::Marked: return row.marked ? "*" : "";
         case MsgFieldKind::From: return truncateToWidth(row.header->from, column.width);
         case MsgFieldKind::To: return truncateToWidth(row.header->to, column.width);
         case MsgFieldKind::Subject:
@@ -262,7 +267,7 @@ term::Element drawLine(const Row& row, const Line& columns, int width, Paint pai
     // decorator below covers them together. An unsent message is marked cell by
     // cell instead: the color has to reach the blanks the fields leave as well,
     // and those are pieces of the line like any other.
-    const bool highlighted = paint == Paint::Selected || paint == Paint::Marked;
+    const bool highlighted = paint == Paint::Selected || paint == Paint::Current;
     const auto styled = [&](std::string piece, Ink ink) {
         Element cell = text(std::move(piece));
         if (highlighted) return cell;

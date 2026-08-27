@@ -378,11 +378,12 @@ arealist_scrollbar off
 # --- message list -------------------------------------------------------------
 
 # What a row of the message list holds. Optional;
-# "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)" by default. Written
+# "amf0 t0 d(%d %b %y)\ns" "amf t s d(%d %b %y %H:%M)" by default. Written
 # exactly as arealist_format is — one or two formats, the narrow window's and the
 # wide one's, each a set of letters in any case, each optionally followed by the
 # width in columns it is given:
 #   a   the message's number in the area, counted from one   the numbers in it
+#   m   a "*" where you have marked the message              1 column
 #   f   who the message is from                              20 columns
 #   t   who it is to                                         20 columns
 #   s   what it is about                                     what is left
@@ -419,10 +420,21 @@ arealist_scrollbar off
 # it goes to strftime as it was written — and a format wanting a literal ")" is
 # not a thing that can be written here.
 #
-# So the default narrow row puts the number, the two names and the day on one
-# line and the subject across the whole of the next, a window that narrow having
-# no columns to put them side by side; the wide one is the single row the list
-# has always drawn, with the minute beside the day. Both write the stamp out
+# "m" holds one character or none: a star where the message is one of the ones
+# you have marked — with "t" in the list or in the reader, or from the box the
+# reader's "s" opens — and a blank the rest of the time. It stands in the default
+# formats where the blank between the number and the first name used to, so a
+# list with nothing marked in it reads exactly as it always has; and the column
+# is reserved whether or not anything is marked, a field that appeared the moment
+# something was being a field that shifts every name on the screen sideways. A
+# format written without "m" simply shows no marks — the reader's title still
+# says whether the message in front of you is one, and the marks are made either
+# way.
+#
+# So the default narrow row puts the number, its mark, the two names and the day
+# on one line and the subject across the whole of the next, a window that narrow
+# having no columns to put them side by side; the wide one is the single row the
+# list has always drawn, with the minute beside the day. Both write the stamp out
 # rather than leaving it to reader_datetime_format: a column of stamps is read
 # down for which day a message is from, and a format with no %z in it measures
 # the same from one screenful to the next, where the reader's own would widen and
@@ -430,7 +442,7 @@ arealist_scrollbar off
 # in the theme's "dimmed" color wherever it stands. Where the narrow and wide
 # formats are not the same height, dragging the window across adaptive_ui_threshold
 # keeps the selected message where it stands on the screen.
-msglist_format "a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)"
+msglist_format "amf0 t0 d(%d %b %y)\ns" "amf t s d(%d %b %y %H:%M)"
 
 # Whether the message list draws the reader's scrollbar in its rightmost column,
 # on the same terms as arealist_scrollbar. Optional; on by default.
@@ -482,7 +494,8 @@ reader_sidebar_position right
 # is — the same letters, widths and d(...) — but one format rather than two, the
 # panel being only ever on the screen in a wide window. The default puts the two
 # names and the stamp on one line and the subject on the next; no number column,
-# which the reader's own title carries.
+# which the reader's own title carries, and so no "m" beside one — write one in
+# to have the marks in the panel too.
 reader_sidebar_msglist_format "f0 t0 d(%d %b %H:%M)\ns"
 
 # Whether links in the message text are underlined as well as colored.
@@ -731,11 +744,12 @@ hint_bar_capitalize off
 #
 #   arealist_hints  next_unread  rescan  quit
 #
-#   msglist_hints   quit
+#   msglist_hints   mark_toggle  quit
 #
 #   reader_hints    reply  reply_elsewhere  comment_reply  new  forward  change
 #                   delete  export  find  list  info  nodelist  kludges
-#                   scrollbar  shell  thread_up  thread_down  quit
+#                   scrollbar  mark_toggle  mark_menu  shell  thread_up
+#                   thread_down  quit
 #
 #   compose_hints   save  attributes  import  header_back  delete_line
 #                   restore_line  delete_quote  delete_word  word_left
@@ -748,9 +762,9 @@ hint_bar_capitalize off
 # What each of them does is written beside its key in amberkeys.cfg.example.
 #
 # "none" on its own is a row with nothing in it, which is what the message list
-# is given: every key on it moves the cursor, so there is nothing to remind
-# anyone of. A list may otherwise be as long as you like — what the window has
-# no room for is left off the end of the row.
+# is given: every key on it either moves the cursor or marks the message under
+# it, and neither is worth a row of the screen. A list may otherwise be as long
+# as you like — what the window has no room for is left off the end of the row.
 arealist_hints next_unread rescan
 msglist_hints none
 reader_hints reply reply_elsewhere new list export nodelist
@@ -797,6 +811,10 @@ compose_delete_line_button when_narrow
 #                 info             what the base holds about it, as `i` does
 #                 export           write it out to a text file, as `w` does
 #                 nodelist         look an address or a sysop up, as Ctrl-N does
+#                 mark_toggle      mark the message, or take the mark off it,
+#                                  as `t` does
+#                 mark_menu        the box that marks a run of messages at once,
+#                                  as `s` does
 #                 shell            hand the terminal to your own shell until you
 #                                  leave it, as `o` does
 #
@@ -812,11 +830,12 @@ compose_delete_line_button when_narrow
 # taking a line out. "none" on its own leaves the screen without a menu, and so
 # does menu_button off — the first for one screen, the second for both.
 #
-# The two lists below are the defaults. "change", "info", "export" and
-# "comment_reply" are left out of the reader's — write them in to have them:
+# The two lists below are the defaults. "change", "info", "export",
+# "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's —
+# write them in to have them:
 #
 #   reader_menu list reply reply_elsewhere comment_reply new forward find
-#               change info export nodelist shell
+#               change info export nodelist mark_toggle mark_menu shell
 #
 # The area list and the message list carry no menu button and have no setting for
 # one.

@@ -2,23 +2,23 @@
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr ""
 
-#: src/app/export_file.cpp:214 src/app/export_file.cpp:217
-#: src/app/export_file.cpp:273 src/app/export_file.cpp:278
+#: src/app/export_file.cpp:227 src/app/export_file.cpp:230
+#: src/app/export_file.cpp:286 src/app/export_file.cpp:291
 #: src/app/external_editor.cpp:23 src/app/external_editor.cpp:28
 #, c++-format
 msgid "cannot write file: {0}"
 msgstr ""
 
-#: src/app/export_file.cpp:253
+#: src/app/export_file.cpp:266
 msgid "nothing to save"
 msgstr ""
 
-#: src/app/export_file.cpp:263
+#: src/app/export_file.cpp:276
 #, c++-format
 msgid "file exists: {0}"
 msgstr ""
 
-#: src/app/message_builder.cpp:362
+#: src/app/message_builder.cpp:378
 #, c++-format
 msgid "template: {0}"
 msgstr ""
@@ -35,7 +35,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1594
+#: src/config/app_config.cpp:1639
 msgid "no description"
 msgstr ""
 
@@ -51,124 +51,132 @@ msgstr ""
 msgid "Rescan"
 msgstr ""
 
-#: src/config/commands.cpp:28
+#: src/config/commands.cpp:29 src/config/commands.cpp:61
+msgid "Mark"
+msgstr ""
+
+#: src/config/commands.cpp:30
 msgid "Reply"
 msgstr ""
 
-#: src/config/commands.cpp:31
+#: src/config/commands.cpp:33
 msgid "Reply elsewhere"
 msgstr ""
 
-#: src/config/commands.cpp:33
+#: src/config/commands.cpp:35
 msgid "Comment-reply"
 msgstr ""
 
-#: src/config/commands.cpp:34
+#: src/config/commands.cpp:36
 msgid "New"
 msgstr ""
 
-#: src/config/commands.cpp:35
+#: src/config/commands.cpp:37
 msgid "Fwd / Copy"
 msgstr ""
 
-#: src/config/commands.cpp:37
+#: src/config/commands.cpp:39
 msgid "Change"
 msgstr ""
 
-#: src/config/commands.cpp:39
+#: src/config/commands.cpp:41
 msgid "Delete"
 msgstr ""
 
-#: src/config/commands.cpp:41
+#: src/config/commands.cpp:43
 msgid "Export"
 msgstr ""
 
-#: src/config/commands.cpp:43 src/ui/find_dialog.cpp:65
+#: src/config/commands.cpp:45 src/ui/find_dialog.cpp:67
 msgid "Find"
 msgstr ""
 
-#: src/config/commands.cpp:45
+#: src/config/commands.cpp:47
 msgid "List"
 msgstr ""
 
-#: src/config/commands.cpp:47
+#: src/config/commands.cpp:49
 msgid "Info"
 msgstr ""
 
-#: src/config/commands.cpp:49
+#: src/config/commands.cpp:51
 msgid "Nodelist"
 msgstr ""
 
-#: src/config/commands.cpp:51
+#: src/config/commands.cpp:53
 msgid "Kludges"
 msgstr ""
 
-#: src/config/commands.cpp:53
+#: src/config/commands.cpp:55
 msgid "Scrollbar"
 msgstr ""
 
-#: src/config/commands.cpp:55
+#: src/config/commands.cpp:57
 msgid "Thread up"
 msgstr ""
 
-#: src/config/commands.cpp:58
+#: src/config/commands.cpp:60
 msgid "Thread down"
 msgstr ""
 
-#: src/config/commands.cpp:59
-msgid "Shell"
-msgstr ""
-
-#: src/config/commands.cpp:61 src/ui/export_dialog.cpp:82
-#: src/ui/external_dialog.cpp:86 src/ui/setup/setup_wizard.cpp:439
-msgid "Save"
-msgstr ""
-
-#: src/config/commands.cpp:64
-msgid "Attributes"
+#: src/config/commands.cpp:63
+msgid "Marks"
 msgstr ""
 
 #: src/config/commands.cpp:65
-msgid "Import"
+msgid "Shell"
 msgstr ""
 
-#: src/config/commands.cpp:68 src/ui/external_dialog.cpp:92
-msgid "Header"
+#: src/config/commands.cpp:67 src/ui/export_dialog.cpp:84
+#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:439
+msgid "Save"
 msgstr ""
 
 #: src/config/commands.cpp:70
-msgid "Delete line"
+msgid "Attributes"
 msgstr ""
 
-#: src/config/commands.cpp:72
-msgid "Restore line"
+#: src/config/commands.cpp:71
+msgid "Import"
 msgstr ""
 
-#: src/config/commands.cpp:74
-msgid "Delete quote"
+#: src/config/commands.cpp:74 src/ui/external_dialog.cpp:79
+msgid "Header"
 msgstr ""
 
 #: src/config/commands.cpp:76
-msgid "Delete word"
+msgid "Delete line"
 msgstr ""
 
 #: src/config/commands.cpp:78
-msgid "Word left"
+msgid "Restore line"
 msgstr ""
 
 #: src/config/commands.cpp:80
-msgid "Word right"
+msgid "Delete quote"
 msgstr ""
 
 #: src/config/commands.cpp:82
+msgid "Delete word"
+msgstr ""
+
+#: src/config/commands.cpp:84
+msgid "Word left"
+msgstr ""
+
+#: src/config/commands.cpp:86
+msgid "Word right"
+msgstr ""
+
+#: src/config/commands.cpp:88
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:83
+#: src/config/commands.cpp:89
 msgid "Line end"
 msgstr ""
 
-#: src/config/commands.cpp:152
+#: src/config/commands.cpp:157
 msgid "Utility"
 msgstr ""
 
@@ -183,7 +191,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.4.5\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-27 04:35+0200\n"
+"POT-Creation-Date: 2026-08-27 23:18+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -216,64 +224,64 @@ msgid ""
 "./amberedit.cfg, ~/.ambereditrc\n"
 msgstr ""
 
-#: src/main.cpp:72
+#: src/main.cpp:75
 #, c++-format
 msgid "{0} node"
 msgid_plural "{0} nodes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:78
+#: src/main.cpp:81
 #, c++-format
 msgid " and {0} point"
 msgid_plural " and {0} points"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:81
+#: src/main.cpp:84
 #, c++-format
 msgid "{0}{1} into {2}"
 msgstr ""
 
-#: src/main.cpp:86 src/main.cpp:116 src/main.cpp:204
+#: src/main.cpp:89 src/main.cpp:119 src/main.cpp:207
 #, c++-format
 msgid "warning: {0}"
 msgstr ""
 
-#: src/main.cpp:110
+#: src/main.cpp:113
 #, c++-format
 msgid "{0} area into {1}"
 msgid_plural "{0} areas into {1}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:138
+#: src/main.cpp:141
 #, c++-format
 msgid "{0} is bound to {1}, which no {2} line sets"
 msgstr ""
 
-#: src/main.cpp:185
+#: src/main.cpp:188
 #, c++-format
 msgid "error: {0} needs a value"
 msgstr ""
 
-#: src/main.cpp:192
+#: src/main.cpp:195
 #, c++-format
 msgid "error: unknown option '{0}'"
 msgstr ""
 
-#: src/main.cpp:213
+#: src/main.cpp:216
 msgid "error: --setup writes a config of its own, so it does not take -c"
 msgstr ""
 
-#: src/main.cpp:224
+#: src/main.cpp:227
 #, c++-format
 msgid ""
 "error: there is already an AmberEdit config: {0}\n"
 "Edit it, or move it aside and run --setup again."
 msgstr ""
 
-#: src/main.cpp:237
+#: src/main.cpp:240
 #, c++-format
 msgid ""
 "error: no AmberEdit config found.\n"
@@ -281,8 +289,8 @@ msgid ""
 "amberedit.cfg.example to ./amberedit.cfg or ~/.ambereditrc."
 msgstr ""
 
-#: src/main.cpp:250 src/main.cpp:271 src/main.cpp:287 src/main.cpp:297
-#: src/main.cpp:312 src/main.cpp:324 src/main.cpp:338
+#: src/main.cpp:253 src/main.cpp:274 src/main.cpp:290 src/main.cpp:300
+#: src/main.cpp:315 src/main.cpp:327 src/main.cpp:341
 #, c++-format
 msgid "error: {0}"
 msgstr ""
@@ -340,16 +348,16 @@ msgstr ""
 msgid "Cannot open the area: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:113
+#: src/ui/app_shell.cpp:115
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:705
+#: src/ui/app_shell.cpp:736
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:400 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:509 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -472,67 +480,67 @@ msgstr ""
 msgid "Immediate"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:135
+#: src/ui/attributes_dialog.cpp:137
 msgid "Done"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:203
+#: src/ui/attributes_dialog.cpp:202
 msgid " Message attributes "
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:233
+#: src/ui/attributes_dialog.cpp:236
 msgid "space toggle · ctrl-z clear · enter done · esc cancel"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:39
+#: src/ui/confirm_dialog.cpp:21
 msgid "Save the message?"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:40
+#: src/ui/confirm_dialog.cpp:22
 msgid "Drop the message?"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:41
+#: src/ui/confirm_dialog.cpp:23
 msgid "Delete this message?"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:43
+#: src/ui/confirm_dialog.cpp:25
 msgid "Change this message? It is not from you!"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:45
+#: src/ui/confirm_dialog.cpp:27
 msgid "Change this message? It has already been sent."
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:46
+#: src/ui/confirm_dialog.cpp:28
 msgid "XC and/or CC commands found."
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:50
+#: src/ui/confirm_dialog.cpp:32
 msgid "Quit AmberEdit?"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:63
+#: src/ui/confirm_dialog.cpp:45
 msgid "Ignore"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:63
+#: src/ui/confirm_dialog.cpp:45
 msgid "Process"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:65
+#: src/ui/confirm_dialog.cpp:47
 msgid "No"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:65
+#: src/ui/confirm_dialog.cpp:47
 msgid "Yes"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:101
+#: src/ui/confirm_dialog.cpp:86
 msgid "←→ choose · Enter confirm · y/n · Esc ignores"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:102
+#: src/ui/confirm_dialog.cpp:87
 msgid "←→ choose · Enter confirm · y/n · Esc cancel"
 msgstr ""
 
@@ -545,99 +553,103 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: src/ui/error_dialog.cpp:51
+#: src/ui/error_dialog.cpp:49
 msgid "Enter · Esc"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:68
+#: src/ui/export_dialog.cpp:69
 msgid "Enter write · Tab move · Esc close"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:71
+#: src/ui/export_dialog.cpp:72
 msgid "Enter save · Tab move · Esc close"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:74
+#: src/ui/export_dialog.cpp:75
 msgid " File: "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:77
+#: src/ui/export_dialog.cpp:78
 msgid " Files: "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:86 src/ui/import_dialog.cpp:84
+#: src/ui/export_dialog.cpp:88 src/ui/import_dialog.cpp:84
 #: src/ui/setup/file_picker.cpp:132
 msgid "Path not found"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:90
+#: src/ui/export_dialog.cpp:92
 msgid "No file name"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:379
+#: src/ui/export_dialog.cpp:430
 msgid "File exists:"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:385
+#: src/ui/export_dialog.cpp:436
 msgid "Overwrite"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:387
+#: src/ui/export_dialog.cpp:438
 msgid "Append"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:390
+#: src/ui/export_dialog.cpp:441
 msgid "←→ choose · Enter confirm · o/a · Esc cancel"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:661
+#: src/ui/export_dialog.cpp:714
 msgid " Export files "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:661
+#: src/ui/export_dialog.cpp:715
+msgid " Export marked "
+msgstr ""
+
+#: src/ui/export_dialog.cpp:716
 msgid " Export message "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:666
+#: src/ui/export_dialog.cpp:721
 #, c++-format
 msgid " Dir: {0}▌ "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:730 src/ui/export_mode_dialog.cpp:99
+#: src/ui/export_dialog.cpp:785 src/ui/export_mode_dialog.cpp:84
 #, c++-format
 msgid "… and {0} more"
 msgstr ""
 
-#: src/ui/export_mode_dialog.cpp:81
+#: src/ui/export_mode_dialog.cpp:66
 msgid "The message contains UUE-encoded file(s):"
 msgstr ""
 
-#: src/ui/export_mode_dialog.cpp:134
+#: src/ui/export_mode_dialog.cpp:121
 msgid "Files"
 msgstr ""
 
-#: src/ui/export_mode_dialog.cpp:136 src/ui/import_dialog.cpp:654
+#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:654
 #: src/ui/import_dialog.cpp:657
 msgid "Text"
 msgstr ""
 
-#: src/ui/export_mode_dialog.cpp:140
+#: src/ui/export_mode_dialog.cpp:127
 msgid "←→ choose · Enter confirm · f/t · Esc cancel"
 msgstr ""
 
-#: src/ui/external_dialog.cpp:88
+#: src/ui/external_dialog.cpp:75
 msgid "Discard"
 msgstr ""
 
-#: src/ui/external_dialog.cpp:90
+#: src/ui/external_dialog.cpp:77
 msgid "Continue"
 msgstr ""
 
-#: src/ui/external_dialog.cpp:96
+#: src/ui/external_dialog.cpp:83
 msgid "The message, as your editor left it:"
 msgstr ""
 
-#: src/ui/external_dialog.cpp:101
+#: src/ui/external_dialog.cpp:88
 msgid "←→ choose · Enter confirm · s/d/c/h · ↑↓ scroll · Esc header"
 msgstr ""
 
@@ -665,27 +677,35 @@ msgstr ""
 msgid "Header only"
 msgstr ""
 
-#: src/ui/find_dialog.cpp:220
+#: src/ui/find_dialog.cpp:216
 msgid " Look in:"
 msgstr ""
 
-#: src/ui/forward_dialog.cpp:87
+#: src/ui/forward_dialog.cpp:115
 msgid "Forward"
 msgstr ""
 
-#: src/ui/forward_dialog.cpp:88
+#: src/ui/forward_dialog.cpp:118
 msgid "Move"
 msgstr ""
 
-#: src/ui/forward_dialog.cpp:89
+#: src/ui/forward_dialog.cpp:121
 msgid "Copy"
 msgstr ""
 
-#: src/ui/forward_dialog.cpp:93
+#: src/ui/forward_dialog.cpp:127
+msgid "Marked message actions:"
+msgstr ""
+
+#: src/ui/forward_dialog.cpp:127
 msgid "Message actions:"
 msgstr ""
 
-#: src/ui/forward_dialog.cpp:98
+#: src/ui/forward_dialog.cpp:132
+msgid "←→ choose · Enter confirm · c/m · Esc cancel"
+msgstr ""
+
+#: src/ui/forward_dialog.cpp:133
 msgid "←→ choose · Enter confirm · f/m/c · Esc cancel"
 msgstr ""
 
@@ -718,27 +738,55 @@ msgstr ""
 msgid " Message info "
 msgstr ""
 
+#: src/ui/mark_dialog.cpp:48
+msgid "All msgs"
+msgstr ""
+
+#: src/ui/mark_dialog.cpp:49
+msgid "Unmark all"
+msgstr ""
+
+#: src/ui/mark_dialog.cpp:50
+msgid "Toggle marks"
+msgstr ""
+
+#: src/ui/mark_dialog.cpp:51
+msgid "New msgs >current"
+msgstr ""
+
+#: src/ui/mark_dialog.cpp:52
+msgid "Old msgs <current"
+msgstr ""
+
+#: src/ui/mark_dialog.cpp:127
+msgid "Mark messages:"
+msgstr ""
+
+#: src/ui/mark_dialog.cpp:142
+msgid "↑↓ choose · Enter confirm · a/u/t/n/o · Esc cancel"
+msgstr ""
+
 #: src/ui/msg_list_format.cpp:27
 msgctxt "message list column"
 msgid "#"
 msgstr ""
 
-#: src/ui/msg_list_format.cpp:28
+#: src/ui/msg_list_format.cpp:32
 msgctxt "message list column"
 msgid "From"
 msgstr ""
 
-#: src/ui/msg_list_format.cpp:29
+#: src/ui/msg_list_format.cpp:33
 msgctxt "message list column"
 msgid "To"
 msgstr ""
 
-#: src/ui/msg_list_format.cpp:30
+#: src/ui/msg_list_format.cpp:34
 msgctxt "message list column"
 msgid "Subject"
 msgstr ""
 
-#: src/ui/msg_list_format.cpp:31
+#: src/ui/msg_list_format.cpp:35
 msgctxt "message list column"
 msgid "Date"
 msgstr ""
@@ -763,6 +811,41 @@ msgstr ""
 
 #: src/ui/rescan_dialog.cpp:37
 msgid "Rescanning areas..."
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:61
+msgid "Which messages are to be deleted?"
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:62
+msgid "Which messages are to go elsewhere?"
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:63
+msgid "Which messages are to be written out?"
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:97
+msgid "Marked"
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:98
+msgid "Current"
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:99
+msgid "Cancel"
+msgstr ""
+
+#: src/ui/scope_dialog.cpp:106
+#, c++-format
+msgid "{0} message marked"
+msgid_plural "{0} messages marked"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/ui/scope_dialog.cpp:115
+msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr ""
 
 #: src/ui/screens/area_list_screen.cpp:208
@@ -804,40 +887,40 @@ msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:541
+#: src/ui/screens/message_read_screen.cpp:546
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1480
+#: src/ui/screens/message_read_screen.cpp:1664
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1501
+#: src/ui/screens/message_read_screen.cpp:1685
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2001
+#: src/ui/screens/message_read_screen.cpp:2227
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2004
+#: src/ui/screens/message_read_screen.cpp:2230
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2007
+#: src/ui/screens/message_read_screen.cpp:2233
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2010
+#: src/ui/screens/message_read_screen.cpp:2236
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2013
+#: src/ui/screens/message_read_screen.cpp:2239
 msgctxt "header block"
 msgid "Recd"
 msgstr ""

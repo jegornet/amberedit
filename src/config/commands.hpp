@@ -18,38 +18,41 @@ namespace amberedit::config {
 /// layout that had dropped Esc would be a layout with no way out of the screen
 /// it left you on. The dialogs answer for themselves for the same reason.
 enum class Command : uint8_t {
-    AppQuit,               ///< app.quit
-    AreaListNextUnread,    ///< arealist.next_unread
-    AreaListRescan,        ///< arealist.rescan
-    ReaderReply,           ///< reader.reply
-    ReaderReplyElsewhere,  ///< reader.reply_elsewhere
-    ReaderCommentReply,    ///< reader.comment_reply
-    ReaderNew,             ///< reader.new
-    ReaderForward,         ///< reader.forward
-    ReaderChange,          ///< reader.change
-    ReaderDelete,          ///< reader.delete
-    ReaderExport,          ///< reader.export
-    ReaderFind,            ///< reader.find
-    ReaderList,            ///< reader.list
-    ReaderInfo,            ///< reader.info
-    ReaderNodelist,        ///< reader.nodelist
-    ReaderKludges,         ///< reader.kludges
-    ReaderScrollbar,       ///< reader.scrollbar
-    ReaderThreadUp,        ///< reader.thread_up
-    ReaderThreadDown,      ///< reader.thread_down
-    ReaderShell,           ///< reader.shell
-    ComposeSave,           ///< compose.save
-    ComposeAttributes,     ///< compose.attributes
-    ComposeImport,         ///< compose.import
-    ComposeHeaderBack,     ///< compose.header_back
-    ComposeDeleteLine,     ///< compose.delete_line
-    ComposeRestoreLine,    ///< compose.restore_line
-    ComposeDeleteQuote,    ///< compose.delete_quote
-    ComposeDeleteWord,     ///< compose.delete_word
-    ComposeWordLeft,       ///< compose.word_left
-    ComposeWordRight,      ///< compose.word_right
-    ComposeLineStart,      ///< compose.line_start
-    ComposeLineEnd,        ///< compose.line_end
+    AppQuit,                ///< app.quit
+    AreaListNextUnread,     ///< arealist.next_unread
+    AreaListRescan,         ///< arealist.rescan
+    MessageListMarkToggle,  ///< msglist.mark_toggle
+    ReaderReply,            ///< reader.reply
+    ReaderReplyElsewhere,   ///< reader.reply_elsewhere
+    ReaderCommentReply,     ///< reader.comment_reply
+    ReaderNew,              ///< reader.new
+    ReaderForward,          ///< reader.forward
+    ReaderChange,           ///< reader.change
+    ReaderDelete,           ///< reader.delete
+    ReaderExport,           ///< reader.export
+    ReaderFind,             ///< reader.find
+    ReaderList,             ///< reader.list
+    ReaderInfo,             ///< reader.info
+    ReaderNodelist,         ///< reader.nodelist
+    ReaderKludges,          ///< reader.kludges
+    ReaderScrollbar,        ///< reader.scrollbar
+    ReaderThreadUp,         ///< reader.thread_up
+    ReaderThreadDown,       ///< reader.thread_down
+    ReaderMarkToggle,       ///< reader.mark_toggle
+    ReaderMarkMenu,         ///< reader.mark_menu
+    ReaderShell,            ///< reader.shell
+    ComposeSave,            ///< compose.save
+    ComposeAttributes,      ///< compose.attributes
+    ComposeImport,          ///< compose.import
+    ComposeHeaderBack,      ///< compose.header_back
+    ComposeDeleteLine,      ///< compose.delete_line
+    ComposeRestoreLine,     ///< compose.restore_line
+    ComposeDeleteQuote,     ///< compose.delete_quote
+    ComposeDeleteWord,      ///< compose.delete_word
+    ComposeWordLeft,        ///< compose.word_left
+    ComposeWordRight,       ///< compose.word_right
+    ComposeLineStart,       ///< compose.line_start
+    ComposeLineEnd,         ///< compose.line_end
     // The external utilities, ten to a screen and every one of them the same
     // command with another program behind it. They stand together at the end
     // because that is what lets a slot and a screen be worked out from the

@@ -21,6 +21,12 @@
 /// the locale names: the terminal is being read in it, and a file written beside
 /// it will be read on the same machine.
 ///
+/// **A run of marked messages is the same box asked the same way**, and what
+/// differs is only how many messages go into the file the name picks: they are
+/// written in the order they stand in the area, the first under whatever the
+/// question below was answered with and every one after it appended, since each
+/// writing afresh would leave the file holding the last of them alone.
+///
 /// **A file already standing under the name is a question**, put in a box of its
 /// own over this one: **Overwrite**, **Append**, or Esc for neither, which leaves
 /// the dialog exactly as it was with the name there to be typed over. It used to
@@ -52,7 +58,13 @@ enum class Outcome {
 /// `files` is what the message carries uuencoded, where that was asked about and
 /// answered with them; empty is the ordinary text export, which is what a
 /// message carrying no file has for an answer without being asked.
-void open(AppState& state, std::vector<app::UueFile> files = {});
+///
+/// `marked` is the scope box's answer carried in: the marked messages are written
+/// into the one file the box names, one after another in the order they stand in
+/// the area, each under the rule that keeps two of them apart. It is only ever
+/// true for a text export — the files were decoded out of the message on screen,
+/// and there is no set of them to write.
+void open(AppState& state, std::vector<app::UueFile> files = {}, bool marked = false);
 
 /// The dialog drawn over `background`, its rows and controls recorded as they
 /// land so that a click can be answered on the next event.

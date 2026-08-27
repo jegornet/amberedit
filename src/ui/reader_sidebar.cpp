@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ui/event_util.hpp"
+#include "ui/message_marks.hpp"
 #include "ui/msg_list_format.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/theme.hpp"
@@ -17,17 +18,20 @@ using namespace term;
 namespace {
 
 /// The panel carries its own margin on both sides, so that the highlight on the
-/// marked row covers them rather than starting a column in. The rule beside it
+/// current row covers them rather than starting a column in. The rule beside it
 /// is a column of its own and no part of a row.
 constexpr int kIndent = 1;
 constexpr int kRightPad = 1;
 
-/// Which message the panel marks: the one the reader is showing, and not
-/// `messageCursor`. They are the same wherever the reading went through this
+/// Which message the panel draws its bar on: the one the reader is showing, and
+/// not `messageCursor`. They are the same wherever the reading went through this
 /// screen — but a message written and then read back lands in the reader
 /// straight from the compose screen, and what the panel is for is saying which
 /// message is on the screen beside it.
-uint32_t markedMessage(const AppState& state) {
+///
+/// Nothing to do with `AppState::marks`, which is what the user marked and what
+/// the `m` column draws a star for.
+uint32_t currentMessage(const AppState& state) {
     return state.readHeader ? state.readHeader->number : 0;
 }
 
@@ -57,6 +61,7 @@ std::vector<msg_format::Row> visibleRows(const AppState& state) {
         row.number = index + 1;
         row.header =
             screens::message_list::headerAt(state, static_cast<uint32_t>(row.number));
+        row.marked = marks::isMarked(state, static_cast<uint32_t>(row.number));
         if (row.header != nullptr) {
             row.fromIsOwn = state.isOwnName(row.header->from);
             row.toIsOwn = state.isOwnName(row.header->to);
@@ -136,14 +141,14 @@ Element render(AppState& state) {
     const int height = std::max(1, state.height);
     const int items = state.readerSidebarItems();
     const int rowHeight = state.readerSidebarRowHeight();
-    const uint32_t marked = markedMessage(state);
+    const uint32_t current = currentMessage(state);
 
     // A window resized under the panel can carry the message being read off it
     // with nothing having been asked for, so the panel goes back to it. Only
     // then: where the geometry is what it was, the offset is the user's — the
     // wheel scrolls the panel and the reader stays where it is.
     if (state.readerSidebarItemsShown != items) {
-        follow(state, marked);
+        follow(state, current);
         state.readerSidebarItemsShown = items;
     }
     state.readerSidebarOffset =
@@ -169,18 +174,19 @@ Element render(AppState& state) {
                 continue;
             }
             const msg_format::Row& row = shown[static_cast<size_t>(i)];
-            // Every line of the marked row is marked: a highlight stopping
-            // halfway down a row would read as two messages, one of them chosen.
+            // Every line of the current row carries the bar: a highlight
+            // stopping halfway down a row would read as two messages, one of
+            // them chosen.
             //
-            // Marked and not selected: the panel says which message is on the
+            // Current and not selected: the panel says which message is on the
             // screen beside it, and the keyboard is in the reader. Its bar is
             // `reader_sidebar_msglist_selected` for that reason — quieter than
             // the one the lists choose a row with.
-            const bool selected = static_cast<uint32_t>(row.number) == marked;
+            const bool selected = static_cast<uint32_t>(row.number) == current;
             const bool unsent = row.header != nullptr && domain::isUnsent(*row.header);
             const bool unread = state.config.highlightUnread && row.header != nullptr &&
                                 !row.header->seen;
-            const msg_format::Paint paint = selected ? msg_format::Paint::Marked
+            const msg_format::Paint paint = selected ? msg_format::Paint::Current
                                             : unsent ? msg_format::Paint::Unsent
                                             : unread ? msg_format::Paint::Unread
                                                      : msg_format::Paint::None;

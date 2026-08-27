@@ -18,6 +18,8 @@
 #include "ui/area_dialog.hpp"
 #include "ui/forward_dialog.hpp"
 #include "ui/menu_dialog.hpp"
+#include "ui/message_marks.hpp"
+#include "ui/scope_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
 #include "ui/screens/compose_screen.hpp"
 #include "ui/screens/message_list_screen.hpp"
@@ -32,7 +34,9 @@ using amberedit::ui::term::Event;
 
 namespace area_dialog = amberedit::ui::area_dialog;
 namespace forward_dialog = amberedit::ui::forward_dialog;
+namespace marks = amberedit::ui::marks;
 namespace menu_dialog = amberedit::ui::menu_dialog;
+namespace scope_dialog = amberedit::ui::scope_dialog;
 namespace area_list = amberedit::ui::screens::area_list;
 namespace compose = amberedit::ui::screens::compose;
 namespace domain = amberedit::domain;
@@ -189,13 +193,61 @@ struct TwoAreaFixture {
         const domain::AreaConfig picked =
             manager.areas()[static_cast<size_t>(state.areaPicker->cursor)].config;
         const auto purpose = state.areaPicker->purpose;
+        const bool marked = state.areaPicker->marked;
         state.areaPicker.reset();
         switch (purpose) {
             case For::Reply: compose::startReplyElsewhere(state, picked); break;
             case For::Forward: compose::startForwardTo(state, picked); break;
-            case For::Move: message_read::moveMessage(state, picked); break;
-            case For::Copy: message_read::copyMessage(state, picked); break;
+            case For::Move:
+                if (marked) {
+                    message_read::moveMarked(state, picked);
+                } else {
+                    message_read::moveMessage(state, picked);
+                }
+                break;
+            case For::Copy:
+                if (marked) {
+                    message_read::copyMarked(state, picked);
+                } else {
+                    message_read::copyMessage(state, picked);
+                }
+                break;
         }
+    }
+
+    /// `m` on an area with something marked, answered with the scope: which
+    /// messages the key means. What is left up afterwards is the forward
+    /// picker — the second of the three boxes.
+    void askScope(amberedit::ui::AppState::ScopePicker::Mode mode) {
+        message_read::handleEvent(state, Event::Character('m'));
+        REQUIRE(state.scopePicker);
+        REQUIRE(state.scopePicker->purpose ==
+                amberedit::ui::AppState::ScopePicker::For::Forward);
+        state.scopePicker->mode = mode;
+        REQUIRE(scope_dialog::handleEvent(state, Event::Return) ==
+                scope_dialog::Outcome::Picked);
+        state.scopePicker.reset();
+        if (mode == amberedit::ui::AppState::ScopePicker::Mode::Cancel) return;
+        message_read::askForward(
+            state, mode == amberedit::ui::AppState::ScopePicker::Mode::Marked);
+    }
+
+    /// The whole of `m` on a marked set: the scope, what is to become of them,
+    /// and the area they are to become it in.
+    void passOnMarked(Mode mode, const std::string& tag) {
+        askScope(amberedit::ui::AppState::ScopePicker::Mode::Marked);
+        REQUIRE(state.forwardPicker);
+        CHECK(state.forwardPicker->marked);
+        state.forwardPicker->mode = mode;
+        REQUIRE(forward_dialog::handleEvent(state, Event::Return) ==
+                forward_dialog::Outcome::Picked);
+        state.forwardPicker.reset();
+        message_read::askArea(state, purposeOf(mode), /*marked=*/true);
+        REQUIRE(state.areaPicker);
+        state.areaPicker->cursor = rowOf(tag);
+        REQUIRE(area_dialog::handleEvent(state, Event::Return) ==
+                area_dialog::Outcome::Picked);
+        pickArea();
     }
 
     /// `m` and the answer to the dialog it opens — the two halves of asking for
@@ -1459,4 +1511,191 @@ TEST_CASE(
     CHECK(state.edit.row >= state.editScroll);
     CHECK(state.edit.row < state.editScroll + kRows);
     CHECK(state.editScroll == state.edit.row - kRows + 1);
+}
+
+TEST_CASE("m asks which messages once anything is marked [other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+
+    SUBCASE("with nothing marked it asks what it always asked") {
+        REQUIRE(message_read::handleEvent(state, Event::Character('m')));
+        CHECK_FALSE(state.scopePicker);
+        REQUIRE(state.forwardPicker);
+        CHECK_FALSE(state.forwardPicker->marked);
+        CHECK(state.forwardPicker->mode == Mode::Forward);
+    }
+    SUBCASE("with a set standing it asks which messages first") {
+        marks::toggle(state, 2);
+        REQUIRE(message_read::handleEvent(state, Event::Character('m')));
+        REQUIRE(state.scopePicker);
+        CHECK_FALSE(state.forwardPicker);
+        CHECK(state.scopePicker->purpose ==
+              amberedit::ui::AppState::ScopePicker::For::Forward);
+        CHECK(state.scopePicker->marked == 1);
+    }
+}
+
+TEST_CASE(
+    "The marked set is offered Copy and Move and no Forward "
+    "[other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    marks::toggle(state, 2);
+
+    fixture.askScope(amberedit::ui::AppState::ScopePicker::Mode::Marked);
+    REQUIRE(state.forwardPicker);
+    CHECK(state.forwardPicker->marked);
+    // It opens on Copy, the one that takes nothing out of the area.
+    CHECK(state.forwardPicker->mode == Mode::Copy);
+
+    const std::vector<std::string> rows = forwardRowsOf(state);
+    CHECK(anyRowHas(rows, "Copy"));
+    CHECK(anyRowHas(rows, "Move"));
+    CHECK_FALSE(anyRowHas(rows, "Forward"));
+
+    // The ring is the two, and `f` says nothing to a box not showing Forward.
+    CHECK(forward_dialog::handleEvent(state, Event::ArrowRight) ==
+          forward_dialog::Outcome::Ignored);
+    CHECK(state.forwardPicker->mode == Mode::Move);
+    CHECK(forward_dialog::handleEvent(state, Event::ArrowRight) ==
+          forward_dialog::Outcome::Ignored);
+    CHECK(state.forwardPicker->mode == Mode::Copy);
+    CHECK(forward_dialog::handleEvent(state, Event::Character('f')) ==
+          forward_dialog::Outcome::Ignored);
+    CHECK(state.forwardPicker->mode == Mode::Copy);
+}
+
+TEST_CASE(
+    "Answering the scope with Current forwards the message as ever "
+    "[other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    marks::toggle(state, 2);
+
+    fixture.askScope(amberedit::ui::AppState::ScopePicker::Mode::Current);
+    REQUIRE(state.forwardPicker);
+    CHECK_FALSE(state.forwardPicker->marked);
+    CHECK(state.forwardPicker->mode == Mode::Forward);
+    CHECK(anyRowHas(forwardRowsOf(state), "Forward"));
+}
+
+TEST_CASE("Cancelling the scope leaves everything as it was [other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    marks::toggle(state, 2);
+
+    fixture.askScope(amberedit::ui::AppState::ScopePicker::Mode::Cancel);
+    CHECK_FALSE(state.forwardPicker);
+    CHECK_FALSE(state.areaPicker);
+    CHECK(state.marks.size() == 1);
+}
+
+TEST_CASE("The marked messages copied stand in both areas [other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+
+    const uint32_t hereBefore = fixture.countIn(fixture.source);
+    const uint32_t thereBefore = fixture.countIn(fixture.target);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.messageCount > 4);
+
+    marks::toggle(state, 2);
+    marks::toggle(state, 4);
+    const std::string second = state.base->header(2).subject;
+    const std::string fourth = state.base->header(4).subject;
+    message_read::goToMessage(state, 3);
+
+    fixture.passOnMarked(Mode::Copy, "test.other");
+
+    // Nothing left here, and the reader is where it was.
+    CHECK(fixture.countIn(fixture.source) == hereBefore);
+    REQUIRE(state.readHeader);
+    CHECK(state.readHeader->number == 3);
+    // The set stands: the messages are still where they were.
+    CHECK(state.marks.size() == 2);
+
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
+    REQUIRE(base != nullptr);
+    REQUIRE(base->count() == thereBefore + 2);
+    // In the order they stood in the area rather than in whatever order the set
+    // happened to be walked in.
+    CHECK(base->header(thereBefore + 1).subject == second);
+    CHECK(base->header(thereBefore + 2).subject == fourth);
+    fixture.manager.closeCurrentArea();
+}
+
+TEST_CASE("The marked messages moved are gone from this area [other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+
+    const uint32_t hereBefore = fixture.countIn(fixture.source);
+    const uint32_t thereBefore = fixture.countIn(fixture.target);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.messageCount > 4);
+
+    marks::toggle(state, 2);
+    marks::toggle(state, 4);
+    const std::string second = state.base->header(2).subject;
+    const std::string fourth = state.base->header(4).subject;
+    const std::string third = state.base->header(3).subject;
+    message_read::goToMessage(state, 3);
+
+    fixture.passOnMarked(Mode::Move, "test.other");
+
+    CHECK(state.messageCount == hereBefore - 2);
+    CHECK(fixture.countIn(fixture.source) == hereBefore - 2);
+    // The reader is still on the message it was showing, wherever the
+    // renumbering left it, and the set is spent.
+    REQUIRE(state.readHeader);
+    CHECK(state.readHeader->subject == third);
+    CHECK(state.readHeader->number == 2);
+    CHECK(state.marks.empty());
+
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
+    REQUIRE(base != nullptr);
+    REQUIRE(base->count() == thereBefore + 2);
+    CHECK(base->header(thereBefore + 1).subject == second);
+    CHECK(base->header(thereBefore + 2).subject == fourth);
+    fixture.manager.closeCurrentArea();
+}
+
+TEST_CASE(
+    "Moving the marked set into the area it is in does nothing "
+    "[other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    const uint32_t before = state.messageCount;
+    marks::toggle(state, 2);
+
+    message_read::moveMarked(state, fixture.source);
+
+    CHECK(state.messageCount == before);
+    CHECK(state.marks.size() == 1);
+}
+
+TEST_CASE(
+    "Copying the marked set into the area it is in doubles them "
+    "[other_area][marks]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    const uint32_t before = state.messageCount;
+    marks::toggle(state, 2);
+    marks::toggle(state, 3);
+
+    message_read::copyMarked(state, fixture.source);
+
+    CHECK(state.messageCount == before + 2);
+    // The originals are still marked; the copies beside them are not.
+    CHECK(state.marks.size() == 2);
+    CHECK(marks::isMarked(state, 2));
+    CHECK(marks::isMarked(state, 3));
+    CHECK_FALSE(marks::isMarked(state, before + 1));
 }

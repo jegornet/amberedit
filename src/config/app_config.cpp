@@ -129,13 +129,21 @@ AreaFieldKind areaFieldOf(char letter) {
 /// the stamps in it rather than a number the table could name here. The date is
 /// the one field written by a format of its own — `d(%d %b %y)` — every other
 /// one being drawn from what it holds and nothing else.
+///
+/// `m` is a column wide, as the area list's unread marker is: it holds one
+/// character or none, and a width is a thing to reserve rather than to measure.
 const ListFormatSpec& msgFormatSpec() {
     static const ListFormatSpec spec{
         "msglist_format",
-        {{'a', kAutoWidth}, {'f', 20}, {'t', 20}, {'s', 0}, {'d', kAutoWidth, true}},
-        "a number, f from, t to, s subject, d date",
-        "a f0 t0 d(%d %b %y)\\ns",
-        "a f t s d(%d %b %y %H:%M)",
+        {{'a', kAutoWidth},
+         {'m', 1},
+         {'f', 20},
+         {'t', 20},
+         {'s', 0},
+         {'d', kAutoWidth, true}},
+        "a number, m mark, f from, t to, s subject, d date",
+        "amf0 t0 d(%d %b %y)\\ns",
+        "amf t s d(%d %b %y %H:%M)",
         "d date",
     };
     return spec;
@@ -147,8 +155,13 @@ const ListFormatSpec& msgFormatSpec() {
 const ListFormatSpec& sidebarFormatSpec() {
     static const ListFormatSpec spec{
         "reader_sidebar_msglist_format",
-        {{'a', kAutoWidth}, {'f', 20}, {'t', 20}, {'s', 0}, {'d', kAutoWidth, true}},
-        "a number, f from, t to, s subject, d date",
+        {{'a', kAutoWidth},
+         {'m', 1},
+         {'f', 20},
+         {'t', 20},
+         {'s', 0},
+         {'d', kAutoWidth, true}},
+        "a number, m mark, f from, t to, s subject, d date",
         "f0 t0 d(%d %b %H:%M)\\ns",
         "",
         "d date",
@@ -159,6 +172,7 @@ const ListFormatSpec& sidebarFormatSpec() {
 MsgFieldKind msgFieldOf(char letter) {
     switch (letter) {
         case 'a': return MsgFieldKind::Number;
+        case 'm': return MsgFieldKind::Marked;
         case 'f': return MsgFieldKind::From;
         case 't': return MsgFieldKind::To;
         case 's': return MsgFieldKind::Subject;

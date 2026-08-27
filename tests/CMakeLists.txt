@@ -54,6 +54,7 @@ add_executable(amberedit_tests
   ui/area_list_screen_test.cpp
   ui/area_list_format_test.cpp
   ui/msg_list_format_test.cpp
+  ui/message_marks_test.cpp
   ui/message_list_screen_test.cpp
   ui/message_read_screen_test.cpp
   ui/twit_test.cpp
@@ -119,6 +120,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/ansi_canvas.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/bbs_codes.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/confirm_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/scope_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/dialog_frame.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/dir_listing.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/error_dialog.cpp
@@ -143,7 +145,9 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/info_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/input_field.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/keys.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/mark_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/menu_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/message_marks.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/nodelist_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/reader_sidebar.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/area_list_format.cpp

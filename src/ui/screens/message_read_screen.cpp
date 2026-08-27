@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -24,10 +25,13 @@
 #include "ui/goto_field.hpp"
 #include "ui/info_dialog.hpp"
 #include "ui/input_field.hpp"
+#include "ui/mark_dialog.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
+#include "ui/message_marks.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/reader_sidebar.hpp"
+#include "ui/scope_dialog.hpp"
 #include "ui/screens/compose_screen.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/scrollbar.hpp"
@@ -608,38 +612,35 @@ void followDown(AppState& state) {
     }
 }
 
-/// Asks what is to become of the message on screen before asking where it is to
-/// go — the first half of what `m` and the Forward button do here. The three
-/// answers are a message of one's own carrying this one, this message moved into
-/// another area, and this message copied there; the area dialog follows
-/// whichever is given, and the shell is what puts it up.
+/// Exports what the two questions in front of the file picker settle on, asking
+/// each only where there is something to ask.
 ///
-/// It opens on Forward, which is the one that writes nothing by itself: the
-/// other two act the moment an area is picked, and Move takes the message out of
-/// the area being read.
-void askForward(AppState& state) {
-    if (!state.readHeader) return;
-    if (state.manager.areas().empty()) return;
-
-    state.forwardPicker = AppState::ForwardPicker{};
-}
-
-/// Exports the message on screen, asking first where there is anything to ask
-/// about: a message carrying uuencoded files is two things at once, and which of
-/// them is wanted is not something to guess at. Where it carries none there is
-/// no question, and the export dialog opens as it always has.
+/// **What the message carries comes first**, and it is asked about the message on
+/// screen alone: one carrying uuencoded files is two things at once, and which of
+/// them is wanted is not something to guess at. The files are decoded here rather
+/// than in the box that asks about them — whether there is a question at all is
+/// exactly what the decoding answers.
 ///
-/// The files are decoded here rather than in the box that asks about them —
-/// whether there is a question at all is exactly what the decoding answers.
+/// **Which messages comes second**, and only for a text export: with something
+/// marked, `w` means either the set or the message on screen. Answered with the
+/// files there is nothing to ask — they came out of this one message, and a set
+/// the decoding never looked at is not something to offer.
+///
+/// Either way the file picker is what follows, and it is the same box however it
+/// was reached.
 void askExport(AppState& state) {
     if (!state.readHeader || !state.readBody) return;
 
     std::vector<app::UueFile> files = app::uueFiles(*state.readBody);
-    if (files.empty()) {
-        export_dialog::open(state);
+    if (!files.empty()) {
+        export_mode_dialog::open(state, std::move(files));
         return;
     }
-    export_mode_dialog::open(state, std::move(files));
+    if (!state.marks.empty()) {
+        scope_dialog::open(state, AppState::ScopePicker::For::Export);
+        return;
+    }
+    export_dialog::open(state);
 }
 
 /// Where the message on screen was written from, as far as it says.
@@ -776,6 +777,8 @@ bool commandEnabled(const AppState& state, Command command) {
         case Command::ReaderInfo:
         case Command::ReaderExport:
         case Command::ReaderFind:
+        case Command::ReaderMarkToggle:
+        case Command::ReaderMarkMenu:
         case Command::ReaderList: return state.messageCount > 0;
         default: return true;
     }
@@ -799,7 +802,13 @@ void runMenuCommand(AppState& state, Command command) {
             askArea(state, AppState::AreaPicker::For::Reply);
             break;
         case Command::ReaderCommentReply: compose::startCommentReply(state); break;
-        case Command::ReaderForward: askForward(state); break;
+        case Command::ReaderForward:
+            if (state.marks.empty()) {
+                askForward(state, /*marked=*/false);
+            } else {
+                scope_dialog::open(state, AppState::ScopePicker::For::Forward);
+            }
+            break;
         case Command::ReaderNew: compose::startNew(state); break;
         case Command::ReaderChange: askToChange(state); break;
         case Command::ReaderInfo: info_dialog::open(state); break;
@@ -807,6 +816,10 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ReaderFind: find_dialog::open(state); break;
         case Command::ReaderNodelist: nodelist_dialog::open(state); break;
         case Command::ReaderList: openList(state); break;
+        case Command::ReaderMarkToggle:
+            if (state.readHeader) marks::toggle(state, state.readHeader->number);
+            break;
+        case Command::ReaderMarkMenu: mark_dialog::open(state); break;
         case Command::ReaderShell: state.shellRequested = true; break;
         // Everything the reader answers with a key of its own and nothing a
         // button stands for, which `reader_menu` cannot name — and the ten
@@ -1043,12 +1056,101 @@ void deleteMessage(AppState& state) {
     loadMessage(state, next);
 }
 
-void askArea(AppState& state, AppState::AreaPicker::For purpose) {
+namespace {
+
+/// Takes a run of messages, named by UID, out of the base and leaves the reader
+/// on the nearest survivor at or before where it stood.
+///
+/// Backwards through the area, for the reason `killTwits()` sweeps backwards:
+/// taking a message out moves the number of every message after it, and a sweep
+/// running forwards would step over whatever moved up into the place of the one
+/// just removed.
+///
+/// Both `deleteMarked()` and a Move answered for a marked set end here, which is
+/// what keeps the two agreeing on where reading carries on from.
+void removeUids(AppState& state, const std::set<uint32_t>& uids) {
+    if (state.base == nullptr || uids.empty()) return;
+
+    // Where the reader stands, as the thing that outlives a renumbering. The
+    // message it names may itself be one of the run, and then `indexOfUid()`
+    // answers with the nearest earlier survivor — which is where reading carries
+    // on from.
+    const uint32_t here =
+        state.readHeader ? state.base->uidOf(state.readHeader->number) : 0;
+
+    bool removed = false;
+    for (uint32_t number = state.base->count(); number >= 1; --number) {
+        if (uids.count(state.base->uidOf(number)) == 0) continue;
+        removed = state.base->remove(number).has_value() || removed;
+    }
+    if (!removed) return;
+
+    // The area is shorter, and the area list is counting the old number until
+    // it is told to look again.
+    state.manager.refreshArea(state.currentArea);
+    state.messageCount = state.base->count();
+    state.headers.clear();
+    state.headersStart = 0;
+
+    if (state.messageCount == 0) {
+        // That was the last of them. The reader stays where it is, on blank
+        // rows — the screen a first message is written from.
+        showEmptyArea(state);
+        return;
+    }
+
+    const uint32_t at = here == 0 ? 0 : state.base->indexOfUid(here);
+    // Nothing at or before it survived, which is the whole run from the top
+    // having gone: the area now begins at what used to follow them.
+    const uint32_t next = at == 0 ? 1 : at;
+    state.messageCursor = static_cast<int>(next) - 1;
+    loadMessage(state, next);
+}
+
+}  // namespace
+
+void deleteMarked(AppState& state) {
+    if (state.base == nullptr || state.marks.empty()) return;
+
+    // Taken off the set first: what it named is either about to be gone or in an
+    // area that will not be written, and neither is something to leave stars on
+    // the screen for.
+    const std::set<uint32_t> uids = std::move(state.marks);
+    state.marks.clear();
+    removeUids(state, uids);
+}
+
+/// Asks what is to become of the message on screen before asking where it is to
+/// go — the first half of what `m` and the Forward button do here. The three
+/// answers are a message of one's own carrying this one, this message moved into
+/// another area, and this message copied there; the area dialog follows
+/// whichever is given, and the shell is what puts it up.
+///
+/// It opens on Forward, which is the one that writes nothing by itself: the
+/// other two act the moment an area is picked, and Move takes the message out of
+/// the area being read.
+///
+/// `marked` is the scope box's answer carried in: the box then offers Copy and
+/// Move alone and opens on Copy, Forward being a message of one's own with
+/// another quoted in it and there being no one message a whole set could go
+/// into.
+void askForward(AppState& state, bool marked) {
+    if (!state.readHeader) return;
+    if (state.manager.areas().empty()) return;
+
+    AppState::ForwardPicker picker;
+    picker.marked = marked;
+    if (marked) picker.mode = AppState::ForwardPicker::Mode::Copy;
+    state.forwardPicker = picker;
+}
+
+void askArea(AppState& state, AppState::AreaPicker::For purpose, bool marked) {
     if (!state.readHeader) return;
     if (state.manager.areas().empty()) return;
 
     AppState::AreaPicker picker;
     picker.purpose = purpose;
+    picker.marked = marked;
     // Where a reply is usually written, from `reply_to_area`. Only the reply:
     // the other three carry the message itself somewhere, and there is no one
     // area a config could name for that. A tag naming no area in the list
@@ -1146,6 +1248,99 @@ void passOn(AppState& state, const domain::AreaConfig& target, bool takeOut) {
     if (takeOut) deleteMessage(state);
 }
 
+/// Whether `target` is the area being read. Tag and path together are what name
+/// an area here, as they do everywhere else.
+bool isCurrentArea(const AppState& state, const domain::AreaConfig& target) {
+    return target.tag == state.currentArea.tag && target.path == state.currentArea.path;
+}
+
+/// The marked messages as the base holds them, in the order they stand in the
+/// area, with the UID of each beside it.
+///
+/// Read out before anything is written: `storeInto()` closes the base being read
+/// to open the other one, so a walk that read as it wrote would be reading from a
+/// base that is no longer open. `uids` is what says afterwards which of them went
+/// in — the numbers will have moved by then, the UIDs will not.
+struct MarkedRun {
+    std::vector<domain::MessageDraft> drafts;
+    std::vector<uint32_t> uids;
+};
+
+MarkedRun markedRun(const AppState& state, bool addressed) {
+    MarkedRun run;
+    for (uint32_t number = 1; number <= state.messageCount; ++number) {
+        if (!marks::isMarked(state, number)) continue;
+        run.drafts.push_back(
+            app::copyOf(state.base->header(number), state.base->body(number), addressed));
+        run.uids.push_back(state.base->uidOf(number));
+    }
+    return run;
+}
+
+/// The marked messages themselves into another area — `takeOut` saying whether
+/// they stay in this one as well, which is the whole difference between Copy and
+/// Move for a set exactly as it is for one message.
+///
+/// The target's base is opened once for the lot rather than once per message:
+/// there is one base open at a time, so a swap per message would open and close
+/// the same two files as many times as there are marks.
+void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOut) {
+    if (state.base == nullptr || state.marks.empty()) return;
+    // Moving a set into the area it is already in has nothing to do, exactly as
+    // moving one message there has not.
+    const bool here = isCurrentArea(state, target);
+    if (here && takeOut) return;
+
+    const MarkedRun run = markedRun(state, target.hasAddressedRecipient());
+    if (run.drafts.empty()) return;
+
+    if (here) {
+        // A second copy of each beside the first, which is what copying into the
+        // area being read can only mean. The originals stay marked: they are
+        // still where they were.
+        bool written = false;
+        for (const auto& draft : run.drafts) {
+            written = state.base->write(draft).has_value() || written;
+        }
+        if (!written) return;
+        state.manager.refreshArea(state.currentArea);
+        state.messageCount = state.base->count();
+        state.headers.clear();
+        state.headersStart = 0;
+        return;
+    }
+
+    // The one swap the whole run costs. What went in is remembered by UID, since
+    // only those may be taken out of here afterwards.
+    const domain::AreaConfig source = state.currentArea;
+    std::set<uint32_t> stored;
+    state.base = nullptr;
+    if (const auto into = state.manager.openArea(target)) {
+        for (size_t at = 0; at < run.drafts.size(); ++at) {
+            if ((*into)->write(run.drafts[at])) stored.insert(run.uids[at]);
+        }
+        // The area list counts them while the base is still open — so many
+        // messages more in an area nobody has read, and so many unread more.
+        if (!stored.empty()) state.manager.refreshArea(target);
+    }
+
+    state.base = state.manager.openArea(source).value_or(nullptr);
+    if (state.base == nullptr) {
+        // The area that was open a moment ago will not open again: there is
+        // nothing left underneath to come back to, and nothing to delete from.
+        message_list::leaveArea(state);
+        return;
+    }
+    if (!takeOut) return;
+
+    // Only what is safely somewhere else, and only once it is: a message taken
+    // out of here on the strength of a write that failed would be gone from both
+    // areas. What the other area refused stays marked, being still here and
+    // still unmoved.
+    for (const uint32_t uid : stored) state.marks.erase(uid);
+    removeUids(state, stored);
+}
+
 }  // namespace
 
 void copyMessage(AppState& state, const domain::AreaConfig& target) {
@@ -1154,6 +1349,14 @@ void copyMessage(AppState& state, const domain::AreaConfig& target) {
 
 void moveMessage(AppState& state, const domain::AreaConfig& target) {
     passOn(state, target, /*takeOut=*/true);
+}
+
+void copyMarked(AppState& state, const domain::AreaConfig& target) {
+    passOnMarked(state, target, /*takeOut=*/false);
+}
+
+void moveMarked(AppState& state, const domain::AreaConfig& target) {
+    passOnMarked(state, target, /*takeOut=*/true);
 }
 
 namespace {
@@ -1638,6 +1841,20 @@ Element render(AppState& state) {
     state.readThreadLinks.reserve(markers.size());
 
     int titleLeft = titleRoom - displayWidth(titleShown) - gotoWidth;
+
+    // The star saying the message on screen is one of the user's marked ones,
+    // right after the pair that names it — `111/111*`. In the color the header
+    // block under it is written in rather than the title's own: it is a fact
+    // about this message and not a piece of the area's name, and the two colors
+    // are what say which is which.
+    //
+    // Taken out of what is left of the row the way a thread marker is, and for
+    // the same reason: a window with no column to spare drops it rather than
+    // pushing the row past its edge.
+    if (titleLeft > 0 && marks::isMarked(state, header.number)) {
+        --titleLeft;
+        titleCells.push_back(text("*") | bold | color(theme::palette.header));
+    }
     for (const auto& marker : markers) {
         const int width = displayWidth(marker.text);
         if (width > titleLeft) break;  // the window has no room for the rest
@@ -1858,7 +2075,14 @@ bool handleEvent(AppState& state, const Event& event) {
     // message there — with or without taking it out of here. The area dialog
     // follows whichever was answered.
     if (state.keys.is(event, Command::ReaderForward)) {
-        askForward(state);
+        // The same question marks raise for `d`: which messages the key means.
+        // With nothing marked there is only the one on screen, and the forward
+        // picker comes up straight away as it always has.
+        if (!state.marks.empty()) {
+            scope_dialog::open(state, AppState::ScopePicker::For::Forward);
+            return true;
+        }
+        askForward(state, /*marked=*/false);
         return true;
     }
     // Up and down the thread. The markers beside the message number say what
@@ -1873,8 +2097,18 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     // Deleting is asked about first: the base has no way back from it, and the
     // key sits among ones that only move about.
+    //
+    // **What is asked depends on whether anything is marked.** With nothing
+    // marked the key can only mean the message on screen, and the ordinary
+    // yes/no confirmation asks about that one. With a set standing, the key
+    // means one of two things and the box asks which — see `ui/scope_dialog.*`,
+    // which is that question's confirmation as well as its question.
     if (state.keys.is(event, Command::ReaderDelete)) {
         if (!state.readHeader) return true;
+        if (!state.marks.empty()) {
+            scope_dialog::open(state, AppState::ScopePicker::For::Delete);
+            return true;
+        }
         state.confirm = AppState::Confirm::DeleteMessage;
         state.confirmChoice = AppState::ConfirmChoice::Yes;
         return true;
@@ -1904,6 +2138,17 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (state.keys.is(event, Command::ReaderScrollbar)) {
         toggleScrollbar(state);
+        return true;
+    }
+    // Marking the message on screen, and the box that marks a run of them at
+    // once. Neither touches the base: a mark is the user's own note about which
+    // messages they mean, and it lives as long as the area is open.
+    if (state.keys.is(event, Command::ReaderMarkToggle)) {
+        if (state.readHeader) marks::toggle(state, state.readHeader->number);
+        return true;
+    }
+    if (state.keys.is(event, Command::ReaderMarkMenu)) {
+        mark_dialog::open(state);
         return true;
     }
     // Asked for here and run by runApp(): handing the terminal over is the

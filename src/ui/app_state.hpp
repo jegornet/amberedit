@@ -9,6 +9,7 @@
 #include <exception>
 #include <functional>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -145,6 +146,21 @@ struct AppState {
     /// nothing is being typed, and then the title says which message of how
     /// many as usual.
     std::string listGoto;
+
+    /// The messages the user has marked in the area being read, by UID.
+    ///
+    /// **UIDs and not positions**, for the reason a lastread mark is one: a
+    /// message deleted out of the middle of the area moves the number of every
+    /// message after it, and a set of positions would come back pointing at
+    /// somebody else's mail. `IMsgBase::uidOf()` is the conversion, and it wants
+    /// the base open — which is why nothing but `ui/message_marks.*` reaches in
+    /// here.
+    ///
+    /// It lives as long as the area is open and no longer: `leaveArea()` empties
+    /// it. Marking is something done to get a handful of messages together and
+    /// then act on them, and marks carried into the next area would be marks
+    /// nobody could see to unmake.
+    std::set<uint32_t> marks;
 
     /// Which message stands on the top row of the reader's sidebar, counted
     /// from zero. Its own scrolling position rather than `messageOffset`: the
@@ -291,10 +307,10 @@ struct AppState {
     std::vector<ReplyChoice> replyChoices;
     int replyChoice{0};
 
-    /// The forward picker: what `m` is to do with the message on screen, asked
-    /// before the area it is to be done into. Absent when the dialog is not up —
-    /// it is modal, and answering it puts the area picker below up in its place,
-    /// which is where all three answers go next.
+    /// The forward picker: what `m` is to do with the messages it was answered
+    /// for, asked before the area it is to be done into. Absent when the dialog
+    /// is not up — it is modal, and answering it puts the area picker below up
+    /// in its place, which is where every answer goes next.
     struct ForwardPicker {
         /// The three ways a message reaches another area. Only the first writes
         /// anything of the user's: the other two put this very message there,
@@ -305,9 +321,21 @@ struct AppState {
             Copy,     ///< the same message there and standing here still
         };
         Mode mode{Mode::Forward};
+        /// Whether this is about the marked messages rather than the one on
+        /// screen — what the scope box was answered with, carried through to the
+        /// area picker, which is what finally acts.
+        ///
+        /// **It also takes Forward off the box**, leaving Copy and Move, and it
+        /// is what the dialog opens on Copy for. Forwarding is writing a message
+        /// of one's own with another quoted in it, and there is no one message a
+        /// hundred of them could be written into; the two that remain are about
+        /// the messages themselves and say the same thing however many there
+        /// are.
+        bool marked{false};
         /// Where each of the three buttons was drawn, filled in by the dialog's
         /// render() so that a click is tested against the frame rather than
-        /// against a second copy of its arithmetic.
+        /// against a second copy of its arithmetic. The Forward box is left
+        /// `Nowhere()` where the button is not drawn.
         term::Box forwardBox;
         term::Box moveBox;
         term::Box copyBox;
@@ -332,6 +360,11 @@ struct AppState {
             Copy,     ///< putting the message itself there and leaving it here too
         };
         For purpose{For::Reply};
+        /// Whether the answer is to be carried out on the marked messages rather
+        /// than on the one on screen. Only ever true for `Move` and `Copy`: a
+        /// reply and a forward are messages of the user's own, and the scope box
+        /// does not offer the marked set for either.
+        bool marked{false};
         int cursor{0};
         int offset{0};
         /// What has been typed of an area's name so far, as the area list's own
@@ -376,6 +409,76 @@ struct AppState {
         int rows{1};
     };
     std::optional<InfoView> infoView;
+
+    /// The mark box: which of the five ways of marking the cursor is on. Absent
+    /// when it is not up — it is modal, and there is nothing about it worth
+    /// remembering between two askings, so it opens on the first answer every
+    /// time.
+    ///
+    /// What each of them does is `ui/message_marks.*`; this is the asking and
+    /// nothing more.
+    struct MarkPicker {
+        /// The five, in the order they are drawn and stepped through. Marking
+        /// the whole area comes first and unmarking it second, those being the
+        /// two that answer the question outright; the three that read the
+        /// current message follow.
+        enum class Action {
+            All,        ///< every message in the area
+            UnmarkAll,  ///< take every mark off
+            Toggle,     ///< marked becomes unmarked and unmarked marked
+            Newer,      ///< every message after the one being read
+            Older,      ///< every message before it
+        };
+        Action action{Action::All};
+        /// Where each answer was drawn, filled in by the dialog's render() so
+        /// that a click is tested against the frame rather than against a second
+        /// copy of its arithmetic. In the order above, which is the order
+        /// `Pressed::MarkChoice` numbers them in.
+        std::vector<term::Box> boxes;
+    };
+    std::optional<MarkPicker> markPicker;
+
+    /// The box that asks **which messages a key means** where anything is
+    /// marked: the marked ones, the one on screen, or neither. Absent when it is
+    /// not up, and never up at all where nothing is marked — with an empty set
+    /// no key is ambiguous, and the boxes each of them always put up are what
+    /// ask the rest.
+    ///
+    /// Three keys raise it and the purpose is the whole of the difference
+    /// between them. For `d` it is the confirmation as well as the question: an
+    /// answer deletes, with Cancel standing where No would. For `m` it is the
+    /// first of three boxes — this, then what is to become of the messages, then
+    /// which area — where with nothing marked it is the first of two. For `w` it
+    /// stands between the question about the files a message carries and the box
+    /// that picks the file to write.
+    struct ScopePicker {
+        /// Which key is asking, which is what the question is worded for.
+        enum class For {
+            Delete,   ///< `reader.delete`
+            Forward,  ///< `reader.forward`
+            Export,   ///< `reader.export`
+        };
+        /// The three answers, in the order they are drawn and stepped through.
+        /// The one that raised the question first, and the way out last.
+        enum class Mode {
+            Marked,   ///< every message the user has marked
+            Current,  ///< the one the reader is showing, as the key always meant
+            Cancel,   ///< nothing at all
+        };
+        For purpose{For::Delete};
+        Mode mode{Mode::Marked};
+        /// How many were marked when the box went up, which is what its second
+        /// line says: what follows an answer is not undoable, and the count is
+        /// the one thing the screen behind the box cannot be read for.
+        size_t marked{0};
+        /// Where each answer was drawn, filled in by the dialog's render() so
+        /// that a click is tested against the frame rather than against a second
+        /// copy of its arithmetic.
+        term::Box markedBox;
+        term::Box currentBox;
+        term::Box cancelBox;
+    };
+    std::optional<ScopePicker> scopePicker;
 
     /// The compiled nodelist, and what stopped it from being opened where it is
     /// empty. Both are filled in the first time Ctrl-N asks for one and never
@@ -1024,6 +1127,15 @@ struct AppState {
         /// message carries nothing.
         std::vector<app::UueFile> files;
 
+        /// Whether what is being written is the marked messages rather than the
+        /// one on screen — what the scope box was answered with. They go into
+        /// the one file the box names, one after another in the order they stand
+        /// in the area.
+        ///
+        /// Never true in `Uue` mode: the files were decoded out of the message
+        /// on screen, and there is no set of them to write.
+        bool marked{false};
+
         std::vector<DirEntry> entries;
         int cursor{0};
         int offset{0};
@@ -1263,6 +1375,8 @@ struct AppState {
         Menu,              ///< one of the buttons in the menu it opens
         ChangeAttributes,  ///< the button opening the attributes dialog, on the header
         AttributesDone,    ///< the button closing it again
+        MarkChoice,        ///< one of the mark box's five, which `pressedLink` says
+        ScopeChoice,       ///< one of the scope box's three, which `pressedLink` says
         Hint,              ///< one of the hints along the bottom, by its index
     };
     Pressed pressed{Pressed::None};

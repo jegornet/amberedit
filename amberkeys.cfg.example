@@ -67,6 +67,12 @@ Ctrl-Q          app.quit
 /               arealist.next_unread
 Ctrl-R          arealist.rescan
 
+# --- the message list ---------------------------------------------------------
+# Marking the message under the cursor. Space says the same thing and is not
+# written here: it is one of the keys that move about, which no layout binds, and
+# on this screen alone it marks rather than pages — PgDn still pages.
+t               msglist.mark_toggle
+
 # --- the reader ---------------------------------------------------------------
 q               reader.reply
 F4              reader.reply
@@ -90,6 +96,8 @@ Ctrl-N          reader.nodelist
 F10             reader.nodelist
 k               reader.kludges
 b               reader.scrollbar
+t               reader.mark_toggle
+s               reader.mark_menu
 Ctrl-X          reader.shell
 -               reader.thread_up
 +               reader.thread_down

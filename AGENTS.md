@@ -769,9 +769,9 @@ Rules that hold the design together:
   messages below the screen. Because the offset is decided when the
   list opens, the reader moves the cursor alone as it walks between messages.
 - **What a row holds is `msglist_format`'s**, read the way `arealist_format` is
-  and laid out by `ui/msg_list_format.*` — `a` number, `f` from, `t` to,
-  `s` subject, `d` date, `\n` for the next line of the row.
-  `"a f0 t0 d(%d %b %y)\ns" "a f t s d(%d %b %y %H:%M)"` by default: the narrow
+  and laid out by `ui/msg_list_format.*` — `a` number, `m` mark, `f` from, `t`
+  to, `s` subject, `d` date, `\n` for the next line of the row.
+  `"amf0 t0 d(%d %b %y)\ns" "amf t s d(%d %b %y %H:%M)"` by default: the narrow
   row puts the subject on a line of its own under the names, the wide one has
   them all on the one line. **`d` is the one field written by a format of its
   own**, in brackets after the letter and after its width — `d(%d %b %y)`,
@@ -856,6 +856,14 @@ Rules that hold the design together:
   deliberately: a message that has not gone out has not been read either, and
   painting such a row unread would leave nothing saying it is still sitting
   there. `highlight_unread` turns the unread rule off and nothing else.
+- **`t` and Space mark the message under the cursor**, through
+  `marks::toggle()`, and they are the whole of what this screen answers besides
+  moving about in the area. `msglist.mark_toggle` is the command and the only
+  one the message list has; **Space is not bound and cannot be**, being one of
+  the keys that move about — it is answered in `handleEvent()` beside the
+  command, and it is the one place in AmberEdit where Space means something
+  other than a page. `PgDn` still pages, so nothing was taken away. Both stand
+  ahead of the goto field's digits, exactly as the reader's commands do.
 - **Which columns a narrow window goes without is `msglist_format`'s to say**,
   and no longer the screen's: the two formats are the setting, and
   `adaptive_ui_threshold` is the line between them. Only the table is concerned
@@ -1039,8 +1047,9 @@ Rules that hold the design together:
   - Rows are drawn by `msg_format::drawLine()`, shared with the message list, so
     a message reads the same in the panel as it does in the table: `Paint` is the
     ranking — highlighted over unsent over unread — and the `Ink`s are the runs'.
-  - **The panel marks; it does not choose, and its bar says so.**
-    `Paint::Marked` fills the row with `reader_sidebar_msglist_selected` where
+  - **The panel says which message is on the screen beside it; it does not
+    choose, and its bar says so.** `Paint::Current` fills the row with
+    `reader_sidebar_msglist_selected` where
     `Paint::Selected` fills it with `selection`; both write `selection_text` on
     it, every theme picking something near-white there. The two are never on one
     screen at once — the row Enter would act on is the list's and the row beside
@@ -1060,6 +1069,121 @@ Rules that hold the design together:
   top, since the areas come from the tosser config and a setting cannot add to
   them. It is read off `AppState::areaConfig` and not off `config`, being a
   setting an area group may state.
+
+### Marked messages
+
+The user picking a handful of messages out of an area and saying, later, what to
+do with them. `ui/message_marks.*` is the whole of what a mark is,
+`ui/mark_dialog.*` is the box that marks a run of them at once, and the two
+screens showing an area draw what the set holds.
+
+- **A mark is a UID in `AppState::marks`, and nothing the base is told about.**
+  Positions are the wrong thing to keep for exactly the reason a lastread mark is
+  a UID: deleting one message out of the middle of an area moves the number of
+  every message after it, and a set of positions would come back pointing at
+  somebody else's mail. `IMsgBase::uidOf()` is the conversion and it wants the
+  base open, which is why every function in `marks::` takes the whole `AppState`
+  and why nothing outside that file touches the set. Zero is never put in it: it
+  is what the port answers for a message that is not there.
+- **The set lives as long as the area does.** `leaveArea()` empties it, and
+  nothing else has to: marking is done to gather messages and then act on them,
+  and a set carried into the next area would be one nobody could see to unmake.
+  Nothing is written to disk — a mark is a note about this session's reading, not
+  a fact about the message.
+- **It is shown in two places and drawn from the same set.** The message list's
+  `m` column is a `*` where the row is marked and a blank where it is not, and
+  the reader's title puts the same star after the pair naming the message —
+  `localnet (2:382/736) 111/111*` — in `header`, the color the block under it is
+  written in, since it is a fact about the message and not a piece of the area's
+  name. The star is taken out of what is left of the title row the way a thread
+  marker is, so a window with no column to spare drops it rather than pushing the
+  row past its edge.
+- **The `m` column is reserved, not conjured.** It stands a column wide whether
+  or not anything is marked, and in both default formats it stands where the
+  blank between the number and the first name stood — so a list with nothing
+  marked in it is byte for byte the list it always was, and marking something
+  shifts no field sideways. A format written without `m` shows no marks and is
+  not corrected: what a row holds is `msglist_format`'s.
+- **Marking one message is a key; marking a run is a box.** `reader.mark_toggle`
+  and `msglist.mark_toggle` are the key on each screen, `t` by default and Space
+  besides in the list; `reader.mark_menu` (`s`) opens `ui/mark_dialog.*`, whose
+  five answers are the whole of what can be done to the set at once — the area
+  entire, nothing at all, inside out, everything after the message being read and
+  everything before it. The three that count from somewhere count from
+  `readHeader`, which is why the box is the reader's and does not open on an area
+  with no message in it. The three that mark a run **add** to the set rather than
+  replacing it.
+- **`apply()` is called after the box is put away**, as every other modal's
+  answer is: the shell copies the answer off the picker, resets it and then acts,
+  so nothing is read back off a box that is gone.
+- **A set standing changes what a key asks first.** `ui/scope_dialog.*` is that
+  question — Marked, Current, Cancel, with the count under it because what
+  follows an answer is not undoable and the marks are spread down an area that
+  does not fit on the screen — and three keys raise it. With nothing marked none
+  of them is ambiguous and the box is never opened: `d` asks its yes/no
+  confirmation, and `m` and `w` put their own boxes up as they always have.
+  `Cancel` carries no letter for the same reason `Marked` and `Current` do carry
+  `m` and `c`: Esc means it everywhere already, and a third letter beside two
+  that act is a letter to press by mistake.
+  - **For `d` the box is the confirmation** and not a step in front of one —
+    Cancel stands where No would, and a second box over it would ask the same
+    thing twice.
+  - **For `w` it stands between the two questions the export already asked** —
+    what the message carries, and where to write — rather than in front of them.
+    The order is the point: **the files are looked for in the message on screen
+    alone**, so a message carrying uuencoded ones raises that question first, and
+    answered with the files there is nothing left to ask about a set the decoding
+    never looked at. A text export with something marked asks the scope, and
+    `ExportPicker::marked` carries it into the file picker, which is the same box
+    however it was reached. `export_dialog::open()` refuses the flag in `Uue`
+    mode outright rather than trusting its callers.
+  - **For `m` it is the first of three**, where with nothing marked there are
+    two. The answer is carried into `ForwardPicker::marked`, which **takes
+    Forward off that box** and opens it on Copy: a forward is a message of one's
+    own with another quoted inside it, and there is no one message a whole set
+    could go into. Move and Copy remain, and they say the same thing however many
+    messages they are answered for. From there it is carried into
+    `AreaPicker::marked`, which is what finally decides between `moveMessage()`
+    and `moveMarked()`. The undrawn Forward button is left `Box::Nowhere()` — a
+    default-constructed `Box` holds the screen's top-left cell, so a button a
+    frame did not draw would otherwise take a click in the corner.
+- **A run into another area opens the target's base once.** `passOnMarked()`
+  reads every draft off the base being read *before* the swap — `storeInto()`
+  closes one base to open the other, so a walk that read as it wrote would be
+  reading from a base that is gone — writes them all, opens the source again, and
+  only then takes out what went in. What the other area refused stays here and
+  stays marked: a message that is not somewhere else is not one to take out of
+  anywhere.
+- **A run into one file is `writeMarked()`**, and the first message carries the
+  answer the file-already-there question was given while every one after it is
+  appended: each writing afresh would leave the file holding the last message
+  alone. The rule `exportMessage()` puts at the head of each is what keeps them
+  apart, and it is the same rule that has always let one message be appended
+  after another. A write that fails stops the run and says so with what went in
+  before it left in the file — nothing here could put a file back the way it was,
+  and going on writing into one that is already wrong is not better.
+- **Copy leaves the set standing and Move empties it.** The rule is that an
+  action which leaves the messages where they are leaves the set alone, and one
+  that takes them out of the area empties it — there is nothing left for those
+  marks to name. Copying into the area being read is the case that makes the
+  rule worth stating: the copies stand beside the originals and it is the
+  originals that are still marked.
+- **`removeUids()` sweeps backwards**, exactly as `killTwits()` does and for the
+  same reason: taking a message out moves the number of every message after it.
+  Where the reader lands is worked out from the UID it stood on, taken *before*
+  the sweep — `indexOfUid()` answers with the nearest earlier survivor, so a
+  reader standing inside the run comes back on the message in front of it, and a
+  run off the top of the area leaves it on the first message left. Both
+  `deleteMarked()` and a Move answered for a set end here, which is what keeps
+  the two agreeing on where reading carries on from. `deleteMarked()` empties the
+  set before the sweep and whether or not the base takes the deletions: what it
+  named is either gone or in an area that will not be written, and neither is
+  worth leaving stars on the screen for.
+- Neither mark command is in the default menu or the default hint row — marking
+  is a key one presses while reading and not a button one goes looking for — but
+  both may be written into `reader_menu` and any of the hint lists, so both carry
+  a glyph and `inMenu`. `msglist.mark_toggle` is the message list's first and
+  only command, and the screen has no menu button to offer it in.
 
 ### Finding a message
 
@@ -2872,6 +2996,13 @@ together — `keys_mode` says which.
   dialog stay where they are, so that no layout can leave a screen with no way
   out of it. `isReservedKey()` refuses those spellings outright rather than
   quietly dropping the line.
+
+  A screen may still answer one of them for something of its own, and three do:
+  Space reveals a twit in the reader, marks the message in the message list, and
+  presses the button under the cursor in a dialog. That is a key answered in a
+  `handleEvent()`, never a binding — the layout has nothing to say about it, and
+  the paging keys it stands beside are untouched, so the screen is still one a
+  stock keyboard gets out of.
 - **What a file does to the layout is `keys_mode`'s to say.** `merge`, the
   default, reads it on top of the defaults: `KeyMap::mergedOnto()` keeps the
   file's own bindings and then adds every default one the file has not claimed,
@@ -2997,7 +3128,8 @@ together — `keys_mode` says which.
   thirty rows are built in `table()` rather than written out, being one row said
   thirty times over, and stand together at the end of the enumeration so that
   `Commands::externUtilOf()` can read a slot off a value. The message list has
-  none: every key on it moves the cursor or searches the names.
+  none: a screen one passes through on the way to a message is not where a
+  program is reached for.
 
   Three things follow from a title being the config's and not the table's.
   `AppConfig::labelOf()` is what a menu button and a hint are written with — the
@@ -3028,8 +3160,8 @@ together — `keys_mode` says which.
   set for the row whole or not at all. `runApp()` takes the row off
   `state.height` before the screens lay themselves out, so no screen knows the
   bar is under it, and the row is taken whether or not there is anything to put
-  in it: the message list is given no hints, and a row that came and went between
-  screens would move everything else on them. What is left of the row beside the
+  in it: the message list is given no hints by default, and a row that came and
+  went between screens would move everything else on them. What is left of the row beside the
   hints is a rule in `separator` — the same rule that closes a screen's
   headings, closing the interface at the other end — and a screen with no hints
   leaves it whole. It is drawn after the modals in `document()`, so it says what

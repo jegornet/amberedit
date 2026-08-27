@@ -25,6 +25,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Next unread"), "", "/", false},
     {Command::AreaListRescan, "arealist.rescan", CommandScreen::AreaList, N_("Rescan"),
      "", "Ctrl-R", false},
+    {Command::MessageListMarkToggle, "msglist.mark_toggle", CommandScreen::MessageList,
+     N_("Mark"), "", "t", false},
     {Command::ReaderReply, "reader.reply", CommandScreen::Reader, N_("Reply"), "↩",
      "q F4", true},
     {Command::ReaderReplyElsewhere, "reader.reply_elsewhere", CommandScreen::Reader,
@@ -56,6 +58,10 @@ constexpr Commands::Info kCommands[] = {
      "", "-", false},
     {Command::ReaderThreadDown, "reader.thread_down", CommandScreen::Reader,
      N_("Thread down"), "", "+ =", false},
+    {Command::ReaderMarkToggle, "reader.mark_toggle", CommandScreen::Reader, N_("Mark"),
+     "★", "t", true},
+    {Command::ReaderMarkMenu, "reader.mark_menu", CommandScreen::Reader, N_("Marks"), "☆",
+     "s", true},
     {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"), "❯",
      "Ctrl-X", true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"), "✓",
@@ -88,9 +94,8 @@ constexpr Commands::Info kCommands[] = {
 /// stand at the end of the enumeration, and what each writes in front of the
 /// name — `arealist.extern_util0` and the two beside it.
 ///
-/// The message list is not among them: every key on it moves the cursor or
-/// searches the names, and a screen one passes through on the way to a message
-/// is not where a program is reached for.
+/// The message list is not among them: a screen one passes through on the way to
+/// a message is not where a program is reached for, whatever else it answers.
 constexpr struct ExternUtilScreen {
     CommandScreen screen;
     std::string_view prefix;

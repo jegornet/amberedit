@@ -10,6 +10,7 @@
 #include "ui/goto_field.hpp"
 #include "ui/input_field.hpp"
 #include "ui/list_page.hpp"
+#include "ui/message_marks.hpp"
 #include "ui/msg_list_format.hpp"
 #include "ui/screens/message_read_screen.hpp"
 #include "ui/scrollbar.hpp"
@@ -162,6 +163,7 @@ std::vector<msg_format::Row> visibleRows(const AppState& state) {
         msg_format::Row row;
         row.number = index + 1;
         row.header = headerAt(state, static_cast<uint32_t>(row.number));
+        row.marked = marks::isMarked(state, static_cast<uint32_t>(row.number));
         if (row.header != nullptr) {
             row.fromIsOwn = state.isOwnName(row.header->from);
             row.toIsOwn = state.isOwnName(row.header->to);
@@ -335,6 +337,11 @@ void leaveArea(AppState& state) {
     // and the next area is a different area: it opens at its own lastread mark,
     // which is a jump from the top rather than from wherever this one ended.
     state.readerSidebarOffset = 0;
+    // The marks are the area's: they are UIDs of messages in the base about to
+    // be closed, and the next area's numbering knows nothing of them. Marking is
+    // done to gather a handful of messages and then act on them, so a set that
+    // outlived the area would be a set nobody could see to unmake.
+    state.marks.clear();
     state.manager.closeCurrentArea();
     // Whatever depth the area was left from, the way out is the area list.
     state.navigator.reset();
@@ -584,9 +591,21 @@ bool handleEvent(AppState& state, const Event& event) {
         state.listGoto.clear();
     }
 
-    // A digit is how the field opens. Nothing on this screen is bound to one —
-    // the list takes no commands of its own — so a digit is always the number
-    // being started.
+    // Marking the message under the cursor, which is the whole of what this
+    // screen does besides move about in the area. Space says the same thing as
+    // the key the layout binds, and is not itself bindable: the keys that move
+    // about are fixed everywhere, and this is the one screen where Space is
+    // worth more than a second PgDn — a list is where a run of messages is
+    // picked out, and the marking hand is on the space bar.
+    if (state.messageCount > 0 && (state.keys.is(event, Command::MessageListMarkToggle) ||
+                                   event == Event::Character(' '))) {
+        marks::toggle(state, static_cast<uint32_t>(state.messageCursor + 1));
+        return true;
+    }
+
+    // A digit is how the field opens — after the command above, so a layout that
+    // binds a digit to it keeps the digit: a key made into a command stops being
+    // one the list can be sent anywhere by.
     if (state.messageCount > 0) {
         if (const auto digit = goto_field::digitOf(event)) {
             state.listGoto = std::string(1, *digit);
@@ -620,7 +639,7 @@ bool handleEvent(AppState& state, const Event& event) {
         ensureHeaders(state);
         return true;
     }
-    if (event == Event::PageDown || event == Event::Character(' ')) {
+    if (event == Event::PageDown) {
         state.messageCursor = pageDownTarget(state.messageCursor, state.messageOffset,
                                              state.messageListItems(),
                                              static_cast<int>(state.messageCount));

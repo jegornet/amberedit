@@ -206,6 +206,7 @@ using AreaListFormat = std::vector<AreaListLine>;
 /// What one field of `msglist_format` shows.
 enum class MsgFieldKind {
     Number,   ///< 'a' — the message's number in the area, counted from one
+    Marked,   ///< 'm' — a star where the message is marked, a blank where it is not
     From,     ///< 'f' — who the message is from
     To,       ///< 't' — who it is to
     Subject,  ///< 's' — what it is about
@@ -590,11 +591,16 @@ struct AppConfig {
     /// same way `arealist_format` is, and standing in the same relation to the
     /// wide window's format below.
     ///
-    /// The default is `"a f0 t0 d(%d %b %y)\ns"`: the number, the two names
-    /// sharing whatever the number and the stamp leave of the first line, and
-    /// the subject across the whole of the second. A narrow window has no
-    /// columns to put the subject beside the names, and a line of its own is the
-    /// room it does have.
+    /// The default is `"amf0 t0 d(%d %b %y)\ns"`: the number, the mark column
+    /// beside it, the two names sharing whatever the number and the stamp leave
+    /// of the first line, and the subject across the whole of the second. A
+    /// narrow window has no columns to put the subject beside the names, and a
+    /// line of its own is the room it does have.
+    ///
+    /// The mark column stands where the blank between the number and the first
+    /// name stood, so a row with nothing marked in it is the row it has always
+    /// been: `m` is a blank until something is marked, and a column reserved for
+    /// it is what keeps the names from shifting sideways the moment one is.
     ///
     /// The stamp is the day and nothing else, and written out here rather than
     /// left to `reader_datetime_format`: a narrow row has three columns to keep
@@ -604,7 +610,7 @@ struct AppConfig {
     /// measured rather than pinned because there is now nothing to pin it
     /// against.
     MsgListFormat messageListFormatNarrow{{{MsgFieldKind::Number, kAutoWidth},
-                                           {MsgFieldKind::Space, 1},
+                                           {MsgFieldKind::Marked, 1},
                                            {MsgFieldKind::From, 0},
                                            {MsgFieldKind::Space, 1},
                                            {MsgFieldKind::To, 0},
@@ -616,15 +622,16 @@ struct AppConfig {
     /// `adaptive_ui_threshold` columns or more, from `msglist_format`'s second
     /// value. One format on the line gives both, as it does for the area list.
     ///
-    /// The default is `"a f t s d(%d %b %y %H:%M)"`, one line: the names stand
-    /// at their own twenty columns, the stamp takes what it needs, and the
-    /// subject has the rest — which is the table the list has always drawn, said
-    /// in the letters the setting is written in. A wide window has room for the
+    /// The default is `"amf t s d(%d %b %y %H:%M)"`, one line: the mark column
+    /// stands beside the number, the names at their own twenty columns, the
+    /// stamp takes what it needs, and the subject has the rest — which is the
+    /// table the list has always drawn, said in the letters the setting is
+    /// written in. A wide window has room for the
     /// minute the narrow one leaves off, and no more use for the zone than it
     /// has: a column of stamps is read down for which day a message is from.
     MsgListFormat messageListFormatWide{
         {{MsgFieldKind::Number, kAutoWidth},
-         {MsgFieldKind::Space, 1},
+         {MsgFieldKind::Marked, 1},
          {MsgFieldKind::From, 20},
          {MsgFieldKind::Space, 1},
          {MsgFieldKind::To, 20},

@@ -524,6 +524,7 @@ add_executable(amberedit
   src/ui/area_list_format.cpp
   src/ui/msg_list_format.cpp
   src/ui/confirm_dialog.cpp
+  src/ui/scope_dialog.cpp
   src/ui/dialog_frame.cpp
   src/ui/dir_listing.cpp
   src/ui/error_dialog.cpp
@@ -541,7 +542,9 @@ add_executable(amberedit
   src/ui/info_dialog.cpp
   src/ui/input_field.cpp
   src/ui/keys.cpp
+  src/ui/mark_dialog.cpp
   src/ui/menu_dialog.cpp
+  src/ui/message_marks.cpp
   src/ui/nodelist_dialog.cpp
   src/ui/reader_sidebar.cpp
   src/ui/reply_dialog.cpp

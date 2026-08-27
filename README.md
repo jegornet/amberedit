@@ -108,9 +108,10 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 
 | Key | What it does |
 |---|---|
-| `↑` `↓` `PgUp` `PgDn` `Space` | move |
+| `↑` `↓` `PgUp` `PgDn` | move |
 | `Home`, `End` | first, last |
 | `Enter`, `→`, click | open the message |
+| `t`, `Space` | mark the message under the cursor, or take the mark off it |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` opens that message — or puts the cursor on its row with `msglist_goto_field_opens off` — `Backspace` edits it, `Esc` closes it |
 | `Esc` `←` `Backspace` | back to the area list |
 
@@ -126,17 +127,19 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | `e` | write a new message                                                          |
 | `n` / `F5` | reply into another area                                                      |
 | `Alt-Q` | reply, addressed to whoever the message was written to                       |
-| `m` | forward, move or copy into another area                                      |
+| `m` | forward, move or copy into another area — with messages marked, asks whether you mean those (copy/move) or this one |
 | `c` / `F2` | change the message                                                           |
-| `d` / `Del` | delete it (asks first)                                                       |
+| `d` / `Del` | delete it (asks first) — with messages marked, asks whether you mean those or this one |
 | `-` `+` / `=` | up and down the thread                                                       |
 | `Ctrl-F` / `F6` | look for a message in the area                                               |
 | `l` / `F9` | the list of messages                                                         |
 | `k` | show the kludges — a reply then quotes them, a forward carries them          |
 | `b` | toggle the scrollbar                                                         |
+| `t` | mark the message, or take the mark off it                                    |
+| `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `i` | technical info from the message base                                         |
-| `w` / `F7` | export the message to a text file or decode UUE if any                       |
+| `w` / `F7` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
 | `Space` | show a message blanked as a twit                                             |
 | `Esc` `Backspace` | back to the area list                                                        |
@@ -196,11 +199,15 @@ a layout that tries says which line clashes with which.
 **Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
 every screen — bare, that is: `Alt-Left` and `Alt-Backspace` are chords of their
-own and may be bound — and the dialogs answer for themselves entirely.
+own and may be bound — and the dialogs answer for themselves entirely. `Space` in
+the message list marks the message rather than paging, which is a key the screen
+answers and not a binding; `PgDn` pages there as everywhere.
 
 The commands are `app.quit`; `arealist.next_unread` and `arealist.rescan`;
+`msglist.mark_toggle`;
 `reader.` `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`,
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
+`mark_toggle`, `mark_menu`,
 `shell`, `thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
 `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`,
 `word_left`, `word_right`, `line_start` and `line_end`. Every one of the three
@@ -226,6 +233,49 @@ the area's `default_charset` where it carries none — rather than by the locale
 **CP866 carries the Russian language support quirks** with it: a message written
 in it may spell Н, р and у with the Latin H, p and y, so those pairs are folded
 together — and only there, since in a western area they are six different letters.
+
+### Marking messages
+
+**`t` in the reader or in the message list** marks the message, and `t` again
+takes the mark off. `Space` says the same thing in the list. A marked message
+wears a `*` beside its number in the list and after the `111/111` in the reader's
+top line.
+
+**`s` in the reader** opens a box for marking a run at once: every message in the
+area, no message at all, the marks turned inside out, everything after the
+message you are on, or everything before it. The last two add to what is already
+marked rather than replacing it.
+
+**`d` deletes the marked messages, `m` copies or moves them, and `w` writes them
+out.** With nothing marked the three keys ask what they always asked. With a set
+standing each asks which messages you mean first: Marked, Current or Cancel.
+
+For `d` that box is the confirmation, so answering it deletes. The reader stays
+on the message it was showing, or on the nearest one before it where that was
+among the ones that went.
+
+For `m` it is the first of three boxes. Answer it `Current` and the rest is
+exactly what `m` has always done. Answer it `Marked` and the next box offers
+**Copy and Move only** — forwarding is writing a message of your own with another
+quoted in it, and there is no one message a whole set could go into — and then
+the area picker as usual. Copy leaves the marks standing, the messages being
+still where they were; Move takes them out of the area and the marks with them.
+
+**`w` (or `F7`) writes the marked messages out into one file**, one after another
+in the order they stand in the area. The uuencoded files a message carries are
+asked about first, and are looked for **in the message on screen alone** — so a
+message carrying one still offers Files or Text before anything else. Answer that
+`Text`, or read a message carrying no file, and the scope box follows, then the
+usual file picker. Files and a marked set never meet: those files came out of one
+message.
+
+Marks are yours for as long as the area is open — nothing is written to the
+message base, and leaving the area forgets them.
+
+The `*` is the `m` field of `msglist_format`, which the default formats put where
+the blank between the number and the first name used to stand: a list with
+nothing marked in it looks exactly as it always did. Take `m` out of your own
+format and the list simply shows no marks.
 
 ### Carbon copies and crossposts
 

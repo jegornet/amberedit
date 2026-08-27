@@ -29,10 +29,12 @@
 #include "ui/hint_bar.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/info_dialog.hpp"
+#include "ui/mark_dialog.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/reply_dialog.hpp"
 #include "ui/rescan_dialog.hpp"
+#include "ui/scope_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
 #include "ui/screens/compose_screen.hpp"
 #include "ui/screens/message_list_screen.hpp"
@@ -114,9 +116,9 @@ Element document(AppState& state) {
                color(theme::palette.error);
     }
 
-    // Eleven modals, and only ever one of them at a time: the context menu is
+    // Thirteen modals, and only ever one of them at a time: the context menu is
     // the one thing the reader and the editor both open, the confirmation is
-    // asked from screens neither of the two lists can be up on, seven of them
+    // asked from screens neither of the two lists can be up on, nine of them
     // are the reader's, opened by different keys, two are the editor's, and the
     // error box comes up on the area list in place of the screen that would not
     // open.
@@ -167,6 +169,12 @@ Element document(AppState& state) {
     }
     if (state.findPicker) {
         body = find_dialog::render(state, std::move(body));
+    }
+    if (state.markPicker) {
+        body = mark_dialog::render(state, std::move(body));
+    }
+    if (state.scopePicker) {
+        body = scope_dialog::render(state, std::move(body));
     }
     if (state.confirm != AppState::Confirm::None) {
         body = confirm_dialog::render(state, std::move(body));
@@ -568,8 +576,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             if (forward_dialog::handleEvent(state, event) ==
                 forward_dialog::Outcome::Picked) {
                 const auto mode = state.forwardPicker->mode;
+                const bool marked = state.forwardPicker->marked;
                 state.forwardPicker.reset();
-                screens::message_read::askArea(state, purposeOf(mode));
+                screens::message_read::askArea(state, purposeOf(mode), marked);
             }
             continue;
         }
@@ -586,6 +595,11 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 const domain::AreaConfig target =
                     manager.areas()[static_cast<size_t>(state.areaPicker->cursor)].config;
                 const auto purpose = state.areaPicker->purpose;
+                // Whether the scope box said the marked messages rather than the
+                // one on screen. Only Move and Copy can be told that: a reply and
+                // a forward are messages of the user's own, and the box does not
+                // offer the set for either.
+                const bool marked = state.areaPicker->marked;
                 state.areaPicker.reset();
                 switch (purpose) {
                     case AppState::AreaPicker::For::Reply:
@@ -595,10 +609,18 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                         screens::compose::startForwardTo(state, target);
                         break;
                     case AppState::AreaPicker::For::Move:
-                        screens::message_read::moveMessage(state, target);
+                        if (marked) {
+                            screens::message_read::moveMarked(state, target);
+                        } else {
+                            screens::message_read::moveMessage(state, target);
+                        }
                         break;
                     case AppState::AreaPicker::For::Copy:
-                        screens::message_read::copyMessage(state, target);
+                        if (marked) {
+                            screens::message_read::copyMarked(state, target);
+                        } else {
+                            screens::message_read::copyMessage(state, target);
+                        }
                         break;
                 }
             }
@@ -656,9 +678,14 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
 
         // The export asks what before it asks where, wherever the message
         // carries uuencoded files: the files taken out of it, or the message
-        // written as the text it also is. The export dialog follows either
-        // answer in this box's place, which is why the files are carried into it
-        // rather than acted on here.
+        // written as the text it also is. What follows either answer stands in
+        // this box's place, which is why the files are carried into it rather
+        // than acted on here.
+        //
+        // A text export with something marked has one more question in front of
+        // the file picker — which messages — and the files never do: they were
+        // decoded out of the message on screen, and there is no set of them to
+        // write.
         if (state.exportModePicker) {
             if (export_mode_dialog::handleEvent(state, event) ==
                 export_mode_dialog::Outcome::Picked) {
@@ -669,8 +696,12 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 std::vector<app::UueFile> files =
                     std::move(state.exportModePicker->files);
                 state.exportModePicker.reset();
-                export_dialog::open(
-                    state, decode ? std::move(files) : std::vector<app::UueFile>{});
+                if (!decode && !state.marks.empty()) {
+                    scope_dialog::open(state, AppState::ScopePicker::For::Export);
+                } else {
+                    export_dialog::open(
+                        state, decode ? std::move(files) : std::vector<app::UueFile>{});
+                }
             }
             continue;
         }
@@ -737,6 +768,63 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 // stored and cannot wait on a box that is gone: that copy is
                 // not made, and the editor is told so.
                 screens::compose::useCarbonCopy(state, nullptr);
+            }
+            continue;
+        }
+
+        // The mark box is modal in the same way, and stands over the reader
+        // until one of its five answers is picked or it is put away. The box is
+        // gone before the marking is done, exactly as the menu is: what an
+        // answer means belongs to the area underneath and not to the frame it
+        // was picked in.
+        if (state.markPicker) {
+            if (mark_dialog::handleEvent(state, event) == mark_dialog::Outcome::Picked) {
+                // Taken off the box before it is put away, which is what holds
+                // it.
+                const auto action = state.markPicker->action;
+                state.markPicker.reset();
+                mark_dialog::apply(state, action);
+            }
+            continue;
+        }
+
+        // The scope box is modal in the same way, and stands over the reader
+        // until it is answered: which messages the key that opened it meant.
+        // For `d` it is the confirmation as well, so an answer deletes there and
+        // then; for `m` it is the first of three boxes and the answer decides
+        // what the second one offers. Either way the box is put away first, as
+        // every other modal's answer is acted on.
+        if (state.scopePicker) {
+            if (scope_dialog::handleEvent(state, event) ==
+                scope_dialog::Outcome::Picked) {
+                // Both taken off the box before it is put away, which is what
+                // holds them.
+                const auto purpose = state.scopePicker->purpose;
+                const auto mode = state.scopePicker->mode;
+                const bool marked = mode == AppState::ScopePicker::Mode::Marked;
+                state.scopePicker.reset();
+                // The way out is the one answer with nothing behind it, whichever
+                // key asked.
+                if (mode != AppState::ScopePicker::Mode::Cancel) {
+                    switch (purpose) {
+                        case AppState::ScopePicker::For::Delete:
+                            if (marked) {
+                                screens::message_read::deleteMarked(state);
+                            } else {
+                                screens::message_read::deleteMessage(state);
+                            }
+                            break;
+                        case AppState::ScopePicker::For::Forward:
+                            screens::message_read::askForward(state, marked);
+                            break;
+                        // The file picker in this box's place, told what it is
+                        // writing. The files a message carries never reach here
+                        // — see the export mode box above.
+                        case AppState::ScopePicker::For::Export:
+                            export_dialog::open(state, {}, marked);
+                            break;
+                    }
+                }
             }
             continue;
         }
