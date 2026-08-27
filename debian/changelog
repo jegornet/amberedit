@@ -1,3 +1,12 @@
+amberedit (0.5-1) unstable; urgency=low
+
+  * Marking messages and group actions
+  * Go to message by number
+  * dialog_tall_buttons config option
+  * Minor fixes
+
+ -- Yegor Gluhov <git@jegor.net>  Fri, 28 Aug 2026 12:00:00 +0000
+
 amberedit (0.4.5-1) unstable; urgency=low
 
   * External editor
