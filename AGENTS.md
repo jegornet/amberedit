@@ -1645,7 +1645,7 @@ taking a row.
   rather than running off the edge, so the rows are laid out again when the width
   changes. The column beside the bytes is **printable ASCII and dots, not the
   message's charset**: what is being looked at is the bytes.
-- **`Ctrl-O` in the editor reads a file into the message**, through
+- **`Ctrl-O` and `F3` in the editor read a file into the message**, through
   `ui/import_dialog.*`: the path, the directory it names — walked with the arrows
   and searched by typing — and under it the mode, Text or UUE. Tab walks the
   three stops, Enter acts wherever the typing is, Esc closes. It is the only
@@ -1680,7 +1680,7 @@ taking a row.
     no business reaching into the terminal's locale.
   - **Where it lands is where the cursor is, as whole lines**: at the cursor when
     it stands at the start of a line, after that line otherwise, the cursor
-    coming to rest under the block. Ctrl-O is answered from the header as well. A
+    coming to rest under the block. It is answered from the header as well. A
     file that will not open is a line inside the dialog, not a modal over it —
     which is also why the *dialog* reads the file: `app_shell.cpp` only takes the
     lines and hands them to `compose::insertImported()`. The directory and the

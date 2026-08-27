@@ -1472,7 +1472,8 @@ TEST_CASE("o asks for the shell rather than running it [messageread][squish]") {
     // the terminal's, and only runApp() holds one — so the key raises the flag
     // and the shell answers it on the next pass, as a rescan is answered.
     CHECK_FALSE(fixture.state.shellRequested);
-    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('o')));
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      Event::Character("x", /*ctrl=*/true, false, false)));
     CHECK(fixture.state.shellRequested);
     // Nothing else moved: the screen is where it was, with no box over it.
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);

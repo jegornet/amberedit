@@ -5,7 +5,7 @@
 #include "ui/term/event.hpp"
 
 /// The dialog that reads a file into the message being written — what the
-/// editor's Ctrl-O, and the `import` button beside it, put on the screen.
+/// editor's Ctrl-O and F3, and the `import` button beside it, put on the screen.
 ///
 /// One box asks the whole question: which file, and how it is to go in. The
 /// path is typed into, the files under it are the directory it names — walked

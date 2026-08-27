@@ -1378,6 +1378,11 @@ TEST_CASE(
     fixture.walkToText();
     compose::handleEvent(state, ctrl('o'));
     CHECK(state.importPicker);
+
+    // F3 is the second key on the same command, and opens the very same box.
+    state.importPicker.reset();
+    compose::handleEvent(state, Event::F3);
+    CHECK(state.importPicker);
 }
 
 TEST_CASE("An imported file goes into the message from the header too [compose]") {

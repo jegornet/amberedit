@@ -133,7 +133,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | `l` / `F9` | the list of messages                                                         |
 | `k` | show the kludges — a reply then quotes them, a forward carries them          |
 | `b` | toggle the scrollbar                                                         |
-| `o` | run your own shell — leaving it comes straight back to the message           |
+| `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `i` | technical info from the message base                                         |
 | `w` / `F7` | export the message to a text file or decode UUE if any                       |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
@@ -150,7 +150,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | `Ctrl-S` / `F2` | save (asks first)                                                  |
 | `Esc` | drop the message (asks first)                                      |
 | `Ctrl-F` | edit message attributes                                         |
-| `Ctrl-O` | open a file to insert as text or uuencoded                    |
+| `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |
 | `Ctrl-Y` | delete the line — or the button beside it, on the right-hand edge   |
 | `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` | delete the quoted text after the cursor                            |

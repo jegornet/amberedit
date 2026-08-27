@@ -90,7 +90,7 @@ Ctrl-N          reader.nodelist
 F10             reader.nodelist
 k               reader.kludges
 b               reader.scrollbar
-o               reader.shell
+Ctrl-X          reader.shell
 -               reader.thread_up
 +               reader.thread_down
 =               reader.thread_down
@@ -100,6 +100,7 @@ Ctrl-S          compose.save
 F2              compose.save
 Ctrl-F          compose.attributes
 Ctrl-O          compose.import
+F3              compose.import
 Alt-H           compose.header_back
 Ctrl-Y          compose.delete_line
 Ctrl-U          compose.restore_line
