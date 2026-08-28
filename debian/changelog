@@ -1,3 +1,9 @@
+amberedit (0.5.3-1) unstable; urgency=low
+
+  * Area sidebar tree
+
+ -- Yegor Gluhov <git@jegor.net>  Sat, 29 Aug 2026 12:00:00 +0000
+
 amberedit (0.5.2-1) unstable; urgency=low
 
   * Reply in the charset of the message answered
