@@ -71,7 +71,7 @@ TEST_CASE("The hint bar names the commands of the screen it stands under [hintba
     // The key, and beside it the word the menu writes on a button for the same
     // command: one list of commands answers for both.
     CHECK(hint_bar::text(Fixture(ScreenId::AreaList).state) ==
-          "/ next unread  ctrl-r rescan");
+          "/ next unread  ctrl-u unread only  ctrl-r rescan");
     CHECK(hint_bar::text(Fixture(ScreenId::MessageRead).state) ==
           "q reply  n reply elsewhere  e new  l list  w export  ctrl-n nodelist");
     CHECK(hint_bar::text(Fixture(ScreenId::Compose).state) ==
@@ -234,6 +234,11 @@ TEST_CASE("hint_bar decides whether the row is there at all [hintbar]") {
 
 TEST_CASE("The row is the hints set into a rule [hintbar]") {
     Fixture fixture(ScreenId::AreaList);
+    // The list is the test's own rather than the screen's defaults: what is
+    // being measured is the rule either side of the hints, and a row that
+    // changed length whenever a command was added to the area list would be
+    // measuring that instead.
+    fixture.config.arealistHints = {Command::AreaListNextUnread, Command::AreaListRescan};
     fixture.state.width = 40;
 
     term::Screen screen(fixture.state.width, 1);
@@ -268,6 +273,9 @@ TEST_CASE(
     using amberedit::config::HintAlign;
 
     Fixture fixture(ScreenId::AreaList);
+    // Stated here for the reason the row above states it: the alignment is what
+    // is being read, not how many hints the screen offers today.
+    fixture.config.arealistHints = {Command::AreaListNextUnread, Command::AreaListRescan};
     fixture.state.width = 40;
     const auto rowOf = [&fixture]() {
         term::Screen screen(fixture.state.width, 1);

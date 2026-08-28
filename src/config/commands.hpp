@@ -20,6 +20,7 @@ namespace amberedit::config {
 enum class Command : uint8_t {
     AppQuit,                ///< app.quit
     AreaListNextUnread,     ///< arealist.next_unread
+    AreaListToggleUnread,   ///< arealist.toggle_unread
     AreaListRescan,         ///< arealist.rescan
     MessageListMarkToggle,  ///< msglist.mark_toggle
     ReaderReply,            ///< reader.reply

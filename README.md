@@ -101,6 +101,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | `Enter`, `→`, click | open the area under the cursor                                   |
 | any letter | search by area tag; `Backspace` edits the query, `Esc` closes it |
 | `/` | go to the next area with unread messages                         |
+| `Ctrl-U` | show only the areas with unread messages, or all of them again |
 | `Ctrl-R` | rescan the message bases                                   |
 | `Esc` | quit                                                             |
 
@@ -203,7 +204,8 @@ own and may be bound — and the dialogs answer for themselves entirely. `Space`
 the message list marks the message rather than paging, which is a key the screen
 answers and not a binding; `PgDn` pages there as everywhere.
 
-The commands are `app.quit`; `arealist.next_unread` and `arealist.rescan`;
+The commands are `app.quit`; `arealist.` `next_unread`, `toggle_unread` and
+`rescan`;
 `msglist.mark_toggle`;
 `reader.` `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`,
 `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,

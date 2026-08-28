@@ -35,7 +35,7 @@ msgstr "не удаётся запустить {0}: {1}"
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1639
+#: src/config/app_config.cpp:1643
 msgid "no description"
 msgstr "нет описания"
 
@@ -47,136 +47,140 @@ msgstr "Выход"
 msgid "Next unread"
 msgstr "След. непрочит."
 
-#: src/config/commands.cpp:26
+#: src/config/commands.cpp:27
+msgid "Unread only"
+msgstr "Только непрочит."
+
+#: src/config/commands.cpp:28
 msgid "Rescan"
 msgstr "Обновить"
 
-#: src/config/commands.cpp:29 src/config/commands.cpp:61
+#: src/config/commands.cpp:31 src/config/commands.cpp:63
 msgid "Mark"
 msgstr "Пометить"
 
-#: src/config/commands.cpp:30
+#: src/config/commands.cpp:32
 msgid "Reply"
 msgstr "Ответ"
 
-#: src/config/commands.cpp:33
+#: src/config/commands.cpp:35
 msgid "Reply elsewhere"
 msgstr "Ответ в др. обл."
 
-#: src/config/commands.cpp:35
+#: src/config/commands.cpp:37
 msgid "Comment-reply"
 msgstr "Комментарий"
 
-#: src/config/commands.cpp:36
+#: src/config/commands.cpp:38
 msgid "New"
 msgstr "Новое"
 
-#: src/config/commands.cpp:37
+#: src/config/commands.cpp:39
 msgid "Fwd / Copy"
 msgstr "Переслать/копия"
 
-#: src/config/commands.cpp:39
+#: src/config/commands.cpp:41
 msgid "Change"
 msgstr "Править"
 
-#: src/config/commands.cpp:41
+#: src/config/commands.cpp:43
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/config/commands.cpp:43
+#: src/config/commands.cpp:45
 msgid "Export"
 msgstr "Экспорт"
 
-#: src/config/commands.cpp:45 src/ui/find_dialog.cpp:67
+#: src/config/commands.cpp:47 src/ui/find_dialog.cpp:67
 msgid "Find"
 msgstr "Поиск"
 
-#: src/config/commands.cpp:47
+#: src/config/commands.cpp:49
 msgid "List"
 msgstr "Список"
 
-#: src/config/commands.cpp:49
+#: src/config/commands.cpp:51
 msgid "Info"
 msgstr "Инфо"
 
-#: src/config/commands.cpp:51
+#: src/config/commands.cpp:53
 msgid "Nodelist"
 msgstr "Нодлист"
 
-#: src/config/commands.cpp:53
+#: src/config/commands.cpp:55
 msgid "Kludges"
 msgstr "Клуджи"
 
-#: src/config/commands.cpp:55
+#: src/config/commands.cpp:57
 msgid "Scrollbar"
 msgstr "Прокрутка"
 
-#: src/config/commands.cpp:57
+#: src/config/commands.cpp:59
 msgid "Thread up"
 msgstr "Вверх по треду"
 
-#: src/config/commands.cpp:60
+#: src/config/commands.cpp:62
 msgid "Thread down"
 msgstr "Вниз по треду"
 
-#: src/config/commands.cpp:63
+#: src/config/commands.cpp:65
 msgid "Marks"
 msgstr "Пометки"
 
-#: src/config/commands.cpp:65
+#: src/config/commands.cpp:67
 msgid "Shell"
 msgstr "Шелл"
 
-#: src/config/commands.cpp:67 src/ui/export_dialog.cpp:84
+#: src/config/commands.cpp:69 src/ui/export_dialog.cpp:84
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr "Сохранить"
 
-#: src/config/commands.cpp:70
+#: src/config/commands.cpp:72
 msgid "Attributes"
 msgstr "Атрибуты"
 
-#: src/config/commands.cpp:71
+#: src/config/commands.cpp:73
 msgid "Import"
 msgstr "Импорт"
 
-#: src/config/commands.cpp:74 src/ui/external_dialog.cpp:79
+#: src/config/commands.cpp:76 src/ui/external_dialog.cpp:79
 msgid "Header"
 msgstr "Заголовок"
 
-#: src/config/commands.cpp:76
+#: src/config/commands.cpp:78
 msgid "Delete line"
 msgstr "Удалить строку"
 
-#: src/config/commands.cpp:78
+#: src/config/commands.cpp:80
 msgid "Restore line"
 msgstr "Вернуть строку"
 
-#: src/config/commands.cpp:80
+#: src/config/commands.cpp:82
 msgid "Delete quote"
 msgstr "Удалить цитату"
 
-#: src/config/commands.cpp:82
+#: src/config/commands.cpp:84
 msgid "Delete word"
 msgstr "Удалить слово"
 
-#: src/config/commands.cpp:84
+#: src/config/commands.cpp:86
 msgid "Word left"
 msgstr "Слово влево"
 
-#: src/config/commands.cpp:86
+#: src/config/commands.cpp:88
 msgid "Word right"
 msgstr "Слово вправо"
 
-#: src/config/commands.cpp:88
+#: src/config/commands.cpp:90
 msgid "Line start"
 msgstr "В начало строки"
 
-#: src/config/commands.cpp:89
+#: src/config/commands.cpp:91
 msgid "Line end"
 msgstr "В конец строки"
 
-#: src/config/commands.cpp:157
+#: src/config/commands.cpp:159
 msgid "Utility"
 msgstr "Утилита"
 
@@ -198,7 +202,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.5\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-27 23:18+0200\n"
+"POT-Creation-Date: 2026-08-28 01:57+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -373,11 +377,11 @@ msgstr "{0}: база занята"
 msgid "{0}: the message is busy"
 msgstr "{0}: сообщение занято"
 
-#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:148
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:220
 msgid "the base could not be opened"
 msgstr "базу не удалось открыть"
 
-#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:150
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:222
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
@@ -391,7 +395,7 @@ msgstr " ошибка: {0}"
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:509 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:519 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -883,18 +887,22 @@ msgstr[2] "помечено {0} сообщений"
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr "←→ выбор · Enter подтвердить · m/c · Esc отмена"
 
-#: src/ui/screens/area_list_screen.cpp:208
+#: src/ui/screens/area_list_screen.cpp:295
 msgid " The tosser config declares no areas."
 msgstr " В конфиге тоссера нет ни одной области."
 
-#: src/ui/screens/area_list_screen.cpp:209
+#: src/ui/screens/area_list_screen.cpp:296
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr " Проверьте general.tosser_config в конфиге AmberEdit."
 
-#: src/ui/screens/area_list_screen.cpp:253
+#: src/ui/screens/area_list_screen.cpp:345
 #, c++-format
 msgid " Area: {0}▌"
 msgstr " Область: {0}▌"
+
+#: src/ui/screens/area_list_screen.cpp:363
+msgid "Every area has been read."
+msgstr "Все области прочитаны."
 
 #: src/ui/screens/compose_screen.cpp:312
 msgid "change"

@@ -35,7 +35,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1639
+#: src/config/app_config.cpp:1643
 msgid "no description"
 msgstr ""
 
@@ -47,136 +47,140 @@ msgstr ""
 msgid "Next unread"
 msgstr ""
 
-#: src/config/commands.cpp:26
+#: src/config/commands.cpp:27
+msgid "Unread only"
+msgstr ""
+
+#: src/config/commands.cpp:28
 msgid "Rescan"
 msgstr ""
 
-#: src/config/commands.cpp:29 src/config/commands.cpp:61
+#: src/config/commands.cpp:31 src/config/commands.cpp:63
 msgid "Mark"
 msgstr ""
 
-#: src/config/commands.cpp:30
+#: src/config/commands.cpp:32
 msgid "Reply"
 msgstr ""
 
-#: src/config/commands.cpp:33
+#: src/config/commands.cpp:35
 msgid "Reply elsewhere"
 msgstr ""
 
-#: src/config/commands.cpp:35
+#: src/config/commands.cpp:37
 msgid "Comment-reply"
 msgstr ""
 
-#: src/config/commands.cpp:36
+#: src/config/commands.cpp:38
 msgid "New"
 msgstr ""
 
-#: src/config/commands.cpp:37
+#: src/config/commands.cpp:39
 msgid "Fwd / Copy"
 msgstr ""
 
-#: src/config/commands.cpp:39
+#: src/config/commands.cpp:41
 msgid "Change"
 msgstr ""
 
-#: src/config/commands.cpp:41
+#: src/config/commands.cpp:43
 msgid "Delete"
 msgstr ""
 
-#: src/config/commands.cpp:43
+#: src/config/commands.cpp:45
 msgid "Export"
 msgstr ""
 
-#: src/config/commands.cpp:45 src/ui/find_dialog.cpp:67
+#: src/config/commands.cpp:47 src/ui/find_dialog.cpp:67
 msgid "Find"
 msgstr ""
 
-#: src/config/commands.cpp:47
+#: src/config/commands.cpp:49
 msgid "List"
 msgstr ""
 
-#: src/config/commands.cpp:49
+#: src/config/commands.cpp:51
 msgid "Info"
 msgstr ""
 
-#: src/config/commands.cpp:51
+#: src/config/commands.cpp:53
 msgid "Nodelist"
 msgstr ""
 
-#: src/config/commands.cpp:53
+#: src/config/commands.cpp:55
 msgid "Kludges"
 msgstr ""
 
-#: src/config/commands.cpp:55
+#: src/config/commands.cpp:57
 msgid "Scrollbar"
 msgstr ""
 
-#: src/config/commands.cpp:57
+#: src/config/commands.cpp:59
 msgid "Thread up"
 msgstr ""
 
-#: src/config/commands.cpp:60
+#: src/config/commands.cpp:62
 msgid "Thread down"
 msgstr ""
 
-#: src/config/commands.cpp:63
+#: src/config/commands.cpp:65
 msgid "Marks"
 msgstr ""
 
-#: src/config/commands.cpp:65
+#: src/config/commands.cpp:67
 msgid "Shell"
 msgstr ""
 
-#: src/config/commands.cpp:67 src/ui/export_dialog.cpp:84
+#: src/config/commands.cpp:69 src/ui/export_dialog.cpp:84
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr ""
 
-#: src/config/commands.cpp:70
+#: src/config/commands.cpp:72
 msgid "Attributes"
 msgstr ""
 
-#: src/config/commands.cpp:71
+#: src/config/commands.cpp:73
 msgid "Import"
 msgstr ""
 
-#: src/config/commands.cpp:74 src/ui/external_dialog.cpp:79
+#: src/config/commands.cpp:76 src/ui/external_dialog.cpp:79
 msgid "Header"
 msgstr ""
 
-#: src/config/commands.cpp:76
+#: src/config/commands.cpp:78
 msgid "Delete line"
 msgstr ""
 
-#: src/config/commands.cpp:78
+#: src/config/commands.cpp:80
 msgid "Restore line"
 msgstr ""
 
-#: src/config/commands.cpp:80
+#: src/config/commands.cpp:82
 msgid "Delete quote"
 msgstr ""
 
-#: src/config/commands.cpp:82
+#: src/config/commands.cpp:84
 msgid "Delete word"
 msgstr ""
 
-#: src/config/commands.cpp:84
+#: src/config/commands.cpp:86
 msgid "Word left"
 msgstr ""
 
-#: src/config/commands.cpp:86
+#: src/config/commands.cpp:88
 msgid "Word right"
 msgstr ""
 
-#: src/config/commands.cpp:88
+#: src/config/commands.cpp:90
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:89
+#: src/config/commands.cpp:91
 msgid "Line end"
 msgstr ""
 
-#: src/config/commands.cpp:157
+#: src/config/commands.cpp:159
 msgid "Utility"
 msgstr ""
 
@@ -191,7 +195,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.5\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-27 23:18+0200\n"
+"POT-Creation-Date: 2026-08-28 01:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -339,11 +343,11 @@ msgstr ""
 msgid "{0}: the message is busy"
 msgstr ""
 
-#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:148
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:220
 msgid "the base could not be opened"
 msgstr ""
 
-#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:150
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:222
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr ""
@@ -357,7 +361,7 @@ msgstr ""
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:509 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:519 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -848,17 +852,21 @@ msgstr[1] ""
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:208
+#: src/ui/screens/area_list_screen.cpp:295
 msgid " The tosser config declares no areas."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:209
+#: src/ui/screens/area_list_screen.cpp:296
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:253
+#: src/ui/screens/area_list_screen.cpp:345
 #, c++-format
 msgid " Area: {0}▌"
+msgstr ""
+
+#: src/ui/screens/area_list_screen.cpp:363
+msgid "Every area has been read."
 msgstr ""
 
 #: src/ui/screens/compose_screen.cpp:312

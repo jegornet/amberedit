@@ -649,6 +649,15 @@ struct AppConfig {
     /// message that fits.
     bool areaListScrollbar{false};
 
+    /// Whether the area list opens showing only the areas with something unread
+    /// in them, from `arealist_unread_only`.
+    ///
+    /// Off by default, the list holding every area the tosser config declares.
+    /// It is where the screen starts and no more: `arealist.toggle_unread`
+    /// moves between the two for the rest of the session, and nothing writes
+    /// the answer back.
+    bool areaListUnreadOnly{false};
+
     /// Whether the message list draws the reader's scrollbar beside its rows,
     /// from `msglist_scrollbar`. On by default, and drawn on the same terms as
     /// `areaListScrollbar` where that one is switched on.
@@ -1139,6 +1148,7 @@ struct AppConfig {
     /// cursor. The row is still taken off the screen above it — see `hintBar` —
     /// so a list that names nothing is a rule and not a row less.
     std::vector<Command> arealistHints{Command::AreaListNextUnread,
+                                       Command::AreaListToggleUnread,
                                        Command::AreaListRescan};
     std::vector<Command> msglistHints;
     std::vector<Command> readerHints{Command::ReaderReply,  Command::ReaderReplyElsewhere,

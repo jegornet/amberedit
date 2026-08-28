@@ -23,6 +23,8 @@ constexpr Commands::Info kCommands[] = {
      false},
     {Command::AreaListNextUnread, "arealist.next_unread", CommandScreen::AreaList,
      N_("Next unread"), "", "/", false},
+    {Command::AreaListToggleUnread, "arealist.toggle_unread", CommandScreen::AreaList,
+     N_("Unread only"), "", "Ctrl-U", false},
     {Command::AreaListRescan, "arealist.rescan", CommandScreen::AreaList, N_("Rescan"),
      "", "Ctrl-R", false},
     {Command::MessageListMarkToggle, "msglist.mark_toggle", CommandScreen::MessageList,

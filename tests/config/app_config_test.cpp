@@ -456,6 +456,13 @@ TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     CHECK_FALSE(with("msglist_scrollbar off\n").messageListScrollbar);
     CHECK(with("msglist_scrollbar off\narealist_scrollbar on\n").areaListScrollbar);
     CHECK_FALSE(loads("arealist_scrollbar yes\n"));
+
+    // Where the area list starts: every area, or only those with something
+    // unread. Off by default, and the key moves between the two afterwards.
+    CHECK_FALSE(with("").areaListUnreadOnly);
+    CHECK(with("arealist_unread_only on\n").areaListUnreadOnly);
+    CHECK_FALSE(with("arealist_unread_only off\n").areaListUnreadOnly);
+    CHECK_FALSE(loads("arealist_unread_only yes\n"));
     CHECK_FALSE(loads("msglist_scrollbar 1\n"));
 }
 
@@ -653,8 +660,9 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
     using amberedit::config::Command;
 
     const auto defaults = with("");
-    CHECK(defaults.arealistHints ==
-          std::vector<Command>{Command::AreaListNextUnread, Command::AreaListRescan});
+    CHECK(defaults.arealistHints == std::vector<Command>{Command::AreaListNextUnread,
+                                                         Command::AreaListToggleUnread,
+                                                         Command::AreaListRescan});
     CHECK(defaults.msglistHints.empty());
     CHECK(defaults.readerHints ==
           std::vector<Command>{Command::ReaderReply, Command::ReaderReplyElsewhere,

@@ -4,6 +4,7 @@
 #include <exception>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "i18n/i18n.hpp"
 #include "ui/area_list_format.hpp"
@@ -36,23 +37,77 @@ constexpr int kRightPad = 1;
 /// this, so it has to match what render() puts above the rows.
 constexpr int kHeaderRows = 2;
 
-void clampCursor(AppState& state) {
+/// Whether an area has anything unread in it.
+///
+/// The star column's own test (`AreaFieldKind::UnreadFlag`), and what both `/`
+/// and the unread-only filter are read against: an area that cannot be read has
+/// no unread messages to offer, whatever count it was left with.
+bool hasUnread(const app::AreaEntry& entry) {
+    return entry.isAvailable() && entry.unread > 0;
+}
+
+/// The areas the list is showing, as places in the manager's own list: every
+/// one of them, or — under `AppState::areaUnreadOnly` — only those with
+/// something unread.
+///
+/// Worked out afresh wherever it is wanted rather than settled once and kept.
+/// The counts move only while an area is being read, which is a screen away
+/// from this one, so nothing can change under a cursor walking down the list;
+/// and a filtered list held beside the cursor would be one more thing every
+/// path back here had to remember to rebuild.
+std::vector<int> shownAreas(const AppState& state) {
+    const auto& areas = state.manager.areas();
+    std::vector<int> shown;
+    shown.reserve(areas.size());
+    for (size_t i = 0; i < areas.size(); ++i) {
+        if (!state.areaUnreadOnly || hasUnread(areas[i]))
+            shown.push_back(static_cast<int>(i));
+    }
+    return shown;
+}
+
+/// Which row of the list the cursor's area stands on.
+///
+/// Where the filter has taken that area off the list — an area read to its end
+/// while the filter was on — it is the nearest row after it: the cursor is left
+/// on the area that has come up under it rather than pulled back to the top.
+int rowOf(const std::vector<int>& shown, int cursor) {
+    if (shown.empty()) return 0;
+    const auto at = std::lower_bound(shown.begin(), shown.end(), cursor);
+    if (at == shown.end()) return static_cast<int>(shown.size()) - 1;
+    return static_cast<int>(at - shown.begin());
+}
+
+/// Puts the cursor on a row of the list and settles the offset around it.
+///
+/// `areaCursor` names an area of the manager's list and `areaOffset` a row of
+/// the screen, which is the whole of what the filter changes: with nothing to
+/// show there is no row for the cursor to be on, and the area it was left on is
+/// kept rather than reset — it is what the list comes back to when the filter
+/// goes off again.
+void putOnRow(AppState& state, const std::vector<int>& shown, int row) {
     const int total = static_cast<int>(state.manager.areas().size());
-    if (total == 0) {
-        state.areaCursor = 0;
+    if (shown.empty()) {
+        state.areaCursor = std::clamp(state.areaCursor, 0, std::max(0, total - 1));
         state.areaOffset = 0;
         return;
     }
-    state.areaCursor = std::clamp(state.areaCursor, 0, total - 1);
+    const int rows = state.areaListItems();
+    const int last = static_cast<int>(shown.size()) - 1;
+    row = std::clamp(row, 0, last);
+    state.areaCursor = shown[static_cast<size_t>(row)];
 
     // Areas, not lines: a row two lines tall halves how many of them a screen
     // holds, and everything about where the list is scrolled to is counted in
     // areas.
-    const int rows = state.areaListItems();
-    state.areaOffset = std::min(state.areaOffset, state.areaCursor);
-    if (state.areaCursor >= state.areaOffset + rows)
-        state.areaOffset = state.areaCursor - rows + 1;
-    state.areaOffset = std::clamp(state.areaOffset, 0, std::max(0, total - rows));
+    state.areaOffset = std::min(state.areaOffset, row);
+    if (row >= state.areaOffset + rows) state.areaOffset = row - rows + 1;
+    state.areaOffset = std::clamp(state.areaOffset, 0, std::max(0, last + 1 - rows));
+}
+
+void clampCursor(AppState& state) {
+    const std::vector<int> shown = shownAreas(state);
+    putOnRow(state, shown, rowOf(shown, state.areaCursor));
 }
 
 /// Keeps the selected area where it stands on the screen when a row's height
@@ -60,7 +115,7 @@ void clampCursor(AppState& state) {
 /// `adaptive_ui_threshold` does where the two `arealist_format`s are not the
 /// same number of lines tall.
 ///
-/// What is held is the line the selected row starts on, not how many areas
+/// What is held is the line the selected row starts on, not how many rows
 /// stand above it: those two are the same thing only while a row is one line,
 /// and it is the screen the user is looking at. So the line is worked out from
 /// the height the offset was last settled against, and the areas above the
@@ -68,27 +123,28 @@ void clampCursor(AppState& state) {
 /// one-line rows is halfway down a screen of two-line rows afterwards, and one
 /// on the bottom row stays on the bottom row.
 ///
-/// `clampCursor()` has the last word, as ever: near the end of a short list
-/// there may be no offset that puts the cursor back where it was, and then the
-/// list stays full and the cursor moves instead.
-void reflowOffset(AppState& state) {
+/// The `putOnRow()` call after it in `render()` has the last word, as ever:
+/// near the end of a short list there may be no offset that puts the cursor
+/// back where it was, and then the list stays full and the cursor moves
+/// instead.
+void reflowOffset(AppState& state, const std::vector<int>& shown) {
     const int height = state.areaRowHeight();
     if (state.areaRowHeightShown == height) return;
     if (state.areaRowHeightShown > 0) {
-        const int line = (state.areaCursor - state.areaOffset) * state.areaRowHeightShown;
+        const int row = rowOf(shown, state.areaCursor);
+        const int line = (row - state.areaOffset) * state.areaRowHeightShown;
         // To the nearest row rather than the one above: half a row either way is
         // the closest the new height can come to where the cursor stood.
         const int above =
             std::clamp((line + (height / 2)) / height, 0, state.areaListItems() - 1);
-        state.areaOffset = state.areaCursor - above;
+        state.areaOffset = row - above;
     }
     state.areaRowHeightShown = height;
-    clampCursor(state);
 }
 
 void moveBy(AppState& state, int delta) {
-    state.areaCursor += delta;
-    clampCursor(state);
+    const std::vector<int> shown = shownAreas(state);
+    putOnRow(state, shown, rowOf(shown, state.areaCursor) + delta);
 }
 
 /// The character an event types into the quick search, if it types one.
@@ -108,14 +164,30 @@ std::optional<char> searchInput(const Event& event) {
     return static_cast<char>(c);
 }
 
+/// Which row the query points at: the first one on the list whose tag begins
+/// with it, and nothing where none does.
+///
+/// The rows the list is showing and not the areas there are: under the
+/// unread-only filter an area that is not on the screen is not one the cursor
+/// can be put on, so a query only it matches finds nothing and the line turns
+/// red — which is the truth about what is in front of the user.
+std::optional<int> searchRow(const AppState& state, const std::vector<int>& shown) {
+    if (state.areaSearch.empty()) return std::nullopt;
+    const auto& areas = state.manager.areas();
+    for (size_t row = 0; row < shown.size(); ++row) {
+        const app::AreaEntry& entry = areas[static_cast<size_t>(shown[row])];
+        if (startsWithIgnoreCase(entry.config.tag, state.areaSearch))
+            return static_cast<int>(row);
+    }
+    return std::nullopt;
+}
+
 /// Puts the cursor on what the query points at. A query matching nothing
 /// leaves the cursor alone — the input line says as much by turning red, and
 /// backspace takes the user back to where they were still matching.
 void applySearch(AppState& state) {
-    if (const auto match = findAreaByPrefix(state.manager.areas(), state.areaSearch)) {
-        state.areaCursor = *match;
-        clampCursor(state);
-    }
+    const std::vector<int> shown = shownAreas(state);
+    if (const auto row = searchRow(state, shown)) putOnRow(state, shown, *row);
 }
 
 /// Enters the area under the cursor — what Enter does, and what a click on a
@@ -170,6 +242,19 @@ std::optional<int> nextUnread(const AppState& state) {
     return std::nullopt;
 }
 
+/// Turns the unread-only filter on or off — what `arealist.toggle_unread` does.
+///
+/// The cursor keeps the area it was on wherever that area is still on the list,
+/// and lands on the one after it where turning the filter on has just taken it
+/// off; either way the row it stands on has moved under it, so the offset is
+/// settled again around it. The search ends on it as on every other command:
+/// what was typed was typed against the other list.
+void toggleUnreadOnly(AppState& state) {
+    state.areaSearch.clear();
+    state.areaUnreadOnly = !state.areaUnreadOnly;
+    clampCursor(state);
+}
+
 /// Asks for a rescan — what Ctrl-R does. The reading itself is the shell's: the
 /// modal saying what is going on has to be on the screen before every base is
 /// opened again, and that is what blocks in between.
@@ -178,11 +263,12 @@ void askRescan(AppState& state) {
     state.rescanning = true;
 }
 
-/// Which area a click landed on, if it landed on one. Any line of a row is that
+/// Which row a click landed on, if it landed on one. Any line of a row is that
 /// row — the description under a name is the same area as the name. Lines past
 /// the end of the list, and the lines at the bottom no whole row fitted in, are
 /// drawn blank and point at nothing.
-std::optional<int> clickedArea(const AppState& state, const Event& event) {
+std::optional<int> clickedRow(const AppState& state, const Event& event,
+                              const std::vector<int>& shown) {
     const auto click = leftClick(event);
     if (!click) return std::nullopt;
 
@@ -191,9 +277,9 @@ std::optional<int> clickedArea(const AppState& state, const Event& event) {
     const int row = line / state.areaRowHeight();
     if (row >= state.areaListItems()) return std::nullopt;
 
-    const int index = state.areaOffset + row;
-    if (index >= static_cast<int>(state.manager.areas().size())) return std::nullopt;
-    return index;
+    const int at = state.areaOffset + row;
+    if (at >= static_cast<int>(shown.size())) return std::nullopt;
+    return at;
 }
 
 }  // namespace
@@ -202,22 +288,33 @@ Element render(AppState& state) {
     const auto& areas = state.manager.areas();
 
     // No title line: the area names are the screen's own heading. Nor is there a
-    // menu button in the corner: beyond opening an area the list has two
-    // commands, Ctrl-R and `/`, and neither is worth a row of furniture.
+    // menu button in the corner: beyond opening an area the list has three
+    // commands, Ctrl-R, Ctrl-U and `/`, and none of them is worth a row of
+    // furniture.
     if (areas.empty()) {
         return vbox({text(_(" The tosser config declares no areas.")),
                      text(_(" Check general.tosser_config in the AmberEdit config."))});
     }
 
+    // Which areas are on the list at all — every one of them, or those with
+    // something unread. Worked out before anything is laid out: how long the
+    // list is decides the scrollbar, and which rows are drawn is this.
+    const std::vector<int> shown = shownAreas(state);
+
     // Where the cursor stands on the screen is kept across a change in how tall
     // a row is, which is what dragging the window across the threshold can do.
     // Before anything is laid out: the offset settled here is the one drawn.
-    reflowOffset(state);
+    reflowOffset(state, shown);
+    // And onto a row of the list as it now stands, on every frame rather than
+    // only when a key has been pressed: an area read to its end leaves the
+    // unread-only list of its own accord, so the cursor can arrive back on this
+    // screen naming an area that is no longer a row of it.
+    putOnRow(state, shown, rowOf(shown, state.areaCursor));
 
     const int visibleLines = state.areaListRows();
     const int rowHeight = state.areaRowHeight();
     const int visibleAreas = state.areaListItems();
-    const int total = static_cast<int>(areas.size());
+    const int total = static_cast<int>(shown.size());
     // The bar the reader draws beside a message too long for the window, in the
     // rightmost column and beside the rows alone — the heading and the rule
     // above them span the whole width. Only where the list is longer than the
@@ -249,7 +346,7 @@ Element render(AppState& state) {
     if (searching) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
-        const bool matched = findAreaByPrefix(areas, state.areaSearch).has_value();
+        const bool matched = searchRow(state, shown).has_value();
         header = text(truncateToWidth(i18n::format(_(" Area: {0}▌"), {state.areaSearch}),
                                       std::max(1, state.width))) |
                  bold |
@@ -258,11 +355,28 @@ Element render(AppState& state) {
 
     auto separator = text(horizontalRule(state.width)) | color(theme::palette.separator);
 
+    // The unread-only filter with nothing left to show. It is said in the middle
+    // of the screen and under the list's own heading and rule, because the
+    // filter is a way of looking at the list rather than another screen: the key
+    // that turned it on is what turns it off again, and the hint bar names it.
+    //
+    // An area list this can be reached from is never empty — the empty one is
+    // answered above — so what stands here is always the filter and never the
+    // config.
+    if (shown.empty()) {
+        Element notice =
+            text(_("Every area has been read.")) | color(theme::palette.dimmed) | center;
+        return vbox({header, separator, std::move(notice) | flex});
+    }
+
     // One line of one area's row, drawn.
     //
     // Unavailable areas are not hidden: it matters that the user can see the
-    // area exists in the config but cannot be read. The number a row is
-    // shown under is its place in the list as it stands, sorted and all.
+    // area exists in the config but cannot be read. The number a row is shown
+    // under is its place in the list as it stands — sorted, and with the areas
+    // the unread-only filter leaves out left out of the counting: the column is
+    // read down the screen, and a list numbered 3, 7, 12 would be saying
+    // something about areas that are not on it.
     //
     // A line is drawn in the runs the format cuts it into rather than as one
     // string: the description column is drawn quiet, as a kludge line is, and
@@ -270,7 +384,7 @@ Element render(AppState& state) {
     // line did — the runs are cut to the window at the same right edge, and the
     // line is padded out here rather than only when it is selected, so every
     // line is the same width and the trailing margin belongs to it.
-    const auto lineOf = [&](const app::AreaEntry& entry, int index,
+    const auto lineOf = [&](const app::AreaEntry& entry, int index, int row,
                             const area_format::Line& columns) {
         // Every line of the selected area's row is drawn selected: the row is
         // what the cursor is on, and a highlight stopping halfway down it would
@@ -303,7 +417,7 @@ Element render(AppState& state) {
         // it. What the fields left of the width, and the margin on the right,
         // are the one blank piece closing the line.
         push(" ", false);
-        for (const auto& run : area_format::runs(entry, index + 1, columns,
+        for (const auto& run : area_format::runs(entry, row + 1, columns,
                                                  state.config.areaDescriptionDefault)) {
             push(run.text, run.dimmed);
         }
@@ -315,14 +429,16 @@ Element render(AppState& state) {
     Elements lines;
     lines.reserve(static_cast<size_t>(visibleLines));
     for (int i = 0; i < visibleAreas; ++i) {
-        const int index = state.areaOffset + i;
+        const int row = state.areaOffset + i;
         for (int line = 0;
              line < rowHeight && static_cast<int>(lines.size()) < visibleLines; ++line) {
-            if (index >= total) {
+            if (row >= total) {
                 lines.push_back(text(""));
                 continue;
             }
-            lines.push_back(lineOf(areas[index], index, layout[line]));
+            const int index = shown[static_cast<size_t>(row)];
+            lines.push_back(
+                lineOf(areas[static_cast<size_t>(index)], index, row, layout[line]));
         }
     }
     // The lines at the bottom that no whole row fitted in. A row is drawn whole
@@ -406,14 +522,25 @@ void rescan(AppState& state) {
 }
 
 bool handleEvent(AppState& state, const Event& event) {
-    const int total = static_cast<int>(state.manager.areas().size());
+    // The rows the list is showing, which everything that moves about in it is
+    // counted in. Read once here rather than in each of the handlers below: the
+    // list cannot change while one key is being answered.
+    const std::vector<int> shown = shownAreas(state);
+    const int total = static_cast<int>(shown.size());
 
-    // Both commands come ahead of the quick search, which would otherwise take
-    // the key for something typed. That is also what a layout binding a bare
-    // letter here costs: the letter runs the command and stops being one an
+    // The three commands come ahead of the quick search, which would otherwise
+    // take the key for something typed. That is also what a layout binding a
+    // bare letter here costs: the letter runs the command and stops being one an
     // area's name can be searched by.
     if (state.keys.is(event, Command::AreaListRescan)) {
         askRescan(state);
+        return true;
+    }
+    // Between the whole list and the areas with something unread in them. It is
+    // answered whatever the list holds — an empty one is exactly where somebody
+    // wants the filter off again.
+    if (state.keys.is(event, Command::AreaListToggleUnread)) {
+        toggleUnreadOnly(state);
         return true;
     }
     // Down the list to the next area with something unread in it, and round the
@@ -463,10 +590,9 @@ bool handleEvent(AppState& state, const Event& event) {
 
     // A click enters the area it landed on, cursor and all: the row under the
     // pointer is the one meant, wherever the cursor happened to be.
-    if (const auto clicked = clickedArea(state, event)) {
+    if (const auto clicked = clickedRow(state, event, shown)) {
         endSearch();
-        state.areaCursor = *clicked;
-        clampCursor(state);
+        putOnRow(state, shown, *clicked);
         // The cursor is moved, shown there for the length of the click
         // animation, and only then is the area opened: the row the pointer
         // landed on is on the screen as the current one before it goes away.
@@ -497,28 +623,26 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (event == Event::PageUp) {
         endSearch();
-        state.areaCursor =
-            pageUpTarget(state.areaCursor, state.areaOffset, state.areaListItems());
-        clampCursor(state);
+        putOnRow(state, shown,
+                 pageUpTarget(rowOf(shown, state.areaCursor), state.areaOffset,
+                              state.areaListItems()));
         return true;
     }
     if (event == Event::PageDown || event == Event::Character(' ')) {
         endSearch();
-        state.areaCursor = pageDownTarget(state.areaCursor, state.areaOffset,
-                                          state.areaListItems(), total);
-        clampCursor(state);
+        putOnRow(state, shown,
+                 pageDownTarget(rowOf(shown, state.areaCursor), state.areaOffset,
+                                state.areaListItems(), total));
         return true;
     }
     if (event == Event::Home) {
         endSearch();
-        state.areaCursor = 0;
-        clampCursor(state);
+        putOnRow(state, shown, 0);
         return true;
     }
     if (event == Event::End) {
         endSearch();
-        state.areaCursor = total - 1;
-        clampCursor(state);
+        putOnRow(state, shown, total - 1);
         return true;
     }
     // The area list is the root screen, so there is nowhere to go back to:
@@ -532,6 +656,9 @@ bool handleEvent(AppState& state, const Event& event) {
     if (event == Event::Return || event == Event::ArrowRight) {
         if (total == 0) return true;
         endSearch();
+        // Onto a row first: what Enter opens is the row the cursor is drawn on,
+        // and an area the filter has taken off the list is not one of them.
+        putOnRow(state, shown, rowOf(shown, state.areaCursor));
         openSelected(state);
         return true;
     }

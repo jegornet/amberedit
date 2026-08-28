@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <fstream>
 #include <map>
@@ -151,6 +152,56 @@ struct Fixture {
     AreaManager manager;
     AppState state;
 };
+
+/// One drawn row with the padding taken off it, which is what the eye reads a
+/// row as.
+std::string trimmed(const amberedit::ui::term::Screen& screen, int y) {
+    std::string row = rowText(screen, y);
+    while (!row.empty() && row.back() == ' ') row.pop_back();
+    return row;
+}
+
+/// Marks an area read to its last message and reads the counts again with the
+/// mark in place — which is what the unread-only filter is read against.
+///
+/// A mark is a UID, so it has to be taken from the base itself: the bases these
+/// tests build are copies of one another, and a number would name a different
+/// message in each of them.
+void markToEnd(Fixture& fixture, const std::string& tag) {
+    const auto& areas = fixture.manager.areas();
+    const auto found = std::find_if(areas.begin(), areas.end(),
+                                    [&tag](const amberedit::app::AreaEntry& entry) {
+                                        return entry.config.tag == tag;
+                                    });
+    REQUIRE(found != areas.end());
+    const AreaConfig area = found->config;
+    const uint32_t total = found->total;
+    REQUIRE(total > 0);
+
+    amberedit::ports::IMsgBase* opened =
+        amberedit::test::valueOf(fixture.manager.openArea(area));
+    REQUIRE(opened != nullptr);
+    const uint32_t uid = opened->uidOf(total);
+    REQUIRE(uid != 0);
+    fixture.manager.closeCurrentArea();
+    fixture.lastRead->set(tag, uid);
+    static_cast<void>(fixture.manager.reload());
+}
+
+/// Ctrl-U, which is what `arealist.toggle_unread` runs by default.
+Event toggleUnread() {
+    return Event::Character("u", true, false, false);
+}
+
+/// The three areas the filter's tests are built on: copies of one base, with
+/// the middle one read to its end, so that two of the three have something
+/// unread and one has not.
+std::vector<AreaConfig> threeAreas(const TempSquishBase& first,
+                                   const TempSquishBase& second,
+                                   const TempSquishBase& third) {
+    return {squishArea("first", first.path()), squishArea("second", second.path()),
+            squishArea("third", third.path())};
+}
 
 }  // namespace
 
@@ -800,4 +851,221 @@ TEST_CASE(
 
     amberedit::ui::error_dialog::handleEvent(fixture.state, Event::Mouse(mouse));
     CHECK(fixture.state.errorMessage.empty());
+}
+
+TEST_CASE("Ctrl-U leaves only the areas with something unread [arealist][squish]") {
+    using amberedit::config::AreaFieldKind;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+    REQUIRE(fixture.manager.areas()[1].unread == 0);
+
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.state.width = 20;
+    fixture.state.height = 8;
+
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+
+    // All three of them to begin with: the filter is off unless the config or
+    // the key says otherwise.
+    REQUIRE_FALSE(fixture.state.areaUnreadOnly);
+    REQUIRE(trimmed(screen, 2) == " first");
+    REQUIRE(trimmed(screen, 3) == " second");
+    REQUIRE(trimmed(screen, 4) == " third");
+
+    REQUIRE(area_list::handleEvent(fixture.state, toggleUnread()));
+    CHECK(fixture.state.areaUnreadOnly);
+    term::render(screen, area_list::render(fixture.state));
+
+    // The area that is read through is off the list, and the one under it has
+    // come up into its place — numbered as the row it now stands on.
+    CHECK(trimmed(screen, 2) == " first");
+    CHECK(trimmed(screen, 3) == " third");
+    CHECK(trimmed(screen, 4).empty());
+
+    // And the key that took them off puts them back: the areas themselves, their
+    // order and their counts were never touched.
+    REQUIRE(area_list::handleEvent(fixture.state, toggleUnread()));
+    CHECK_FALSE(fixture.state.areaUnreadOnly);
+    term::render(screen, area_list::render(fixture.state));
+    CHECK(trimmed(screen, 3) == " second");
+}
+
+TEST_CASE("The rows of the filtered list are numbered as they stand [arealist][squish]") {
+    using amberedit::config::AreaFieldKind;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
+                                            {AreaFieldKind::Space, 1},
+                                            {AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.state.width = 20;
+    fixture.state.height = 8;
+    fixture.state.areaUnreadOnly = true;
+
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+
+    // The column is read down the screen, so it counts the rows that are on it:
+    // a list numbered 1, 3 would be saying something about an area that is not
+    // there to be looked at.
+    CHECK(trimmed(screen, 2) == "   1 first");
+    CHECK(trimmed(screen, 3) == "   2 third");
+}
+
+TEST_CASE(
+    "The filter keeps the cursor on its area, or on the one after it "
+    "[arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+
+    // An area still on the list keeps the cursor, whichever row that has become.
+    fixture.state.areaCursor = 2;
+    REQUIRE(area_list::handleEvent(fixture.state, toggleUnread()));
+    CHECK(fixture.state.areaCursor == 2);
+    REQUIRE(area_list::handleEvent(fixture.state, toggleUnread()));
+    CHECK(fixture.state.areaCursor == 2);
+
+    // The area the filter takes off the list leaves the cursor on the one that
+    // has come up under it, rather than back at the top.
+    fixture.state.areaCursor = 1;
+    REQUIRE(area_list::handleEvent(fixture.state, toggleUnread()));
+    CHECK(fixture.state.areaCursor == 2);
+}
+
+TEST_CASE("Moving about counts the rows the filter leaves [arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+    fixture.state.areaUnreadOnly = true;
+    fixture.state.areaCursor = 0;
+
+    // Down from the first row is the next row of the list and not the next area
+    // of the config: the one in between is not on the screen to be stopped on.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::ArrowDown));
+    CHECK(fixture.state.areaCursor == 2);
+    REQUIRE(area_list::handleEvent(fixture.state, Event::ArrowDown));
+    CHECK(fixture.state.areaCursor == 2);
+    REQUIRE(area_list::handleEvent(fixture.state, Event::ArrowUp));
+    CHECK(fixture.state.areaCursor == 0);
+
+    // End and Home are the last and the first of them, the same way.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::End));
+    CHECK(fixture.state.areaCursor == 2);
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Home));
+    CHECK(fixture.state.areaCursor == 0);
+}
+
+TEST_CASE("The quick search looks only at the rows on the list [arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+    fixture.state.areaUnreadOnly = true;
+    fixture.state.areaCursor = 0;
+
+    // "second" is not on the screen, so the query that names it finds nothing
+    // and the cursor stays where the user put it — which is what the input line
+    // says by turning red.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Character("s")));
+    CHECK(fixture.state.areaSearch == "s");
+    CHECK(fixture.state.areaCursor == 0);
+
+    // A row that is on it is found as ever.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Backspace));
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
+    CHECK(fixture.state.areaCursor == 2);
+}
+
+TEST_CASE("With nothing unread the list says so in the middle [arealist][squish]") {
+    const TempSquishBase only;
+    Fixture fixture({squishArea("localnet", only.path())});
+    markToEnd(fixture, "localnet");
+    REQUIRE(fixture.manager.areas()[0].unread == 0);
+
+    fixture.state.width = 40;
+    fixture.state.height = 10;
+    fixture.state.areaUnreadOnly = true;
+
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+
+    // Under the list's own heading and rule, which stay: the filter is a way of
+    // looking at the list rather than another screen.
+    CHECK_FALSE(trimmed(screen, 0).empty());
+    std::string body;
+    for (int y = 2; y < fixture.state.height; ++y) body += trimmed(screen, y);
+    CHECK_MESSAGE(amberedit::test::contains(body, "Every area has been read."), body);
+    // And no row of an area anywhere on it.
+    CHECK_MESSAGE(!amberedit::test::contains(body, "localnet"), body);
+
+    // Ctrl-U is what it is still there to answer, and it brings the areas back.
+    REQUIRE(area_list::handleEvent(fixture.state, toggleUnread()));
+    term::render(screen, area_list::render(fixture.state));
+    CHECK_MESSAGE(amberedit::test::contains(rowText(screen, 2), "localnet"),
+                  rowText(screen, 2));
+}
+
+TEST_CASE("arealist_unread_only is the mode the list opens in [arealist]") {
+    Fixture fixture({passthroughArea("one")});
+    // Off unless the config says otherwise.
+    CHECK_FALSE(fixture.state.areaUnreadOnly);
+
+    AppConfig opens = Fixture::unsorted();
+    opens.areaListUnreadOnly = true;
+    const AppState started(fixture.manager, opens);
+    CHECK(started.areaUnreadOnly);
+}
+
+TEST_CASE(
+    "An area read to its end leaves the unread-only list under the cursor "
+    "[arealist][squish]") {
+    using amberedit::config::AreaFieldKind;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.state.width = 20;
+    fixture.state.height = 8;
+    fixture.state.areaUnreadOnly = true;
+    fixture.state.areaCursor = 0;
+
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+    REQUIRE(trimmed(screen, 2) == " first");
+    REQUIRE(fixture.state.areaCursor == 0);
+
+    // Read through, as leaving the area in the reader would leave it: the row
+    // goes, and the cursor comes back to a screen the area it named is no
+    // longer on. The frame is what settles it, not the next keystroke — the
+    // list has to be drawn with a row under the cursor.
+    markToEnd(fixture, "first");
+    term::render(screen, area_list::render(fixture.state));
+
+    CHECK(trimmed(screen, 2) == " third");
+    CHECK(trimmed(screen, 3).empty());
+    CHECK(fixture.state.areaCursor == 2);
+    CHECK(fixture.state.areaOffset == 0);
 }

@@ -375,6 +375,17 @@ arealist_description_priority area
 # screen, and where it is drawn the rows have a column less to lay out in.
 arealist_scrollbar off
 
+# Whether the area list opens showing only the areas with something unread in
+# them. Optional; off by default, the list holding every area the tosser config
+# declares. Ctrl-U moves between the two whenever the list is up, so this says
+# where the screen starts and no more — the answer is not written back here.
+# An area with no unread messages is off the list whichever way it got that way,
+# so reading one to its end takes it off as the reader is left; an area that
+# cannot be read is off it too, having no unread messages to show. With nothing
+# unread anywhere the list says so in the middle of the screen, and Ctrl-U
+# brings the areas back.
+arealist_unread_only off
+
 # --- message list -------------------------------------------------------------
 
 # What a row of the message list holds. Optional;
@@ -742,7 +753,7 @@ hint_bar_capitalize off
 # reads as a "_", so a config written when they were spelled "reply-elsewhere"
 # is read as it stands:
 #
-#   arealist_hints  next_unread  rescan  quit
+#   arealist_hints  next_unread  toggle_unread  rescan  quit
 #
 #   msglist_hints   mark_toggle  quit
 #
@@ -765,7 +776,7 @@ hint_bar_capitalize off
 # is given: every key on it either moves the cursor or marks the message under
 # it, and neither is worth a row of the screen. A list may otherwise be as long
 # as you like — what the window has no room for is left off the end of the row.
-arealist_hints next_unread rescan
+arealist_hints next_unread toggle_unread rescan
 msglist_hints none
 reader_hints reply reply_elsewhere new list export nodelist
 compose_hints save delete_line import

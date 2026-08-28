@@ -114,6 +114,16 @@ struct AppState {
     /// what the screen works the new offset out from, keeping the selected area
     /// where it stands on the screen rather than where it stands in the list.
     int areaRowHeightShown{0};
+    /// Whether the area list is showing only the areas with something unread in
+    /// them. `arealist.toggle_unread` moves between the two and
+    /// `arealist_unread_only` says which the screen opens on.
+    ///
+    /// It hides rows and changes nothing else: the areas themselves, their
+    /// order and their counts are the manager's, and `areaCursor` still names a
+    /// place in that list rather than a row of the screen. An area read to its
+    /// end therefore leaves the list of its own accord, and switching back shows
+    /// it standing where it always did.
+    bool areaUnreadOnly{false};
     /// The area list's quick search: what has been typed of an area's name so
     /// far. Empty means no search is up, and then the table's heading row is
     /// shown in place of the input line — the search has no state of its own
@@ -1495,6 +1505,7 @@ struct AppState {
           // are the answer for that state as much as for an area no group
           // covers.
           areaConfig(appConfig),
+          areaUnreadOnly(appConfig.areaListUnreadOnly),
           showScrollbar(appConfig.showScrollbar),
           underlineLinks(appConfig.underlineLinks),
           clickAnimationMs(appConfig.clickAnimationMs),

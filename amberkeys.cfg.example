@@ -65,6 +65,7 @@ Ctrl-Q          app.quit
 
 # --- the area list ------------------------------------------------------------
 /               arealist.next_unread
+Ctrl-U          arealist.toggle_unread
 Ctrl-R          arealist.rescan
 
 # --- the message list ---------------------------------------------------------

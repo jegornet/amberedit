@@ -630,6 +630,22 @@ Rules that hold the design together:
   command and not a character to search by, so `searchInput()` refuses it and
   `handleEvent()` claims it; the pair holds for the space as well, and both keys
   are free because no area tag holds either character.
+- **Ctrl-U shows the areas with something unread and nothing else.**
+  `AppState::areaUnreadOnly` is the mode, `arealist_unread_only` is where it
+  starts, and `shownAreas()` in `area_list_screen.cpp` is the whole of it: the
+  rows are places in the manager's list, and `areaCursor` still names an area of
+  that list rather than a row of the screen — which is what lets the cursor keep
+  its area across a toggle and what `rowOf()`/`putOnRow()` convert between.
+  The test for a row is the star column's, the one `/` uses, so an area that
+  cannot be read is off the list too. It is worked out afresh on every frame and
+  every keystroke rather than settled beside the cursor: the counts move only in
+  the reader, so nothing can change under a cursor walking down the list, and a
+  filtered list held in the state would be one more thing every path back here
+  had to rebuild. An area read to its end therefore leaves the list as the
+  reader is left, and the cursor lands on the one that came up under it. The
+  numbers in the `a` column count the rows that are shown; with none of them
+  shown the screen says so under its own heading and rule, and nothing but the
+  key that turned the filter on takes it off again.
 - **Ctrl-R reads everything again** — the tosser config and every base, which is
   what brings the counts up to date after a tosser run. Deliberately two steps:
   the key only sets `AppState::rescanning`, and `runApp()` does the reading on
