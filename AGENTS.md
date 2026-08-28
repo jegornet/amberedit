@@ -2203,11 +2203,26 @@ taking a row.
 - **Reading and writing have separate settings, both required.**
   `default_charset` is only ever a fallback for a message being read;
   `compose_charset` is what a new message is encoded in and what its CHRS
-  announces, and it is the only thing `message_builder.cpp` reads. Neither has a
-  default: a guess would be a silent mojibake in whichever direction it guessed
-  wrong, so `fromEntries()` fails when either is missing, alongside the check
-  that there is an area list at all — `tosser_config`, `area ... endarea`
-  blocks, or both.
+  announces. Neither has a default: a guess would be a silent mojibake in
+  whichever direction it guessed wrong, so `fromEntries()` fails when either is
+  missing, alongside the check that there is an area list at all —
+  `tosser_config`, `area ... endarea` blocks, or both.
+- **One charset per message, decided in `draftCharset()` and nowhere else.**
+  `compose_charset`, unless `reply_original_charset` is on and the message
+  answers one, in which case the answered message's own charset — and then only
+  where every byte the base will convert has a place in it, `encoding::fitsCharset()`
+  being what asks. `default_charset` never reaches a message being written.
+  Both settings are read off the area the message is **going into**, through the
+  `request.config` the compose screen resolves with `composeConfig()`: what may
+  be written in an echo is that echo's business, whatever area the reply was
+  begun in. `areareplydirect` and `reply_to_area` are read off the area on
+  screen instead, and are not a contradiction — they decide where a reply goes,
+  before there is a target area to ask.
+- **`charsetIdentifier()` is the only place a charset name is spelled for CHRS.**
+  A charset kept off an answered message arrives as the iconv name
+  `CharsetDetector::normalize()` produced, and FTS-5003 spells several of those
+  its own way — LATIN-1 for ISO-8859-1, MAC for MACINTOSH. The reverse table
+  lives there, beside the level `charsetLevel()` gives.
 - **`name` and `address` are required too, and for the same kind of reason.**
   Neither is guessed: without the address a message goes out with no From
   address and an origin line ending in an empty pair of parentheses, which the

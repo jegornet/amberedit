@@ -4,11 +4,13 @@
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
+#include <utility>
 
 #include "app/copy_commands.hpp"
 #include "app/msg_template.hpp"
 #include "app/quoting.hpp"
 #include "config/text_util.hpp"
+#include "encoding/iconv_recoder.hpp"
 #include "i18n/i18n.hpp"
 #include "version.hpp"
 
@@ -305,10 +307,37 @@ int charsetLevel(std::string_view charset) {
 }
 
 std::string charsetIdentifier(std::string_view charset) {
+    // The names FTS-5003 fixes, against the ones iconv knows them by. Every
+    // other charset a message is written in is spelled the same in both, CP866
+    // and KOI8-R among them, and goes out as it is written.
+    static const std::vector<std::pair<std::string_view, std::string_view>> kNames{
+        {"utf-8", "UTF-8"},        {"utf8", "UTF-8"},          {"ascii", "ASCII"},
+        {"us-ascii", "ASCII"},     {"iso-8859-1", "LATIN-1"},  {"iso-8859-2", "LATIN-2"},
+        {"iso-8859-9", "LATIN-5"}, {"iso-8859-15", "LATIN-9"}, {"macintosh", "MAC"},
+    };
     const std::string name = config::text::toLower(charset);
-    if (name == "utf-8" || name == "utf8") return "UTF-8";
-    if (name == "ascii" || name == "us-ascii") return "ASCII";
+    for (const auto& [known, spelled] : kNames) {
+        if (name == known) return std::string(spelled);
+    }
     return std::string(charset);
+}
+
+std::string draftCharset(const BuildRequest& request,
+                         const std::vector<std::string>& encoded) {
+    const std::string& compose = request.config.composeCharset;
+    if (!request.config.replyOriginalCharset) return compose;
+    // A new message answers nothing and a forward passes a message on rather
+    // than answering it: neither has an original whose charset it could keep.
+    // It is the same pair of questions the REPLY kludge is written by.
+    if (request.originalBody == nullptr || request.fields.forward) return compose;
+
+    const std::string& original = request.originalBody->charset;
+    if (original.empty() || config::text::iequals(original, compose)) return compose;
+
+    for (const auto& piece : encoded) {
+        if (!encoding::fitsCharset(piece, original)) return compose;
+    }
+    return original;
 }
 
 std::string msgidOf(const domain::MessageBody& body) {
@@ -556,17 +585,37 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     // Pvt, less whatever was turned off there, plus whatever was turned on.
     draft.attributes = fields.attributes;
     draft.utcOffsetMinutes = request.utcOffsetMinutes;
-    // The charset the area this message is going into is written in — the
-    // config's `compose_charset`, or an area group's where one covers the tag,
-    // the caller having resolved that before building the request.
-    // `default_charset` has no say here: it is what a message that declares
-    // nothing is read in, which is a statement about the echoes, not about what
-    // this user writes.
-    draft.charset = request.config.composeCharset;
 
     if (const auto from = domain::FtnAddress::parse(fields.fromAddr))
         draft.origAddr = *from;
     if (const auto to = domain::FtnAddress::parse(fields.toAddr)) draft.destAddr = *to;
+
+    // The text before the control lines, though it is stored after them: the
+    // charset the CHRS line announces is decided by what there is to write, and
+    // the tearline and the origin line are part of that.
+    //
+    // The same pair the editor opened on, so that saving leaves standing what
+    // the user has been looking at all along.
+    const TemplateContext context = contextFor(request);
+    draft.lines = closeMessage(text, context.tearline,
+                               originLine(context.origin, addressText(draft.origAddr)));
+
+    // Everything the base will convert, which is what the charset has to have
+    // room for: the header fields sit in XMSG rather than in the text, and the
+    // control lines the caller adds carry names. The ones written below are
+    // ASCII — an address, a serial number, a time zone, a charset name.
+    std::vector<std::string> encoded{fields.fromName, fields.toName, fields.subject};
+    encoded.insert(encoded.end(), draft.lines.begin(), draft.lines.end());
+    encoded.insert(encoded.end(), request.extraKludges.begin(),
+                   request.extraKludges.end());
+    // The charset the area this message is going into is written in — the
+    // config's `compose_charset`, or an area group's where one covers the tag,
+    // the caller having resolved that before building the request — unless that
+    // area's `reply_original_charset` keeps the answered message's instead.
+    // `default_charset` has no say either way: it is what a message that declares
+    // nothing is read in, which is a statement about the echoes, not about what
+    // this user writes.
+    draft.charset = draftCharset(request, encoded);
 
     // Routing first, as every FTN editor writes it: where the message is going
     // and where it came from, then what it is, then how to read it.
@@ -599,12 +648,6 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     // by them.
     draft.kludges.insert(draft.kludges.end(), request.extraKludges.begin(),
                          request.extraKludges.end());
-
-    // The same pair the editor opened on, so that saving leaves standing what
-    // the user has been looking at all along.
-    const TemplateContext context = contextFor(request);
-    draft.lines = closeMessage(text, context.tearline,
-                               originLine(context.origin, addressText(draft.origAddr)));
     return draft;
 }
 

@@ -43,6 +43,39 @@ tl::expected<void, ErrorPtr> checkCharset(const std::string& charset) {
     return {};
 }
 
+bool fitsCharset(std::string_view utf8Text, const std::string& charset) {
+    if (utf8Text.empty()) return true;
+    if (charset.empty()) return false;
+    // Nothing does not fit UTF-8, and iconv is not needed to say so.
+    if (charset == "UTF-8" || charset == "UTF8") return true;
+
+    const iconv_t cd = iconv_open(charset.c_str(), "UTF-8");
+    if (cd == invalidDescriptor()) return false;
+
+    std::vector<char> buffer(4096);
+    char* inPtr = const_cast<char*>(utf8Text.data());
+    size_t inLeft = utf8Text.size();
+    bool fits = true;
+
+    while (inLeft > 0) {
+        char* outPtr = buffer.data();
+        size_t outLeft = buffer.size();
+
+        if (iconv(cd, &inPtr, &inLeft, &outPtr, &outLeft) != static_cast<size_t>(-1)) {
+            break;
+        }
+        if (errno == E2BIG) continue;  // the buffer ran out, not the charset
+        // EILSEQ is a character the charset has no room for; EINVAL is text
+        // that stops in the middle of one, which is not the charset's doing but
+        // is not something to write into a message either.
+        fits = false;
+        break;
+    }
+
+    iconv_close(cd);
+    return fits;
+}
+
 bool isValidUtf8(std::string_view text) {
     size_t i = 0;
     while (i < text.size()) {

@@ -78,6 +78,21 @@ private:
 /// front of it, and a typo is worth catching while there is somebody to fix it.
 [[nodiscard]] tl::expected<void, ErrorPtr> checkCharset(const std::string& charset);
 
+/// Whether every character of the UTF-8 text has a place in the charset — asked
+/// before a message is written in a charset that was not chosen for it.
+///
+/// Not `IconvRecoder::intoCharset()` with the answer thrown away: that one
+/// converts the way a message is converted, `//TRANSLIT` and a '?' for whatever
+/// is left, and so it succeeds at everything. This opens the charset by its bare
+/// name and takes the first character iconv refuses as the answer. False for a
+/// charset iconv does not know, there being nothing to promise about one.
+///
+/// What "refuses" covers is the platform's iconv to decide: glibc will not put
+/// an em dash into CP866 and the libiconv macOS ships writes a hyphen for it
+/// without being asked. Neither writes a '?' for a character it can do nothing
+/// with, and that is the one this is asked about.
+[[nodiscard]] bool fitsCharset(std::string_view utf8Text, const std::string& charset);
+
 /// True if the string is well-formed UTF-8. Used both to avoid recoding text
 /// that already is UTF-8 and to keep broken bytes out of the terminal.
 bool isValidUtf8(std::string_view text);

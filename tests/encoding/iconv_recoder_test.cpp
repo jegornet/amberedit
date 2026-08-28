@@ -6,6 +6,7 @@
 #include "test_strings.hpp"
 
 using amberedit::encoding::IconvRecoder;
+using amberedit::encoding::fitsCharset;
 using amberedit::encoding::isValidUtf8;
 
 namespace {
@@ -95,4 +96,31 @@ TEST_CASE("isValidUtf8 rejects broken sequences [iconv]") {
     CHECK_FALSE(isValidUtf8("\xC0\x80"));      // overlong
     CHECK_FALSE(isValidUtf8("\xED\xA0\x80"));  // surrogate U+D800
     CHECK_FALSE(isValidUtf8("\xFF\xFE"));      // impossible bytes
+}
+
+TEST_CASE("fitsCharset says what a charset has room for [iconv]") {
+    CHECK(fitsCharset(kPrivetUtf8, "CP866"));
+    CHECK(fitsCharset(kPrivetUtf8, "KOI8-R"));
+    CHECK_FALSE(fitsCharset(kPrivetUtf8, "CP437"));   // no Cyrillic there
+    CHECK_FALSE(fitsCharset(kPrivetUtf8, "US-ASCII"));
+
+    CHECK(fitsCharset("plain ascii", "CP437"));
+    CHECK(fitsCharset("", "US-ASCII"));  // nothing fits everywhere
+}
+
+TEST_CASE("Everything fits UTF-8, and nothing fits a charset iconv has never heard of [iconv]") {
+    CHECK(fitsCharset("日本語", "UTF-8"));
+    CHECK(fitsCharset(kPrivetUtf8, "UTF8"));
+
+    CHECK_FALSE(fitsCharset(kPrivetUtf8, "CP-NOT-A-CHARSET"));
+    CHECK_FALSE(fitsCharset(kPrivetUtf8, ""));
+}
+
+TEST_CASE("fitsCharset does not answer yes by writing a question mark [iconv]") {
+    // Which is what IconvRecoder::intoCharset() does, //TRANSLIT and a '?' for
+    // whatever is left, and so it succeeds at everything. Cyrillic has no
+    // near-equivalent in CP437 for any iconv to reach for.
+    IconvRecoder recoder;
+    CHECK(recoder.fromUtf8(kPrivetUtf8, "CP437") == "??????");
+    CHECK_FALSE(fitsCharset(kPrivetUtf8, "CP437"));
 }

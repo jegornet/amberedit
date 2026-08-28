@@ -120,6 +120,16 @@ default_charset CP866
 # announces. Required; may be set per area in a group block.
 compose_charset CP866
 
+# Whether a reply is written in the charset the message it answers was written
+# in, rather than in compose_charset. Optional; off by default, and may be set
+# per area in a group block.
+#
+# Where the reply goes into an area other than the one it was read in, it is the
+# area it GOES INTO that this is read from, as compose_charset itself is: what a
+# message may be written in is the business of the echo it lands in. A forward is
+# not a reply and is always written in compose_charset.
+reply_original_charset off
+
 # Which lastread slot in a message base is yours. Optional; 0 by default, which
 # is right on a single-user system. Squish (.sql) and Fido *.msg (the "lastread"
 # file in the area directory) are arrays indexed by this number; JAM (.jlr) finds
@@ -1174,6 +1184,7 @@ twit_mode blank
 #   template_date_format  template_time_format
 #   import_begin          import_end
 #   reader_stylecodes     areareplydirect       reply_to_area
+#   reply_original_charset
 #   bbs_codes_renegade    bbs_codes_ansi
 #   compose_cc_list       compose_xc_list
 #   twit                  twit_subj             twit_to      twit_mode

@@ -513,6 +513,18 @@ struct AppConfig {
     /// not necessarily what one wants to write in. Required.
     std::string composeCharset;
 
+    /// Whether a reply is written in the charset the message it answers was
+    /// written in, rather than in `composeCharset`. Off by default, and read
+    /// off the area the reply is going into — like the charset it overrides,
+    /// and unlike `areaReplyDirect`, which decides where a reply goes rather
+    /// than what it is written in.
+    ///
+    /// It is the quote it is for: a message answered in a charset that has no
+    /// room for what it said comes back full of question marks. Where the
+    /// answer itself does not fit the original's charset either, that charset
+    /// buys nothing and `composeCharset` is used after all.
+    bool replyOriginalCharset{false};
+
     /// What the `CC:` and `XC:`/`XP:` commands leave behind in the text of a
     /// message that carried them, from `compose_cc_list` and `compose_xc_list`.
     ///

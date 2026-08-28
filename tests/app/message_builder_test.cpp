@@ -196,6 +196,152 @@ TEST_CASE("CHRS names the charset and its level [builder]") {
     CHECK(charsetIdentifier("utf8") == "UTF-8");
     CHECK(charsetIdentifier("us-ascii") == "ASCII");
     CHECK(charsetIdentifier("CP866") == "CP866");
+    // The names FTS-5003 spells its own way, which is not the way iconv spells
+    // them and so not the way a charset read off a message arrives here.
+    CHECK(charsetIdentifier("ISO-8859-1") == "LATIN-1");
+    CHECK(charsetIdentifier("iso-8859-15") == "LATIN-9");
+    CHECK(charsetIdentifier("MACINTOSH") == "MAC");
+    // Everything else goes out spelled as it was stated.
+    CHECK(charsetIdentifier("KOI8-R") == "KOI8-R");
+    CHECK(charsetIdentifier("cp1251") == "cp1251");
+}
+
+TEST_CASE("A reply may be written in the charset of the message it answers [builder]") {
+    AppConfig cfg = config();  // compose_charset CP866
+    cfg.replyOriginalCharset = true;
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    MessageHeader header;
+    header.from = "Ivan Petrov";
+    header.subject = "hello";
+
+    MessageBody body;
+    body.charset = "UTF-8";
+    body.lines = {{"@MSGID: 2:5020/1042 5f3a1b2c", true}, {"hello there", false}};
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.reply = true;
+    fields.toName = "Ivan Petrov";
+    fields.toAddr.clear();
+
+    const BuildRequest request{cfg,   area,  fields,     &header,
+                               &body, nullptr, 0x68A1B2C3, 180};
+    const auto draft = buildDraft(request, {"hello back"});
+
+    CHECK(draft.charset == "UTF-8");
+    CHECK(kludgesOf(draft) ==
+          "MSGID: 2:382/736.1 68a1b2c3|"
+          "REPLY: 2:5020/1042 5f3a1b2c|"
+          "TZUTC: 0300|"
+          "CHRS: UTF-8 4|");
+
+    // Off, which is how it stands, the reply is written in the charset the area
+    // it goes into is written in — as every other message is.
+    AppConfig off = cfg;
+    off.replyOriginalCharset = false;
+    const BuildRequest ordinary{off,   area,    fields,     &header,
+                                &body, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(ordinary, {"hello back"}).charset == "CP866");
+}
+
+TEST_CASE("A reply keeps the original's charset only where it fits [builder]") {
+    AppConfig cfg = config();  // compose_charset CP866
+    cfg.replyOriginalCharset = true;
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    MessageHeader header;
+    header.from = "John Doe";
+
+    MessageBody body;
+    body.charset = "CP437";  // a western echo: no Cyrillic in it
+    body.lines = {{"hello there", false}};
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.reply = true;
+    fields.toName = "John Doe";
+    fields.toAddr.clear();
+
+    const BuildRequest request{cfg,   area,    fields,     &header,
+                               &body, nullptr, 0x68A1B2C3, 180};
+
+    // An answer CP437 has room for is written in CP437.
+    CHECK(buildDraft(request, {"hello back"}).charset == "CP437");
+    // One it has not is written in compose_charset after all: keeping somebody
+    // else's words is what this is for, and it is not worth losing one's own.
+    CHECK(buildDraft(request, {"Привет"}).charset == "CP866");
+
+    // The subject and the names go into XMSG rather than into the text, and are
+    // converted in the same charset, so they count as much as a line does.
+    ComposeFields cyrillic = fields;
+    cyrillic.subject = "Привет";
+    const BuildRequest withSubject{cfg,   area,    cyrillic,   &header,
+                                   &body, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(withSubject, {"hello back"}).charset == "CP866");
+}
+
+TEST_CASE("A forward and a new message are written in compose_charset [builder]") {
+    AppConfig cfg = config();  // compose_charset CP866
+    cfg.replyOriginalCharset = true;
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    MessageHeader header;
+    header.from = "Ivan Petrov";
+
+    MessageBody body;
+    body.charset = "UTF-8";
+    body.lines = {{"hello there", false}};
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.toName = "All";
+    fields.toAddr.clear();
+
+    // A forward passes a message on rather than answering it, and answers
+    // nothing — the same pair of questions the REPLY kludge is written by.
+    ComposeFields forwarded = fields;
+    forwarded.forward = true;
+    const BuildRequest passing{cfg,   area,    forwarded,  &header,
+                               &body, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(passing, {"look at this"}).charset == "CP866");
+
+    // A new message has no original at all.
+    const BuildRequest fresh{cfg,     area,    fields,     nullptr,
+                             nullptr, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(fresh, {"hello"}).charset == "CP866");
+}
+
+TEST_CASE("A reply to a message that declared no charset keeps what it was read in [builder]") {
+    // `default_charset` of the area it was read in is what such a message was
+    // decoded from, and the base has written that into the body: it is the
+    // charset the text actually came out of, whether the message named it or
+    // not. Only a body that could not be read at all names none.
+    AppConfig cfg = config();  // compose_charset CP866, default_charset KOI8-R
+    cfg.replyOriginalCharset = true;
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    MessageHeader header;
+    header.from = "Ivan Petrov";
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.reply = true;
+    fields.toName = "Ivan Petrov";
+    fields.toAddr.clear();
+
+    MessageBody read;
+    read.charset = "KOI8-R";
+    read.lines = {{"привет", false}};
+    const BuildRequest answered{cfg,   area,    fields,     &header,
+                                &read, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(answered, {"привет"}).charset == "KOI8-R");
+
+    MessageBody unreadable;
+    unreadable.lines = {{"hello there", false}};
+    const BuildRequest blank{cfg,         area,    fields,     &header,
+                             &unreadable, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(blank, {"hello back"}).charset == "CP866");
 }
 
 TEST_CASE("A netmail carries INTL, FMPT and TOPT [builder]") {

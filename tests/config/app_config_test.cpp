@@ -402,6 +402,13 @@ TEST_CASE("AppConfig reads the direct area reply setting [app_config]") {
     CHECK_FALSE(with("AreaReplyDirect off\n").areaReplyDirect);
 }
 
+TEST_CASE("reply_original_charset is off unless it is turned on [app_config]") {
+    CHECK_FALSE(with("").replyOriginalCharset);  // off unless an echo asks for it
+    CHECK(with("reply_original_charset on\n").replyOriginalCharset);
+    CHECK_FALSE(with("reply_original_charset off\n").replyOriginalCharset);
+    CHECK_FALSE(loads("reply_original_charset yes\n"));
+}
+
 TEST_CASE("AppConfig reads the reply area setting [app_config]") {
     CHECK(with("").replyToArea.empty());  // no area named unless the config names one
     CHECK(with("reply_to_area NETMAIL\n").replyToArea == "NETMAIL");
@@ -2075,6 +2082,20 @@ TEST_CASE("A group may say whether replies follow the AREA: line [app_config]") 
     CHECK(cfg.areaReplyDirect);
     CHECK(cfg.effectiveFor(area("ru.linux")).areaReplyDirect);
     CHECK_FALSE(cfg.effectiveFor(area("dupes")).areaReplyDirect);
+}
+
+TEST_CASE("A group decides reply_original_charset for the areas it covers [app_config]") {
+    // The area a reply GOES INTO is the one this is read from, so a group over
+    // the echo that tolerates UTF-8 is how anybody turns it on.
+    const auto cfg = with(
+        "group\n"
+        "  member fsx.*\n"
+        "  reply_original_charset on\n"
+        "endgroup\n");
+
+    CHECK_FALSE(cfg.replyOriginalCharset);
+    CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).replyOriginalCharset);
+    CHECK(cfg.effectiveFor(area("fsx.bbs")).replyOriginalCharset);
 }
 
 TEST_CASE("A group may turn the BBS color codes on for its areas [app_config]") {

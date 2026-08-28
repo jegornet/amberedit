@@ -178,12 +178,33 @@ struct ChangeStamp {
 /// and the one a base keeps for it.
 [[nodiscard]] int tzutcMinutes(std::string_view offset);
 
+/// The charset a message being written is encoded in, and that its CHRS line
+/// announces: `compose_charset` of the area it is going into.
+///
+/// Where `reply_original_charset` is on for that area and the message answers
+/// one, it is instead the charset the message being answered was written in —
+/// the quote is what that is for, a message answered in a charset with no room
+/// for what it said coming back full of question marks. Both settings are the
+/// target area's, as everything a message is written under is: what may be
+/// written in an echo is that echo's business, whatever area the answer was
+/// begun in.
+///
+/// `encoded` is everything the base will convert — the header fields, the lines,
+/// and the control lines the caller adds. A reply the original's charset has no
+/// room for either is written in `compose_charset` after all: keeping somebody
+/// else's words is what this is for, and it is not worth losing one's own.
+[[nodiscard]] std::string draftCharset(const BuildRequest& request,
+                                       const std::vector<std::string>& encoded);
+
 /// The CHRS level of a charset: 1 for seven-bit ASCII, 4 for UTF-8, 2 for the
 /// eight-bit sets in between.
 [[nodiscard]] int charsetLevel(std::string_view charset);
 
-/// The charset identifier CHRS names it by — the configured spelling, with the
-/// two names FTS-5003 fixes spelled its way.
+/// The charset identifier CHRS names it by — the spelling it is stated in, with
+/// the names FTS-5003 fixes spelled its way. Those are what the reader normalizes
+/// a CHRS onto iconv's names, and so what a reply keeping the original's charset
+/// would otherwise announce: iconv calls it ISO-8859-1 and CHRS calls it
+/// LATIN-1.
 [[nodiscard]] std::string charsetIdentifier(std::string_view charset);
 
 /// The MSGID of a message being answered, without the "MSGID: " in front, or
