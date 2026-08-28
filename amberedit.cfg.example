@@ -511,6 +511,37 @@ reader_sidebar_width 39
 # The rule between the two moves with the panel; nothing else about it changes.
 reader_sidebar_position right
 
+# What that panel shows: tree or list. Optional; tree by default.
+#
+# tree is the thread around the message being read, drawn as one: the message
+# it answers above it, that message's other answers beside it, and the answers
+# to each of those under them. A message answering nothing stands at the top
+# with its own answers below.
+#
+# list is the messages of the area, in the area's own order, with the message
+# being read marked in it — the message list standing beside the message rather
+# than behind it.
+reader_sidebar_content tree
+
+# How many levels of the thread the tree is drawn from above the message being
+# read, and how far below it goes. Optional; 1 each by default, 0 to 9.
+#
+# One each is the message in its own place: what it answers above it, what else
+# answers that beside it, and what answers any of those below. 0 above stands
+# the tree on the message itself — no message answered above it and none of its
+# siblings; 0 below stops at the row the message is on. 0 for both is the
+# message alone.
+#
+# Levels of the thread rather than rows of the panel: everything that many
+# levels up reaches is drawn, cut off that many levels under the message. A
+# thread shorter than the climb is drawn from its own top, and the levels below
+# are counted from the message either way — a message with nothing above it has
+# the same depth drawn beneath it as one buried in a thread.
+#
+# Both are read only under reader_sidebar_content tree.
+reader_sidebar_tree_levels_up 1
+reader_sidebar_tree_levels_down 1
+
 # What each row of that panel holds. Optional. Written exactly as msglist_format
 # is — the same letters, widths and d(...) — but one format rather than two, the
 # panel being only ever on the screen in a wide window. The default puts the two

@@ -189,6 +189,38 @@ struct AppState {
     /// off the panel with nothing having been asked for.
     int readerSidebarItemsShown{0};
 
+    /// One row of the sidebar under `reader_sidebar_content tree`: a message of
+    /// the thread drawn around the one being read, and the drawing standing in
+    /// front of it.
+    struct SidebarTreeRow {
+        /// The message, counted from one, as everywhere else in the area.
+        uint32_t number{0};
+        /// The tree in front of the message on the row's first line, and what
+        /// stands under that on the rest of its lines — the corners becoming
+        /// the bars that carry on past them. Settled where the row is built,
+        /// the shape of a thread being no business of the window's width.
+        std::string branch;
+        std::string under;
+        /// The header the row is drawn from, held rather than pointed at: the
+        /// messages of a thread stand anywhere in the area, and `headers` is one
+        /// run of them.
+        domain::MessageHeader header;
+    };
+
+    /// The thread the sidebar draws, in the order its rows stand: the message
+    /// being read with as much above and below it as
+    /// `reader_sidebar_tree_levels_up` and `reader_sidebar_tree_levels_down`
+    /// ask for. Empty under `reader_sidebar_content list`, and
+    /// in a window with no panel up: it is a read of the base for every message
+    /// in it, and one nobody can see is paid for every time the reading moves
+    /// on.
+    std::vector<SidebarTreeRow> readerSidebarTree;
+    /// Which message that tree was built around, and zero where there is none.
+    /// What says the tree has gone stale — a message opened while the window was
+    /// too narrow for the panel is a tree never built, and the panel coming up
+    /// is where it is built instead.
+    uint32_t readerSidebarTreeFor{0};
+
     /// A window of loaded headers: keeping a whole area in memory (tens of
     /// thousands of messages) is pointless, and the base reads every header from
     /// disk anyway.
@@ -1568,6 +1600,13 @@ struct AppState {
         if (config.readerSidebarThreshold <= 0) return false;
         if (width < config.readerSidebarThreshold) return false;
         return width - readerSidebarWidth() - 1 >= kSidebarMinPane;
+    }
+
+    /// Whether that panel shows the thread rather than the area, from
+    /// `reader_sidebar_content`. Everything else about the panel is the same
+    /// setting under either, so this is the whole of the question.
+    [[nodiscard]] bool readerSidebarIsTree() const {
+        return config.readerSidebarContent == config::SidebarContent::Tree;
     }
 
     /// Which side of the message the panel stands on, from

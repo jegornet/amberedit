@@ -1254,6 +1254,46 @@ TEST_CASE("AppConfig reads which side the reader's sidebar stands on [app_config
     CHECK_FALSE(errorWith("reader_sidebar_position\n").empty());
 }
 
+TEST_CASE("AppConfig reads what the reader's sidebar shows [app_config]") {
+    using amberedit::config::SidebarContent;
+
+    // The thread unless a config says otherwise: it is what the panel can say
+    // and the reader cannot — which message is answered, and what else was said
+    // in the same breath.
+    CHECK(with("").readerSidebarContent == SidebarContent::Tree);
+    CHECK(with("reader_sidebar_content list\n").readerSidebarContent ==
+          SidebarContent::List);
+    CHECK(with("reader_sidebar_content TREE\n").readerSidebarContent ==
+          SidebarContent::Tree);
+
+    // There are two answers and the complaint names both.
+    const std::string error = errorWith("reader_sidebar_content thread\n");
+    CHECK_MESSAGE(contains(error, "list | tree"), error);
+    CHECK_FALSE(errorWith("reader_sidebar_content list tree\n").empty());
+    CHECK_FALSE(errorWith("reader_sidebar_content\n").empty());
+}
+
+TEST_CASE("AppConfig reads how far the reader's tree reaches [app_config]") {
+    // A level each way, which is the message in its own place: what it answers
+    // above it, and what answers any of that below.
+    CHECK(with("").readerSidebarTreeLevelsUp == 1);
+    CHECK(with("").readerSidebarTreeLevelsDown == 1);
+    CHECK(with("reader_sidebar_tree_levels_up 3\n").readerSidebarTreeLevelsUp == 3);
+    CHECK(with("reader_sidebar_tree_levels_down 2\n").readerSidebarTreeLevelsDown == 2);
+
+    // Nought is a level of its own and not the setting turned off: it stands the
+    // tree on the message, which is a thing to ask for.
+    CHECK(with("reader_sidebar_tree_levels_up 0\n").readerSidebarTreeLevelsUp == 0);
+    CHECK(with("reader_sidebar_tree_levels_down 0\n").readerSidebarTreeLevelsDown == 0);
+
+    // And past the ceiling is a number typed with a digit too many.
+    const std::string error = errorWith("reader_sidebar_tree_levels_up 40\n");
+    CHECK_MESSAGE(contains(error, "9"), error);
+    const std::string error2 = errorWith("reader_sidebar_tree_levels_down -1\n");
+    CHECK_MESSAGE(contains(error2, "0"), error2);
+    CHECK_FALSE(errorWith("reader_sidebar_tree_levels_up deep\n").empty());
+}
+
 TEST_CASE("AppConfig reads the area list order [app_config]") {
     using amberedit::config::AreaSortCriterion;
     using amberedit::config::AreaSortKey;

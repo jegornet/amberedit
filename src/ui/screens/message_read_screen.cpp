@@ -560,12 +560,17 @@ uint32_t unskipped(AppState& state, uint32_t number, int step) {
 }
 
 /// The headers the reader wants under it before it draws: the run of them the
-/// sidebar is showing where one is up, and the message being loaded where none
-/// is. One call rather than one for each, so the window is read from disk once
-/// and cannot be pulled two ways in the same keystroke — the message list is
-/// scrolled wherever it was left, and it asks for its own window as it opens.
+/// sidebar is showing where one is up over the area, and the message being
+/// loaded where none is. One call rather than one for each, so the window is
+/// read from disk once and cannot be pulled two ways in the same keystroke —
+/// the message list is scrolled wherever it was left, and it asks for its own
+/// window as it opens.
+///
+/// A panel showing the thread is not asked for: the messages of one stand
+/// anywhere in the area, so a run of headers would not hold them, and the tree
+/// carries the headers it draws from.
 void ensureReaderHeaders(AppState& state, uint32_t number) {
-    if (state.readerSidebarShown()) {
+    if (state.readerSidebarShown() && !state.readerSidebarIsTree()) {
         message_list::ensureHeaders(state, state.readerSidebarOffset,
                                     state.readerSidebarItems());
         return;
@@ -914,6 +919,10 @@ void showEmptyArea(AppState& state) {
     state.scrollbarShown = false;
     state.messageCursor = 0;
     state.readerSidebarOffset = 0;
+    // And the thread the panel was drawing is the thread of a message that is
+    // no longer on the screen, in an area that no longer holds one.
+    state.readerSidebarTree.clear();
+    state.readerSidebarTreeFor = 0;
     // There is no message to go to in an empty area, so nothing is left half
     // typed over one.
     state.readGoto.clear();

@@ -167,14 +167,21 @@ enum class Paint {
 };
 
 /// One line of `row`, drawn as `columns` lays it out, in exactly `width`
-/// columns: a blank column down the left, the runs, and blanks out to the
-/// right. The margins belong to the line rather than to the screen around it,
-/// so that a highlight covers them too rather than starting a column in.
+/// columns: a blank column down the left, `prefix`, the runs, and blanks out to
+/// the right. The margins belong to the line rather than to the screen around
+/// it, so that a highlight covers them too rather than starting a column in.
 ///
 /// The table and the reader's sidebar both draw their rows through this, so a
 /// message reads the same in the panel as it does in the list — `columns` is
 /// what differs between them, being what each window's format laid out.
+///
+/// `prefix` is the sidebar's thread, drawn in front of the message it belongs
+/// to and empty everywhere else. It is part of the line rather than a column
+/// beside it, so a highlighted row carries it like everything else on the row,
+/// and it is drawn `Dimmed`: it says where the message stands and nothing about
+/// the message. Whoever passes one leaves room for it in `columns`, this only
+/// cutting the line at `width` as it does for every other piece.
 [[nodiscard]] term::Element drawLine(const Row& row, const Line& columns, int width,
-                                     Paint paint);
+                                     Paint paint, const std::string& prefix = "");
 
 }  // namespace amberedit::ui::msg_format

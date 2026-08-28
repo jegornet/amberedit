@@ -260,7 +260,8 @@ std::string line(const Row& row, const Line& columns) {
     return text;
 }
 
-term::Element drawLine(const Row& row, const Line& columns, int width, Paint paint) {
+term::Element drawLine(const Row& row, const Line& columns, int width, Paint paint,
+                       const std::string& prefix) {
     using namespace term;
 
     // A highlighted row is painted whole, so its cells are left plain and the
@@ -300,6 +301,7 @@ term::Element drawLine(const Row& row, const Line& columns, int width, Paint pai
     // What the fields leave, and the margin on the right, are the one blank
     // piece closing the line.
     push(" ", Ink::Plain);
+    push(prefix, Ink::Dimmed);
     for (const auto& run : runs(row, columns)) push(run.text, run.ink);
     if (drawn < width) {
         push(std::string(static_cast<size_t>(width - drawn), ' '), Ink::Plain);

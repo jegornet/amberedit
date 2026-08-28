@@ -1013,9 +1013,12 @@ Rules that hold the design together:
   `reader_sidebar_threshold` columns or more — **`0` unless the config asks for
   one**, and `120` is the width `amberedit.cfg.example` names as worth turning it
   on at —
-  `ui/reader_sidebar.*` puts the messages of the area up one side of the reader,
+  `ui/reader_sidebar.*` puts a panel of messages up one side of the reader,
   with a `separator`-colored rule between it and the text — the right by default,
-  and `reader_sidebar_position` is the whole of that question. The message the reader is
+  and `reader_sidebar_position` is the whole of that question. What stands in it
+  is `reader_sidebar_content`: the thread around the message under `tree`, which
+  is what a config saying nothing gets, and the messages of the area under
+  `list`. The message the reader is
   showing is the one it marks, read off `readHeader->number` rather than off
   `messageCursor`: the compose screen loads a message back into the reader
   directly, and what the panel is for is saying which message is on the screen
@@ -1066,6 +1069,44 @@ Rules that hold the design together:
     beside is not clamped** — `readerSidebarShown()` keeps the panel off where
     less than `kSidebarMinPane` would be left, since what remains at that point
     is a strip rather than a message.
+  - **`reader_sidebar_content` is the one setting that changes what a row is**,
+    and `AppState::readerSidebarIsTree()` is the whole of the question. Under
+    `tree` the rows are `AppState::readerSidebarTree`, the thread around the
+    message being read. Under `list` they are the area in its own order, out of
+    the window of headers the two screens share. Everything else — the
+    threshold, the width, the side, the format, the marking, the click and the
+    wheel — is one panel either way, and `clickedMessage()` answers with the
+    message a row was drawn for rather than with a place in the area.
+  - **How much of the thread is `reader_sidebar_tree_levels_up` and
+    `reader_sidebar_tree_levels_down`, one each by default and `0` allowed of
+    both.** `pathUp()` climbs the `replyTo` links that many messages, as far as
+    the thread goes and no further, and `pushSubtree()` then draws everything
+    under what it reached, cut off `reader_sidebar_tree_levels_down` levels below
+    the message being read. So a level each way is the message in its own place —
+    what it answers above it, that message's other answers beside it, the answers
+    to each of those under them — and `0` above stands the tree on the message
+    itself, `0` below stops at its row, `0` for both is the message alone. **The
+    levels below are counted from the message and not from the top of the tree**,
+    so a message with nothing above it is drawn with the same depth beneath it as
+    one buried in a thread, and one climb short of the top loses nothing under
+    the message. It is the thread as far as it bears on where the reading is
+    rather than the whole of it: a panel is a strip beside a message, and the
+    settings are what say how much of a strip's worth to draw.
+  - **A tree is built where the panel is up and nowhere else.** It is a read of
+    the base for every message in it, so `follow()` builds one only under
+    `readerSidebarShown()`, and `render()` builds one where
+    `readerSidebarTreeFor` names another message than the one on the screen —
+    which is what puts the tree up when a window is dragged out to where the
+    panel fits. Each row carries its own header rather than pointing into
+    `AppState::headers`: the messages of a thread stand anywhere in the area, and
+    that window is one run of it, which is also why `ensureReaderHeaders()` asks
+    for the message alone where the panel is showing a tree. The links a base
+    holds are not to be trusted with a drawing: one naming a message that is not
+    there, or one already on the tree, is left out, a climb that comes back to
+    where it started ends there, and the way down to the message being read is
+    drawn whether or not the messages along it name the next step — `pushSubtree()`
+    takes the path `pathUp()` climbed and puts each step among the answers of the
+    one above it, since a base may hold a link one way round only.
   - **What a row holds is `reader_sidebar_msglist_format`** — `msglist_format`'s
     letters, `parseOneListFormat()`, and one format rather than two: the panel is
     only ever up in a wide window, so there is no narrow one to write a second
@@ -1074,6 +1115,14 @@ Rules that hold the design together:
   - Rows are drawn by `msg_format::drawLine()`, shared with the message list, so
     a message reads the same in the panel as it does in the table: `Paint` is the
     ranking — highlighted over unsent over unread — and the `Ink`s are the runs'.
+    The thread goes to it as that call's `prefix`, drawn `Dimmed` between the
+    margin and the first column: it is part of the line rather than a column
+    beside it, so a highlighted row carries it like everything else on the row.
+    Two columns a level, padded out to the deepest row of the *whole* tree rather
+    than of the rows on the screen, so the messages begin in one column whatever
+    they hang at and scrolling does not shuffle them. The corner stands on the
+    line the message is read from and the bar under it on the rest, a row two
+    lines tall being one message hanging from one fork.
   - **The panel says which message is on the screen beside it; it does not
     choose, and its bar says so.** `Paint::Current` fills the row with
     `reader_sidebar_msglist_selected` where

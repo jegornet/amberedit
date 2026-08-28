@@ -336,7 +336,11 @@ void leaveArea(AppState& state) {
     // The reader's sidebar was scrolled to somewhere in the area being left,
     // and the next area is a different area: it opens at its own lastread mark,
     // which is a jump from the top rather than from wherever this one ended.
+    // The thread it was drawing is of a message in the base about to be closed,
+    // and it is drawn again around whatever the next area opens on.
     state.readerSidebarOffset = 0;
+    state.readerSidebarTree.clear();
+    state.readerSidebarTreeFor = 0;
     // The marks are the area's: they are UIDs of messages in the base about to
     // be closed, and the next area's numbering knows nothing of them. Marking is
     // done to gather a handful of messages and then act on them, so a set that

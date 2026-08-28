@@ -317,6 +317,16 @@ tl::expected<SidebarPosition, ErrorPtr> parseSidebarPosition(const CfgEntry& ent
                       "(left | right)");
 }
 
+tl::expected<SidebarContent, ErrorPtr> parseSidebarContent(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "list") return SidebarContent::List;
+    if (value == "tree") return SidebarContent::Tree;
+    return entry.fail(entry.key + ": '" + *only +
+                      "' does not say what the panel shows (list | tree)");
+}
+
 tl::expected<Visibility, ErrorPtr> parseVisibility(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -934,6 +944,22 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseSidebarPosition(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerSidebarPosition = *read;
+    } else if (key == "reader_sidebar_content") {
+        auto read = parseSidebarContent(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerSidebarContent = *read;
+    } else if (key == "reader_sidebar_tree_levels_up") {
+        // Nought is a level of its own and not the setting turned off: it stands
+        // the tree on the message itself, which is a thing to ask for. The
+        // ceiling on both is past any thread worth drawing beside a message and
+        // is there to catch a number typed with a digit too many.
+        auto read = entry.numberIn(0, 9);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerSidebarTreeLevelsUp = static_cast<int>(*read);
+    } else if (key == "reader_sidebar_tree_levels_down") {
+        auto read = entry.numberIn(0, 9);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerSidebarTreeLevelsDown = static_cast<int>(*read);
     } else if (key == "reader_sidebar_msglist_format") {
         auto read = parseOneListFormat(entry, sidebarFormatSpec());
         if (!read) return tl::make_unexpected(std::move(read).error());

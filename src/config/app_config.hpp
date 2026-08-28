@@ -331,6 +331,15 @@ enum class SidebarPosition {
     Right,  ///< past the message, against the window's other edge
 };
 
+/// What that panel holds, from `reader_sidebar_content`: the area the message
+/// stands in, or the thread it stands in. Everything else about the panel — the
+/// threshold, the width, the side and the format — is the same setting under
+/// either, and this is the whole of the difference between the two.
+enum class SidebarContent {
+    List,  ///< the messages of the area, in the area's own order
+    Tree,  ///< the message, what it answers, and what answers either
+};
+
 /// Format of the tosser config the area list comes from.
 /// It is stated explicitly in the config: guessing it from the file contents
 /// is one more source of surprises, and users know their own tosser.
@@ -740,6 +749,47 @@ struct AppConfig {
     /// and the format are one setting on either side, and the rule closing it
     /// off moves with the panel.
     SidebarPosition readerSidebarPosition{SidebarPosition::Right};
+
+    /// What that panel shows, from `reader_sidebar_content`.
+    ///
+    /// The thread by default, that being what the panel can say and the reader
+    /// cannot: which message is answered, which answer this is, and what else
+    /// was said in the same breath — the message's own place, drawn around it.
+    /// The area is `list`, for reading straight down an echo, where the panel
+    /// is the message list standing beside the message rather than behind it.
+    ///
+    /// Under `tree` the panel holds as much of the thread as
+    /// `reader_sidebar_tree_levels_up` and `reader_sidebar_tree_levels_down`
+    /// ask for, and nothing else: it is the thread as far as it bears on where
+    /// the reading is, and not the whole of it.
+    SidebarContent readerSidebarContent{SidebarContent::Tree};
+
+    /// How many levels above the message being read the tree is drawn from,
+    /// from `reader_sidebar_tree_levels_up`, and how many below it goes, from
+    /// `reader_sidebar_tree_levels_down`.
+    ///
+    /// One each by default, which is the message in its own place: what it
+    /// answers above it, what else answers that beside it, and what answers any
+    /// of those below. `0` above is a tree standing on the message itself, with
+    /// nothing of what it answers and none of its siblings; `0` below stops at
+    /// the row the message is on, and `0` for both is the message alone — which
+    /// is a panel worth having only beside a `list` on the other setting, and is
+    /// allowed because a setting that means "none" should say so rather than
+    /// having to be turned off somewhere else.
+    ///
+    /// Levels of the thread and not rows of the panel: what is drawn is the
+    /// whole of the subtree that many levels up reaches, cut off that many
+    /// levels below the message. Climbing further than the thread goes is the
+    /// top of it, and the levels below are counted from where the message
+    /// stands either way, so a message with nothing above it is drawn with the
+    /// same depth beneath it as one buried in a thread.
+    ///
+    /// The ceiling is past any thread worth drawing beside a message rather
+    /// than a statement about what is sensible: the panel is a strip, and a tree
+    /// that wanted more than this of an echo would be the area with lines drawn
+    /// on it.
+    int readerSidebarTreeLevelsUp{1};
+    int readerSidebarTreeLevelsDown{1};
 
     /// What each row of that panel holds, from `reader_sidebar_msglist_format`
     /// — `msglist_format`'s letters, read by the same parser, and one format
