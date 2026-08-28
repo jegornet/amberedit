@@ -118,9 +118,16 @@ TEST_CASE("Everything fits UTF-8, and nothing fits a charset iconv has never hea
 
 TEST_CASE("fitsCharset does not answer yes by writing a question mark [iconv]") {
     // Which is what IconvRecoder::intoCharset() does, //TRANSLIT and a '?' for
-    // whatever is left, and so it succeeds at everything. Cyrillic has no
-    // near-equivalent in CP437 for any iconv to reach for.
+    // whatever is left, and so it succeeds at everything. What comes out is
+    // not fixed: older iconv writes "??????" where a newer one transliterates
+    // "Privet". Either way the Cyrillic is gone, and CP437, which has none of
+    // it, holds nothing but ASCII afterwards.
     IconvRecoder recoder;
-    CHECK(recoder.fromUtf8(kPrivetUtf8, "CP437") == "??????");
+    const std::string written = recoder.fromUtf8(kPrivetUtf8, "CP437");
+    CHECK_FALSE(written.empty());
+    CHECK(written != kPrivetUtf8);
+    for (const char c : written) {
+        CHECK(static_cast<unsigned char>(c) < 0x80);
+    }
     CHECK_FALSE(fitsCharset(kPrivetUtf8, "CP437"));
 }
