@@ -646,6 +646,17 @@ Rules that hold the design together:
   numbers in the `a` column count the rows that are shown; with none of them
   shown the screen says so under its own heading and rule, and nothing but the
   key that turned the filter on takes it off again.
+- **The list has a menu of its own**, behind the same corner the reader and the
+  editor carry one behind — `arealist_menu`, `rescan` and `toggle_unread` by
+  default, with `next_unread` and the ten utilities there to be written in. It
+  costs no row: the two it stands in are the column headings and the rule under
+  them, so the button takes the right-hand end of the heading and nothing from
+  the rows. `area_list::openMenu()` settles what each button can do as it opens
+  — only `next_unread` is ever dead, and only where nothing anywhere is unread —
+  and `area_list::runMenuCommand()` runs what was picked, `app_shell.cpp` having
+  put the box away first. The screen with no areas at all is the one exception:
+  it is two lines of prose with no headings to hang a corner from, so neither
+  the button nor a click on it is there.
 - **Ctrl-R reads everything again** — the tosser config and every base, which is
   what brings the counts up to date after a tosser run. Deliberately two steps:
   the key only sets `AppState::rescanning`, and `runApp()` does the reading on
@@ -1946,12 +1957,12 @@ taking a row.
   - **The directory is the same directory**, and `state.exportDirectory` is where
     the next export starts from whichever mode wrote last. `exportName` is not
     touched by a decoded export: it is the name a *message* was written under.
-- **The menu behind the corner.** The reader and the editor carry a **menu
-  button** in their top-right corner — `ui/menu_button.hpp`, the back button read
-  from the other side: the same five columns, two rows and colors, with `≡` where
-  the arrow is. It opens `ui/menu_dialog.*`, a modal column of framed buttons
-  standing one under the next so their frames meet and the column reads as one
-  list. Every button is `menu_buttons_width` wide, frame included — **the setting
+- **The menu behind the corner.** The area list, the reader and the editor carry
+  a **menu button** in their top-right corner — `ui/menu_button.hpp`, the back
+  button read from the other side: the same five columns, two rows and colors,
+  with `≡` where the arrow is. It opens `ui/menu_dialog.*`, a modal column of
+  framed buttons standing one under the next so their frames meet and the column
+  reads as one list. Every button is `menu_buttons_width` wide, frame included — **the setting
   decides, not the labels**. The column stands clear of the box edge by
   `kMarginX`/`kMarginY`, and `dialog::surface()` fills those margins with it.
   - **A label is a glyph and a word, and `config::Commands::Info` carries the
@@ -1975,24 +1986,29 @@ taking a row.
     Do not measure a label with `size()`.
   - `menu_button` is a `config::Visibility` answered by `AppState::shown()`, and
     both corners cross at `AppConfig::adaptiveUiThreshold` on every frame.
-    `AppState::menuButtonShown()` — and the wrappers `readerMenuShown()` /
-    `composeMenuShown()` — is the one place that answers whether a screen has the
-    corner, and an empty command list counts as none. **The corner costs no
-    row**: it stands in the two the title and the rule already take, which is why
-    nothing subtracts it from a screen's `…Rows()`. It is held against the right
-    edge by a `filler()` that is a **child of the title row itself** — an hbox
-    does not carry a child's flex up to its own parent.
+    `AppState::menuButtonShown()` — and the wrappers `arealistMenuShown()` /
+    `readerMenuShown()` / `composeMenuShown()` — is the one place that answers
+    whether a screen has the corner, and an empty command list counts as none.
+    **The corner costs no row**: it stands in the two the title and the rule
+    already take — the column headings and the rule under them on the area list —
+    which is why nothing subtracts it from a screen's `…Rows()`. It is held
+    against the right edge by a `filler()` that is a **child of the title row
+    itself** — an hbox does not carry a child's flex up to its own parent.
   - `AppState::MenuView` is the box while it is up: the commands copied out of
     the config with whether each can be run **decided once, as it opens**, on the
     message that was in front of the user then. `app_shell.cpp` answers it like
     every other modal and dispatches by `navigator.current()` to
-    `message_read::runMenuCommand()` or `compose::runMenuCommand()` — the box is
-    put away *first*, since most of those commands put a box of their own up.
+    `area_list::runMenuCommand()`, `message_read::runMenuCommand()` or
+    `compose::runMenuCommand()` — the box is put away *first*, since most of
+    those commands put a box of their own up. The message list is the one screen
+    with no menu: marking the message under the cursor is its one command, and
+    one button is no menu.
   - Every command is one a key does as well. A command with nothing to do is an
     `Item` with `enabled` false — drawn in `dimmed`, its click swallowed rather
     than passed to the screen underneath, and stepped over by the arrows. Which
     those are is the screen's own judgement: in an empty area everything about
-    the message on screen is dead, `new` and `nodelist` being what is left.
+    the message on screen is dead, `new` and `nodelist` being what is left, and
+    on the area list only `next_unread` can be, where nothing anywhere is unread.
 
 ### Text, theme and colors
 
@@ -2989,8 +3005,8 @@ together — `keys_mode` says which.
 - **`config::Command` is the whole of what can be bound, offered or named**, and
   `kCommands` in `config/commands.cpp` is the one place a command's name, its
   screen, the word and glyph it is drawn with, its default keys and whether a
-  menu may hold it are stated. The keyboard, the two context menus and the four
-  hint bars all read `config::Commands` — adding a command means adding a row
+  menu may hold it are stated. The keyboard, the three context menus and the
+  four hint bars all read `config::Commands` — adding a command means adding a row
   there and asking for it in the screen that answers it, and nothing else keeps
   a second list.
 - **A name is written once and spelled one way.** `reader.reply_elsewhere` in a `keys`
@@ -3003,8 +3019,8 @@ together — `keys_mode` says which.
     error message and every example file spell a name one way, and the hyphen is
     read and never offered.
 - **The list lives in `config/` rather than in `ui/`** because the config layer
-  is what has to name a command — `reader_menu`, `reader_hints` — and it may not
-  include the interface. What is drawn is a word and a glyph, which are data;
+  is what has to name a command — `arealist_menu`, `reader_hints` — and it may
+  not include the interface. What is drawn is a word and a glyph, which are data;
   `ui/keys.hpp` brings the names in with `using config::Command` so that a
   screen writes `Command::ReaderList` and not the layer it lives in.
 - **Only what runs a command is bindable.** Moving about — the arrows, PgUp and

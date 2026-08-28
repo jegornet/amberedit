@@ -11,6 +11,8 @@
 #include "ui/event_util.hpp"
 #include "ui/extern_util.hpp"
 #include "ui/list_page.hpp"
+#include "ui/menu_button.hpp"
+#include "ui/menu_dialog.hpp"
 #include "ui/quick_search.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/scrollbar.hpp"
@@ -234,6 +236,9 @@ void openSelected(AppState& state) {
 std::optional<int> nextUnread(const AppState& state) {
     const auto& areas = state.manager.areas();
     const int total = static_cast<int>(areas.size());
+    // A config declaring no areas at all: there is no list to walk, and the step
+    // below would be counted against a length of nothing.
+    if (total == 0) return std::nullopt;
     for (int step = 1; step <= total; ++step) {
         const int index = (state.areaCursor + step) % total;
         const auto& entry = areas[static_cast<size_t>(index)];
@@ -253,6 +258,18 @@ void toggleUnreadOnly(AppState& state) {
     state.areaSearch.clear();
     state.areaUnreadOnly = !state.areaUnreadOnly;
     clampCursor(state);
+}
+
+/// Puts the cursor on the next area with something unread in it — what `/`
+/// does. Nowhere to go is nowhere to go: the cursor stays where it is, the
+/// answer to "take me to the next unread area" when there is none being to stay
+/// put. The search ends either way, as it does on every other command.
+void goToNextUnread(AppState& state) {
+    state.areaSearch.clear();
+    if (const auto target = nextUnread(state)) {
+        state.areaCursor = *target;
+        clampCursor(state);
+    }
 }
 
 /// Asks for a rescan — what Ctrl-R does. The reading itself is the shell's: the
@@ -282,15 +299,56 @@ std::optional<int> clickedRow(const AppState& state, const Event& event,
     return at;
 }
 
+/// Whether the list's own menu offers that button. Only the walk to the next
+/// unread area can be dead: with nothing unread anywhere there is nowhere for it
+/// to go, and a button that would leave the cursor where it stands says so by
+/// being drawn quietly. Rescanning and the filter are answered whatever the list
+/// holds — a list with nothing unread on it is exactly where the filter is
+/// turned off again — and a utility is a program, which has nothing to do with
+/// what is on the screen.
+bool commandEnabled(const AppState& state, Command command) {
+    if (command == Command::AreaListNextUnread) return nextUnread(state).has_value();
+    return true;
+}
+
 }  // namespace
+
+void openMenu(AppState& state) {
+    std::vector<AppState::MenuView::Item> items;
+    items.reserve(state.config.arealistMenu.size());
+    for (const Command command : state.config.arealistMenu) {
+        items.push_back({command, commandEnabled(state, command), {}});
+    }
+    menu_dialog::open(state, std::move(items));
+}
+
+void runMenuCommand(AppState& state, Command command) {
+    switch (command) {
+        // Rescanning asks the same way Ctrl-R asks: the modal has to be on the
+        // screen before the bases are opened again, and the shell is what runs
+        // in between.
+        case Command::AreaListRescan: askRescan(state); break;
+        case Command::AreaListToggleUnread: toggleUnreadOnly(state); break;
+        // Refused rather than merely drawn dim, for the reason the editor's
+        // Import is: a button the menu dimmed can still be walked onto and
+        // pressed, and there is nowhere to walk to.
+        case Command::AreaListNextUnread:
+            if (commandEnabled(state, command)) goToNextUnread(state);
+            break;
+        // The ten utilities, which are one case rather than ten. Nothing else
+        // reaches here: moving about the list is the cursor's, and
+        // `arealist_menu` can name no other command.
+        default: static_cast<void>(extern_util::run(state, command)); break;
+    }
+}
 
 Element render(AppState& state) {
     const auto& areas = state.manager.areas();
 
-    // No title line: the area names are the screen's own heading. Nor is there a
-    // menu button in the corner: beyond opening an area the list has three
-    // commands, Ctrl-R, Ctrl-U and `/`, and none of them is worth a row of
-    // furniture.
+    // No title line: the area names are the screen's own heading, and the menu
+    // button stands over them where it is shown at all. Nothing is said here
+    // about a config that declares no areas: the two lines below are the whole
+    // screen, and a corner over them would be furniture around an error.
     if (areas.empty()) {
         return vbox({text(_(" The tosser config declares no areas.")),
                      text(_(" Check general.tosser_config in the AmberEdit config."))});
@@ -322,6 +380,14 @@ Element render(AppState& state) {
     // shows no bar for a message that fits.
     const bool scrollbarShown = state.config.areaListScrollbar && total > visibleAreas;
 
+    // The way into the list's own menu, in the top-right corner. It costs no
+    // row: the two it stands in are the heading and the rule under it, which
+    // are there either way. What it costs is the right-hand end of the heading,
+    // which is furniture — the rows below it run their full width, and the
+    // scrollbar's column is theirs alone.
+    const bool menu = state.arealistMenuShown();
+    const int headerRoom = std::max(1, state.width - (menu ? menu_button::kWidth : 0));
+
     // The columns as this window can afford them, worked out once and used for
     // the heading and every row alike. The bar's column is taken off the rows
     // before they are laid out, so the text runs up to it rather than under it.
@@ -341,19 +407,35 @@ Element render(AppState& state) {
     // keeps its height, so the rows do not shift under the cursor as soon as a
     // letter is typed. The heading is furniture and the query is not.
     const bool searching = !state.areaSearch.empty();
-    Element header = text(toRow(" " + area_format::header(layout))) |
-                     color(theme::palette.tableHeader);
+    Element header =
+        text(substrByWidth(toRow(" " + area_format::header(layout)), 0, headerRoom)) |
+        color(theme::palette.tableHeader);
     if (searching) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         const bool matched = searchRow(state, shown).has_value();
         header = text(truncateToWidth(i18n::format(_(" Area: {0}▌"), {state.areaSearch}),
-                                      std::max(1, state.width))) |
+                                      headerRoom)) |
                  bold |
                  color(matched ? theme::palette.tableHeader : theme::palette.error);
     }
 
-    auto separator = text(horizontalRule(state.width)) | color(theme::palette.separator);
+    // The rule stops a column short of the button, so the box reads as a thing
+    // standing beside it rather than a piece of it — the same column the reader
+    // and the editor leave between the two.
+    const int ruleWidth = std::max(0, state.width - (menu ? menu_button::kWidth + 1 : 0));
+    Element separator = text(horizontalRule(ruleWidth) + (menu ? " " : "")) |
+                        color(theme::palette.separator);
+    if (menu) {
+        // The filler is what holds the button against the right edge whatever
+        // the heading came to, and it is a child of this row rather than of the
+        // heading: an hbox does not carry a child's appetite for room up to its
+        // own parent. Both rows are told of the press together, so the button
+        // lights up as one thing rather than as the half the pointer landed on.
+        const bool pressed = state.isPressed(AppState::Pressed::MenuButton);
+        header = hbox({std::move(header), filler(), menu_button::topRow(pressed)});
+        separator = hbox({std::move(separator), menu_button::bottomRow(pressed)});
+    }
 
     // The unread-only filter with nothing left to show. It is said in the middle
     // of the screen and under the list's own heading and rule, because the
@@ -522,6 +604,18 @@ void rescan(AppState& state) {
 }
 
 bool handleEvent(AppState& state, const Event& event) {
+    // The menu button in the top-right corner, before anything else a click
+    // could mean: it stands over the column headings, and what it holds is
+    // decided as it opens, on the list as it stands now. A config that declares
+    // no areas has no headings for it to stand over — that screen is two lines
+    // of prose — so there is no corner to click there either.
+    if (state.arealistMenuShown() && !state.manager.areas().empty() &&
+        menu_button::clicked(event, state.width)) {
+        state.showClick(AppState::Pressed::MenuButton);
+        openMenu(state);
+        return true;
+    }
+
     // The rows the list is showing, which everything that moves about in it is
     // counted in. Read once here rather than in each of the handlers below: the
     // list cannot change while one key is being answered.
@@ -547,11 +641,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // end. It is swallowed even when there is nowhere to go — the answer to
     // "take me to the next unread area" when there is none is to stay put.
     if (state.keys.is(event, Command::AreaListNextUnread)) {
-        state.areaSearch.clear();
-        if (const auto target = nextUnread(state)) {
-            state.areaCursor = *target;
-            clampCursor(state);
-        }
+        goToNextUnread(state);
         return true;
     }
 

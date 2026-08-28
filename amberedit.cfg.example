@@ -802,12 +802,19 @@ back_button when_narrow
 compose_delete_line_button when_narrow
 
 # The context menu: a column of buttons, one command each, opened by the button
-# in the top-right corner of the reader and of the editor. Every command is one a
-# key does too; a button whose command has nothing to do is drawn quietly, in
-# the theme's "dialog_hint" color as everything else a box shows but will not
-# act on is. The value is the commands in the order they are to stand, named the
-# way the hint lists name them — the part after the dot — and each screen has
-# its own key and its own commands:
+# in the top-right corner of the area list, of the reader and of the editor.
+# Every command is one a key does too; a button whose command has nothing to do
+# is drawn quietly, in the theme's "dialog_hint" color as everything else a box
+# shows but will not act on is. The value is the commands in the order they are
+# to stand, named the way the hint lists name them — the part after the dot —
+# and each screen has its own key and its own commands:
+#
+#   arealist_menu rescan           read the tosser config and every base again,
+#                                  as ^R does
+#                 toggle_unread    between the whole list and the areas with
+#                                  something unread in them, as ^U does
+#                 next_unread      down to the next area with something unread
+#                                  in it, as `/` does
 #
 #   reader_menu   list             the list of messages in the area
 #                 reply            answer the message, quoting it
@@ -832,34 +839,38 @@ compose_delete_line_button when_narrow
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does
 #
-# Both lists may name "extern_util0" through "extern_util9" as well — see
+# All three lists may name "extern_util0" through "extern_util9" as well — see
 # extern_utilN above. Such a button is drawn under the ⚒ glyph, with the title
 # that line gave the utility beside it.
 #
 # A menu holds what a button can stand for, which is less than a hint bar may
 # name: the rest of what the editor does is editing, and there is no button for
 # taking a line out. "none" on its own leaves the screen without a menu, and so
-# does menu_button off — the first for one screen, the second for both.
+# does menu_button off — the first for one screen, the second for all three.
 #
-# The two lists below are the defaults. "change", "info", "export",
-# "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's —
-# write them in to have them:
+# The three lines below are the defaults. "change", "info", "export",
+# "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's,
+# and "next_unread" out of the list's — write them in to have them:
 #
-#   reader_menu list reply reply_elsewhere comment_reply new forward find
-#               change info export nodelist mark_toggle mark_menu shell
+#   reader_menu   list reply reply_elsewhere comment_reply new forward find
+#                 change info export nodelist mark_toggle mark_menu shell
 #
-# The area list and the message list carry no menu button and have no setting for
-# one.
+#   arealist_menu rescan toggle_unread next_unread
+#
+# The message list carries no menu button and has no setting for one: marking
+# the message under the cursor is its one command, and one button is no menu.
+arealist_menu rescan toggle_unread
 reader_menu list reply reply_elsewhere new forward find nodelist shell
 compose_menu save import
 
-# Whether the reader and the editor show the menu button at all. Optional;
-# "when_narrow" by default, the same four values as back_button and the same line
-# they are read against.
+# Whether the area list, the reader and the editor show the menu button at all.
+# Optional; "when_narrow" by default, the same four values as back_button and the
+# same line they are read against. On the list it stands over the column headings
+# and the rule under them, which are there either way, so it costs no row.
 menu_button when_narrow
 
 # How wide one button of the menu stands, in columns, the frame included.
-# Optional; 22 by default, 4 to 100 — which is the longest label either menu
+# Optional; 22 by default, 4 to 100 — which is the longest label any of the menus
 # offers, glyph and all, with a column or two after it. A label with no room
 # left for it is cut, as every other label in the interface is.
 menu_buttons_width 22

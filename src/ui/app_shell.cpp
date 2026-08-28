@@ -117,11 +117,11 @@ Element document(AppState& state) {
     }
 
     // Thirteen modals, and only ever one of them at a time: the context menu is
-    // the one thing the reader and the editor both open, the confirmation is
-    // asked from screens neither of the two lists can be up on, nine of them
-    // are the reader's, opened by different keys, two are the editor's, and the
-    // error box comes up on the area list in place of the screen that would not
-    // open.
+    // the one thing the area list, the reader and the editor all open, the
+    // confirmation is asked from screens neither of the two lists can be up on,
+    // nine of them are the reader's, opened by different keys, two are the
+    // editor's, and the error box comes up on the area list in place of the
+    // screen that would not open.
     //
     // The menu is drawn first, under the rest: everything it can do is put a
     // box of its own on the screen, and it is gone by the time that box is up.
@@ -558,9 +558,13 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                     case app::ScreenId::Compose:
                         screens::compose::runMenuCommand(state, command);
                         break;
-                    // Neither list carries a menu button, so neither can be the
-                    // screen a menu was opened from.
                     case app::ScreenId::AreaList:
+                        screens::area_list::runMenuCommand(state, command);
+                        break;
+                    // The message list carries no menu button, so it cannot be
+                    // the screen a menu was opened from: marking the message
+                    // under the cursor is its one command, and one button is no
+                    // menu.
                     case app::ScreenId::MessageList: break;
                 }
             }

@@ -16,6 +16,7 @@
 #include "ui/app_state.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/keys.hpp"
+#include "ui/menu_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
 #include "ui/term/element.hpp"
 #include "ui/term/screen.hpp"
@@ -382,6 +383,10 @@ TEST_CASE("The area list draws the columns arealist_format asks for [arealist]")
                                             {AreaFieldKind::Space, 1},
                                             {AreaFieldKind::Echoid, 0}}};
     fixture.state.width = 20;
+    // The corner is not what this is about: a menu button would take the
+    // right-hand end of the heading row, and what is being read here is the
+    // format under it.
+    fixture.config.arealistMenu.clear();
 
     namespace term = amberedit::ui::term;
     term::Screen screen(fixture.state.width, fixture.state.height);
@@ -406,6 +411,10 @@ TEST_CASE(
     fixture.config.areaListFormatWide = {{{AreaFieldKind::Echoid, 8},
                                           {AreaFieldKind::Space, 1},
                                           {AreaFieldKind::Description, 0}}};
+    // Which format a row follows is the question; the corner would only take
+    // columns off the heading in the narrow window and not in the wide one,
+    // which is one difference too many to read this through.
+    fixture.config.arealistMenu.clear();
 
     namespace term = amberedit::ui::term;
     // Under the threshold the narrow format stands: the name and nothing beside
@@ -440,6 +449,8 @@ TEST_CASE(
                                            {{AreaFieldKind::Description, 0}}};
     fixture.state.width = 20;
     fixture.state.height = 9;  // seven lines: three whole rows, and one over
+    // The heading row is read here too, so the corner is left off it.
+    fixture.config.arealistMenu.clear();
 
     namespace term = amberedit::ui::term;
     term::Screen screen(fixture.state.width, fixture.state.height);
@@ -1068,4 +1079,193 @@ TEST_CASE(
     CHECK(trimmed(screen, 3).empty());
     CHECK(fixture.state.areaCursor == 2);
     CHECK(fixture.state.areaOffset == 0);
+}
+
+namespace {
+
+/// A left-button press where the pointer is put, which is the whole of what the
+/// corner answers: the release would arrive with the menu already up.
+Event pressAt(int x, int y) {
+    amberedit::ui::term::MouseEvent mouse;
+    mouse.x = x;
+    mouse.y = y;
+    mouse.button = amberedit::ui::term::MouseEvent::Button::Left;
+    mouse.motion = amberedit::ui::term::MouseEvent::Motion::Pressed;
+    return Event::Mouse(mouse);
+}
+
+/// A press in the middle of the menu button, which stands in the two rows the
+/// column headings and the rule under them take.
+Event pressOnCorner(const AppState& state) {
+    return pressAt(state.width - 3, 0);
+}
+
+/// That command's button, or nothing where the menu that is up does not hold
+/// it.
+const AppState::MenuView::Item* buttonFor(const Fixture& fixture,
+                                          amberedit::config::Command command) {
+    if (!fixture.state.menuView) return nullptr;
+    for (const auto& item : fixture.state.menuView->items) {
+        if (item.command == command) return &item;
+    }
+    return nullptr;
+}
+
+}  // namespace
+
+TEST_CASE("The corner opens the list's own menu [arealist][menu]") {
+    using amberedit::config::Command;
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.state.width = 40;  // narrower than the threshold, so the corner is up
+    REQUIRE(fixture.state.arealistMenuShown());
+
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+    // The button hangs from the top-right corner over the headings, and the
+    // rule under them stops a column short of it.
+    CHECK(rowText(screen, 0).find("│ ≡ │") != std::string::npos);
+    CHECK(rowText(screen, 1).find("└───┘") != std::string::npos);
+
+    // The quick search takes the heading row rather than a line of its own, and
+    // the corner stands over that too: the query is cut to the room left beside
+    // it, as the headings are.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
+    term::render(screen, area_list::render(fixture.state));
+    CHECK(rowText(screen, 0).find("Area: t") != std::string::npos);
+    CHECK(rowText(screen, 0).find("│ ≡ │") != std::string::npos);
+
+    REQUIRE(area_list::handleEvent(fixture.state, pressOnCorner(fixture.state)));
+    REQUIRE(fixture.state.menuView);
+    // Rescanning and the filter by default, and nothing else: walking to the
+    // next unread area is the cursor's work, and `/` does it without a button.
+    CHECK(buttonFor(fixture, Command::AreaListRescan) != nullptr);
+    CHECK(buttonFor(fixture, Command::AreaListToggleUnread) != nullptr);
+    CHECK(buttonFor(fixture, Command::AreaListNextUnread) == nullptr);
+
+    // And it is the same box the reader and the editor open, drawn over the
+    // list: a column of framed buttons, each under the glyph its command
+    // carries.
+    term::render(screen, amberedit::ui::menu_dialog::render(
+                             fixture.state, area_list::render(fixture.state)));
+    std::string drawn;
+    for (int y = 0; y < screen.height(); ++y) drawn += rowText(screen, y);
+    CHECK(drawn.find("⟳ Rescan") != std::string::npos);
+    CHECK(drawn.find("✱ Toggle unread") != std::string::npos);
+}
+
+TEST_CASE("A button of the list's menu does what its key does [arealist][menu]") {
+    using amberedit::config::Command;
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.state.width = 40;
+
+    REQUIRE(area_list::handleEvent(fixture.state, pressOnCorner(fixture.state)));
+    REQUIRE(fixture.state.menuView);
+    const auto* filter = buttonFor(fixture, Command::AreaListToggleUnread);
+    REQUIRE(filter != nullptr);
+    REQUIRE(filter->enabled);
+
+    // The box is put away first, as the shell puts it away, and the screen
+    // underneath is asked afterwards.
+    fixture.state.menuView.reset();
+    area_list::runMenuCommand(fixture.state, Command::AreaListToggleUnread);
+    CHECK(fixture.state.areaUnreadOnly);
+
+    // And the rescan asks the same way Ctrl-R asks: the modal goes up, and the
+    // reading itself is the shell's.
+    area_list::runMenuCommand(fixture.state, Command::AreaListRescan);
+    CHECK(fixture.state.rescanning);
+}
+
+TEST_CASE(
+    "The walk to the next unread area is offered but not given "
+    "[arealist][menu][squish]") {
+    using amberedit::config::Command;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "second");
+    fixture.state.width = 40;
+
+    // Not in the default menu: a menu that has to be opened again for every
+    // step is a poor way to walk a list. Written down, it is there.
+    fixture.config.arealistMenu = {Command::AreaListNextUnread};
+    area_list::openMenu(fixture.state);
+    const auto* button = buttonFor(fixture, Command::AreaListNextUnread);
+    REQUIRE(button != nullptr);
+    REQUIRE(button->enabled);
+
+    fixture.state.menuView.reset();
+    area_list::runMenuCommand(fixture.state, Command::AreaListNextUnread);
+    // The cursor is on "first"; "second" is read through, so the next area with
+    // something unread in it is "third"...
+    CHECK(fixture.state.areaCursor == 2);
+    area_list::runMenuCommand(fixture.state, Command::AreaListNextUnread);
+    CHECK(fixture.state.areaCursor == 0);  // ...and then round the end of the list
+
+    // Nothing unread anywhere is nowhere to go: the button is drawn quietly,
+    // and pressing it all the same leaves the cursor where it stands.
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "third");
+    area_list::openMenu(fixture.state);
+    const auto* dead = buttonFor(fixture, Command::AreaListNextUnread);
+    REQUIRE(dead != nullptr);
+    CHECK_FALSE(dead->enabled);
+
+    fixture.state.menuView.reset();
+    fixture.state.areaCursor = 2;
+    area_list::runMenuCommand(fixture.state, Command::AreaListNextUnread);
+    CHECK(fixture.state.areaCursor == 2);
+}
+
+TEST_CASE("menu_button off leaves the headings the whole row [arealist][menu]") {
+    using amberedit::config::AreaFieldKind;
+    using amberedit::config::Visibility;
+    Fixture fixture({passthroughArea("one")});
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.state.width = 20;
+    fixture.config.menuButton = Visibility::Off;
+    CHECK_FALSE(fixture.state.arealistMenuShown());
+
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+    CHECK(rowText(screen, 0) == " Area               ");
+    const int rows = fixture.state.areaListRows();
+
+    // The corner costs no row — it stands in the two the headings and the rule
+    // already take — so what turning it on takes is the right-hand end of those
+    // two rows and nothing else.
+    fixture.config.menuButton = Visibility::On;
+    CHECK(fixture.state.arealistMenuShown());
+    term::render(screen, area_list::render(fixture.state));
+    CHECK(rowText(screen, 0) == " Area          │ ≡ │");
+    CHECK(rowText(screen, 2) == " one                ");
+    CHECK(fixture.state.areaListRows() == rows);
+
+    // A menu with nothing in it is no menu either: the corner would open a box
+    // with nothing in it to press.
+    fixture.config.arealistMenu.clear();
+    CHECK_FALSE(fixture.state.arealistMenuShown());
+    term::render(screen, area_list::render(fixture.state));
+    CHECK(rowText(screen, 0) == " Area               ");
+}
+
+TEST_CASE("A config declaring no areas has no corner to click [arealist][menu]") {
+    Fixture fixture({});
+    fixture.state.width = 40;
+    REQUIRE(fixture.manager.areas().empty());
+    REQUIRE(fixture.state.arealistMenuShown());
+
+    // The screen is two lines saying the config declares nothing, and no
+    // headings for the button to stand over — so the corner is not drawn there,
+    // and a press on it is not answered either.
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+    CHECK(rowText(screen, 0).find("≡") == std::string::npos);
+
+    CHECK_FALSE(area_list::handleEvent(fixture.state, pressOnCorner(fixture.state)));
+    CHECK_FALSE(fixture.state.menuView);
 }

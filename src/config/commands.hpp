@@ -125,9 +125,9 @@ enum class CommandScreen : uint8_t {
 /// named.
 ///
 /// Everything that has to name a command reads it from here — the keyboard
-/// (`ui/keys`), the context menu (`reader_menu`, `compose_menu`) and the hint
-/// bars (`arealist_hints` and the rest). A second table beside this one is a
-/// table that falls out of step with it.
+/// (`ui/keys`), the context menus (`arealist_menu`, `reader_menu`, `compose_menu`)
+/// and the hint bars (`arealist_hints` and the rest). A second table beside this
+/// one is a table that falls out of step with it.
 class Commands {
 public:
     /// Where a command may be named beyond the layout: not everything a key does

@@ -62,6 +62,17 @@ TEST_CASE("A command is found by the name it is written under [commands]") {
     CHECK(Commands::namedOn(CommandScreen::AreaList, "save", Commands::In::Menu) ==
           nullptr);
 
+    // The three screens that carry a menu each hold their own commands in it,
+    // and the message list holds none: marking the message under the cursor is
+    // its one command, and one button is no menu.
+    CHECK(Commands::namedOn(CommandScreen::AreaList, "rescan", Commands::In::Menu) !=
+          nullptr);
+    CHECK(Commands::namedOn(CommandScreen::MessageList, "mark_toggle",
+                            Commands::In::HintBar) != nullptr);
+    CHECK(Commands::namedOn(CommandScreen::MessageList, "mark_toggle",
+                            Commands::In::Menu) == nullptr);
+    CHECK(Commands::offeredOn(CommandScreen::MessageList, Commands::In::Menu).empty());
+
     // A hint is a key with its name beside it, so any command of the screen may
     // be one; a menu holds what a button can stand for, which is fewer.
     CHECK(Commands::namedOn(CommandScreen::Compose, "delete_line",
@@ -126,7 +137,8 @@ TEST_CASE("What a screen offers is named once and told the same way [commands]")
     }
 
     // Everything a menu may hold is something a hint bar may hold too.
-    for (const CommandScreen screen : {CommandScreen::Reader, CommandScreen::Compose}) {
+    for (const CommandScreen screen :
+         {CommandScreen::AreaList, CommandScreen::Reader, CommandScreen::Compose}) {
         for (const Command command : Commands::offeredOn(screen, Commands::In::Menu)) {
             INFO(Commands::of(command).name);
             CHECK(Commands::namedOn(screen, Commands::shortNameOf(command),

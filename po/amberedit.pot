@@ -35,7 +35,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1643
+#: src/config/app_config.cpp:1647
 msgid "no description"
 msgstr ""
 
@@ -48,7 +48,7 @@ msgid "Next unread"
 msgstr ""
 
 #: src/config/commands.cpp:27
-msgid "Unread only"
+msgid "Toggle unread"
 msgstr ""
 
 #: src/config/commands.cpp:28
@@ -195,7 +195,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.5.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-28 01:57+0200\n"
+"POT-Creation-Date: 2026-08-28 23:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -343,11 +343,11 @@ msgstr ""
 msgid "{0}: the message is busy"
 msgstr ""
 
-#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:220
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:222
 msgid "the base could not be opened"
 msgstr ""
 
-#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:222
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:224
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr ""
@@ -357,7 +357,7 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:736
+#: src/ui/app_shell.cpp:740
 msgid "Not found"
 msgstr ""
 
@@ -852,20 +852,20 @@ msgstr[1] ""
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:295
+#: src/ui/screens/area_list_screen.cpp:353
 msgid " The tosser config declares no areas."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:296
+#: src/ui/screens/area_list_screen.cpp:354
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:345
+#: src/ui/screens/area_list_screen.cpp:417
 #, c++-format
 msgid " Area: {0}▌"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:363
+#: src/ui/screens/area_list_screen.cpp:450
 msgid "Every area has been read."
 msgstr ""
 

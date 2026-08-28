@@ -11,7 +11,7 @@ namespace amberedit::config {
 namespace {
 
 /// The table itself. Everything AmberEdit offers is a row here and nothing is a
-/// row anywhere else: the keyboard, the two menus and the four hint bars all
+/// row anywhere else: the keyboard, the three menus and the four hint bars all
 /// read it, so a command is added by writing one line and asking for it in the
 /// screen that answers it.
 ///
@@ -22,11 +22,11 @@ constexpr Commands::Info kCommands[] = {
     {Command::AppQuit, "app.quit", CommandScreen::Anywhere, N_("Quit"), "", "Ctrl-Q",
      false},
     {Command::AreaListNextUnread, "arealist.next_unread", CommandScreen::AreaList,
-     N_("Next unread"), "", "/", false},
+     N_("Next unread"), "⇩", "/", true},
     {Command::AreaListToggleUnread, "arealist.toggle_unread", CommandScreen::AreaList,
-     N_("Unread only"), "", "Ctrl-U", false},
+     N_("Toggle unread"), "✱", "Ctrl-U", true},
     {Command::AreaListRescan, "arealist.rescan", CommandScreen::AreaList, N_("Rescan"),
-     "", "Ctrl-R", false},
+     "⟳", "Ctrl-R", true},
     {Command::MessageListMarkToggle, "msglist.mark_toggle", CommandScreen::MessageList,
      N_("Mark"), "", "t", false},
     {Command::ReaderReply, "reader.reply", CommandScreen::Reader, N_("Reply"), "↩",

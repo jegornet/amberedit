@@ -71,7 +71,7 @@ TEST_CASE("The hint bar names the commands of the screen it stands under [hintba
     // The key, and beside it the word the menu writes on a button for the same
     // command: one list of commands answers for both.
     CHECK(hint_bar::text(Fixture(ScreenId::AreaList).state) ==
-          "/ next unread  ctrl-u unread only  ctrl-r rescan");
+          "/ next unread  ctrl-u toggle unread  ctrl-r rescan");
     CHECK(hint_bar::text(Fixture(ScreenId::MessageRead).state) ==
           "q reply  n reply elsewhere  e new  l list  w export  ctrl-n nodelist");
     CHECK(hint_bar::text(Fixture(ScreenId::Compose).state) ==

@@ -1697,6 +1697,12 @@ struct AppState {
     [[nodiscard]] bool composeMenuShown() const {
         return menuButtonShown(config.composeMenu);
     }
+    /// The area list's corner. It stands over the column headings and the rule
+    /// under them, which are the two rows the other screens' title and rule are
+    /// — so the list is no shorter for having it, exactly as they are not.
+    [[nodiscard]] bool arealistMenuShown() const {
+        return menuButtonShown(config.arealistMenu);
+    }
 
     /// Where each hint of the bottom row landed, and what it runs — filled in
     /// by `hint_bar::render()` so that a click is answered against what was

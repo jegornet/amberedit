@@ -1067,23 +1067,23 @@ struct AppConfig {
     /// — the same message written in CP866 takes fewer of them.
     bool readerShowMessageSize{false};
 
-    /// Whether the reader and the editor show the menu button in their top-right
-    /// corner, from `menu_button` — `≡` in a box two rows tall, which clicking
-    /// opens the screen's context menu.
+    /// Whether the area list, the reader and the editor show the menu button in
+    /// their top-right corner, from `menu_button` — `≡` in a box two rows tall,
+    /// which clicking opens the screen's context menu.
     ///
     /// `when_narrow` unless the config says otherwise, the same way
     /// `back_button` is and against the same threshold: a menu is what a pointer
     /// is for, and a narrow window is the one where the pointer is likelier to
     /// be what is to hand. Every command in it is one a key does as well, so the
-    /// corner can go without anything going with it. The area list and the
-    /// message list carry no such button: neither has a command worth a menu
-    /// yet.
+    /// corner can go without anything going with it. The message list carries no
+    /// such button: marking the message under the cursor is its only command,
+    /// and one button is not a menu.
     Visibility menuButton{Visibility::WhenNarrow};
 
-    /// What the two menus hold, in the order they are to stand — from
-    /// `reader_menu` and `compose_menu`. Each names commands of its own screen,
-    /// by the part of the name after the dot: `reply_elsewhere` is
-    /// `reader.reply_elsewhere`.
+    /// What the three menus hold, in the order they are to stand — from
+    /// `arealist_menu`, `reader_menu` and `compose_menu`. Each names commands of
+    /// its own screen, by the part of the name after the dot: `reply_elsewhere`
+    /// is `reader.reply_elsewhere`.
     ///
     /// The reader's default leaves out `change`, `info`, `export` and
     /// `comment_reply`: writing over a message that is already in a base is a
@@ -1102,6 +1102,13 @@ struct AppConfig {
     /// Ctrl-D are chords anyone writing mail knows by heart, and a menu is no
     /// place to take a line out from.
     std::vector<Command> composeMenu{Command::ComposeSave, Command::ComposeImport};
+
+    /// The area list's two: reading the bases again, and the unread-only filter.
+    /// `next_unread` is left out and may be written in — it is a way of moving
+    /// about, which is what the cursor and `/` are for, and a menu that has to
+    /// be opened again for every step is a poor way to walk a list.
+    std::vector<Command> arealistMenu{Command::AreaListRescan,
+                                      Command::AreaListToggleUnread};
 
     /// Whether the hint bars are written in capitals, from
     /// `hint_bar_capitalize`: `Q Reply  Ctrl-F Find  F7 Export` where they are,
@@ -1161,11 +1168,11 @@ struct AppConfig {
     /// `menu_buttons_width` — the frame around the label included, so it is the
     /// whole of what the button takes on the screen.
     ///
-    /// Twenty-two by default, which holds the longest label either menu offers
-    /// — `↪ Reply elsewhere`, the glyph column in front of it included — with a
-    /// column or two left over, so that no button's word is set against the
-    /// frame. It is stated rather than measured: a column of buttons cut
-    /// to whichever of them happened to be in the menu would be a different
+    /// Twenty-two by default, which holds the longest label any of the menus
+    /// offers — `↪ Reply elsewhere`, the glyph column in front of it included —
+    /// with a column or two left over, so that no button's word is set against
+    /// the frame. It is stated rather than measured: a column of buttons cut to
+    /// whichever of them happened to be in the menu would be a different
     /// width in every area, and the button under the pointer would move as the
     /// menu was opened again. A label with no room left for it is cut, as every
     /// other label in the interface is.

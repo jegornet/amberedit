@@ -318,6 +318,10 @@ TEST_CASE("A menu or a hint may only name a utility the config set [app_config]"
     const std::string set = "extern_util3 \"Files\" /usr/bin/mc\n";
     CHECK(with(set + "reader_menu extern_util3\n").readerMenu ==
           std::vector<Command>{Command::ReaderExternUtil3});
+    // A program is exactly what a button stands for, on the list as in the
+    // reader: the same slot, run from the screen the key was pressed on.
+    CHECK(with(set + "arealist_menu extern_util3\n").arealistMenu ==
+          std::vector<Command>{Command::AreaListExternUtil3});
     // The check is made once the whole file has been read, so the list may
     // stand above the line it names.
     CHECK(with("compose_hints extern_util3\n" + set).composeHints ==
@@ -327,8 +331,9 @@ TEST_CASE("A menu or a hint may only name a utility the config set [app_config]"
     // would find on the screen, so it is one the config stops for.
     for (const char* line :
          {"reader_menu extern_util3\n", "compose_menu extern_util3\n",
-          "arealist_hints extern_util3\n", "msglist_hints extern_util3\n",
-          "reader_hints extern_util3\n", "compose_hints extern_util3\n"}) {
+          "arealist_menu extern_util3\n", "arealist_hints extern_util3\n",
+          "msglist_hints extern_util3\n", "reader_hints extern_util3\n",
+          "compose_hints extern_util3\n"}) {
         INFO(line);
         const std::string unset = errorWith(line);
         CHECK_MESSAGE(contains(unset, "extern_util3"), unset);
@@ -614,6 +619,15 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     CHECK(with("compose_menu import save\n").composeMenu ==
           std::vector<Command>{Command::ComposeImport, Command::ComposeSave});
 
+    // The area list's two: reading the bases again and the unread-only filter.
+    // `next_unread` is offered and not given — it is a way of moving about the
+    // list, which is the cursor's work and `/`'s.
+    CHECK(defaults.arealistMenu ==
+          std::vector<Command>{Command::AreaListRescan, Command::AreaListToggleUnread});
+    CHECK(with("arealist_menu next_unread rescan\n").arealistMenu ==
+          std::vector<Command>{Command::AreaListNextUnread, Command::AreaListRescan});
+    CHECK(with("arealist_menu none\n").arealistMenu.empty());
+
     // The buttons stand in the order they are written, which is the only order
     // there is to give them.
     CHECK(with("reader_menu new list\n").readerMenu ==
@@ -644,6 +658,11 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     // than every command the screen answers.
     CHECK_FALSE(loads("reader_menu save\n"));
     CHECK_FALSE(loads("compose_menu reply\n"));
+    CHECK_FALSE(loads("arealist_menu reply\n"));
+    // The message list's one command is not the area list's, and no list of
+    // any screen may name a key answered before every screen.
+    CHECK_FALSE(loads("arealist_menu mark_toggle\n"));
+    CHECK_FALSE(loads("arealist_menu quit\n"));
     CHECK_FALSE(loads("reader_menu delete\n"));
     CHECK_FALSE(loads("compose_menu delete_line\n"));
     CHECK_FALSE(loads("reader_menu list list\n"));

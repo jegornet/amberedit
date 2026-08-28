@@ -16,6 +16,16 @@ namespace amberedit::ui::screens::area_list {
 /// that back, and this one has nothing of the kind.
 term::Element render(AppState& state);
 
+/// Puts the list's context menu up — what the button in the top-right corner
+/// opens. What it holds is `arealist_menu`, and whether each command can be run
+/// is settled here, as it opens, on the list as it stands then.
+void openMenu(AppState& state);
+
+/// Runs what was picked in that menu, the box having been put away first: the
+/// rescan puts a modal of its own up, and two at once is not something the
+/// shell can mean.
+void runMenuCommand(AppState& state, Command command);
+
 /// Handles a key. true means the screen consumed the event.
 bool handleEvent(AppState& state, const term::Event& event);
 

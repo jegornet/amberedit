@@ -1099,6 +1099,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseCommandList(entry, CommandScreen::Compose, Commands::In::Menu);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeMenu = *read;
+    } else if (key == "arealist_menu") {
+        auto read = parseCommandList(entry, CommandScreen::AreaList, Commands::In::Menu);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.arealistMenu = *read;
     } else if (key == "hint_bar_align") {
         auto read = parseHintAlign(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1766,9 +1770,10 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
     // has been read rather than where the list was written, since a
     // `reader_menu` line may stand above the `extern_util0` line it names.
     const std::pair<const char*, const std::vector<Command>*> kNamedLists[] = {
-        {"reader_menu", &cfg.readerMenu},       {"compose_menu", &cfg.composeMenu},
-        {"arealist_hints", &cfg.arealistHints}, {"msglist_hints", &cfg.msglistHints},
-        {"reader_hints", &cfg.readerHints},     {"compose_hints", &cfg.composeHints},
+        {"arealist_menu", &cfg.arealistMenu}, {"reader_menu", &cfg.readerMenu},
+        {"compose_menu", &cfg.composeMenu},   {"arealist_hints", &cfg.arealistHints},
+        {"msglist_hints", &cfg.msglistHints}, {"reader_hints", &cfg.readerHints},
+        {"compose_hints", &cfg.composeHints},
     };
     for (const auto& [setting, commands] : kNamedLists) {
         for (const Command command : *commands) {

@@ -35,7 +35,7 @@ msgstr "не удаётся запустить {0}: {1}"
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1643
+#: src/config/app_config.cpp:1647
 msgid "no description"
 msgstr "нет описания"
 
@@ -48,8 +48,8 @@ msgid "Next unread"
 msgstr "След. непрочит."
 
 #: src/config/commands.cpp:27
-msgid "Unread only"
-msgstr "Только непрочит."
+msgid "Toggle unread"
+msgstr "Перекл. непрочит."
 
 #: src/config/commands.cpp:28
 msgid "Rescan"
@@ -202,7 +202,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.5.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-28 01:57+0200\n"
+"POT-Creation-Date: 2026-08-28 23:02+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -377,11 +377,11 @@ msgstr "{0}: база занята"
 msgid "{0}: the message is busy"
 msgstr "{0}: сообщение занято"
 
-#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:220
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:222
 msgid "the base could not be opened"
 msgstr "базу не удалось открыть"
 
-#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:222
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:224
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
@@ -391,7 +391,7 @@ msgstr "Не удаётся открыть область: {0}"
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:736
+#: src/ui/app_shell.cpp:740
 msgid "Not found"
 msgstr "Не найдено"
 
@@ -887,20 +887,20 @@ msgstr[2] "помечено {0} сообщений"
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr "←→ выбор · Enter подтвердить · m/c · Esc отмена"
 
-#: src/ui/screens/area_list_screen.cpp:295
+#: src/ui/screens/area_list_screen.cpp:353
 msgid " The tosser config declares no areas."
 msgstr " В конфиге тоссера нет ни одной области."
 
-#: src/ui/screens/area_list_screen.cpp:296
+#: src/ui/screens/area_list_screen.cpp:354
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr " Проверьте general.tosser_config в конфиге AmberEdit."
 
-#: src/ui/screens/area_list_screen.cpp:345
+#: src/ui/screens/area_list_screen.cpp:417
 #, c++-format
 msgid " Area: {0}▌"
 msgstr " Область: {0}▌"
 
-#: src/ui/screens/area_list_screen.cpp:363
+#: src/ui/screens/area_list_screen.cpp:450
 msgid "Every area has been read."
 msgstr "Все области прочитаны."
 
