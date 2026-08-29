@@ -707,8 +707,10 @@ void askToChange(AppState& state) {
 ///
 /// Under the two `next_unread_*` answers → does not stop on the list either: it
 /// goes on into the next area with something unread in it, which is the whole
-/// of what "next message" means once an area has been read to its end. ← never
-/// goes on that way — see `AppConfig::edgeBehavior`.
+/// of what "next message" means once an area has been read to its end.
+/// `exit_set_to_next_unread` stops on the list as `exit` does, but standing on
+/// that same area rather than on the one just read. ← never goes on that way —
+/// see `AppConfig::edgeBehavior`.
 void switchMessage(AppState& state, int delta) {
     int target = state.messageCursor + delta;
     // The twits `twit_mode` walks past are walked past here, in the direction
@@ -750,10 +752,17 @@ void switchMessage(AppState& state, int delta) {
         // Off the back, and only off the back: the area has been left and its
         // counts read again, so the next unread area is looked for against the
         // list as it stands now. Nowhere to go leaves the reader on that list,
-        // which is what `exit` does anyway.
-        const bool onwards = behavior == config::EdgeBehavior::NextUnreadArea ||
-                             behavior == config::EdgeBehavior::NextUnreadOnly;
-        if (delta > 0 && onwards) area_list::openNextArea(state, behavior);
+        // which is what `exit` does anyway — and so does
+        // `exit_set_to_next_unread`, which asks for the same area but stops on
+        // the list with the cursor on it rather than opening it.
+        if (delta > 0) {
+            if (behavior == config::EdgeBehavior::NextUnreadArea ||
+                behavior == config::EdgeBehavior::NextUnreadOnly) {
+                area_list::openNextArea(state, behavior);
+            } else if (behavior == config::EdgeBehavior::ExitSetToNextUnread) {
+                area_list::cursorToNextArea(state);
+            }
+        }
         return;
     }
 

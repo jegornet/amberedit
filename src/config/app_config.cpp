@@ -651,12 +651,13 @@ tl::expected<EdgeBehavior, ErrorPtr> parseEdgeBehavior(const CfgEntry& entry) {
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
     if (value == "exit") return EdgeBehavior::Exit;
+    if (value == "exit_set_to_next_unread") return EdgeBehavior::ExitSetToNextUnread;
     if (value == "stay") return EdgeBehavior::Stay;
     if (value == "next_unread_area") return EdgeBehavior::NextUnreadArea;
     if (value == "next_unread_only") return EdgeBehavior::NextUnreadOnly;
-    return entry.fail(
-        "reader_edge: '" + *only +
-        "' is not one of its values (exit | stay | next_unread_area | next_unread_only)");
+    return entry.fail("reader_edge: '" + *only +
+                      "' is not one of its values (exit | exit_set_to_next_unread | "
+                      "stay | next_unread_area | next_unread_only)");
 }
 
 tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {

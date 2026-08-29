@@ -255,10 +255,16 @@ enum class DescriptionPriority {
 /// ← on the first — from `reader_edge`.
 ///
 /// Reading an area to its end is the moment the next one is wanted, and the
-/// four answers differ in how much of that walk the reader does by itself: none
-/// of it, back to the list, or on into the area that comes next.
+/// five answers differ in how much of that walk the reader does by itself: none
+/// of it, back to the list, back to the list with the cursor already on the
+/// area that comes next, or on into that area with the reading unbroken.
 enum class EdgeBehavior {
     Exit,  ///< `exit` — back to the area list
+    /// `exit_set_to_next_unread` — back to the area list, with the cursor put
+    /// on the next area holding something unread, or where nothing is unread
+    /// anywhere, on the next area on the list. The area is not opened: what is
+    /// done for you is the walk down the list, and what is not is the choosing.
+    ExitSetToNextUnread,
     Stay,  ///< `stay` — nothing at all: the ends of an area are a dead end
     /// `next_unread_area` — on into the next area holding something unread,
     /// and where nothing is unread anywhere, the next area on the list.
@@ -934,12 +940,13 @@ struct AppConfig {
     /// why, and reading an area to its end is exactly the moment the next area
     /// is wanted. `stay` makes the two keys stop at the ends instead.
     ///
-    /// The two `next_unread_*` answers are → off the last message alone — that
-    /// is the key that means "on with the reading", and the area it goes on to
-    /// is the next one with something unread in it. ← off the first message is
-    /// reading backwards past the front of an area and leaves for the list
-    /// under all three, the area being unread whole again by then: taken on to
-    /// the next unread area it would be taken straight back into this one.
+    /// The two `next_unread_*` answers, and the cursor `exit_set_to_next_unread`
+    /// moves, are → off the last message alone — that is the key that means "on
+    /// with the reading", and the area it names next is the one with something
+    /// unread in it. ← off the first message is reading backwards past the
+    /// front of an area and leaves for the list plainly under all four, the
+    /// area being unread whole again by then: looked at as the next unread area
+    /// it would be this one, and the reader would be sent straight back.
     EdgeBehavior edgeBehavior{EdgeBehavior::Exit};
 
     /// Where entering an area from the area list lands, from

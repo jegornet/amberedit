@@ -1418,6 +1418,68 @@ TEST_CASE("next_unread_only leaves for the list when nothing is unread "
     CHECK(fixture.state.errorMessage.empty());
 }
 
+TEST_CASE("exit_set_to_next_unread stops on the list with the cursor on the next "
+          "unread area [arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "second");
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::ExitSetToNextUnread;
+
+    enter(fixture, 0);
+    REQUIRE(fixture.state.currentArea.tag == "first");
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    // The area is left, as `exit` leaves it — nothing is opened, and Enter is
+    // still the reader's to press.
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.base == nullptr);
+    CHECK(fixture.state.errorMessage.empty());
+    // What the setting adds is where the cursor stands: the second area has
+    // been read to its end as well, so the next unread one is the third.
+    CHECK(fixture.state.areaCursor == 2);
+    CHECK(fixture.state.discardTypeahead);
+
+    // And Enter there reads it, which is the whole point of the cursor being
+    // put where it is.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Return));
+    CHECK(fixture.state.currentArea.tag == "third");
+}
+
+TEST_CASE("With nothing unread exit_set_to_next_unread points at the next area on the "
+          "list [arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "second");
+    markToEnd(fixture, "third");
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::ExitSetToNextUnread;
+
+    enter(fixture, 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    // Nothing is unread, so what is left is the order of the list itself.
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.areaCursor == 1);
+
+    // The bottom of the list is the bottom of the reading here too: the cursor
+    // stays on the area just read rather than going round to the top.
+    enter(fixture, 2);
+    REQUIRE(fixture.state.currentArea.tag == "third");
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.areaCursor == 2);
+}
+
 TEST_CASE("Walking off the front of an area goes to the list whatever reader_edge says "
           "[arealist][messageread][squish]") {
     using amberedit::app::ScreenId;
@@ -1440,5 +1502,14 @@ TEST_CASE("Walking off the front of an area goes to the list whatever reader_edg
     // land straight back in this one.
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
     CHECK(fixture.state.base == nullptr);
+    CHECK(fixture.state.areaCursor == 1);
+
+    // The same holds for the cursor `exit_set_to_next_unread` moves: pointed at
+    // "the next unread area" it would be pointed back at the one just left.
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::ExitSetToNextUnread;
+    enter(fixture, 1);
+    REQUIRE(fixture.state.messageCursor == 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
     CHECK(fixture.state.areaCursor == 1);
 }

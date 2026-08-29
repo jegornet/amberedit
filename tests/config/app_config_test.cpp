@@ -390,6 +390,8 @@ TEST_CASE("AppConfig reads what the ends of an area do [app_config]") {
     // The ends leave the area unless the config says otherwise.
     CHECK(with("").edgeBehavior == EdgeBehavior::Exit);
     CHECK(with("reader_edge exit\n").edgeBehavior == EdgeBehavior::Exit);
+    CHECK(with("reader_edge exit_set_to_next_unread\n").edgeBehavior ==
+          EdgeBehavior::ExitSetToNextUnread);
     CHECK(with("reader_edge stay\n").edgeBehavior == EdgeBehavior::Stay);
     CHECK(with("reader_edge next_unread_area\n").edgeBehavior ==
           EdgeBehavior::NextUnreadArea);

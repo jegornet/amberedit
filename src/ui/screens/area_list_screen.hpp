@@ -27,6 +27,17 @@ term::Element render(AppState& state);
 /// leaves the reader standing on the area list.
 void openNextArea(AppState& state, config::EdgeBehavior behavior);
 
+/// Puts the cursor on the area the reader should read next, the area just read
+/// having been left already — what `reader_edge exit_set_to_next_unread` asks
+/// for when → walks off the last message of an area.
+///
+/// The area it names is the one `openNextArea` would have opened under
+/// `next_unread_area`: the next one with something unread in it, counting round
+/// the end of the list as `/` counts, and failing that the next area on the list
+/// below the one just read. What it does with it is only to stand there — the
+/// area is not opened, and with nowhere to go the cursor is left where it is.
+void cursorToNextArea(AppState& state);
+
 /// Puts the list's context menu up — what the button in the top-right corner
 /// opens. What it holds is `arealist_menu`, and whether each command can be run
 /// is settled here, as it opens, on the list as it stands then.

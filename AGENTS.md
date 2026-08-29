@@ -915,6 +915,15 @@ Rules that hold the design together:
   which is what `exit` does anyway. **← is not part of this**: it walks backwards
   past the front of an area and has just made that area unread whole again, so
   taking it on to "the next unread area" would take it straight back in.
+- **`exit_set_to_next_unread` is that same search without the opening**: → off
+  the last message calls `area_list::cursorToNextArea()`, which runs both
+  searches in `next_unread_area` order — the next unread area, else the next area
+  on the list — and only moves the cursor there. It is the one of the four that
+  has to call `clampCursor()`: nothing opens over the list afterwards, so the row
+  it picked has to be scrolled onto the screen. `openNextArea()` deliberately does
+  not, the area it picked being opened on top of the list anyway. ← is excluded
+  here for the reason above, and nowhere to go leaves the cursor on the area just
+  read.
 - **Walking off the front takes the lastread mark off the area**, through
   `AreaManager::markUnread()`: ← on the first message asks for the message before
   it, which puts the reader before the area rather than on anything in it. Esc on

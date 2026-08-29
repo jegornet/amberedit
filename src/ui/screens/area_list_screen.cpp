@@ -351,6 +351,22 @@ void openNextArea(AppState& state, config::EdgeBehavior behavior) {
     openSelected(state);
 }
 
+void cursorToNextArea(AppState& state) {
+    // The same two searches `openNextArea` runs, against the same list — the
+    // area just read has been left and counted again, so it is not one of the
+    // unread ones any more — and the same answer of nowhere: the cursor stays
+    // on the area just read, which is where `exit` leaves it.
+    auto target = nextUnread(state);
+    if (!target) target = nextInList(state);
+    if (!target) return;
+
+    // Nothing is opened here, so unlike `openNextArea` the row has to be
+    // brought onto the screen: the area picked can be far enough down the list
+    // that the list is scrolled somewhere else entirely.
+    state.areaCursor = *target;
+    clampCursor(state);
+}
+
 void openMenu(AppState& state) {
     std::vector<AppState::MenuView::Item> items;
     items.reserve(state.config.arealistMenu.size());

@@ -640,22 +640,19 @@ reader_stylecodes off
 # What the reader does at the ends of an area: → on the last message and ← on the
 # first. Optional; "exit" by default.
 #
-#   exit               back to the area list
-#   stay               nothing at all: the two keys stop at the ends
-#   next_unread_area   → goes on to the next area with something unread in it, and
-#                      where nothing is unread anywhere, to the next area on the
-#                      list
-#   next_unread_only   the same, except that with nothing unread anywhere it
-#                      goes back to the area list
+#   exit                     back to the area list
+#   exit_set_to_next_unread  back to the area list, with the cursor already on
+#                            the next area with something unread in it. Where
+#                            there are no unread areas, on the next area on the
+#                            list. The area is not opened automatically
+#   stay                     nothing at all: the two keys stop at the ends
+#   next_unread_area         → goes on directly to the next area with something
+#                            unread in it. Where there are no unread areas, it
+#                            just goes directly to the next area
+#   next_unread_only         → goes on directly to the next area with something
+#                            unread in it. Where there are no unread areas, it
+#                            goes back to the area list
 #
-# The next unread area is looked for down the list from the one just read and
-# round the end of it, which is where `/` on the area list looks. The plain "next
-# area on the list" does not go round: the bottom of the list is the bottom of
-# the reading, and there the reader is left on the list. ← off the first
-# message goes back to the list under everything but "stay": it is reading
-# backwards past the front of an area, and it takes the lastread mark off the
-# area, the key having asked for the message before the first one — an area that
-# is unread whole again is not one to be taken back into.
 #
 # Esc leaves the area from anywhere whatever this says, and leaves the mark on
 # the message on the screen. An area holding no messages is left by both keys.
