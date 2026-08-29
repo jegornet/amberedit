@@ -704,6 +704,43 @@ TEST_CASE("The template's stamps carry the zone %z asks for [builder]") {
     CHECK(quiet.lines[0] == "10 Aug 26 21:19, Vasya Pupkin wrote:");
 }
 
+TEST_CASE("@ctzoffset and @otzoffset name the two clocks a reply is between "
+          "[builder]") {
+    const TempFile tpl("@quoted@oname wrote on UTC@otzoffset, we read it on "
+                       "UTC@ctzoffset.\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+
+    MessageHeader original;
+    original.from = "Vasya Pupkin";
+    original.date = {2026, 8, 10, 21, 19, 36};
+    original.utcOffset = "-0330";
+    MessageBody body;
+    body.lines = {{"hello there", false}};
+
+    const BuildRequest reply{cfg,   area,    fields,     &original,
+                             &body, nullptr, 0x68A1B2C3, 180};
+    const auto answered = startingText(reply);
+    REQUIRE(answered.lines.size() >= 1);
+    CHECK(answered.lines[0] ==
+          "Vasya Pupkin wrote on UTC-0330, we read it on UTC+0300.");
+
+    // A message stating no zone: @otzoffset writes nothing rather than this
+    // machine's idea of one, the same as the `%z` in a stamp.
+    MessageHeader zoneless = original;
+    zoneless.utcOffset.clear();
+    const BuildRequest silent{cfg,   area,    fields,     &zoneless,
+                              &body, nullptr, 0x68A1B2C3, 180};
+    const auto quiet = startingText(silent);
+    REQUIRE(quiet.lines.size() >= 1);
+    CHECK(quiet.lines[0] == "Vasya Pupkin wrote on UTC, we read it on UTC+0300.");
+}
+
 TEST_CASE("A reply moved into another area opens on the template's @moved lines "
           "[builder]") {
     const TempFile tpl(

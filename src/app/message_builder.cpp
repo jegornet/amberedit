@@ -148,7 +148,7 @@ TemplateContext contextFor(const BuildRequest& request) {
     const std::string zone = zoneOffset(request.utcOffsetMinutes);
     context.cdate = now.format(request.config.templateDateFormat, zone);
     context.ctime = now.format(request.config.templateTimeFormat, zone);
-    context.ctzoffset = tzutcOffset(request.utcOffsetMinutes);
+    context.ctzoffset = zone;
     context.cecho = request.area.tag;
     context.cdesc = request.area.description;
     // Where the message being answered was read. The two differ only for a
@@ -221,6 +221,10 @@ TemplateContext contextFor(const BuildRequest& request) {
                                                       request.original->utcOffset);
         context.otime = request.original->date.format(request.config.templateTimeFormat,
                                                       request.original->utcOffset);
+        // The zone that stamp is on, in the same shape @ctzoffset carries the
+        // one here — and nothing at all where the answered message states
+        // none, since this system's zone says nothing about another's clock.
+        context.otzoffset = request.original->utcOffset;
     }
     if (request.originalBody != nullptr) {
         context.omsgid = msgidOf(*request.originalBody);
