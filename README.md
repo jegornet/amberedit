@@ -34,20 +34,10 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Echolists**, compiled at startup on the same terms
 - **A setup wizard**: `amberedit --setup` asks what a first config has to say and
   writes one, so you don't have to edit it by hand before the first start
-- **Your own shell**, on `o` in the reader: the terminal is handed over until you
-  leave the shell, and the message comes back where you left it
-- **External utilities**: up to ten programs an `extern_util0`..`extern_util9`
-  line names, run the same way from a key, a menu button or a hint on the area
-  list, in the reader or in the editor
-- **The area is read again** when the shell or a utility gives the terminal back:
-  a program that changed the message, delivered into the area, deleted from it or
-  packed it leaves you on the same message all the same — found by the identifier
-  that outlives a pack — scrolled where you left it. `rescan_on_return` re-reads
-  every other area's counts too, which is what a utility running your tosser
-  wants
 - **Color Themes** in the terminal's own 256 colors
-- **Russian and English interface**: the words on the screen come from a gettext
-  catalog the config names by path, so adding a language is a `.po` file
+- **Russian and English UI**: the words on the screen come from a gettext
+  catalog the config names by path, so adding a language is a `.po` file. Let me know which
+  languages you'd like to add.
 - **ANSI graphics** and **Renegade/Telegard BBS color codes** support — experimental,
   turned on per echo area rather than for all your mail (see *Experimental options*
   at the end of `amberedit.cfg.example`).
