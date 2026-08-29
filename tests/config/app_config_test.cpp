@@ -491,6 +491,13 @@ TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     CHECK(with("arealist_unread_only on\n").areaListUnreadOnly);
     CHECK_FALSE(with("arealist_unread_only off\n").areaListUnreadOnly);
     CHECK_FALSE(loads("arealist_unread_only yes\n"));
+
+    // Where the cursor starts: the top of the list, or the first area with
+    // something unread in it. Off by default, and nothing writes it back.
+    CHECK_FALSE(with("").areaListFirstUnread);
+    CHECK(with("arealist_first_unread on\n").areaListFirstUnread);
+    CHECK_FALSE(with("arealist_first_unread off\n").areaListFirstUnread);
+    CHECK_FALSE(loads("arealist_first_unread yes\n"));
     CHECK_FALSE(loads("msglist_scrollbar 1\n"));
 }
 

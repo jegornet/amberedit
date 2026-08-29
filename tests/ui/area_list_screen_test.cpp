@@ -1077,6 +1077,40 @@ TEST_CASE("arealist_unread_only is the mode the list opens in [arealist]") {
 }
 
 TEST_CASE(
+    "arealist_first_unread starts the cursor on the first unread area "
+    "[arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+
+    // Counted from the top of the list rather than from the cursor, which is
+    // what tells it apart from `/`: standing on the last area, the answer is
+    // still the first unread one and not the one after it round the end.
+    fixture.state.areaCursor = 2;
+    area_list::cursorToFirstUnread(fixture.state);
+    CHECK(fixture.state.areaCursor == 1);
+}
+
+TEST_CASE(
+    "arealist_first_unread leaves the cursor at the top with nothing unread "
+    "[arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "second");
+    markToEnd(fixture, "third");
+
+    REQUIRE(fixture.state.areaCursor == 0);
+    area_list::cursorToFirstUnread(fixture.state);
+    CHECK(fixture.state.areaCursor == 0);
+}
+
+TEST_CASE(
     "An area read to its end leaves the unread-only list under the cursor "
     "[arealist][squish]") {
     using amberedit::config::AreaFieldKind;

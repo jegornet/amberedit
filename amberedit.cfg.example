@@ -396,6 +396,11 @@ arealist_scrollbar off
 # brings the areas back.
 arealist_unread_only off
 
+# Where the cursor stands when the program starts: on the first area with
+# something unread in it rather than on the first area of the list. Optional;
+# off by default, the cursor starting at the top.
+arealist_first_unread off
+
 # --- message list -------------------------------------------------------------
 
 # What a row of the message list holds. Optional;

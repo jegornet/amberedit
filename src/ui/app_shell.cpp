@@ -219,6 +219,13 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
            const KeyMap& keys) {
     AppState state(manager, config);
     state.keys = keys;
+    // Where the cursor starts, under `arealist_first_unread`: the first area
+    // with something unread in it rather than the first area of the list. Here
+    // rather than in AppState's constructor because it is a question about the
+    // areas, which the manager has already read by now, and not about the
+    // config — and it is asked once, the list coming back to wherever the
+    // cursor was left for the rest of the session.
+    if (config.areaListFirstUnread) screens::area_list::cursorToFirstUnread(state);
     // Before the terminal is taken over, so that anything the first frame throws
     // is already being kept. An empty path leaves the log off, which is what a
     // config stating no `error_log` asks for.

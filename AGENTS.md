@@ -646,6 +646,14 @@ Rules that hold the design together:
   numbers in the `a` column count the rows that are shown; with none of them
   shown the screen says so under its own heading and rule, and nothing but the
   key that turned the filter on takes it off again.
+- **`arealist_first_unread` says where the cursor starts**, off by default. On,
+  `runApp()` calls `area_list::cursorToFirstUnread()` once, before the first
+  frame: the first area with something unread counting down the list from the
+  top, which is not what `/` counts — that one starts at the cursor and goes
+  round the end. It moves `areaCursor` and nothing else, `areaOffset` being
+  settled by the frame that draws the list, since the window has no size yet
+  when this runs. Nothing unread anywhere leaves the cursor at the top, and
+  nothing puts it back there once it has been moved.
 - **The list has a menu of its own**, behind the same corner the reader and the
   editor carry one behind — `arealist_menu`, `rescan` and `toggle_unread` by
   default, with `next_unread` and the ten utilities there to be written in. It

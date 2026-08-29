@@ -702,6 +702,19 @@ struct AppConfig {
     /// the answer back.
     bool areaListUnreadOnly{false};
 
+    /// Whether the area list opens with the cursor on the first area with
+    /// something unread in it rather than on the first area of the list, from
+    /// `arealist_first_unread`.
+    ///
+    /// Off by default, the cursor starting at the top of the list as it always
+    /// has. Switched on it is where the cursor starts and no more: the list
+    /// itself is the same list, in the same order, holding the same areas, and
+    /// once the cursor has been moved nothing puts it back. With nothing unread
+    /// anywhere the cursor starts at the top, there being no unread area to
+    /// start on — the same answer `arealist.next_unread` gives when there is
+    /// nowhere to go.
+    bool areaListFirstUnread{false};
+
     /// Whether the message list draws the reader's scrollbar beside its rows,
     /// from `msglist_scrollbar`. On by default, and drawn on the same terms as
     /// `areaListScrollbar` where that one is switched on.

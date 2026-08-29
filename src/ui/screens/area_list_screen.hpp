@@ -38,6 +38,18 @@ void openNextArea(AppState& state, config::EdgeBehavior behavior);
 /// area is not opened, and with nowhere to go the cursor is left where it is.
 void cursorToNextArea(AppState& state);
 
+/// Puts the cursor on the first area with something unread in it — what
+/// `arealist_first_unread` asks for as the program starts, before the list has
+/// been drawn at all.
+///
+/// The first one counting down the list from the top, in the order
+/// `arealist_sort` put it in, rather than the next one below the cursor as `/`
+/// counts. With nothing unread anywhere the cursor is left where it is, which
+/// at that point is the top of the list. Only the cursor is moved: where the
+/// list is scrolled to is settled by the frame that draws it, the window having
+/// no size yet when this is called.
+void cursorToFirstUnread(AppState& state);
+
 /// Puts the list's context menu up — what the button in the top-right corner
 /// opens. What it holds is `arealist_menu`, and whether each command can be run
 /// is settled here, as it opens, on the list as it stands then.

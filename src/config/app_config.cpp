@@ -898,6 +898,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaListUnreadOnly = *read;
+    } else if (key == "arealist_first_unread") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.areaListFirstUnread = *read;
     } else if (key == "msglist_scrollbar") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

@@ -351,6 +351,20 @@ void openNextArea(AppState& state, config::EdgeBehavior behavior) {
     openSelected(state);
 }
 
+void cursorToFirstUnread(AppState& state) {
+    // From the top of the list rather than from the cursor, which is what tells
+    // this apart from `/`: the first area with something unread in it, counting
+    // down the list in the order `arealist_sort` put it in. Nothing unread
+    // anywhere leaves the cursor where it started, at the top.
+    const auto& areas = state.manager.areas();
+    for (size_t i = 0; i < areas.size(); ++i) {
+        if (hasUnread(areas[i])) {
+            state.areaCursor = static_cast<int>(i);
+            return;
+        }
+    }
+}
+
 void cursorToNextArea(AppState& state) {
     // The same two searches `openNextArea` runs, against the same list — the
     // area just read has been left and counted again, so it is not one of the
