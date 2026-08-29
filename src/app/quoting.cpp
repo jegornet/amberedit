@@ -173,6 +173,116 @@ std::string rstrip(std::string text) {
     return text;
 }
 
+/// What the line says after its quote prefix.
+std::string_view textOf(std::string_view line, const QuotePrefix& prefix) {
+    return line.substr(std::min(prefix.length, line.size()));
+}
+
+/// Whether there is anything there to answer. Empty, spaces, and a quote prefix
+/// and no more are all nothing.
+bool carriesText(std::string_view text) {
+    return text.find_first_not_of(" \t") != std::string_view::npos;
+}
+
+/// The word the text begins with, which is what decides whether it would have
+/// fitted on the line above.
+std::string_view firstWord(std::string_view text) {
+    const size_t begin = text.find_first_not_of(' ');
+    if (begin == std::string_view::npos) return {};
+    const size_t end = text.find(' ', begin);
+    return text.substr(begin, end == std::string_view::npos ? end : end - begin);
+}
+
+/// Whether the text is laid out rather than written as prose: indented, tabbed,
+/// or spaced into columns. Joining such a line onto the one above would lose the
+/// shape it was written in, which is the same reason a line that fits is quoted
+/// exactly as it stands. Two spaces are not enough to say so — that is how a
+/// good many people still close a sentence.
+bool isLaidOut(std::string_view text) {
+    if (!text.empty() && (text.front() == ' ' || text.front() == '\t')) return true;
+    if (text.find('\t') != std::string_view::npos) return true;
+    return text.find("   ") != std::string_view::npos;
+}
+
+/// Whether the text begins a point of its own — a bullet or a number — rather
+/// than carrying on the line above. A list is paragraphed by its items, and
+/// nothing else says where one ends.
+bool startsItem(std::string_view text) {
+    size_t pos = 0;
+    const uint32_t first = decodeUtf8(text, pos);
+    if (first == '-' || first == '*' || first == '+' || first == 0x00B7 ||
+        first == 0x2022) {
+        return pos < text.size() && text[pos] == ' ';
+    }
+    while (pos < text.size() && std::isdigit(static_cast<unsigned char>(text[pos]))) ++pos;
+    if (pos == 0) return false;
+    if (pos + 1 >= text.size()) return false;
+    return (text[pos] == '.' || text[pos] == ')') && text[pos + 1] == ' ';
+}
+
+/// The least width a run has to have been written to before its breaks are read
+/// as a wrap. Under this the lines are short because somebody wanted them short.
+constexpr size_t kMinFillWidth = 40;
+
+/// Joins the lines a paragraph was hard-wrapped into back into one, so that the
+/// quote is wrapped at our own margin instead of carrying the breaks of the
+/// editor it was written in.
+///
+/// A run is the lines standing together at one quote level under one set of
+/// initials — a break, a deeper quote or another writer's initials all end it.
+/// The width the run was written to is its longest line, which is as near as
+/// anyone can tell what the other editor's margin was; a line is a continuation
+/// of the one above when that line had no room left for its first word. Nothing
+/// laid out and nothing beginning a point of its own is joined.
+std::vector<std::string> unwrapRuns(const std::vector<std::string>& lines) {
+    std::vector<std::string> out;
+    size_t at = 0;
+    while (at < lines.size()) {
+        const QuotePrefix head = parseQuotePrefix(lines[at]);
+        if (!carriesText(textOf(lines[at], head))) {
+            out.push_back(lines[at++]);
+            continue;
+        }
+
+        size_t end = at + 1;
+        for (; end < lines.size(); ++end) {
+            const QuotePrefix next = parseQuotePrefix(lines[end]);
+            if (next.level != head.level || next.initials != head.initials) break;
+            if (!carriesText(textOf(lines[end], next))) break;
+        }
+
+        size_t width = 0;
+        for (size_t i = at; i < end; ++i) {
+            width = std::max(width, charCount(rstrip(lines[i])));
+        }
+
+        std::string current = rstrip(lines[at]);
+        // The line as it was written, which is what had the room or did not —
+        // `current` grows past the width as soon as anything is joined onto it.
+        std::string previous = current;
+        for (size_t i = at + 1; i < end; ++i) {
+            const std::string line = rstrip(lines[i]);
+            const std::string_view text = textOf(line, parseQuotePrefix(line));
+            const std::string_view above = textOf(previous, parseQuotePrefix(previous));
+
+            const bool continues =
+                width >= kMinFillWidth &&
+                charCount(previous) + 1 + charCount(firstWord(text)) > width &&
+                !isLaidOut(above) && !isLaidOut(text) && !startsItem(text);
+            if (continues) {
+                current += " " + std::string(text);
+            } else {
+                out.push_back(current);
+                current = line;
+            }
+            previous = line;
+        }
+        out.push_back(current);
+        at = end;
+    }
+    return out;
+}
+
 }  // namespace
 
 QuotePrefix parseQuotePrefix(std::string_view line) {
@@ -225,15 +335,20 @@ std::string deeperQuotePrefix(std::string_view quoteString, const QuotePrefix& p
 
 std::vector<std::string> quoteLines(const std::vector<std::string>& lines,
                                     std::string_view author, std::string_view quoteString,
-                                    int margin) {
+                                    int margin, bool unwrap) {
     const std::string fresh = quotePrefixFor(quoteString, author);
     const auto limit = static_cast<size_t>(std::max(1, margin));
+
+    // The paragraphs are put back together before anything is quoted, so that
+    // the prefix and the margin are applied to the text as it reads rather than
+    // to the lines somebody else's editor happened to break it into.
+    const std::vector<std::string>& source = unwrap ? unwrapRuns(lines) : lines;
 
     std::vector<std::string> out;
     // Set by a line with nothing on it and cleared by the empty line it is
     // written out as, so that a run of them yields one break and no more.
     bool pendingBreak = false;
-    for (const auto& line : lines) {
+    for (const auto& line : source) {
         const QuotePrefix existing = parseQuotePrefix(line);
         const std::string prefix =
             existing.level > 0 ? deeperQuotePrefix(quoteString, existing) : fresh;

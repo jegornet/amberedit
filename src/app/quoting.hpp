@@ -55,9 +55,18 @@ struct QuotePrefix {
 /// Measured in characters rather than terminal columns: the margin is about
 /// how long the line is in the message, and in the single-byte charsets FTN
 /// messages are stored in that is one byte per character.
+///
+/// With `unwrap` set, the lines a paragraph was hard-wrapped into are joined
+/// back together before any of that happens, so that the quote is wrapped at
+/// `margin` rather than at whatever margin it was written to. The lines joined
+/// are the ones standing together at one quote level under one set of initials,
+/// where the line above had no room left for the next line's first word — the
+/// width to measure that against being the longest line of the run. Nothing
+/// indented, tabbed, spaced into columns or beginning a bullet or a numbered
+/// point is joined: those breaks are the writer's, not the wrap's.
 [[nodiscard]] std::vector<std::string> quoteLines(const std::vector<std::string>& lines,
                                                   std::string_view author,
                                                   std::string_view quoteString,
-                                                  int margin);
+                                                  int margin, bool unwrap = false);
 
 }  // namespace amberedit::app

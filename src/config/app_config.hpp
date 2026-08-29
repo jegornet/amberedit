@@ -1397,6 +1397,17 @@ struct AppConfig {
     /// quote level when the message is quoted back.
     int quoteMargin{78};
 
+    /// Whether a paragraph is put back together before it is quoted, from
+    /// `quote_unwrap`. Off by default: the quote then carries the line breaks
+    /// of the editor the message was written in, which is what every FTN editor
+    /// has always done and what somebody quoting a table or a signature wants.
+    ///
+    /// On, the lines a paragraph was wrapped into are joined and the text is
+    /// wrapped again at `quote_margin`, so that answering a message written to
+    /// a wider margin does not leave a quote of two words to the line. What is
+    /// joined and what is left alone is app::quoteLines()' business.
+    bool quoteUnwrap{false};
+
     /// The lines standing either side of a file imported into a message as
     /// text, from `import_begin` and `import_end` — "=== Cut ===" both unless
     /// the config says otherwise, which is what FTN mail has always fenced an

@@ -1434,6 +1434,20 @@ decides what an occurrence is.
   carrying a quote prefix to `quote_margin` and wraps it under that same prefix,
   which is the whole of what the setting is for. `quote_margin` says nothing
   about what the user types.
+- **A reply carries the answered message's line breaks unless `quote_unwrap`
+  says otherwise.** `app::quoteLines()` (`app/quoting.cpp`) prefixes and wraps
+  one line at a time, so a message written to a wider margin comes back with a
+  word or two to every second line. With `quote_unwrap` on, the run is put back
+  together first and the margin is applied to the text instead. A run is the
+  lines standing together at one quote level under one set of initials, and a
+  line continues the one above it when that line had no room left for the next
+  line's first word — the width measured against being the longest line of the
+  run, and a run narrower than 40 characters read as never wrapped at all. A
+  blank line, a deeper quote, another writer's initials, anything indented or
+  spaced into columns, and anything beginning a bullet or a numbered point all
+  end a run: a table, a signature and ASCII art are quoted exactly as they stand
+  whether the setting is on or off. It is per area, as `quote_string` and
+  `quote_margin` are.
 - **The text is expanded before the header is filled in, so it is expanded
   again.** `fillFromTemplate()` runs the moment the message is begun, but a
   template greets by `@pseudo` and closes with an origin carrying

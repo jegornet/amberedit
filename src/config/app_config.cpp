@@ -1258,6 +1258,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.numberIn(20, 255);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.quoteMargin = static_cast<int>(*read);
+    } else if (key == "quote_unwrap") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.quoteUnwrap = *read;
     } else if (key == "import_begin") {
         // Empty is a value like any other here: it is how a file goes into a
         // message with no line in front of it, and `entry.text()` of a key
@@ -1301,6 +1305,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "template",
                                                       "quote_string",
                                                       "quote_margin",
+                                                      "quote_unwrap",
                                                       "import_begin",
                                                       "import_end",
                                                       "template_date_format",

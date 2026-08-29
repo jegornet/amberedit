@@ -242,7 +242,8 @@ TemplateContext contextFor(const BuildRequest& request) {
             disarmCopyCommands(context.message);
         } else {
             context.quote = quoteLines(carried, context.oname, request.config.quoteString,
-                                       request.config.quoteMargin);
+                                       request.config.quoteMargin,
+                                       request.config.quoteUnwrap);
         }
     }
     if (!request.config.templatePath.empty()) {

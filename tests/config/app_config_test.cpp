@@ -1397,6 +1397,15 @@ TEST_CASE("AppConfig reads the quote margin [app_config]") {
     CHECK_FALSE(loads("quote_margin seventy\n"));
 }
 
+TEST_CASE("quote_unwrap is off unless it is turned on [app_config]") {
+    // Off is what every FTN editor does: the quote keeps the lines the message
+    // was written in.
+    CHECK_FALSE(with("").quoteUnwrap);
+    CHECK(with("quote_unwrap on\n").quoteUnwrap);
+    CHECK_FALSE(with("quote_unwrap off\n").quoteUnwrap);
+    CHECK_FALSE(loads("quote_unwrap yes\n"));
+}
+
 TEST_CASE("AppConfig reads the date and time formats [app_config]") {
     // The reader's header shows one string, so its date and time are one
     // setting; a template writes the two through tokens of their own, so they
@@ -2150,6 +2159,20 @@ TEST_CASE("A group decides reply_original_charset for the areas it covers [app_c
     CHECK_FALSE(cfg.replyOriginalCharset);
     CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).replyOriginalCharset);
     CHECK(cfg.effectiveFor(area("fsx.bbs")).replyOriginalCharset);
+}
+
+TEST_CASE("A group decides quote_unwrap for the areas it covers [app_config]") {
+    // One echo may be written to a margin of its own, and that is the one to
+    // unwrap; the rest are quoted as they stand.
+    const auto cfg = with(
+        "group\n"
+        "  member fsx.*\n"
+        "  quote_unwrap on\n"
+        "endgroup\n");
+
+    CHECK_FALSE(cfg.quoteUnwrap);
+    CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).quoteUnwrap);
+    CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteUnwrap);
 }
 
 TEST_CASE("A group may turn the BBS color codes on for its areas [app_config]") {
