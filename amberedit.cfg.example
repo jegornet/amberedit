@@ -1015,6 +1015,8 @@ show_recd_date off
 # answered. Optional; "%d %b %y" and "%H:%M" by default; strftime formats like
 # the one above, and both may be set per area in a group block. Two settings and
 # not one, because a template writes them through two tokens.
+#
+# %z writes the sender's time zone
 template_date_format "%d %b %y"
 template_time_format "%H:%M"
 

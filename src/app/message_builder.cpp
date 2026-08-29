@@ -141,8 +141,13 @@ TemplateContext contextFor(const BuildRequest& request) {
     if (const auto parsed = domain::FtnAddress::parse(fields.fromAddr)) {
         context.c3daddr = threeDimensional(*parsed);
     }
-    context.cdate = now.format(request.config.templateDateFormat);
-    context.ctime = now.format(request.config.templateTimeFormat);
+    // The zone a `%z` in either format is answered with. An FTN stamp is on no
+    // zone of its own, so only the message says which clock it was written on —
+    // and for the message being written that is the clock here, the offset its
+    // own TZUTC will state.
+    const std::string zone = zoneOffset(request.utcOffsetMinutes);
+    context.cdate = now.format(request.config.templateDateFormat, zone);
+    context.ctime = now.format(request.config.templateTimeFormat, zone);
     context.ctzoffset = tzutcOffset(request.utcOffsetMinutes);
     context.cecho = request.area.tag;
     context.cdesc = request.area.description;
@@ -210,8 +215,12 @@ TemplateContext contextFor(const BuildRequest& request) {
         if (request.original->origAddr.isValid()) {
             context.o3daddr = threeDimensional(request.original->origAddr);
         }
-        context.odate = request.original->date.format(request.config.templateDateFormat);
-        context.otime = request.original->date.format(request.config.templateTimeFormat);
+        // The same for the message being answered: the zone its own TZUTC
+        // states, and nothing where it states none.
+        context.odate = request.original->date.format(request.config.templateDateFormat,
+                                                      request.original->utcOffset);
+        context.otime = request.original->date.format(request.config.templateTimeFormat,
+                                                      request.original->utcOffset);
     }
     if (request.originalBody != nullptr) {
         context.omsgid = msgidOf(*request.originalBody);
@@ -279,6 +288,10 @@ std::string tzutcOffset(int minutes) {
     out << std::setfill('0') << std::setw(2) << magnitude / 60 << std::setw(2)
         << magnitude % 60;
     return out.str();
+}
+
+std::string zoneOffset(int minutes) {
+    return (minutes < 0 ? "" : "+") + tzutcOffset(minutes);
 }
 
 int tzutcMinutes(std::string_view offset) {

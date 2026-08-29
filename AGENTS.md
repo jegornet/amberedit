@@ -2579,7 +2579,12 @@ taking a row.
   control lines it reads for the charset anyway, so the message list's Date
   column costs no second read. A message stating no zone gets an empty string.
   **Only the written stamp is given one**; the arrival stamp is passed no zone at
-  all on either screen, having been read off this system's clock.
+  all on either screen, having been read off this system's clock. **Every stamp a
+  template writes is given one too**: `@odate`/`@otime` the answered message's,
+  and `@cdate`/`@ctime` the clock here, which is the offset the TZUTC of the
+  message being written will state. The editor's own Date row is that same
+  offset, so `app::zoneOffset()` writes it in one place — `tzutcOffset()` spells
+  TZUTC's shape, which leaves the plus off, and `%z` writes one.
 
 ### The header block and adaptive layout
 

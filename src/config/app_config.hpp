@@ -1345,6 +1345,11 @@ struct AppConfig {
     /// to be able to change without the other. Both are strftime formats and
     /// the same stamp is behind them, so a format may hold anything — the
     /// tokens' names are what they are usually used for, not a limit.
+    ///
+    /// `%z` writes the zone the stamp behind the token is on: the clock here for
+    /// `@cdate`/`@ctime`, since that is what the message being written will
+    /// state in its own TZUTC, and what the answered message's TZUTC states for
+    /// `@odate`/`@otime` — nothing at all where it states none.
     std::string templateDateFormat{"%d %b %y"};
     std::string templateTimeFormat{"%H:%M"};
 

@@ -172,6 +172,13 @@ struct ChangeStamp {
 /// clock here is west of UTC.
 [[nodiscard]] std::string tzutcOffset(int minutes);
 
+/// The same offset the way `%z` writes one: with the plus FTS-4008 leaves off a
+/// positive offset. That is the shape `domain::MessageHeader::utcOffset` carries
+/// for a message already stored, so it is the shape every `%z` is answered with
+/// — a message being written must have its zone spelled the way the reader
+/// spells one that has been.
+[[nodiscard]] std::string zoneOffset(int minutes);
+
 /// The other way about: the minutes east of UTC a stamp of that shape names, as
 /// `MessageHeader::utcOffset` carries it — a sign and four digits, "+0300".
 /// Zero for anything else, which is the answer a message stating no zone gives

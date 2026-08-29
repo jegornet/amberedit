@@ -653,6 +653,57 @@ TEST_CASE("The editor opens on the template, quote and all [builder]") {
     CHECK(text.cursorLine == 1);
 }
 
+TEST_CASE("The template's stamps carry the zone %z asks for [builder]") {
+    const TempFile tpl("@quoted@odate @otime, @oname wrote:\n"
+                       "@newWritten @cdate @ctime.\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    cfg.templateTimeFormat = "%H:%M %z";
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+
+    MessageHeader original;
+    original.from = "Vasya Pupkin";
+    original.date = {2026, 8, 10, 21, 19, 36};
+    // The zone the answered message states, which is the only thing that says
+    // which clock its stamp is on — and not one this machine is likely to be in.
+    original.utcOffset = "-0330";
+    MessageBody body;
+    body.lines = {{"hello there", false}};
+
+    const BuildRequest reply{cfg,   area,    fields,     &original,
+                             &body, nullptr, 0x68A1B2C3, 180};
+    const auto answered = startingText(reply);
+    REQUIRE(answered.lines.size() >= 1);
+    CHECK(answered.lines[0] == "10 Aug 26 21:19 -0330, Vasya Pupkin wrote:");
+
+    // The message being written is on the clock here, whatever the machine's own
+    // zone: the offset passed in is the one its TZUTC will state, and `%z` is
+    // written with the sign FTS-4008 leaves off a positive offset.
+    const BuildRequest fresh{cfg,     area,    fields,     nullptr,
+                             nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto written = startingText(fresh);
+    REQUIRE(written.lines.size() >= 1);
+    const std::string tail = " +0300.";
+    REQUIRE(written.lines[0].size() > tail.size());
+    CHECK(written.lines[0].compare(written.lines[0].size() - tail.size(), tail.size(),
+                                   tail) == 0);
+
+    // A message answered by a writer whose own message states no zone: `%z`
+    // writes nothing rather than this machine's idea of one, and the blank it
+    // leaves goes with it.
+    MessageHeader zoneless = original;
+    zoneless.utcOffset.clear();
+    const BuildRequest silent{cfg,   area,    fields,     &zoneless,
+                              &body, nullptr, 0x68A1B2C3, 180};
+    const auto quiet = startingText(silent);
+    REQUIRE(quiet.lines.size() >= 1);
+    CHECK(quiet.lines[0] == "10 Aug 26 21:19, Vasya Pupkin wrote:");
+}
+
 TEST_CASE("A reply moved into another area opens on the template's @moved lines "
           "[builder]") {
     const TempFile tpl(

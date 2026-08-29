@@ -255,15 +255,10 @@ Elements headerRows(AppState& state, bool editing) {
     // TZUTC of this message will state: the reader shows a message by the zone
     // it says it was written in, and the editor is where this one is being
     // written.
-    // FTS-4008 leaves the plus off a positive offset and `%z` writes one, so
-    // the sign is put back here: a message being written must have its zone
-    // spelled the way the reader spells one that has been stored.
     const std::time_t when = std::time(nullptr);
     std::tm broken{};
     localtime_r(&when, &broken);
-    const auto offsetMinutes = static_cast<int>(broken.tm_gmtoff / 60);
-    const std::string zone =
-        (offsetMinutes < 0 ? "" : "+") + app::tzutcOffset(offsetMinutes);
+    const std::string zone = app::zoneOffset(static_cast<int>(broken.tm_gmtoff / 60));
     const std::string now =
         app::localStamp(when).format(state.config.readerDateTimeFormat, zone);
     // The arrival stamp is given no zone, here as in the reader: when a message
