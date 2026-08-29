@@ -247,6 +247,24 @@ std::optional<int> nextUnread(const AppState& state) {
     return std::nullopt;
 }
 
+/// The next area on the list below the cursor, whether it holds anything unread
+/// or not — where `reader_edge next_unread_area` goes once there is nothing
+/// unread left anywhere.
+///
+/// It does not go round the end: the bottom of the list is the bottom of the
+/// reading, and there the reader is left on the list rather than sent back to
+/// the top of it. Areas that would not open are passed over — this is a move
+/// nobody asked for by name, and making a base for one of them is not something
+/// walking off the end of another area should do.
+std::optional<int> nextInList(const AppState& state) {
+    const auto& areas = state.manager.areas();
+    const int total = static_cast<int>(areas.size());
+    for (int index = state.areaCursor + 1; index < total; ++index) {
+        if (areas[static_cast<size_t>(index)].isAvailable()) return index;
+    }
+    return std::nullopt;
+}
+
 /// Turns the unread-only filter on or off — what `arealist.toggle_unread` does.
 ///
 /// The cursor keeps the area it was on wherever that area is still on the list,
@@ -312,6 +330,26 @@ bool commandEnabled(const AppState& state, Command command) {
 }
 
 }  // namespace
+
+void openNextArea(AppState& state, config::EdgeBehavior behavior) {
+    // The area just read is off the reader's screen and its counts have been
+    // read again by then, so an area read to its end is no longer one with
+    // anything unread in it and the search below passes over it.
+    auto target = nextUnread(state);
+    if (!target && behavior == config::EdgeBehavior::NextUnreadArea) {
+        target = nextInList(state);
+    }
+    // Nowhere to go: the list is what the reader was left on, and that is where
+    // it stays. `next_unread_only` with nothing unread anywhere is exactly this,
+    // and so is the bottom of the list under either of the two.
+    if (!target) return;
+
+    // The cursor is moved first because that is what opens an area: it is the
+    // same step Enter takes on the list, error box and all, so an area that
+    // will not open says so there rather than half-opening under the reader.
+    state.areaCursor = *target;
+    openSelected(state);
+}
 
 void openMenu(AppState& state) {
     std::vector<AppState::MenuView::Item> items;

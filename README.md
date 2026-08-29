@@ -120,7 +120,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 
 | Key | What it does                                                                 |
 |---|------------------------------------------------------------------------------|
-| `←` `→` | previous, next message — off either end leaves the area (`reader_edge_exit`) |
+| `←` `→` | previous, next message — off either end leaves the area, or → goes on to the next unread area (`reader_edge`) |
 | `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
 | `Home`, `End` | top, bottom                                                                  |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |

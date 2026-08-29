@@ -276,11 +276,11 @@ TEST_CASE("An empty area is left by either arrow too [messageread][squish]") {
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
 }
 
-TEST_CASE("With reader_edge_exit off the ends of an area are a dead end "
+TEST_CASE("With reader_edge stay the ends of an area are a dead end "
           "[messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
-    fixture.config.edgeExit = false;
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::Stay;
 
     const uint32_t total = fixture.total();
     // The far end of the area, which is where the right arrow has nowhere left

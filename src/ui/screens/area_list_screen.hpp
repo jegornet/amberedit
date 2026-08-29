@@ -16,6 +16,17 @@ namespace amberedit::ui::screens::area_list {
 /// that back, and this one has nothing of the kind.
 term::Element render(AppState& state);
 
+/// Goes on to the area the reader should read next, the area just read having
+/// been left already — what `reader_edge next_unread_area` and
+/// `next_unread_only` ask for when → walks off the last message of an area.
+///
+/// The next area with something unread in it, counting down the list from the
+/// one just read and round the end of it, exactly as `/` counts. Where there is
+/// none, `next_unread_area` takes the next area on the list below the one just
+/// read and `next_unread_only` takes neither; either way, an answer of nowhere
+/// leaves the reader standing on the area list.
+void openNextArea(AppState& state, config::EdgeBehavior behavior);
+
 /// Puts the list's context menu up — what the button in the top-right corner
 /// opens. What it holds is `arealist_menu`, and whether each command can be run
 /// is settled here, as it opens, on the list as it stands then.

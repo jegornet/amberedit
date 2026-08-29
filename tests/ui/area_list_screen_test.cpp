@@ -18,6 +18,7 @@
 #include "ui/keys.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
+#include "ui/screens/message_read_screen.hpp"
 #include "ui/term/element.hpp"
 #include "ui/term/screen.hpp"
 #include "ui/theme.hpp"
@@ -31,6 +32,7 @@ using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
 namespace area_list = amberedit::ui::screens::area_list;
+namespace message_read = amberedit::ui::screens::message_read;
 
 namespace {
 
@@ -60,7 +62,14 @@ public:
         const auto found = perArea_.find(area.tag);
         return found == perArea_.end() ? uid_ : found->second;
     }
-    void setLastRead(const AreaConfig& /*area*/, uint32_t uid) override { uid_ = uid; }
+    /// Written down under the area's own name as well as in the one mark the
+    /// areas nobody has named share: reading in one area must not answer for
+    /// the next, and these bases are copies of one another — the UID the reader
+    /// puts down names a message in every one of them.
+    void setLastRead(const AreaConfig& area, uint32_t uid) override {
+        uid_ = uid;
+        perArea_[area.tag] = uid;
+    }
 
     void set(uint32_t uid) { uid_ = uid; }
     void set(const std::string& tag, uint32_t uid) { perArea_[tag] = uid; }
@@ -187,6 +196,28 @@ void markToEnd(Fixture& fixture, const std::string& tag) {
     fixture.manager.closeCurrentArea();
     fixture.lastRead->set(tag, uid);
     static_cast<void>(fixture.manager.reload());
+}
+
+/// Puts a mark of its own on every area, at the front of it, so that all of
+/// them stand unread and none of them answers for another.
+///
+/// The stub keeps one mark for the areas it has not been told about by name,
+/// and the bases these tests are built on are copies of one another — reading
+/// in one of them would otherwise leave the rest looking read to the same
+/// point, the same UID naming a message in each.
+void markAllUnread(Fixture& fixture) {
+    for (const auto& entry : fixture.manager.areas())
+        fixture.lastRead->set(entry.config.tag, 0);
+    static_cast<void>(fixture.manager.reload());
+}
+
+/// Opens the area at `index` the way the user opens one, and leaves the reader
+/// standing on the message the area's mark puts it on.
+void enter(Fixture& fixture, int index) {
+    fixture.state.areaCursor = index;
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Return));
+    REQUIRE(fixture.state.navigator.current() == amberedit::app::ScreenId::MessageRead);
+    REQUIRE(fixture.state.errorMessage.empty());
 }
 
 /// Ctrl-U, which is what `arealist.toggle_unread` runs by default.
@@ -1268,4 +1299,146 @@ TEST_CASE("A config declaring no areas has no corner to click [arealist][menu]")
 
     CHECK_FALSE(area_list::handleEvent(fixture.state, pressOnCorner(fixture.state)));
     CHECK_FALSE(fixture.state.menuView);
+}
+
+TEST_CASE("reader_edge next_unread_area walks off an area into the next unread one "
+          "[arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    // The first area read to its end, which is where → has nowhere left to go:
+    // the mark on the newest message opens the reader on it.
+    markToEnd(fixture, "first");
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::NextUnreadArea;
+
+    enter(fixture, 0);
+    REQUIRE(fixture.state.currentArea.tag == "first");
+    REQUIRE(fixture.state.messageCursor ==
+            static_cast<int>(fixture.state.messageCount) - 1);
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    // Still reading, and reading the next area with something unread in it —
+    // the list is passed through rather than stopped on.
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.currentArea.tag == "second");
+    CHECK(fixture.state.base != nullptr);
+    CHECK(fixture.state.errorMessage.empty());
+    // The list underneath stands on the area being read, so Esc comes back to
+    // the right row.
+    CHECK(fixture.state.areaCursor == 1);
+    // The repeats already in the terminal are not spent walking through an area
+    // nobody has looked at yet.
+    CHECK(fixture.state.discardTypeahead);
+}
+
+TEST_CASE("The next unread area is looked for round the end of the list "
+          "[arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "second");
+    markToEnd(fixture, "third");
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::NextUnreadArea;
+
+    // From the bottom of the list, with the only unread area above it.
+    enter(fixture, 2);
+    REQUIRE(fixture.state.currentArea.tag == "third");
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.currentArea.tag == "first");
+    CHECK(fixture.state.areaCursor == 0);
+}
+
+TEST_CASE("With nothing unread anywhere next_unread_area takes the next area on the "
+          "list [arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "second");
+    markToEnd(fixture, "third");
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::NextUnreadArea;
+
+    enter(fixture, 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    // Nothing is unread, so what is left is the order of the list itself.
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.currentArea.tag == "second");
+    CHECK(fixture.state.areaCursor == 1);
+
+    // And the bottom of the list is the bottom of the reading: it does not go
+    // round to the top the way the search for an unread area does.
+    fixture.state.areaCursor = 2;
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Return));
+    REQUIRE(fixture.state.currentArea.tag == "third");
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.base == nullptr);
+}
+
+TEST_CASE("next_unread_only leaves for the list when nothing is unread "
+          "[arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "third");
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::NextUnreadOnly;
+
+    // There is one unread area left, so this one is walked into.
+    enter(fixture, 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    REQUIRE(fixture.state.navigator.current() == ScreenId::MessageRead);
+    REQUIRE(fixture.state.currentArea.tag == "second");
+
+    // Read to its end in turn, and now nothing is unread anywhere: this is
+    // where the two answers differ, and this one stops on the list.
+    fixture.state.messageCursor = static_cast<int>(fixture.state.messageCount) - 1;
+    message_read::openMessage(fixture.state, fixture.state.messageCount);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.base == nullptr);
+    CHECK(fixture.state.errorMessage.empty());
+}
+
+TEST_CASE("Walking off the front of an area goes to the list whatever reader_edge says "
+          "[arealist][messageread][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::NextUnreadArea;
+
+    // An unread area opens on its first message, which is where ← walks off.
+    enter(fixture, 1);
+    REQUIRE(fixture.state.currentArea.tag == "second");
+    REQUIRE(fixture.state.messageCursor == 0);
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
+
+    // ← is reading backwards past the front of the area, and it has just made
+    // that area unread whole again: taken on to "the next unread area" it would
+    // land straight back in this one.
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.base == nullptr);
+    CHECK(fixture.state.areaCursor == 1);
 }

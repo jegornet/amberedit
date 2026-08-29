@@ -901,15 +901,26 @@ Rules that hold the design together:
 - **Only the arrow keys move between messages.** `PgUp`, `PgDn`, `Space` and
   `Shift+Space` stay inside the current message. Walking off the end of the
   *area* leaves it: → on the last message and ← on the first go back through the
-  same `leaveArea()` Esc calls, which `reader_edge_exit` turns off. The check
+  same `leaveArea()` Esc calls, which `reader_edge stay` turns off. The check
   lives in `switchMessage()`, the one place that has already worked out there is
   no neighbour, and it covers an empty area as well.
+- **`reader_edge next_unread_area` and `next_unread_only` do not stop on the
+  list**: → off the last message leaves the area and then calls
+  `area_list::openNextArea()`, which moves `areaCursor` and opens the area the
+  same way Enter on the list does — error box and all. The area just left has had
+  its counts read again by `leaveArea()` before that search runs, so an area read
+  to its end is not one the search finds unread. `next_unread_area` falls back to
+  the next area *below* the one just read and does not go round the end of the
+  list; `next_unread_only` falls back to nothing. Nowhere to go is the area list,
+  which is what `exit` does anyway. **← is not part of this**: it walks backwards
+  past the front of an area and has just made that area unread whole again, so
+  taking it on to "the next unread area" would take it straight back in.
 - **Walking off the front takes the lastread mark off the area**, through
   `AreaManager::markUnread()`: ← on the first message asks for the message before
   it, which puts the reader before the area rather than on anything in it. Esc on
   that same message leaves the mark where reading put it — the whole difference
   between the two ways out of the first message. An empty area has no first
-  message to stand before. `reader_edge_exit` is read straight off `state.config`
+  message to stand before. `reader_edge` is read straight off `state.config`
   rather than copied into `AppState`: the copies are for what the screens read
   while drawing, and this is read once per keystroke.
 - Leaving that way sets `AppState::discardTypeahead`, and the shell answers it
@@ -1343,7 +1354,7 @@ decides what an occurrence is.
     entering an area and picking a row both go through — walks forward from the
     message asked for and then backward, those two naming a *place* rather than
     one message. A run of twits at the end of the area is the end of it, which is
-    `reader_edge_exit`'s business; where every message is a twit the one asked
+    `reader_edge`'s business; where every message is a twit the one asked
     for is opened blanked. The two differ in `skip` sparing what
     `AppState::addressedToUser()` recognises, and what it spares is *not* blanked
     — `AppState::twitHidden()` asks `twitSkipped()` rather than `isTwit()` under

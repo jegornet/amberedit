@@ -289,7 +289,7 @@ TEST_CASE("A run of twits at the end of an area is the end of it [twit][squish]"
     REQUIRE(showing(fixture) == 1);
 
     // There is nothing further to read here, which is what walking off the end
-    // means; `reader_edge_exit` is on by default and leaves the area.
+    // means; `reader_edge` is `exit` by default and leaves the area.
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
 
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);

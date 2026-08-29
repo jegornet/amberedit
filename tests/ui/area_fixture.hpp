@@ -60,7 +60,7 @@ struct AreaFixture {
     /// The config is taken here rather than set afterwards for the settings the
     /// manager reads: it keeps a copy of its own, made when it is built, so a
     /// later `fixture.config.x = …` reaches the screens and not it. Settings the
-    /// screens read — `edgeExit` and the rest — can still be set either way.
+    /// screens read — `edgeBehavior` and the rest — can still be set either way.
     explicit AreaFixture(const std::string& path, config::AppConfig cfg = {})
         : area(squishArea(path)),
           config(std::move(cfg)),

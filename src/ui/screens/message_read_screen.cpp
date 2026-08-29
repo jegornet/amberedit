@@ -32,6 +32,7 @@
 #include "ui/nodelist_dialog.hpp"
 #include "ui/reader_sidebar.hpp"
 #include "ui/scope_dialog.hpp"
+#include "ui/screens/area_list_screen.hpp"
 #include "ui/screens/compose_screen.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/scrollbar.hpp"
@@ -699,18 +700,23 @@ void askToChange(AppState& state) {
 
 /// Moves to a neighbouring message without going back to the list. Past the
 /// last message and before the first there is none, and then the area itself is
-/// left where `reader_edge_exit` asks for it: an area read to its end is where
-/// the next area is wanted, and a key that does nothing says nothing about why.
+/// left where `reader_edge` asks for it: an area read to its end is where the
+/// next area is wanted, and a key that does nothing says nothing about why.
 /// An empty area has no message either way round, so both keys leave it — and
 /// with no first message to stand before, there is no mark to take off it.
+///
+/// Under the two `next_unread_*` answers → does not stop on the list either: it
+/// goes on into the next area with something unread in it, which is the whole
+/// of what "next message" means once an area has been read to its end. ← never
+/// goes on that way — see `AppConfig::edgeBehavior`.
 void switchMessage(AppState& state, int delta) {
     int target = state.messageCursor + delta;
     // The twits `twit_mode` walks past are walked past here, in the direction
     // the key is going: → over a run of them lands on the first message after
     // it, ← on the first before it. A run reaching the end of the area is the
     // end of the area — there is nothing further to read that way, which is
-    // exactly what walking off it means, and `reader_edge_exit` answers for it
-    // below as it does for the last message itself.
+    // exactly what walking off it means, and `reader_edge` answers for it below
+    // as it does for the last message itself.
     if (target >= 0 && target < static_cast<int>(state.messageCount)) {
         const uint32_t landed =
             unskipped(state, static_cast<uint32_t>(target) + 1, delta > 0 ? 1 : -1);
@@ -718,26 +724,36 @@ void switchMessage(AppState& state, int delta) {
                              : static_cast<int>(landed) - 1;
     }
     if (target < 0 || target >= static_cast<int>(state.messageCount)) {
-        if (state.config.edgeExit) {
-            // Which end was walked off says something about the reading, and
-            // the two ends do not say the same thing. Off the front the reader
-            // has asked for the message before the first one: it is standing
-            // before the area rather than in it, so the mark comes off and the
-            // area is unread whole again — the three messages just walked back
-            // through are three unread messages in the area list. Off the back
-            // there is nothing to say; the last message has been read and the
-            // mark sits on it already. Esc leaves from either end without
-            // moving anywhere, and leaves the mark on the message on screen.
-            if (target < 0 && state.messageCount > 0) state.manager.markUnread();
-            message_list::leaveArea(state);
-            // Whatever else was typed by then goes with it. → is held down to
-            // walk through an area, and on the area list underneath it opens
-            // the area under the cursor — which reopens on the message just
-            // left, at the end, ready to be walked off again. Without this the
-            // repeats already in the terminal would bounce between the two
-            // screens after the key was let go.
-            state.discardTypeahead = true;
-        }
+        const config::EdgeBehavior behavior = state.config.edgeBehavior;
+        if (behavior == config::EdgeBehavior::Stay) return;
+
+        // Which end was walked off says something about the reading, and the
+        // two ends do not say the same thing. Off the front the reader has
+        // asked for the message before the first one: it is standing before the
+        // area rather than in it, so the mark comes off and the area is unread
+        // whole again — the three messages just walked back through are three
+        // unread messages in the area list. Off the back there is nothing to
+        // say; the last message has been read and the mark sits on it already.
+        // Esc leaves from either end without moving anywhere, and leaves the
+        // mark on the message on screen.
+        if (target < 0 && state.messageCount > 0) state.manager.markUnread();
+        message_list::leaveArea(state);
+        // Whatever else was typed by then goes with it. → is held down to walk
+        // through an area, and on the area list underneath it opens the area
+        // under the cursor — which reopens on the message just left, at the
+        // end, ready to be walked off again. Without this the repeats already
+        // in the terminal would bounce between the two screens after the key
+        // was let go, and under the two `next_unread_*` answers they would run
+        // on through areas nobody had looked at yet.
+        state.discardTypeahead = true;
+
+        // Off the back, and only off the back: the area has been left and its
+        // counts read again, so the next unread area is looked for against the
+        // list as it stands now. Nowhere to go leaves the reader on that list,
+        // which is what `exit` does anyway.
+        const bool onwards = behavior == config::EdgeBehavior::NextUnreadArea ||
+                             behavior == config::EdgeBehavior::NextUnreadOnly;
+        if (delta > 0 && onwards) area_list::openNextArea(state, behavior);
         return;
     }
 

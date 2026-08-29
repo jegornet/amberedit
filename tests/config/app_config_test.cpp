@@ -385,11 +385,25 @@ TEST_CASE("AppConfig reads the unread highlight setting [app_config]") {
     CHECK_FALSE(loads("highlight_unread 1\n"));
 }
 
-TEST_CASE("AppConfig reads the edge exit setting [app_config]") {
-    CHECK(with("").edgeExit);  // the ends leave the area unless the config says not
-    CHECK(with("reader_edge_exit on\n").edgeExit);
-    CHECK_FALSE(with("reader_edge_exit off\n").edgeExit);
-    CHECK_FALSE(loads("reader_edge_exit 1\n"));
+TEST_CASE("AppConfig reads what the ends of an area do [app_config]") {
+    using amberedit::config::EdgeBehavior;
+    // The ends leave the area unless the config says otherwise.
+    CHECK(with("").edgeBehavior == EdgeBehavior::Exit);
+    CHECK(with("reader_edge exit\n").edgeBehavior == EdgeBehavior::Exit);
+    CHECK(with("reader_edge stay\n").edgeBehavior == EdgeBehavior::Stay);
+    CHECK(with("reader_edge next_unread_area\n").edgeBehavior ==
+          EdgeBehavior::NextUnreadArea);
+    CHECK(with("reader_edge next_unread_only\n").edgeBehavior ==
+          EdgeBehavior::NextUnreadOnly);
+    // Written whatever case it is written in, as every other keyword value is.
+    CHECK(with("reader_edge NEXT_UNREAD_AREA\n").edgeBehavior ==
+          EdgeBehavior::NextUnreadArea);
+    // Not one of its values, and not the flag the setting used to be.
+    CHECK_FALSE(loads("reader_edge next\n"));
+    CHECK_FALSE(loads("reader_edge on\n"));
+    CHECK_FALSE(loads("reader_edge exit stay\n"));
+    // The setting it replaces is gone rather than quietly still read.
+    CHECK_FALSE(loads("reader_edge_exit on\n"));
 }
 
 TEST_CASE("AppConfig reads the direct area reply setting [app_config]") {

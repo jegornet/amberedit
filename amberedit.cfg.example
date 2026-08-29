@@ -637,13 +637,29 @@ rescan_on_return off
 # `#include <stdio.h>` are left alone. Italic needs a terminal that draws it.
 reader_stylecodes off
 
-# Whether the reader leaves the area at its ends: → on the last message and ← on
-# the first go back to the area list. Optional; on by default. Off, the two keys
-# stop at the ends instead. Esc leaves the area from anywhere either way, and an
-# area holding no messages is left by both keys. Leaving by ← on the first
-# message also takes the lastread mark off the area, the key having asked for the
-# message before it; Esc on that same message leaves the mark where it was.
-reader_edge_exit on
+# What the reader does at the ends of an area: → on the last message and ← on the
+# first. Optional; "exit" by default.
+#
+#   exit               back to the area list
+#   stay               nothing at all: the two keys stop at the ends
+#   next_unread_area   → goes on to the next area with something unread in it, and
+#                      where nothing is unread anywhere, to the next area on the
+#                      list
+#   next_unread_only   the same, except that with nothing unread anywhere it
+#                      goes back to the area list
+#
+# The next unread area is looked for down the list from the one just read and
+# round the end of it, which is where `/` on the area list looks. The plain "next
+# area on the list" does not go round: the bottom of the list is the bottom of
+# the reading, and there the reader is left on the list. ← off the first
+# message goes back to the list under everything but "stay": it is reading
+# backwards past the front of an area, and it takes the lastread mark off the
+# area, the key having asked for the message before the first one — an area that
+# is unread whole again is not one to be taken back into.
+#
+# Esc leaves the area from anywhere whatever this says, and leaves the mark on
+# the message on the screen. An area holding no messages is left by both keys.
+reader_edge exit
 
 # Where entering an area from the area list lands: on the message after the
 # lastread mark, or on the marked one itself. Optional; on by default. A mark on
@@ -1164,7 +1180,7 @@ twit_to on
 # "skip" and "ignore" walk in the direction you are reading, and a message picked
 # out of the list — or the one an area opens on — is treated as a place in the
 # area the same way. A run of twits at the end of the area is the end of it,
-# which is where reader_edge_exit has its say; where every message in an area is
+# which is where reader_edge has its say; where every message in an area is
 # a twit there is nowhere to skip to and the area reads as "blank" reads.
 #
 # "kill" cannot be undone: every twit is taken out of the area as it is opened —

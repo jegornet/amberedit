@@ -251,6 +251,23 @@ enum class DescriptionPriority {
     Echolist,  ///< `echolist` — what the echolists say
 };
 
+/// What the reader does at the ends of an area — → on the last message and
+/// ← on the first — from `reader_edge`.
+///
+/// Reading an area to its end is the moment the next one is wanted, and the
+/// four answers differ in how much of that walk the reader does by itself: none
+/// of it, back to the list, or on into the area that comes next.
+enum class EdgeBehavior {
+    Exit,  ///< `exit` — back to the area list
+    Stay,  ///< `stay` — nothing at all: the ends of an area are a dead end
+    /// `next_unread_area` — on into the next area holding something unread,
+    /// and where nothing is unread anywhere, the next area on the list.
+    NextUnreadArea,
+    /// `next_unread_only` — on into the next area holding something unread,
+    /// and where nothing is unread anywhere, back to the area list.
+    NextUnreadOnly,
+};
+
 /// What a `keys` file does to the layout that is already there, from
 /// `keys_mode`.
 enum class KeysMode {
@@ -910,13 +927,20 @@ struct AppConfig {
     /// picture they would be reading glyphs somebody drew with as markup.
     bool bbsCodesAnsi{false};
 
-    /// Whether the reader leaves the area at its ends: → on the last message
-    /// and ← on the first go back to the area list, from `reader_edge_exit`.
+    /// What the reader does at the ends of an area — → on the last message and
+    /// ← on the first — from `reader_edge`.
     ///
-    /// On by default. A key that does nothing at all says nothing about why,
-    /// and reading an area to its end is exactly the moment the next area is
-    /// wanted. Off, the two keys stop at the ends as they always did.
-    bool edgeExit{true};
+    /// `exit` by default: a key that does nothing at all says nothing about
+    /// why, and reading an area to its end is exactly the moment the next area
+    /// is wanted. `stay` makes the two keys stop at the ends instead.
+    ///
+    /// The two `next_unread_*` answers are → off the last message alone — that
+    /// is the key that means "on with the reading", and the area it goes on to
+    /// is the next one with something unread in it. ← off the first message is
+    /// reading backwards past the front of an area and leaves for the list
+    /// under all three, the area being unread whole again by then: taken on to
+    /// the next unread area it would be taken straight back into this one.
+    EdgeBehavior edgeBehavior{EdgeBehavior::Exit};
 
     /// Where entering an area from the area list lands, from
     /// `reader_lastread_auto_next`: on the message after the lastread mark, or

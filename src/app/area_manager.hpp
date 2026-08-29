@@ -107,7 +107,7 @@ public:
     /// mark is taken off it, and every message in it counts as unread again.
     ///
     /// This is where the reader is left standing *before* the first message —
-    /// ← on the first message, which `reader_edge_exit` answers by leaving the
+    /// ← on the first message, which `reader_edge` answers by leaving the
     /// area. The mark names the message last read, and there is none before
     /// the first one, so the honest mark there is no mark at all. Esc on the
     /// same message says only "out of here" and leaves the mark where reading

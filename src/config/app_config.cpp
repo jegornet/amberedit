@@ -646,6 +646,19 @@ tl::expected<CrosspostList, ErrorPtr> parseCrosspostList(const CfgEntry& entry) 
                       "' is not one of its values (raw | verbose | yes | none)");
 }
 
+tl::expected<EdgeBehavior, ErrorPtr> parseEdgeBehavior(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "exit") return EdgeBehavior::Exit;
+    if (value == "stay") return EdgeBehavior::Stay;
+    if (value == "next_unread_area") return EdgeBehavior::NextUnreadArea;
+    if (value == "next_unread_only") return EdgeBehavior::NextUnreadOnly;
+    return entry.fail(
+        "reader_edge: '" + *only +
+        "' is not one of its values (exit | stay | next_unread_area | next_unread_only)");
+}
+
 tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -1028,10 +1041,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.bbsCodesAnsi = *read;
-    } else if (key == "reader_edge_exit") {
-        auto read = entry.flag();
+    } else if (key == "reader_edge") {
+        auto read = parseEdgeBehavior(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.edgeExit = *read;
+        cfg.edgeBehavior = *read;
     } else if (key == "reader_lastread_auto_next") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
