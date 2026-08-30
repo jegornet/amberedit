@@ -12,9 +12,11 @@ namespace amberedit::config {
 ///   EchoArea localnet /ftn/msg/localnet -b squish -a 2:5020/1
 ///   netmailarea NETMAIL /ftn/msg/netmail -g A -b msg
 ///
-/// It reads EchoArea / NetmailArea / LocalArea / BadArea / DupeArea lines and
-/// the include directive. Everything else is ignored: AmberEdit only needs the
-/// area list and does not aim to understand the whole tosser config.
+/// It reads EchoArea / NetmailArea / LocalArea / BadArea / DupeArea lines, the
+/// `echoareadefaults` those inherit from, the `set` definitions that `[name]`
+/// stands for anywhere below them, and the include directive. Everything else
+/// is ignored: AmberEdit only needs the area list and does not aim to
+/// understand the whole tosser config.
 class FidoconfigParser final : public ports::IAreaConfigSource {
 public:
     explicit FidoconfigParser(std::string path);

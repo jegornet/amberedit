@@ -1,8 +1,10 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <fstream>
 
 #include "config/fidoconfig_parser.hpp"
+#include "temp_dir.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 
@@ -186,4 +188,208 @@ TEST_CASE("FidoconfigParser: an unstated base type stays Unknown [fidoconfig]") 
 TEST_CASE("FidoconfigParser throws on a missing file [fidoconfig]") {
     FidoconfigParser parser("/nonexistent/path/areas");
     CHECK_FALSE(parser.loadAreas().has_value());
+}
+
+TEST_CASE("echoareadefaults states what the areas below it inherit [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "EchoAreaDefaults -b squish -g F -d \"Fidonet echo\" -a 2:382/736 2:6000/9999\n"
+        "EchoArea a.one /ftn/one\n"
+        "EchoArea a.two /ftn/two -b jam -g L -d \"its own\" -a 2:6000/9999\n"
+        "netmailarea NETMAIL /ftn/netmail\n");
+
+    REQUIRE(areas.size() == 3);
+
+    SUBCASE("an area that states nothing takes all of it") {
+        CHECK(areas[0].type == MsgBaseType::Squish);
+        CHECK(areas[0].group == "F");
+        CHECK(areas[0].description == "Fidonet echo");
+        CHECK(areas[0].address.toString() == "2:382/736");
+        REQUIRE(areas[0].links.size() == 1);
+        CHECK(areas[0].links[0].toString() == "2:6000/9999");
+        // The path is the one thing the defaults cannot state.
+        CHECK(areas[0].path == "/ftn/one");
+    }
+
+    SUBCASE("an option on the area line overrules the default") {
+        CHECK(areas[1].type == MsgBaseType::Jam);
+        CHECK(areas[1].group == "L");
+        CHECK(areas[1].description == "its own");
+        CHECK(areas[1].address.toString() == "2:6000/9999");
+    }
+
+    SUBCASE("netmail is not echomail and inherits nothing") {
+        CHECK(areas[2].type == MsgBaseType::Unknown);
+        CHECK(areas[2].group.empty());
+        CHECK(areas[2].description.empty());
+        CHECK_FALSE(areas[2].address.isValid());
+        CHECK(areas[2].links.empty());
+    }
+}
+
+TEST_CASE("echoareadefaults also speaks for local, bad and dupe areas [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "EchoAreaDefaults -b squish -g F\n"
+        "LocalArea PERSONAL /ftn/personal\n"
+        "BadArea BAD /ftn/bad\n"
+        "DupeArea DUPES /ftn/dupes\n");
+
+    REQUIRE(areas.size() == 3);
+    for (const auto& area : areas) {
+        CHECK(area.type == MsgBaseType::Squish);
+        CHECK(area.group == "F");
+    }
+}
+
+TEST_CASE("the links of the defaults come before the area's own [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "EchoAreaDefaults 2:382/736\n"
+        "EchoArea a.one /ftn/one 2:6000/9999\n");
+
+    REQUIRE(areas.size() == 1);
+    REQUIRE(areas[0].links.size() == 2);
+    CHECK(areas[0].links[0].toString() == "2:382/736");
+    CHECK(areas[0].links[1].toString() == "2:6000/9999");
+}
+
+TEST_CASE("a second echoareadefaults replaces the first whole [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "EchoAreaDefaults -b squish -g F -d \"the first\"\n"
+        "EchoArea a.one /ftn/one\n"
+        "EchoAreaDefaults -g L\n"
+        "EchoArea a.two /ftn/two\n"
+        "EchoAreaDefaults OFF\n"
+        "EchoArea a.three /ftn/three\n"
+        "EchoAreaDefaults\n"
+        "EchoArea a.four /ftn/four\n");
+
+    REQUIRE(areas.size() == 4);
+    CHECK(areas[0].type == MsgBaseType::Squish);
+    CHECK(areas[0].description == "the first");
+
+    // The group is all the second statement says, so the type and description
+    // of the first are gone rather than kept.
+    CHECK(areas[1].group == "L");
+    CHECK(areas[1].type == MsgBaseType::Unknown);
+    CHECK(areas[1].description.empty());
+
+    // `OFF` is a word husky writes for readability; an empty statement means
+    // the same thing.
+    CHECK(areas[2].group.empty());
+    CHECK(areas[2].type == MsgBaseType::Unknown);
+    CHECK(areas[3].group.empty());
+    CHECK(areas[3].type == MsgBaseType::Unknown);
+}
+
+TEST_CASE("passthrough defaults let the area leave the path out [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "EchoAreaDefaults passthrough -g F\n"
+        "EchoArea a.one 2:382/736\n"
+        "EchoArea a.two -g L 2:6000/9999\n"
+        "EchoArea a.three /ftn/three -b squish\n");
+
+    REQUIRE(areas.size() == 3);
+
+    // A token holding a path separator is a path whatever the defaults say,
+    // which is how husky itself tells the two apart — and why an address in
+    // that position reads as one rather than as a link.
+    CHECK(areas[0].path == "2:382/736");
+    CHECK_FALSE(areas[0].isPassthrough());
+    CHECK(areas[0].group == "F");
+
+    CHECK(areas[1].isPassthrough());
+    CHECK(areas[1].path.empty());
+    CHECK(areas[1].group == "L");
+    REQUIRE(areas[1].links.size() == 1);
+    CHECK(areas[1].links[0].toString() == "2:6000/9999");
+
+    // An area that names a base of its own is not passthrough for having
+    // inherited it.
+    CHECK_FALSE(areas[2].isPassthrough());
+    CHECK(areas[2].path == "/ftn/three");
+    CHECK(areas[2].type == MsgBaseType::Squish);
+}
+
+TEST_CASE("set defines what [name] stands for [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "set base=/ftn/msg\n"
+        "set Tag = ru.linux\n"
+        "EchoArea [tag] [base]/ru.linux -b squish\n");
+
+    REQUIRE(areas.size() == 1);
+    // The name is read without regard to case, the value kept as written.
+    CHECK(areas[0].tag == "ru.linux");
+    CHECK(areas[0].path == "/ftn/msg/ru.linux");
+}
+
+TEST_CASE("set takes a quoted value and a value naming another [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "set root=/ftn\n"
+        "set base=[root]/msg\n"
+        "set what=\"Linux and everything around it\"\n"
+        "EchoArea ru.linux [base]/ru.linux -d \"[what]\"\n");
+
+    REQUIRE(areas.size() == 1);
+    // A line is expanded before it is read, so a definition may use what the
+    // definitions above it say.
+    CHECK(areas[0].path == "/ftn/msg/ru.linux");
+    CHECK(areas[0].description == "Linux and everything around it");
+}
+
+TEST_CASE("a variable nobody defined expands to nothing [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText(
+        "set base=/ftn/msg\n"
+        "EchoArea a.one [base]/one\n"
+        "set base=\n"
+        "EchoArea a.two [base]/two\n");
+
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].path == "/ftn/msg/one");
+    // An empty definition forgets the variable rather than defining it empty.
+    CHECK(areas[1].path == "/two");
+}
+
+TEST_CASE("a variable writes a literal bracket [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText("EchoArea a.one /ftn/[[]one\n");
+
+    REQUIRE(areas.size() == 1);
+    // The substitution is not looked at again, so the bracket it puts there
+    // starts nothing.
+    CHECK(areas[0].path == "/ftn/[one");
+}
+
+TEST_CASE("an unclosed bracket is a bracket [fidoconfig]") {
+    const auto areas = FidoconfigParser::parseText("EchoArea a.one /ftn/[one\n");
+
+    REQUIRE(areas.size() == 1);
+    CHECK(areas[0].path == "/ftn/[one");
+}
+
+TEST_CASE("what an include leaves behind holds for the file below it [fidoconfig]") {
+    // Both a variable and the defaults are the whole parse's, not the file's:
+    // a config that keeps its common settings in an included file and its areas
+    // in the one that includes it is the ordinary way of writing one.
+    const amberedit::test::TempDir dir;
+    const std::string common = dir.path("common");
+    const std::string config = dir.path("config");
+
+    const auto write = [](const std::string& path, const std::string& text) {
+        std::ofstream out(path);
+        out << text;
+    };
+    write(common,
+          "set base=/ftn/msg\n"
+          "EchoAreaDefaults -b squish -g F\n"
+          "EchoArea a.one [base]/one\n");
+    write(config,
+          "include common\n"
+          "EchoArea a.two [base]/two\n");
+
+    FidoconfigParser parser(config);
+    const auto areas = amberedit::test::valueOf(parser.loadAreas());
+
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].path == "/ftn/msg/one");
+    CHECK(areas[1].path == "/ftn/msg/two");
+    CHECK(areas[1].type == MsgBaseType::Squish);
+    CHECK(areas[1].group == "F");
 }

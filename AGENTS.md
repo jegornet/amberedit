@@ -2575,6 +2575,25 @@ taking a row.
   `-b squish` and leave the area with no base type. The authority is
   `parseAreaOption()` in `fidoconf/src/line.c`. A value is never allowed to start
   with `-`, as a second line of defence if the two drift apart.
+- **fidoconfig's `echoareadefaults` states what the echo, local, bad and dupe
+  areas below it inherit.** Netmail inherits nothing: the statement is
+  echomail's, and neither the group the echoes are filed under nor the base type
+  they are written in is meant for the netmail area. Each statement replaces the
+  one before it whole, so one naming nothing — or the `off` a config writes for
+  readability — is how inheriting stops. An option on the area line beats the
+  inherited one, and the area's own links come after the ones the defaults
+  named. Where the defaults say `passthrough` an area may leave its path out,
+  and the token after the tag is then a path only where it holds a separator.
+- **fidoconfig's `set <name>=<value>` defines what `[name]` stands for** in every
+  line below it, the path of an `include` among them. The definitions live for
+  the whole parse — an included file neither starts from a clean slate nor gives
+  its own back at the end — a name is matched without regard to case, and one
+  nothing defines is looked for in the process environment before it expands to
+  nothing. An empty value forgets the variable rather than defining it as empty.
+  What a variable expands to is not looked at again, which is what makes `[[]` a
+  literal bracket. **A backtick in a value is a backtick**: the format has a
+  command substitution there, and running a shell command a tosser config names
+  is not something a reader of message bases does.
 - **An area's AKA is not a link.** Both fidoconfig's `-a` and squish.cfg's `-p`
   name the address the area is presented under and take exactly one; the bare
   addresses that follow are the links. Reading `-a` as a list of links silently
