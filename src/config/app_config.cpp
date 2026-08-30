@@ -875,7 +875,15 @@ tl::expected<void, ErrorPtr> readAkas(const std::vector<const CfgEntry*>& akas,
 }
 
 /// The value of `default_charset` or `compose_charset`: a charset that names one
-/// in particular, which is more than "not empty".
+/// in particular, kept under the name iconv knows it by.
+///
+/// Both halves matter. A config may write the charset the way Fidonet writes it
+/// — `LATIN-1` is what FTS-5003 calls ISO-8859-1, and `+7_FIDO` is CP866 — and
+/// what a message is actually converted with is `iconv_open()`, which knows
+/// neither spelling. Resolved once here, so that the name every layer below
+/// this one is handed is a name iconv takes; the spelling FTS-5003 fixes comes
+/// back where it is needed, in `message_builder`'s `charsetIdentifier()`, which
+/// is the one place a CHRS kludge is written.
 ///
 /// `IBMPC` is the name that passes for a charset and is none — FTS-5003 keeps it
 /// as an obsolete level-2 name meaning "some IBM PC code page", and which one
@@ -886,19 +894,21 @@ tl::expected<void, ErrorPtr> readAkas(const std::vector<const CfgEntry*>& akas,
 ///
 /// Only the name is asked about, not the platform: whether this machine's iconv
 /// knows CP1125 is a different question, and one the config layer still leaves
-/// to the first message. See `encoding::checkCharset()`, which is what the setup
-/// wizard asks it with the user still in front of it.
+/// to the first message. A name AmberEdit has no entry for goes through as it
+/// was written, iconv having the last word on it. See `encoding::checkCharset()`,
+/// which is what the setup wizard asks with the user still in front of it.
 tl::expected<std::string, ErrorPtr> readCharset(const CfgEntry& entry) {
     auto read = entry.one();
     if (!read) return tl::make_unexpected(std::move(read).error());
     if (text::trim(*read).empty()) {
         return entry.fail(entry.key + " needs a charset, as CP866");
     }
-    if (!encoding::CharsetDetector::namesSpecificCharset(*read)) {
+    std::string resolved = encoding::CharsetDetector::normalize(*read);
+    if (resolved.empty()) {
         return entry.fail(entry.key + ": '" + *read +
                           "' names no charset in particular — say which one, as CP866");
     }
-    return *read;
+    return resolved;
 }
 
 /// One setting, read onto a config. False when the key is not a setting at all,

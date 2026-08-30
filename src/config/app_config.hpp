@@ -548,12 +548,21 @@ struct AppConfig {
     /// CHRS kludge — or one that names no particular encoding, "IBMPC" being
     /// the name that does that. Nothing else can say: no tosser config format
     /// has a per-area charset option. Required.
+    ///
+    /// Under the name iconv knows it by, whichever of its names the config was
+    /// written with: `readCharset()` resolves it as the line is read, so a
+    /// config saying `LATIN-1` arrives here as ISO-8859-1.
     std::string defaultCharset;
 
     /// Character set a message being *written* is encoded in, and that its own
     /// CHRS kludge announces. Separate from `defaultCharset` because the two
     /// answer different questions: what the echoes one reads are written in is
     /// not necessarily what one wants to write in. Required.
+    ///
+    /// An iconv name as well, and for the same reason — this is what encodes
+    /// the message. What its CHRS says is the FTS-5003 spelling of it, which
+    /// `message_builder`'s `charsetIdentifier()` writes back out: iconv calls it
+    /// ISO-8859-1 and a Fidonet message calls it LATIN-1.
     std::string composeCharset;
 
     /// Whether a reply is written in the charset the message it answers was

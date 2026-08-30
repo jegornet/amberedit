@@ -1093,7 +1093,9 @@ TEST_CASE("A message carries the settings of the area group it is written in "
     const BuildRequest inGroup{forGrouped, grouped, fields,     nullptr,
                                nullptr,    nullptr, 0x68A1B2C3, 180};
     const auto draft = buildDraft(inGroup, {});
-    CHECK(draft.charset == "LATIN-1");
+    // The charset the message is encoded in is iconv's name for it, and the
+    // CHRS below is the same charset spelled the way FTS-5003 spells it.
+    CHECK(draft.charset == "ISO-8859-1");
     CHECK(kludgesOf(draft) ==
           "MSGID: 2:382/736.1 68a1b2c3|"
           "TZUTC: 0300|"

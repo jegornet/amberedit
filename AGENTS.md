@@ -2310,6 +2310,16 @@ taking a row.
   as at the top level, so the area nobody opens today is refused today. Nothing
   below the config stands in for it: `CharsetDetector` takes the name it is
   built with and has no fallback of its own.
+- **Both are held under iconv's name for the charset, not the config's.**
+  `readCharset()` puts every value through `CharsetDetector::normalize()` as the
+  line is read, so `LATIN-1` arrives as ISO-8859-1 and `+7_FIDO` as CP866. A
+  config may write either spelling — Fidonet's names are what a reader of FTN
+  mail has to hand — and what converts a message is `iconv_open()`, which knows
+  only its own. Resolved once, where the line is, rather than at each of the
+  places that convert: those are `IconvRecoder`, `fitsCharset()` and
+  `TextSearch`, and a name that reached any of them unresolved would fail there
+  as a message written in UTF-8 bytes under a CHRS saying otherwise, which is
+  mojibake nobody could undo. The way back out is `charsetIdentifier()`.
 - **One charset per message, decided in `draftCharset()` and nowhere else.**
   `compose_charset`, unless `reply_original_charset` is on and the message
   answers one, in which case the answered message's own charset — and then only
@@ -2322,10 +2332,12 @@ taking a row.
   screen instead, and are not a contradiction — they decide where a reply goes,
   before there is a target area to ask.
 - **`charsetIdentifier()` is the only place a charset name is spelled for CHRS.**
-  A charset kept off an answered message arrives as the iconv name
-  `CharsetDetector::normalize()` produced, and FTS-5003 spells several of those
-  its own way — LATIN-1 for ISO-8859-1, MAC for MACINTOSH. The reverse table
-  lives there, beside the level `charsetLevel()` gives.
+  Every charset a message could be written in arrives as an iconv name — the
+  config resolved `compose_charset` when it read the line, and a charset kept
+  off an answered message is what `CharsetDetector::normalize()` produced — and
+  FTS-5003 spells several of those its own way: LATIN-1 for ISO-8859-1, MAC for
+  MACINTOSH. The reverse table lives there, beside the level `charsetLevel()`
+  gives.
 - **`name` and `address` are required too, and for the same kind of reason.**
   Neither is guessed: without the address a message goes out with no From
   address and an origin line ending in an empty pair of parentheses, which the

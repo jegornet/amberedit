@@ -73,7 +73,8 @@ private:
 /// two descriptors and closes them again.
 ///
 /// It is what asks the question the config layer never asks. A charset there is
-/// a word taken as it is written and only tried at the first message, which is
+/// checked for naming one in particular and put under iconv's name for it, and
+/// whether this machine has that name is left to the first message, which is
 /// right for a config somebody keeps — but the setup wizard has the user in
 /// front of it, and a typo is worth catching while there is somebody to fix it.
 [[nodiscard]] tl::expected<void, ErrorPtr> checkCharset(const std::string& charset);

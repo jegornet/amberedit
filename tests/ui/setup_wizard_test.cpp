@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,14 @@ namespace setup = amberedit::ui::setup;
 namespace term = amberedit::ui::term;
 
 namespace {
+
+/// The config as it was written, for the checks that are about the file itself
+/// and not about what reading it makes of it.
+std::string readFile(const std::string& path) {
+    std::ifstream in(path);
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
+}
 
 FtnAddress addressOf(const std::string& text) {
     const auto parsed = FtnAddress::parse(text);
@@ -391,7 +400,10 @@ TEST_CASE("the wizard writes the config it showed [setup][slow]") {
     REQUIRE(written.userAddress.has_value());
     CHECK(written.userAddress->toString() == "2:382/736.1");
     CHECK(written.tosserConfigFormat == TosserConfigFormat::AreasBbs);
-    CHECK(written.defaultCharset == "LATIN-1");
+    // The file keeps the name the wizard showed, which is the one Fidonet
+    // writes; reading it back resolves it to the one iconv answers to.
+    CHECK(contains(readFile(state.savedPath), "default_charset LATIN-1"));
+    CHECK(written.defaultCharset == "ISO-8859-1");
     CHECK(written.nodelistSources.empty());
 }
 

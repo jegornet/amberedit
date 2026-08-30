@@ -148,6 +148,26 @@ TEST_CASE("AppConfig requires both charsets [app_config]") {
     CHECK_MESSAGE(contains(error4, "default_charset needs a charset"), error4);
 }
 
+TEST_CASE("AppConfig keeps the charsets under iconv's names [app_config]") {
+    // A config writes the charset the way Fidonet writes it — LATIN-1 is what
+    // FTS-5003 calls ISO-8859-1, +7_FIDO is CP866 — and what converts a message
+    // is iconv, which knows neither spelling. Resolved as the line is read, so
+    // that nothing below the config has to remember to do it.
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(
+        "tosser_config a\ntosser_config_format hpt\n" + std::string(kName) + kAddress +
+        "default_charset LATIN-1\ncompose_charset +7_FIDO\n"));
+    CHECK(cfg.defaultCharset == "ISO-8859-1");
+    CHECK(cfg.composeCharset == "CP866");
+
+    // A name AmberEdit has no entry for is passed on as it was written, upper
+    // case: iconv is the one that gets to refuse it, and only at the first
+    // message it is asked to convert.
+    const auto unknown = amberedit::test::valueOf(AppConfig::loadFromString(
+        "tosser_config a\ntosser_config_format hpt\n" + std::string(kName) + kAddress +
+        "default_charset cp1125\ncompose_charset CP866\n"));
+    CHECK(unknown.defaultCharset == "CP1125");
+}
+
 TEST_CASE("AppConfig refuses a charset that names none in particular [app_config]") {
     // `IBMPC` is the one name in use that passes for a charset and is none:
     // FTS-5003 keeps it as "some IBM PC code page", which is CP866 in Russian
@@ -2158,8 +2178,10 @@ TEST_CASE("A group gives its areas settings of their own [app_config]") {
     CHECK(cfg.defaultCharset == "CP866");
     CHECK(cfg.effectiveFor(area("ru.linux")).defaultCharset == "CP866");
 
-    CHECK(cfg.effectiveFor(area("esp.argentina")).defaultCharset == "LATIN-1");
-    CHECK(cfg.effectiveFor(area("pt.brasil")).composeCharset == "LATIN-1");
+    // Under iconv's name for it: the group writes the charset the way Fidonet
+    // does, and what converts the message is iconv.
+    CHECK(cfg.effectiveFor(area("esp.argentina")).defaultCharset == "ISO-8859-1");
+    CHECK(cfg.effectiveFor(area("pt.brasil")).composeCharset == "ISO-8859-1");
     // And what the group says nothing about it leaves alone.
     CHECK(cfg.effectiveFor(area("esp.argentina")).userName == cfg.userName);
 }
@@ -2185,11 +2207,11 @@ TEST_CASE("Groups are laid over one another one setting at a time [app_config]")
     // Each setting comes from the most particular group that states it, so all
     // three groups have their say and none of them repeats the others.
     CHECK(resolved.originText() == "Everywhere");
-    CHECK(resolved.composeCharset == "LATIN-1");
+    CHECK(resolved.composeCharset == "ISO-8859-1");
     CHECK(resolved.userName == "Yegor Gluhov");
 
     // A sister area takes the same two and not the third.
-    CHECK(cfg.effectiveFor(area("esp.chile")).composeCharset == "LATIN-1");
+    CHECK(cfg.effectiveFor(area("esp.chile")).composeCharset == "ISO-8859-1");
     CHECK(cfg.effectiveFor(area("esp.chile")).userName == "Vasya Pupkin");
     // And one outside them both keeps the widest group's answer.
     CHECK(cfg.effectiveFor(area("ru.linux")).composeCharset == "CP866");
@@ -2389,7 +2411,7 @@ TEST_CASE("The example config's group blocks parse once uncommented [app_config]
         "endgroup\n");
 
     REQUIRE(cfg.areaGroups.size() == 2);
-    CHECK(cfg.effectiveFor(area("pt.brasil")).defaultCharset == "LATIN-1");
+    CHECK(cfg.effectiveFor(area("pt.brasil")).defaultCharset == "ISO-8859-1");
     CHECK(cfg.effectiveFor(area("r50.sysop")).userName == "Yegor Gluhov");
     // A group covers what its members name and nothing else.
     CHECK(cfg.areaGroups.front().specificityFor("esp.argentina").has_value());
