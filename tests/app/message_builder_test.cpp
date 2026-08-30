@@ -42,7 +42,7 @@ AppConfig config() {
     cfg.quoteMargin = 78;
     // The origin text is empty by default, and most of what follows is about
     // the lines round it rather than about the text itself.
-    cfg.origin = "AmberEdit test";
+    cfg.origins = {"AmberEdit test"};
     return cfg;
 }
 
@@ -513,8 +513,8 @@ TEST_CASE("The tearline and the origin say what the config asks them to [builder
     // Both are template lines: the default tearline names the program through
     // @longpid and @version rather than spelling the version out, and @pid is
     // the bare name without the system.
-    cfg.tearline = "@pid @version";
-    cfg.origin = "somewhere in @areaname";
+    cfg.tearlines = {"@pid @version"};
+    cfg.origins = {"somewhere in @areaname"};
     // The request holds the config by reference, so the checks below can go on
     // changing it.
     const BuildRequest request{cfg,     area,    fields,     nullptr,
@@ -525,20 +525,20 @@ TEST_CASE("The tearline and the origin say what the config asks them to [builder
 
     // @longpid is the same name with the system it was built for under it,
     // which is the default and what kProgramId spells out.
-    cfg.tearline = "@longpid @version";
+    cfg.tearlines = {"@longpid @version"};
     CHECK(textOf(buildDraft(request, {"hi"})) ==
           "hi|" + kTearline + "| * Origin: somewhere in test.echo (2:382/736.1)");
 
     // Nothing configured for the origin — the default — still leaves the line
     // there: an echomail message without one is one a tosser may refuse.
-    cfg.origin.clear();
+    cfg.origins.clear();
     CHECK(textOf(buildDraft(request, {"hi"})) ==
           "hi|" + kTearline + "| * Origin:  (2:382/736.1)");
 
     // An empty tearline is still a tearline, and still stops a tosser reading
     // on — so it is written with nothing after the markers rather than with a
     // trailing space.
-    cfg.tearline.clear();
+    cfg.tearlines.clear();
     CHECK(textOf(buildDraft(request, {"hi"})) == "hi|---| * Origin:  (2:382/736.1)");
 }
 

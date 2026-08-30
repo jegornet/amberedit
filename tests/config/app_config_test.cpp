@@ -1,8 +1,10 @@
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -117,7 +119,7 @@ TEST_CASE("AppConfig: minimal config and defaults [app_config]") {
     // The AKA list is the `aka` lines and nothing more: the main address is not
     // one of them, however much it is one of ours.
     CHECK(cfg.akaMatches.empty());
-    CHECK(cfg.origin.empty());
+    CHECK(cfg.origins.empty());
     CHECK(cfg.quoteString == " FL> ");
 }
 
@@ -1466,12 +1468,15 @@ TEST_CASE("AppConfig reads the date and time formats [app_config]") {
 TEST_CASE("AppConfig reads the tearline and the origin [app_config]") {
     // The default names the program through the template's own tokens, so that
     // the version is written down in one place and not here.
-    CHECK(with("").tearline == "@longpid @version");
-    CHECK(with("").origin.empty());
+    CHECK(with("").tearlineText() == "@longpid @version");
+    CHECK(with("").originText().empty());
 
-    CHECK(with("tearline \"my editor\"\n").tearline == "my editor");
-    CHECK(with("origin A BBS somewhere\n").origin == "A BBS somewhere");
-    CHECK(with("tearline \"\"\n").tearline.empty());  // "---" with nothing after it
+    CHECK(with("tearline \"my editor\"\n").tearlineText() == "my editor");
+    CHECK(with("origin A BBS somewhere\n").originText() == "A BBS somewhere");
+    // "---" with nothing after it: an empty value is a list of one empty text
+    // and not a setting that was never written.
+    CHECK(with("tearline \"\"\n").tearlineText().empty());
+    CHECK(with("tearline \"\"\n").tearlines.size() == 1);
 }
 
 TEST_CASE("AppConfig reads the import cut lines [app_config]") {
@@ -1888,7 +1893,7 @@ TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     CHECK(cfg.tosserConfigFormat == TosserConfigFormat::Fidoconfig);
     CHECK(cfg.userName == "Vasya Pupkin");
     CHECK(cfg.quoteString == " FL> ");
-    CHECK(cfg.origin == "Somewhere in the world");
+    CHECK(cfg.originText() == "Somewhere in the world");
     CHECK(cfg.areaListSort == std::vector<amberedit::config::AreaSortCriterion>{
                                   {amberedit::config::AreaSortKey::Type, false},
                                   {amberedit::config::AreaSortKey::Echoid, false}});
@@ -2131,7 +2136,7 @@ TEST_CASE("Groups are laid over one another one setting at a time [app_config]")
     const auto resolved = cfg.effectiveFor(area("esp.argentina"));
     // Each setting comes from the most particular group that states it, so all
     // three groups have their say and none of them repeats the others.
-    CHECK(resolved.origin == "Everywhere");
+    CHECK(resolved.originText() == "Everywhere");
     CHECK(resolved.composeCharset == "LATIN-1");
     CHECK(resolved.userName == "Yegor Gluhov");
 
@@ -2394,7 +2399,7 @@ TEST_CASE("AppConfig reads the twit lines [app_config]") {
     const auto cfg = with(
         "twit \"Ivan Ivanov\"\n"
         "twit Petr Petrov\n"
-        "twit 2:5030/*\n"
+        "twit 2:9999/*\n"
         "twit_subj \"*for sale*\"\n"
         "twit_to off\n"
         "twit_mode skip\n");
@@ -2409,7 +2414,7 @@ TEST_CASE("AppConfig reads the twit lines [app_config]") {
     // colon is; the name is empty exactly then.
     REQUIRE(cfg.twits[2].address.has_value());
     CHECK(cfg.twits[2].name.empty());
-    CHECK(cfg.twits[2].address->toString() == "2:5030/*");
+    CHECK(cfg.twits[2].address->toString() == "2:9999/*");
 
     REQUIRE(cfg.twitSubjects.size() == 1);
     CHECK(cfg.twitSubjects[0] == "*for sale*");
@@ -2466,10 +2471,10 @@ TEST_CASE("Any one twit line is enough to make a message one [app_config]") {
 }
 
 TEST_CASE("A twit address is a pattern over the four numbers [app_config]") {
-    const auto cfg = with("twit 2:5030/*\n");
+    const auto cfg = with("twit 2:9999/*\n");
 
-    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:5030/1042")));
-    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:5030/9999.7")));
+    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:9999/1042")));
+    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:9999/1234.7")));
     CHECK_FALSE(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:5020/1042")));
     // A message carrying no address at all — every echomail message in a JAM
     // base — is not covered by a rule about addresses.
@@ -2556,15 +2561,168 @@ TEST_CASE("The example config's twit lines parse once uncommented [app_config]")
     const auto cfg = with(
         "twit \"Ivan Ivanov\"\n"
         "twit *Spammer*\n"
-        "twit 2:5030/*\n"
+        "twit 2:9999/*\n"
         "twit_subj \"*for sale*\"\n");
 
     REQUIRE(cfg.twits.size() == 3);
     CHECK(cfg.isTwit(letter("Ivan Ivanov", "All", "x")));
     CHECK(cfg.isTwit(letter("Some Spammer Or Other", "All", "x")));
-    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:5030/1042")));
+    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:9999/1042")));
     CHECK(cfg.isTwit(letter("Petr Petrov", "All", "Everything FOR SALE")));
     CHECK_FALSE(cfg.isTwit(letter("Petr Petrov", "All", "x", "2:5020/1042")));
+}
+
+// --- values kept in a file ----------------------------------------------------
+
+namespace {
+
+/// A directory for the `@file:` lists below to stand in, together with the
+/// config that names them: a name written without a path is looked for beside
+/// the config, so the two have to share a directory.
+std::filesystem::path listDir() {
+    const auto dir = std::filesystem::temp_directory_path() / "amberedit_list_files";
+    std::filesystem::create_directories(dir);
+    return dir;
+}
+
+/// Writes one, and hands back the bare name a setting names it by.
+std::string listFile(const std::string& name, const std::string& text) {
+    std::ofstream out(listDir() / name);
+    out << text;
+    return name;
+}
+
+/// The same two helpers as above, for a config that stands in that directory
+/// rather than nowhere in particular.
+AppConfig withLists(const std::string& body) {
+    return amberedit::test::valueOf(AppConfig::loadFromString(
+        kRequired + body, (listDir() / "amberedit.cfg").string()));
+}
+
+std::string errorWithLists(const std::string& body) {
+    return amberedit::test::errorOf(AppConfig::loadFromString(
+        kRequired + body, (listDir() / "amberedit.cfg").string()));
+}
+
+}  // namespace
+
+TEST_CASE("A setting may keep its values in a file [app_config]") {
+    listFile("origins.txt",
+             "# the ones worth signing with\n"
+             "\n"
+             "Somewhere in the world\n"
+             "  A BBS behind a # and a \"quote\"  \n");
+    const auto cfg = withLists("origin @file:origins.txt\n");
+
+    // Every line of the file in its order, with the blank one and the comment
+    // left out. What is left is taken whole and trimmed and nothing else: an
+    // origin is somebody's own words, and a `#` or a quote inside one is text.
+    REQUIRE(cfg.origins.size() == 2);
+    CHECK(cfg.origins[0] == "Somewhere in the world");
+    CHECK(cfg.origins[1] == "A BBS behind a # and a \"quote\"");
+}
+
+TEST_CASE("A file of origins gives one of them to each message [app_config]") {
+    listFile("many.txt", "one\ntwo\nthree\n");
+    const auto cfg = withLists("origin @file:many.txt\n");
+
+    // Which one is not ours to say — a file of them is written exactly so that
+    // it is not — so what is checked is that every pick is one of the three and
+    // that a hundred picks are not all the same text.
+    std::set<std::string> picked;
+    for (int i = 0; i < 100; ++i) {
+        const std::string text = cfg.originText();
+        CHECK(std::find(cfg.origins.begin(), cfg.origins.end(), text) !=
+              cfg.origins.end());
+        picked.insert(text);
+    }
+    CHECK(picked.size() > 1);
+}
+
+TEST_CASE("A tearline is picked from a file the same way [app_config]") {
+    listFile("tearlines.txt", "@longpid @version\nsent from a shell\n");
+    const auto cfg = withLists("tearline @file:tearlines.txt\n");
+
+    // The default is gone rather than added to: a `@file:` line states the
+    // setting from scratch, as any other `tearline` line does.
+    REQUIRE(cfg.tearlines.size() == 2);
+    CHECK(cfg.tearlines[0] == "@longpid @version");
+    CHECK(cfg.tearlines[1] == "sent from a shell");
+}
+
+TEST_CASE("The twit lists may be kept in a file [app_config]") {
+    listFile("twit.list",
+             "# whom this system does not read\n"
+             "Ivan Ivanov\n"
+             "*Spammer*\n"
+             "2:9999/*\n");
+    listFile("twit_subj.list", "*for sale*\n*SPAM*\n");
+    const auto cfg = withLists(
+        "twit \"Petr Petrov\"\n"
+        "twit @file:twit.list\n"
+        "twit_subj @file:twit_subj.list\n");
+
+    // Added to the line's own, the keys being lists either way, and each line
+    // of the file read exactly as a `twit` line would have been: a name whole,
+    // a name with a glob in it, an address pattern.
+    REQUIRE(cfg.twits.size() == 4);
+    CHECK(cfg.isTwit(letter("Petr Petrov", "All", "x")));
+    CHECK(cfg.isTwit(letter("Ivan Ivanov", "All", "x")));
+    CHECK(cfg.isTwit(letter("Some Spammer Or Other", "All", "x")));
+    CHECK(cfg.isTwit(letter("Nobody At All", "All", "x", "2:9999/1042")));
+    CHECK_FALSE(cfg.isTwit(letter("Nobody At All", "All", "x", "2:5020/1042")));
+
+    REQUIRE(cfg.twitSubjects.size() == 2);
+    CHECK(cfg.isTwit(letter("Nobody At All", "All", "Everything FOR SALE")));
+}
+
+TEST_CASE("A list file may be named by its path [app_config]") {
+    listFile("elsewhere.list", "Ivan Ivanov\n");
+    const std::string path = (listDir() / "elsewhere.list").string();
+
+    // A name with a directory in it is taken as it stands; only a bare one is
+    // looked for beside the config. Written through a config that stands
+    // nowhere, so that "beside the config" could not have found it.
+    const auto cfg = with("twit \"@file:" + path + "\"\n");
+    REQUIRE(cfg.twits.size() == 1);
+    CHECK(cfg.twits[0].name == "Ivan Ivanov");
+}
+
+TEST_CASE("A group may keep its origins in a file too [app_config]") {
+    listFile("esp.txt", "Desde algún lugar\n");
+    const auto cfg = withLists(
+        "origin \"Somewhere in the world\"\n"
+        "group\n"
+        "  member esp.*\n"
+        "  origin @file:esp.txt\n"
+        "endgroup\n");
+
+    // Read while the config was, group lines and all, so that resolving the
+    // group for an area is a lookup: every area opened would otherwise be one
+    // more open of the file.
+    CHECK(cfg.originText() == "Somewhere in the world");
+    CHECK(cfg.effectiveFor(area("esp.argentina")).originText() == "Desde algún lugar");
+    CHECK(cfg.effectiveFor(area("ru.linux")).originText() == "Somewhere in the world");
+}
+
+TEST_CASE("A list file that cannot be read stops the config [app_config]") {
+    std::filesystem::remove(listDir() / "nowhere.txt");
+
+    // A path in a config says nothing about a file on disk, and a twit list
+    // that silently held nobody would be a config quietly reading everybody.
+    const std::string missing = errorWithLists("origin @file:nowhere.txt\n");
+    CHECK_MESSAGE(contains(missing, "origin @file:nowhere.txt"), missing);
+
+    const std::string bare = errorWithLists("twit @file:\n");
+    CHECK_MESSAGE(contains(bare, "twit @file: needs the name of the file"), bare);
+}
+
+TEST_CASE("Only the four settings that take one read a @file: [app_config]") {
+    // Everywhere else it is the text it looks like. The mark is a word about
+    // these four keys and not a shape every value in the config is read past.
+    CHECK(with("import_begin @file:x\n").importBegin == "@file:x");
+    CHECK(with("reply_to_area @file:x\n").replyToArea == "@file:x");
+    CHECK(withOwnName("name @file:x\n").userName == "@file:x");
 }
 
 // --- areas declared by hand --------------------------------------------------

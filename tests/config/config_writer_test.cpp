@@ -98,7 +98,7 @@ TEST_CASE("the sample origin does not become the user's [config_writer]") {
     const AppConfig config = valueOf(AppConfig::loadFromString(text, "written.cfg"));
 
     // It would otherwise stand at the foot of every echomail message written.
-    CHECK(config.origin.empty());
+    CHECK(config.origins.empty());
     CHECK(contains(text, "#origin \"Somewhere in the world\""));
 }
 

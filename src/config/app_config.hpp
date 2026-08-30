@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -415,6 +417,15 @@ struct ManualArea {
     domain::AreaConfig area;
     int line{0};
 };
+
+/// What one `@file:` list holds: the lines of the file, trimmed, with the blank
+/// ones and the ones a `#` opens left out.
+using ListFile = std::vector<std::string>;
+
+/// Every `@file:` list a config named, by the name as it was written. Read once
+/// while the config is loaded, because `effectiveFor()` reapplies the lines an
+/// area group states for every area opened and none of those may touch a disk.
+using ListFiles = std::map<std::string, ListFile>;
 
 /// AmberEdit's own config. The area list mostly is not duplicated here — it
 /// comes from the tosser config, and what this file adds to it are the
@@ -1449,12 +1460,29 @@ struct AppConfig {
     /// `origin`. Both are expanded as a template line, which is how the default
     /// names the program without repeating its version here.
     ///
+    /// A list because either setting may be written `@file:<name>`, and then it
+    /// holds every line of that file: one of them is picked at random for each
+    /// message — `tearlineText()` and `originText()`, which are what a message
+    /// is built from. A setting written out on the line is a list of one, and
+    /// picks the same text every time.
+    ///
     /// The origin text is empty by default: it is the writer's own words about
     /// their system, and there is nothing for us to invent. The line itself is
     /// written either way — an echomail message without one is a message a
     /// tosser may refuse.
-    std::string tearline{"@longpid @version"};
-    std::string origin;
+    std::vector<std::string> tearlines{"@longpid @version"};
+    std::vector<std::string> origins;
+
+    /// The text one message closes with: one of the lines above, picked at
+    /// random where the setting named a file holding several, and empty where
+    /// there are none at all.
+    ///
+    /// Asked once per message rather than once per config, so a file of origins
+    /// gives a different one to each message written under the same config. Not
+    /// a pure function, and deliberately: what a random origin is for is that
+    /// two messages in a row do not carry the same one.
+    [[nodiscard]] std::string tearlineText() const;
+    [[nodiscard]] std::string originText() const;
 
     /// The file a new message starts from, from `template`. Required:
     /// a template is a file we cannot invent a default for.
@@ -1488,10 +1516,26 @@ struct AppConfig {
 
     /// The directory the config was read from, which is where a file named
     /// without a path is looked for — the `@file` a `CC:` or an `XC:` command
-    /// may name its recipients in. Empty for a config that was not read from a
-    /// file at all, and then such a name is a path of its own, relative to
-    /// wherever AmberEdit was started.
+    /// may name its recipients in, and the `@file:` a setting may hold its
+    /// values in. Empty for a config that was not read from a file at all, and
+    /// then such a name is a path of its own, relative to wherever AmberEdit
+    /// was started.
     std::string configDir;
+
+    /// What every `@file:` list the config named holds, read while the config
+    /// was loaded. Null for a config built without one, which is every config
+    /// that names no such file.
+    ///
+    /// Shared rather than copied: `effectiveFor()` copies the whole config for
+    /// every area opened, and a twit list of some thousands of names is the one
+    /// thing here big enough to be worth a pointer. Nothing writes through it —
+    /// the lists are settled before the first setting is applied.
+    std::shared_ptr<const ListFiles> listFiles;
+
+    /// What the named list holds, or nullptr where the config read no such
+    /// file. Not an error either way: only the line that named the file can say
+    /// what a missing one means, and it said so while the config was read.
+    [[nodiscard]] const ListFile* listFor(const std::string& name) const;
 
     /// The user's name and address, which every config states: they are what a
     /// message is written from, and either one missing is a message that goes

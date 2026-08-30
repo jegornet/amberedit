@@ -259,7 +259,11 @@ silence and ship the old number. The tests build their expected tearline from th
 constants. The tearline and origin *texts* are the user's: `tearline` and
 `origin` are expanded as template lines (`expandTokens` in `app/msg_template`)
 and closed round by `message_builder` — `"--- " + tearline` and
-`" * Origin: " + origin + " (addr)"`.
+`" * Origin: " + origin + " (addr)"`. Both settings hold a *list*
+(`AppConfig::tearlines`/`origins`), because either may be written `@file:<name>`;
+the builder asks `tearlineText()`/`originText()`, which pick one at random, so
+neither is read as a field. See "values kept in a file" under
+[Config and area groups](#config-and-area-groups).
 
 ## Layering
 
@@ -1350,7 +1354,9 @@ decides what an occurrence is.
 
 - **The whole of what decides one is `AppConfig::isTwit()`**: the `twit` lines
   against the From name or address, against the To ones where `twit_to` is on,
-  and `twit_subj` against the subject. A `twit` line is an address exactly when
+  and `twit_subj` against the subject. A `twit @file:` line is every line of that
+  file, read through the same `twitRuleFrom()` a line of the config is, so there
+  is one answer to "what is a twit value" and not two. A `twit` line is an address exactly when
   it holds a ':' and parses as a `domain::AddressPattern`; everything else is a
   name glob, so a bare `*` is the name it was written as and not "every address
   there is". Both globs go through `text::globMatches()`, which is also what
@@ -2476,6 +2482,36 @@ taking a row.
   `key = value` — are named for what they are rather than read as odd values.
   `group ... endgroup` is read out of the flat list by `app_config.cpp`, not by
   `cfg_file.cpp`, which the themes share and where a block would mean nothing.
+- **A setting may keep its values in a file, and four of them may**: `origin`,
+  `tearline`, `twit` and `twit_subj`, written `@file:<name>` (`takesListFile()`
+  is the whitelist, so `@file:` is inert in every other value). The name is the
+  whole of the value after the mark — a bare one is resolved against
+  `cfg.configDir` — and the file is one value per line, trimmed, blank lines and
+  `#`-opened lines dropped and nothing else taken off (`listEntries()`): an
+  origin is a whole line of somebody's words, quotes and `#` and all.
+  - **Every such file is read once, by `readListFiles()`, before the first
+    setting is applied** — over the *flat* entry list, so the lines inside
+    `group` and `area` blocks are read there too. What they held lands in
+    `AppConfig::listFiles`, a `shared_ptr<const ListFiles>` because
+    `effectiveFor()` copies the whole config per area and a twit list may be
+    thousands of names. `applySetting()` then resolves through `readValues()`,
+    which is a map lookup: a group's `origin @file:` may not open a file on every
+    area opened, and `effectiveFor()` must still be unable to fail. A file
+    missing from the map — which is every file on the throwaway config
+    `isKnownSetting()` probes with — is no values rather than an error; whether
+    it opens was settled once, at load, where a failure names the line.
+  - **`cfg.configDir` is settled in `fromEntries()`**, from the name the entries
+    were parsed under, because the lists are read there. It is the config's own
+    directory for anything read off a disk and empty for a string parsed under
+    `<string>`, which then means "relative to wherever AmberEdit was started" —
+    the same rule a `CC:`/`XC:` `@file` follows.
+  - **The two signature settings pick, the two twit lists concatenate.**
+    `originText()`/`tearlineText()` answer one entry at random per call and are
+    asked once per message built, so two messages under one config need not carry
+    the same origin; a list of one skips the generator, so a config that writes
+    its origin out on the line is as deterministic as it always was. `twit` and
+    `twit_subj` are repeatable keys and a `@file:` line adds every entry to what
+    the config wrote out, a group's lines adding to the file's as ever.
 - **`amberedit.cfg.example` is a build input, not only documentation.**
   `cmake/embed_resources.cmake` puts it and `default.tpl` into the binary, and
   `config/config_writer.cpp` writes a first config by filling that sample in —

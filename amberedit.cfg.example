@@ -9,6 +9,10 @@
 # key but "aka", "akamatch", "nodelist", "echolist", "address_macro", "twit" and
 # "twit_subj" is written at most once.
 #
+# Four settings — "origin", "tearline", "twit" and "twit_subj" — may keep their
+# values in a file instead of on the line, written "@file:<name>". See "values
+# kept in a file" below; everywhere else "@file:" is the text it looks like.
+#
 # Each setting below says what it does, what it takes and what it defaults to.
 
 # --- who you are --------------------------------------------------------------
@@ -1157,6 +1161,9 @@ import_end "=== Cut ==="
 # The origin text is empty by default: it is your own words about your system.
 # The line itself is written whatever it says — an echomail message without one
 # is one a tosser may refuse — and an empty tearline goes out as "---" alone.
+#
+# Either may name a file of them instead — "origin @file:origins.txt" — and then
+# each message you write is signed with one of its lines, picked at random.
 tearline "@longpid @version"
 origin "Somewhere in the world"
 
@@ -1167,7 +1174,7 @@ origin "Somewhere in the world"
 #
 #   twit "Ivan Ivanov"        that name, whoever holds it
 #   twit *Spammer*            every name holding "Spammer"
-#   twit 2:5030/*             everything written from net 5030 of zone 2
+#   twit 2:9999/*             everything written from net 9999 of zone 2
 #   twit_subj "*for sale*"    every message about that, whoever wrote it
 #
 # A "twit" line names either a name or an FTN address, and which of the two it is
@@ -1178,6 +1185,10 @@ origin "Somewhere in the world"
 # carrying no address — which is every echomail message in a JAM base, the format
 # keeping none there — is not covered by a rule about addresses. "twit_subj" is
 # the same kind of glob over the subject line.
+#
+# A long list is better kept in a file: "twit @file:twit.list" adds every line of
+# that file to the ones written here, and "twit_subj @file:twit_subj.list" does
+# the same for the subjects.
 #twit "Ivan Ivanov"
 #twit_subj "*for sale*"
 
@@ -1205,6 +1216,39 @@ twit_to on
 # not marked, not hidden, deleted — and no confirmation is asked for. This
 # setting is the confirmation, given once here.
 twit_mode blank
+
+# --- values kept in a file ------------------------------------------------------
+#
+# Four settings may name a file to take their values from instead of writing
+# them out: "origin", "tearline", "twit" and "twit_subj". Write "@file:" and the
+# file's name after the key, and nothing else on the line.
+#
+#   origin    @file:origins.txt         a different origin on each message
+#   tearline  @file:tearlines.txt       and a different tearline
+#   twit      @file:/etc/ftn/twit.list  everyone in the file, ignored
+#   twit_subj @file:twit_subj.list      every subject in it, ignored
+#
+# A name without a directory is looked for beside this config; a name with one is
+# taken as it stands. A name with spaces in it goes in quotes like any other
+# value — origin "@file:my origins.txt".
+#
+# The file holds ONE VALUE PER LINE. A line is taken whole: nothing is split on
+# spaces, no quotes are taken off, and a "#" or a quote inside a line is text.
+# Blank lines are skipped, and so are lines a "#" opens — that being the only
+# comment such a file has.
+#
+# The two lines a message is signed with take ONE of the values, picked at random
+# each time you write a message: that is what a file of origins is for. The two
+# twit lists take ALL of them, added to whatever the config wrote out itself.
+#
+# The files are read once, when AmberEdit starts, so a file you edit while it is
+# running is picked up the next time it starts. One that cannot be read stops
+# AmberEdit there and then, naming the line: a twit list silently holding nobody
+# would be a config quietly reading everybody.
+#
+# Nowhere else does "@file:" mean anything — a "template" or a "name" beginning
+# with it is that text. (A "CC:" or an "XC:" line inside a message has a "@file"
+# of its own, spelled without the colon; see "carbon copies and crossposts".)
 
 # --- area groups --------------------------------------------------------------
 #

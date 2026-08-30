@@ -585,8 +585,8 @@ TEST_CASE(
     REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
     // In the area being read, the settings are that area's.
-    CHECK(state.areaConfig.origin == "Here at home");
-    CHECK(state.composeConfig().origin == "Here at home");
+    CHECK(state.areaConfig.originText() == "Here at home");
+    CHECK(state.composeConfig().originText() == "Here at home");
 
     message_read::handleEvent(state, Event::Character('n'));
     REQUIRE(state.areaPicker);
@@ -598,9 +598,9 @@ TEST_CASE(
     // The moment the target is picked, the message is being written under that
     // area's settings — while the reader behind it stays in its own.
     REQUIRE(state.composeArea().tag == "test.other");
-    CHECK(state.composeConfig().origin == "Over there");
+    CHECK(state.composeConfig().originText() == "Over there");
     CHECK(state.composeConfig().userName == "Someone Else");
-    CHECK(state.areaConfig.origin == "Here at home");
+    CHECK(state.areaConfig.originText() == "Here at home");
     // And the From name it was prefilled with is the target area's too.
     CHECK(state.compose.fromName == "Someone Else");
 

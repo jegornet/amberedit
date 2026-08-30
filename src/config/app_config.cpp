@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <filesystem>
+#include <memory>
+#include <optional>
+#include <random>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -673,28 +676,140 @@ tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
                       "' is not one of its values (show | blank | skip | ignore | kill)");
 }
 
-/// One `twit` line: an FTN address pattern, or a name to match whole.
+/// What a setting writes in front of the name of the file its values are in.
+constexpr std::string_view kListFileMark = "@file:";
+
+/// The keys that take one: the two lines a message is signed with, which a file
+/// of them turns into a pick, and the two twit lists, which a file of them
+/// simply lengthens.
 ///
-/// The address is tried first and only where the line holds a ':' — every FTN
+/// A whitelist, so that `@file:` stays a word about these four settings rather
+/// than a shape every value in the config has to be read past. A `template` or
+/// a `name` beginning with it is that text and nothing else.
+[[nodiscard]] bool takesListFile(const std::string& key) {
+    return key == "origin" || key == "tearline" || key == "twit" || key == "twit_subj";
+}
+
+/// The file a line names its values in — `origin @file:origins.txt` names
+/// "origins.txt" — or nothing where the line writes its value out.
+///
+/// The whole of the value after the mark, so that a name holding spaces needs
+/// no quotes of its own beyond the ones `origin "@file:my origins.txt"` already
+/// takes. An empty name is a file all the same, and the caller complains about
+/// it: `origin @file:` was somebody meaning to name one.
+[[nodiscard]] std::optional<std::string> listFileRef(const CfgEntry& entry) {
+    if (!takesListFile(entry.key) || entry.values.empty()) return std::nullopt;
+    const std::string_view first = entry.values.front();
+    if (first.size() < kListFileMark.size()) return std::nullopt;
+    if (!text::iequals(first.substr(0, kListFileMark.size()), kListFileMark)) {
+        return std::nullopt;
+    }
+    const auto joined = entry.text();  // cannot fail: the values are not empty
+    const std::string_view rest = std::string_view(*joined).substr(kListFileMark.size());
+    return std::string(text::trim(rest));
+}
+
+/// The entries a list file holds: one per line, trimmed, with the blank lines
+/// and the lines a `#` opens left out.
+///
+/// A line and not a config line: nothing is split on spaces, no quotes are
+/// taken off and a `#` further along is text. An origin is a whole line of
+/// somebody's own words, `#` and quotes and all, and only a `#` standing first
+/// is a comment — which is the one thing such a file needs to be commentable at
+/// all.
+[[nodiscard]] ListFile listEntries(std::string_view text) {
+    ListFile entries;
+    for (const auto& line : text::splitLines(text)) {
+        const std::string_view trimmed = text::trim(line);
+        if (trimmed.empty() || trimmed.front() == '#') continue;
+        entries.emplace_back(trimmed);
+    }
+    return entries;
+}
+
+/// Reads every `@file:` list the config names, once each, before a single
+/// setting is applied.
+///
+/// Over every line of the file, the lines inside `group` and `area` blocks
+/// among them: a group's `origin @file:` is read here so that resolving that
+/// group's area later is a lookup and not an open. A name without a directory
+/// is looked for beside the config, as a `CC:` line's `@file` is.
+///
+/// A file that will not open stops the config, naming the line that named it. A
+/// path in a config says nothing about a file on disk, and a twit list that
+/// silently held nobody would be a config quietly reading everybody.
+[[nodiscard]] tl::expected<ListFiles, ErrorPtr> readListFiles(
+    const std::vector<CfgEntry>& entries, const std::string& configDir) {
+    ListFiles lists;
+    for (const CfgEntry& entry : entries) {
+        const auto name = listFileRef(entry);
+        if (!name) continue;
+        if (name->empty()) {
+            return entry.fail(entry.key +
+                              " @file: needs the name of the file the values are in");
+        }
+        if (lists.count(*name) != 0) continue;
+
+        std::filesystem::path path(*name);
+        if (path.is_relative() && !configDir.empty()) {
+            path = std::filesystem::path(configDir) / path;
+        }
+        auto content = text::readFile(path.string());
+        if (!content) {
+            return entry.fail(entry.key + " @file:" + *name + ": " +
+                              content.error()->message());
+        }
+        lists.emplace(*name, listEntries(*content));
+    }
+    return lists;
+}
+
+/// The values a setting states: the file's entries where it names one, and the
+/// line's own text where it does not.
+///
+/// A file the config never read — which is every file when the setting is being
+/// read onto a throwaway config, as `isKnownSetting()` reads it — is no entries
+/// at all rather than a failure. Whether the file opens was settled once, by
+/// `readListFiles()`, and asking again here would be asking on every area
+/// opened.
+[[nodiscard]] tl::expected<ListFile, ErrorPtr> readValues(const AppConfig& cfg,
+                                                          const CfgEntry& entry) {
+    if (const auto name = listFileRef(entry)) {
+        if (const ListFile* list = cfg.listFor(*name)) return *list;
+        return ListFile{};
+    }
+    auto read = entry.text();
+    if (!read) return tl::make_unexpected(std::move(read).error());
+    return ListFile{std::move(*read)};
+}
+
+/// One of the texts, at random, or nothing where there are none.
+///
+/// The generator is seeded once and kept: a message picks a different text from
+/// the one before it, and a run picks a different sequence from the last run.
+/// A list of one is answered without touching it, which is what every config
+/// that writes its origin out on the line holds — there is nothing to pick
+/// between, and the sequence stays for the settings that do have a choice.
+[[nodiscard]] std::string pickOne(const std::vector<std::string>& texts) {
+    if (texts.empty()) return {};
+    if (texts.size() == 1) return texts.front();
+
+    static std::mt19937 generator{std::random_device{}()};
+    std::uniform_int_distribution<size_t> over(0, texts.size() - 1);
+    return texts[over(generator)];
+}
+
+/// One `twit` value: an FTN address pattern, or a name to match whole.
+///
+/// The address is tried first and only where the value holds a ':' — every FTN
 /// address states a zone, and without that a bare `*` would parse as "every
 /// address there is" and quietly stop being the name glob it was written as.
 /// Nothing that is not an address is refused: a name is what a name looks like,
-/// and there is no third thing a `twit` line could be.
-tl::expected<TwitRule, ErrorPtr> readTwit(const CfgEntry& entry) {
-    // Asked before `text()`, which would say only that the key needs a value:
-    // what a `twit` line takes is worth saying where somebody has written one
-    // and left it empty, and `twit ""` is the same mistake as a bare `twit`.
-    constexpr const char* kNeeds =
-        "twit needs a name or an FTN address, e.g. twit \"Ivan Ivanov\"";
-    if (entry.values.empty()) return entry.fail(kNeeds);
-
-    // The line as it was written, quoted or not: `twit Ivan Ivanov` and
-    // `twit "Ivan Ivanov"` are the same name, as they are for `name`.
-    auto joined = entry.text();
-    if (!joined) return tl::make_unexpected(std::move(joined).error());
-    const std::string& value = *joined;
-    if (value.empty()) return entry.fail(kNeeds);
-
+/// and there is no third thing a `twit` value could be.
+///
+/// A value and not a line, because a `twit @file:` list holds one per line and
+/// each of them is read exactly as a line of the config would have been.
+TwitRule twitRuleFrom(const std::string& value) {
     TwitRule rule;
     if (value.find(':') != std::string::npos) {
         rule.address = domain::AddressPattern::parse(value);
@@ -1079,9 +1194,22 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.replyToArea = *read;
     } else if (key == "twit") {
-        auto read = readTwit(entry);
+        // Asked before the values are read, which would say only that the key
+        // needs one: what a `twit` line takes is worth saying where somebody
+        // has written one and left it empty, and `twit ""` is the same mistake
+        // as a bare `twit`.
+        constexpr const char* kNeeds =
+            "twit needs a name or an FTN address, e.g. twit \"Ivan Ivanov\"";
+        if (entry.values.empty()) return entry.fail(kNeeds);
+        // The line as it was written, quoted or not: `twit Ivan Ivanov` and
+        // `twit "Ivan Ivanov"` are the same name, as they are for `name`. A
+        // `@file:` line is every name the file holds, added in its order.
+        auto read = readValues(cfg, entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.twits.push_back(*read);
+        for (std::string& value : *read) {
+            if (value.empty()) return entry.fail(kNeeds);
+            cfg.twits.push_back(twitRuleFrom(value));
+        }
     } else if (key == "twit_subj") {
         // A subject is one string, spaces and all, and an empty pattern would
         // cover every message carrying no subject at all — which is a great
@@ -1089,11 +1217,12 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         constexpr const char* kNeeds =
             "twit_subj needs a subject to ignore, e.g. twit_subj \"*SPAM*\"";
         if (entry.values.empty()) return entry.fail(kNeeds);
-        auto read = entry.text();
+        auto read = readValues(cfg, entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
-        std::string pattern = *read;
-        if (pattern.empty()) return entry.fail(kNeeds);
-        cfg.twitSubjects.push_back(std::move(pattern));
+        for (std::string& pattern : *read) {
+            if (pattern.empty()) return entry.fail(kNeeds);
+            cfg.twitSubjects.push_back(std::move(pattern));
+        }
     } else if (key == "twit_to") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1279,13 +1408,16 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.importEnd = *read;
     } else if (key == "tearline") {
-        auto read = entry.text();
+        // A `@file:` line puts the file's lines in place of the ones standing
+        // here, as a second `tearline` line would if the key were repeatable:
+        // one setting, one list, and a group states its own from scratch.
+        auto read = readValues(cfg, entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.tearline = *read;
+        cfg.tearlines = std::move(*read);
     } else if (key == "origin") {
-        auto read = entry.text();
+        auto read = readValues(cfg, entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.origin = *read;
+        cfg.origins = std::move(*read);
     } else {
         return false;
     }
@@ -1700,6 +1832,20 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
     // below, its value being the user's and not the catalog's.
     cfg.areaDescriptionDefault = _("no description");
 
+    // Where a file named without a path is looked for: the directory the config
+    // itself came from. Settled from the name the entries were parsed under,
+    // which is the config's path for every config read off a disk and no
+    // directory at all for one parsed from a string — and then such a name is a
+    // path of its own, relative to wherever AmberEdit was started.
+    cfg.configDir = std::filesystem::path(originName).parent_path().string();
+
+    // Before the first setting is applied, because a setting may *be* a file:
+    // `origin @file:origins.txt` has no value until that file has been read.
+    auto lists = readListFiles(entries, cfg.configDir);
+    if (!lists) return tl::make_unexpected(std::move(lists).error());
+    if (!lists->empty())
+        cfg.listFiles = std::make_shared<const ListFiles>(std::move(*lists));
+
     std::set<std::string> seen;
     std::vector<const CfgEntry*> akas;
     std::vector<Block> groupBlocks;
@@ -1869,6 +2015,20 @@ bool TwitRule::matches(std::string_view who, const domain::FtnAddress& addr) con
     return text::globMatches(name, who);
 }
 
+const ListFile* AppConfig::listFor(const std::string& name) const {
+    if (!listFiles) return nullptr;
+    const auto found = listFiles->find(name);
+    return found == listFiles->end() ? nullptr : &found->second;
+}
+
+std::string AppConfig::tearlineText() const {
+    return pickOne(tearlines);
+}
+
+std::string AppConfig::originText() const {
+    return pickOne(origins);
+}
+
 bool AppConfig::isTwit(const domain::MessageHeader& header) const {
     for (const std::string& pattern : twitSubjects) {
         if (text::globMatches(pattern, header.subject)) return true;
@@ -2017,10 +2177,6 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(const std::string& pat
     auto parsed = loadFromString(*content, path);
     if (!parsed) return tl::make_unexpected(std::move(parsed).error());
     AppConfig cfg = std::move(*parsed);
-    // Where a file named without a path is looked for. Settled here rather than
-    // in `loadFromString`, which parses a config that need not have come off a
-    // disk at all.
-    cfg.configDir = std::filesystem::path(path).parent_path().string();
 
     // The template is required, and it is read here rather than when the editor
     // is first reached: a config that cannot compose should say so at startup,

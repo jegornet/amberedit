@@ -255,8 +255,10 @@ TemplateContext contextFor(const BuildRequest& request) {
     // are expanded against the context as it stands here, in which @tearline
     // and @origin are still empty — which is what keeps a tearline that names
     // itself from asking for itself.
-    context.tearline = tearlineFrom(expandTokens(request.config.tearline, context));
-    context.origin = expandTokens(request.config.origin, context);
+    // Asked of the config rather than read off it: either setting may name a
+    // file of them, and then the text is picked afresh for this message.
+    context.tearline = tearlineFrom(expandTokens(request.config.tearlineText(), context));
+    context.origin = expandTokens(request.config.originText(), context);
     return context;
 }
 

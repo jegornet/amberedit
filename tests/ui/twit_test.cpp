@@ -344,11 +344,11 @@ TEST_CASE("A twit is one by the address it was written from [twit][squish]") {
     TempSquishBase base;
     AppConfig config = twitting(TwitMode::Skip, {});
     amberedit::config::TwitRule rule;
-    rule.address = amberedit::domain::AddressPattern::parse("2:5030/*");
+    rule.address = amberedit::domain::AddressPattern::parse("2:9999/*");
     config.twits.push_back(rule);
     AreaFixture fixture(base.path(), config);
     putMessages(fixture, {{"Petr Petrov", "All", "One", "2:5020/1042"},
-                          {"Ivan Ivanov", "All", "Two", "2:5030/1042"},
+                          {"Ivan Ivanov", "All", "Two", "2:9999/1042"},
                           {"Semen Semenov", "All", "Three", "2:5020/9999"}});
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 

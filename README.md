@@ -25,7 +25,8 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
   the areas manually using `area … endarea` blocks.
 - **Reading and writing**: reply, reply into another area, forward, move or copy 
   a message elsewhere, modify or delete. Carbon copies and crossposts
-  (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates. And `twit` keywords
+  (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates, and an origin or
+  tearline picked at random from a file of them. And `twit` keywords
   to ignore those names or subjects you won't read.
 - **Text and UUE import/export**: import a text file into a message, insert a uuencoded 
   binary file, write a message out to a text file, or extract uuencoded files from a message.
@@ -346,7 +347,8 @@ have changed and there is nothing to run by hand. See `amberedit.cfg.example`.
 Whom you would rather not read: names, FTN address patterns and subjects, listed
 globally or inside a `group … endgroup` block, and `twit_mode` says what becomes
 of one — from a notice in place of the text to deleting it as the area opens.
-See `amberedit.cfg.example`.
+A long list lives in a file of its own: `twit @file:twit.list`. See
+`amberedit.cfg.example`.
 
 ### Themes
 
