@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -122,6 +123,27 @@ inline bool iequals(std::string_view a, std::string_view b) {
         if (pattern[i] != '*') return false;
     }
     return true;
+}
+
+/// A leading `~/` opened out to the home directory, and every other path left
+/// as it stands.
+///
+/// Only a `~` standing first and followed by a slash: a `~` further along is a
+/// character of a name, and `~user` is a shell's job — a config file never goes
+/// through a shell, and this is the one form a person writing one means. Where
+/// `$HOME` is unset there is no home to put there, and the path is handed on
+/// untouched for the open to fail on and name.
+///
+/// Every path a config holds comes through here, the name a `@file:` list is
+/// written under among them: `twit @file:~/etc/twit.list` names the same file
+/// the rest of the config would name that way.
+[[nodiscard]] inline std::string expandTilde(std::string path) {
+    if (path.size() >= 2 && path[0] == '~' && path[1] == '/') {
+        if (const char* home = std::getenv("HOME")) {
+            return std::string(home) + path.substr(1);
+        }
+    }
+    return path;
 }
 
 inline std::string_view trim(std::string_view s) {

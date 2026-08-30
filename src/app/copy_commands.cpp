@@ -117,9 +117,13 @@ std::optional<CopyToken> makeToken(std::string_view raw, CopyKind kind) {
 /// A `@` inside the file is passed over rather than followed: a list that could
 /// name another list is a list that could name itself, and the whole of what
 /// this is for is keeping the names one writes to in one place.
+///
+/// A leading `~/` names the home directory, as it does in a config's paths: the
+/// list of everybody one copies to lives beside the rest of one's own files,
+/// and that is how a person writes where those are.
 void readTokenFile(const std::string& name, const std::string& fileDir, CopyKind kind,
                    CopyCommand& command) {
-    std::filesystem::path path(name);
+    std::filesystem::path path(config::text::expandTilde(name));
     if (path.is_relative() && !fileDir.empty())
         path = std::filesystem::path(fileDir) / path;
 

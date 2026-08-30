@@ -2688,6 +2688,29 @@ TEST_CASE("A list file may be named by its path [app_config]") {
     CHECK(cfg.twits[0].name == "Ivan Ivanov");
 }
 
+TEST_CASE("A list file may be named under ~ [app_config]") {
+    listFile("home.list", "Ivan Ivanov\n");
+
+    // `$HOME` pointed at the directory the file is in, so that `~/home.list`
+    // names it. Put back afterwards: the rest of the suite reads the real one.
+    const char* previous = std::getenv("HOME");
+    const std::string had = previous != nullptr ? previous : "";
+    ::setenv("HOME", listDir().string().c_str(), 1);
+
+    // Through a config that stands nowhere, so that only the `~` could have
+    // found the file.
+    const auto cfg = with("twit @file:~/home.list\n");
+
+    if (previous != nullptr) {
+        ::setenv("HOME", had.c_str(), 1);
+    } else {
+        ::unsetenv("HOME");
+    }
+
+    REQUIRE(cfg.twits.size() == 1);
+    CHECK(cfg.twits[0].name == "Ivan Ivanov");
+}
+
 TEST_CASE("A group may keep its origins in a file too [app_config]") {
     listFile("esp.txt", "Desde algún lugar\n");
     const auto cfg = withLists(

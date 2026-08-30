@@ -421,23 +421,13 @@ tl::expected<bool, ErrorPtr> checkFieldFormats(const CfgEntry& entry,
     return true;
 }
 
-/// Expands a leading "~/" to the home directory.
-std::string expandTilde(std::string path) {
-    if (path.size() >= 2 && path[0] == '~' && path[1] == '/') {
-        if (const char* home = std::getenv("HOME")) {
-            return std::string(home) + path.substr(1);
-        }
-    }
-    return path;
-}
-
 /// A path setting: the value with a leading `~/` expanded, and never the empty
 /// one. An empty path reads back as "the setting was never written", and a line
 /// that is there was meant to do something.
 tl::expected<std::string, ErrorPtr> readPath(const CfgEntry& entry, const char* what) {
     auto joined = entry.text();
     if (!joined) return tl::make_unexpected(std::move(joined).error());
-    const std::string path = expandTilde(*joined);
+    const std::string path = text::expandTilde(*joined);
     if (path.empty()) return entry.fail(entry.key + " needs the path of " + what);
     return path;
 }
@@ -453,7 +443,7 @@ tl::expected<NodelistSource, ErrorPtr> readNodelist(const CfgEntry& entry) {
             "~/ftn/nodelist/nodelist.ndl CP866");
     }
     NodelistSource source;
-    source.path = expandTilde(entry.values[0]);
+    source.path = text::expandTilde(entry.values[0]);
     if (source.path.empty()) return entry.fail("nodelist needs the path of a nodelist");
     if (entry.values.size() == 2) source.charset = entry.values[1];
     return source;
@@ -470,7 +460,7 @@ tl::expected<EcholistSource, ErrorPtr> readEcholist(const CfgEntry& entry) {
             "~/ftn/echolist/echo50.lst CP866");
     }
     EcholistSource source;
-    source.path = expandTilde(entry.values[0]);
+    source.path = text::expandTilde(entry.values[0]);
     if (source.path.empty()) return entry.fail("echolist needs the path of an echolist");
     if (entry.values.size() == 2) source.charset = entry.values[1];
     return source;
@@ -733,7 +723,13 @@ constexpr std::string_view kListFileMark = "@file:";
 /// Over every line of the file, the lines inside `group` and `area` blocks
 /// among them: a group's `origin @file:` is read here so that resolving that
 /// group's area later is a lookup and not an open. A name without a directory
-/// is looked for beside the config, as a `CC:` line's `@file` is.
+/// is looked for beside the config, as a `CC:` line's `@file` is, and a leading
+/// `~/` names the home directory, as it does in every other path a config
+/// holds.
+///
+/// The list is kept under the name as the line wrote it, `~/` and all: what a
+/// setting looks itself up by later is the text on its own line, and the two
+/// have to agree.
 ///
 /// A file that will not open stops the config, naming the line that named it. A
 /// path in a config says nothing about a file on disk, and a twit list that
@@ -750,7 +746,7 @@ constexpr std::string_view kListFileMark = "@file:";
         }
         if (lists.count(*name) != 0) continue;
 
-        std::filesystem::path path(*name);
+        std::filesystem::path path(text::expandTilde(*name));
         if (path.is_relative() && !configDir.empty()) {
             path = std::filesystem::path(configDir) / path;
         }
@@ -901,7 +897,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
     } else if (key == "tosser_config") {
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.tosserConfigPath = expandTilde(*read);
+        cfg.tosserConfigPath = text::expandTilde(*read);
     } else if (key == "tosser_config_format") {
         auto read = parseFormat(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1360,11 +1356,11 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
     } else if (key == "theme") {
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.themePath = expandTilde(*read);
+        cfg.themePath = text::expandTilde(*read);
     } else if (key == "template") {
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.templatePath = expandTilde(*read);
+        cfg.templatePath = text::expandTilde(*read);
     } else if (key == "netmail_skip_template") {
         // The line stands in place of the built-in names rather than adding to
         // them: a config that names two robots has two, and there would

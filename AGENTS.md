@@ -2485,8 +2485,10 @@ taking a row.
 - **A setting may keep its values in a file, and four of them may**: `origin`,
   `tearline`, `twit` and `twit_subj`, written `@file:<name>` (`takesListFile()`
   is the whitelist, so `@file:` is inert in every other value). The name is the
-  whole of the value after the mark — a bare one is resolved against
-  `cfg.configDir` — and the file is one value per line, trimmed, blank lines and
+  whole of the value after the mark — a leading `~/` is expanded
+  (`text::expandTilde`, which every path setting goes through) and a bare one is
+  resolved against `cfg.configDir`; the list is keyed by the name as written, so
+  that `readValues()` finds it — and the file is one value per line, trimmed, blank lines and
   `#`-opened lines dropped and nothing else taken off (`listEntries()`): an
   origin is a whole line of somebody's words, quotes and `#` and all.
   - **Every such file is read once, by `readListFiles()`, before the first
