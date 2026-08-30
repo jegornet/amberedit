@@ -146,7 +146,7 @@ TEST_CASE("The Squish test base is present in the repository [squish]") {
 
 TEST_CASE("FtnMsgBase opens a Squish base and counts messages [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
 
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
     CHECK(msgbase.isOpen());
@@ -159,7 +159,7 @@ TEST_CASE("FtnMsgBase opens a Squish base and counts messages [squish]") {
 
 TEST_CASE("FtnMsgBase reads the headers of every message [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -180,7 +180,7 @@ TEST_CASE("FtnMsgBase reads the headers of every message [squish]") {
 
 TEST_CASE("FtnMsgBase reads message bodies as UTF-8 [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -201,7 +201,7 @@ TEST_CASE("FtnMsgBase reads message bodies as UTF-8 [squish]") {
 
 TEST_CASE("FtnMsgBase keeps kludges out of the text [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     bool sawKludges = false;
@@ -217,7 +217,7 @@ TEST_CASE("FtnMsgBase keeps kludges out of the text [squish]") {
 
 TEST_CASE("FtnMsgBase keeps the body lines in base order [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
@@ -242,7 +242,7 @@ TEST_CASE("FtnMsgBase keeps the body lines in base order [squish]") {
 
 TEST_CASE("The AREA: line a packet carries is service data [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     amberedit::domain::MessageDraft draft;
@@ -275,7 +275,7 @@ TEST_CASE("The AREA: line a packet carries is service data [squish]") {
 
 TEST_CASE("FtnMsgBase adds no marker to lines that carry none [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     bool sawSeenBy = false;
@@ -293,7 +293,7 @@ TEST_CASE("FtnMsgBase adds no marker to lines that carry none [squish]") {
 
 TEST_CASE("FtnMsgBase: out-of-range indexes are safe [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -305,14 +305,14 @@ TEST_CASE("FtnMsgBase: out-of-range indexes are safe [squish]") {
 }
 
 TEST_CASE("FtnMsgBase: reading before open() does not crash [squish]") {
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     CHECK(msgbase.count() == 0);
     CHECK(msgbase.header(1).from.empty());
     CHECK(msgbase.body(1).text().empty());
 }
 
 TEST_CASE("FtnMsgBase reports a missing base [squish]") {
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     const auto opened = msgbase.open(localnetArea("/nonexistent/path/area"));
     CHECK_FALSE(opened.has_value());
     CHECK_FALSE(opened.error()->message().empty());
@@ -328,7 +328,7 @@ TEST_CASE("FtnMsgBase refuses a base that is not there [squish]") {
     area.type = MsgBaseType::Sdm;
     area.kind = amberedit::domain::AreaKind::Netmail;
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     const auto opened = msgbase.open(area);
     CHECK_FALSE(opened.has_value());
     CHECK_FALSE(opened.error()->message().empty());
@@ -358,7 +358,7 @@ TEST_CASE("FtnMsgBase opens a base on a long path [squish]") {
     REQUIRE(area.path.size() > 78);
     REQUIRE(FtnMsgBase::probeType(area.path) == MsgBaseType::Sdm);
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     CHECK(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 0);
 
@@ -371,7 +371,7 @@ TEST_CASE("FtnMsgBase refuses to open a passthrough area [squish]") {
     area.tag = "su.general";
     area.type = MsgBaseType::Passthrough;
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     const auto opened = msgbase.open(area);
     CHECK_FALSE(opened.has_value());
     CHECK_FALSE(opened.error()->message().empty());
@@ -386,7 +386,7 @@ TEST_CASE("FtnMsgBase::probeType works the format out from the files [squish]") 
 
 TEST_CASE("Squish marks a message read and keeps it so [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
     REQUIRE(msgbase.count() > 0);
 
@@ -405,7 +405,7 @@ TEST_CASE("Squish marks a message read and keeps it so [squish]") {
     CHECK(msgbase.header(1).seen);
 
     // The mark is on the disk, not in this object.
-    FtnMsgBase again;
+    FtnMsgBase again("CP866");
     REQUIRE(again.open(localnetArea(base.path())).has_value());
     CHECK(again.header(1).seen);
     CHECK_FALSE(again.header(2).seen);
@@ -418,7 +418,7 @@ TEST_CASE("A changed Squish message is still marked read [squish]") {
     // The mark belongs to this system rather than to the message: rewriting the
     // message's words does not unmake the fact that somebody has read it.
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
     REQUIRE(msgbase.count() > 0);
     REQUIRE(msgbase.markSeen(1).has_value());
@@ -439,14 +439,14 @@ TEST_CASE("FtnMsgBase opens a base with no stated type [squish]") {
     AreaConfig area = localnetArea(base.path());
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() > 0);
 }
 
 TEST_CASE("FtnMsgBase can be reopened [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
 
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
     const uint32_t first = msgbase.count();
@@ -457,7 +457,7 @@ TEST_CASE("FtnMsgBase can be reopened [squish]") {
 
 TEST_CASE("FtnMsgBase converts between positions and UIDs [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -479,7 +479,7 @@ TEST_CASE("FtnMsgBase converts between positions and UIDs [squish]") {
 
 TEST_CASE("A UID from before the base lands on nothing [squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
     REQUIRE(msgbase.count() > 0);
 
@@ -905,7 +905,7 @@ TEST_CASE("FtnMsgBase deletes a message [squish]") {
 TEST_CASE("FtnMsgBase reads the thread links, and nothing where there are none "
           "[squish]") {
     TempSquishBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
 
     // Nothing outside the area is in any thread.

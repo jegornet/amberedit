@@ -96,21 +96,10 @@ std::string baseName(std::string_view chrsValue) {
     return upper(value);
 }
 
-/// Last resort when nothing — neither the message nor the config — names a
-/// charset that can be used.
-constexpr std::string_view kFallbackCharset = "CP866";
-
-/// A default charset is a charset, so the same rules apply to it: an empty or
-/// unspecific `default_charset` cannot be handed to iconv either.
-std::string asDefault(std::string_view charset) {
-    std::string normalized = CharsetDetector::normalize(charset);
-    return normalized.empty() ? std::string(kFallbackCharset) : normalized;
-}
-
 }  // namespace
 
 CharsetDetector::CharsetDetector(std::string_view defaultCharset)
-    : defaultCharset_(asDefault(defaultCharset)) {}
+    : defaultCharset_(normalize(defaultCharset)) {}
 
 std::string CharsetDetector::extractChrsKludge(std::string_view rawBody) {
     // Kludges are lines starting with ^A. They cluster at the top of a message,

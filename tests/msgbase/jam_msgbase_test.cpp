@@ -41,7 +41,7 @@ TEST_CASE("The JAM test base is present in the repository [jam]") {
 
 TEST_CASE("FtnMsgBase opens a JAM base and counts messages [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
 
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
     CHECK(msgbase.isOpen());
@@ -54,7 +54,7 @@ TEST_CASE("FtnMsgBase opens a JAM base and counts messages [jam]") {
 
 TEST_CASE("FtnMsgBase reads a JAM header [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     const auto header = msgbase.header(1);
@@ -70,7 +70,7 @@ TEST_CASE("FtnMsgBase reads a JAM header [jam]") {
 
 TEST_CASE("FtnMsgBase reads a JAM body as UTF-8 [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
@@ -86,7 +86,7 @@ TEST_CASE("FtnMsgBase reads a JAM body as UTF-8 [jam]") {
 
 TEST_CASE("FtnMsgBase reads the JAM kludges from the subfields [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
@@ -114,7 +114,7 @@ TEST_CASE("FtnMsgBase reads the JAM kludges from the subfields [jam]") {
 
 TEST_CASE("FtnMsgBase: out-of-range indexes in a JAM base are safe [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -135,14 +135,14 @@ TEST_CASE("FtnMsgBase opens a JAM base with no stated type [jam]") {
     AreaConfig area = jamArea(base.path());
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 1);
 }
 
 TEST_CASE("FtnMsgBase converts JAM positions and UIDs both ways [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -161,7 +161,7 @@ TEST_CASE("FtnMsgBase converts JAM positions and UIDs both ways [jam]") {
 
 TEST_CASE("A lone JAM message is in no thread [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     CHECK(msgbase.thread(1).empty());
@@ -221,7 +221,7 @@ TEST_CASE("FtnMsgBase writes a message into a JAM base and reads it back [jam]")
 
 TEST_CASE("FtnMsgBase deletes a message from a JAM base [jam]") {
     TempJamBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(jamArea(base.path())).has_value());
 
     const uint32_t before = msgbase.count();

@@ -116,7 +116,7 @@ TEST_CASE("An info report is only ever of a message that is there [info][squish]
     CHECK(msgbase.info(msgbase.count() + 1).empty());
 
     // And there is nothing to report at all with no area open.
-    FtnMsgBase closed;
+    FtnMsgBase closed("CP866");
     CHECK(closed.info(1).empty());
 }
 

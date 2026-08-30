@@ -2304,7 +2304,12 @@ taking a row.
   announces. Neither has a default: a guess would be a silent mojibake in
   whichever direction it guessed wrong, so `fromEntries()` fails when either is
   missing, alongside the check that there is an area list at all —
-  `tosser_config`, `area ... endarea` blocks, or both.
+  `tosser_config`, `area ... endarea` blocks, or both. Each has to name a
+  charset in particular as well, `readCharset()` being what asks — a line that
+  names none is refused where it stands, in a `group ... endgroup` block as much
+  as at the top level, so the area nobody opens today is refused today. Nothing
+  below the config stands in for it: `CharsetDetector` takes the name it is
+  built with and has no fallback of its own.
 - **One charset per message, decided in `draftCharset()` and nowhere else.**
   `compose_charset`, unless `reply_original_charset` is on and the message
   answers one, in which case the answered message's own charset — and then only
@@ -2335,7 +2340,9 @@ taking a row.
   CP866 in Russian echoes, CP437 or CP850 in western ones, CP852 in central
   Europe. `normalize()` returns an empty string for it, as for a value that is
   not there at all, and `detect()` falls back to the default. Mapping it to CP866
-  silently mojibakes every western area that writes it.
+  silently mojibakes every western area that writes it. `default_charset IBMPC`
+  is the same name with nothing left to fall back to, and so it is a config the
+  parser refuses rather than a charset something further down invents.
 - **Both are per-area, and an area group is where that comes from.** No tosser
   config format states a charset — husky fidoconfig has no `-charset` option
   (grep its sources and `doc/`: the word does not appear), and neither do

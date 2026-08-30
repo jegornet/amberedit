@@ -27,13 +27,14 @@ public:
     /// @param defaultCharset charset a message being read is decoded from when
     ///        it has no CHRS kludge, or one naming nothing particular
     ///        ("IBMPC"). Reading only — a message is written in the charset its
-    ///        own draft names, which compose_charset decides.
+    ///        own draft names, which compose_charset decides. Required, and it
+    ///        is `default_charset` resolved for the area: no charset is guessed
+    ///        here, and the config refuses one that names none.
     /// @param fieldLimits whether the From, To and Subject of a message being
     ///        written are cut to the room FTS-0001 keeps for them, from
     ///        `compose_fts1_field_limits`. See encode(), which is where the cut is
     ///        made and where the bytes it counts are known.
-    explicit FtnMsgBase(std::string_view defaultCharset = "CP866",
-                        bool fieldLimits = true);
+    explicit FtnMsgBase(std::string_view defaultCharset, bool fieldLimits = true);
     ~FtnMsgBase() override;
 
     FtnMsgBase(const FtnMsgBase&) = delete;

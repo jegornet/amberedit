@@ -16,6 +16,7 @@
 #include "config/cfg_file.hpp"
 #include "config/text_util.hpp"
 #include "domain/message.hpp"
+#include "encoding/charset_detector.hpp"
 #include "i18n/i18n.hpp"
 
 namespace amberedit::config {
@@ -873,6 +874,33 @@ tl::expected<void, ErrorPtr> readAkas(const std::vector<const CfgEntry*>& akas,
     return {};
 }
 
+/// The value of `default_charset` or `compose_charset`: a charset that names one
+/// in particular, which is more than "not empty".
+///
+/// `IBMPC` is the name that passes for a charset and is none — FTS-5003 keeps it
+/// as an obsolete level-2 name meaning "some IBM PC code page", and which one
+/// depends on where the message came from. A config stating it says nothing, and
+/// a reader that filled the nothing in would be guessing CP866 at a western echo.
+/// Refused here rather than worked around downstream: `CharsetDetector` is built
+/// with `default_charset` and has nowhere better to fall back to either.
+///
+/// Only the name is asked about, not the platform: whether this machine's iconv
+/// knows CP1125 is a different question, and one the config layer still leaves
+/// to the first message. See `encoding::checkCharset()`, which is what the setup
+/// wizard asks it with the user still in front of it.
+tl::expected<std::string, ErrorPtr> readCharset(const CfgEntry& entry) {
+    auto read = entry.one();
+    if (!read) return tl::make_unexpected(std::move(read).error());
+    if (text::trim(*read).empty()) {
+        return entry.fail(entry.key + " needs a charset, as CP866");
+    }
+    if (!encoding::CharsetDetector::namesSpecificCharset(*read)) {
+        return entry.fail(entry.key + ": '" + *read +
+                          "' names no charset in particular — say which one, as CP866");
+    }
+    return *read;
+}
+
 /// One setting, read onto a config. False when the key is not a setting at all,
 /// which is the caller's to complain about: the same line is refused with a
 /// different message at the top level and inside a group.
@@ -949,11 +977,11 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.errorLogPath = *read;
     } else if (key == "default_charset") {
-        auto read = entry.one();
+        auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.defaultCharset = *read;
     } else if (key == "compose_charset") {
-        auto read = entry.one();
+        auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeCharset = *read;
     } else if (key == "lastread_user") {
@@ -1919,7 +1947,9 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
     // Both charsets are stated, and neither stands in for the other: what the
     // echoes one reads are written in says nothing about what one wants to
     // write in, and a default guessed here would be a silent mojibake in
-    // whichever of the two directions it guessed wrong.
+    // whichever of the two directions it guessed wrong. That the name each of
+    // them states means a charset in particular is settled at the line itself,
+    // in readCharset(), where a group's lines pass as well.
     if (cfg.defaultCharset.empty()) {
         return failure(
             originName +

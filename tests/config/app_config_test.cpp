@@ -142,9 +142,42 @@ TEST_CASE("AppConfig requires both charsets [app_config]") {
     CHECK_MESSAGE(contains(error3, "default_charset is not set"), error3);
     CHECK(reason("default_charset CP866\ncompose_charset UTF-8\n").empty());
 
-    // An empty value is not a way to leave one out either.
+    // An empty value is not a way to leave one out either. It is refused at the
+    // line rather than at the end of the file, so the complaint can name it.
     const std::string error4 = reason("default_charset \"\"\ncompose_charset CP866\n");
-    CHECK_MESSAGE(contains(error4, "default_charset is not set"), error4);
+    CHECK_MESSAGE(contains(error4, "default_charset needs a charset"), error4);
+}
+
+TEST_CASE("AppConfig refuses a charset that names none in particular [app_config]") {
+    // `IBMPC` is the one name in use that passes for a charset and is none:
+    // FTS-5003 keeps it as "some IBM PC code page", which is CP866 in Russian
+    // echoes and CP437 or CP850 in western ones. Taken, it would have to be
+    // guessed at somewhere further down — in `CharsetDetector`, which is built
+    // with `default_charset` and has no better answer than the config does.
+    const std::string base =
+        "tosser_config a\ntosser_config_format hpt\n" + std::string(kName) + kAddress;
+    const auto reason = [&base](const std::string& rest) {
+        return amberedit::test::errorOf(AppConfig::loadFromString(base + rest));
+    };
+
+    const std::string read = reason("default_charset IBMPC\ncompose_charset CP866\n");
+    CHECK_MESSAGE(contains(read, "names no charset in particular"), read);
+    const std::string write = reason("default_charset CP866\ncompose_charset ibmpc\n");
+    CHECK_MESSAGE(contains(write, "names no charset in particular"), write);
+
+    // A group states charsets for the areas it covers, and its lines are read
+    // by the same code — so the area nobody opens today is refused today.
+    const std::string grouped = reason(
+        "default_charset CP866\ncompose_charset CP866\n"
+        "group\n"
+        "  member esp.*\n"
+        "  default_charset IBMPC\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(grouped, "names no charset in particular"), grouped);
+
+    // A name AmberEdit does not know is another matter: it is passed to iconv
+    // as it stands, and iconv is asked at the first message, not here.
+    CHECK(reason("default_charset CP1125\ncompose_charset +7_FIDO\n").empty());
 }
 
 TEST_CASE("AppConfig requires the name and the address [app_config]") {

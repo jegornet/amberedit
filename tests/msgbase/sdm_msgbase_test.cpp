@@ -96,7 +96,7 @@ TEST_CASE("The Fido *.msg test base is present in the repository [sdm]") {
 
 TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
 
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
     CHECK(msgbase.isOpen());
@@ -109,7 +109,7 @@ TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
 
 TEST_CASE("FtnMsgBase reads a Fido *.msg header [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const auto header = msgbase.header(1);
@@ -135,7 +135,7 @@ TEST_CASE("FtnMsgBase reads a Fido *.msg header [sdm]") {
 
 TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
@@ -149,7 +149,7 @@ TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [sdm]") {
 
 TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const auto body = msgbase.body(1);
@@ -178,7 +178,7 @@ TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [sdm]") {
 
 TEST_CASE("FtnMsgBase: out-of-range indexes in a *.msg base are safe [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const uint32_t total = msgbase.count();
@@ -199,14 +199,14 @@ TEST_CASE("FtnMsgBase opens a *.msg base with no stated type [sdm]") {
     AreaConfig area = netmailArea(base.path());
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(area).has_value());
     CHECK(msgbase.count() == 1);
 }
 
 TEST_CASE("A *.msg UID is the number in the file name [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     // The one message in the fixture lives in 198.msg, and that number is its
@@ -223,7 +223,7 @@ TEST_CASE("A *.msg UID is the number in the file name [sdm]") {
 
 TEST_CASE("A lone *.msg message is in no thread [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     CHECK(msgbase.thread(1).empty());
@@ -328,7 +328,7 @@ TEST_CASE("A *.msg carrying only the ASCII date is read with it [sdm]") {
     // Written before the base is opened: the scan at open() is what finds it.
     writeAsciiDatedMsg(base.dir() / "200.msg");
 
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
     REQUIRE(msgbase.count() == 2);
 
@@ -376,7 +376,7 @@ TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {
 
 TEST_CASE("FtnMsgBase deletes a message from a *.msg base [sdm]") {
     TempSdmBase base;
-    FtnMsgBase msgbase;
+    FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
     const uint32_t before = msgbase.count();

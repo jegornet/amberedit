@@ -57,7 +57,7 @@ MessageDraft firstMessage() {
 /// Makes the base, opens it, writes one message and reads it back through a
 /// second open — the round trip every format has to pass alike.
 void checkCreatedBaseTakesAMessage(const AreaConfig& area) {
-    FtnMsgBase created;
+    FtnMsgBase created("CP866");
     REQUIRE(created.create(area).has_value());
     // Creating leaves the base on disk and the adapter closed on it: what is
     // read afterwards is the base as it stands, not as create() imagined it.
@@ -65,13 +65,13 @@ void checkCreatedBaseTakesAMessage(const AreaConfig& area) {
     CHECK(FtnMsgBase::probeType(area.path) == area.type);
     CHECK_FALSE(FtnMsgBase::isAbsent(area));
 
-    FtnMsgBase base;
+    FtnMsgBase base("CP866");
     REQUIRE(base.open(area).has_value());
     CHECK(base.count() == 0);
     REQUIRE(valueOf(base.write(firstMessage())) == 1);
     base.close();
 
-    FtnMsgBase again;
+    FtnMsgBase again("CP866");
     REQUIRE(again.open(area).has_value());
     REQUIRE(again.count() == 1);
     CHECK(again.header(1).subject == "The first message");
@@ -104,7 +104,8 @@ TEST_CASE("Creating a base makes the files its format is read through "
 
     SUBCASE("Squish") {
         const std::string path = dir.path("fresh");
-        REQUIRE(FtnMsgBase().create(areaAt(path, MsgBaseType::Squish)).has_value());
+        REQUIRE(
+            FtnMsgBase("CP866").create(areaAt(path, MsgBaseType::Squish)).has_value());
         CHECK(fs::exists(path + ".sqd"));
         CHECK(fs::exists(path + ".sqi"));
         // The index holds one record per message, and there are none.
@@ -112,7 +113,7 @@ TEST_CASE("Creating a base makes the files its format is read through "
     }
     SUBCASE("JAM") {
         const std::string path = dir.path("fresh");
-        REQUIRE(FtnMsgBase().create(areaAt(path, MsgBaseType::Jam)).has_value());
+        REQUIRE(FtnMsgBase("CP866").create(areaAt(path, MsgBaseType::Jam)).has_value());
         CHECK(fs::exists(path + ".jhr"));
         CHECK(fs::exists(path + ".jdx"));
         CHECK(fs::exists(path + ".jdt"));
@@ -121,7 +122,7 @@ TEST_CASE("Creating a base makes the files its format is read through "
     }
     SUBCASE("Fido *.msg") {
         const std::string path = dir.path("fresh");
-        REQUIRE(FtnMsgBase().create(areaAt(path, MsgBaseType::Sdm)).has_value());
+        REQUIRE(FtnMsgBase("CP866").create(areaAt(path, MsgBaseType::Sdm)).has_value());
         CHECK(fs::is_directory(path));
     }
 }
@@ -134,13 +135,13 @@ TEST_CASE("A base that is already there is never created over [create]") {
 
     CHECK_FALSE(FtnMsgBase::isAbsent(area));
 
-    FtnMsgBase base;
+    FtnMsgBase base("CP866");
     const auto made = base.create(area);
     CHECK_FALSE(made.has_value());
     CHECK_FALSE(made.error()->message().empty());
 
     // And it is still the base it was.
-    FtnMsgBase reader;
+    FtnMsgBase reader("CP866");
     REQUIRE(reader.open(area).has_value());
     CHECK(reader.count() > 0);
 }
@@ -152,7 +153,7 @@ TEST_CASE("An area with no stated type is not one to create [create]") {
     const AreaConfig area = areaAt(dir.path("fresh"), MsgBaseType::Unknown);
 
     CHECK_FALSE(FtnMsgBase::isAbsent(area));
-    FtnMsgBase base;
+    FtnMsgBase base("CP866");
     const auto made = base.create(area);
     CHECK_FALSE(made.has_value());
     CHECK_FALSE(made.error()->message().empty());
@@ -164,7 +165,7 @@ TEST_CASE("A passthrough area has no base to create [create]") {
     area.type = MsgBaseType::Passthrough;
 
     CHECK_FALSE(FtnMsgBase::isAbsent(area));
-    FtnMsgBase base;
+    FtnMsgBase base("CP866");
     CHECK_FALSE(base.create(area).has_value());
 }
 
@@ -179,7 +180,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
     const std::string path = blocked + "/fresh";
 
     SUBCASE("Squish") {
-        FtnMsgBase base;
+        FtnMsgBase base("CP866");
         const auto made = base.create(areaAt(path, MsgBaseType::Squish));
         CHECK_FALSE(made.has_value());
         CHECK_FALSE(made.error()->message().empty());
@@ -187,7 +188,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
         CHECK_FALSE(present(path + ".sqi"));
     }
     SUBCASE("JAM") {
-        FtnMsgBase base;
+        FtnMsgBase base("CP866");
         const auto made = base.create(areaAt(path, MsgBaseType::Jam));
         CHECK_FALSE(made.has_value());
         CHECK_FALSE(made.error()->message().empty());
@@ -196,7 +197,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
         CHECK_FALSE(present(path + ".jdt"));
     }
     SUBCASE("Fido *.msg") {
-        FtnMsgBase base;
+        FtnMsgBase base("CP866");
         const auto made = base.create(areaAt(path, MsgBaseType::Sdm));
         CHECK_FALSE(made.has_value());
         CHECK_FALSE(made.error()->message().empty());

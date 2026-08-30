@@ -57,13 +57,13 @@ TEST_CASE("CharsetDetector: the default is the area's own [charset]") {
     CHECK(detector.detect(std::string(1, kSoh) + "CHRS: KOI8-R 2\rtext\r") == "KOI8-R");
 }
 
-TEST_CASE("CharsetDetector: a default that names nothing usable [charset]") {
-    // `default_charset = "IBMPC"` in the config is no better an answer than the
-    // kludge is; iconv_open() would fail on an empty name, so CP866 stands in.
-    CHECK(CharsetDetector("IBMPC").defaultCharset() == "CP866");
-    CHECK(CharsetDetector("").defaultCharset() == "CP866");
-    // Aliases are resolved once, in the constructor.
+TEST_CASE("CharsetDetector: the default has its aliases resolved [charset]") {
+    // Once, in the constructor, so that what detect() answers with is a name
+    // iconv takes however the config spelled it. A default that names no
+    // charset in particular never arrives: the config refuses
+    // `default_charset IBMPC` at the line, and nothing is guessed here.
     CHECK(CharsetDetector("windows-1251").defaultCharset() == "CP1251");
+    CHECK(CharsetDetector("+7_FIDO").defaultCharset() == "CP866");
 }
 
 TEST_CASE("CharsetDetector finds the CHRS kludge [charset]") {
@@ -97,6 +97,6 @@ TEST_CASE("CharsetDetector: no CHRS falls back to the default [charset]") {
     const CharsetDetector detector("KOI8-R");
     CHECK(detector.detect("plain text with no kludges") == "KOI8-R");
 
-    const CharsetDetector defaultDetector;
-    CHECK(defaultDetector.detect("text") == "CP866");
+    const CharsetDetector other("CP866");
+    CHECK(other.detect("text") == "CP866");
 }

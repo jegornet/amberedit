@@ -19,11 +19,13 @@ namespace amberedit::encoding {
 class CharsetDetector {
 public:
     /// @param defaultCharset used when there is no other indication (CP866 as
-    ///        a rule). One that names nothing usable falls back to CP866.
-    explicit CharsetDetector(std::string_view defaultCharset = "CP866");
+    ///        a rule). It has to name a charset in particular — the config
+    ///        refuses `default_charset IBMPC` at the line that states it, and
+    ///        there is nothing to guess here that would not be a guess.
+    explicit CharsetDetector(std::string_view defaultCharset);
 
-    /// The default in force, as the constructor settled it: aliases resolved,
-    /// and a name identifying no particular encoding replaced by CP866.
+    /// The default in force, as the constructor settled it: the same name with
+    /// its aliases resolved, `+7_FIDO` arriving as CP866.
     [[nodiscard]] std::string defaultCharset() const;
 
     /// Returns a charset name suitable for iconv_open().
