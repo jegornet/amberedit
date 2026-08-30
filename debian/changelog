@@ -1,3 +1,13 @@
+amberedit (0.6-1) unstable; urgency=low
+
+  * Read echoareadefaults and set from fidoconfig
+  * arealist_first_unread config option
+  * quote_unwrap config option
+  * reader_edge replaces reader_edge_exit (breaking change)
+  * timezone in template
+
+ -- Yegor Gluhov <git@jegor.net>  Sun, 30 Aug 2026 12:00:00 +0000
+
 amberedit (0.5.3-1) unstable; urgency=low
 
   * Area sidebar tree

@@ -193,7 +193,7 @@ msgstr ""
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: AmberEdit 0.5.3\n"
+"Project-Id-Version: AmberEdit 0.6\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
 "POT-Creation-Date: 2026-08-28 23:02+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
