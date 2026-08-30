@@ -27,6 +27,10 @@ enum class SpecKind {
     /// the `Z99` in `~/ftn/nodelist/Z2PNT.Z99` standing for whichever that is;
     /// `.Z*` is the same pattern written as a wildcard. The nodelist is the file
     /// inside it whose name is the archive's own with a day number after it.
+    ///
+    /// This is the *pattern*, not the whole of what is unpacked: whether the
+    /// file that was found is an archive is its own name's to say, so an
+    /// `Exact` line naming `~/nodelist/MICRONET.ZIP` is unpacked as well.
     ZipArchive,
 };
 
@@ -121,6 +125,12 @@ struct SourceState {
 
 /// Reads the nodelists a config names, unpacking the ones that come zipped and
 /// decoding them into UTF-8.
+///
+/// **Whether what was found is an archive is its own name's to say** — a `.zip`
+/// or a `.Z19` — and not the line's. `Z2PNT.Z99` is the pattern for a
+/// day-numbered distribution, and a `MICRONET.ZIP` that is replaced in place is
+/// named outright and unpacked all the same. What stands inside is the archive's
+/// own name with a day number after it either way.
 ///
 /// The unpacking is what this class is for: an archive is unpacked **without
 /// paths** into the temporary directory — only the entry that carries the

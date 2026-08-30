@@ -291,6 +291,45 @@ TEST_CASE("a zipped pointlist is unpacked without paths and taken away again "
     CHECK(fs::is_empty(temporary));
 }
 
+TEST_CASE("an archive named outright is unpacked all the same [nodelist]") {
+    test::TempDir dir;
+    const std::string temporary = dir.path("tmp");
+
+    // A distribution that is replaced in place rather than day-numbered —
+    // `MICRONET.ZIP` holding `MICRONET.240` — is named by its own name, and
+    // there is no sentinel to write for it. What was found says it is an
+    // archive; the line that found it does not have to.
+    const std::string archive = dir.path("Z2PNT.ZIP");
+    fs::copy_file(test::projectPath("testdata/nodelist/Z2PNT.Z19"), archive);
+
+    nodelist::NodelistSources sources(temporary);
+    const auto loaded = amberedit::test::valueOf(sources.read(archive, ""));
+
+    CHECK(fs::path(loaded.archive).filename() == "Z2PNT.ZIP");
+    CHECK(fs::path(loaded.readFrom).filename() == "Z2PNT.219");
+    CHECK(fs::path(loaded.readFrom).parent_path() == fs::path(temporary));
+    CHECK(config::text::startsWith(loaded.text, ";A Zone 2 Fidonet pointlist"));
+
+    // The state is the archive itself, as it is for a `.Z99` line: that is the
+    // file a start can stat without unpacking anything.
+    CHECK(loaded.state.path == archive);
+    CHECK(loaded.state.size == fs::file_size(archive));
+}
+
+TEST_CASE("a counter-numbered archive named outright is unpacked too [nodelist]") {
+    test::TempDir dir;
+    nodelist::NodelistSources sources(dir.path("tmp"));
+
+    // `Z2PNT.Z19` and not `Z2PNT.Z99`: the line names one particular archive
+    // and no pattern at all, and it is still an archive.
+    const auto loaded = amberedit::test::valueOf(
+        sources.read(test::projectPath("testdata/nodelist/Z2PNT.Z19"), ""));
+
+    CHECK(fs::path(loaded.archive).filename() == "Z2PNT.Z19");
+    CHECK(fs::path(loaded.readFrom).filename() == "Z2PNT.219");
+    CHECK(config::text::startsWith(loaded.text, ";A Zone 2 Fidonet pointlist"));
+}
+
 TEST_CASE("the wildcard spellings find the same files in testdata [nodelist]") {
     test::TempDir dir;
     nodelist::NodelistSources sources(dir.path("tmp"));
@@ -318,8 +357,9 @@ TEST_CASE("the wildcard spellings find the same files in testdata [nodelist]") {
     CHECK(fs::path(globbed.readFrom).filename() == "Z2PNT.219");
 }
 
-TEST_CASE("a config naming no tmpdir unpacks under the system's temporary directory "
-          "[nodelist]") {
+TEST_CASE(
+    "a config naming no tmpdir unpacks under the system's temporary directory "
+    "[nodelist]") {
     // The system's own temporary directory is what `tmpdir` falls back on, and
     // $TMPDIR is what says where that is — so pointing it at a directory of the
     // test's own is the whole of standing in for a machine here.
@@ -332,9 +372,8 @@ TEST_CASE("a config naming no tmpdir unpacks under the system's temporary direct
 
     {
         nodelist::NodelistSources sources("");
-        const auto loaded =
-            amberedit::test::valueOf(sources.read(
-                test::projectPath("testdata/nodelist/Z2PNT.Z99"), ""));
+        const auto loaded = amberedit::test::valueOf(
+            sources.read(test::projectPath("testdata/nodelist/Z2PNT.Z99"), ""));
 
         CHECK(fs::path(loaded.readFrom).filename() == "Z2PNT.219");
         CHECK(fs::path(loaded.readFrom).parent_path() == fs::path(expected));
@@ -347,8 +386,9 @@ TEST_CASE("a config naming no tmpdir unpacks under the system's temporary direct
     CHECK(fs::is_empty(expected));
 }
 
-TEST_CASE("a directory that cannot be worked in says what it was wanted for "
-          "[nodelist]") {
+TEST_CASE(
+    "a directory that cannot be worked in says what it was wanted for "
+    "[nodelist]") {
     // What is wrong with the directory is `makeTempDir`'s to say — the cases are
     // its own tests — and which nodelist wanted one is what the message would be
     // missing without this. A machine whose $TMPDIR is not a directory has

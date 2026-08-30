@@ -160,6 +160,7 @@ lastread_user 0
 # pointlist one, and no setting says which is which. Three ways of naming one:
 #
 #   ~/ftn/nodelist/nodelist.ndl   a file, by its name
+#   ~/ftn/nodelist/NODELIST.ZIP   a zipped nodelist
 #   ~/ftn/nodelist/Z2DAILY.999    the newest of the files whose extension is a
 #                                 day number, 001 to 366 ("999" is not a day of
 #                                 any year, which is what makes it the pattern)

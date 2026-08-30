@@ -57,6 +57,17 @@ std::string_view extensionOf(std::string_view name) {
     return dot == std::string_view::npos ? std::string_view{} : name.substr(dot + 1);
 }
 
+/// Whether the file that was found is a zip archive, by its own name: the `.Z19`
+/// a day-numbered distribution carries, or the plain `.zip` an archive that is
+/// replaced in place is named with. The line that found it does not decide this
+/// — `MICRONET.ZIP` is named outright and is an archive all the same, and the
+/// echolist has settled it this way from the start.
+bool isArchiveName(std::string_view name) {
+    const std::string_view extension = extensionOf(name);
+    return config::text::iequals(extension, "zip") ||
+           archiveNumber(extension).has_value();
+}
+
 std::string_view stemOf(std::string_view name) {
     const size_t dot = name.find_last_of('.');
     return dot == std::string_view::npos ? name : name.substr(0, dot);
@@ -296,7 +307,8 @@ tl::expected<NodelistSources::Loaded, ErrorPtr> NodelistSources::read(
         state.size = file->size;
     }
 
-    if (pattern.kind == SpecKind::ZipArchive) {
+    if (pattern.kind == SpecKind::ZipArchive ||
+        isArchiveName(fs::path(*found).filename().string())) {
         return readArchive(pattern, state, charset);
     }
     auto text = readWholeFile(*found);

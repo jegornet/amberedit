@@ -2985,7 +2985,11 @@ The pieces, in the order the work goes through them:
   wildcards and mean exactly what `.999` and `.Z99` mean; a wildcard against any
   other extension leaves the kind `Exact` and globs the whole filename.
   Directories are never globbed — a pattern over them would be a pattern over
-  whose nodelist this is. **Newest is the modification time, with the higher
+  whose nodelist this is. **Whether what was found is an archive is its own
+  name's to say** — a `.zip` or a `.Z19` — and not the line's, as it is for the
+  echolist: `Z2PNT.Z99` is the pattern for a day-numbered distribution, and a
+  `MICRONET.ZIP` that is replaced in place is named outright and unpacked all
+  the same. **Newest is the modification time, with the higher
   number breaking a tie**, and the later filename after that, so that two files
   a loose stem matched cannot depend on the order a directory listing handed
   them over in — the number alone is wrong for the week after New
