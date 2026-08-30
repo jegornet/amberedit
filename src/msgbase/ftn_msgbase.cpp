@@ -81,6 +81,43 @@ std::unique_ptr<FormatDriver> makeDriver(MsgBaseType type) {
     return nullptr;
 }
 
+/// What FTS-0001 leaves for the text of a header field in a packed message: it
+/// keeps 36 bytes for either name and 72 for the subject, the terminating zero
+/// among them. The same room the stored message has, and the same numbers
+/// Squish and Fido *.msg lay their fixed fields out by.
+constexpr size_t kNameBytes = 35;
+constexpr size_t kSubjectBytes = 71;
+
+/// The start of the character `pos` stands in the middle of, or `pos` itself
+/// where it already begins one. UTF-8 continuation bytes are the only ones with
+/// their top two bits at 10, so walking back over them lands on a lead byte.
+size_t charStart(const std::string& text, size_t pos) {
+    while (pos > 0 && (static_cast<unsigned char>(text[pos]) & 0xC0) == 0x80) --pos;
+    return pos;
+}
+
+/// The field encoded in `charset` and cut to `capacity` bytes: the longest run
+/// of whole characters from the front of it that fits.
+///
+/// The cut is made on the UTF-8 side and the text encoded again, rather than
+/// taken off the encoded bytes, because a byte count lands inside a character
+/// in every charset that spells one in more than one byte — UTF-8 being one a
+/// message may well be written in, and one where a field ending in half a
+/// character is a field no reader can make anything of. Which character the
+/// cut falls after is a question only the encoder can answer, since what a
+/// character costs is the charset's business, so the answer is asked for by
+/// encoding a shorter piece until one fits.
+std::string fitField(encoding::IconvRecoder& recoder, const std::string& text,
+                     const std::string& charset, size_t capacity) {
+    std::string encoded = recoder.fromUtf8(text, charset);
+    size_t end = text.size();
+    while (encoded.size() > capacity && end > 0) {
+        end = charStart(text, end - 1);
+        encoded = recoder.fromUtf8(text.substr(0, end), charset);
+    }
+    return encoded;
+}
+
 domain::MessageDate nowLocal() {
     const std::time_t now = std::time(nullptr);
     std::tm broken{};
@@ -97,7 +134,8 @@ domain::MessageDate nowLocal() {
 
 }  // namespace
 
-FtnMsgBase::FtnMsgBase(std::string_view defaultCharset) : detector_(defaultCharset) {}
+FtnMsgBase::FtnMsgBase(std::string_view defaultCharset, bool fieldLimits)
+    : detector_(defaultCharset), fieldLimits_(fieldLimits) {}
 
 FtnMsgBase::~FtnMsgBase() = default;
 
@@ -319,9 +357,19 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     const std::string charset =
         draft.charset.empty() ? detector_.defaultCharset() : draft.charset;
 
-    raw.header.from = recoder_.fromUtf8(draft.from, charset);
-    raw.header.to = recoder_.fromUtf8(draft.to, charset);
-    raw.header.subject = recoder_.fromUtf8(draft.subject, charset);
+    // Cut to what a packed message has room for where `compose_fts1_field_limits`
+    // asks for it, and this is the one place the count can be taken: the editor
+    // holds the fields to a length in characters, and what those cost in bytes
+    // is decided here, by the charset the message is written in. Off, they go
+    // as they were typed and the format decides — Squish and Fido *.msg cut
+    // them to their fixed fields, JAM stores what it is handed.
+    const auto field = [&](const std::string& text, size_t capacity) {
+        return fieldLimits_ ? fitField(recoder_, text, charset, capacity)
+                            : recoder_.fromUtf8(text, charset);
+    };
+    raw.header.from = field(draft.from, kNameBytes);
+    raw.header.to = field(draft.to, kNameBytes);
+    raw.header.subject = field(draft.subject, kSubjectBytes);
     raw.header.origAddr = draft.origAddr;
     raw.header.destAddr = draft.destAddr;
     raw.header.utcOffsetMinutes = draft.utcOffsetMinutes;

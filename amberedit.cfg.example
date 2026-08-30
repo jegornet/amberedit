@@ -134,6 +134,16 @@ compose_charset CP866
 # not a reply and is always written in compose_charset.
 reply_original_charset off
 
+# Whether the From, To and Subject of a message you write are cut to the room
+# FTS-0001 keeps for them: 35 bytes for either name and 71 for the subject.
+# Optional; on by default.
+#
+# The bytes are counted once the message is encoded — a name of 35 Cyrillic
+# letters is 35 bytes in CP866 and 70 in UTF-8 — and the cut falls between
+# characters. Off, the fields reach the base as you typed them and the format
+# does what it does with them.
+compose_fts1_field_limits on
+
 # Which lastread slot in a message base is yours. Optional; 0 by default, which
 # is right on a single-user system. Squish (.sql) and Fido *.msg (the "lastread"
 # file in the area directory) are arrays indexed by this number; JAM (.jlr) finds

@@ -427,6 +427,21 @@ TEST_CASE("reply_original_charset is off unless it is turned on [app_config]") {
     CHECK_FALSE(loads("reply_original_charset yes\n"));
 }
 
+TEST_CASE("compose_fts1_field_limits is on unless it is turned off [app_config]") {
+    // On by default: a message whose fields do not fit a packet is one another
+    // reader shows cut in the middle of a character, and that is not a thing to
+    // have to ask for.
+    CHECK(with("").composeFts1FieldLimits);
+    CHECK_FALSE(with("compose_fts1_field_limits off\n").composeFts1FieldLimits);
+    CHECK(with("compose_fts1_field_limits on\n").composeFts1FieldLimits);
+    CHECK_FALSE(loads("compose_fts1_field_limits 36\n"));
+    // Not a per-area setting: the room is the packet's, and it is the same room
+    // in every echo.
+    const std::string error =
+        errorWith("group\nmember *\ncompose_fts1_field_limits off\nendgroup\n");
+    CHECK_MESSAGE(contains(error, "not for one area"), error);
+}
+
 TEST_CASE("AppConfig reads the reply area setting [app_config]") {
     CHECK(with("").replyToArea.empty());  // no area named unless the config names one
     CHECK(with("reply_to_area NETMAIL\n").replyToArea == "NETMAIL");

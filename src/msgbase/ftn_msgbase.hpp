@@ -28,7 +28,12 @@ public:
     ///        it has no CHRS kludge, or one naming nothing particular
     ///        ("IBMPC"). Reading only — a message is written in the charset its
     ///        own draft names, which compose_charset decides.
-    explicit FtnMsgBase(std::string_view defaultCharset = "CP866");
+    /// @param fieldLimits whether the From, To and Subject of a message being
+    ///        written are cut to the room FTS-0001 keeps for them, from
+    ///        `compose_fts1_field_limits`. See encode(), which is where the cut is
+    ///        made and where the bytes it counts are known.
+    explicit FtnMsgBase(std::string_view defaultCharset = "CP866",
+                        bool fieldLimits = true);
     ~FtnMsgBase() override;
 
     FtnMsgBase(const FtnMsgBase&) = delete;
@@ -89,11 +94,18 @@ private:
     /// the charset the draft names, and the text made into the hard carriage
     /// returns FTS-0001 asks for. The stamps are left empty — writing a message
     /// dates it here, changing one keeps the date the base already holds.
+    ///
+    /// It is also where the header fields are held to the byte lengths FTS-0001
+    /// gives them, `compose_fts1_field_limits` asking. That is a cut in the charset
+    /// the message is written in, so this is the only place it can be made: a
+    /// name of 35 Cyrillic letters is 35 bytes in CP866 and 70 in UTF-8, and
+    /// above this class the message is UTF-8 and nothing else.
     [[nodiscard]] RawDraft encode(const domain::MessageDraft& draft) const;
 
     std::unique_ptr<FormatDriver> driver_;
     domain::AreaConfig areaConfig_;
     encoding::CharsetDetector detector_;
+    bool fieldLimits_{true};
     mutable encoding::IconvRecoder recoder_;
 };
 

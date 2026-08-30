@@ -11,6 +11,7 @@
 #include "encoding/iconv_recoder.hpp"
 #include "msgbase/ftn_msgbase.hpp"
 #include "msgbase/raw_message.hpp"
+#include "temp_msg_bases.hpp"
 #include "temp_squish_base.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
@@ -35,6 +36,10 @@ AreaConfig localnetArea(const std::string& path) {
     area.type = MsgBaseType::Squish;
     return area;
 }
+
+/// The Russian alphabet, 33 letters — two bytes each in UTF-8 and one in
+/// CP866, which is what makes it the string to measure a byte limit with.
+const std::string kAlphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
 
 /// Today, as the base stamps a message written now. The clock here, in no time
 /// zone of its own, which is what an FTN stamp is.
@@ -590,6 +595,115 @@ TEST_CASE("FtnMsgBase writes a message and reads it back [squish]") {
           "@TZUTC: 0300|@CHRS: CP866 2|");
     CHECK(text == "Привет!||--- AmberEdit| * Origin: AmberEdit test (192:168/2)|");
     CHECK(body.charset == "CP866");
+}
+
+TEST_CASE("The header fields are cut to the bytes a packet keeps for them [squish]") {
+    // FTS-0001 keeps 36 bytes for either name and 72 for the subject, the
+    // terminating zero among them. The alphabet is two bytes a letter in UTF-8,
+    // so a name stops at 17 letters and a subject at 35 — which is the whole
+    // reason the cut is made here and not where the fields are typed: what a
+    // letter costs is the charset's to say.
+    TempSquishBase base;
+    FtnMsgBase msgbase("UTF-8");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = kAlphabet;
+    draft.to = kAlphabet;
+    draft.subject = kAlphabet + kAlphabet;
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.charset = "UTF-8";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: UTF-8 4"};
+    draft.lines = {"Привет!"};
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    REQUIRE(number != 0);
+
+    const auto header = msgbase.header(number);
+    CHECK(header.from == "абвгдеёжзийклмноп");
+    CHECK(header.to == "абвгдеёжзийклмноп");
+    CHECK(header.subject == kAlphabet + "аб");
+    // The point of cutting between characters rather than at the byte: a field
+    // ending in half of one is a field nothing can decode, and the driver's own
+    // fixed field would have left exactly that.
+    CHECK(isValidUtf8(header.from));
+    CHECK(isValidUtf8(header.subject));
+}
+
+TEST_CASE("The cut is made in the charset the message is written in [squish]") {
+    // The same alphabet in CP866, where a letter is one byte: 35 of them fit a
+    // name where 17 did in UTF-8. A cut taken off the UTF-8 text would have
+    // thrown half the name away.
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = kAlphabet + "абвгдеё";
+    draft.subject = "Привет";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.charset = "CP866";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
+    draft.lines = {"Привет!"};
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    REQUIRE(number != 0);
+    CHECK(msgbase.header(number).from == kAlphabet + "аб");
+}
+
+TEST_CASE("A field that fits is written as it stands [squish]") {
+    // Nothing is cut off a message whose fields have room, whatever the charset:
+    // the limit is a ceiling, not a width to pad or trim to.
+    TempSquishBase base;
+    FtnMsgBase msgbase("UTF-8");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = "Иван Петров";
+    draft.to = "All";
+    draft.subject = "Привет";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.charset = "UTF-8";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: UTF-8 4"};
+    draft.lines = {"Привет!"};
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    REQUIRE(number != 0);
+
+    const auto header = msgbase.header(number);
+    CHECK(header.from == "Иван Петров");
+    CHECK(header.to == "All");
+    CHECK(header.subject == "Привет");
+}
+
+TEST_CASE("compose_fts1_field_limits off leaves the fields to the format [jam]") {
+    // Off, the fields reach the driver as they were typed and each format does
+    // what it does: JAM keeps subfields as long as it is handed, which is what
+    // makes it the one base that can show the difference. Squish and Fido *.msg
+    // would cut them to their fixed fields either way.
+    amberedit::test::TempJamBase base;
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/false);
+
+    AreaConfig area;
+    area.tag = "area2";
+    area.path = base.path();
+    area.type = MsgBaseType::Jam;
+    REQUIRE(msgbase.open(area).has_value());
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = kAlphabet + "абвгдеё";
+    draft.subject = kAlphabet + kAlphabet;
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.charset = "CP866";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
+    draft.lines = {"Привет!"};
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    REQUIRE(number != 0);
+
+    const auto header = msgbase.header(number);
+    CHECK(header.from == kAlphabet + "абвгдеё");
+    CHECK(header.subject == kAlphabet + kAlphabet);
 }
 
 TEST_CASE("A draft naming no charset is written in the area's own [squish]") {

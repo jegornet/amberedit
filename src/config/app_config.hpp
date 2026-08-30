@@ -568,6 +568,25 @@ struct AppConfig {
     /// buys nothing and `composeCharset` is used after all.
     bool replyOriginalCharset{false};
 
+    /// Whether the From, To and Subject of a message being written are cut to
+    /// the room FTS-0001 keeps for them — 35 bytes for a name and 71 for the
+    /// subject, once the message is encoded in the charset it is written in.
+    /// On by default, and not a per-area setting: the room is the packet's and
+    /// is the same in every echo.
+    ///
+    /// It is the byte count the editor's own limit cannot answer for. That one
+    /// counts characters, because it has to be the same limit whatever charset
+    /// the message lands in; a name of 35 Cyrillic letters is 35 bytes in CP866
+    /// and 70 in UTF-8, and only the charset the message is encoded in says
+    /// which. `FtnMsgBase::encode()` is where that is known and where the cut
+    /// is made, between characters, so a field cut short is still a field a
+    /// reader can read.
+    ///
+    /// Off, the fields go to the base as they were typed, and the format
+    /// decides: Squish and Fido *.msg cut them to their fixed fields, JAM
+    /// stores what it is given.
+    bool composeFts1FieldLimits{true};
+
     /// What the `CC:` and `XC:`/`XP:` commands leave behind in the text of a
     /// message that carried them, from `compose_cc_list` and `compose_xc_list`.
     ///

@@ -1530,9 +1530,10 @@ decides what an occurrence is.
   survive whichever base it lands in, so the tightest of the three is the limit.
   It is counted in **characters**, the message being encoded on the way to the
   base: a Cyrillic name is two bytes here and one in CP866, and a byte limit
-  would refuse half a name that fits. `toFixedField()` still truncates at the
-  driver — only what is typed is held to the limit. The boxes are drawn one
-  column wider than their limit, for the cursor to stand in.
+  would refuse half a name that fits. The bytes are held to their own limit
+  where they are known, which is `FtnMsgBase::encode()` — see
+  **`compose_fts1_field_limits`** below. The boxes are drawn one column wider than
+  their limit, for the cursor to stand in.
 - **The attributes stand under the addresses and are the button that opens the
   dialog.** `headerRows()` carries them on the Date row, right-hand column,
   `[Uns Pvt Loc]`, exactly where the reader shows the same thing — the same
@@ -2874,6 +2875,22 @@ written again is written now, so `FtnMsgBase::replace()` stamps it exactly as
 `write()` does and `TZUTC` is rewritten with it (`app::buildChange()`, the one
 control line a change touches). That is why `FtnMsgBase::encode()` leaves both
 stamps empty and each of the two callers fills in what it means.
+
+**`encode()` is also where the header fields are held to their byte lengths**,
+`compose_fts1_field_limits` asking and on unless a config says otherwise: 35 bytes of
+a name and 71 of a subject, which is what FTS-0001 keeps for them once the
+terminating zero is counted. It can be nowhere else. The count is of the bytes
+the message is *encoded* in, and above this adapter there are none — a name of
+35 Cyrillic letters is 35 bytes in CP866 and 70 in UTF-8, and the compose screen,
+which holds the same fields to a length in **characters**, has no way of knowing
+which. The cut falls between characters, never inside one: `fitField()` shortens
+the UTF-8 text a character at a time and encodes it again rather than counting
+bytes off the encoded string, since a byte count lands mid-character in every
+charset that spells one in more than a byte — UTF-8 among them, and a field
+ending in half a character is one nothing can decode. Off, the fields reach the
+drivers as they were typed and each format does what it does: `toFixedField()`
+cuts Squish and Fido `*.msg` to their fixed fields wherever that falls, and JAM
+stores what it is handed, which is more than a packet can carry.
 
 **`info()` is the one call that is about the storage rather than the message.**
 It answers the reader's `i`, and each driver answers with its own fields, there
