@@ -1237,6 +1237,29 @@ struct AppConfig {
     /// costs the message nothing at any width.
     Visibility readerSideTaps{Visibility::WhenNarrow};
 
+    /// How many columns down each side of the message text those clicks are
+    /// answered in, from `reader_side_tap_width`.
+    ///
+    /// Six by default: a strip aimed at with a finger rather than with a
+    /// pointer, and still narrow enough that a message eighty columns wide is
+    /// mostly message. One column is the narrowest there is, and half of
+    /// `adaptive_ui_threshold` the widest a config may write — past that the two
+    /// zones would meet in the middle of the narrowest window the interface
+    /// still lays out whole, and a message would have no middle left to click
+    /// in. Checked against that threshold once the whole config has been read,
+    /// so the two lines may stand in either order.
+    ///
+    /// **A window narrower than two of them is not a config error**, and the
+    /// zones are not allowed to overlap in one either: `AppState::readerSideTapWidth()`
+    /// takes them down to half the text and no more, so the two halves of a
+    /// narrow message are the two zones. The setting says how much of a window
+    /// with room to spare the strips take.
+    ///
+    /// It says nothing about the pictogram, which is the same five columns and
+    /// three rows against the same edge whatever this is: it is what a press
+    /// looks like, not how far the press could have landed from the edge.
+    int readerSideTapWidth{6};
+
     /// What the three menus hold, in the order they are to stand — from
     /// `arealist_menu`, `reader_menu` and `compose_menu`. Each names commands of
     /// its own screen, by the part of the name after the dot: `reply_elsewhere`

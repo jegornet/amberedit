@@ -949,7 +949,7 @@ Rules that hold the design together:
   an area opens, on the area list, the area under the cursor — which reopens on
   the message just left, at its end, ready to be walked off again. It is a
   general hook, but nothing else asks for it yet.
-- **The three columns down either side of the text are ← and →**, where
+- **The columns down either side of the text are ← and →**, where
   `reader_side_taps` asks for them — `ui/reader_side_tap.hpp`, answered by
   `AppState::readerSideTapsShown()` like every other `config::Visibility`. The
   click goes straight to `switchMessage()`, so `reader_edge` answers for the ends
@@ -963,6 +963,19 @@ Rules that hold the design together:
   of the message rather than the bar. The zone is tested **after** the thread
   markers and the links in the text: a link is drawn and these columns are not,
   and a click is the only way to open one.
+  - **`reader_side_tap_width` is how many columns each strip is**, six by
+    default, and `AppState::readerSideTapWidth()` is the whole of the question:
+    what the config wrote, down to half the text where the window has less room
+    than that. Halved, the two zones cover the message between them — an odd
+    column goes to the left, `hit()` testing that side first — so a narrow
+    message is clicked on its left half or on its right half and nothing is left
+    dead in the middle. **The config is held to half of `adaptive_ui_threshold`**,
+    and that is checked in `fromEntries()` once the whole file has been read
+    rather than at the line, since the two settings may stand in either order; the
+    clamp above is the same question asked of the window actually on the screen,
+    which can be dragged narrower than any threshold. The width says nothing about
+    the pictogram: `kWidth`/`kHeight` are its own, against the same edge wherever
+    the strip ends.
   - **Nothing is laid out for it, and nothing is drawn there until it is
     pressed.** `reader_side_tap::over()` puts the arrow in its box over the
     viewport with a `dbox` — fillers centre it, and a filler paints nothing, so

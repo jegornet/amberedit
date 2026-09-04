@@ -1310,6 +1310,22 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseVisibility(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerSideTaps = *read;
+    } else if (key == "reader_side_tap_width") {
+        auto read = entry.number();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        // 127 is half of the widest `adaptive_ui_threshold` there is, so it is
+        // as wide as the strip could be under any config at all — what *this*
+        // config allows is half of the threshold it states, and that is asked
+        // once the whole file has been read, the two lines being free to stand
+        // in either order. Both refusals say the same thing; the one that knows
+        // the threshold says the number as well.
+        if (*read < 1 || *read > 127) {
+            return entry.fail(key +
+                              " must be between 1 and half of adaptive_ui_threshold, "
+                              "got " +
+                              std::to_string(*read));
+        }
+        cfg.readerSideTapWidth = static_cast<int>(*read);
     } else if (key == "reader_menu") {
         auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -2007,6 +2023,21 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
             originName +
             ": echolist_db is not set — it is the file AmberEdit compiles the "
             "echolist lines into, and the file AmberEdit reads them back from");
+    }
+
+    // How wide the reader's side zones stand, against the threshold the same
+    // config sets: half of it is where the two of them would meet in the middle
+    // of the narrowest window the interface still lays out whole. Asked here
+    // rather than at the line for the reason the utilities below are — a
+    // `reader_side_tap_width` line may stand above the `adaptive_ui_threshold`
+    // one it is measured against.
+    if (const int half = cfg.adaptiveUiThreshold / 2; cfg.readerSideTapWidth > half) {
+        return failure(originName + ": reader_side_tap_width must be between 1 and " +
+                       std::to_string(half) + ", which is half of the " +
+                       std::to_string(cfg.adaptiveUiThreshold) +
+                       " columns adaptive_ui_threshold gives a narrow window — a wider "
+                       "zone on each side would leave such a message no middle to "
+                       "click in");
     }
 
     // A menu button or a hint naming a utility the config never set would be a

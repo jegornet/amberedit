@@ -1778,6 +1778,21 @@ struct AppState {
         return shown(config.readerSideTaps);
     }
 
+    /// How many columns down each side of the message answer one, from
+    /// `reader_side_tap_width` — and never more than half the text there is,
+    /// whatever the config wrote.
+    ///
+    /// The clamp is what a window narrower than two of the strips comes to: the
+    /// two zones are then the two halves of the message, the left taking the odd
+    /// column of an odd width since it is tested first, and nothing is left over
+    /// in the middle. A config is refused for a width past half of
+    /// `adaptive_ui_threshold`; this is the same question asked of the window
+    /// actually on the screen, which can be dragged narrower than any threshold.
+    [[nodiscard]] int readerSideTapWidth() const {
+        const int half = (readerPaneWidth() + 1) / 2;
+        return std::max(1, std::min(config.readerSideTapWidth, half));
+    }
+
     /// Whether the editor draws the delete-line button down its two rightmost
     /// columns, from `compose_delete_line_button`. Asked on every frame like
     /// every other `Visibility`, and asked before the text is laid out as well

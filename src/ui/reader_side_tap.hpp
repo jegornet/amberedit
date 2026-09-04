@@ -8,10 +8,11 @@
 #include "ui/event_util.hpp"
 #include "ui/theme.hpp"
 
-/// The way from one message to the next without a keyboard: the three columns
-/// down either side of the message text answer a click by going to the previous
-/// or the next message, exactly as ← and → do. `ui.reader_side_taps` decides
-/// whether they answer at all; the reader checks that itself.
+/// The way from one message to the next without a keyboard: the columns down
+/// either side of the message text answer a click by going to the previous or
+/// the next message, exactly as ← and → do. `ui.reader_side_taps` decides
+/// whether they answer at all and `ui.reader_side_tap_width` how many columns
+/// they are; the reader asks `AppState` for both.
 ///
 /// **Nothing is drawn there until it is pressed.** The columns are the message's
 /// own, text and all — they are given up for the length of a click and taken
@@ -20,7 +21,7 @@
 /// button light up in, so that a click on the side of a message reads as a
 /// button being pressed and not as the message flickering.
 ///
-/// The zone is the three columns whether or not the scrollbar is in the last of
+/// The zone is the same columns whether or not the scrollbar is in the last of
 /// them: what a reader aims at is the edge of the message, and where the bar
 /// happens to be drawn is not something to have to aim around.
 namespace amberedit::ui::reader_side_tap {
@@ -32,33 +33,35 @@ enum class Side {
     Next,      ///< the right columns: the message after it, as → asks for
 };
 
-/// The columns down each side that answer a click. Three, on both sides, which
-/// is what the editor's delete-line button asks for as well: it is the narrowest
-/// strip a finger finds without looking.
-constexpr int kZone = 3;
-/// The columns the pictogram takes, which is wider than the zone that raises it:
-/// the glyph has a box around it and the box has a side either hand.
+/// The columns the pictogram takes. It has nothing to do with how wide the zone
+/// that raises it is — `reader_side_tap_width` says that, and the box is what a
+/// press looks like rather than how far from the edge the press could have
+/// landed. The glyph is one column whatever it takes in bytes, with a space and
+/// then a side either hand.
 constexpr int kWidth = 5;
 /// The rows it stands on — the two sides of the box and the glyph between them.
 constexpr int kHeight = 3;
 
 /// Which side of the text `event` landed on, given the reader's own columns
-/// [`left`, `right`) and the rows of the message body — `rows` of them from
-/// `top` down. `Side::None` for everything else, a click over the header block
-/// or the title included: this is the text and nothing but the text.
+/// [`left`, `right`), the rows of the message body — `rows` of them from `top`
+/// down — and a zone `zone` columns wide against either edge. `Side::None` for
+/// everything else, a click over the header block or the title included: this is
+/// the text and nothing but the text.
 ///
 /// Only the press acts, for the reason every other button here takes the press:
 /// the release would arrive with the next message already loaded.
 ///
-/// In a window too narrow for two zones side by side the left one answers, a
-/// message with no room to read it in being no place to be sent onwards from.
+/// `zone` is `AppState::readerSideTapWidth()`, which is already down to half the
+/// text where the window is narrow. Where the two zones do meet — an odd width
+/// halved — the left one answers, the order of the two tests being the whole of
+/// that rule.
 [[nodiscard]] inline Side hit(const term::Event& event, int left, int right, int top,
-                             int rows) {
+                             int rows, int zone) {
     const auto click = leftClick(event);
     if (!click) return Side::None;
     if (click->y < top || click->y >= top + rows) return Side::None;
-    if (click->x >= left && click->x < left + kZone) return Side::Previous;
-    if (click->x < right && click->x >= right - kZone) return Side::Next;
+    if (click->x >= left && click->x < left + zone) return Side::Previous;
+    if (click->x < right && click->x >= right - zone) return Side::Next;
     return Side::None;
 }
 

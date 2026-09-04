@@ -2034,16 +2034,17 @@ bool handleEvent(AppState& state, const Event& event) {
             return true;
         }
     }
-    // The three columns down either side of the text, where the config asks for
-    // them: a click in them is ← and →, `reader_edge` and all. After the links
-    // above rather than before them, since a link is drawn and these columns are
-    // not: an address standing at the edge of a line is still the thing the
-    // reader can see and the only thing a pointer can open, while the message
-    // before this one is a keystroke away as well.
+    // The columns down either side of the text, where the config asks for them
+    // and as many of them as `reader_side_tap_width` says: a click in them is ←
+    // and →, `reader_edge` and all. After the links above rather than before
+    // them, since a link is drawn and these columns are not: an address standing
+    // at the edge of a line is still the thing the reader can see and the only
+    // thing a pointer can open, while the message before this one is a keystroke
+    // away as well.
     if (state.readerSideTapsShown()) {
-        const reader_side_tap::Side side =
-            reader_side_tap::hit(event, state.readerPaneLeft(), state.readerPaneRight(),
-                                 state.readTop(), state.readRows());
+        const reader_side_tap::Side side = reader_side_tap::hit(
+            event, state.readerPaneLeft(), state.readerPaneRight(), state.readTop(),
+            state.readRows(), state.readerSideTapWidth());
         if (side != reader_side_tap::Side::None) {
             const bool next = side == reader_side_tap::Side::Next;
             state.showClick(next ? AppState::Pressed::SideTapNext

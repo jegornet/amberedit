@@ -875,18 +875,24 @@ back_button when_narrow
 # to the full width elsewhere would rewrap under it at every keystroke.
 compose_delete_line_button when_narrow
 
-# Whether the three columns down either side of the message text send the reader
-# to the previous and the next message when they are clicked. Optional;
-# "when_narrow" by default, the same four values as back_button and the same line
-# they are read against.
+# Whether the columns down either side of the message text send the reader to the
+# previous and the next message when they are clicked. Optional; "when_narrow" by
+# default, the same four values as back_button and the same line they are read
+# against.
 #
-# A click in the left three columns is ← and one in the right three is →, down to
-# what reader_edge says about the ends of an area. Nothing is drawn in those
-# columns until one is pressed: for as long as click_animation_ms lasts an arrow
-# in a box stands halfway down the text, in the color the corner buttons light up
-# in, and the frame after it puts the message back. So the columns cost the
-# message nothing at any width.
+# A click in the left strip is ← and one in the right strip is →, down to what
+# reader_edge says about the ends of an area. Nothing is drawn in those columns
+# until one is pressed: for as long as click_animation_ms lasts an arrow in a box
+# stands halfway down the text, in the color the corner buttons light up in, and
+# the frame after it puts the message back. So the columns cost the message
+# nothing at any width.
 reader_side_taps when_narrow
+
+# How many columns wide each of those two strips is. Optional; 6 by default,
+# 1 to half of adaptive_ui_threshold — a wider one would leave the narrowest
+# window the interface still lays out whole no middle to click in. The two lines
+# may stand in either order.
+reader_side_tap_width 6
 
 # The context menu: a column of buttons, one command each, opened by the button
 # in the top-right corner of the area list, of the reader and of the editor.

@@ -673,6 +673,44 @@ TEST_CASE("AppConfig reads the reader's side taps [app_config]") {
     CHECK_FALSE(loads("reader_side_taps on off\n"));
 }
 
+TEST_CASE("AppConfig reads how wide the reader's side taps stand [app_config]") {
+    // Six by default: a strip aimed at with a finger, and still narrow enough
+    // that a message eighty columns wide is mostly message.
+    CHECK(with("").readerSideTapWidth == 6);
+    CHECK(with("reader_side_tap_width 1\n").readerSideTapWidth == 1);
+    CHECK(with("reader_side_tap_width 20\n").readerSideTapWidth == 20);
+
+    // Half of `adaptive_ui_threshold` is the widest a config may write — past
+    // that the two zones would meet in the middle of the narrowest window the
+    // interface still lays out whole.
+    CHECK(with("reader_side_tap_width 40\n").readerSideTapWidth == 40);
+    CHECK_FALSE(loads("reader_side_tap_width 41\n"));
+    CHECK_FALSE(loads("reader_side_tap_width 0\n"));
+    // A number no threshold could ever allow is refused where it stands, in the
+    // same words the threshold-led refusal uses.
+    const std::string absurd = errorWith("reader_side_tap_width 500\n");
+    CHECK_MESSAGE(contains(absurd, "half of adaptive_ui_threshold"), absurd);
+    CHECK_FALSE(loads("reader_side_tap_width half\n"));
+    CHECK_FALSE(loads("reader_side_tap_width\n"));
+
+    // It is the threshold this config states, and the two lines may stand in
+    // either order: a width is measured against the whole file rather than
+    // against however much of it had been read when the width was met.
+    CHECK(with("adaptive_ui_threshold 120\nreader_side_tap_width 60\n")
+              .readerSideTapWidth == 60);
+    CHECK(with("reader_side_tap_width 60\nadaptive_ui_threshold 120\n")
+              .readerSideTapWidth == 60);
+    CHECK_FALSE(loads("reader_side_tap_width 60\n"));
+    CHECK_FALSE(loads("adaptive_ui_threshold 40\nreader_side_tap_width 21\n"));
+
+    // What is refused names the half it wanted and the threshold it is half of,
+    // so a config is answered with the number to write rather than with a No.
+    const std::string wrong =
+        errorWith("adaptive_ui_threshold 100\nreader_side_tap_width 60\n");
+    CHECK_MESSAGE(contains(wrong, "50"), wrong);
+    CHECK_MESSAGE(contains(wrong, "adaptive_ui_threshold"), wrong);
+}
+
 TEST_CASE("AppConfig reads how tall a dialog's buttons stand [app_config]") {
     using amberedit::config::Visibility;
 

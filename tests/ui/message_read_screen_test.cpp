@@ -843,17 +843,98 @@ TEST_CASE("A click on the side columns of the text moves between messages "
                                       pressAt(fixture.state.width - 1, last)));
     CHECK(fixture.state.messageCursor == 1);
 
-    // Every column of the zone answers, on both hands, and the columns between
-    // them are the message's own: a click in the text scrolls nothing and opens
+    // Every column of the zone answers, on both hands, and the first column past
+    // it is the message's own: a click in the text scrolls nothing and opens
     // nothing.
-    REQUIRE(message_read::handleEvent(fixture.state, pressAt(2, top)));
+    const int zone = fixture.state.readerSideTapWidth();
+    REQUIRE(zone == fixture.config.readerSideTapWidth);
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(zone - 1, top)));
     CHECK(fixture.state.messageCursor == 0);
     REQUIRE(message_read::handleEvent(fixture.state,
-                                      pressAt(fixture.state.width - 3, top)));
+                                      pressAt(fixture.state.width - zone, top)));
     CHECK(fixture.state.messageCursor == 1);
-    CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(3, top)));
+    CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(zone, top)));
+    CHECK_FALSE(message_read::handleEvent(
+        fixture.state, pressAt(fixture.state.width - zone - 1, top)));
+    CHECK(fixture.state.messageCursor == 1);
+}
+
+TEST_CASE("reader_side_tap_width is how many columns those are "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    // Six by default — a strip aimed at with a finger — and a config may make it
+    // anything up to half of a narrow window.
+    REQUIRE(fixture.config.readerSideTapWidth == 6);
+    fixture.config.readerSideTapWidth = 20;
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == 1);
+    REQUIRE(fixture.state.readerSideTapWidth() == 20);
+
+    // The last column of the strip answers and the first one past it does not,
+    // on both hands.
+    const int top = fixture.state.readTop();
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(19, top)));
+    CHECK(fixture.state.messageCursor == 0);
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(fixture.state.width - 20, top)));
+    CHECK(fixture.state.messageCursor == 1);
+    CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(20, top)));
     CHECK_FALSE(message_read::handleEvent(fixture.state,
-                                          pressAt(fixture.state.width - 4, top)));
+                                          pressAt(fixture.state.width - 21, top)));
+    CHECK(fixture.state.messageCursor == 1);
+
+    // And the pictogram is the same box in the same place whatever the strip is:
+    // it says a press was seen, not how far from the edge it landed. The same
+    // message pressed the same side twice, once under each width, is the same
+    // frame down to the column.
+    std::vector<std::string> held;
+    fixture.state.holdFrame = [&] { held = rowsOf(fixture); };
+
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(19, top)));
+    const std::vector<std::string> wide = held;
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(fixture.state.width - 1, top)));
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    fixture.config.readerSideTapWidth = 6;
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(5, top)));
+    CHECK(fixture.state.messageCursor == 0);
+    CHECK(held == wide);
+}
+
+TEST_CASE("A window too narrow for two strips is halved between them "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    // Wider than half the window it is about to be read in, which is not a
+    // config error — the config is held to half of `adaptive_ui_threshold`, and
+    // a window can be dragged narrower than any threshold.
+    fixture.config.readerSideTapWidth = 30;
+    fixture.state.width = 40;
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    // Half the text each, so the two zones meet and neither swallows the other.
+    REQUIRE(fixture.state.readerSideTapWidth() == 20);
+    const int top = fixture.state.readTop();
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(19, top)));
+    CHECK(fixture.state.messageCursor == 0);
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(20, top)));
+    CHECK(fixture.state.messageCursor == 1);
+
+    // An odd width leaves one column over, and it goes to the left: the halves
+    // cover the message between them rather than leaving a dead column in the
+    // middle of it.
+    fixture.state.width = 41;
+    REQUIRE(fixture.state.readerSideTapWidth() == 21);
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(20, top)));
+    CHECK(fixture.state.messageCursor == 0);
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(21, top)));
     CHECK(fixture.state.messageCursor == 1);
 }
 

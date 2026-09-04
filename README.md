@@ -112,7 +112,7 @@ can be moved — see [Rebinding the keys](#rebinding-the-keys)
 | Key | What it does                                                                 |
 |---|------------------------------------------------------------------------------|
 | `←` `→` | previous, next message — off either end leaves the area, or → goes on to the next unread area (`reader_edge`) |
-| click on the side of the text | the same two, from the pointer: the three columns down either side of the message are ← and → (`reader_side_taps`) |
+| click on the side of the text | the same two, from the pointer: the columns down either side of the message are ← and → (`reader_side_taps`, `reader_side_tap_width`) |
 | `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
 | `Home`, `End` | top, bottom                                                                  |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |
