@@ -1,4 +1,5 @@
 build/
+build-w64/
 cmake-build-*/
 .idea/
 .vscode/

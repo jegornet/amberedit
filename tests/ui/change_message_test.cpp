@@ -12,6 +12,7 @@
 
 #include "app/message_builder.hpp"
 #include "domain/message.hpp"
+#include "sys/time.hpp"
 #include "temp_squish_base.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/confirm_dialog.hpp"
@@ -99,9 +100,7 @@ std::string stampNow(const AppConfig& config) {
 /// they run.
 std::string tzutcNow() {
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
-    return amberedit::app::tzutcOffset(static_cast<int>(broken.tm_gmtoff / 60));
+    return amberedit::app::tzutcOffset(amberedit::sys::utcOffsetMinutes(now));
 }
 
 /// Whether any line of the message being written holds `what`.

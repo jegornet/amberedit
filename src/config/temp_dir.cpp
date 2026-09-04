@@ -5,6 +5,8 @@
 #include <filesystem>
 #include <system_error>
 
+#include "sys/env.hpp"
+
 namespace amberedit::config {
 namespace {
 
@@ -32,8 +34,10 @@ std::string defaultTempDir() {
     const fs::path base = fs::temp_directory_path(ec);
     if (ec || base.empty()) return {};
 
-    const std::string name =
-        "amberedit-" + std::to_string(static_cast<unsigned long>(::getuid()));
+    // "amberedit-1000" where /tmp is shared, plain "amberedit" where the system
+    // already hands every account a temporary directory of its own.
+    const std::string tag = sys::userTag();
+    const std::string name = tag.empty() ? "amberedit" : "amberedit-" + tag;
     return (base / name).string();
 }
 

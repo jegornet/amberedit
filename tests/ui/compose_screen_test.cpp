@@ -15,6 +15,7 @@
 #include "msgbase/null_lastread_store.hpp"
 #include "nodelist/nodelist_writer.hpp"
 #include "ports/i_area_source.hpp"
+#include "sys/time.hpp"
 #include "temp_dir.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
@@ -756,9 +757,7 @@ TEST_CASE("The editor's Date row answers %z with the clock here [compose]") {
     // was written in. Spelled the way %z spells one, with the plus FTS-4008
     // leaves off a positive offset.
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
-    const auto minutes = static_cast<int>(broken.tm_gmtoff / 60);
+    const int minutes = amberedit::sys::utcOffsetMinutes(now);
     const std::string zone =
         (minutes < 0 ? "" : "+") + amberedit::app::tzutcOffset(minutes);
 

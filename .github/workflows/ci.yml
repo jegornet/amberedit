@@ -129,3 +129,54 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  windows:
+    name: Windows x86_64 (MSYS2/MinGW)
+    runs-on: windows-latest
+    # MSYS2's shell for every step, so that the paths CMake is handed and the
+    # paths the compiler resolves are the same paths.
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      # pacman, the same way the Linux jobs use dnf and apt: every dependency is
+      # a package, and none of them is fetched by the build. The exception is
+      # PDCursesMod below — MSYS2 carries the original PDCurses, which has
+      # neither the extended colour pairs nor the combining characters, so the
+      # probe in CMakeLists.txt would refuse it.
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-libiconv
+            mingw-w64-x86_64-gettext
+            mingw-w64-x86_64-tl-expected
+            mingw-w64-x86_64-doctest
+
+      # Natively — no host triple — and by the same script the cross-build from
+      # Linux or macOS runs, so that the flags this library has to carry cannot
+      # drift between the two.
+      - name: Build PDCursesMod
+        run: tools/build-pdcurses.sh "$PWD/w64deps"
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_PREFIX_PATH="$PWD/w64deps"
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      # The whole suite runs here, which is the reason this job builds on Windows
+      # rather than cross-building for it: a binary cross-built on Linux is a
+      # binary nothing on the build host can run.
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

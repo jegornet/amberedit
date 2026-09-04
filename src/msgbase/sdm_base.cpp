@@ -51,8 +51,12 @@ constexpr size_t kArrivedOffset = 180;
 
 /// The name a message file has: its number and nothing else. Parsed by hand
 /// rather than through atoi so that "12a.msg" is not read as message 12.
+///
+/// The extension is matched without regard to case. A base written under DOS,
+/// OS/2 or Windows holds `0001.MSG`, and comparing the case as it stands read
+/// such a directory as empty rather than as unreadable — no error, no messages.
 uint32_t numberOfName(const fs::path& name) {
-    if (name.extension() != ".msg") return 0;
+    if (!config::text::iequals(name.extension().string(), ".msg")) return 0;
     const std::string stem = name.stem().string();
     if (stem.empty() || stem.size() > 9) return 0;
     uint32_t number = 0;

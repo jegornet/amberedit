@@ -9,6 +9,8 @@
 #include <cstring>
 #include <system_error>
 
+#include "sys/file.hpp"
+
 namespace amberedit::msgbase {
 
 namespace {
@@ -72,8 +74,7 @@ IoStatus BinaryFile::readAt(uint64_t offset, void* out, size_t count) const {
     auto* cursor = static_cast<unsigned char*>(out);
     size_t done = 0;
     while (done < count) {
-        const ssize_t got =
-            ::pread(fd_, cursor + done, count - done, static_cast<off_t>(offset + done));
+        const int64_t got = sys::readAt(fd_, cursor + done, count - done, offset + done);
         if (got < 0) {
             if (errno == EINTR) continue;
             return IoStatus::refused(errno);
@@ -92,11 +93,10 @@ IoStatus BinaryFile::writeAt(uint64_t offset, const void* data, size_t count) {
     const auto* cursor = static_cast<const unsigned char*>(data);
     size_t done = 0;
     while (done < count) {
-        const ssize_t put =
-            ::pwrite(fd_, cursor + done, count - done, static_cast<off_t>(offset + done));
+        const int64_t put = sys::writeAt(fd_, cursor + done, count - done, offset + done);
         if (put <= 0) {
             if (put < 0 && errno == EINTR) continue;
-            // A pwrite of zero is not an errno condition; the file system took
+            // A write of zero is not an errno condition; the file system took
             // nothing and said nothing, which is as far as this can report it.
             return put < 0 ? IoStatus::refused(errno) : IoStatus::truncated();
         }

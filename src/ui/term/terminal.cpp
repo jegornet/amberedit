@@ -1,11 +1,15 @@
 #include "ui/term/terminal.hpp"
 
+#ifndef _WIN32
 #include <termios.h>
 #include <unistd.h>
+#endif
 
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <cwchar>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -37,13 +41,19 @@ std::string hex(unsigned long value) {
     return buffer.data();
 }
 
+/// What each sequence registered with ncurses means. `define_key` gets us as far
+/// as a distinct code per sequence; this says what that code stands for.
+///
+/// Left empty on Windows, where nothing is registered: the console reports a
+/// modified key as a key code of its own, so there are no sequences to teach
+/// anybody and `namedKey()` names those codes directly.
+std::unordered_map<int, Event> customKeys;
+
+#ifndef _WIN32
+
 /// Custom key codes are handed out from just above the range terminfo uses, so
 /// that they cannot collide with a key the terminal description already names.
 int nextKeyCode = KEY_MAX + 1;
-
-/// What each sequence registered with ncurses means. `define_key` gets us as far
-/// as a distinct code per sequence; this says what that code stands for.
-std::unordered_map<int, Event> customKeys;
 
 void registerKey(const std::string& sequence, const Event& event) {
     const int code = nextKeyCode++;
@@ -183,6 +193,19 @@ void registerNavigationKeys() {
     }
 }
 
+#else  // _WIN32
+
+/// Nothing to register. Every chord the sequences above stand for arrives from
+/// the Windows console as a key code of its own — `ALT_A`, `ALT_UP`, `ALT_BKSP`,
+/// `KEY_F(37)` — and `namedKey()` reads those. There is no ESC to be ambiguous
+/// with either, so `altLetters` has nothing to disambiguate and is not consulted.
+void registerModifiedKeys(const std::string&, bool) {}
+void registerNavigationKeys() {}
+
+#endif  // _WIN32
+
+#ifndef _WIN32
+
 /// Asks the terminal to report modified keys, and puts it back on the way out.
 ///
 /// Terminals do not do this by default: Shift+Space arrives as a plain space,
@@ -251,10 +274,53 @@ private:
     bool restore_{false};
 };
 
+#else  // _WIN32
+
+/// Neither has anything to do on Windows, and both are kept so that everything
+/// below — the constructor, the destructor, handOver() — stays one piece of code
+/// rather than two spellings of the same order of operations.
+///
+/// There are no escape sequences to ask for: the console reports a modified key
+/// as a code of its own whether anyone asks or not. And there is no line
+/// discipline to take Ctrl-S and Ctrl-Q out of the stream before they arrive, so
+/// nothing has to be turned off for Ctrl-Q to be seen.
+struct ModifiedKeyReporting {};
+struct FlowControlOff {};
+
+#endif  // _WIN32
+
 /// Lives as long as the Terminal does. Held here rather than as members so that
 /// terminal.hpp does not have to name termios.
 std::unique_ptr<FlowControlOff> flowControl;
 std::unique_ptr<ModifiedKeyReporting> keyReporting;
+
+/// Puts one code point into the array `setcchar()` is handed, spelled the way
+/// `wchar_t` is spelled here, and answers how many places it took — or zero
+/// where the remaining room could not hold it whole.
+///
+/// A `wchar_t` is four bytes on Unix and a code point goes in as it stands. On
+/// Windows it is two, and anything above the basic plane — an emoji, most of the
+/// less common scripts — has to go in as a UTF-16 surrogate pair. Casting such a
+/// code point straight to `wchar_t` keeps its low sixteen bits and draws some
+/// unrelated character, which is what the console showed before this: one
+/// replacement mark per emoji. PDCurses reads the pair back into a single code
+/// point on the other side, so what it is asked to draw is what was meant.
+size_t appendWide(std::array<wchar_t, CCHARW_MAX + 1>& wide, size_t count, char32_t code) {
+#if WCHAR_MAX > 0xFFFF
+    wide[count] = static_cast<wchar_t>(code);
+    return 1;
+#else
+    if (code < 0x10000) {
+        wide[count] = static_cast<wchar_t>(code);
+        return 1;
+    }
+    if (count + 1 >= CCHARW_MAX) return 0;
+    const char32_t offset = code - 0x10000;
+    wide[count] = static_cast<wchar_t>(0xD800 + (offset >> 10));
+    wide[count + 1] = static_cast<wchar_t>(0xDC00 + (offset & 0x3FF));
+    return 2;
+#endif
+}
 
 attr_t attributesOf(uint8_t attrs) {
     attr_t out = A_NORMAL;
@@ -263,6 +329,26 @@ attr_t attributesOf(uint8_t attrs) {
     if ((attrs & kUnderlined) != 0) out |= A_UNDERLINE;
 #ifdef A_ITALIC
     if ((attrs & kItalic) != 0) out |= A_ITALIC;
+#endif
+    return out;
+}
+
+/// A cell's attributes as the curses in use wants them.
+///
+/// The same as `attributesOf` everywhere but Windows. There, PDCurses reads
+/// A_BOLD the way a sixteen-color terminal does — as the brightness bit — and
+/// sets it in the foreground number itself, `fore |= 8`. On one of the sixteen
+/// that is what bold has always meant. On an extended entry it is not brightness
+/// at all but a different color: 231, the white a theme writes its selected row
+/// in, comes out as 239, a dark grey on a blue bar. An extended number already
+/// says how bright it is, so bold comes off where one is in use and the color
+/// arrives as the theme wrote it.
+attr_t attributesFor(const Cell& cell) {
+    attr_t out = attributesOf(cell.attrs);
+#ifdef _WIN32
+    if (!cell.fg.defaulted && cell.fg.index >= 16) {
+        out &= ~static_cast<attr_t>(A_BOLD);
+    }
 #endif
     return out;
 }
@@ -290,6 +376,35 @@ Event namedKey(int code) {
         return Event::Named(
             static_cast<Event::Name>(static_cast<uint8_t>(Event::Name::F1) + offset));
     }
+
+#ifdef _WIN32
+    // The chords that `registerModifiedKeys()` teaches ncurses one sequence at a
+    // time. PDCurses has a code for each of them already, so they are read here
+    // instead — and only the ones that path produces, so that a layout means the
+    // same thing on either system.
+    if (code >= ALT_A && code <= ALT_Z) {
+        const auto letter = static_cast<char>('a' + (code - ALT_A));
+        return Event::Character(std::string(1, letter), false, true, false);
+    }
+    // Alt with a function key. The console's key table gives each one four
+    // codes — plain, shifted, control, alt — laid out as F1-F12, F13-F24, F25-F36
+    // and F37-F48, so Alt+Fn is Fn plus thirty-six.
+    if (code >= KEY_F(37) && code <= KEY_F(48)) {
+        const auto offset = static_cast<uint8_t>(code - KEY_F(37));
+        return Event::Named(
+            static_cast<Event::Name>(static_cast<uint8_t>(Event::Name::F1) + offset),
+            false, true, false);
+    }
+    switch (code) {
+        case ALT_UP: return Event::Named(Event::Name::ArrowUp, false, true, false);
+        case ALT_DOWN: return Event::Named(Event::Name::ArrowDown, false, true, false);
+        case ALT_LEFT: return Event::Named(Event::Name::ArrowLeft, false, true, false);
+        case ALT_RIGHT: return Event::Named(Event::Name::ArrowRight, false, true, false);
+        case ALT_BKSP: return Event::Named(Event::Name::Backspace, false, true, false);
+        default: break;
+    }
+#endif
+
     return {};
 }
 
@@ -394,7 +509,12 @@ Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
     noecho();   // nothing is echoed that this code did not draw
     nonl();     // Enter stays a carriage return rather than becoming a newline
     keypad(stdscr, TRUE);
+#ifndef _WIN32
+    // How long ncurses waits to see whether a lone ESC begins something longer.
+    // PDCurses has no such wait to tune: the console says which key was pressed
+    // rather than sending bytes that have to be told apart by timing.
     set_escdelay(25);
+#endif
     curs_set(0);
 
     // Only the events acted on, and pointedly not ALL_MOUSE_EVENTS: that mask also
@@ -476,13 +596,15 @@ void Terminal::draw(const Element& document) {
             size_t pos = 0;
             size_t count = 0;
             while (pos < cell.glyph.size() && count < CCHARW_MAX) {
-                wide[count++] = static_cast<wchar_t>(decodeUtf8(cell.glyph, pos));
+                const size_t written = appendWide(wide, count, decodeUtf8(cell.glyph, pos));
+                if (written == 0) break;  // no room for both halves of a pair
+                count += written;
             }
             wide[count] = L'\0';
 
             int pair = pairFor(cell.fg, cell.bg);
             cchar_t out;
-            setcchar(&out, wide.data(), attributesOf(cell.attrs), 0, &pair);
+            setcchar(&out, wide.data(), attributesFor(cell), 0, &pair);
             // The bottom-right cell cannot be written without the cursor having
             // to advance off the screen, so ncurses reports failure having drawn
             // it anyway. Nothing here can act on that, and everything else that

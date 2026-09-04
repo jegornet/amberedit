@@ -19,6 +19,7 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "i18n/i18n.hpp"
+#include "sys/time.hpp"
 #include "ui/attributes_dialog.hpp"
 #include "ui/back_button.hpp"
 #include "ui/delete_line_button.hpp"
@@ -256,9 +257,7 @@ Elements headerRows(AppState& state, bool editing) {
     // it says it was written in, and the editor is where this one is being
     // written.
     const std::time_t when = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&when, &broken);
-    const std::string zone = app::zoneOffset(static_cast<int>(broken.tm_gmtoff / 60));
+    const std::string zone = app::zoneOffset(sys::utcOffsetMinutes(when));
     const std::string now =
         app::localStamp(when).format(state.config.readerDateTimeFormat, zone);
     // The arrival stamp is given no zone, here as in the reader: when a message
@@ -438,8 +437,6 @@ bool leaveToAddr(AppState& state) {
 /// are begun.
 app::BuildRequest buildRequest(AppState& state) {
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
 
     // A new message carries nothing of what is on screen; a reply and a forward
     // both carry the message being read, and `compose.forward` is what says
@@ -466,7 +463,7 @@ app::BuildRequest buildRequest(AppState& state) {
             ? &state.currentArea
             : nullptr,
         now,
-        static_cast<int>(broken.tm_gmtoff / 60),
+        sys::utcOffsetMinutes(now),
         // The reader's kludges, which decide whether the quote or the forward
         // carries them: a message is answered the way it was being read.
         state.showKludges,
