@@ -146,20 +146,27 @@ jobs:
       # PDCursesMod below — MSYS2 carries the original PDCurses, which has
       # neither the extended colour pairs nor the combining characters, so the
       # probe in CMakeLists.txt would refuse it.
+      #
+      # UCRT64 and not MINGW64: the two differ in which C runtime they link, and
+      # that is not a detail. MINGW64 builds against the msvcrt.dll that has been
+      # in Windows since the nineties, whose strftime has no `%n` and answers a
+      # format holding one with nothing at all. UCRT is what Windows 10 and later
+      # ship and what a cross-build from Linux or macOS links, so this is the
+      # runtime the binary users get is tested against.
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
             git make
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-zlib
-            mingw-w64-x86_64-libiconv
-            mingw-w64-x86_64-gettext
-            mingw-w64-x86_64-tl-expected
-            mingw-w64-x86_64-doctest
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-libiconv
+            mingw-w64-ucrt-x86_64-gettext
+            mingw-w64-ucrt-x86_64-tl-expected
+            mingw-w64-ucrt-x86_64-doctest
 
       # Natively — no host triple — and by the same script the cross-build from
       # Linux or macOS runs, so that the flags this library has to carry cannot

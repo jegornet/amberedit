@@ -370,6 +370,25 @@ tl::expected<std::string, ErrorPtr> checkTimeFormat(const CfgEntry& entry,
     // nothing else, say — is judged on what it writes for a message that
     // states one rather than on the blank it leaves for a message that does
     // not.
+    // `%n` and `%t` are read here rather than left to strftime, because not
+    // every strftime has them: the C runtime MSYS2's MinGW builds against
+    // refuses the whole format over one of them and answers with nothing, which
+    // arrived as "writes no stamp at all" — true, and not the reason. Named
+    // outright, the answer is the same wherever AmberEdit is built.
+    const auto writesBlank = [&value](char specifier) {
+        for (size_t i = 0; i + 1 < value.size(); ++i) {
+            if (value[i] != '%') continue;
+            if (value[i + 1] == specifier) return true;
+            ++i;  // whatever it was, it is spoken for
+        }
+        return false;
+    };
+    if (writesBlank('n') || writesBlank('t')) {
+        return entry.fail(what + ": '" + value +
+                          "' writes a stamp over more than one line, which a date on a "
+                          "header row cannot be");
+    }
+
     const std::string written =
         domain::MessageDate{2026, 8, 10, 21, 19, 36}.format(value, "+0300");
     // A stamp is trimmed, so a format that writes nothing but blank writes
@@ -379,6 +398,8 @@ tl::expected<std::string, ErrorPtr> checkTimeFormat(const CfgEntry& entry,
                           "' writes no stamp at all, and there is no way to ask for no "
                           "date");
     }
+    // Whatever else a library may put in one — a specifier this does not know
+    // about, or a control character written into the value by hand.
     const auto isControl = [](char c) { return static_cast<unsigned char>(c) < 0x20; };
     if (std::any_of(written.begin(), written.end(), isControl)) {
         return entry.fail(what + ": '" + value +

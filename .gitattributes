@@ -1,0 +1,31 @@
+# Line feeds in the working tree, on every system.
+#
+# Without this, git on Windows checks the tree out with CRLF, and two things
+# that are the same file stop being the same file: `amberedit.cfg.example` is
+# compiled into the binary as bytes and also read off disk by the tests, and the
+# themes and the message template are compared against what the code holds. A
+# checkout that rewrote their line endings made the embedded copy 1396 bytes
+# longer than the rendered one — one per line — and the tests said so.
+#
+# It is also what the formats want. A config, a theme and a keymap are read by
+# code that splits on \n and would carry a \r into every value; the test bases
+# under testdata/ are binary and are marked so below.
+* text=auto eol=lf
+
+# Byte for byte, whatever the platform: message bases, compiled nodelists and
+# echolists, archives and the sample artwork are formats with their own layout,
+# and a line ending is data there rather than punctuation.
+*.sqd binary
+*.sqi binary
+*.sql binary
+*.jhr binary
+*.jdx binary
+*.jdt binary
+*.jlr binary
+*.msg binary
+*.zip binary
+*.gif binary
+*.png binary
+# The zipped nodelist and echolist, whose extensions are the counters they
+# are numbered by rather than anything a pattern above would catch.
+testdata/nodelist/Z2PNT.Z19 binary

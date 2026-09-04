@@ -1352,6 +1352,12 @@ TEST_CASE("AppConfig reads the Date column's own format [app_config]") {
     const std::string error6 = formatError("\"s d(%d%n%H)\"");
     CHECK_MESSAGE(contains(error6, "more than one line"), error6);
     CHECK_MESSAGE(contains(error6, "msglist_format's d(...)"), error6);
+    // `%n` and `%t` are refused by name rather than by what strftime writes for
+    // them, since not every strftime writes anything at all. A doubled percent
+    // is a percent and the letter after it is a letter, so this one stands.
+    CHECK(formatError("\"s d(%%n %d)\"").empty());
+    const std::string error6b = formatError("\"s d(%d%t%H)\"");
+    CHECK_MESSAGE(contains(error6b, "more than one line"), error6b);
     const std::string error7 = formatError("\"s d( )\"");
     CHECK_MESSAGE(contains(error7, "writes no stamp at all"), error7);
 }
