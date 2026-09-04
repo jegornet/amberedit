@@ -200,7 +200,7 @@ msgstr "Утилита"
 #: src/i18n/i18n.cpp:51
 msgid ""
 msgstr ""
-"Project-Id-Version: AmberEdit 0.6.5\n"
+"Project-Id-Version: AmberEdit 0.6.6\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
 "POT-Creation-Date: 2026-08-28 23:02+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
