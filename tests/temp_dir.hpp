@@ -9,6 +9,8 @@
 #include <string>
 #include <system_error>
 
+#include "sys/env.hpp"
+
 namespace amberedit::test {
 
 /// An empty directory, taken away again with whatever was put in it.
@@ -56,15 +58,15 @@ public:
     explicit WithTempDirEnv(const std::string& directory) {
         for (size_t i = 0; i < kNames.size(); ++i) {
             if (const char* was = ::getenv(kNames[i])) previous_[i] = std::string(was);
-            ::setenv(kNames[i], directory.c_str(), 1);
+            amberedit::sys::setEnvironment(kNames[i], directory.c_str());
         }
     }
     ~WithTempDirEnv() {
         for (size_t i = 0; i < kNames.size(); ++i) {
             if (previous_[i]) {
-                ::setenv(kNames[i], previous_[i]->c_str(), 1);
+                amberedit::sys::setEnvironment(kNames[i], previous_[i]->c_str());
             } else {
-                ::unsetenv(kNames[i]);
+                amberedit::sys::unsetEnvironment(kNames[i]);
             }
         }
     }

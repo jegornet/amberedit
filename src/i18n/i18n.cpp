@@ -9,6 +9,9 @@
 #include <system_error>
 #include <vector>
 
+#include "sys/env.hpp"
+#include "sys/program.hpp"
+
 #ifdef AMBEREDIT_HAVE_NL_MSG_CAT_CNTR
 extern "C" {
 /// How a program that changes `LANGUAGE` while it runs tells gettext to look
@@ -95,15 +98,34 @@ std::vector<std::string> languagesAsked() {
 
 /// Where this build put its catalogs, or where it will install them.
 ///
-/// The build's own first: a binary that has only been built is already
-/// translated, which is the whole point of compiling both in. On any machine the
-/// binary was shipped to that directory does not exist, and the installed one
-/// answers.
-const char* catalogDirectory() {
+/// Three places, in this order:
+///
+///   * the build's own. A binary that has only been built is already translated,
+///     which is the whole point of compiling both paths in. On any machine the
+///     binary was shipped to, that directory is not there.
+///   * beside the binary, at `../share/locale`. `AMBEREDIT_LOCALEDIR` is an
+///     absolute path fixed when the build ran, which is right for a package
+///     installed into the prefix it was built for and wrong for anything moved
+///     since. Windows is the case where it is always wrong: there is no fixed
+///     prefix there, and the zip is unpacked wherever the user likes — so the
+///     catalogs shipped in it were never found and the interface stayed English
+///     however `LANGUAGE` was set. On a package installed as intended this names
+///     the same directory as the line below, so it changes nothing there.
+///   * the path the build was told to install to, which is what a package uses.
+std::string catalogDirectory() {
     std::error_code ec;
     if (std::filesystem::is_directory(AMBEREDIT_BUILD_LOCALEDIR, ec)) {
         return AMBEREDIT_BUILD_LOCALEDIR;
     }
+
+    if (const std::filesystem::path program = sys::executablePath(); !program.empty()) {
+        const std::filesystem::path beside =
+            program.parent_path() / ".." / "share" / "locale";
+        if (std::filesystem::is_directory(beside, ec)) {
+            return std::filesystem::weakly_canonical(beside, ec).string();
+        }
+    }
+
     return AMBEREDIT_LOCALEDIR;
 }
 
@@ -111,7 +133,8 @@ const char* catalogDirectory() {
 ///
 /// What tells a language AmberEdit has no translation for — nothing to complain
 /// about — from one it has and could not use, which is worth a line.
-bool catalogExistsFor(const std::vector<std::string>& languages, const char* directory) {
+bool catalogExistsFor(const std::vector<std::string>& languages,
+                      const std::string& directory) {
     std::error_code ec;
     for (const std::string& language : languages) {
         const std::filesystem::path candidate =
@@ -123,10 +146,48 @@ bool catalogExistsFor(const std::vector<std::string>& languages, const char* dir
 
 }  // namespace
 
+/// Puts the system's languages into the environment where the user has named
+/// none, so that gettext has something to go on.
+///
+/// Only where they have named none: `LANGUAGE`, `LC_ALL`, `LC_MESSAGES` and
+/// `LANG` are all the user's own way of saying what they want, and a program
+/// that overrode one of them would be answering a question nobody asked. That
+/// this runs at all therefore means every one of them was unset.
+///
+/// It does nothing on POSIX, where the environment already carries the answer.
+/// On Windows it carries nothing — there is no `LANG` there and the C runtime
+/// has no `LC_MESSAGES` category — so a machine set to Russian would draw an
+/// English interface until its owner worked out which variable to set by hand.
+///
+/// Both variables, and this is the part that is not obvious: `LANGUAGE` alone is
+/// not enough, because gettext ignores it while the locale is `C`, and that is
+/// what a Windows machine with the UTF-8 option turned on reports. Nor does
+/// `setlocale(LC_MESSAGES, "ru_RU")` help — it takes the name and answers with
+/// it, and gettext goes on drawing English, because on Windows libintl reads the
+/// language out of the environment rather than out of the runtime's locale.
+/// `LC_ALL` is what it reads and so what is set; it is the broadest of the four,
+/// and safe here for the reason above — there was nothing of the user's to
+/// override.
+void adoptSystemLanguage() {
+    for (const char* named : {"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"}) {
+        const char* value = std::getenv(named);
+        if (value != nullptr && value[0] != '\0') return;
+    }
+
+    const std::string languages = sys::uiLanguages();
+    if (languages.empty()) return;
+
+    sys::setEnvironment("LANGUAGE", languages);
+    // The first of them: `LC_ALL` names one locale, where `LANGUAGE` is a list
+    // of them in the order they are wanted.
+    sys::setEnvironment("LC_ALL", languages.substr(0, languages.find(':')));
+}
+
 Started start() {
     domain = "amberedit";
-    const char* directory = catalogDirectory();
-    ::bindtextdomain(domain.c_str(), directory);
+    adoptSystemLanguage();
+    const std::string directory = catalogDirectory();
+    ::bindtextdomain(domain.c_str(), directory.c_str());
     // Whatever the catalog was compiled in, it reaches this program as UTF-8:
     // everything above `ui/term` is UTF-8 and the terminal layer encodes on the
     // way out.
@@ -167,7 +228,7 @@ void clear() {
     // and the language is pointed at one that has none. `en` is the interface's
     // own language: a catalog for it would be a translation of English into
     // English and nobody writes one.
-    ::setenv("LANGUAGE", "en", 1);
+    sys::setEnvironment("LANGUAGE", "en");
     invalidateCache();
     active = false;
 }

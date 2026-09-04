@@ -2,12 +2,12 @@
 
 #include <doctest/doctest.h>
 
-#include <unistd.h>
-
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <system_error>
 
+#include "sys/env.hpp"
 #include "temp_dir.hpp"
 #include "test_strings.hpp"
 
@@ -21,7 +21,13 @@ namespace {
 /// temporary directory is where it lives, and the user is what tells it apart
 /// from the one belonging to whoever else is logged in.
 std::string oursUnder(const std::string& system) {
-    return system + "/amberedit-" + std::to_string(::getuid());
+    // Built the way `defaultTempDir()` builds it, separator and all: joined
+    // through fs::path so the answer is spelled the way the platform spells a
+    // path, and qualified by the user only where the system has not already
+    // given them a temporary directory of their own.
+    const std::string tag = amberedit::sys::userTag();
+    const std::string name = tag.empty() ? "amberedit" : "amberedit-" + tag;
+    return (std::filesystem::path(system) / name).string();
 }
 
 }  // namespace
@@ -40,9 +46,18 @@ TEST_CASE("a config naming no tmpdir works under the system's own [temp_dir]") {
 
     // Nobody else's to look into or to write to, the directory above it being
     // one the whole machine shares.
+    //
+    // POSIX only, and not because Windows is careless about it: there the
+    // directory this one is made under is already the account's own, under its
+    // profile, so there is nobody to be shut out. That is the same fact
+    // `sys::userTag()` reports by answering with nothing there. And the mode
+    // bits these read do not exist on Windows — `fs::permissions` cannot set
+    // them and `fs::status` reports them as granted to everyone.
+#ifndef _WIN32
     const auto permissions = fs::status(made).permissions();
     CHECK((permissions & fs::perms::group_all) == fs::perms::none);
     CHECK((permissions & fs::perms::others_all) == fs::perms::none);
+#endif
 
     // Asked for twice is the same directory and not an error: it is made when it
     // is not there, and what is there already is what it was.
@@ -79,7 +94,17 @@ TEST_CASE("a temporary directory of ours that is not ours is refused [temp_dir]"
     fs::create_directories(dir.path("system"));
     fs::create_directories(dir.path("elsewhere"));
     test::WithTempDirEnv env(dir.path("system"));
-    fs::create_directory_symlink(dir.path("elsewhere"), oursUnder(dir.path("system")));
+
+    // Making one is a privilege on Windows — an administrator, or an account
+    // with developer mode turned on — so where it cannot be made there is
+    // nothing here to assert against. The check it stands for is in
+    // `makeTempDir` either way, and runs wherever a link can be made at all.
+    std::error_code ec;
+    fs::create_directory_symlink(dir.path("elsewhere"), oursUnder(dir.path("system")), ec);
+    if (ec) {
+        MESSAGE("no symbolic link could be made here: " << ec.message());
+        return;
+    }
 
     const std::string error = test::errorOf(config::makeTempDir(""));
     CHECK_MESSAGE(contains(error, "symbolic link"), error);

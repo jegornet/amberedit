@@ -10,12 +10,15 @@
 /// this directory. Distributions that keep the wide headers apart put them under
 /// `ncursesw/`, which is unambiguous wherever it exists; CMake checks for it and
 /// says so here.
+///
+/// Only `curses.h` is asked for. Nothing here uses terminfo — no `setupterm`,
+/// no `tigetflag`, no `cur_term` — and `<term.h>` was being included for a
+/// dependency the code does not have. Saying so matters beyond tidiness:
+/// PDCurses, which the Windows build uses, has no terminfo at all.
 #if defined(AMBEREDIT_NCURSESW_SUBDIR)
 #include <ncursesw/curses.h>
-#include <ncursesw/term.h>
 #else
 #include <curses.h>
-#include <term.h>
 #endif
 
 // Both headers are C from before namespaces existed, and define a handful of

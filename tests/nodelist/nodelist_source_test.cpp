@@ -1,4 +1,5 @@
 #include "nodelist/nodelist_source.hpp"
+#include "sys/env.hpp"
 
 #include <doctest/doctest.h>
 
@@ -367,8 +368,10 @@ TEST_CASE(
     fs::create_directories(dir.path("system"));
     test::WithTempDirEnv env(dir.path("system"));
 
+    const std::string tag = amberedit::sys::userTag();
     const std::string expected =
-        dir.path("system") + "/amberedit-" + std::to_string(::getuid());
+        (fs::path(dir.path("system")) / (tag.empty() ? "amberedit" : "amberedit-" + tag))
+            .string();
 
     {
         nodelist::NodelistSources sources("");

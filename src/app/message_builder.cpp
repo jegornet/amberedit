@@ -12,6 +12,7 @@
 #include "config/text_util.hpp"
 #include "encoding/iconv_recoder.hpp"
 #include "i18n/i18n.hpp"
+#include "sys/time.hpp"
 #include "version.hpp"
 
 namespace amberedit::app {
@@ -268,8 +269,7 @@ TemplateContext contextFor(const BuildRequest& request) {
 /// exactly what @cdate and @ctime say, and what lets both of them and the
 /// answered message's @odate/@otime be written by one piece of code.
 domain::MessageDate localStamp(std::time_t when) {
-    std::tm broken{};
-    localtime_r(&when, &broken);
+    const std::tm broken = sys::localTime(when);
 
     domain::MessageDate stamp;
     stamp.year = static_cast<uint16_t>(broken.tm_year + 1900);

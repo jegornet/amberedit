@@ -8,6 +8,7 @@
 
 #include "i18n/i18n.hpp"
 #include "msgbase/null_lastread_store.hpp"
+#include "sys/env.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/keys.hpp"
@@ -127,12 +128,12 @@ TEST_CASE(
     fixture.config.readerHints = {Command::ReaderReply};
     fixture.config.hintBarCapitalize = false;
 
-    ::setenv("LANGUAGE", "ru", 1);
+    amberedit::sys::setEnvironment("LANGUAGE", "ru");
     for (const char* locale : {"", "C.UTF-8", "C.utf8", "en_US.UTF-8", "UTF-8"}) {
         if (locale[0] == '\0') {
-            ::unsetenv("LC_ALL");
+            amberedit::sys::unsetEnvironment("LC_ALL");
         } else {
-            ::setenv("LC_ALL", locale, 1);
+            amberedit::sys::setEnvironment("LC_ALL", locale);
         }
         static_cast<void>(amberedit::i18n::start());
         if (amberedit::i18n::translating()) break;
@@ -142,7 +143,7 @@ TEST_CASE(
         CHECK(hint_bar::text(fixture.state) == "q ответ");
     }
 
-    ::unsetenv("LC_ALL");
+    amberedit::sys::unsetEnvironment("LC_ALL");
     amberedit::i18n::clear();
 }
 

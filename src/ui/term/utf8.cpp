@@ -1,14 +1,29 @@
 #include "ui/term/utf8.hpp"
 
+#ifndef _WIN32
 #include <langinfo.h>
+#endif
 
 #include <array>
 #include <cctype>
 #include <clocale>
 #include <cwchar>
 
+#ifdef _WIN32
+#include <cstdint>
+
+/// PDCursesMod's own width function — Markus Kuhn's, the same one it lays cells
+/// out with. Windows has no `wcwidth`, and answering from a table of our own
+/// would risk disagreeing with the library about which characters take two
+/// columns: it would draw a row one way and we would have measured it another.
+/// It is exported but not declared in `curses.h`, so it is declared here.
+extern "C" int PDC_wcwidth(int32_t ucs);
+#endif
+
 namespace amberedit::ui::term {
 namespace {
+
+#ifndef _WIN32
 
 /// Whether a codeset name means UTF-8. Spelled `UTF-8`, `utf8` and `UTF8` in
 /// the wild, so the separators come out before comparing.
@@ -34,6 +49,8 @@ bool isAsciiOnlyCodeset(std::string_view codeset) {
 /// has; the bare `UTF-8` spelling is what macOS accepts.
 constexpr std::array<const char*, 4> kUtf8Locales{"C.UTF-8", "C.utf8", "en_US.UTF-8",
                                                   "UTF-8"};
+
+#endif  // _WIN32
 
 }  // namespace
 
@@ -82,7 +99,13 @@ int codepointWidth(char32_t code) {
 
     if (code == 0) return 0;
 
+#ifdef _WIN32
+    // Not `::wcwidth`: Windows has none, and `wchar_t` there is 16 bits, which
+    // would lose everything above the basic plane on the way in.
+    const int width = PDC_wcwidth(static_cast<int32_t>(code));
+#else
     const int width = ::wcwidth(static_cast<wchar_t>(code));
+#endif
     if (width >= 0) return width;
 
     // The library would not judge it. A C1 control or a stray byte is worth no
@@ -160,6 +183,12 @@ const std::string& ensureUtf8Locale() {
     // Function-local so that the answer is settled once, on the first call,
     // whether that comes from the application or from a test.
     static const std::string codeset = [] {
+#ifdef _WIN32
+        // Nothing to look for and no locale that could change the answer:
+        // PDCurses is built with PDC_FORCE_UTF8 and converts on the way out
+        // whatever the console code page happens to be.
+        return std::string("UTF-8");
+#else
         // What the environment asks for comes first: a user who has chosen
         // KOI8-R means it, and overriding them would undo the one thing this
         // whole change was for.
@@ -183,6 +212,7 @@ const std::string& ensureUtf8Locale() {
         std::setlocale(LC_CTYPE, "");
         current = nl_langinfo(CODESET);
         return std::string(current != nullptr ? current : "");
+#endif
     }();
     return codeset;
 }

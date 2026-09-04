@@ -53,15 +53,31 @@ include(GNUInstallDirs)
 #   * whether what was found actually has the wide and extended-color API.
 #     That is settled by compiling, below, because it is the only answer that
 #     cannot be wrong.
+#
+# On Windows none of this applies: there is no ncurses there, and the curses in
+# use is PDCursesMod, whose wincon port talks to the console directly. It needs
+# a 64-bit chtype build with PDC_WIDE — that is the configuration that carries
+# `cchar_t`, extended colour pairs and the combining-character scheme, and the
+# probe below holds it to all three exactly as it holds ncurses.
 include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
 
 find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
+if(NOT WIN32 AND PkgConfig_FOUND)
   pkg_check_modules(NCURSESW QUIET IMPORTED_TARGET ncursesw)
 endif()
 
-if(TARGET PkgConfig::NCURSESW)
+if(WIN32)
+  find_library(PDCURSES_LIBRARY NAMES pdcurses REQUIRED)
+  find_path(PDCURSES_INCLUDE_DIR NAMES curses.h REQUIRED)
+  add_library(amberedit_curses INTERFACE)
+  # winmm is not decoration: the wincon port rings the bell with PlaySoundW, so
+  # leaving it out fails at link with one undefined symbol and nothing to say why.
+  target_link_libraries(amberedit_curses INTERFACE
+    ${PDCURSES_LIBRARY} winmm user32 advapi32)
+  target_include_directories(amberedit_curses INTERFACE ${PDCURSES_INCLUDE_DIR})
+  set(amberedit_curses_lib amberedit_curses)
+elseif(TARGET PkgConfig::NCURSESW)
   set(amberedit_curses_lib PkgConfig::NCURSESW)
 else()
   set(CURSES_NEED_NCURSES TRUE)
@@ -75,27 +91,52 @@ endif()
 
 # Does the header live under ncursesw/, and does what we found do wide
 # characters and extended color pairs? One compile answers all three.
+#
+# Terminfo is deliberately not probed. Nothing in AmberEdit calls it, and
+# asking for `tigetflag` here demanded a library the code never uses.
 set(amberedit_curses_probe "
   #include <@header@>
   int main() {
     cchar_t cell; wchar_t text[2] = {L'x', 0}; int pair = 1;
     setcchar(&cell, text, A_BOLD, 0, &pair);
     init_extended_pair(1, 2, 3);
-    return tigetflag((char*)\"RGB\");
+    return 0;
   }
 ")
 
 cmake_push_check_state()
-set(CMAKE_REQUIRED_LIBRARIES ${amberedit_curses_lib})
-set(CMAKE_REQUIRED_DEFINITIONS -DNCURSES_WIDECHAR=1)
+# Both the header and the libraries are handed over by path rather than through
+# the target. check_cxx_source_compiles carries neither the include directories
+# of an INTERFACE target nor the target itself — the name arrives at the linker
+# as `-lamberedit_curses` — and a library in a prefix of its own is then reported
+# as missing rather than as unlinked.
+if(WIN32)
+  set(CMAKE_REQUIRED_INCLUDES ${PDCURSES_INCLUDE_DIR})
+  set(CMAKE_REQUIRED_LIBRARIES ${PDCURSES_LIBRARY} winmm user32 advapi32)
+  set(CMAKE_REQUIRED_DEFINITIONS -DPDC_WIDE=1 -DPDC_FORCE_UTF8=1 -DPDC_NCMOUSE=1 -DPDC_RGB=1)
+else()
+  set(CMAKE_REQUIRED_LIBRARIES ${amberedit_curses_lib})
+  set(CMAKE_REQUIRED_DEFINITIONS -DNCURSES_WIDECHAR=1)
+endif()
 
-string(REPLACE "@header@" "ncursesw/curses.h" amberedit_probe_subdir "${amberedit_curses_probe}")
-check_cxx_source_compiles("${amberedit_probe_subdir}" AMBEREDIT_NCURSESW_SUBDIR)
+# PDCurses has no `ncursesw/` spelling, so on Windows only the plain header is
+# tried and the subdirectory answer stays false — which is what ncurses.hpp reads.
+if(NOT WIN32)
+  string(REPLACE "@header@" "ncursesw/curses.h" amberedit_probe_subdir "${amberedit_curses_probe}")
+  check_cxx_source_compiles("${amberedit_probe_subdir}" AMBEREDIT_NCURSESW_SUBDIR)
+endif()
 
 if(NOT AMBEREDIT_NCURSESW_SUBDIR)
   string(REPLACE "@header@" "curses.h" amberedit_probe_plain "${amberedit_curses_probe}")
   check_cxx_source_compiles("${amberedit_probe_plain}" AMBEREDIT_CURSES_PLAIN)
-  if(NOT AMBEREDIT_CURSES_PLAIN)
+  if(NOT AMBEREDIT_CURSES_PLAIN AND WIN32)
+    message(FATAL_ERROR
+      "AmberEdit needs PDCursesMod built wide and 64-bit (cchar_t, setcchar, "
+      "init_extended_pair). A CHTYPE_32 build has no room for the extended "
+      "colour pairs and no combining characters; build the wincon port with "
+      "WIDE=Y and without CHTYPE_32, and name its prefix to CMake."
+    )
+  elseif(NOT AMBEREDIT_CURSES_PLAIN)
     message(FATAL_ERROR
       "AmberEdit needs the wide-character ncurses (cchar_t, setcchar, "
       "init_extended_pair). Install ncurses-devel / libncursesw5-dev; on macOS "
@@ -347,6 +388,12 @@ add_custom_command(
 # --- application core --------------------------------------------------------
 add_library(amberedit_core STATIC
   src/support/error.cpp
+  src/sys/charset.cpp
+  src/sys/env.cpp
+  src/sys/file.cpp
+  src/sys/process.cpp
+  src/sys/program.cpp
+  src/sys/time.cpp
   src/i18n/i18n.cpp
   src/domain/ftn_address.cpp
   src/domain/address_pattern.cpp
@@ -511,7 +558,25 @@ add_library(amberedit_term STATIC
 )
 target_include_directories(amberedit_term PUBLIC src)
 target_link_libraries(amberedit_term PUBLIC ${amberedit_curses_lib})
-target_compile_definitions(amberedit_term PUBLIC NCURSES_WIDECHAR=1)
+# PDCurses learns nothing from how it was built: `curses.h` declares `cchar_t`
+# and the wide API only where PDC_WIDE is defined by whoever includes it, so the
+# two flags the library was compiled with are repeated here. Getting this wrong
+# is the same quiet failure as picking the narrow ncurses — the header simply
+# has no `setcchar` in it.
+if(WIN32)
+  # PDC_NCMOUSE asks PDCurses for the ncurses mouse interface — `getmouse(MEVENT*)`
+  # and NCURSES_MOUSE_VERSION — instead of its own older `getmouse(void)`. With it
+  # the mouse code above this layer is the same code on both systems.
+  # PDC_RGB puts the first eight colours in the ANSI order — 1 red, 4 blue —
+  # which is what themes/*.cfg are written in. Without it PDCurses uses the DOS
+  # order and a blue theme comes out red. It has to hold for the library too;
+  # tools/build-w64-deps.sh builds it that way, and the assertion in color.cpp
+  # catches this half of the bargain going missing.
+  target_compile_definitions(amberedit_term
+    PUBLIC PDC_WIDE=1 PDC_FORCE_UTF8=1 PDC_NCMOUSE=1 PDC_RGB=1)
+else()
+  target_compile_definitions(amberedit_term PUBLIC NCURSES_WIDECHAR=1)
+endif()
 if(AMBEREDIT_NCURSESW_SUBDIR)
   target_compile_definitions(amberedit_term PUBLIC AMBEREDIT_NCURSESW_SUBDIR)
 endif()

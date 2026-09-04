@@ -5,6 +5,23 @@
 
 #include "ui/term/ncurses.hpp"
 
+// PDCurses numbers the first eight colors in the DOS order unless told
+// otherwise: 1 blue, 4 red. ANSI, ncurses and every theme in themes/ have it the
+// other way round, so a mismatch here draws a blue theme in red and a yellow one
+// in cyan — and reports nothing, because every number involved is valid. Said
+// out loud at compile time, since it is the sort of wrong that only shows up in
+// a screenshot.
+//
+// This holds our half of the bargain. The library has to be built with PDC_RGB
+// as well — the palette for entries 0-15 is made from these masks inside it —
+// and nothing here can check that from the outside; tools/build-w64-deps.sh is
+// where it is done.
+#ifdef COLOR_BLUE
+static_assert(COLOR_BLUE == 4,
+              "curses was configured with the DOS color order (blue as 1). "
+              "Define PDC_RGB, and build PDCursesMod with it too.");
+#endif
+
 namespace amberedit::ui::term {
 namespace {
 

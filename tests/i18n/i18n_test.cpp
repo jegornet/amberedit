@@ -9,6 +9,7 @@
 #include "config/commands.hpp"
 #include "i18n/i18n.hpp"
 #include "msgbase/null_lastread_store.hpp"
+#include "sys/env.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
@@ -39,25 +40,25 @@ namespace {
 class WithRussian {
 public:
     WithRussian() {
-        ::setenv("LANGUAGE", "ru", 1);
+        amberedit::sys::setEnvironment("LANGUAGE", "ru");
         // A locale for `LC_MESSAGES` to sit in, since gettext will not translate
         // under `C` — which is what a test runner in a container is given. The
         // program itself imposes nothing here and takes what the environment
         // says; a test has to put something there to have anything to assert on.
         for (const char* locale : {"", "C.UTF-8", "C.utf8", "en_US.UTF-8", "UTF-8"}) {
             if (locale[0] == '\0') {
-                ::unsetenv("LC_ALL");
+                amberedit::sys::unsetEnvironment("LC_ALL");
             } else {
-                ::setenv("LC_ALL", locale, 1);
+                amberedit::sys::setEnvironment("LC_ALL", locale);
             }
             static_cast<void>(i18n::start());
             ok_ = i18n::translating();
             if (ok_) return;
         }
-        ::unsetenv("LC_ALL");
+        amberedit::sys::unsetEnvironment("LC_ALL");
     }
     ~WithRussian() {
-        ::unsetenv("LC_ALL");
+        amberedit::sys::unsetEnvironment("LC_ALL");
         i18n::clear();
     }
 
@@ -86,10 +87,10 @@ TEST_CASE("The environment is what picks the language [i18n]") {
     i18n::clear();
 
     // Nothing asked for is English asked for, and carries no complaint.
-    ::unsetenv("LANGUAGE");
-    ::unsetenv("LC_ALL");
-    ::unsetenv("LC_MESSAGES");
-    ::unsetenv("LANG");
+    amberedit::sys::unsetEnvironment("LANGUAGE");
+    amberedit::sys::unsetEnvironment("LC_ALL");
+    amberedit::sys::unsetEnvironment("LC_MESSAGES");
+    amberedit::sys::unsetEnvironment("LANG");
     const i18n::Started quiet = i18n::start();
     CHECK(quiet.warning.empty());
     CHECK_FALSE(i18n::translating());
@@ -97,7 +98,7 @@ TEST_CASE("The environment is what picks the language [i18n]") {
 
     // A language there is no catalog for is not a fault either: English is the
     // answer and nothing is said about it.
-    ::setenv("LANGUAGE", "xx", 1);
+    amberedit::sys::setEnvironment("LANGUAGE", "xx");
     const i18n::Started absent = i18n::start();
     CHECK(absent.warning.empty());
     CHECK_FALSE(i18n::translating());
@@ -107,14 +108,14 @@ TEST_CASE("The environment is what picks the language [i18n]") {
 
 TEST_CASE("A language we have and the system cannot is a warning [i18n]") {
     i18n::clear();
-    ::unsetenv("LC_ALL");
-    ::unsetenv("LC_MESSAGES");
-    ::unsetenv("LANG");
+    amberedit::sys::unsetEnvironment("LC_ALL");
+    amberedit::sys::unsetEnvironment("LC_MESSAGES");
+    amberedit::sys::unsetEnvironment("LANG");
     // Russian, under a locale gettext refuses to translate under. Where the
     // build made no Russian catalog there is nothing to warn about and the case
     // has nothing to say.
-    ::setenv("LANGUAGE", "ru", 1);
-    ::setenv("LC_ALL", "C", 1);
+    amberedit::sys::setEnvironment("LANGUAGE", "ru");
+    amberedit::sys::setEnvironment("LC_ALL", "C");
 
     const i18n::Started started = i18n::start();
     if (!started.warning.empty()) {
@@ -125,7 +126,7 @@ TEST_CASE("A language we have and the system cannot is a warning [i18n]") {
         CHECK(std::string(_("Save the message?")) == "Save the message?");
     }
 
-    ::unsetenv("LC_ALL");
+    amberedit::sys::unsetEnvironment("LC_ALL");
     i18n::clear();
 }
 

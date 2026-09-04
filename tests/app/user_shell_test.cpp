@@ -2,15 +2,14 @@
 
 #include <doctest/doctest.h>
 
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <cstdlib>
 #include <fstream>
 #include <optional>
 #include <string>
 
+#include "sys/env.hpp"
 #include "temp_dir.hpp"
+#include "test_programs.hpp"
 #include "test_strings.hpp"
 
 using amberedit::app::runUserShell;
@@ -29,16 +28,16 @@ public:
     explicit WithShellEnv(const std::optional<std::string>& shell) {
         if (const char* was = ::getenv("SHELL")) previous_ = std::string(was);
         if (shell) {
-            ::setenv("SHELL", shell->c_str(), 1);
+            amberedit::sys::setEnvironment("SHELL", shell->c_str());
         } else {
-            ::unsetenv("SHELL");
+            amberedit::sys::unsetEnvironment("SHELL");
         }
     }
     ~WithShellEnv() {
         if (previous_) {
-            ::setenv("SHELL", previous_->c_str(), 1);
+            amberedit::sys::setEnvironment("SHELL", previous_->c_str());
         } else {
-            ::unsetenv("SHELL");
+            amberedit::sys::unsetEnvironment("SHELL");
         }
     }
 
@@ -48,18 +47,6 @@ public:
 private:
     std::optional<std::string> previous_;
 };
-
-/// A program that does nothing and says it went well, written where the test can
-/// point `$SHELL` at it: running the machine's real shell would leave it reading
-/// the commands off the test runner's own input.
-std::string aShellThatExits(const TempDir& dir) {
-    const std::string path = dir.path("shell");
-    std::ofstream file(path);
-    file << "#!/bin/sh\nexit 0\n";
-    file.close();
-    REQUIRE(::chmod(path.c_str(), 0755) == 0);
-    return path;
-}
 
 }  // namespace
 
@@ -75,7 +62,13 @@ TEST_CASE("Without $SHELL there is still a shell to run [shell]") {
     const WithShellEnv none(std::nullopt);
     const std::string path = userShellPath();
     CHECK_FALSE(path.empty());
+    // Absolute on POSIX, where the password file names a path and /bin/sh is
+    // the fallback. On Windows the fallback is `cmd.exe` by name — %COMSPEC%
+    // usually spells it out, but nothing says it must, and a name found on
+    // %PATH% is as much a shell as a path is.
+#ifndef _WIN32
     CHECK(path.front() == '/');
+#endif
 
     // An empty $SHELL is the same as none at all: it names no shell either.
     const WithShellEnv blank(std::string(""));
@@ -84,9 +77,10 @@ TEST_CASE("Without $SHELL there is still a shell to run [shell]") {
 
 TEST_CASE("A shell that runs and exits comes back with nothing to report "
           "[shell]") {
-    TempDir dir;
-    const WithShellEnv shell(aShellThatExits(dir));
+    const WithShellEnv shell(amberedit::test::stubProgram());
 
+    // The helper with no mode named exits without doing anything, which is a
+    // shell the user typed `exit` into as far as this is concerned.
     CHECK(runUserShell().has_value());
 }
 

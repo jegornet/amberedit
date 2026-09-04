@@ -302,9 +302,67 @@ jobs:
           name: macos-${{ matrix.arch }}
           path: amberedit-*.tar.gz
 
+  windows:
+    name: Windows x86_64
+    needs: tarball
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git make zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-libiconv
+            mingw-w64-x86_64-gettext
+            mingw-w64-x86_64-tl-expected
+
+      # MSYS2's PDCurses is the original one, which has neither the extended
+      # colour pairs nor the combining characters; this is the same script the
+      # CI job and a local cross-build call.
+      - name: Build PDCursesMod
+        run: tools/build-pdcurses.sh "$PWD/w64deps"
+
+      # Statically, so that what ships is one .exe rather than an .exe and a
+      # handful of DLLs out of the build host's MSYS2.
+      - name: Build and stage
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+                -DAMBEREDIT_BUILD_TESTS=OFF \
+                -DCMAKE_PREFIX_PATH="$PWD/w64deps" \
+                -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++"
+          cmake --build build -j"$(nproc)"
+          cmake --install build --prefix stage
+
+      # A zip and not a tarball: it is what Windows opens without being given
+      # anything to open it with. The documents ride along for the reason they
+      # do in the macOS archive — nothing installs them, and an archive's place
+      # for them is the top of it.
+      - name: Pack
+        run: |
+          v='${{ needs.tarball.outputs.version }}'
+          cp README.md INSTALL.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
+          (cd stage && zip -qr "../amberedit-$v-windows-x86_64.zip" .)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: amberedit-*.zip
+
   publish:
     name: Publish the release
-    needs: [tarball, rpm, deb, arch, macos]
+    needs: [tarball, rpm, deb, arch, macos, windows]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

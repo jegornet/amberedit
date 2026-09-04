@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#include "sys/time.hpp"
+
 namespace amberedit::ui::error_log {
 
 namespace {
@@ -20,8 +22,7 @@ std::string& logPath() {
 /// that sorts. No zone in it — the file is read on the machine that wrote it.
 std::string stamp() {
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
+    const std::tm broken = sys::localTime(now);
     std::array<char, 32> text{};
     const size_t written =
         std::strftime(text.data(), text.size(), "%Y-%m-%d %H:%M:%S", &broken);

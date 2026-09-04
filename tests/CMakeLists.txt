@@ -110,8 +110,14 @@ target_include_directories(amberedit_tests PRIVATE
 
 # The tests read fixtures from testdata/. The repository root is passed in as a
 # macro so they do not depend on the working directory.
+#
+# Overridable for one case only: a binary cross-built here and run somewhere else,
+# where the source tree is not at the path it was built from. Point it at wherever
+# testdata/ and themes/ were copied to on that machine.
+set(AMBEREDIT_TESTDATA_ROOT "${CMAKE_SOURCE_DIR}" CACHE STRING
+    "Where the tests look for testdata/ and themes/ when they run")
 target_compile_definitions(amberedit_tests PRIVATE
-  AMBEREDIT_PROJECT_ROOT="${CMAKE_SOURCE_DIR}"
+  AMBEREDIT_PROJECT_ROOT="${AMBEREDIT_TESTDATA_ROOT}"
 )
 
 # text_layout belongs to the AmberEdit (UI) target rather than amberedit_core, so the
@@ -170,6 +176,24 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/screens/compose_screen.cpp
 )
 
+# The program the tests run when they need one — see tests/support/stub_main.cpp.
+# Beside the test binary, which is where tests/test_programs.hpp looks for it, so
+# that a suite cross-built here and run elsewhere still finds it.
+add_executable(amberedit_test_stub support/stub_main.cpp)
+set_target_properties(amberedit_test_stub PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY $<TARGET_FILE_DIR:amberedit_tests>)
+add_dependencies(amberedit_tests amberedit_test_stub)
+
 # doctest.cmake, from beside the package config the root CMakeLists found.
 include(doctest)
-doctest_discover_tests(amberedit_tests)
+
+if(CMAKE_CROSSCOMPILING)
+  # Discovery asks the test binary to list its cases, which means running it —
+  # and a Windows binary cross-built on Linux or macOS is not something the build
+  # host can run. One test standing for the whole binary takes its place, so that
+  # `ctest` still means something wherever the binary can run: under Wine, or on
+  # Windows itself. Point CMAKE_CROSSCOMPILING_EMULATOR at wine to use it here.
+  add_test(NAME amberedit_tests COMMAND amberedit_tests)
+else()
+  doctest_discover_tests(amberedit_tests)
+endif()

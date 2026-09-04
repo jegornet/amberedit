@@ -11,6 +11,7 @@
 #include "encoding/iconv_recoder.hpp"
 #include "msgbase/ftn_msgbase.hpp"
 #include "msgbase/raw_message.hpp"
+#include "sys/time.hpp"
 #include "temp_msg_bases.hpp"
 #include "temp_squish_base.hpp"
 #include "test_paths.hpp"
@@ -45,8 +46,7 @@ const std::string kAlphabet = "абвгдеёжзийклмнопрстуфхц�
 /// zone of its own, which is what an FTN stamp is.
 std::string today() {
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
+    const std::tm broken = amberedit::sys::localTime(now);
     char buffer[16];
     std::strftime(buffer, sizeof(buffer), "%Y-%m-%d", &broken);
     return buffer;

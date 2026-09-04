@@ -12,6 +12,7 @@
 #include "config/text_util.hpp"
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
+#include "sys/env.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 
@@ -2885,16 +2886,16 @@ TEST_CASE("A list file may be named under ~ [app_config]") {
     // names it. Put back afterwards: the rest of the suite reads the real one.
     const char* previous = std::getenv("HOME");
     const std::string had = previous != nullptr ? previous : "";
-    ::setenv("HOME", listDir().string().c_str(), 1);
+    amberedit::sys::setEnvironment("HOME", listDir().string().c_str());
 
     // Through a config that stands nowhere, so that only the `~` could have
     // found the file.
     const auto cfg = with("twit @file:~/home.list\n");
 
     if (previous != nullptr) {
-        ::setenv("HOME", had.c_str(), 1);
+        amberedit::sys::setEnvironment("HOME", had.c_str());
     } else {
-        ::unsetenv("HOME");
+        amberedit::sys::unsetEnvironment("HOME");
     }
 
     REQUIRE(cfg.twits.size() == 1);

@@ -2,8 +2,6 @@
 
 #include <doctest/doctest.h>
 
-#include <sys/stat.h>
-
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -11,6 +9,7 @@
 #include <vector>
 
 #include "temp_dir.hpp"
+#include "test_programs.hpp"
 #include "test_strings.hpp"
 
 using amberedit::app::externalEditorCommand;
@@ -24,28 +23,21 @@ using amberedit::test::WithTempDirEnv;
 
 namespace {
 
-/// A stand-in for the user's editor: a shell script that writes `text` over
-/// whatever file it was handed. An editor is a program that leaves a file
+/// A stand-in for the user's editor: the helper program, told to write `text`
+/// over whatever file it is handed. An editor is a program that leaves a file
 /// behind, and that is the whole of what AmberEdit asks of one.
-std::string anEditorWriting(const TempDir& dir, const std::string& name,
-                            const std::string& text) {
-    const std::string path = dir.path(name);
-    std::ofstream file(path);
-    file << "#!/bin/sh\nprintf '%s' '" << text << "' > \"$1\"\n";
-    file.close();
-    REQUIRE(::chmod(path.c_str(), 0755) == 0);
-    return path;
+///
+/// `text` is written with `\n` and `\r` as two characters each; the helper puts
+/// the real ones in. That keeps every newline in this file out of a command line
+/// and makes the DOS-line-ending case say what it means.
+std::vector<std::string> anEditorWriting(const std::string& text) {
+    return {amberedit::test::stubProgram(), "write", "$msg", text};
 }
 
 /// One that writes nothing at all — every editor's way of saying the message
 /// was not wanted.
-std::string anEditorLeavingItAlone(const TempDir& dir) {
-    const std::string path = dir.path("quit");
-    std::ofstream file(path);
-    file << "#!/bin/sh\nexit 0\n";
-    file.close();
-    REQUIRE(::chmod(path.c_str(), 0755) == 0);
-    return path;
+std::vector<std::string> anEditorLeavingItAlone() {
+    return {amberedit::test::stubProgram(), "nothing", "$msg"};
 }
 
 std::string contentsOf(const std::string& path) {
@@ -76,7 +68,8 @@ TEST_CASE("The message is handed over as the file holds it [externaleditor]") {
     // `cat` leaves the file exactly as it found it, which makes it the editor
     // to ask what was written into it.
     const auto edited =
-        runExternalEditor({"true", "$msg"}, file, {"Hello, Michiel", "", "Bye"}, "UTF-8");
+        runExternalEditor(anEditorLeavingItAlone(), file,
+                          {"Hello, Michiel", "", "Bye"}, "UTF-8");
     REQUIRE(edited.has_value());
     CHECK(contentsOf(file) == "Hello, Michiel\n\nBye\n");
 }
@@ -87,7 +80,7 @@ TEST_CASE("A file that came back untouched changed nothing [externaleditor]") {
     const std::vector<std::string> lines{"Hello, Michiel", "", "Bye"};
 
     const auto edited =
-        runExternalEditor({anEditorLeavingItAlone(dir), "$msg"}, file, lines, "UTF-8");
+        runExternalEditor(anEditorLeavingItAlone(), file, lines, "UTF-8");
     REQUIRE(edited.has_value());
     CHECK_FALSE(edited->changed);
     // And the message is the one that was handed over, not an empty one read
@@ -98,9 +91,8 @@ TEST_CASE("A file that came back untouched changed nothing [externaleditor]") {
 TEST_CASE("What the editor wrote is what comes back [externaleditor]") {
     TempDir dir;
     const std::string file = dir.path("msg");
-    const std::string editor = anEditorWriting(dir, "write", "one\ntwo\n");
-
-    const auto edited = runExternalEditor({editor, "$msg"}, file, {"nothing"}, "UTF-8");
+    const auto edited = runExternalEditor(anEditorWriting("one\\ntwo\\n"), file,
+                                          {"nothing"}, "UTF-8");
     REQUIRE(edited.has_value());
     CHECK(edited->changed);
     CHECK(edited->lines == std::vector<std::string>{"one", "two"});
@@ -112,9 +104,8 @@ TEST_CASE("A message written back byte for byte is not a change [externaleditor]
     // What `:wq` in vi comes to: the file is written again holding what it
     // held. The message was not wanted any less for the editor having saved it,
     // and it must not be read as an answer either way.
-    const std::string editor = anEditorWriting(dir, "rewrite", "Hello\n");
-
-    const auto edited = runExternalEditor({editor, "$msg"}, file, {"Hello"}, "UTF-8");
+    const auto edited =
+        runExternalEditor(anEditorWriting("Hello\\n"), file, {"Hello"}, "UTF-8");
     REQUIRE(edited.has_value());
     CHECK_FALSE(edited->changed);
 }
@@ -122,9 +113,8 @@ TEST_CASE("A message written back byte for byte is not a change [externaleditor]
 TEST_CASE("DOS line endings and tabs do not reach the message [externaleditor]") {
     TempDir dir;
     const std::string file = dir.path("msg");
-    const std::string editor = anEditorWriting(dir, "dos", "one\r\n\tindented\r\n");
-
-    const auto edited = runExternalEditor({editor, "$msg"}, file, {"x"}, "UTF-8");
+    const auto edited = runExternalEditor(anEditorWriting("one\\r\\n\\tindented\\r\\n"),
+                                          file, {"x"}, "UTF-8");
     REQUIRE(edited.has_value());
     CHECK(edited->changed);
     // The tab is opened out to the next eight-column stop, exactly as the
@@ -140,7 +130,7 @@ TEST_CASE("The file is written in the charset it was asked for [externaleditor]"
     // the test depends on.
     const std::string greeting = "\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82";
     const auto edited =
-        runExternalEditor({"true", "$msg"}, file, {greeting}, "CP866");
+        runExternalEditor(anEditorLeavingItAlone(), file, {greeting}, "CP866");
     REQUIRE(edited.has_value());
     // "Привет" in CP866 is six bytes, one per letter.
     CHECK(contentsOf(file) == "\x8F\xE0\xA8\xA2\xA5\xE2\n");
@@ -148,8 +138,11 @@ TEST_CASE("The file is written in the charset it was asked for [externaleditor]"
 
 TEST_CASE("A charset nothing can write the message in is a failure [externaleditor]") {
     TempDir dir;
+    // The editor is never reached: recoding the message is what fails, and it
+    // happens before anything is started.
     const std::string error = errorOf(
-        runExternalEditor({"true", "$msg"}, dir.path("msg"), {"Hello"}, "NO-SUCH-SET"));
+        runExternalEditor(anEditorLeavingItAlone(), dir.path("msg"), {"Hello"},
+                          "NO-SUCH-SET"));
     CHECK_MESSAGE(contains(error, "NO-SUCH-SET"), error);
 }
 

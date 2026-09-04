@@ -1,12 +1,11 @@
 #include "msgbase/file_lock.hpp"
 
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <cerrno>
-#include <ctime>
+#include <chrono>
+#include <thread>
 
 #include "msgbase/binary_file.hpp"
+#include "sys/file.hpp"
 
 namespace amberedit::msgbase {
 
@@ -17,28 +16,10 @@ namespace {
 /// generous wait, and waiting for ever is not on offer — the reader has a
 /// screen to keep answering.
 constexpr int kAttempts = 10;
-constexpr long kRetryNanoseconds = 200L * 1000L * 1000L;
-
-/// Whole-file exclusive lock: `l_len` of zero means "to the end of the file,
-/// however far that moves".
-bool lockWholeFile(int fd, bool exclusive) {
-    struct flock request{};
-    request.l_type = exclusive ? F_WRLCK : F_UNLCK;
-    request.l_whence = SEEK_SET;
-    request.l_start = 0;
-    request.l_len = 0;
-    while (::fcntl(fd, F_SETLK, &request) == -1) {
-        if (errno != EINTR) return false;
-    }
-    return true;
-}
+constexpr std::chrono::milliseconds kRetryPause{200};
 
 void waitABit() {
-    struct timespec pause{};
-    pause.tv_sec = 0;
-    pause.tv_nsec = kRetryNanoseconds;
-    while (::nanosleep(&pause, &pause) == -1 && errno == EINTR) {
-    }
+    std::this_thread::sleep_for(kRetryPause);
 }
 
 }  // namespace
@@ -57,7 +38,7 @@ tl::expected<void, ErrorPtr> FileLock::acquire(const std::vector<BinaryFile*>& f
         bool gotAll = true;
         for (BinaryFile* file : files) {
             if (file == nullptr || !file->isOpen()) continue;
-            if (!lockWholeFile(file->descriptor(), true)) {
+            if (!sys::lockWholeFile(file->descriptor())) {
                 reason = "cannot lock " + file->path();
                 gotAll = false;
                 break;
@@ -75,7 +56,7 @@ void FileLock::release() {
     // the first of the list, which is the one the formats name — is the last to
     // come free and cannot be taken while we still hold the rest.
     for (auto fd = locked_.rbegin(); fd != locked_.rend(); ++fd) {
-        (void)lockWholeFile(*fd, false);
+        (void)sys::unlockWholeFile(*fd);
     }
     locked_.clear();
 }

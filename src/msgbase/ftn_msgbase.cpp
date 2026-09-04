@@ -7,6 +7,7 @@
 #include "msgbase/jam_base.hpp"
 #include "msgbase/sdm_base.hpp"
 #include "msgbase/squish_base.hpp"
+#include "sys/time.hpp"
 
 namespace amberedit::msgbase {
 
@@ -120,8 +121,7 @@ std::string fitField(encoding::IconvRecoder& recoder, const std::string& text,
 
 domain::MessageDate nowLocal() {
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
+    const std::tm broken = sys::localTime(now);
     domain::MessageDate date;
     date.year = static_cast<uint16_t>(broken.tm_year + 1900);
     date.month = static_cast<uint8_t>(broken.tm_mon + 1);

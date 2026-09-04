@@ -16,6 +16,7 @@
 #include "encoding/iconv_recoder.hpp"
 #include "msgbase/null_lastread_store.hpp"
 #include "ports/i_area_source.hpp"
+#include "sys/time.hpp"
 #include "temp_dir.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
@@ -457,8 +458,7 @@ TEST_CASE("The import dialog shows a size and a date [import_dialog]") {
     // in the interface is — `reader_datetime_format`, which the file was just
     // made under.
     const std::time_t now = std::time(nullptr);
-    std::tm broken{};
-    localtime_r(&now, &broken);
+    const std::tm broken = amberedit::sys::localTime(now);
     std::array<char, 8> year{};
     std::strftime(year.data(), year.size(), "%y", &broken);
     CHECK_MESSAGE(contains(smallRow, year.data()), smallRow);

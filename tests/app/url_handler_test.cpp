@@ -2,14 +2,13 @@
 
 #include <doctest/doctest.h>
 
-#include <sys/stat.h>
-
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "temp_dir.hpp"
+#include "test_programs.hpp"
 #include "test_strings.hpp"
 
 using amberedit::app::runUrlHandler;
@@ -23,15 +22,6 @@ namespace {
 /// A program that writes its first argument to `output` and nothing else:
 /// what a handler is asked to do is open the link, and what the test can see
 /// of that is the link the program was handed.
-std::string aProgramWriting(const TempDir& dir, const std::string& output) {
-    const std::string path = dir.path("open");
-    std::ofstream file(path);
-    file << "#!/bin/sh\nprintf '%s' \"$1\" > \"" << output << "\"\n";
-    file.close();
-    REQUIRE(::chmod(path.c_str(), 0755) == 0);
-    return path;
-}
-
 std::string contentsOf(const std::string& path) {
     std::ifstream file(path);
     std::ostringstream text;
@@ -57,17 +47,22 @@ TEST_CASE("The link goes wherever $url stands [urlhandler]") {
 TEST_CASE("A handler runs with the link it was given [urlhandler]") {
     TempDir dir;
     const std::string opened = dir.path("opened");
-    const std::string program = aProgramWriting(dir, opened);
 
-    CHECK(runUrlHandler({program, "$url"}, "http://ftn.example/x?a=1&b=2").has_value());
+    // The helper writes down the argument that reached it, which is the link
+    // after `$url` was put in its place — and it arrives whole, ampersands and
+    // question marks and all, having gone through no shell on the way.
+    CHECK(runUrlHandler({amberedit::test::stubProgram(), "first", opened, "$url"},
+                        "http://ftn.example/x?a=1&b=2")
+              .has_value());
     CHECK(contentsOf(opened) == "http://ftn.example/x?a=1&b=2");
 }
 
 TEST_CASE("A handler is looked for on $PATH [urlhandler]") {
-    // `true` takes whatever it is handed and says it went well, and every Unix
-    // has one somewhere on the path — which is the whole of what is asserted
-    // here: the name was not a path and was found all the same.
-    CHECK(runUrlHandler({"true", "$url"}, "http://ftn.example/x").has_value());
+    // The whole of what is asserted here: the name was not a path and was found
+    // all the same. Which name that is, is the platform's to say.
+    std::vector<std::string> command = amberedit::test::aProgramOnThePath();
+    command.emplace_back("$url");
+    CHECK(runUrlHandler(command, "http://ftn.example/x").has_value());
 }
 
 TEST_CASE("A handler that cannot be run is said so, by name [urlhandler]") {
