@@ -358,6 +358,7 @@ add_library(amberedit_core STATIC
   src/config/cfg_file.cpp
   src/config/list_format.cpp
   src/config/area_pattern.cpp
+  src/config/path_map.cpp
   src/config/app_config.cpp
   src/config/fidoconfig_parser.cpp
   src/config/manual_area_source.cpp

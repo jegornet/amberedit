@@ -940,6 +940,29 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseFormat(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.tosserConfigFormat = *read;
+    } else if (key == "map_path") {
+        // Two values and no default for either: the line exists to say that one
+        // path is another, and half of that is not a statement about anything.
+        if (entry.values.size() != 2) {
+            return entry.fail(
+                "map_path takes the path as the tosser config writes it and the path "
+                "it is here, as: map_path c:\\fido /mnt/fido");
+        }
+        const std::string source(text::trim(entry.values[0]));
+        const std::string target(text::trim(entry.values[1]));
+        if (source.empty() || target.empty()) {
+            return entry.fail("map_path: neither of the two paths may be empty");
+        }
+        // The same source twice is a contradiction, and the line that lost would
+        // be an invisible one — the same reason `address_macro` refuses a word
+        // it has already defined.
+        if (cfg.tosserPaths.maps(source)) {
+            return entry.fail("map_path maps '" + source + "' twice");
+        }
+        // The target is a path on this machine, so it is a path of this config
+        // and gets what every other one gets. The source is not: it is the
+        // tosser's spelling, and a `~` in it is a character of a DOS name.
+        cfg.tosserPaths.add(source, text::expandTilde(target));
     } else if (key == "nodelist") {
         auto read = readNodelist(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1529,7 +1552,8 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
 /// the file itself would be.
 [[nodiscard]] bool isRepeatable(const std::string& key) {
     return key == "aka" || key == "akamatch" || key == "nodelist" || key == "echolist" ||
-           key == "address_macro" || key == "twit" || key == "twit_subj";
+           key == "address_macro" || key == "map_path" || key == "twit" ||
+           key == "twit_subj";
 }
 
 /// Whether the key is a setting at all — which only applySetting() can say, so

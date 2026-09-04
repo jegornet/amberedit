@@ -3,10 +3,12 @@
 #include <algorithm>
 
 #include "config/areas_bbs_parser.hpp"
+#include "config/path_map.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 
 using amberedit::config::AreasBbsParser;
+using amberedit::config::PathMap;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::MsgBaseType;
 
@@ -111,4 +113,27 @@ TEST_CASE("AreasBbsParser: junk tokens do not become links [areasbbs]") {
 TEST_CASE("AreasBbsParser throws on a missing file [areasbbs]") {
     AreasBbsParser parser("/nonexistent/path/areas.bbs");
     CHECK_FALSE(parser.loadAreas().has_value());
+}
+
+TEST_CASE("map_path rewrites the path under its type prefix [areasbbs]") {
+    PathMap paths;
+    paths.add("c:\\fido", "/mnt/fido");
+
+    const auto areas = AreasBbsParser::parseText(
+        "$c:\\fido\\msgbase\\one a.one 2:5020/1\n"
+        "!c:/FIDO/msgbase/two a.two\n"
+        "d:\\other\\three a.three\n"
+        "P a.four 2:5020/1\n",
+        paths);
+
+    REQUIRE(areas.size() == 4);
+    // The prefix names the base type and is not part of the path, so a rule
+    // sees the path and the type survives it.
+    CHECK(areas[0].type == MsgBaseType::Squish);
+    CHECK(areas[0].path == "/mnt/fido/msgbase/one");
+    CHECK(areas[1].type == MsgBaseType::Jam);
+    CHECK(areas[1].path == "/mnt/fido/msgbase/two");
+    CHECK(areas[2].path == "d:\\other\\three");
+    CHECK(areas[3].type == MsgBaseType::Passthrough);
+    CHECK(areas[3].path.empty());
 }

@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "config/path_map.hpp"
 #include "ports/i_area_source.hpp"
 
 namespace amberedit::config {
@@ -18,18 +19,23 @@ namespace amberedit::config {
 /// `$` for Squish, `!` for JAM, no prefix for Fido *.msg. A field of just `P`
 /// marks a passthrough area (no base on disk). Lines starting with `;` are
 /// comments.
+///
+/// The path, once the prefix is off it, comes back through the `map_path` rules
+/// the parser was built with.
 class AreasBbsParser final : public ports::IAreaConfigSource {
 public:
-    explicit AreasBbsParser(std::string path);
+    explicit AreasBbsParser(std::string path, PathMap paths = {});
 
     [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
         override;
 
     /// Parsing from a string — the entry point for tests.
-    static std::vector<domain::AreaConfig> parseText(const std::string& content);
+    static std::vector<domain::AreaConfig> parseText(const std::string& content,
+                                                     const PathMap& paths = {});
 
 private:
     std::string path_;
+    PathMap paths_;
 };
 
 }  // namespace amberedit::config

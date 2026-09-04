@@ -35,7 +35,7 @@ std::string stripComment(std::string_view line) {
 
 /// Parses a single area declaration line.
 std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
-                                        AreaKind kind) {
+                                        AreaKind kind, const PathMap& paths) {
     if (tokens.size() < 3) return std::nullopt;  // a tag and a path are the minimum
 
     AreaConfig area;
@@ -48,6 +48,8 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
     if (text::iequals(area.path, "passthrough")) {
         area.type = MsgBaseType::Passthrough;
         area.path.clear();
+    } else {
+        area.path = paths.apply(area.path);
     }
 
     for (size_t i = 3; i < tokens.size(); ++i) {
@@ -79,15 +81,17 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
 
 }  // namespace
 
-SquishCfgParser::SquishCfgParser(std::string path) : path_(std::move(path)) {}
+SquishCfgParser::SquishCfgParser(std::string path, PathMap paths)
+    : path_(std::move(path)), paths_(std::move(paths)) {}
 
 tl::expected<std::vector<AreaConfig>, ErrorPtr> SquishCfgParser::loadAreas() {
     auto content = text::readFile(path_);
     if (!content) return tl::make_unexpected(std::move(content).error());
-    return parseText(*content);
+    return parseText(*content, paths_);
 }
 
-std::vector<AreaConfig> SquishCfgParser::parseText(const std::string& content) {
+std::vector<AreaConfig> SquishCfgParser::parseText(const std::string& content,
+                                                   const PathMap& paths) {
     std::vector<AreaConfig> areas;
     for (const auto& rawLine : text::splitLines(content)) {
         const std::string line = stripComment(rawLine);
@@ -97,7 +101,7 @@ std::vector<AreaConfig> SquishCfgParser::parseText(const std::string& content) {
         if (tokens.empty()) continue;
 
         if (auto kind = parseAreaKeyword(tokens[0])) {
-            if (auto area = parseAreaLine(tokens, *kind))
+            if (auto area = parseAreaLine(tokens, *kind, paths))
                 areas.push_back(std::move(*area));
         }
     }

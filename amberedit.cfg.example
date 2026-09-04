@@ -85,6 +85,16 @@ tosser_config ~/ftn/etc/areas
 #   "squish.cfg" - Squish's own config, with its attached -$ options
 tosser_config_format fidoconfig
 
+# Maps a tosser config message base path to local machine path. Two paths: the
+# one that config holds, and the local one. It doesn't affect the paths within
+# THIS config file. Repeatable.
+#
+# Source path case does not matter and "/" and "\" are the same character, so
+# one rule reads a config written either way; what follows the matched part is
+# joined onto the second path in that path's own separator.
+#
+# map_path c:\fido /mnt/fido    # maps c:\fido\mail\test to /mnt/fido/mail/test
+
 # An area of your own, in the fields a tosser config states one with. The blocks
 # are ADDED to what the tosser config declares — a local base for your own notes
 # is no business of the tosser's — and they are the whole area list where there

@@ -269,6 +269,70 @@ TEST_CASE("AppConfig accepts format aliases [app_config]") {
     CHECK(format("Fidoconfig") == TosserConfigFormat::Fidoconfig);
 }
 
+TEST_CASE("map_path says what a tosser config's path is here [app_config]") {
+    const auto cfg = with(
+        "map_path c:\\fido /mnt/fido\n"
+        "map_path c:\\fido\\msgbase /var/spool/ftn\n");
+
+    REQUIRE(cfg.tosserPaths.rules().size() == 2);
+    CHECK(cfg.tosserPaths.apply("c:\\fido\\etc\\areas") == "/mnt/fido/etc/areas");
+    CHECK(cfg.tosserPaths.apply("c:\\fido\\msgbase\\one") == "/var/spool/ftn/one");
+}
+
+TEST_CASE("map_path takes two paths and no fewer [app_config]") {
+    CHECK(contains(errorWith("map_path c:\\fido\n"), "map_path takes the path"));
+    CHECK(contains(errorWith("map_path\n"), "map_path takes the path"));
+    CHECK(contains(errorWith("map_path a b c\n"), "map_path takes the path"));
+    CHECK(contains(errorWith("map_path \"\" /mnt/fido\n"), "neither of the two paths"));
+}
+
+TEST_CASE("map_path refuses the same source twice [app_config]") {
+    // Two answers to "where is this directory" is not something to pick a
+    // winner for, and the line that lost would be an invisible one. Asked of
+    // the path and not of the text, so a second spelling of it is caught too.
+    CHECK(contains(errorWith("map_path c:\\fido /mnt/fido\n"
+                             "map_path C:/FIDO/ /mnt/other\n"),
+                   "map_path maps 'C:/FIDO/' twice"));
+    // Different sources are the ordinary case of two lines.
+    CHECK(loads("map_path c:\\fido /mnt/fido\nmap_path d:\\fido /mnt/other\n"));
+}
+
+TEST_CASE("map_path expands a tilde in the target only [app_config]") {
+    const char* const home = std::getenv("HOME");
+    if (home == nullptr) return;
+
+    const auto cfg = with("map_path ~/fido ~/mnt/fido\n");
+    REQUIRE(cfg.tosserPaths.rules().size() == 1);
+    CHECK(cfg.tosserPaths.rules()[0].target == std::string(home) + "/mnt/fido");
+    // The source is the tosser's spelling of a path on another machine, where a
+    // `~` is a character of a name and this machine's home means nothing.
+    CHECK(cfg.tosserPaths.rules()[0].source == "~/fido");
+}
+
+TEST_CASE("map_path is not a per-area setting [app_config]") {
+    // Which areas there are is settled before any group can cover one, and a
+    // rule that only held for some of them would be a base opened at two paths.
+    CHECK(contains(errorWith("group\n"
+                             "  member *\n"
+                             "  map_path c:\\fido /mnt/fido\n"
+                             "endgroup\n"),
+                   "a setting for the whole config and not for one area"));
+}
+
+TEST_CASE("The example config's map_path lines parse uncommented [app_config]") {
+    // They ship commented out — they name a machine that is nobody's — so
+    // nothing in the example itself reads them. Written out here as the example
+    // has them, so that a change to either is a change to both.
+    const auto cfg = with(
+        "map_path c:\\fido /mnt/fido\n"
+        "map_path d:\\mail\\msgbase /var/spool/ftn/msgbase\n");
+
+    REQUIRE(cfg.tosserPaths.rules().size() == 2);
+    CHECK(cfg.tosserPaths.apply("C:\\FIDO\\MSGBASE\\TEST") == "/mnt/fido/MSGBASE/TEST");
+    CHECK(cfg.tosserPaths.apply("d:\\mail\\msgbase\\ru.linux") ==
+          "/var/spool/ftn/msgbase/ru.linux");
+}
+
 TEST_CASE("AppConfig reads the link underline setting [app_config]") {
     CHECK(with("").underlineLinks);  // underlined unless the config says otherwise
     CHECK(with("reader_underline_links on\n").underlineLinks);

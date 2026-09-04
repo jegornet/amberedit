@@ -26,7 +26,7 @@ std::pair<MsgBaseType, std::string> splitTypePrefix(const std::string& field) {
     }
 }
 
-std::optional<AreaConfig> parseLine(const std::string& rawLine) {
+std::optional<AreaConfig> parseLine(const std::string& rawLine, const PathMap& paths) {
     const std::string_view line = text::trim(rawLine);
     if (line.empty() || line.front() == ';') return std::nullopt;
 
@@ -45,7 +45,7 @@ std::optional<AreaConfig> parseLine(const std::string& rawLine) {
         auto [type, path] = splitTypePrefix(tokens[0]);
         if (path.empty()) return std::nullopt;
         area.type = type;
-        area.path = std::move(path);
+        area.path = paths.apply(path);
     }
 
     area.tag = tokens[1];
@@ -58,18 +58,20 @@ std::optional<AreaConfig> parseLine(const std::string& rawLine) {
 
 }  // namespace
 
-AreasBbsParser::AreasBbsParser(std::string path) : path_(std::move(path)) {}
+AreasBbsParser::AreasBbsParser(std::string path, PathMap paths)
+    : path_(std::move(path)), paths_(std::move(paths)) {}
 
 tl::expected<std::vector<AreaConfig>, ErrorPtr> AreasBbsParser::loadAreas() {
     auto content = text::readFile(path_);
     if (!content) return tl::make_unexpected(std::move(content).error());
-    return parseText(*content);
+    return parseText(*content, paths_);
 }
 
-std::vector<AreaConfig> AreasBbsParser::parseText(const std::string& content) {
+std::vector<AreaConfig> AreasBbsParser::parseText(const std::string& content,
+                                                  const PathMap& paths) {
     std::vector<AreaConfig> areas;
     for (const auto& line : text::splitLines(content)) {
-        if (auto area = parseLine(line)) areas.push_back(std::move(*area));
+        if (auto area = parseLine(line, paths)) areas.push_back(std::move(*area));
     }
     return areas;
 }

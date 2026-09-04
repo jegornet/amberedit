@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "config/path_map.hpp"
 #include "ports/i_area_source.hpp"
 
 namespace amberedit::config {
@@ -20,18 +21,23 @@ namespace amberedit::config {
 /// starting with '-' belongs to the tosser and is skipped.
 ///
 /// JAM is deliberately absent: Squish's own configuration cannot describe it.
+///
+/// An area's path comes back through the `map_path` rules the parser was built
+/// with — a squish.cfg is the format most likely to hold DOS paths.
 class SquishCfgParser final : public ports::IAreaConfigSource {
 public:
-    explicit SquishCfgParser(std::string path);
+    explicit SquishCfgParser(std::string path, PathMap paths = {});
 
     [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
         override;
 
     /// Parsing from a string — the entry point for tests.
-    static std::vector<domain::AreaConfig> parseText(const std::string& content);
+    static std::vector<domain::AreaConfig> parseText(const std::string& content,
+                                                     const PathMap& paths = {});
 
 private:
     std::string path_;
+    PathMap paths_;
 };
 
 }  // namespace amberedit::config

@@ -178,7 +178,8 @@ std::string stripComment(std::string_view line) {
 tl::expected<void, ErrorPtr> parseInto(const std::string& content,
                                        std::vector<AreaConfig>& areas,
                                        const std::filesystem::path& baseDir,
-                                       int includeDepth, ParseState& state);
+                                       int includeDepth, ParseState& state,
+                                       const PathMap& paths);
 
 /// Reads the options an area line and an `echoareadefaults` line both take,
 /// from `first` to the end of the line, into an area that already holds
@@ -237,7 +238,8 @@ void applyAreaOptions(const std::vector<std::string>& tokens, size_t first,
 
 /// Parses a single area declaration line.
 std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
-                                        AreaKind kind, const ParseState& state) {
+                                        AreaKind kind, const ParseState& state,
+                                        const PathMap& paths) {
     if (tokens.size() < 2) return std::nullopt;  // the tag is the least of it
 
     AreaConfig area = inheritsDefaults(kind) ? state.defaults : AreaConfig{};
@@ -261,7 +263,10 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
         } else if (!token.empty() && token[0] == '-') {
             // An option, whatever the defaults say: no path begins with '-'.
         } else if (!pathMayBeLeftOut || token.find_first_of("/\\") != std::string::npos) {
-            area.path = token;
+            // Mapped here and not where the base is opened: this is the one
+            // place a path the tosser wrote becomes an area's, and what stands
+            // in `token` has already had its `[name]` variables expanded.
+            area.path = paths.apply(token);
             // A base of its own is not the passthrough the defaults meant, and
             // what it holds is then read off the files as for any other area.
             if (area.type == MsgBaseType::Passthrough) area.type = MsgBaseType::Unknown;
@@ -283,7 +288,8 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
 tl::expected<void, ErrorPtr> parseInto(const std::string& content,
                                        std::vector<AreaConfig>& areas,
                                        const std::filesystem::path& baseDir,
-                                       int includeDepth, ParseState& state) {
+                                       int includeDepth, ParseState& state,
+                                       const PathMap& paths) {
     for (const auto& rawLine : text::splitLines(content)) {
         // The comment goes first and the variables second, which is the order
         // the format reads them in: what a variable expands to is text, and a
@@ -312,22 +318,28 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
         }
 
         // include <file> — the path is relative to the including config.
+        //
+        // Mapped before it is resolved, since a `map_path` is what turns an
+        // absolute path of the tosser's into one this machine has a root for:
+        // `c:\fido\config\areas` is *relative* to std::filesystem here, and
+        // resolving it against the including file's directory first would look
+        // for it in a place nothing is.
         if (text::iequals(tokens[0], "include") && tokens.size() >= 2) {
             if (includeDepth <= 0) continue;  // guard against include cycles
-            std::filesystem::path included(tokens[1]);
+            std::filesystem::path included(paths.apply(tokens[1]));
             if (included.is_relative()) included = baseDir / included;
             std::error_code ec;
             if (!std::filesystem::exists(included, ec)) continue;
             auto text = text::readFile(included.string());
             if (!text) return tl::make_unexpected(std::move(text).error());
-            auto read =
-                parseInto(*text, areas, included.parent_path(), includeDepth - 1, state);
+            auto read = parseInto(*text, areas, included.parent_path(), includeDepth - 1,
+                                  state, paths);
             if (!read) return tl::make_unexpected(std::move(read).error());
             continue;
         }
 
         if (auto kind = parseAreaKeyword(tokens[0])) {
-            if (auto area = parseAreaLine(tokens, *kind, state))
+            if (auto area = parseAreaLine(tokens, *kind, state, paths))
                 areas.push_back(std::move(*area));
         }
     }
@@ -336,7 +348,8 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
 
 }  // namespace
 
-FidoconfigParser::FidoconfigParser(std::string path) : path_(std::move(path)) {}
+FidoconfigParser::FidoconfigParser(std::string path, PathMap paths)
+    : path_(std::move(path)), paths_(std::move(paths)) {}
 
 tl::expected<std::vector<AreaConfig>, ErrorPtr> FidoconfigParser::loadAreas() {
     auto content = text::readFile(path_);
@@ -344,18 +357,19 @@ tl::expected<std::vector<AreaConfig>, ErrorPtr> FidoconfigParser::loadAreas() {
     std::vector<AreaConfig> areas;
     ParseState state{initialVariables(), AreaConfig{}};
     auto read = parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
-                          /*includeDepth=*/8, state);
+                          /*includeDepth=*/8, state, paths_);
     if (!read) return tl::make_unexpected(std::move(read).error());
     return areas;
 }
 
-std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content) {
+std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content,
+                                                    const PathMap& paths) {
     std::vector<AreaConfig> areas;
     ParseState state{initialVariables(), AreaConfig{}};
     // includeDepth 0, so the one thing parseInto can fail at — reading an
     // include — cannot happen and the answer is nothing to check.
     static_cast<void>(parseInto(content, areas, std::filesystem::current_path(),
-                                /*includeDepth=*/0, state));
+                                /*includeDepth=*/0, state, paths));
     return areas;
 }
 

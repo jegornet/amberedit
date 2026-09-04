@@ -106,16 +106,22 @@ namespace {
 
 /// The parser for the tosser config the config names, or nothing where it names
 /// none — which only a config declaring areas of its own can do.
+///
+/// The `map_path` rules go in here and nowhere else: they are what a path *that
+/// config* writes means here, and the parser is the one thing that reads one.
 std::unique_ptr<ports::IAreaConfigSource> makeTosserSource(const AppConfig& cfg) {
     if (cfg.tosserConfigPath.empty()) return nullptr;
 
     switch (cfg.tosserConfigFormat) {
         case TosserConfigFormat::Fidoconfig:
-            return std::make_unique<config::FidoconfigParser>(cfg.tosserConfigPath);
+            return std::make_unique<config::FidoconfigParser>(cfg.tosserConfigPath,
+                                                              cfg.tosserPaths);
         case TosserConfigFormat::AreasBbs:
-            return std::make_unique<config::AreasBbsParser>(cfg.tosserConfigPath);
+            return std::make_unique<config::AreasBbsParser>(cfg.tosserConfigPath,
+                                                            cfg.tosserPaths);
         case TosserConfigFormat::SquishCfg:
-            return std::make_unique<config::SquishCfgParser>(cfg.tosserConfigPath);
+            return std::make_unique<config::SquishCfgParser>(cfg.tosserConfigPath,
+                                                             cfg.tosserPaths);
     }
     // The format is stated explicitly in the config and validated while parsing
     // it, so getting here means someone added an enum value and forgot this.

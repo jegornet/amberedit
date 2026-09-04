@@ -1,14 +1,17 @@
 #include <doctest/doctest.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 
 #include "config/fidoconfig_parser.hpp"
+#include "config/path_map.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 
 using amberedit::config::FidoconfigParser;
+using amberedit::config::PathMap;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
 using amberedit::domain::MsgBaseType;
@@ -392,4 +395,54 @@ TEST_CASE("what an include leaves behind holds for the file below it [fidoconfig
     CHECK(areas[1].path == "/ftn/msg/two");
     CHECK(areas[1].type == MsgBaseType::Squish);
     CHECK(areas[1].group == "F");
+}
+
+TEST_CASE("map_path rewrites an area's path, after the variables [fidoconfig]") {
+    PathMap paths;
+    paths.add("c:\\fido", "/mnt/fido");
+
+    const auto areas = FidoconfigParser::parseText(
+        "set base=c:\\fido\\msgbase\n"
+        "EchoArea a.one [base]\\one -b squish\n"
+        "EchoArea a.two /home/ftn/two\n"
+        "EchoArea a.three passthrough\n",
+        paths);
+
+    REQUIRE(areas.size() == 3);
+    // The variable is expanded first, so what a rule is asked about is the path
+    // the line means and not the text it is written as.
+    CHECK(areas[0].path == "/mnt/fido/msgbase/one");
+    // A path no rule covers is opened as it stands.
+    CHECK(areas[1].path == "/home/ftn/two");
+    // And an area with no base of its own is left with none.
+    CHECK(areas[2].path.empty());
+}
+
+TEST_CASE("map_path reaches the file an include names [fidoconfig]") {
+    // The path an include names is the tosser's too, and one it writes as
+    // `c:\fido\etc\common` is not a path this machine has a root for: without
+    // the rule the file is simply not found and the areas in it are lost.
+    const amberedit::test::TempDir dir;
+    const std::string common = dir.path("common");
+    const std::string config = dir.path("config");
+
+    const auto write = [](const std::string& path, const std::string& text) {
+        std::ofstream out(path);
+        out << text;
+    };
+    write(common, "EchoArea a.one c:\\fido\\msgbase\\one\n");
+    write(config,
+          "include c:\\fido\\etc\\common\n"
+          "EchoArea a.two c:\\fido\\msgbase\\two\n");
+
+    PathMap paths;
+    paths.add("c:\\fido\\etc", std::filesystem::path(common).parent_path().string());
+    paths.add("c:\\fido\\msgbase", "/mnt/fido/msg");
+
+    FidoconfigParser parser(config, paths);
+    const auto areas = amberedit::test::valueOf(parser.loadAreas());
+
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].path == "/mnt/fido/msg/one");
+    CHECK(areas[1].path == "/mnt/fido/msg/two");
 }

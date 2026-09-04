@@ -14,6 +14,7 @@
 #include "config/cfg_file.hpp"
 #include "config/commands.hpp"
 #include "config/list_format.hpp"
+#include "config/path_map.hpp"
 #include "domain/address_pattern.hpp"
 #include "domain/area.hpp"
 #include "domain/ftn_address.hpp"
@@ -438,6 +439,16 @@ struct AppConfig {
     /// Format of that config. Required as soon as there is a path — there is
     /// deliberately no default.
     TosserConfigFormat tosserConfigFormat{TosserConfigFormat::Fidoconfig};
+
+    /// The `map_path` lines: how a path written in *that* config is spelled
+    /// here. Empty in the ordinary case, where the tosser runs on this machine
+    /// and its paths are this machine's already.
+    ///
+    /// It reaches the tosser's parser and nothing else. The paths of this file
+    /// — `tmpdir`, `nodelist`, an `area ... endarea` block's — are written by
+    /// whoever runs AmberEdit, on the machine it runs on, and there is nothing
+    /// about them to translate.
+    PathMap tosserPaths;
 
     /// The nodelists to compile, from the `nodelist` lines and in the order they
     /// were written — which is their order of precedence, the first one to name

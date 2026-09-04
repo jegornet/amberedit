@@ -2677,6 +2677,24 @@ taking a row.
   options carry their value **attached** — `-$` for a Squish base (absent means
   Fido `*.msg`), `-$gA` for the group, `-p2:382/736` for the area's AKA, bare
   addresses after them being links. Squish cannot describe JAM at all.
+- **`map_path` translates the tosser config's paths and no others.** The lines
+  are read into `AppConfig::tosserPaths` (a repeatable key, the same source
+  refused twice), and `config::PathMap` is what applies them: whole components
+  compared without regard to case with `/` and `\` the same character, the
+  longest match winning, and what is left joined onto the target in the target's
+  own separator. **Every parser applies it where it reads a path** — the area's
+  in all three, and fidoconfig's `include` as well, that one being a path the
+  tosser wrote like any other. Which is why the rules go into the parsers rather
+  than into a wrapper round the area list: an `include c:\fido\config\areas`
+  nothing mapped is a file that is not there and a silence where its echoes
+  should be. An include is mapped **before** it is resolved against the
+  including file's directory: a DOS absolute path is *relative* to
+  `std::filesystem`, so resolving first looks for `c:\fido\...` under the
+  config's own directory and finds nothing. In fidoconfig the map is asked after
+  `[name]` expansion, so what it sees is the path the line means.
+  Nothing of AmberEdit's own config goes through it — not `tmpdir`, not an
+  `area ... endarea` block's path — and `makeAreaSource()` is where that line is
+  drawn: the map reaches `makeTosserSource()` and stops there.
 - **`valueOptions()` in `fidoconfig_parser.cpp` must match husky exactly.** The
   parser skips any `-option` not in that set, so listing one husky treats as a
   flag makes it eat the token after it — a stray `-pack` would swallow

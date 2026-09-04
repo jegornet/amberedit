@@ -380,3 +380,50 @@ TEST_CASE("An area declared in the config is read like any other [areamanager]")
     CHECK(entry.error == "passthrough");
     CHECK(config.effectiveFor(entry.config).defaultCharset == "UTF-8");
 }
+
+TEST_CASE("map_path reaches the tosser's areas and stops there [areamanager]") {
+    // The one place the rules are put to work: `makeTosserSource()` hands them
+    // to the parser, so what comes back is paths this machine has, while an
+    // `area ... endarea` block — this config's own — keeps what it was written
+    // with, whatever it looks like.
+    const TempDir dir;
+    const std::string tosser = dir.path("areas");
+    {
+        std::ofstream out(tosser);
+        out << "EchoArea a.one c:\\fido\\msgbase\\one -b squish\n"
+               "EchoArea a.two /home/ftn/two -b squish\n";
+    }
+
+    const auto config = amberedit::test::valueOf(
+        AppConfig::loadFromString("default_charset CP866\n"
+                                  "compose_charset CP866\n"
+                                  "name Vasya Pupkin\n"
+                                  "address 2:5020/9999\n"
+                                  "tosser_config " +
+                                  tosser +
+                                  "\n"
+                                  "tosser_config_format fidoconfig\n"
+                                  "map_path c:\\fido /mnt/fido\n"
+                                  "area NOTES\n"
+                                  "  path c:\\fido\\msgbase\\notes\n"
+                                  "  type squish\n"
+                                  "endarea\n"));
+
+    AreaManager manager(amberedit::test::valueOf(amberedit::app::makeAreaSource(config)),
+                        std::make_unique<amberedit::msgbase::NullLastReadStore>(),
+                        config);
+    static_cast<void>(manager.reload());
+
+    REQUIRE(manager.areas().size() == 3);
+    const auto pathOf = [&manager](const std::string& tag) {
+        for (const auto& entry : manager.areas()) {
+            if (entry.config.tag == tag) return entry.config.path;
+        }
+        return std::string("<no such area>");
+    };
+    CHECK(pathOf("a.one") == "/mnt/fido/msgbase/one");
+    // A path no rule covers is the path it was written as.
+    CHECK(pathOf("a.two") == "/home/ftn/two");
+    // And the block is this config's own, so nothing translates it.
+    CHECK(pathOf("NOTES") == "c:\\fido\\msgbase\\notes");
+}

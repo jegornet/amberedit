@@ -2,10 +2,12 @@
 
 #include <algorithm>
 
+#include "config/path_map.hpp"
 #include "config/squish_cfg_parser.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 
+using amberedit::config::PathMap;
 using amberedit::config::SquishCfgParser;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
@@ -140,4 +142,22 @@ TEST_CASE("SquishCfgParser leaves the AKA unset when -p is absent [squishcfg]") 
 TEST_CASE("SquishCfgParser throws on a missing file [squishcfg]") {
     SquishCfgParser parser("/nonexistent/path/squish.cfg");
     CHECK_FALSE(parser.loadAreas().has_value());
+}
+
+TEST_CASE("map_path rewrites an area's path [squishcfg]") {
+    PathMap paths;
+    paths.add("c:\\fido", "/mnt/fido");
+
+    const auto areas = SquishCfgParser::parseText(
+        "EchoArea a.one c:\\fido\\msgbase\\one -$ -p2:382/736\n"
+        "EchoArea a.two passthrough -0\n",
+        paths);
+
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].type == MsgBaseType::Squish);
+    CHECK(areas[0].path == "/mnt/fido/msgbase/one");
+    CHECK(areas[0].address.toString() == "2:382/736");
+    // A passthrough area has no path for a rule to be asked about.
+    CHECK(areas[1].type == MsgBaseType::Passthrough);
+    CHECK(areas[1].path.empty());
 }
