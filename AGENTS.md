@@ -2390,6 +2390,21 @@ taking a row.
   silently mojibakes every western area that writes it. `default_charset IBMPC`
   is the same name with nothing left to fall back to, and so it is a config the
   parser refuses rather than a charset something further down invents.
+- **A CHRS that does not parse states nothing, and neither does one iconv cannot
+  open.** FTS-5003 spells the value `<name> <level>` with the level a number, so
+  `+7 FIDO 2` — `+7_FIDO` with the underscore lost somewhere upstream — is not a
+  CHRS value, and `baseName()` returns empty for it rather than reading `+7` off
+  the front: half a name is not a charset, and rebuilding the other half would be
+  a guess. `detect()` then asks `encoding::checkCharset()` whether this machine's
+  iconv opens the name `normalize()` settled on, and falls back where it does not.
+  Passing an unmapped name through is right where `normalize()` is called on a
+  config line — iconv knows charsets that table does not, and a line it refuses is
+  refused with the user still reading the message — and wrong for a message, where
+  nothing is refused: `toUtf8()` hands the undecoded bytes back and the terminal
+  layer draws CP866 as Latin-1, `0xA8` reaching the screen as U+00A8. Both cases
+  are a message that declared no charset, which is what `default_charset` is for.
+  The iconv answer is cached per name: `detect()` runs on every row of a message
+  list, and a base holds one or two charsets across thousands of messages.
 - **Both are per-area, and an area group is where that comes from.** No tosser
   config format states a charset — husky fidoconfig has no `-charset` option
   (grep its sources and `doc/`: the word does not appear), and neither do

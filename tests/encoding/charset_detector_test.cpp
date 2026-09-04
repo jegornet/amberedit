@@ -25,6 +25,44 @@ TEST_CASE("CharsetDetector passes an unknown name through [charset]") {
     CHECK(CharsetDetector::normalize("") == "");
 }
 
+TEST_CASE("CharsetDetector: a malformed CHRS names nothing [charset]") {
+    // "+7_FIDO 2" with the underscore lost in transit. What follows the name is
+    // the level and the level is a number, so "FIDO" says the value is not a
+    // CHRS value: the first word of a broken name is not a charset, and taking
+    // it for one is how "+7" reaches iconv_open() instead of CP866.
+    CHECK(CharsetDetector::normalize("+7 FIDO 2") == "");
+    CHECK(CharsetDetector::normalize("KOI8 R 2") == "");
+    CHECK_FALSE(CharsetDetector::namesSpecificCharset("+7 FIDO 2"));
+
+    // A level is optional, and a name on its own is still a name.
+    CHECK(CharsetDetector::normalize("CP866") == "CP866");
+    CHECK(CharsetDetector::normalize("  CP866   2  ") == "CP866");
+}
+
+TEST_CASE("CharsetDetector: a malformed CHRS falls back to the default [charset]") {
+    const std::string body = std::string(1, kSoh) + "TID: ParToss 1.10/W32\r" +
+                             std::string(1, kSoh) + "CHRS: +7 FIDO 2\r" + "Привет!\r";
+
+    CHECK(CharsetDetector("CP866").detect(body) == "CP866");
+    CHECK(CharsetDetector("KOI8-R").detect(body) == "KOI8-R");
+}
+
+TEST_CASE("CharsetDetector: a charset iconv cannot open falls back too [charset]") {
+    // The name is shaped like a CHRS value and means nothing to iconv, so there
+    // is nothing to convert the message with. Handing the name on regardless is
+    // how the reader ends up drawing undecoded CP866 as Latin-1.
+    const std::string body = std::string(1, kSoh) + "CHRS: NONEXISTENT 2\r" + "Привет!\r";
+
+    CHECK(CharsetDetector("CP866").detect(body) == "CP866");
+    CHECK(CharsetDetector("KOI8-R").detect(body) == "KOI8-R");
+
+    // A name this table has no entry for but iconv does is still the message's
+    // own charset: the fallback answers for what cannot be converted, not for
+    // what is merely unlisted here.
+    CHECK(CharsetDetector("CP866").detect(std::string(1, kSoh) + "CHRS: CP1250 2\r") ==
+          "CP1250");
+}
+
 TEST_CASE("CharsetDetector: IBMPC names no particular code page [charset]") {
     // FTS-5003 keeps IBMPC as an obsolete name for "some IBM PC code page":
     // CP866 here, CP437 or CP850 elsewhere. It cannot be mapped to one of them.

@@ -2,12 +2,14 @@
 
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 namespace amberedit::encoding {
 
 /// Works out a message's character set: the CHRS/CHARSET/CODEPAGE kludge in
 /// the body (FTS-5003 / FSC-0054), and a default for a message that names none
-/// — or names one that identifies no particular encoding, as "IBMPC" does.
+/// — or names one that identifies no particular encoding, as "IBMPC" does, or
+/// writes the kludge in a shape FTS-5003 does not have, as "+7 FIDO 2" does.
 ///
 /// The default comes from AppConfig::defaultCharset, and it is a per-area
 /// answer: no tosser config format states one — husky fidoconfig knows no
@@ -39,16 +41,24 @@ public:
     /// Maps a Fidonet charset name onto something iconv understands:
     /// "+7_FIDO"/"CP866 2" become "CP866", "LATIN-1 2" becomes "ISO-8859-1".
     /// Unknown names are returned as they are — iconv_open gets to have the
-    /// last word. Empty when the value names no particular encoding, "IBMPC"
-    /// being the one such name in use; the caller falls back to its default.
+    /// last word. Empty when the value names no particular encoding: "IBMPC",
+    /// and a value not shaped like "<name> <level>" at all, "+7 FIDO 2" being
+    /// the one such spelling in circulation. The caller falls back to its
+    /// default for both.
     static std::string normalize(std::string_view chrsValue);
 
     /// Whether the value names an encoding that can actually be converted from
-    /// — false for "IBMPC" and for an empty value alike.
+    /// — false for "IBMPC", for a malformed value and for an empty one alike.
     static bool namesSpecificCharset(std::string_view chrsValue);
 
 private:
+    /// Whether this machine's iconv has heard of the name, asked once per name
+    /// and remembered: `detect()` runs on every row of a message list, and a
+    /// base holds one or two charsets across thousands of messages.
+    [[nodiscard]] bool knownToIconv(const std::string& charset) const;
+
     std::string defaultCharset_;
+    mutable std::unordered_map<std::string, bool> known_;
 };
 
 }  // namespace amberedit::encoding

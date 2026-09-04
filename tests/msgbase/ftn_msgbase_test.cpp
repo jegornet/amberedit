@@ -534,6 +534,46 @@ TEST_CASE("A message's own CHRS decides its header, not the default [squish]") {
     CHECK(isValidUtf8(asKoi8.header(3).subject));
 }
 
+TEST_CASE("A CHRS nothing can convert from reads under the default [squish]") {
+    // "+7 FIDO 2" is what a real message off R50 carries: "+7_FIDO 2" with the
+    // underscore lost upstream. It parses as no charset at all, so the area's
+    // default answers for it, exactly as it does for a message with no CHRS —
+    // and the same for a name iconv has never heard of. Taking "+7" for a
+    // charset instead left the CP866 bytes undecoded and the reader drew them
+    // one byte at a time as Latin-1.
+    for (const char* broken : {"CHRS: +7 FIDO 2", "CHRS: NONEXISTENT 2"}) {
+        INFO("kludge = " << std::string(broken));
+        TempSquishBase base;
+
+        amberedit::domain::MessageDraft draft;
+        draft.from = "Andrey";
+        draft.to = "Nil";
+        draft.subject = "Привет";
+        draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+        draft.charset = "CP866";
+        draft.kludges = {"MSGID: 192:168/2 68a1b2c3", broken};
+        draft.lines = {"Привет!"};
+
+        FtnMsgBase writer("CP866");
+        REQUIRE(writer.open(localnetArea(base.path())).has_value());
+        const uint32_t number = amberedit::test::valueOf(writer.write(draft));
+        REQUIRE(number != 0);
+
+        FtnMsgBase asCp866("CP866");
+        REQUIRE(asCp866.open(localnetArea(base.path())).has_value());
+        CHECK(asCp866.header(number).charset == "CP866");
+        CHECK(asCp866.header(number).subject == "Привет");
+        CHECK(asCp866.body(number).text() == "Привет!");
+
+        // The default is what decides, so another one reads the same message
+        // as something else — and as text, not as bytes nothing decoded.
+        FtnMsgBase asKoi8("KOI8-R");
+        REQUIRE(asKoi8.open(localnetArea(base.path())).has_value());
+        CHECK(asKoi8.header(number).subject != "Привет");
+        CHECK(isValidUtf8(asKoi8.header(number).subject));
+    }
+}
+
 TEST_CASE("The charset test base is present in the repository [squish]") {
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/charsets.sqd")));
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/charsets.sqi")));

@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "encoding/iconv_recoder.hpp"
+
 namespace amberedit::encoding {
 namespace {
 
@@ -88,12 +90,25 @@ bool namesNothingInParticular(const std::string& upperName) {
 }
 
 /// The charset name out of a CHRS value: "CP866 2" -> "CP866", upper case.
+/// Empty where the value is not shaped like a CHRS value at all.
+///
+/// FTS-5003 spells one as "<name> <level>", the level being a number and the
+/// name carrying no space. What arrives instead is "+7 FIDO 2" — "+7_FIDO"
+/// with the underscore lost somewhere upstream — and the first word of that is
+/// not a charset, it is half of one. A value the shape does not fit names
+/// nothing, so `detect()` treats it as a message that declared no charset and
+/// falls back on `default_charset`: the area's own charset is what such a
+/// message is in, where a guess at the missing half would be nothing at all.
 std::string baseName(std::string_view chrsValue) {
     std::string_view value = trim(chrsValue);
     // A CHRS value is "<name> <level>", e.g. "CP866 2"; drop the level.
     const size_t space = value.find_first_of(" \t");
-    if (space != std::string_view::npos) value = value.substr(0, space);
-    return upper(value);
+    if (space == std::string_view::npos) return upper(value);
+
+    const std::string_view level = trim(value.substr(space + 1));
+    const auto isDigit = [](char c) { return c >= '0' && c <= '9'; };
+    if (level.empty() || !std::all_of(level.begin(), level.end(), isDigit)) return {};
+    return upper(value.substr(0, space));
 }
 
 }  // namespace
@@ -142,12 +157,29 @@ std::string CharsetDetector::defaultCharset() const {
     return defaultCharset_;
 }
 
+bool CharsetDetector::knownToIconv(const std::string& charset) const {
+    const auto it = known_.find(charset);
+    if (it != known_.end()) return it->second;
+    const bool known = checkCharset(charset).has_value();
+    known_.emplace(charset, known);
+    return known;
+}
+
 std::string CharsetDetector::detect(std::string_view rawBody) const {
     // An unspecific CHRS ("IBMPC") is as good as none: it says the message is
-    // in some 8-bit code page, which was never in question.
-    std::string normalized = normalize(extractChrsKludge(rawBody));
-    if (!normalized.empty()) return normalized;
-    return defaultCharset_;
+    // in some 8-bit code page, which was never in question. So is a malformed
+    // one ("+7 FIDO 2"): a kludge that does not parse states nothing.
+    const std::string normalized = normalize(extractChrsKludge(rawBody));
+    if (normalized.empty()) return defaultCharset_;
+
+    // And so is a name this machine's iconv cannot open. `normalize()` passes an
+    // unmapped name through on purpose — iconv knows charsets that table does
+    // not — and where it is a config line being read, a name iconv refuses is
+    // refused at the line. A message is refused nowhere: the name would reach
+    // `toUtf8()`, which hands the undecoded bytes back, and the terminal layer
+    // would draw CP866 one byte at a time as Latin-1. So it falls back here.
+    if (!knownToIconv(normalized)) return defaultCharset_;
+    return normalized;
 }
 
 }  // namespace amberedit::encoding
