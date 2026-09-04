@@ -949,6 +949,28 @@ Rules that hold the design together:
   an area opens, on the area list, the area under the cursor — which reopens on
   the message just left, at its end, ready to be walked off again. It is a
   general hook, but nothing else asks for it yet.
+- **The three columns down either side of the text are ← and →**, where
+  `reader_side_taps` asks for them — `ui/reader_side_tap.hpp`, answered by
+  `AppState::readerSideTapsShown()` like every other `config::Visibility`. The
+  click goes straight to `switchMessage()`, so `reader_edge` answers for the ends
+  of an area there exactly as it does for the keys, and nothing about the edges
+  is written twice. `reader_side_tap::hit()` measures the zone against
+  `readerPaneLeft()`/`readerPaneRight()` and `AppState::readTop()`/`readRows()`:
+  it is the reader's own columns and the message's own rows, so a sidebar moves
+  the zone rather than being covered by it, and the title, the header block and
+  the rule between them are not part of it. **The scrollbar changes nothing** —
+  it stands in the last column of the text, and what a reader aims at is the edge
+  of the message rather than the bar. The zone is tested **after** the thread
+  markers and the links in the text: a link is drawn and these columns are not,
+  and a click is the only way to open one.
+  - **Nothing is laid out for it, and nothing is drawn there until it is
+    pressed.** `reader_side_tap::over()` puts the arrow in its box over the
+    viewport with a `dbox` — fillers centre it, and a filler paints nothing, so
+    what it does not cover is the text as it was drawn. It is on the screen for
+    the one frame `showClick()` holds, in `animated_button_text` like the two
+    corner buttons, and the frame the loop draws next has `Pressed::None` again
+    and the message whole — including where `reader_edge stay` left the reader
+    standing on the very message the pictogram was laid over.
 - **A digit opens the goto field**, which is `AppState::readGoto` and nothing
   else: while it holds anything the title shows what is being typed in place of
   the `12/44` that says where the reader stands — the second is on its way to
@@ -2741,7 +2763,8 @@ taking a row.
   (`wideWindow()`, `AppState::shown()`) rather than settled at startup, because a
   window can be dragged and the config is read off `AppState::config` each time.
   Every `config::Visibility` setting — `menu_button`, `back_button`,
-  `show_recd_date`, `dialog_tall_buttons` — is answered by `AppState::shown()`,
+  `show_recd_date`, `dialog_tall_buttons`, `reader_side_taps` — is answered by
+  `AppState::shown()`,
   the one place that reads a `when_narrow` / `when_wide` from either side. Write
   the width as the setting, never as a literal 80.
 - **A button in a dialog is `dialog::button()` and nothing else**, and

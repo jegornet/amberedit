@@ -1225,6 +1225,18 @@ struct AppConfig {
     /// and one button is not a menu.
     Visibility menuButton{Visibility::WhenNarrow};
 
+    /// Whether the three columns down either side of the message text send the
+    /// reader to the previous and the next message when they are clicked, from
+    /// `reader_side_taps` — the same move ← and → make, `reader_edge` and all.
+    ///
+    /// `when_narrow` unless the config says otherwise, the same way `back_button`
+    /// and `menu_button` are and against the same threshold: walking through an
+    /// area is what the reader is mostly doing, and a narrow window is the one
+    /// where the pointer rather than the keyboard is likely to be what is to
+    /// hand. Nothing is drawn in those columns until one is pressed, so `on`
+    /// costs the message nothing at any width.
+    Visibility readerSideTaps{Visibility::WhenNarrow};
+
     /// What the three menus hold, in the order they are to stand — from
     /// `arealist_menu`, `reader_menu` and `compose_menu`. Each names commands of
     /// its own screen, by the part of the name after the dot: `reply_elsewhere`

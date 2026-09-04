@@ -815,6 +815,241 @@ TEST_CASE("The arrow keys still move between messages [messageread][squish]") {
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
 }
 
+TEST_CASE("A click on the side columns of the text moves between messages "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    // Stated rather than left to the window: which way the default goes is the
+    // next test's question, and this one is about what the columns do.
+    fixture.config.readerSideTaps = Visibility::On;
+
+    // The mark is on the first message, so the area opens on the second — one
+    // with a message on either side of it.
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    // The first row of the text, and the three columns down its left: the
+    // message before this one, exactly as ← asks for.
+    const int top = fixture.state.readTop();
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(0, top)));
+    CHECK(fixture.state.messageCursor == 0);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+
+    // And the three down its right, on the last row of the text: the message
+    // after it, as → asks for.
+    const int last = top + fixture.state.readRows() - 1;
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(fixture.state.width - 1, last)));
+    CHECK(fixture.state.messageCursor == 1);
+
+    // Every column of the zone answers, on both hands, and the columns between
+    // them are the message's own: a click in the text scrolls nothing and opens
+    // nothing.
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(2, top)));
+    CHECK(fixture.state.messageCursor == 0);
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(fixture.state.width - 3, top)));
+    CHECK(fixture.state.messageCursor == 1);
+    CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(3, top)));
+    CHECK_FALSE(message_read::handleEvent(fixture.state,
+                                          pressAt(fixture.state.width - 4, top)));
+    CHECK(fixture.state.messageCursor == 1);
+}
+
+TEST_CASE("The side columns are the text's and no other row "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    // Above the text is the title, the rule under it and the header block —
+    // rows the message is not read in, and a click in their first columns is
+    // not a click on the side of the message.
+    for (int y = 0; y < fixture.state.readTop(); ++y) {
+        CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(1, y)));
+        CHECK_FALSE(message_read::handleEvent(fixture.state,
+                                              pressAt(fixture.state.width - 2, y)));
+    }
+    // And under the text there is nothing of the reader's at all.
+    const int below = fixture.state.readTop() + fixture.state.readRows();
+    CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(1, below)));
+    CHECK(fixture.state.messageCursor == 1);
+}
+
+TEST_CASE("The bar changes nothing about the columns that answer "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    // The scrollbar stands in the last column of the text, which is the first
+    // column of the zone on that hand. What was aimed at is the edge of the
+    // message, and where the bar happens to be drawn is not something to have
+    // to aim around.
+    const int top = fixture.state.readTop();
+    for (const bool bar : {false, true}) {
+        fixture.state.scrollbarShown = bar;
+        REQUIRE(message_read::handleEvent(fixture.state,
+                                          pressAt(fixture.state.width - 1, top)));
+        CHECK(fixture.state.messageCursor == 2);
+        REQUIRE(message_read::handleEvent(fixture.state, pressAt(0, top)));
+        CHECK(fixture.state.messageCursor == 1);
+    }
+}
+
+TEST_CASE("reader_side_taps when_narrow follows the width of the window "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(fixture.config.readerSideTaps == Visibility::WhenNarrow);
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    // The same line the two corner buttons cross at, read on every frame: at the
+    // threshold and over, the columns are the message's own again.
+    fixture.state.width = fixture.config.adaptiveUiThreshold;
+    CHECK_FALSE(fixture.state.readerSideTapsShown());
+    CHECK_FALSE(message_read::handleEvent(fixture.state,
+                                          pressAt(0, fixture.state.readTop())));
+    CHECK(fixture.state.messageCursor == 1);
+
+    fixture.state.width = fixture.config.adaptiveUiThreshold - 1;
+    CHECK(fixture.state.readerSideTapsShown());
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(0, fixture.state.readTop())));
+    CHECK(fixture.state.messageCursor == 0);
+
+    // And a stated setting ignores the window either way round.
+    fixture.config.readerSideTaps = Visibility::Off;
+    CHECK_FALSE(fixture.state.readerSideTapsShown());
+    CHECK_FALSE(message_read::handleEvent(fixture.state,
+                                          pressAt(0, fixture.state.readTop())));
+    CHECK(fixture.state.messageCursor == 0);
+}
+
+TEST_CASE("The pictogram stands over the text while the click is shown "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    // Nothing else is to take the columns the pictogram is looked for in.
+    fixture.config.backButton = Visibility::Off;
+    fixture.config.menuButton = Visibility::Off;
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    // The frame the animation puts up, caught as it is drawn: `showClick()`
+    // hands it to `holdFrame`, which is the shell's in the running program and
+    // this here.
+    std::vector<std::string> held;
+    fixture.state.holdFrame = [&] { held = rowsOf(fixture); };
+
+    const int top = fixture.state.readTop();
+    const int rows = fixture.state.readRows();
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(0, top)));
+    REQUIRE(held.size() == static_cast<size_t>(fixture.state.height));
+
+    // Five columns and three rows of it, halfway down the text and against the
+    // side that was pressed.
+    const size_t middle = static_cast<size_t>(top + (rows - 3) / 2);
+    CHECK(startsWith(held[middle], "┌───┐"));
+    CHECK(startsWith(held[middle + 1], "│ ◀ │"));
+    CHECK(startsWith(held[middle + 2], "└───┘"));
+
+    // The other hand puts the other arrow against the other edge.
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(fixture.state.width - 1, top)));
+    const std::string row = held[middle + 1];
+    const std::string right = "│ ▶ │";
+    REQUIRE(row.size() >= right.size());
+    CHECK(row.compare(row.size() - right.size(), right.size(), right) == 0);
+}
+
+TEST_CASE("The text under the pictogram is back on the frame after it "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    // The dead end: there is no next message and `stay` keeps the reader on
+    // this one, so nothing but the pictogram can have changed what is drawn.
+    fixture.config.edgeBehavior = amberedit::config::EdgeBehavior::Stay;
+
+    const uint32_t total = fixture.total();
+    fixture.lastRead->set(uidAt(fixture, total));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == static_cast<int>(total) - 1);
+
+    const std::vector<std::string> before = rowsOf(fixture);
+    std::vector<std::string> held;
+    fixture.state.holdFrame = [&] { held = rowsOf(fixture); };
+
+    const int top = fixture.state.readTop();
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      pressAt(fixture.state.width - 1, top)));
+    // The click was shown...
+    CHECK(held != before);
+    // ...the reader stayed where `reader_edge stay` says it stays...
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readHeader->number == total);
+    // ...and the message the pictogram was laid over is whole again.
+    CHECK(rowsOf(fixture) == before);
+}
+
+TEST_CASE("A side tap walks off the area exactly as the arrow keys do "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    REQUIRE(fixture.config.edgeBehavior == amberedit::config::EdgeBehavior::Exit);
+
+    const uint32_t total = fixture.total();
+    fixture.lastRead->set(uidAt(fixture, total));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCursor == static_cast<int>(total) - 1);
+
+    // Off the last message there is nowhere further to read, and `reader_edge`
+    // answers for the click the way it answers for the key: the area is left.
+    REQUIRE(message_read::handleEvent(
+        fixture.state, pressAt(fixture.state.width - 1, fixture.state.readTop())));
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    // Including what the key sets about whatever was clicked meanwhile.
+    CHECK(fixture.state.discardTypeahead);
+}
+
+TEST_CASE("The side columns are the reader's own beside a sidebar "
+          "[messageread][sidetap][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.readerSideTaps = Visibility::On;
+    fixture.config.readerSidebarThreshold = 100;
+    fixture.config.readerSidebarPosition = amberedit::config::SidebarPosition::Left;
+    fixture.state.width = 120;
+    fixture.lastRead->set(uidAt(fixture, 1));
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readerSidebarShown());
+    REQUIRE(fixture.state.messageCursor == 1);
+
+    // The window's first columns are the panel's, and a row of the panel is a
+    // message opened rather than a step backwards; the zone begins where the
+    // reader does.
+    const int top = fixture.state.readTop();
+    const int left = fixture.state.readerPaneLeft();
+    REQUIRE(left > 0);
+    CHECK_FALSE(message_read::handleEvent(fixture.state, pressAt(left - 1, top)));
+    CHECK(fixture.state.messageCursor == 1);
+    REQUIRE(message_read::handleEvent(fixture.state, pressAt(left, top)));
+    CHECK(fixture.state.messageCursor == 0);
+}
+
 TEST_CASE("F7 opens the export dialog too [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());

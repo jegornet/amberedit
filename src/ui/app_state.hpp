@@ -1419,6 +1419,8 @@ struct AppState {
         AttributesDone,    ///< the button closing it again
         MarkChoice,        ///< one of the mark box's five, which `pressedLink` says
         ScopeChoice,       ///< one of the scope box's three, which `pressedLink` says
+        SideTapPrev,       ///< the columns down the left of the message text
+        SideTapNext,       ///< the ones down its right
         Hint,              ///< one of the hints along the bottom, by its index
     };
     Pressed pressed{Pressed::None};
@@ -1767,6 +1769,15 @@ struct AppState {
     /// takes nothing with it.
     [[nodiscard]] bool backButtonShown() const { return shown(config.backButton); }
 
+    /// Whether the three columns down either side of the message answer a click
+    /// by going to the neighbouring message, from `reader_side_taps`. Asked on
+    /// every frame like every other `Visibility`, and asked of the event rather
+    /// than of the layout: the columns are the message's own until one of them
+    /// is pressed, so nothing is laid out differently for them.
+    [[nodiscard]] bool readerSideTapsShown() const {
+        return shown(config.readerSideTaps);
+    }
+
     /// Whether the editor draws the delete-line button down its two rightmost
     /// columns, from `compose_delete_line_button`. Asked on every frame like
     /// every other `Visibility`, and asked before the text is laid out as well
@@ -1820,10 +1831,15 @@ struct AppState {
         return kHeaderRows + (recdRowShown() ? 1 : 0);
     }
 
-    /// Height of the message body viewport. The chrome is the title, a rule,
-    /// the rows of the header table and a second rule.
+    /// The first row of the message body, counted from the top of the window:
+    /// under the title, the rule beneath it, the header block and the rule that
+    /// closes the block off. What a click in the text is measured against, and
+    /// what the height below is measured from, so the two cannot drift apart.
+    [[nodiscard]] int readTop() const { return 3 + headerRows(); }
+
+    /// Height of the message body viewport — the window less that chrome.
     [[nodiscard]] int readRows() const {
-        const int chrome = 3 + headerRows();
+        const int chrome = readTop();
         return height <= chrome ? 1 : height - chrome;
     }
 

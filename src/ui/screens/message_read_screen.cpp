@@ -30,6 +30,7 @@
 #include "ui/menu_dialog.hpp"
 #include "ui/message_marks.hpp"
 #include "ui/nodelist_dialog.hpp"
+#include "ui/reader_side_tap.hpp"
 #include "ui/reader_sidebar.hpp"
 #include "ui/scope_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
@@ -1814,6 +1815,20 @@ Element render(AppState& state) {
         viewport = hbox({std::move(viewport) | flex,
                          scrollbar::bar(viewportHeight, totalLines, state.readScroll)});
     }
+    // The pictogram a click on the side of the message is shown by, over the
+    // text and over the bar alike: the columns it lands in are the edge of the
+    // message, and the bar standing in the last of them is not what was aimed
+    // at. It is on the screen for the length of the animation and no longer —
+    // the frame after the click draws this viewport without it, and whatever it
+    // covered is back whether the reader moved or `reader_edge stay` kept it
+    // where it was.
+    reader_side_tap::Side pressedSide = reader_side_tap::Side::None;
+    if (state.isPressed(AppState::Pressed::SideTapPrev)) {
+        pressedSide = reader_side_tap::Side::Previous;
+    } else if (state.isPressed(AppState::Pressed::SideTapNext)) {
+        pressedSide = reader_side_tap::Side::Next;
+    }
+    viewport = reader_side_tap::over(std::move(viewport), pressedSide);
 
     // Rules rather than blank lines: they mark off the title and the header
     // block without costing any extra height.
@@ -2016,6 +2031,24 @@ bool handleEvent(AppState& state, const Event& event) {
             // sees while the program has the terminal is the message they
             // clicked in — the same way the shell is asked for.
             state.urlRequested = url;
+            return true;
+        }
+    }
+    // The three columns down either side of the text, where the config asks for
+    // them: a click in them is ← and →, `reader_edge` and all. After the links
+    // above rather than before them, since a link is drawn and these columns are
+    // not: an address standing at the edge of a line is still the thing the
+    // reader can see and the only thing a pointer can open, while the message
+    // before this one is a keystroke away as well.
+    if (state.readerSideTapsShown()) {
+        const reader_side_tap::Side side =
+            reader_side_tap::hit(event, state.readerPaneLeft(), state.readerPaneRight(),
+                                 state.readTop(), state.readRows());
+        if (side != reader_side_tap::Side::None) {
+            const bool next = side == reader_side_tap::Side::Next;
+            state.showClick(next ? AppState::Pressed::SideTapNext
+                                 : AppState::Pressed::SideTapPrev);
+            switchMessage(state, next ? 1 : -1);
             return true;
         }
     }

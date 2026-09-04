@@ -875,6 +875,19 @@ back_button when_narrow
 # to the full width elsewhere would rewrap under it at every keystroke.
 compose_delete_line_button when_narrow
 
+# Whether the three columns down either side of the message text send the reader
+# to the previous and the next message when they are clicked. Optional;
+# "when_narrow" by default, the same four values as back_button and the same line
+# they are read against.
+#
+# A click in the left three columns is ← and one in the right three is →, down to
+# what reader_edge says about the ends of an area. Nothing is drawn in those
+# columns until one is pressed: for as long as click_animation_ms lasts an arrow
+# in a box stands halfway down the text, in the color the corner buttons light up
+# in, and the frame after it puts the message back. So the columns cost the
+# message nothing at any width.
+reader_side_taps when_narrow
+
 # The context menu: a column of buttons, one command each, opened by the button
 # in the top-right corner of the area list, of the reader and of the editor.
 # Every command is one a key does too; a button whose command has nothing to do

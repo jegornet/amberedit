@@ -1306,6 +1306,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseVisibility(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.menuButton = *read;
+    } else if (key == "reader_side_taps") {
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerSideTaps = *read;
     } else if (key == "reader_menu") {
         auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu);
         if (!read) return tl::make_unexpected(std::move(read).error());

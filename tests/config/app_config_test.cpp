@@ -655,6 +655,24 @@ TEST_CASE("AppConfig reads the back button setting [app_config]") {
     CHECK_FALSE(loads("back_button adaptive\n"));
 }
 
+TEST_CASE("AppConfig reads the reader's side taps [app_config]") {
+    using amberedit::config::Visibility;
+
+    // The window decides unless the config says otherwise, as it does for the
+    // two corner buttons: walking through an area with the pointer is what a
+    // narrow window is likeliest to be doing.
+    CHECK(with("").readerSideTaps == Visibility::WhenNarrow);
+    CHECK(with("reader_side_taps on\n").readerSideTaps == Visibility::On);
+    CHECK(with("reader_side_taps off\n").readerSideTaps == Visibility::Off);
+    CHECK(with("reader_side_taps when_narrow\n").readerSideTaps ==
+          Visibility::WhenNarrow);
+    CHECK(with("reader_side_taps when_wide\n").readerSideTaps == Visibility::WhenWide);
+
+    CHECK_FALSE(loads("reader_side_taps 1\n"));
+    CHECK_FALSE(loads("reader_side_taps\n"));
+    CHECK_FALSE(loads("reader_side_taps on off\n"));
+}
+
 TEST_CASE("AppConfig reads how tall a dialog's buttons stand [app_config]") {
     using amberedit::config::Visibility;
 
