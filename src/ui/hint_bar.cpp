@@ -8,6 +8,7 @@
 
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
+#include "ui/command_live.hpp"
 #include "ui/event_util.hpp"
 #include "ui/keys.hpp"
 #include "ui/term/utf8.hpp"
@@ -61,29 +62,6 @@ std::string lowered(std::string_view label) {
     return out;
 }
 
-/// Whether the screen that is up can do that at all.
-///
-/// One case, and it is the editor's: `external_editor` takes the internal
-/// editor away entirely, so every command that edits the text of a message has
-/// nothing left to act on. The ends of a line are not among them — they move
-/// the cursor in a header field, which is where the typing goes there.
-///
-/// This is not a dimming: a hint is a reminder of a key worth pressing, and a
-/// row is short. A key that does nothing is not worth a column of it.
-bool liveOn(const AppState& state, Command command) {
-    if (!state.externalEditing()) return true;
-    switch (command) {
-        case Command::ComposeImport:
-        case Command::ComposeDeleteLine:
-        case Command::ComposeRestoreLine:
-        case Command::ComposeDeleteQuote:
-        case Command::ComposeDeleteWord:
-        case Command::ComposeWordLeft:
-        case Command::ComposeWordRight: return false;
-        default: return true;
-    }
-}
-
 /// The hints for whichever screen is up.
 ///
 /// A command the layout leaves unbound is left out: there is no key to put in
@@ -92,7 +70,7 @@ bool liveOn(const AppState& state, Command command) {
 std::vector<Hint> hintsOf(const AppState& state) {
     std::vector<Hint> hints;
     for (const Command command : commandsOf(state)) {
-        if (!liveOn(state, command)) continue;
+        if (!commandLive(state, command)) continue;
         const auto key = state.keys.preferredKey(command);
         if (!key) continue;
         // The word beside the key is the one the menu writes on a button for

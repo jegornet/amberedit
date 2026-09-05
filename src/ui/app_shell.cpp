@@ -26,6 +26,7 @@
 #include "ui/find_dialog.hpp"
 #include "ui/focus.hpp"
 #include "ui/forward_dialog.hpp"
+#include "ui/help_dialog.hpp"
 #include "ui/hint_bar.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/info_dialog.hpp"
@@ -116,11 +117,11 @@ Element document(AppState& state) {
                color(theme::palette.error);
     }
 
-    // Thirteen modals, and only ever one of them at a time: the context menu is
-    // the one thing the area list, the reader and the editor all open, the
-    // confirmation is asked from screens neither of the two lists can be up on,
-    // nine of them are the reader's, opened by different keys, two are the
-    // editor's, and the error box comes up on the area list in place of the
+    // Fourteen modals, and only ever one of them at a time: the help box is the
+    // one thing all four screens open, the context menu is opened by three of
+    // them, the confirmation is asked from screens neither of the two lists can
+    // be up on, nine of them are the reader's, opened by different keys, two are
+    // the editor's, and the error box comes up on the area list in place of the
     // screen that would not open.
     //
     // The menu is drawn first, under the rest: everything it can do is put a
@@ -133,6 +134,11 @@ Element document(AppState& state) {
     }
     if (state.infoView) {
         body = info_dialog::render(state, std::move(body));
+    }
+    // Over whichever of the four screens is up, F1 being answered on all of
+    // them — and over none of the boxes above, which answer for themselves.
+    if (state.helpView) {
+        body = help_dialog::render(state, std::move(body));
     }
     if (state.nodelistView) {
         body = nodelist_dialog::render(state, std::move(body));
@@ -861,11 +867,30 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             continue;
         }
 
+        // The help box is modal in the same way the info box is, and shows
+        // rather than asks: every key either moves about inside it or puts it
+        // away, and it does both itself. Before the row below, as every other
+        // box is: while it is up, a click on a hint is a click on the box.
+        if (state.helpView) {
+            help_dialog::handleEvent(state, event);
+            continue;
+        }
+
         // The hints along the bottom row, which belongs to no screen: a click on
         // one is answered with the key that hint is written under, and that key
         // is what the screen is then given. A click anywhere else comes through
         // as itself.
         const Event forScreen = hint_bar::clicked(state, event).value_or(event);
+
+        // The help box is opened from any of the four screens, here rather than
+        // in each of them: what it holds is the layout read back, which no
+        // screen knows anything more about than this does. Under the boxes
+        // above, so that a dialog answering F1 for itself keeps it — and after
+        // the row, so that a hint naming `help` opens it like any other.
+        if (state.keys.is(forScreen, Command::AppHelp)) {
+            help_dialog::open(state);
+            continue;
+        }
 
         // A keystroke that throws is swallowed rather than reported: a broken
         // area must not take the application down while the user is looking at

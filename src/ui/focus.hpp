@@ -32,6 +32,7 @@ enum class Addressee : uint8_t {
     Scope,
     Info,
     Replies,
+    Help,
 };
 
 [[nodiscard]] inline Addressee addresseeOf(const AppState& state) {
@@ -51,6 +52,7 @@ enum class Addressee : uint8_t {
     if (state.scopePicker) return Addressee::Scope;
     if (state.infoView) return Addressee::Info;
     if (!state.replyChoices.empty()) return Addressee::Replies;
+    if (state.helpView) return Addressee::Help;
     return Addressee::Screen;
 }
 

@@ -3,6 +3,7 @@
 #include "temp_squish_base.hpp"
 #include "ui/area_fixture.hpp"
 #include "ui/focus.hpp"
+#include "ui/help_dialog.hpp"
 #include "ui/info_dialog.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/screens/message_read_screen.hpp"
@@ -15,6 +16,7 @@ using amberedit::ui::Focus;
 using amberedit::ui::focusOf;
 using amberedit::ui::term::Event;
 
+namespace help_dialog = amberedit::ui::help_dialog;
 namespace info_dialog = amberedit::ui::info_dialog;
 namespace message_list = amberedit::ui::screens::message_list;
 namespace message_read = amberedit::ui::screens::message_read;
@@ -121,7 +123,14 @@ TEST_CASE("A box opening over the reader changes the focus [focus][squish]") {
     CHECK(focusOf(fixture.state) != underMenu);
     CHECK(focusOf(fixture.state).addressee == Addressee::Info);
 
-    // And putting it away comes back to what was behind it.
+    // The help box is the last of the chain and the one any screen opens, so it
+    // is the one most easily left out of this list.
     fixture.state.infoView.reset();
+    help_dialog::open(fixture.state);
+    REQUIRE(fixture.state.helpView);
+    CHECK(focusOf(fixture.state).addressee == Addressee::Help);
+
+    // And putting it away comes back to what was behind it.
+    fixture.state.helpView.reset();
     CHECK(focusOf(fixture.state) == behind);
 }

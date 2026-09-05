@@ -59,9 +59,11 @@
 # there, and no area tag holds one.
 
 # --- anywhere -----------------------------------------------------------------
-# Quitting, from whatever screen is up — except the attributes dialog, where
-# every chord belongs to the dialog while it is on the screen.
+# Quitting and the help box, from whatever screen is up — except while a dialog
+# is on the screen, which answers for itself entirely. Quitting is the one thing
+# no box stands in front of.
 Ctrl-Q          app.quit
+F1              app.help
 
 # --- the area list ------------------------------------------------------------
 /               arealist.next_unread

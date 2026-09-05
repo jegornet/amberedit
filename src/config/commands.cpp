@@ -19,77 +19,84 @@ namespace {
 /// one place a glyph is drawn. The rest carry a word alone, which is what a hint
 /// is written with.
 constexpr Commands::Info kCommands[] = {
-    {Command::AppQuit, "app.quit", CommandScreen::Anywhere, N_("Quit"), "", "Ctrl-Q",
-     false},
+    {Command::AppQuit, "app.quit", CommandScreen::Anywhere, N_("Quit"),
+     N_("Leave AmberEdit"), "", "Ctrl-Q", false},
+    {Command::AppHelp, "app.help", CommandScreen::Anywhere, N_("Help"),
+     N_("This list of keys"), "", "F1", false},
     {Command::AreaListNextUnread, "arealist.next_unread", CommandScreen::AreaList,
-     N_("Next unread"), "⇩", "/", true},
+     N_("Next unread"), N_("Go to the next area with unread mail"), "⇩", "/", true},
     {Command::AreaListToggleUnread, "arealist.toggle_unread", CommandScreen::AreaList,
-     N_("Toggle unread"), "✱", "Ctrl-U", true},
+     N_("Toggle unread"), N_("Show the areas with unread mail, or all of them"), "✱",
+     "Ctrl-U", true},
     {Command::AreaListRescan, "arealist.rescan", CommandScreen::AreaList, N_("Rescan"),
-     "⟳", "Ctrl-R", true},
+     N_("Read the message bases again"), "⟳", "Ctrl-R", true},
     {Command::MessageListMarkToggle, "msglist.mark_toggle", CommandScreen::MessageList,
-     N_("Mark"), "", "t", false},
-    {Command::ReaderReply, "reader.reply", CommandScreen::Reader, N_("Reply"), "↩",
-     "q F4", true},
+     N_("Mark"), N_("Mark the message, or take the mark off"), "", "t", false},
+    {Command::ReaderReply, "reader.reply", CommandScreen::Reader, N_("Reply"),
+     N_("Reply in this area"), "↩", "q F4", true},
     {Command::ReaderReplyElsewhere, "reader.reply_elsewhere", CommandScreen::Reader,
-     N_("Reply elsewhere"), "↪", "n F5", true},
+     N_("Reply elsewhere"), N_("Reply in another area"), "↪", "n F5", true},
     {Command::ReaderCommentReply, "reader.comment_reply", CommandScreen::Reader,
-     N_("Comment-reply"), "⇄", "Alt-Q", true},
-    {Command::ReaderNew, "reader.new", CommandScreen::Reader, N_("New"), "✎", "e", true},
+     N_("Comment-reply"), N_("Reply to whoever the message was written to"), "⇄", "Alt-Q",
+     true},
+    {Command::ReaderNew, "reader.new", CommandScreen::Reader, N_("New"),
+     N_("Write a new message"), "✎", "e", true},
     {Command::ReaderForward, "reader.forward", CommandScreen::Reader, N_("Fwd / Copy"),
-     "↗", "m", true},
-    {Command::ReaderChange, "reader.change", CommandScreen::Reader, N_("Change"), "⚠︎",
-     "c F2", true},
-    {Command::ReaderDelete, "reader.delete", CommandScreen::Reader, N_("Delete"), "",
-     "d Del", false},
-    {Command::ReaderExport, "reader.export", CommandScreen::Reader, N_("Export"), "⌲",
-     "w F7", true},
-    {Command::ReaderFind, "reader.find", CommandScreen::Reader, N_("Find"), "⌕",
-     "Ctrl-F F6", true},
-    {Command::ReaderList, "reader.list", CommandScreen::Reader, N_("List"), "≔", "l F9",
-     true},
-    {Command::ReaderInfo, "reader.info", CommandScreen::Reader, N_("Info"), "𝒊", "i",
-     true},
+     N_("Forward, move or copy into another area"), "↗", "m", true},
+    {Command::ReaderChange, "reader.change", CommandScreen::Reader, N_("Change"),
+     N_("Change the message"), "⚠︎", "c F2", true},
+    {Command::ReaderDelete, "reader.delete", CommandScreen::Reader, N_("Delete"),
+     N_("Delete the message"), "", "d Del", false},
+    {Command::ReaderExport, "reader.export", CommandScreen::Reader, N_("Export"),
+     N_("Write the message, or a file in it, to disk"), "⌲", "w F7", true},
+    {Command::ReaderFind, "reader.find", CommandScreen::Reader, N_("Find"),
+     N_("Look for a message in this area"), "⌕", "Ctrl-F F6", true},
+    {Command::ReaderList, "reader.list", CommandScreen::Reader, N_("List"),
+     N_("Back to the list of messages"), "≔", "l F9", true},
+    {Command::ReaderInfo, "reader.info", CommandScreen::Reader, N_("Info"),
+     N_("What the message base holds about it"), "𝒊", "i", true},
     {Command::ReaderNodelist, "reader.nodelist", CommandScreen::Reader, N_("Nodelist"),
-     "⚲", "Ctrl-N F10", true},
-    {Command::ReaderKludges, "reader.kludges", CommandScreen::Reader, N_("Kludges"), "",
-     "k", false},
+     N_("Look an address or a sysop up"), "⚲", "Ctrl-N F10", true},
+    {Command::ReaderKludges, "reader.kludges", CommandScreen::Reader, N_("Kludges"),
+     N_("Show or hide the service lines"), "", "k", false},
     {Command::ReaderScrollbar, "reader.scrollbar", CommandScreen::Reader, N_("Scrollbar"),
-     "", "b", false},
+     N_("Show or hide the scrollbar"), "", "b", false},
     {Command::ReaderThreadUp, "reader.thread_up", CommandScreen::Reader, N_("Thread up"),
-     "", "-", false},
+     N_("The message this one answers"), "", "-", false},
     {Command::ReaderThreadDown, "reader.thread_down", CommandScreen::Reader,
-     N_("Thread down"), "", "+ =", false},
+     N_("Thread down"), N_("The next answer to this message"), "", "+ =", false},
     {Command::ReaderMarkToggle, "reader.mark_toggle", CommandScreen::Reader, N_("Mark"),
-     "★", "t", true},
-    {Command::ReaderMarkMenu, "reader.mark_menu", CommandScreen::Reader, N_("Marks"), "☆",
-     "s", true},
-    {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"), "❯",
-     "Ctrl-X", true},
-    {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"), "✓",
-     "Ctrl-S F2", true},
+     N_("Mark the message, or take the mark off"), "★", "t", true},
+    {Command::ReaderMarkMenu, "reader.mark_menu", CommandScreen::Reader, N_("Marks"),
+     N_("Mark a run of messages at once"), "☆", "s", true},
+    {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"),
+     N_("Run your own shell"), "❯", "Ctrl-X", true},
+    {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"),
+     N_("Save the message"), "✓", "Ctrl-S F2", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,
-     N_("Attributes"), "", "Ctrl-F", false},
-    {Command::ComposeImport, "compose.import", CommandScreen::Compose, N_("Import"), "+",
-     "Ctrl-O F3", true},
+     N_("Attributes"), N_("Change the message attributes"), "", "Ctrl-F", false},
+    {Command::ComposeImport, "compose.import", CommandScreen::Compose, N_("Import"),
+     N_("Read a file into the message"), "+", "Ctrl-O F3", true},
     {Command::ComposeHeaderBack, "compose.header_back", CommandScreen::Compose,
-     N_("Header"), "", "Alt-H", false},
+     N_("Header"), N_("Back up into the header fields"), "", "Alt-H", false},
     {Command::ComposeDeleteLine, "compose.delete_line", CommandScreen::Compose,
-     N_("Delete line"), "", "Ctrl-Y", false},
+     N_("Delete line"), N_("Delete the line the cursor is on"), "", "Ctrl-Y", false},
     {Command::ComposeRestoreLine, "compose.restore_line", CommandScreen::Compose,
-     N_("Restore line"), "", "Ctrl-U", false},
+     N_("Restore line"), N_("Put the last deleted line back"), "", "Ctrl-U", false},
     {Command::ComposeDeleteQuote, "compose.delete_quote", CommandScreen::Compose,
-     N_("Delete quote"), "", "Ctrl-D", false},
+     N_("Delete quote"), N_("Delete the quoted text after the cursor"), "", "Ctrl-D",
+     false},
     {Command::ComposeDeleteWord, "compose.delete_word", CommandScreen::Compose,
-     N_("Delete word"), "", "Ctrl-W Alt-Backspace", false},
+     N_("Delete word"), N_("Delete the word before the cursor"), "",
+     "Ctrl-W Alt-Backspace", false},
     {Command::ComposeWordLeft, "compose.word_left", CommandScreen::Compose,
-     N_("Word left"), "", "Alt-B Alt-Left", false},
+     N_("Word left"), N_("A word to the left"), "", "Alt-B Alt-Left", false},
     {Command::ComposeWordRight, "compose.word_right", CommandScreen::Compose,
-     N_("Word right"), "", "Alt-F Alt-Right", false},
+     N_("Word right"), N_("A word to the right"), "", "Alt-F Alt-Right", false},
     {Command::ComposeLineStart, "compose.line_start", CommandScreen::Compose,
-     N_("Line start"), "", "Ctrl-A", false},
+     N_("Line start"), N_("To the start of the line"), "", "Ctrl-A", false},
     {Command::ComposeLineEnd, "compose.line_end", CommandScreen::Compose, N_("Line end"),
-     "", "Ctrl-E", false},
+     N_("To the end of the line"), "", "Ctrl-E", false},
 };
 
 /// The screens an external utility can be run from, in the order their commands
@@ -113,9 +120,9 @@ constexpr size_t kExternUtilScreenCount =
 /// How many utility commands there are in all: a slot on each of those screens.
 constexpr size_t kExternUtilCommandCount = kExternUtilScreenCount * kExternUtilCount;
 
-static_assert((sizeof(kCommands) / sizeof(kCommands[0])) + kExternUtilCommandCount ==
-                  kCommandCount,
-              "every command needs a name, a screen, a label and its defaults");
+static_assert(
+    (sizeof(kCommands) / sizeof(kCommands[0])) + kExternUtilCommandCount == kCommandCount,
+    "every command needs a name, a screen, a label, a help line and its defaults");
 
 /// The utility command that many places past the first of them, the thirty
 /// standing together at the end of the enumeration in exactly this order.
@@ -156,7 +163,8 @@ const std::vector<Commands::Info>& table() {
         for (const ExternUtilScreen& on : kExternUtilScreens) {
             for (size_t slot = 0; slot < kExternUtilCount; ++slot, ++at) {
                 all.push_back({externUtilCommandAt(at), kNames[at], on.screen,
-                               N_("Utility"), "⚒", "", true});
+                               N_("Utility"), N_("Run the program the config names"), "⚒",
+                               "", true});
             }
         }
         return all;
@@ -208,6 +216,10 @@ const Commands::Info& Commands::of(Command command) {
 
 const char* Commands::labelOf(Command command) {
     return _(of(command).labelId);
+}
+
+const char* Commands::helpOf(Command command) {
+    return _(of(command).helpId);
 }
 
 std::string_view Commands::shortNameOf(Command command) {

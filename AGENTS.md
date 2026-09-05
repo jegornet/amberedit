@@ -7,9 +7,9 @@ what values it takes, what it defaults to — is written once, in
 `amberedit.cfg.example`. This file says only what the code has to guarantee
 about it: where it is read, where it is applied, and what breaks if that changes.
 
-**Every document here describes the project as it stands.** README.md, INSTALL.md,
-`amberedit.cfg.example`, this file and the comments in the code all say what is
-true now, in the present tense. What was tried and taken out, what a setting used
+**Every document here describes the project as it stands.** README.md, KEYS.md,
+KEYS_REBINDING.md, INSTALL.md, `amberedit.cfg.example`, this file and the
+comments in the code all say what is true now, in the present tense. What was tried and taken out, what a setting used
 to be called, which approach lost — none of it is recorded: it is one more thing
 to keep in step with the code, and a reader who has to work out which paragraphs
 are still true has been given work rather than answers. When something changes,
@@ -124,9 +124,10 @@ everything a package ships** — the binary, `default.tpl` and `themes/*.cfg` un
 names, and the message catalogs under `${CMAKE_INSTALL_LOCALEDIR}`, which is
 where gettext looks and so the only place they can go. No package recipe places a data file of its own,
 because a second copy of those paths is a second thing to keep in step with the
-sample config. Only documentation is each format's own: the README and the two
-example configs go through `%doc`, `debian/amberedit.docs`, or the top of an
-archive.
+sample config. Only documentation is each format's own: README.md, KEYS.md,
+KEYS_REBINDING.md, INSTALL.md and the two example configs go through `%doc`,
+`debian/amberedit.docs` or the top of an archive — and a document added to the
+tree is added to all four of those, `release.yml` included, or it ships nowhere.
 
 - `amberedit.spec` — RPM, built for Rocky 8, 9 and 10 and Fedora. zlib is asked
   for as `pkgconfig(zlib)` rather than by name, because RHEL 10 and current
@@ -1955,6 +1956,29 @@ taking a row.
   has to be a button like the rest. `←→` walk the buttons and `↑↓`, the page keys
   and the wheel scroll the message behind the box, which is what is being asked
   about and can be longer than the window.
+- **`F1` is the keys of whichever screen is up**, `ui/help_dialog.*`, and it is
+  the layout read back rather than a page written about it: every row is a
+  command `config::Commands` holds, under **all** of the keys `KeyMap` gives it
+  and beside the sentence the same table carries (`Commands::helpOf()`, a
+  utility being described by its config `title` as it is everywhere else). So a
+  `keys` file that moved Reply to `F8` opens a box that says `F8`, and a command
+  the layout leaves unbound is not in the box at all. It shows and does not ask,
+  exactly as the info box does: every key either moves inside it or puts it away
+  (Esc, Backspace, Enter, `F1`, a click anywhere).
+  - **The screen's own commands come first and the ones answered everywhere
+    last**, under a heading, the second block being the same two rows on every
+    screen. `app.help` is an `Anywhere` command like `app.quit`, so `runApp()`
+    opens it before the four screens and behind every modal — a dialog answers
+    for its own keys, F1 included.
+  - **The keys that move about are not in it.** The arrows, the page keys, Home
+    and End, Space, Enter, Esc, Backspace and Tab are bound by no layout and
+    answered by each screen for itself, so a list of them here would be a second
+    copy of a rule stated in four `handleEvent()`s. KEYS.md is where they are
+    written out.
+  - **Whether a command is worth showing is asked once**, `ui/command_live.hpp`,
+    which the hint bar asks too: under `external_editor` the commands that edit
+    the text of a message do nothing, and neither the row nor the box writes a
+    key down that does nothing.
 - **`i` shows what the base holds about the message** — the storage rather than
   the message: the stored header field by field, the records naming it, and a
   hexdump of the bytes each is made of. `ui/info_dialog.*` shows and does not
@@ -3321,6 +3345,13 @@ together — `keys_mode` says which.
   thing to copy, and it is written for `clear`. A test parses that file and
   compares it against `KeyMap::defaults()` command by command, so the two cannot
   drift.
+  - **Two pages say the same in prose, and nothing checks either.** KEYS.md is
+    the layout, screen by screen, and holds the keys that move about besides,
+    which no table in the code does; KEYS_REBINDING.md is how a `keys` file is
+    written and lists every command name under the screen that answers it. So a
+    default key changed in `kCommands`, or a row added to it, reaches three
+    files: `amberkeys.cfg.example`, which the test above catches, and those two,
+    which it does not.
 - **A merged clash is settled for the file, by the rule that refuses one.** A
   default key goes only where the file gave it to a command `clash()` says it
   meets — the same screen, or one of the two answered before every screen — the
@@ -3354,6 +3385,15 @@ together — `keys_mode` says which.
   fellows, the row the utilities are meant to be bound with — and both
   protocols' spelling of Alt-Backspace are registered whether a layout binds
   them or not.
+- **What a command is is stated three times in the one row and nowhere else**:
+  `labelId` is the word a button and a hint are written with, `helpId` is the
+  sentence the help box writes beside the keys, and `icon` is the glyph a menu
+  marks it with. The first two are apart because they answer different
+  questions — `Marks` on a button, `Mark a run of messages at once` to somebody
+  who has just pressed F1 — and neither can stand where the other does. Both are
+  msgids and both are asked as they are drawn (`Commands::labelOf()`,
+  `Commands::helpOf()`), the table being built before the config that names a
+  catalog has been read.
 - **A bare letter bound in the area list stops being a letter the quick search
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.
@@ -3442,9 +3482,11 @@ together — `keys_mode` says which.
 
   Three things follow from a title being the config's and not the table's.
   `AppConfig::labelOf()` is what a menu button and a hint are written with — the
-  title for a utility, `Commands::labelOf()` for everything else — and nothing
-  that draws asks the table directly any more. `Commands::Info::labelId` for a
-  utility is the same word for all thirty and is never drawn: a menu or a hint
+  title for a utility, `Commands::labelOf()` for everything else — and
+  `AppConfig::helpTextOf()` is the same pair for the sentence the help box
+  writes, so nothing that draws asks the table directly any more.
+  `Commands::Info::labelId` for a utility is the same word for all thirty and is
+  never drawn, and `helpId` is the same: a menu or a hint
   naming a slot no `extern_utilN` line set is refused as the config is read
   (after the whole file, since a `reader_menu` line may stand above the
   `extern_util0` line it names), and `main()` refuses a layout that binds one —
@@ -3460,8 +3502,9 @@ together — `keys_mode` says which.
   say. The key in front of each is `KeyMap::preferredKey()` — a bare key before a
   chord, Ctrl before Alt, a chord before a function key — and a command the
   layout leaves unbound is left out of the row, as is one the screen cannot run
-  at all (`liveOn()`: with `external_editor` named, the commands that edit text
-  have nothing to act on) and one the window has no room
+  at all (`commandLive()`, which the help box asks too: with `external_editor`
+  named, the commands that edit text have nothing to act on) and one the window
+  has no room
   for: `hint_bar` is **on** by default, at every width, and a row longer than the
   window drops whole hints off its end rather than being squeezed — every hint
   losing its last letters at once turns `q reply  n reply elsewhere` into
@@ -3556,7 +3599,8 @@ descriptions they carry over the area list; twits, by name, address or subject, 
 answers to what becomes of one; finding a message in the area behind `reader.find`, folded
 by the charset the message declares; the `CC:` and `XC:`/`XP:` lines a message
 being written may carry, and the copies and crossposts they ask for; a keyboard
-layout of one's own, from `keys`; the user's own shell behind `reader.shell`;
+layout of one's own, from `keys`, and the help box behind `app.help` that reads
+it back; the user's own shell behind `reader.shell`;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
 a menu button or a hint on the area list, in the reader or in the editor, with
 the area they may have written to read again on the way back.

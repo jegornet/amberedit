@@ -214,5 +214,5 @@ elsewhere is told where they were copied to with
 
 Run `amberedit --setup`, which asks what a first config should say and writes
 one — or copy `amberedit.cfg.example` and fix up the paths in it yourself.
-[README.md](README.md) has the rest: the config search order, the keys, and what
-every screen does.
+[README.md](README.md) has the rest: the config search order and what every
+screen does, and [KEYS.md](KEYS.md) is the keyboard.

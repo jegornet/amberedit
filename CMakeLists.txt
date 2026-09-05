@@ -601,6 +601,7 @@ add_executable(amberedit
   src/ui/find_dialog.cpp
   src/ui/attributes_dialog.cpp
   src/ui/forward_dialog.cpp
+  src/ui/help_dialog.cpp
   src/ui/hint_bar.cpp
   src/ui/extern_util.cpp
   src/ui/after_handover.cpp
@@ -658,7 +659,7 @@ endif()
 # each package's own recipe is what keeps the RPM, the deb and a plain
 # `cmake --install` agreeing on where a theme lives.
 #
-# The sample configs, the README and INSTALL.md stay out: they are documentation,
+# The sample configs and the four documents stay out: they are documentation,
 # and each package format has its own place for that.
 install(TARGETS amberedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)

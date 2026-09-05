@@ -85,134 +85,18 @@ Run `amberedit --help` for more command line options.
 
 ### Keys
 
-There is no help screen, so here they are.  Every key below that runs a command
-can be moved — see [Rebinding the keys](#rebinding-the-keys)
+**F1** opens the key list of whichever screen is up, each with what it does beside
+it — the layout read back, so a rebound key is the key the box shows.
+[KEYS.md](KEYS.md) is the same thing written out, screen by screen.
 
 **Ctrl-Q** quits from anywhere.
 
-**Area list**
-
-| Key | What it does                                                     |
-|---|------------------------------------------------------------------|
-| `↑` `↓` `PgUp` `PgDn` `Space`, `Home` `End` | move                                                             |
-| `Enter`, `→`, click | open the area under the cursor                                   |
-| any letter | search by area tag; `Backspace` edits the query, `Esc` closes it |
-| `/` | go to the next area with unread messages                         |
-| `Ctrl-U` | show only the areas with unread messages, or all of them again |
-| `Ctrl-R` | rescan the message bases                                   |
-| `Esc` | quit                                                             |
-
-**Message list**
-
-| Key | What it does |
-|---|---|
-| `↑` `↓` `PgUp` `PgDn` | move |
-| `Home`, `End` | first, last |
-| `Enter`, `→`, click | open the message |
-| `t`, `Space` | mark the message under the cursor, or take the mark off it |
-| any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` opens that message — or puts the cursor on its row with `msglist_goto_field_opens off` — `Backspace` edits it, `Esc` closes it |
-| `Esc` `←` `Backspace` | back to the area list |
-
-**Reader**
-
-| Key | What it does                                                                 |
-|---|------------------------------------------------------------------------------|
-| `←` `→` | previous, next message — off either end leaves the area, or → goes on to the next unread area (`reader_edge`) |
-| click on the side of the text | the same two, from the pointer: the columns down either side of the message are ← and → (`reader_side_taps`, `reader_side_tap_width`) |
-| `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
-| `Home`, `End` | top, bottom                                                                  |
-| any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |
-| `q` / `F4` | reply                                                                        |
-| `e` | write a new message                                                          |
-| `n` / `F5` | reply into another area                                                      |
-| `Alt-Q` | reply, addressed to whoever the message was written to                       |
-| `m` | forward, move or copy into another area — with messages marked, asks whether you mean those (copy/move) or this one |
-| `c` / `F2` | change the message                                                           |
-| `d` / `Del` | delete it (asks first) — with messages marked, asks whether you mean those or this one |
-| `-` `+` / `=` | up and down the thread                                                       |
-| `Ctrl-F` / `F6` | look for a message in the area                                               |
-| `l` / `F9` | the list of messages                                                         |
-| `k` | show the kludges — a reply then quotes them, a forward carries them          |
-| `b` | toggle the scrollbar                                                         |
-| `t` | mark the message, or take the mark off it                                    |
-| `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
-| `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
-| `i` | technical info from the message base                                         |
-| `w` / `F7` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
-| `Ctrl-N` / `F10` | the nodelist                                                                 |
-| `Space` | show a message blanked as a twit                                             |
-| `Esc` `Backspace` | back to the area list                                                        |
-
-**Editor**
-
-| Key | What it does                                                       |
-|---|--------------------------------------------------------------------|
-| `Tab` `Shift-Tab` | the ring: the fields, the subject, the attributes button, the text |
-| `Enter` | the next field, then down into the text                            |
-| `Alt-H` | edit header                                                         |
-| `Ctrl-S` / `F2` | save (asks first)                                                  |
-| `Esc` | drop the message (asks first)                                      |
-| `Ctrl-F` | edit message attributes                                         |
-| `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |
-| `Ctrl-Y` | delete the line — or the button beside it, on the right-hand edge   |
-| `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
-| `Ctrl-D` | delete the quoted text after the cursor                            |
-| `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
-| `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
-| `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
-
 ### Rebinding the keys
 
-A `keys` line names a layout:
-
-```
-keys ~/ftn/etc/amberkeys.cfg
-```
-
-A line of that file is a key and a command:
-
-```
-l    reader.list
-F2   reader.change
-```
-
-A `keys_mode` line says what that file does to the layout AmberEdit already
-has — `merge` by default:
-
-**`keys_mode merge` reads the file on top of the standard layout.** A command the file
-does not name keeps the key it has, and a key the file gives to something else
-is taken off whatever had it: a clash is settled for the file. So a file of
-three lines says what three keys do and changes nothing else.
-
-**`keys_mode clear` throws the standard layout away first, and the file is then
-the entire layout.** Any command not listed in it has no keybinding at all, so
-copy `amberkeys.cfg.example` (which contains the default bindings, spelled out)
-and edit that instead of starting from a blank file.
-
-Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
-apart), a function key (`F1` to `F12`), `Del`, `Ctrl-` and a letter, or `Alt-`
-and a letter, an arrow, a function key or `Backspace`. Two screens may share a key, as `F2`
-does between the reader and the editor; two commands of one screen may not, and
-a layout that tries says which line clashes with which.
-
-**Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
-`End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
-every screen — bare, that is: `Alt-Left` and `Alt-Backspace` are chords of their
-own and may be bound — and the dialogs answer for themselves entirely. `Space` in
-the message list marks the message rather than paging, which is a key the screen
-answers and not a binding; `PgDn` pages there as everywhere.
-
-The commands are `app.quit`; `arealist.` `next_unread`, `toggle_unread` and
-`rescan`;
-`msglist.mark_toggle`;
-`reader.` `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`,
-`delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`,
-`mark_toggle`, `mark_menu`,
-`shell`, `thread_up` and `thread_down`; and `compose.` `save`, `attributes`, `import`,
-`header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`,
-`word_left`, `word_right`, `line_start` and `line_end`. Every one of the three
-screens also has `extern_util0` through `extern_util9`, for the programs
-`amberedit.cfg` names — `Alt-F1 reader.extern_util0`.
+Every key that runs a command can be moved: a `keys` line in `amberedit.cfg`
+names a layout of your own, and `keys_mode` says whether it is read on top of
+the standard one or in place of it. [KEYS_REBINDING.md](KEYS_REBINDING.md) is
+how such a file is written, and which commands there are to bind.
 
 ### Finding a message
 
@@ -381,34 +265,6 @@ LANG=ru_RU.UTF-8 amberedit          # Russian
 LANGUAGE=ru amberedit               # Russian, leaving the rest of the locale alone
 amberedit                           # whatever your shell already says
 ```
-
-This works straight out of `cmake --build` as well — the build's own catalogs are
-compiled in ahead of the installed ones, so `LANG=ru_RU.UTF-8 ./build/bin/amberedit`
-is Russian before anything has been installed.
-
-One thing is the system's rather than AmberEdit's: **the locale you ask for has
-to exist**. A stock Debian or Ubuntu generates none at all, and gettext will not
-translate under `C`:
-
-```bash
-sudo apt install locales && sudo locale-gen ru_RU.UTF-8
-```
-
-`locale -a` lists what a system already has. AmberEdit says so on startup when
-the language you asked for is one it has and the system cannot install, and runs
-in English meanwhile.
-
-Russian ships with it. To add a language, or to fix a word in one:
-
-```bash
-cmake --build build --target pot        # refresh po/amberedit.pot from the source
-msginit --input=po/amberedit.pot --locale=de --output=po/de.po
-cmake -S . -B build && cmake --build build
-```
-
-`msgfmt` from gettext is what compiles them; a build without it is a build with
-the English. `cmake --build build --target update-po` merges a refreshed
-`amberedit.pot` into the translations that are already there.
 
 ### Configuration
 

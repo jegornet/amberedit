@@ -8,8 +8,9 @@
 #include "ui/term/event.hpp"
 
 /// The last row of the screen: the commands of whichever screen is up, each
-/// behind the key that runs it — `q reply  n reply elsewhere  e new`. There is no help
-/// screen, and this quiet row is what stands in for one.
+/// behind the key that runs it — `q reply  n reply elsewhere  e new`. A few of
+/// the screen's keys where they can be read without asking for them; F1 and
+/// `ui/help_dialog` are where all of them are.
 ///
 /// **The keys come from the layout**, never from a letter written here: a
 /// command the layout leaves unbound is left out of the row entirely, and one

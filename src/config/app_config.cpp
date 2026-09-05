@@ -2247,6 +2247,11 @@ std::string AppConfig::labelOf(Command command) const {
     return Commands::labelOf(command);
 }
 
+std::string AppConfig::helpTextOf(Command command) const {
+    if (const ExternUtil* util = externUtilFor(command)) return util->title;
+    return Commands::helpOf(command);
+}
+
 const ExternUtil* AppConfig::externUtilFor(Command command) const {
     const auto slot = Commands::externUtilOf(command);
     if (!slot) return nullptr;

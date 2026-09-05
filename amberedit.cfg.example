@@ -307,7 +307,8 @@ reader_show_message_size off
 # --- the keyboard -------------------------------------------------------------
 
 # A keyboard layout. Optional; without one AmberEdit uses its own, which is what
-# README's key tables describe and what amberkeys.cfg.example holds written out.
+# KEYS.md describes, what F1 shows, and what amberkeys.cfg.example holds written
+# out.
 #
 # The file is a key and a command per line — "l reader.list", "F2 reader.change".
 # Moving about is not bindable; naming one of those keys is an error rather than
@@ -784,9 +785,11 @@ compose_xc_list verbose
 # the subjects.
 adaptive_ui_threshold 80
 
-# Whether the last row of the screen is the hint bar — the commands of whichever
-# screen is up, each behind the key that runs it: "/ next unread  ctrl-r rescan"
-# on the area list. Optional; "on" by default, the same four values as
+# Whether the last row of the screen is the hint bar — a few of the commands of
+# whichever screen is up, each behind the key that runs it: "/ next unread
+# ctrl-r rescan" on the area list. F1 is where all of a screen's keys are; this
+# row is the ones worth having in front of the eye without asking for them.
+# Optional; "on" by default, the same four values as
 # back_button below and the same line "when_narrow" and "when_wide" are read
 # against. A window too narrow for the whole row carries as many hints as fit
 # whole and leaves the rest off the end of it, so "when_wide" is the way to ask
@@ -833,22 +836,22 @@ hint_bar_capitalize off
 # the four lines at the end of this block are the defaults. Each key names
 # commands of its own screen, by the part of the name after the dot — the
 # "reply_elsewhere" of "reader.reply_elsewhere", which is the spelling the "keys"
-# file uses — and "quit" besides, which every screen answers. A "-" in a name
-# reads as a "_", so a config written when they were spelled "reply-elsewhere"
-# is read as it stands:
+# file uses — and "quit" and "help" besides, which every screen answers. A "-" in
+# a name reads as a "_", so a config written when they were spelled
+# "reply-elsewhere" is read as it stands:
 #
-#   arealist_hints  next_unread  toggle_unread  rescan  quit
+#   arealist_hints  next_unread  toggle_unread  rescan  quit  help
 #
-#   msglist_hints   mark_toggle  quit
+#   msglist_hints   mark_toggle  quit  help
 #
 #   reader_hints    reply  reply_elsewhere  comment_reply  new  forward  change
 #                   delete  export  find  list  info  nodelist  kludges
 #                   scrollbar  mark_toggle  mark_menu  shell  thread_up
-#                   thread_down  quit
+#                   thread_down  quit  help
 #
 #   compose_hints   save  attributes  import  header_back  delete_line
 #                   restore_line  delete_quote  delete_word  word_left
-#                   word_right  line_start  line_end  quit
+#                   word_right  line_start  line_end  quit  help
 #
 # The area list, the reader and the editor each name "extern_util0" through
 # "extern_util9" besides — see extern_utilN above. A hint for one shows the

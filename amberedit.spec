@@ -100,7 +100,7 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %license LICENSE
 # The sample config stays documentation: AmberEdit looks for its config where
 # the user keeps it, and this one is here to be copied.
-%doc README.md INSTALL.md amberedit.cfg.example amberkeys.cfg.example
+%doc README.md KEYS.md KEYS_REBINDING.md INSTALL.md amberedit.cfg.example amberkeys.cfg.example
 %{_bindir}/amberedit
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/default.tpl

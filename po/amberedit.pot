@@ -1,4 +1,4 @@
-#: src/app/area_manager.cpp:134
+#: src/app/area_manager.cpp:140
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr ""
 
@@ -18,24 +18,23 @@ msgstr ""
 msgid "file exists: {0}"
 msgstr ""
 
-#: src/app/message_builder.cpp:378
+#: src/app/message_builder.cpp:427
 #, c++-format
 msgid "template: {0}"
 msgstr ""
 
-#: src/app/run_program.cpp:97 src/app/run_program.cpp:105
-#: src/app/run_program.cpp:146 src/app/user_shell.cpp:45
-#: src/app/user_shell.cpp:53
+#: src/app/run_program.cpp:18 src/app/user_shell.cpp:24
+#: src/app/user_shell.cpp:36
 #, c++-format
 msgid "cannot run {0}: {1}"
 msgstr ""
 
-#: src/app/run_program.cpp:140 src/app/user_shell.cpp:76
+#: src/app/run_program.cpp:21 src/app/user_shell.cpp:39
 #, c++-format
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1647
+#: src/config/app_config.cpp:1936
 msgid "no description"
 msgstr ""
 
@@ -43,144 +42,296 @@ msgstr ""
 msgid "Quit"
 msgstr ""
 
+#: src/config/commands.cpp:23
+msgid "Leave AmberEdit"
+msgstr ""
+
+#: src/config/commands.cpp:24
+msgid "Help"
+msgstr ""
+
 #: src/config/commands.cpp:25
-msgid "Next unread"
+msgid "This list of keys"
 msgstr ""
 
 #: src/config/commands.cpp:27
+msgid "Go to the next area with unread mail"
+msgstr ""
+
+#: src/config/commands.cpp:27
+msgid "Next unread"
+msgstr ""
+
+#: src/config/commands.cpp:29
+msgid "Show the areas with unread mail, or all of them"
+msgstr ""
+
+#: src/config/commands.cpp:29
 msgid "Toggle unread"
 msgstr ""
 
-#: src/config/commands.cpp:28
+#: src/config/commands.cpp:31
 msgid "Rescan"
 msgstr ""
 
-#: src/config/commands.cpp:31 src/config/commands.cpp:63
+#: src/config/commands.cpp:32
+msgid "Read the message bases again"
+msgstr ""
+
+#: src/config/commands.cpp:34 src/config/commands.cpp:68
 msgid "Mark"
 msgstr ""
 
-#: src/config/commands.cpp:32
-msgid "Reply"
+#: src/config/commands.cpp:34 src/config/commands.cpp:69
+msgid "Mark the message, or take the mark off"
 msgstr ""
 
 #: src/config/commands.cpp:35
-msgid "Reply elsewhere"
+msgid "Reply"
 msgstr ""
 
-#: src/config/commands.cpp:37
-msgid "Comment-reply"
+#: src/config/commands.cpp:36
+msgid "Reply in this area"
 msgstr ""
 
 #: src/config/commands.cpp:38
+msgid "Reply elsewhere"
+msgstr ""
+
+#: src/config/commands.cpp:38
+msgid "Reply in another area"
+msgstr ""
+
+#: src/config/commands.cpp:40
+msgid "Comment-reply"
+msgstr ""
+
+#: src/config/commands.cpp:40
+msgid "Reply to whoever the message was written to"
+msgstr ""
+
+#: src/config/commands.cpp:42
 msgid "New"
 msgstr ""
 
-#: src/config/commands.cpp:39
+#: src/config/commands.cpp:43
+msgid "Write a new message"
+msgstr ""
+
+#: src/config/commands.cpp:44
 msgid "Fwd / Copy"
 msgstr ""
 
-#: src/config/commands.cpp:41
+#: src/config/commands.cpp:45
+msgid "Forward, move or copy into another area"
+msgstr ""
+
+#: src/config/commands.cpp:46
 msgid "Change"
 msgstr ""
 
-#: src/config/commands.cpp:43
+#: src/config/commands.cpp:47
+msgid "Change the message"
+msgstr ""
+
+#: src/config/commands.cpp:48
 msgid "Delete"
 msgstr ""
 
-#: src/config/commands.cpp:45
+#: src/config/commands.cpp:49
+msgid "Delete the message"
+msgstr ""
+
+#: src/config/commands.cpp:50
 msgid "Export"
 msgstr ""
 
-#: src/config/commands.cpp:47 src/ui/find_dialog.cpp:67
+#: src/config/commands.cpp:51
+msgid "Write the message, or a file in it, to disk"
+msgstr ""
+
+#: src/config/commands.cpp:52 src/ui/find_dialog.cpp:67
 msgid "Find"
 msgstr ""
 
-#: src/config/commands.cpp:49
+#: src/config/commands.cpp:53
+msgid "Look for a message in this area"
+msgstr ""
+
+#: src/config/commands.cpp:54
 msgid "List"
 msgstr ""
 
-#: src/config/commands.cpp:51
+#: src/config/commands.cpp:55
+msgid "Back to the list of messages"
+msgstr ""
+
+#: src/config/commands.cpp:56
 msgid "Info"
 msgstr ""
 
-#: src/config/commands.cpp:53
+#: src/config/commands.cpp:57
+msgid "What the message base holds about it"
+msgstr ""
+
+#: src/config/commands.cpp:58
 msgid "Nodelist"
 msgstr ""
 
-#: src/config/commands.cpp:55
+#: src/config/commands.cpp:59
+msgid "Look an address or a sysop up"
+msgstr ""
+
+#: src/config/commands.cpp:60
 msgid "Kludges"
 msgstr ""
 
-#: src/config/commands.cpp:57
-msgid "Scrollbar"
-msgstr ""
-
-#: src/config/commands.cpp:59
-msgid "Thread up"
+#: src/config/commands.cpp:61
+msgid "Show or hide the service lines"
 msgstr ""
 
 #: src/config/commands.cpp:62
-msgid "Thread down"
+msgid "Scrollbar"
+msgstr ""
+
+#: src/config/commands.cpp:63
+msgid "Show or hide the scrollbar"
+msgstr ""
+
+#: src/config/commands.cpp:64
+msgid "Thread up"
 msgstr ""
 
 #: src/config/commands.cpp:65
-msgid "Marks"
+msgid "The message this one answers"
 msgstr ""
 
 #: src/config/commands.cpp:67
+msgid "The next answer to this message"
+msgstr ""
+
+#: src/config/commands.cpp:67
+msgid "Thread down"
+msgstr ""
+
+#: src/config/commands.cpp:70
+msgid "Marks"
+msgstr ""
+
+#: src/config/commands.cpp:71
+msgid "Mark a run of messages at once"
+msgstr ""
+
+#: src/config/commands.cpp:72
 msgid "Shell"
 msgstr ""
 
-#: src/config/commands.cpp:69 src/ui/export_dialog.cpp:84
+#: src/config/commands.cpp:73
+msgid "Run your own shell"
+msgstr ""
+
+#: src/config/commands.cpp:74 src/ui/export_dialog.cpp:84
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:439
 msgid "Save"
 msgstr ""
 
-#: src/config/commands.cpp:72
+#: src/config/commands.cpp:75
+msgid "Save the message"
+msgstr ""
+
+#: src/config/commands.cpp:77
 msgid "Attributes"
 msgstr ""
 
-#: src/config/commands.cpp:73
-msgid "Import"
-msgstr ""
-
-#: src/config/commands.cpp:76 src/ui/external_dialog.cpp:79
-msgid "Header"
+#: src/config/commands.cpp:77
+msgid "Change the message attributes"
 msgstr ""
 
 #: src/config/commands.cpp:78
+msgid "Import"
+msgstr ""
+
+#: src/config/commands.cpp:79
+msgid "Read a file into the message"
+msgstr ""
+
+#: src/config/commands.cpp:81
+msgid "Back up into the header fields"
+msgstr ""
+
+#: src/config/commands.cpp:81 src/ui/external_dialog.cpp:79
+msgid "Header"
+msgstr ""
+
+#: src/config/commands.cpp:83
 msgid "Delete line"
 msgstr ""
 
-#: src/config/commands.cpp:80
+#: src/config/commands.cpp:83
+msgid "Delete the line the cursor is on"
+msgstr ""
+
+#: src/config/commands.cpp:85
+msgid "Put the last deleted line back"
+msgstr ""
+
+#: src/config/commands.cpp:85
 msgid "Restore line"
 msgstr ""
 
-#: src/config/commands.cpp:82
+#: src/config/commands.cpp:87
 msgid "Delete quote"
 msgstr ""
 
-#: src/config/commands.cpp:84
-msgid "Delete word"
-msgstr ""
-
-#: src/config/commands.cpp:86
-msgid "Word left"
-msgstr ""
-
-#: src/config/commands.cpp:88
-msgid "Word right"
+#: src/config/commands.cpp:87
+msgid "Delete the quoted text after the cursor"
 msgstr ""
 
 #: src/config/commands.cpp:90
+msgid "Delete the word before the cursor"
+msgstr ""
+
+#: src/config/commands.cpp:90
+msgid "Delete word"
+msgstr ""
+
+#: src/config/commands.cpp:93
+msgid "A word to the left"
+msgstr ""
+
+#: src/config/commands.cpp:93
+msgid "Word left"
+msgstr ""
+
+#: src/config/commands.cpp:95
+msgid "A word to the right"
+msgstr ""
+
+#: src/config/commands.cpp:95
+msgid "Word right"
+msgstr ""
+
+#: src/config/commands.cpp:97
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:91
+#: src/config/commands.cpp:97
+msgid "To the start of the line"
+msgstr ""
+
+#: src/config/commands.cpp:98
 msgid "Line end"
 msgstr ""
 
-#: src/config/commands.cpp:159
+#: src/config/commands.cpp:99
+msgid "To the end of the line"
+msgstr ""
+
+#: src/config/commands.cpp:166
+msgid "Run the program the config names"
+msgstr ""
+
+#: src/config/commands.cpp:166
 msgid "Utility"
 msgstr ""
 
@@ -189,13 +340,13 @@ msgstr ""
 # This file is distributed under the same license as the AmberEdit package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
-#: src/i18n/i18n.cpp:51
+#: src/i18n/i18n.cpp:54
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.6.6\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-08-28 23:02+0200\n"
+"POT-Creation-Date: 2026-09-05 12:36+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -352,16 +503,16 @@ msgstr ""
 msgid "Cannot open the area: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:115
+#: src/ui/app_shell.cpp:116
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:740
+#: src/ui/app_shell.cpp:753
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:519 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:585 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -713,6 +864,34 @@ msgstr ""
 msgid "←→ choose · Enter confirm · f/m/c · Esc cancel"
 msgstr ""
 
+#: src/ui/help_dialog.cpp:51
+msgid " Area list keys "
+msgstr ""
+
+#: src/ui/help_dialog.cpp:52
+msgid " Message list keys "
+msgstr ""
+
+#: src/ui/help_dialog.cpp:53
+msgid " Reader keys "
+msgstr ""
+
+#: src/ui/help_dialog.cpp:56
+msgid " Editor keys "
+msgstr ""
+
+#: src/ui/help_dialog.cpp:114
+msgid "Everywhere"
+msgstr ""
+
+#: src/ui/help_dialog.cpp:125
+msgid "no key on this screen runs anything"
+msgstr ""
+
+#: src/ui/help_dialog.cpp:197
+msgid "Esc closes"
+msgstr ""
+
 #: src/ui/import_dialog.cpp:79
 msgid "Enter open · Tab move · Esc close"
 msgstr ""
@@ -852,83 +1031,83 @@ msgstr[1] ""
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:353
+#: src/ui/screens/area_list_screen.cpp:421
 msgid " The tosser config declares no areas."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:354
+#: src/ui/screens/area_list_screen.cpp:422
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:417
+#: src/ui/screens/area_list_screen.cpp:485
 #, c++-format
 msgid " Area: {0}▌"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:450
+#: src/ui/screens/area_list_screen.cpp:518
 msgid "Every area has been read."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:312
+#: src/ui/screens/compose_screen.cpp:306
 msgid "change"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:313
+#: src/ui/screens/compose_screen.cpp:307
 msgid "forward"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:314
+#: src/ui/screens/compose_screen.cpp:308
 msgid "moved reply"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:315
+#: src/ui/screens/compose_screen.cpp:309
 msgid "reply"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:316
+#: src/ui/screens/compose_screen.cpp:310
 msgid "new message"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1216
+#: src/ui/screens/compose_screen.cpp:1208
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:546
+#: src/ui/screens/message_read_screen.cpp:548
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1664
+#: src/ui/screens/message_read_screen.cpp:1699
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1685
+#: src/ui/screens/message_read_screen.cpp:1720
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2227
+#: src/ui/screens/message_read_screen.cpp:2295
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2230
+#: src/ui/screens/message_read_screen.cpp:2298
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2233
+#: src/ui/screens/message_read_screen.cpp:2301
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2236
+#: src/ui/screens/message_read_screen.cpp:2304
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2239
+#: src/ui/screens/message_read_screen.cpp:2307
 msgctxt "header block"
 msgid "Recd"
 msgstr ""

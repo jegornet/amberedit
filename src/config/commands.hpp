@@ -19,6 +19,7 @@ namespace amberedit::config {
 /// it left you on. The dialogs answer for themselves for the same reason.
 enum class Command : uint8_t {
     AppQuit,                ///< app.quit
+    AppHelp,                ///< app.help
     AreaListNextUnread,     ///< arealist.next_unread
     AreaListToggleUnread,   ///< arealist.toggle_unread
     AreaListRescan,         ///< arealist.rescan
@@ -156,6 +157,16 @@ public:
         /// these with `==` compares the pointers, so anything reading it as text
         /// says `std::string_view(info.labelId)`.
         const char* labelId{};
+        /// The sentence the help box writes beside the keys — the msgid again,
+        /// and not the line to draw: `helpTextOf()` is what the box asks with.
+        ///
+        /// Apart from `labelId` because the two are asked different questions. A
+        /// label is the word on a button, as short as a button is wide; this is
+        /// what the command does, said once, for somebody who has just pressed
+        /// F1 because they do not know. `Marks` and `Mark a run of messages at
+        /// once` are the same command, and neither can stand where the other
+        /// does.
+        const char* helpId{};
         /// The glyph the menu marks the command with, or empty for a command
         /// that goes without one.
         ///
@@ -199,6 +210,14 @@ public:
     /// **What draws asks `AppConfig::labelOf()` rather than this**, an external
     /// utility's word being the `title` its config line gave it and no catalog's.
     [[nodiscard]] static const char* labelOf(Command command);
+
+    /// What the help box writes beside its keys, in the interface's own
+    /// language — asked as it draws, and for the reason `labelOf()` is.
+    ///
+    /// **What draws asks `AppConfig::helpTextOf()` rather than this**, an
+    /// external utility being described by the `title` its config line gave it
+    /// and no catalog's.
+    [[nodiscard]] static const char* helpOf(Command command);
 
     /// The part of the name after the screen it belongs to: `reader.reply_elsewhere`
     /// reads as `reply_elsewhere`. What a menu and a hint list name a command by, the

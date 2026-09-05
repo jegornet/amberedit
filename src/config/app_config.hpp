@@ -1138,10 +1138,11 @@ struct AppConfig {
 
     /// Whether the last row of the screen carries the hint bar — the commands
     /// of whichever screen is up, each behind the key that runs it — from
-    /// `hint_bar`. `on` unless the config says otherwise: there is no help
-    /// screen, one quiet row stands in for one, and the window that has least
-    /// room for it is the window that needs it most — narrow is where the
-    /// buttons go and the keys are all that is left. A window too narrow for
+    /// `hint_bar`. `on` unless the config says otherwise: F1 is where all of a
+    /// screen's keys are and this row is the few worth having in front of the
+    /// eye without asking, and the window that has least room for it is the
+    /// window that needs it most — narrow is where the buttons go and the keys
+    /// are all that is left. A window too narrow for
     /// the whole row carries as many hints as fit whole and leaves the rest off
     /// the end of it — see `hint_bar::render()`; `when_wide` is still there for
     /// whoever would rather have the row whole or not at all.
@@ -1714,6 +1715,14 @@ struct AppConfig {
     /// and the table is not: the table is built before any config has been read,
     /// and a utility's word is whatever this file gave it.
     [[nodiscard]] std::string labelOf(Command command) const;
+
+    /// What the help box writes beside the command's keys: the utility's own
+    /// `title` where the command runs one — which is the whole of what there is
+    /// to say about a program this file named — and `Commands::helpOf()`, the
+    /// English sentence through the catalog, for everything else.
+    ///
+    /// Here rather than in `config::Commands` for the reason `labelOf()` is.
+    [[nodiscard]] std::string helpTextOf(Command command) const;
 
     /// The utility that command runs, or nullptr where it runs none — which is
     /// every command that is not an `extern_utilN`, and every slot no

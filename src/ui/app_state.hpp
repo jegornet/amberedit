@@ -101,6 +101,40 @@ struct AppState {
     };
     std::optional<MenuView> menuView;
 
+    /// The help box: every key the screen in front of the user answers to, with
+    /// what each of them does beside it. Absent when it is not up — it is modal,
+    /// and there is nothing about it worth remembering between two openings.
+    ///
+    /// The rows are built when it opens and kept: what they say is the layout
+    /// and the config, and neither changes while a box is on the screen. The
+    /// window may, so the width they are cut to is settled as they are drawn.
+    struct HelpView {
+        /// One row: the keys, the sentence beside them, and whether it is a
+        /// heading over a block rather than one of the block's own rows.
+        struct Line {
+            /// `q, F4` — every key the layout gives the command, in the order it
+            /// gave them. Empty on a heading and on the blank row before one.
+            std::string keys;
+            std::string text;
+            bool heading{false};
+        };
+        std::vector<Line> lines;
+        /// How wide the keys stand, which is the widest of them and a cap. One
+        /// column for the whole box: a block whose keys are all short would
+        /// otherwise set its sentences where the block above does not.
+        int keyColumn{0};
+        int scroll{0};
+
+        /// The box's size, settled when it opens and again where the window has
+        /// changed — the same rule the nodelist's box is built on.
+        /// `layoutWidth`/`layoutHeight` are the window it was measured against.
+        int inner{0};
+        int rows{1};
+        int layoutWidth{0};
+        int layoutHeight{0};
+    };
+    std::optional<HelpView> helpView;
+
     // --- area list --------------------------------------------------------
     int areaCursor{0};
     int areaOffset{0};

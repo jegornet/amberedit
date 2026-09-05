@@ -29,6 +29,11 @@ TEST_CASE("Every command is one row of the one table [commands]") {
         // command, and nothing any of them keeps a second list of.
         CHECK_FALSE(info.name.empty());
         CHECK_FALSE(std::string_view(info.labelId).empty());
+        // And a sentence saying what it does, which is what the help box is
+        // written from. Apart from the label because the two answer different
+        // questions — a word on a button, and what the command is for.
+        CHECK_FALSE(std::string_view(info.helpId).empty());
+        CHECK(std::string_view(info.helpId) != std::string_view(info.labelId));
         const size_t dot = info.name.find('.');
         REQUIRE(dot != std::string_view::npos);
         CHECK_FALSE(Commands::shortNameOf(command).empty());
@@ -80,13 +85,17 @@ TEST_CASE("A command is found by the name it is written under [commands]") {
     CHECK(Commands::namedOn(CommandScreen::Compose, "delete_line", Commands::In::Menu) ==
           nullptr);
 
-    // `app.quit` is answered before every screen, so every screen's row may
-    // name it — and no menu does, a menu being the screen's own commands.
+    // `app.quit` and `app.help` are answered before every screen, so every
+    // screen's row may name either — and no menu does, a menu being the
+    // screen's own commands.
     for (const CommandScreen screen :
          {CommandScreen::AreaList, CommandScreen::MessageList, CommandScreen::Reader,
           CommandScreen::Compose}) {
-        CHECK(Commands::namedOn(screen, "quit", Commands::In::HintBar) != nullptr);
-        CHECK(Commands::namedOn(screen, "quit", Commands::In::Menu) == nullptr);
+        for (const char* name : {"quit", "help"}) {
+            INFO(name);
+            CHECK(Commands::namedOn(screen, name, Commands::In::HintBar) != nullptr);
+            CHECK(Commands::namedOn(screen, name, Commands::In::Menu) == nullptr);
+        }
     }
 }
 

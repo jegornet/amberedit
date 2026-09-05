@@ -207,9 +207,9 @@ TEST_CASE("hint_bar decides whether the row is there at all [hintbar]") {
     Fixture fixture(ScreenId::AreaList);
     fixture.config.adaptiveUiThreshold = 80;
 
-    // On by default, in a window of any width: there is no help screen, and the
-    // narrow window that has least room for the row is the one whose buttons
-    // have gone and whose keys are all that is left.
+    // On by default, in a window of any width: the narrow window that has least
+    // room for the row is the one whose buttons have gone and whose keys are all
+    // that is left.
     fixture.state.width = 100;
     CHECK(fixture.state.hintBarShown());
     fixture.state.width = 60;
