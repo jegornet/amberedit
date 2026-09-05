@@ -30,8 +30,14 @@ HOST=${2:-}
 CROSS=${HOST:+$HOST-}
 JOBS=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)
 
+# The release MSYS2 packages, so that a cross-built binary and a native one are
+# the same library rather than whatever master holds on the day. What the header
+# does and does not name differs between the two — see src/ui/term/ncurses.hpp.
+TAG=v4.5.4
+
 SRC=${AMBEREDIT_PDCURSES_SRC:-$(dirname "$PREFIX")/src/PDCursesMod}
-[ -d "$SRC" ] || git clone --depth 1 https://github.com/Bill-Gray/PDCursesMod.git "$SRC"
+[ -d "$SRC" ] || git clone --depth 1 --branch "$TAG" \
+    https://github.com/Bill-Gray/PDCursesMod.git "$SRC"
 
 cd "$SRC/wincon"
 make -f Makefile clean >/dev/null 2>&1 || true

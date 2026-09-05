@@ -21,6 +21,16 @@
 #include <curses.h>
 #endif
 
+// How many wide characters one cell can hold: a base character and whatever
+// combines onto it. ncurses says five and has always spelled it in its header.
+// PDCursesMod reads twenty, but only names the limit in releases after 4.5.4 —
+// and 4.5.4 is what MSYS2 packages, so the number is repeated here where the
+// header does not have it. It is the library's own cap either way: `setcchar`
+// there stops at the twentieth character whatever this side asks for.
+#if defined(__PDCURSESMOD__) && !defined(CCHARW_MAX)
+#define CCHARW_MAX 20
+#endif
+
 // Both headers are C from before namespaces existed, and define a handful of
 // very ordinary words as bare macros. `lines`, `columns` and `clear` collide
 // with the sort of name this code is full of — `Screen::clear()` among them —
