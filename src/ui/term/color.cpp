@@ -5,22 +5,19 @@
 
 #include "ui/term/ncurses.hpp"
 
-// PDCurses numbers the first eight colors in the DOS order unless told
-// otherwise: 1 blue, 4 red. ANSI, ncurses and every theme in themes/ have it the
-// other way round, so a mismatch here draws a blue theme in red and a yellow one
-// in cyan — and reports nothing, because every number involved is valid. Said
-// out loud at compile time, since it is the sort of wrong that only shows up in
-// a screenshot.
+// PDCurses numbers the first eight colors in one of two orders, and which one it
+// is was settled when the library itself was compiled: with PDC_RGB it is the
+// ANSI order — 1 red, 4 blue — and without it the DOS order, 1 blue and 4 red.
+// ncurses, every theme in themes/ and everything above this layer are written in
+// the ANSI one, so a library holding the other would draw a blue theme in red
+// and a yellow one in cyan while reporting nothing at all, since every number
+// involved is valid.
 //
-// This holds our half of the bargain. The library has to be built with PDC_RGB
-// as well — the palette for entries 0-15 is made from these masks inside it —
-// and nothing here can check that from the outside; tools/build-w64-deps.sh is
-// where it is done.
-#ifdef COLOR_BLUE
-static_assert(COLOR_BLUE == 4,
-              "curses was configured with the DOS color order (blue as 1). "
-              "Define PDC_RGB, and build PDCursesMod with it too.");
-#endif
+// Nothing the compiler here can see settles it: the header only says how the
+// COLOR_ macros in this file were spelled, not how the palette inside the
+// library was built. So the library is asked at run time — PDCursesMod reports
+// the flags it was compiled with — and where it holds the DOS order the numbers
+// handed to it are turned round on the way out. See `cursesColor`.
 
 namespace amberedit::ui::term {
 namespace {
@@ -33,6 +30,10 @@ int colors = 0;
 /// spell: 102 as #000066 instead of grey, quietly turning a whole theme blue.
 /// Expanding it first is what keeps the theme the same on both sorts of terminal.
 bool directColor = false;
+
+/// Whether the curses in use numbers the first eight colors the DOS way, which
+/// only PDCursesMod ever does — ncurses has the ANSI order and nothing to ask.
+bool bgrColors = false;
 
 /// The pairs handed out so far, keyed by the two colors that make them up.
 /// Never emptied: the palette cannot change while the screen is open, so the set
@@ -100,6 +101,14 @@ int nearestWithin(uint8_t index, int available) {
     return best;
 }
 
+int cursesColor(int index, bool bgr) {
+    // Red and blue are bit 0 and bit 2, with green and the bright bit either
+    // side of them staying where they are. Entries from 16 up are the
+    // 256-color palette, which both orders number the same way.
+    if (!bgr || index < 0 || index > 15) return index;
+    return (index & 0x0a) | ((index & 0x01) << 2) | ((index & 0x04) >> 2);
+}
+
 void initColors() {
     if (has_colors() == FALSE) {
         colors = 0;
@@ -113,6 +122,15 @@ void initColors() {
     use_default_colors();
     colors = COLORS;
     directColor = COLORS >= (1 << 24);
+
+#ifdef __PDCURSESMOD__
+    // The half of the color order this side cannot see. A library built without
+    // PDC_RGB numbers the first eight the DOS way whatever this file was
+    // compiled with, and says so here.
+    PDC_VERSION version;
+    PDC_get_version(&version);
+    bgrColors = (version.flags & PDC_VFLAG_RGB) == 0;
+#endif
 }
 
 int paletteSize() { return colors; }
@@ -131,7 +149,7 @@ int pairFor(Color fg, Color bg) {
     const auto resolve = [](Color color) {
         if (color.defaulted) return -1;
         if (directColor) return static_cast<int>(paletteRgb(color.index));
-        return nearestWithin(color.index, colors);
+        return cursesColor(nearestWithin(color.index, colors), bgrColors);
     };
 
     const int pair = nextPair++;

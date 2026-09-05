@@ -71,8 +71,9 @@ cd "$SRC/$GETTEXT/gettext-runtime"
 make -j"$JOBS" >/dev/null && make install >/dev/null
 
 # The wincon port. What it has to be built with, and why each of those matters,
-# is in the script itself — CI builds it the same way by calling the same script.
-echo "=== PDCursesMod (wincon, wide, UTF-8, RGB colour order) ==="
+# is in the script itself. A build on Windows installs MSYS2's package instead
+# and never runs it.
+echo "=== PDCursesMod (wincon, wide, UTF-8) ==="
 AMBEREDIT_PDCURSES_SRC="$SRC/PDCursesMod" \
     "$TOOLS/build-pdcurses.sh" "$PREFIX" "$HOST"
 

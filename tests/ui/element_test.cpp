@@ -136,6 +136,24 @@ TEST_CASE("a palette entry expands to the color it stands for [element]") {
     CHECK(paletteRgb(15) == 0xffffffu);   // bright white among the ANSI sixteen
 }
 
+TEST_CASE("the first eight colors follow the library's own order [element]") {
+    // PDCurses numbers them the DOS way unless it was built with PDC_RGB, and
+    // themes are written in the ANSI way. Where the two differ red and blue
+    // swap and nothing else moves — not green, not the bright bit, and not the
+    // 256-color palette above them.
+    CHECK(cursesColor(1, true) == 4);    // ANSI red -> DOS red
+    CHECK(cursesColor(4, true) == 1);    // ANSI blue -> DOS blue
+    CHECK(cursesColor(3, true) == 6);    // yellow, which is red and green
+    CHECK(cursesColor(6, true) == 3);    // cyan, which is blue and green
+    CHECK(cursesColor(2, true) == 2);    // green stays
+    CHECK(cursesColor(5, true) == 5);    // so does magenta, being red and blue
+    CHECK(cursesColor(9, true) == 12);   // and the bright bit rides along
+    CHECK(cursesColor(196, true) == 196);
+    // A library built the ANSI way is handed the theme's numbers untouched,
+    // which is every terminal but that one.
+    for (int i = 0; i < 256; ++i) CHECK(cursesColor(i, false) == i);
+}
+
 TEST_CASE("a palette number the terminal lacks falls back [element]") {
     // Only when the terminal genuinely has fewer colors than the theme asks
     // for. Approximate matches, so these check the direction rather than an

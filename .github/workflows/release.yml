@@ -319,7 +319,7 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
-            git make zip
+            git zip
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
@@ -327,12 +327,7 @@ jobs:
             mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-gettext
             mingw-w64-ucrt-x86_64-tl-expected
-
-      # MSYS2's PDCurses is the original one, which has neither the extended
-      # colour pairs nor the combining characters; this is the same script the
-      # CI job and a local cross-build call.
-      - name: Build PDCursesMod
-        run: tools/build-pdcurses.sh "$PWD/w64deps"
+            mingw-w64-ucrt-x86_64-pdcurses
 
       # Statically, so that what ships is one .exe rather than an .exe and a
       # handful of DLLs out of the build host's MSYS2. Nothing is passed for it
@@ -343,8 +338,7 @@ jobs:
       - name: Build and stage
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-                -DAMBEREDIT_BUILD_TESTS=OFF \
-                -DCMAKE_PREFIX_PATH="$PWD/w64deps"
+                -DAMBEREDIT_BUILD_TESTS=OFF
           cmake --build build -j"$(nproc)"
           cmake --install build --prefix stage
 

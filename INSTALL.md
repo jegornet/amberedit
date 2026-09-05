@@ -169,23 +169,26 @@ pacman -S --needed git make \
     mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake \
     mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-zlib \
     mingw-w64-ucrt-x86_64-libiconv mingw-w64-ucrt-x86_64-gettext \
-    mingw-w64-ucrt-x86_64-tl-expected mingw-w64-ucrt-x86_64-doctest
+    mingw-w64-ucrt-x86_64-tl-expected mingw-w64-ucrt-x86_64-doctest \
+    mingw-w64-ucrt-x86_64-pdcurses
 
-tools/build-pdcurses.sh "$PWD/w64deps"
-
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DCMAKE_PREFIX_PATH="$PWD/w64deps"
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The curses is [PDCursesMod](https://github.com/Bill-Gray/PDCursesMod) rather than
-ncurses, and it is the one dependency not taken from pacman: MSYS2 carries the
-original PDCurses, which has neither the extended colour pairs nor the combining
-characters AmberEdit asks for, and the probe in `CMakeLists.txt` refuses it.
-`tools/build-pdcurses.sh` builds the right one — wide, 64-bit `chtype`, and
-`PDC_RGB` so that the first eight colours are in the ANSI order the themes are
-written in rather than the DOS order PDCurses defaults to.
+The curses is PDCursesMod rather than ncurses, and MSYS2's package of it is what
+the build uses. It carries all three of its ports, so CMake asks for the
+console one by name — `libpdcurses_wincon.a` — since the plain `libpdcurses.a`
+there is the wingui port, which opens a window of its own instead of drawing
+in the console.
+
+MSYS2 builds it wide and with a 64-bit `chtype`, which is what carries the
+extended colour pairs and the combining characters, and the probe in
+`CMakeLists.txt` holds it to that. It does not build it with `PDC_RGB`, so the
+first eight colours are numbered the DOS way rather than the ANSI way the themes
+are written in; `src/ui/term/color.cpp` asks the library at run time which order
+it holds and hands it numbers to suit, so either build draws them as written.
 
 Everything is linked statically, which is why the zip needs nothing installed:
 `AMBEREDIT_STATIC` is on by default for Windows and both links `-static` and
@@ -200,9 +203,10 @@ smaller .exe for a build that is only ever going to run inside MSYS2.
 ### Cross-building it from Linux or macOS
 
 Which is how the releases are made, and what `cmake/toolchain-mingw-w64.cmake` is
-for. `tools/build-w64-deps.sh` builds zlib, libiconv, libintl and PDCursesMod for
-the target into a prefix of their own — nothing is written into the source tree —
-and the header-only tl::expected and doctest come from the host's own copies:
+for. There is no pacman to ask here, so `tools/build-w64-deps.sh` builds zlib,
+libiconv, libintl and PDCursesMod for the target into a prefix of their own —
+nothing is written into the source tree — and the header-only tl::expected and
+doctest come from the host's own copies:
 
 ```bash
 brew install mingw-w64          # or the distribution's mingw-w64 packages

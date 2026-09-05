@@ -93,7 +93,10 @@ endif()
 # use is PDCursesMod, whose wincon port talks to the console directly. It needs
 # a 64-bit chtype build with PDC_WIDE — that is the configuration that carries
 # `cchar_t`, extended colour pairs and the combining-character scheme, and the
-# probe below holds it to all three exactly as it holds ncurses.
+# probe below holds it to all three exactly as it holds ncurses. MSYS2's
+# mingw-w64-*-pdcurses is built that way and is what the native build uses; a
+# cross-build from Linux or macOS has no package manager to ask and builds the
+# same library with tools/build-pdcurses.sh.
 include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
 
@@ -103,8 +106,15 @@ if(NOT WIN32 AND PkgConfig_FOUND)
 endif()
 
 if(WIN32)
-  find_library(PDCURSES_LIBRARY NAMES pdcurses REQUIRED)
-  find_path(PDCURSES_INCLUDE_DIR NAMES curses.h REQUIRED)
+  # Two spellings, because the two sources of this library lay it out
+  # differently. MSYS2 packages all three ports and names them apart, where the
+  # plain `libpdcurses.a` is the wingui one — a window of its own rather than
+  # the console — so the console port is asked for by name first. A prefix from
+  # tools/build-pdcurses.sh holds only wincon and calls it `libpdcurses.a`,
+  # which is the fallback. Headers likewise: MSYS2 puts them under
+  # `include/pdcurses/`, the script installs them at the top of its own prefix.
+  find_library(PDCURSES_LIBRARY NAMES pdcurses_wincon pdcurses REQUIRED)
+  find_path(PDCURSES_INCLUDE_DIR NAMES curses.h PATH_SUFFIXES pdcurses REQUIRED)
   add_library(amberedit_curses INTERFACE)
   # winmm is not decoration: the wincon port rings the bell with PlaySoundW, so
   # leaving it out fails at link with one undefined symbol and nothing to say why.
@@ -148,7 +158,7 @@ cmake_push_check_state()
 if(WIN32)
   set(CMAKE_REQUIRED_INCLUDES ${PDCURSES_INCLUDE_DIR})
   set(CMAKE_REQUIRED_LIBRARIES ${PDCURSES_LIBRARY} winmm user32 advapi32)
-  set(CMAKE_REQUIRED_DEFINITIONS -DPDC_WIDE=1 -DPDC_FORCE_UTF8=1 -DPDC_NCMOUSE=1 -DPDC_RGB=1)
+  set(CMAKE_REQUIRED_DEFINITIONS -DPDC_WIDE=1 -DPDC_FORCE_UTF8=1 -DPDC_NCMOUSE=1)
 else()
   set(CMAKE_REQUIRED_LIBRARIES ${amberedit_curses_lib})
   set(CMAKE_REQUIRED_DEFINITIONS -DNCURSES_WIDECHAR=1)
@@ -168,8 +178,10 @@ if(NOT AMBEREDIT_NCURSESW_SUBDIR)
     message(FATAL_ERROR
       "AmberEdit needs PDCursesMod built wide and 64-bit (cchar_t, setcchar, "
       "init_extended_pair). A CHTYPE_32 build has no room for the extended "
-      "colour pairs and no combining characters; build the wincon port with "
-      "WIDE=Y and without CHTYPE_32, and name its prefix to CMake."
+      "colour pairs and no combining characters. On MSYS2 install "
+      "mingw-w64-ucrt-x86_64-pdcurses; elsewhere build the wincon port with "
+      "WIDE=Y and without CHTYPE_32 — tools/build-pdcurses.sh does — and name "
+      "its prefix to CMake."
     )
   elseif(NOT AMBEREDIT_CURSES_PLAIN)
     message(FATAL_ERROR
@@ -611,13 +623,14 @@ if(WIN32)
   # PDC_NCMOUSE asks PDCurses for the ncurses mouse interface — `getmouse(MEVENT*)`
   # and NCURSES_MOUSE_VERSION — instead of its own older `getmouse(void)`. With it
   # the mouse code above this layer is the same code on both systems.
-  # PDC_RGB puts the first eight colours in the ANSI order — 1 red, 4 blue —
-  # which is what themes/*.cfg are written in. Without it PDCurses uses the DOS
-  # order and a blue theme comes out red. It has to hold for the library too;
-  # tools/build-w64-deps.sh builds it that way, and the assertion in color.cpp
-  # catches this half of the bargain going missing.
+  #
+  # PDC_RGB is deliberately not among them. It would only respell the COLOR_
+  # macros in this build; which order the first eight colours are actually
+  # painted in is fixed inside the library, and `color.cpp` reads that at run
+  # time and turns its numbers round to suit. So a library built either way
+  # draws the themes as written.
   target_compile_definitions(amberedit_term
-    PUBLIC PDC_WIDE=1 PDC_FORCE_UTF8=1 PDC_NCMOUSE=1 PDC_RGB=1)
+    PUBLIC PDC_WIDE=1 PDC_FORCE_UTF8=1 PDC_NCMOUSE=1)
 else()
   target_compile_definitions(amberedit_term PUBLIC NCURSES_WIDECHAR=1)
 endif()

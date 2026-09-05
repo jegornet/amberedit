@@ -64,6 +64,19 @@ void initColors();
 /// approximation without eyes on a terminal.
 [[nodiscard]] int nearestWithin(uint8_t index, int available);
 
+/// The number curses itself uses for the ANSI palette entry `index`.
+///
+/// PDCurses numbers the first eight colors in the DOS order — 1 blue, 4 red —
+/// unless the library was built with PDC_RGB, and how it was built is not
+/// something the code including its header can see. Themes are written in the
+/// ANSI order, so where `bgr` says the library holds the other one, red and blue
+/// swap and everything else stays: green, the bright bit, and every entry from
+/// 16 up, which is the 256-color palette both orders share.
+///
+/// `bgr` is a parameter rather than read from the library here so that the swap
+/// can be checked without one; `pairFor` passes what `initColors` was told.
+[[nodiscard]] int cursesColor(int index, bool bgr);
+
 /// What a palette entry looks like, as 0xRRGGBB. Needed for a terminal in
 /// direct-color mode, which reads a color number as a triple rather than as an
 /// index — see `pairFor`. Entries 0-15 are the terminal's own and only
