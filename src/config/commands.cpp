@@ -70,7 +70,7 @@ constexpr Commands::Info kCommands[] = {
     {Command::ReaderMarkMenu, "reader.mark_menu", CommandScreen::Reader, N_("Marks"),
      N_("Mark a run of messages at once"), "☆", "s", true},
     {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"),
-     N_("Run your own shell"), "❯", "Ctrl-X", true},
+     N_("Run the system shell"), "❯", "Ctrl-X", true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"),
      N_("Save the message"), "✓", "Ctrl-S F2", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,

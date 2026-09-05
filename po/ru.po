@@ -227,8 +227,8 @@ msgid "Shell"
 msgstr "Шелл"
 
 #: src/config/commands.cpp:73
-msgid "Run your own shell"
-msgstr "Запустить свою оболочку"
+msgid "Run the system shell"
+msgstr "Запустить системный шелл"
 
 #: src/config/commands.cpp:74 src/ui/export_dialog.cpp:84
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:439
