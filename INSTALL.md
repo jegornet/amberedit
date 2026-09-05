@@ -153,6 +153,67 @@ cmake -S . -B build \
 Unlike on Linux, `libintl` is then a library the finished binary links, not only
 a build-time tool.
 
+## Windows
+
+Windows 10 or later, on x86_64. The release zip needs nothing installed: unpack
+it and run `bin\amberedit.exe`. **Keep `share\` beside `bin\`** — the message
+template, the themes and the message catalogs are looked for relative to the
+executable, so moving the .exe out on its own leaves it without them.
+
+It runs on Windows 7 SP1, 8, 8.1 and Vista SP2 as well, wherever the Universal C
+Runtime is present — update KB2999226, which most systems already have. Windows
+XP cannot run it: there is no Universal CRT for it.
+
+### Building it there
+
+MSYS2, in the **UCRT64** environment (not MINGW64).
+
+```
+pacman -S --needed git make \
+    mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake \
+    mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-zlib \
+    mingw-w64-ucrt-x86_64-libiconv mingw-w64-ucrt-x86_64-gettext \
+    mingw-w64-ucrt-x86_64-tl-expected mingw-w64-ucrt-x86_64-doctest
+
+tools/build-pdcurses.sh "$PWD/w64deps"
+
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_PREFIX_PATH="$PWD/w64deps"
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The curses is [PDCursesMod](https://github.com/Bill-Gray/PDCursesMod) rather than
+ncurses, and it is the one dependency not taken from pacman: MSYS2 carries the
+original PDCurses, which has neither the extended colour pairs nor the combining
+characters AmberEdit asks for, and the probe in `CMakeLists.txt` refuses it.
+`tools/build-pdcurses.sh` builds the right one — wide, 64-bit `chtype`, and
+`PDC_RGB` so that the first eight colours are in the ANSI order the themes are
+written in rather than the DOS order PDCurses defaults to.
+
+### Cross-building it from Linux or macOS
+
+Which is how the releases are made, and what `cmake/toolchain-mingw-w64.cmake` is
+for. `tools/build-w64-deps.sh` builds zlib, libiconv, libintl and PDCursesMod for
+the target into a prefix of their own — nothing is written into the source tree —
+and the header-only tl::expected and doctest come from the host's own copies:
+
+```bash
+brew install mingw-w64          # or the distribution's mingw-w64 packages
+tools/build-w64-deps.sh
+cmake -S . -B build-w64 -G Ninja \
+      -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw-w64.cmake \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_PREFIX_PATH="$HOME/w64deps/prefix;$(brew --prefix tl-expected);$(brew --prefix doctest)"
+cmake --build build-w64
+```
+
+The tests build too, but nothing on the build host can run them: `ctest` there
+registers one test standing for the whole binary, to be run under Wine or on
+Windows. Their fixtures live in the source tree, so a suite built here and run
+elsewhere is told where they were copied to with
+`-DAMBEREDIT_TESTDATA_ROOT=C:/somewhere`.
+
 ## Running it
 
 Run `amberedit --setup`, which asks what a first config should say and writes

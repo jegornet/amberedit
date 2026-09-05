@@ -634,6 +634,22 @@ add_executable(amberedit
 target_link_libraries(amberedit PRIVATE amberedit_nodelist amberedit_echolist
                                         amberedit_term)
 
+# The oldest Windows this will run on, said in the header so that an older one
+# refuses it outright rather than failing further in.
+#
+# mingw-w64 stamps 5.02 — Windows XP x64 — which is not true of anything it
+# builds: the newest import here is `GetUserPreferredUILanguages`, and that is
+# Vista. Hence 6.00.
+#
+# Not 10.0, though that is the oldest Windows this runs on *unaided*: the binary
+# links the Universal CRT, which is built into Windows 10 and is an update away
+# on Vista through 8.1. Stamping 10.0 would refuse a Windows 7 that has it and
+# would have run; a missing CRT the system already names by itself.
+if(WIN32)
+  target_link_options(amberedit PRIVATE
+    -Wl,--major-subsystem-version=6 -Wl,--minor-subsystem-version=0)
+endif()
+
 # What a build installs: the binary, the default template and the themes.
 # Nothing looks for the last two beside the executable — a user points the config
 # at one by path, and `amberedit.cfg.example` names them under
