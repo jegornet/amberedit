@@ -83,6 +83,24 @@ it is written in, a nodelist if you have one, and where the config goes.
 
 Run `amberedit --help` for more command line options.
 
+### Configuration
+
+Without `-c` the config is looked for in `$AMBEREDIT_CONFIG`, `./amberedit.cfg`
+and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
+defaults to, is in `amberedit.cfg.example`. Also, `amberedit --setup` writes
+a config out of that file for you.
+
+A `group … endgroup` block states settings for the echoes its `member` patterns
+match — the charsets, the origin, the template, the twits and the rest of what is
+per-echo rather than per-config:
+
+```
+group
+  member fsx_ads
+  bbs_codes_ansi on
+endgroup
+```
+
 ### Keys
 
 **F1** opens the key list of whichever screen is up, each with what it does beside
@@ -146,12 +164,7 @@ the area picker as usual. Copy leaves the marks standing, the messages being
 still where they were; Move takes them out of the area and the marks with them.
 
 **`w` (or `F7`) writes the marked messages out into one file**, one after another
-in the order they stand in the area. The uuencoded files a message carries are
-asked about first, and are looked for **in the message on screen alone** — so a
-message carrying one still offers Files or Text before anything else. Answer that
-`Text`, or read a message carrying no file, and the scope box follows, then the
-usual file picker. Files and a marked set never meet: those files came out of one
-message.
+in the order they stand in the area. 
 
 Marks are yours for as long as the area is open — nothing is written to the
 message base, and leaving the area forgets them.
@@ -182,7 +195,7 @@ Copies of a message written in an echo area go to the netmail area that echo's
 `reply_to_area` names; what the message keeps in place of the commands is
 `compose_cc_list` and `compose_xc_list`. See `amberedit.cfg.example`.
 
-### The nodelist
+### Nodelists and pointlists
 
 The nodelist filename may be a wildcard — `nodelist ~/ftn/nodelist/z2daily.999`
 or `z2daily.*` takes the newest file it matches. You can also specify ZIP-packed
@@ -239,7 +252,7 @@ have changed and there is nothing to run by hand. See `amberedit.cfg.example`.
 Whom you would rather not read: names, FTN address patterns and subjects, listed
 globally or inside a `group … endgroup` block, and `twit_mode` says what becomes
 of one — from a notice in place of the text to deleting it as the area opens.
-A long list lives in a file of its own: `twit @file:twit.list`. See
+A long list can live in a file of its own: `twit @file:twit.list`. See
 `amberedit.cfg.example`.
 
 ### Themes
@@ -264,24 +277,6 @@ preference. Nothing goes in the config:
 LANG=ru_RU.UTF-8 amberedit          # Russian
 LANGUAGE=ru amberedit               # Russian, leaving the rest of the locale alone
 amberedit                           # whatever your shell already says
-```
-
-### Configuration
-
-Without `-c` the config is looked for in `$AMBEREDIT_CONFIG`, `./amberedit.cfg`
-and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
-defaults to, is in `amberedit.cfg.example`. Also, `amberedit --setup` writes 
-a config out of that file for you.
-
-A `group … endgroup` block states settings for the echoes its `member` patterns
-match — the charsets, the origin, the template, the twits and the rest of what is
-per-echo rather than per-config:
-
-```
-group
-  member fsx_ads
-  bbs_codes_ansi on
-endgroup
 ```
 
 ## License
