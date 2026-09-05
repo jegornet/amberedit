@@ -187,6 +187,16 @@ characters AmberEdit asks for, and the probe in `CMakeLists.txt` refuses it.
 `PDC_RGB` so that the first eight colours are in the ANSI order the themes are
 written in rather than the DOS order PDCurses defaults to.
 
+Everything is linked statically, which is why the zip needs nothing installed:
+`AMBEREDIT_STATIC` is on by default for Windows and both links `-static` and
+looks for `.a` archives ahead of the `.dll.a` import libraries — without the
+second half the .exe asks for `libiconv-2.dll`, `libintl-8.dll` and `zlib1.dll`
+at startup and only runs on the machine it was built on.
+`tools/check-w64-imports.sh bin/amberedit.exe` reads the .exe's import table and
+says whether it needs anything Windows does not itself ship; CI runs it on every
+push. `-DAMBEREDIT_STATIC=OFF` links against the DLLs instead, which is a
+smaller .exe for a build that is only ever going to run inside MSYS2.
+
 ### Cross-building it from Linux or macOS
 
 Which is how the releases are made, and what `cmake/toolchain-mingw-w64.cmake` is

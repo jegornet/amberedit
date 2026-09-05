@@ -182,6 +182,14 @@ jobs:
       - name: Build
         run: cmake --build build -j"$(nproc)"
 
+      # The same check the release job runs, here as well as there so that a
+      # dependency that stops being linked statically is a failed push rather
+      # than a broken zip. This job builds the way the release does — the link is
+      # static because AMBEREDIT_STATIC defaults on for Windows — so the two are
+      # asking the same question of the same binary.
+      - name: Check what the .exe needs
+        run: tools/check-w64-imports.sh build/bin/amberedit.exe
+
       # The whole suite runs here, which is the reason this job builds on Windows
       # rather than cross-building for it: a binary cross-built on Linux is a
       # binary nothing on the build host can run.

@@ -34,6 +34,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
 
-# Static throughout, so that what comes out is one .exe a user can copy rather
-# than an .exe and a handful of DLLs from the build host.
-set(CMAKE_EXE_LINKER_FLAGS_INIT "-static -static-libgcc -static-libstdc++")
+# What comes out is one .exe a user can copy rather than an .exe and a handful
+# of DLLs from the build host — but nothing about that is set here. It follows
+# from CMAKE_SYSTEM_NAME above: AMBEREDIT_STATIC in CMakeLists.txt defaults to
+# on for Windows, and both the static link and the search for static archives
+# ahead of import libraries hang off it, so a native MSYS2 build gets the same
+# treatment as this one without repeating it.

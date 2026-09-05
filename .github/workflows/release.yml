@@ -335,15 +335,23 @@ jobs:
         run: tools/build-pdcurses.sh "$PWD/w64deps"
 
       # Statically, so that what ships is one .exe rather than an .exe and a
-      # handful of DLLs out of the build host's MSYS2.
+      # handful of DLLs out of the build host's MSYS2. Nothing is passed for it
+      # here: AMBEREDIT_STATIC in CMakeLists.txt is on by default for Windows and
+      # does both halves of the job — the static link, and finding the static
+      # archives to link. Handing `-static` in on the command line, which is what
+      # this step used to do, only ever did the first half.
       - name: Build and stage
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
                 -DAMBEREDIT_BUILD_TESTS=OFF \
-                -DCMAKE_PREFIX_PATH="$PWD/w64deps" \
-                -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++"
+                -DCMAKE_PREFIX_PATH="$PWD/w64deps"
           cmake --build build -j"$(nproc)"
           cmake --install build --prefix stage
+
+      # Before it is packed, because a zip that needs three of MSYS2's DLLs runs
+      # on the build host and nowhere else, and nothing else here would notice.
+      - name: Check what the .exe needs
+        run: tools/check-w64-imports.sh stage/bin/amberedit.exe
 
       # A zip and not a tarball: it is what Windows opens without being given
       # anything to open it with. The documents ride along for the reason they

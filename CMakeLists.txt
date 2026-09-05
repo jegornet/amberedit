@@ -39,6 +39,41 @@ option(AMBEREDIT_BUILD_TESTS "Build AmberEdit unit tests" ON)
 # ${CMAKE_INSTALL_FULL_LOCALEDIR} — which is empty until this has run.
 include(GNUInstallDirs)
 
+# --- one file to copy --------------------------------------------------------
+# What ships for Windows is a single .exe: unpack the zip, run it, and nothing
+# has to be installed first. That means the dependencies are linked statically,
+# and `-static` on its own does not get there. `-static` settles how the linker
+# resolves a `-lfoo`, and none of them reaches the linker that way: zlib, iconv
+# and libintl are all *found* by CMake and handed over as an absolute path, and
+# on mingw the path found is the `.dll.a` import library, because that is what
+# stands first in CMAKE_FIND_LIBRARY_SUFFIXES. An absolute path is linked as it
+# is written, so the link succeeds and the .exe then asks the machine it is run
+# on for libiconv-2.dll, libintl-8.dll and zlib1.dll — which is what a user who
+# is not the build host does not have.
+#
+# So the suffixes are turned round before anything is looked for. With `.a`
+# first, all three lookups below — find_library for iconv, FindIntl, and
+# pkg-config's imported zlib target, which resolves its `-lz` the same way —
+# answer with the static archive, and the `-static` that follows has what is
+# left to do: libgcc, libstdc++ and libwinpthread, which are the build host's
+# DLLs as much as the other three are. The import libraries stay on the list
+# behind `.a`, so a dependency packaged without a static archive is still found
+# rather than failing to configure.
+#
+# Off elsewhere: a Linux or macOS build takes its libraries from the system,
+# which is where the updates to them arrive.
+option(AMBEREDIT_STATIC "Link the dependencies statically" ${WIN32})
+
+if(AMBEREDIT_STATIC)
+  list(REMOVE_ITEM CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  list(PREPEND CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # Before the probes below and not beside the link rules, so that what they
+    # compile is linked the way the binary is.
+    string(APPEND CMAKE_EXE_LINKER_FLAGS " -static -static-libgcc -static-libstdc++")
+  endif()
+endif()
+
 # --- ncursesw ----------------------------------------------------------------
 # The wide-character ncurses, which every distribution ships and none of them
 # agrees on the spelling of. Three things have to be established, and none can be
@@ -472,11 +507,20 @@ target_compile_definitions(amberedit_core PRIVATE
   AMBEREDIT_BUILD_LOCALEDIR="${CMAKE_BINARY_DIR}/locale"
 )
 target_link_libraries(amberedit_core
-  PRIVATE amberedit_iconv
   # gettext's runtime, which `i18n/` is the whole of the use of. PUBLIC because
   # `i18n/i18n.hpp` is included all over the tree — every screen draws words —
   # and on macOS that header is Homebrew's rather than the system's.
+  #
+  # Ahead of iconv, and that order is not arbitrary: libintl converts a catalog
+  # out of the charset it was written in and iconv is what it converts with, so
+  # libintl.a leaves `libiconv_open` undefined for whatever follows it to
+  # resolve. A static archive is read once, in the order it is given, so iconv
+  # ahead of it has already been read and closed by the time the reference
+  # appears. It is written here because here is where the order is decided —
+  # a dependency declared on the two INTERFACE targets orders nothing, neither
+  # of them being a library that gets built.
   PUBLIC amberedit_intl
+  PRIVATE amberedit_iconv
   # PUBLIC because everything linking the core — the executable and the tests —
   # uses std::filesystem too, and on GCC 8 that is an extra -l rather than free.
   PUBLIC amberedit_filesystem
