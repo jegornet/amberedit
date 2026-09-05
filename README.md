@@ -60,12 +60,11 @@ and what differs on macOS and Windows.
 
 ## Windows
 
-Windows 10 or later, on x86_64. The zip holds one executable and the files it
+**Windows 10 or later, x64**. The zip holds one executable and the files it
 reads; there are no DLLs to put beside it and nothing to install.
 
-It runs on Windows 7 SP1, 8, 8.1 and Vista SP2 as well, but only where the
-Universal C Runtime is present — it arrives with update [KB2999226](https://support.microsoft.com/en-us/servicing/os/windows/2020/04/update-for-universal-c-runtime-in-windows),
-which newer systems already have.
+Older versions of Windows are not supported. AmberEdit is built against the Universal
+C Runtime, which those releases do not carry.
 
 The Windows build draws through
 [PDCursesMod](https://github.com/Bill-Gray/PDCursesMod) where the others draw

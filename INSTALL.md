@@ -155,14 +155,10 @@ a build-time tool.
 
 ## Windows
 
-Windows 10 or later, on x86_64. The release zip needs nothing installed: unpack
-it and run `bin\amberedit.exe`. **Keep `share\` beside `bin\`** — the message
-template, the themes and the message catalogs are looked for relative to the
-executable, so moving the .exe out on its own leaves it without them.
-
-It runs on Windows 7 SP1, 8, 8.1 and Vista SP2 as well, wherever the Universal C
-Runtime is present — update KB2999226, which most systems already have. Windows
-XP cannot run it: there is no Universal CRT for it.
+**Windows 10 or later**, on x86_64. The release zip needs nothing installed:
+unpack it and run `bin\amberedit.exe`. **Keep `share\` beside `bin\`** — the
+message template, the themes and the message catalogs are looked for relative to
+the executable, so moving the .exe out on its own leaves it without them.
 
 ### Building it there
 
