@@ -2480,6 +2480,17 @@ taking a row.
   at the top of `main()`, before a word is printed, and touches **only
   `LC_MESSAGES`**: `LC_CTYPE` is `term::ensureUtf8Locale()`'s and is settled for
   reasons that have nothing to do with which language the words are in.
+- **An environment that names none is answered by the platform, not by
+  English.** On glibc there is nothing to ask and the interface is English. GNU
+  libintl on macOS asks the system, so a Mac whose language is Russian draws a
+  Russian interface with no variable set at all. Windows names nothing and has
+  nothing for gettext to read, so `i18n::adoptSystemLanguage()` asks
+  `GetUserPreferredUILanguages()` and puts the answer in `LANGUAGE` and
+  `LC_ALL` — and only where all four are unset, since every one of them is the
+  user's own way of saying what they want. A test that means "no language" must
+  therefore say `LC_ALL=C` rather than unset the four, which is what
+  `tests/i18n/i18n_test.cpp` does: unset means something different on each of
+  the three systems, and `C` means the same on all of them.
 - **Where the catalogs are is compiled in, and there are two.**
   `AMBEREDIT_BUILD_LOCALEDIR` — this build's own `locale/` — is checked first and
   `AMBEREDIT_LOCALEDIR` (`${CMAKE_INSTALL_FULL_LOCALEDIR}`) behind it, so a

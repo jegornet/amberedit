@@ -154,10 +154,13 @@ bool catalogExistsFor(const std::vector<std::string>& languages,
 /// that overrode one of them would be answering a question nobody asked. That
 /// this runs at all therefore means every one of them was unset.
 ///
-/// It does nothing on POSIX, where the environment already carries the answer.
-/// On Windows it carries nothing — there is no `LANG` there and the C runtime
-/// has no `LC_MESSAGES` category — so a machine set to Russian would draw an
-/// English interface until its owner worked out which variable to set by hand.
+/// It does nothing on POSIX, where the answer is already there to be had: on
+/// glibc the environment carries it, and on macOS, where it may carry nothing at
+/// all, GNU libintl asks the system itself — a Mac set to Russian draws a
+/// Russian interface with no variable set. Windows is the one system where
+/// nothing asks: there is no `LANG` there and the C runtime has no
+/// `LC_MESSAGES` category, so a machine set to Russian would draw an English
+/// interface until its owner worked out which variable to set by hand.
 ///
 /// Both variables, and this is the part that is not obvious: `LANGUAGE` alone is
 /// not enough, because gettext ignores it while the locale is `C`, and that is

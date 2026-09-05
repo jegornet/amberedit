@@ -86,18 +86,26 @@ TEST_CASE("With no catalog every message is the literal it was written as [i18n]
 TEST_CASE("The environment is what picks the language [i18n]") {
     i18n::clear();
 
-    // Nothing asked for is English asked for, and carries no complaint.
+    // No language asked for is English, and carries no complaint. Said with
+    // `C` rather than by unsetting all four: an environment that names nothing
+    // is not the same question everywhere. GNU libintl on macOS asks the
+    // system when the environment is silent — a Mac set to Russian draws a
+    // Russian interface with no variable set at all — and there is nothing
+    // here that could hold that machine to English, nor any reason to. `C` is
+    // the answer that means the same thing on every system: not a language.
     amberedit::sys::unsetEnvironment("LANGUAGE");
-    amberedit::sys::unsetEnvironment("LC_ALL");
     amberedit::sys::unsetEnvironment("LC_MESSAGES");
     amberedit::sys::unsetEnvironment("LANG");
+    amberedit::sys::setEnvironment("LC_ALL", "C");
     const i18n::Started quiet = i18n::start();
     CHECK(quiet.warning.empty());
     CHECK_FALSE(i18n::translating());
     CHECK(std::string(_("Save the message?")) == "Save the message?");
 
     // A language there is no catalog for is not a fault either: English is the
-    // answer and nothing is said about it.
+    // answer and nothing is said about it. Named in `LANGUAGE`, which settles
+    // it on every system — what the environment asks for is never overridden.
+    amberedit::sys::unsetEnvironment("LC_ALL");
     amberedit::sys::setEnvironment("LANGUAGE", "xx");
     const i18n::Started absent = i18n::start();
     CHECK(absent.warning.empty());
