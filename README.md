@@ -275,7 +275,6 @@ preference. Nothing goes in the config:
 
 ```bash
 LANG=ru_RU.UTF-8 amberedit          # Russian
-LANGUAGE=ru amberedit               # Russian, leaving the rest of the locale alone
 amberedit                           # whatever your shell already says
 ```
 
