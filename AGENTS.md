@@ -251,12 +251,12 @@ nowhere else **that the code can see**: `src/version.hpp.in` is configured into
 are `@pid` (the bare name), `@longpid` (the name with the system under it) and
 `@ver`/`@rev`/`@version` (the number), which is how the default tearline
 `@longpid @version` reaches "AmberEdit/darwin 0.1" with the version standing
-only in `CMakeLists.txt`. The two packaging files state it again — `Version:` in
-`amberedit.spec` and the first line of `debian/changelog` — because neither rpm
-nor dpkg will read it out of a CMake file. Nothing generates those from it, so
-they are checked instead: the release workflow compares all three against the tag
-before it builds anything, a deb being the one that would otherwise fail in
-silence and ship the old number. The tests build their expected tearline from the same
+only in `CMakeLists.txt`. The three packaging files state it again — `Version:` in
+`amberedit.spec`, `pkgver=` in `PKGBUILD` and the first line of
+`debian/changelog` — because neither rpm, makepkg nor dpkg will read it out of a
+CMake file. Nothing generates those from it, so they are checked instead: the
+release workflow compares all four against the tag before it builds anything, a
+deb being the one that would otherwise fail in silence and ship the old number. The tests build their expected tearline from the same
 constants. The tearline and origin *texts* are the user's: `tearline` and
 `origin` are expanded as template lines (`expandTokens` in `app/msg_template`)
 and closed round by `message_builder` — `"--- " + tearline` and
@@ -265,6 +265,47 @@ and closed round by `message_builder` — `"--- " + tearline` and
 the builder asks `tearlineText()`/`originText()`, which pick one at random, so
 neither is read as a field. See "values kept in a file" under
 [Config and area groups](#config-and-area-groups).
+
+### Bumping the version
+
+**A version bump is one commit of its own, named `bump version`, touching seven
+files and no source.** Ordinary commits leave every one of them alone — the
+number changes when a release is cut and not while it is being written.
+`14f715767fd2f8e7fd6720932d5dcf77e4e1ec16` is the shape of it.
+
+Write the release's changes as one short line each — lower case, imperative,
+`fix double ^A breaking kludges parsing` — and put the *same* lines in the three
+places that carry them:
+
+- `CMakeLists.txt` — `project(AmberEdit VERSION ...)`. The number the code sees;
+  everything else restates it.
+- `PKGBUILD` — `pkgver=`. `pkgrel` stays `1`: it counts packaging fixes to one
+  upstream version, and a bump is a new upstream version.
+- `amberedit.spec` — `Version:`, and a new entry at the *top* of `%changelog`:
+  `* Mon Sep 07 2026 Yegor Gluhov <git@jegor.net> - 0.7.2-1`, then one `- ` line
+  per change. rpm reads that list bottom-up, so a new entry below an old one is
+  a changelog out of order and a build warning.
+- `debian/changelog` — a new stanza at the *top*:
+  `amberedit (0.7.2-1) unstable; urgency=low`, a blank line, one `  * ` line per
+  change indented two spaces, a blank line, and the
+  ` -- Yegor Gluhov <git@jegor.net>  Mon, 07 Sep 2026 12:00:00 +0000` trailer.
+  The date is the same day as the spec entry and the time is always `12:00:00
+  +0000` — the stanza is what dpkg parses for the version, so its first line is
+  the one `release.yml` reads.
+- `CHANGELOG.md` — a `## 0.7.2 — 2026-09-07` heading at the top of the list, one
+  `- ` line per change. It is the same text as the spec entry, written for
+  people who are not holding a package manager.
+- `po/amberedit.pot` and `po/ru.po` — the `Project-Id-Version: AmberEdit 0.7.2`
+  line, and nothing else in either file. Both numbers come from
+  `--package-version=${PROJECT_VERSION}` when the catalogs are regenerated, but
+  `--target pot` and `--target update-po` rewrite the extracted strings and the
+  `POT-Creation-Date` with them: that is a translation change and belongs to the
+  commit that changed the strings, not to the bump. Edit the one line.
+
+Then tag `v0.7.2`. The release workflow checks the tag against `CMakeLists.txt`,
+`amberedit.spec`, `debian/changelog` and `PKGBUILD` before it builds anything, so
+a file missed here is a release that stops rather than one that ships the old
+number.
 
 ## Layering
 
