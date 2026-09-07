@@ -728,6 +728,11 @@ struct AppState {
     /// The window width readLines was laid out for. Not the width the text was
     /// wrapped to: that is two columns narrower when the scrollbar is drawn.
     int readLayoutWidth{0};
+    /// The viewport height readLines was laid out against — `readRows()` as it
+    /// stood then. Kept beside the width because the window is resized in both
+    /// directions: the height is what decides whether there is anything to
+    /// scroll at all, and how much of the message stands below the bottom row.
+    int readLayoutHeight{0};
     /// Whether the scrollbar is drawn for the current layout. Decided by
     /// relayout(), because it depends on whether the wrapped body overflows.
     bool scrollbarShown{false};

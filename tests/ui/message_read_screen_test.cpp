@@ -15,6 +15,7 @@
 #include "ui/menu_dialog.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/screens/message_read_screen.hpp"
+#include "ui/scrollbar.hpp"
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/screen.hpp"
@@ -2167,4 +2168,134 @@ TEST_CASE("A window with no room for the field shows the end of it "
     const std::string title = rowsOf(fixture)[0];
     CHECK(title.find("12") != std::string::npos);
     CHECK(title.find("localnet") == std::string::npos);
+}
+
+namespace {
+
+/// A body of `count` lines, each short enough to stand on one row at any width
+/// the reader is tested at, and each saying which line it is.
+std::vector<std::string> numberedLines(int count) {
+    std::vector<std::string> lines;
+    lines.reserve(static_cast<size_t>(count));
+    for (int i = 0; i < count; ++i) lines.push_back("line " + std::to_string(i));
+    return lines;
+}
+
+}  // namespace
+
+TEST_CASE("A window grown past the end of the message puts the bar away "
+          "[messageread][scrollbar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const int rows = fixture.state.readRows();
+    showBody(fixture, numberedLines(rows + 3));
+
+    // Three rows more than the window holds: there is something to scroll and
+    // so something for the bar to point at.
+    REQUIRE(fixture.state.scrollbarShown);
+    fixture.state.readScroll = 3;
+
+    // And with those three rows given to the window, the whole of it is on
+    // screen at once. The bar goes, and the offset with it — a message that
+    // fits is read from its first line.
+    fixture.state.height += 3;
+    message_read::relayout(fixture.state);
+    CHECK_FALSE(fixture.state.scrollbarShown);
+    CHECK(fixture.state.readScroll == 0);
+    CHECK(fixture.state.readRows() >= static_cast<int>(fixture.state.readLines.size()));
+}
+
+TEST_CASE("A window shrunk under the message brings the bar back "
+          "[messageread][scrollbar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const int rows = fixture.state.readRows();
+    showBody(fixture, numberedLines(rows));
+
+    // Exactly the window's own height, so nothing is off it.
+    REQUIRE_FALSE(fixture.state.scrollbarShown);
+
+    // Four rows taken away, and four lines of the message go with them: the bar
+    // is drawn again, and where the reader was is where it stays — nothing has
+    // come into view to follow.
+    fixture.state.height -= 4;
+    message_read::relayout(fixture.state);
+    CHECK(fixture.state.scrollbarShown);
+    CHECK(fixture.state.readScroll == 0);
+}
+
+TEST_CASE("A window growing under the last line keeps the last line "
+          "[messageread][scrollbar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const int rows = fixture.state.readRows();
+    showBody(fixture, numberedLines(rows + 10));
+    const auto total = static_cast<int>(fixture.state.readLines.size());
+
+    // Read to the end: the message's last line is on the window's last row.
+    fixture.state.readScroll = total - rows;
+    fixture.state.height += 4;
+    message_read::relayout(fixture.state);
+
+    // The window grew downwards into text that was not there, so it takes the
+    // rows from above instead: the end of the message is still the end of the
+    // window, and four more lines of it stand over it.
+    CHECK(fixture.state.readScroll + fixture.state.readRows() == total);
+    CHECK(fixture.state.readScroll == total - rows - 4);
+}
+
+TEST_CASE("A window growing near the last line keeps its distance from it "
+          "[messageread][scrollbar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const int rows = fixture.state.readRows();
+    showBody(fixture, numberedLines(rows + 10));
+    const auto total = static_cast<int>(fixture.state.readLines.size());
+
+    // One line short of the end, and the window grows by more than that one
+    // line: the bottom row is what is followed, so it is still one line short.
+    fixture.state.readScroll = total - rows - 1;
+    fixture.state.height += 4;
+    message_read::relayout(fixture.state);
+    CHECK(total - (fixture.state.readScroll + fixture.state.readRows()) == 1);
+}
+
+TEST_CASE("A window growing with the message running past it scrolls nothing "
+          "[messageread][scrollbar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const int rows = fixture.state.readRows();
+    showBody(fixture, numberedLines(rows + 40));
+
+    // Two rows more window, and forty lines of message below it either way:
+    // the two rows simply show two lines more, and where the reading is has not
+    // moved.
+    fixture.state.readScroll = 5;
+    fixture.state.height += 2;
+    message_read::relayout(fixture.state);
+    CHECK(fixture.state.readScroll == 5);
+    CHECK(fixture.state.scrollbarShown);
+}
+
+TEST_CASE("The thumb is re-measured against the window that was resized "
+          "[messageread][scrollbar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const int rows = fixture.state.readRows();
+    showBody(fixture, numberedLines(rows * 4));
+    REQUIRE(fixture.state.scrollbarShown);
+
+    // The bar is as tall as the viewport and the thumb as long as the share of
+    // the message on screen, so a window twice as tall carries a thumb twice as
+    // long — both are read off `readRows()`, which is what the resize changed.
+    const auto before = amberedit::ui::scrollbar::thumbOf(
+        fixture.state.readRows(), static_cast<int>(fixture.state.readLines.size()),
+        fixture.state.readScroll);
+
+    fixture.state.height += rows;
+    message_read::relayout(fixture.state);
+    const auto after = amberedit::ui::scrollbar::thumbOf(
+        fixture.state.readRows(), static_cast<int>(fixture.state.readLines.size()),
+        fixture.state.readScroll);
+    CHECK(after.last - after.first > before.last - before.first);
 }

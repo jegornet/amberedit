@@ -1592,8 +1592,24 @@ void relayout(AppState& state) {
     // terminal can be resized mid-session and the panel comes and goes with it,
     // so this runs on every frame and re-lays out as soon as the width the text
     // actually has changes.
+    //
+    // The height is watched as well, and for a different reason: the text is
+    // wrapped to the width and so a taller window holds the same rows, but how
+    // many of them are on screen is what says whether the message overflows at
+    // all — and therefore whether the scrollbar is drawn, and where its thumb
+    // stands against the track.
     const int available = std::max(1, state.readerPaneWidth());
-    if (available == state.readLayoutWidth) return;
+    const int rows = state.readRows();
+    if (available == state.readLayoutWidth && rows == state.readLayoutHeight) return;
+
+    // How much taller the window has become, and how much of the message stood
+    // below its bottom row before it did. Both are read here, off the layout
+    // that is about to be replaced, and used at the end once the new one is in
+    // place. A first layout — after loadMessage(), which clears the width — has
+    // no old position to carry over: readScroll is at the top there anyway.
+    const int grown = state.readLayoutWidth != 0 ? rows - state.readLayoutHeight : 0;
+    const int below = static_cast<int>(state.readLines.size()) -
+                      (state.readScroll + state.readLayoutHeight);
 
     // A twit's text is not laid out at all: what stands in its place is the one
     // line saying so, and the message itself is not wrapped until it is asked
@@ -1603,6 +1619,7 @@ void relayout(AppState& state) {
             1, AppState::DisplayLine{twitNotice(), false, 0, false, {}, {}});
         state.scrollbarShown = false;
         state.readLayoutWidth = available;
+        state.readLayoutHeight = rows;
         state.readScroll = 0;
         return;
     }
@@ -1615,11 +1632,25 @@ void relayout(AppState& state) {
     // flip back.
     const domain::MessageBody& body = *state.readBody;
     wrapBody(state, body, available);
-    state.scrollbarShown = state.showScrollbar &&
-                           static_cast<int>(state.readLines.size()) > state.readRows();
+    state.scrollbarShown =
+        state.showScrollbar && static_cast<int>(state.readLines.size()) > rows;
     if (state.scrollbarShown) wrapBody(state, body, std::max(1, available - 1));
 
     state.readLayoutWidth = available;
+    state.readLayoutHeight = rows;
+
+    // A window that has grown takes the rows it gained from below the text,
+    // where the end of the message is closer than the rows gained: the reader
+    // was looking at the last of it, and the reading should stay where it was
+    // rather than the text sliding up out of the window. Read at the bottom
+    // edge, not the middle — with the last line of the message on the last row
+    // of the window it is still there afterwards, and one line short of the end
+    // is still one line short.
+    //
+    // Further up than that, the message goes on past the bottom either way and
+    // the extra rows simply show more of it. A window that has shrunk is left
+    // alone entirely: nothing has come into view to follow.
+    if (grown > 0 && below <= grown) state.readScroll -= grown;
     state.readScroll = std::clamp(state.readScroll, 0, maxScroll(state));
 }
 
