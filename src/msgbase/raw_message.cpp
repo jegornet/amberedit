@@ -109,7 +109,14 @@ std::string controlBlockToKludges(std::string_view block) {
         size_t lineEnd = block.find(kSoh, pos + 1);
         if (lineEnd == std::string_view::npos) lineEnd = block.size();
         const std::string_view line = block.substr(pos + 1, lineEnd - pos - 1);
-        if (line.empty()) break;  // a stray ^A at the end is not a kludge
+        // Two ^A in a row are an empty kludge — a stray one at the end is the
+        // same thing. Neither is a control line, and neither ends the block:
+        // FMail is known to write "^A^A" in the middle of one, and the lines
+        // after it are as good as the lines before.
+        if (line.empty()) {
+            pos = lineEnd;
+            continue;
+        }
 
         // AREA: never carried a ^A in the message it came from; it is here
         // because it stands where the kludges do.
@@ -199,11 +206,17 @@ void splitLeadingKludges(std::string_view body, std::string* control, std::strin
         size_t lineEnd = body.find_first_of("\r\n", pos);
         if (lineEnd == std::string_view::npos) lineEnd = body.size();
         std::string_view line = body.substr(pos, lineEnd - pos);
-        if (!isArea) line.remove_prefix(1);  // the ^A is put back on the way out
+        if (!isArea) {
+            // The ^A is put back on the way out. Any that follow it are empty
+            // kludges written back to back, which carry nothing to show.
+            while (!line.empty() && line.front() == kSoh) line.remove_prefix(1);
+        }
 
-        if (!isArea) kludges += kSoh;
-        kludges.append(line);
-        kludges += '\r';
+        if (!line.empty()) {
+            if (!isArea) kludges += kSoh;
+            kludges.append(line);
+            kludges += '\r';
+        }
 
         // Exactly one line break is stepped over, so that a blank line after
         // the kludges stays in the text where its writer put it — and ends the

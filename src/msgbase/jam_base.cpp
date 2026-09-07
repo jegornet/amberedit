@@ -158,8 +158,11 @@ std::string addressText(const domain::FtnAddress& address) {
     return out;
 }
 
-/// One control line as the reader shows it, appended to `control`.
+/// One control line as the reader shows it, appended to `control`. A subfield
+/// holding nothing at all is an empty kludge and is left out: there is no line
+/// to show for it.
 void appendKludge(std::string& control, std::string_view name, std::string_view value) {
+    if (name.empty() && value.empty()) return;
     control += kSoh;
     control.append(name);
     control.append(value);

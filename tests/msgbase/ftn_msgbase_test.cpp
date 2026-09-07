@@ -54,6 +54,46 @@ std::string today() {
 
 }  // namespace
 
+TEST_CASE("controlBlockToKludges steps over an empty kludge [msgbase]") {
+    using amberedit::msgbase::controlBlockToKludges;
+
+    // Squish stores the block as a C string, the terminating zero counted in
+    // its length; the lines run together with no separator of their own.
+    const std::string block =
+        std::string("\001MSGID: 2:382/736 6a9eaf20\001CHRS: CP850 2") + '\0';
+    CHECK(controlBlockToKludges(block) ==
+          "\001MSGID: 2:382/736 6a9eaf20\r\001CHRS: CP850 2\r");
+
+    // Two ^A in a row are a kludge with nothing in it — FMail writes them —
+    // and the lines behind it are as good as the lines in front of it.
+    CHECK(controlBlockToKludges(
+              "\001TID: FMail-W32 2.3.0.1\001\001RFC-X-No-Archive: Yes\001TZUTC: 0200") ==
+          "\001TID: FMail-W32 2.3.0.1\r\001RFC-X-No-Archive: Yes\r\001TZUTC: 0200\r");
+
+    // A stray ^A at either end is the same empty kludge and is dropped as one.
+    CHECK(controlBlockToKludges("\001\001TZUTC: 0200\001") == "\001TZUTC: 0200\r");
+    CHECK(controlBlockToKludges("\001\001\001").empty());
+    CHECK(controlBlockToKludges("").empty());
+
+    // The AREA: line loses its ^A: it never had one where it came from.
+    CHECK(controlBlockToKludges("\001AREA:TEST\001MSGID: 2:382/736 1") ==
+          "AREA:TEST\r\001MSGID: 2:382/736 1\r");
+}
+
+TEST_CASE("splitLeadingKludges steps over an empty kludge [msgbase]") {
+    using amberedit::msgbase::splitLeadingKludges;
+
+    // A Fido *.msg keeps its kludges as the first lines of the text, one ^A
+    // line each — and an empty one is a line carrying nothing to show, whether
+    // it stands alone or runs into the kludge behind it.
+    std::string control;
+    std::string text;
+    splitLeadingKludges("\001MSGID: 2:382/736 1\r\001\r\001\001TZUTC: 0200\rHello\r",
+                        &control, &text);
+    CHECK(control == "\001MSGID: 2:382/736 1\r\001TZUTC: 0200\r");
+    CHECK(text == "Hello\r");
+}
+
 TEST_CASE("tzutcOffsetOf reads the zone a message states [msgbase]") {
     using amberedit::msgbase::tzutcOffsetOf;
 
