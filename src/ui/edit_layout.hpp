@@ -28,13 +28,17 @@ struct EditRow {
 /// The buffer as it is drawn `width` columns wide, top to bottom. Every line
 /// has a row, an empty one included — there is a cursor to put on it.
 ///
-/// The cursor is laid out with the text rather than found in it afterwards,
-/// because it takes a column of its own where it stands past the end of a line:
-/// the line it is on is broken as though it carried one character more. Without
-/// that, a line filling the window to its last column would keep the cursor
-/// past the right edge, and the row would be drawn scrolled sideways to show
-/// it — the text sliding out from under the first column at the very moment the
-/// window has a row to spare.
+/// **The rightmost column of the window is the cursor's**: the text is broken a
+/// column short of it and nothing is ever drawn there. A cursor at the end of a
+/// row stands in that column, so no row is ever scrolled sideways to keep it on
+/// screen — the text sliding out from under the first column at the very moment
+/// the window has a row to spare is what reserving the column avoids. It is
+/// also what the user is shown next: with a letter in the second column from
+/// the edge and the cursor in the last, the next letter typed does not go into
+/// that column, it takes its whole word down to the row below.
+///
+/// The width is the same for every line, the cursor's among them. A line broken
+/// against where the cursor happens to stand would rewrap under the arrow keys.
 [[nodiscard]] std::vector<EditRow> layoutRows(const TextBuffer& buffer, int width);
 
 /// Which row the cursor stands on. A cursor on a break belongs to the row

@@ -1799,13 +1799,13 @@ TEST_CASE(
     fixture.walkToText();
 
     // A line filling the window exactly, in a message long enough to need the
-    // bar: the column it takes is one the line no longer has, so the line is
-    // broken a character before its end.
+    // bar: the bar's column and the cursor's both come off it, so the line is
+    // broken two characters before its end.
     fillText(state, compose::editorRows(state) + 1);
     state.edit.lines[0] = std::string(static_cast<size_t>(state.width), 'a');
 
     const std::vector<std::string> rows = screenRowsOf(state);
-    const std::string toTheBar(static_cast<size_t>(state.width) - 1, 'a');
+    const std::string toTheBar(static_cast<size_t>(state.width) - 2, 'a');
     CHECK(shows(rows, toTheBar));
     CHECK_FALSE(shows(rows, toTheBar + "a"));
 }
@@ -2188,17 +2188,18 @@ TEST_CASE(
     fixture.walkToText();
 
     // Two lines filling the window exactly, and the cursor on neither of them:
-    // both are broken three characters short all the same. The button walks the
-    // message with the cursor, and a row laid out to the full width until the
-    // button reached it would rewrap under it at every keystroke.
+    // both are broken three characters short all the same, and a fourth for the
+    // column the cursor is kept. The button walks the message with the cursor,
+    // and a row laid out to the full width until the button reached it would
+    // rewrap under it at every keystroke.
     fillText(state, 3);
     state.edit.lines[1] = std::string(static_cast<size_t>(state.width), 'a');
     state.edit.lines[2] = std::string(static_cast<size_t>(state.width), 'b');
     state.edit.row = 0;
 
     const std::vector<std::string> rows = screenRowsOf(state);
-    const std::string aToTheButton(static_cast<size_t>(state.width) - 3, 'a');
-    const std::string bToTheButton(static_cast<size_t>(state.width) - 3, 'b');
+    const std::string aToTheButton(static_cast<size_t>(state.width) - 4, 'a');
+    const std::string bToTheButton(static_cast<size_t>(state.width) - 4, 'b');
     CHECK(shows(rows, aToTheButton));
     CHECK_FALSE(shows(rows, aToTheButton + "a"));
     CHECK(shows(rows, bToTheButton));
@@ -2221,7 +2222,7 @@ TEST_CASE(
     state.edit.lines[0] = std::string(static_cast<size_t>(state.width), 'a');
     state.edit.row = 0;
 
-    const std::string toTheButton(static_cast<size_t>(state.width) - 3, 'a');
+    const std::string toTheButton(static_cast<size_t>(state.width) - 4, 'a');
     CHECK(shows(screenRowsOf(state), toTheButton));
     CHECK_FALSE(shows(screenRowsOf(state), toTheButton + "a"));
 
@@ -2264,7 +2265,7 @@ TEST_CASE(
 }
 
 TEST_CASE(
-    "The delete-line button off leaves the text the whole window "
+    "The delete-line button off costs the text nothing "
     "[compose][delete_line]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     fixture.config.composeDeleteLineButton = amberedit::config::Visibility::Off;
@@ -2275,8 +2276,11 @@ TEST_CASE(
     state.edit.lines[0] = std::string(static_cast<size_t>(state.width), 'a');
     state.edit.row = 0;
 
+    // The whole window less the one column the cursor is always kept: there is
+    // no button taking three more.
     const std::vector<std::string> rows = screenRowsOf(state);
-    CHECK(shows(rows, std::string(static_cast<size_t>(state.width), 'a')));
+    CHECK(shows(rows, std::string(static_cast<size_t>(state.width) - 1, 'a')));
+    CHECK_FALSE(shows(rows, std::string(static_cast<size_t>(state.width), 'a')));
     CHECK_FALSE(shows(rows, "\u2613"));
     CHECK(state.composeDeleteLine.label.IsEmpty());
 }

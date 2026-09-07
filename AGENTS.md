@@ -1480,15 +1480,21 @@ decides what an occurrence is.
   `softWrapOffsets()` (`text_layout.cpp`) says where the window breaks a line and
   `layoutRows()` (`ui/edit_layout.cpp`) turns the buffer into the `EditRow`s that
   are drawn. Nothing is inserted into the text: a carriage return the editor
-  added would go out in the message. **The cursor is laid out with the text**,
-  which is why `layoutRows()` takes the whole `TextBuffer`: standing past the end
-  of a line it wants a column of its own, so that line is broken as though it
-  carried one character more — without it, a line filling the window to its last
-  column keeps the cursor past the right edge and `field()` scrolls the row
-  sideways. So `AppState::editScroll` counts **rows of the screen**,
-  `composeTextRows` holds one spot per drawn row with the byte its left edge
-  shows, and the arrows and page keys move by `moveByRows()`: a line four rows
-  tall is four presses tall.
+  added would go out in the message. So `AppState::editScroll` counts **rows of
+  the screen**, `composeTextRows` holds one spot per drawn row with the byte its
+  left edge shows, and the arrows and page keys move by `moveByRows()`: a line
+  four rows tall is four presses tall.
+- **The rightmost column of the editor window is the cursor's.** `layoutRows()`
+  breaks every line a column short of the width it is given, and nothing is ever
+  drawn in the one it keeps. That is where a cursor standing past the end of a
+  row goes, so no row is ever drawn scrolled sideways to keep it on screen — the
+  text sliding out from under the first column at the very moment the window has
+  a row to spare is what the kept column avoids. It is also what the user sees
+  next: with a letter in the second column from the edge and the cursor in the
+  last, the letter typed there does not go into that column — the word it
+  belongs to comes down onto the row below. The width is the same for every
+  line, the one the cursor is on included: a line broken against where the
+  cursor happens to stand would rewrap under the arrow keys.
 - The one thing the editor does break is a **quote**: `insertText()` holds a line
   carrying a quote prefix to `quote_margin` and wraps it under that same prefix,
   which is the whole of what the setting is for. `quote_margin` says nothing
