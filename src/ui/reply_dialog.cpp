@@ -48,8 +48,8 @@ Element rowOf(const std::string& text_, bool selected) {
     if (selected) {
         // The same fill the lists put under the current row, so that whatever
         // Enter would act on looks the same wherever the user is.
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
+        return std::move(element) | theme::selectionBold |
+               color(theme::palette.selectionText) | bgcolor(theme::palette.selection);
     }
     return std::move(element) | color(theme::palette.dialogText);
 }

@@ -300,8 +300,8 @@ int markWidth(const std::string& label) {
 Element modeMark(const std::string& label, bool chosen, bool focused) {
     auto element = text(std::string(chosen ? "(*) " : "( ) ") + label);
     if (focused) {
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
+        return std::move(element) | theme::selectionBold |
+               color(theme::palette.selectionText) | bgcolor(theme::palette.selection);
     }
     return std::move(element) |
            color(chosen ? theme::palette.dialogLabel : theme::palette.dialogText);
@@ -625,12 +625,16 @@ Element render(AppState& state, Element background) {
 
         Element cell = text(padRight(truncateToWidth(row, inner), inner));
         if (index == picker.cursor && picker.focus == Focus::Files) {
-            cell = std::move(cell) | bold | color(theme::palette.selectionText) |
+            cell = std::move(cell) | theme::selectionBold |
+                   color(theme::palette.selectionText) |
                    bgcolor(theme::palette.selection);
         } else if (index == picker.cursor) {
             // The cursor is still on this row while the typing is elsewhere in
             // the box — Enter reads what it names — so the row says so quietly
-            // rather than wearing the fill of a list being walked.
+            // rather than wearing the fill of a list being walked. `bold` and
+            // not `theme::selectionBold`: the weight is the whole of the mark
+            // here rather than a second way of saying what a fill has said
+            // already.
             cell = std::move(cell) | bold | color(theme::palette.dialogLabel);
         } else {
             cell = std::move(cell) | color(entry.directory ? theme::palette.dialogLabel

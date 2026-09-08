@@ -69,7 +69,10 @@ Element button(const config::AppConfig& config, const AppState::MenuView::Item& 
                    color(tint);
     // The fill the lists give the row Enter would act on, frame and all: what
     // the cursor is on has to be visible from across the box.
-    if (selected) element = std::move(element) | bold | bgcolor(theme::palette.selection);
+    if (selected) {
+        element = std::move(element) | theme::selectionBold |
+                  bgcolor(theme::palette.selection);
+    }
     return element;
 }
 

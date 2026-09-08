@@ -153,7 +153,8 @@ Element render(AppState& state, Element background) {
         // exists in the config and cannot be written to.
         Element cell = text(padRight(row, inner));
         if (index == picker.cursor) {
-            cell = std::move(cell) | bold | color(theme::palette.selectionText) |
+            cell = std::move(cell) | theme::selectionBold |
+                   color(theme::palette.selectionText) |
                    bgcolor(theme::palette.selection);
         } else if (!entry.isAvailable()) {
             cell = std::move(cell) | color(theme::palette.dialogHint);

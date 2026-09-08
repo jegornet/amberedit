@@ -106,6 +106,12 @@ endgroup
 A theme is a file of `role  color` lines. A color in a theme is a number from
 0 to 255 — an entry in [256-color palette](https://www.ditig.com/256-colors-cheat-sheet).
 
+Two of its keys are switches rather than colors, written `on` or `off` like
+every other switch AmberEdit reads: `selection_bold`, whether what wears the
+selection fill — the current row of a list, the selected button of a box — is
+drawn bold along with it, and `input_filler_show`, whether the room a field has
+left is underscored. Both are on unless a theme says otherwise.
+
 ⚠️ **Full color palette support depends on your terminal app's capabilities and
 configuration. If you experience color display issues, make sure the `TERM`
 environment variable is set to `xterm-256color`**

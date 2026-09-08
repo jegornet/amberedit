@@ -435,7 +435,8 @@ Element render(AppState& state, Element background) {
 
         Element cell = text(padRight(row, listWidth));
         if (at == view.cursor) {
-            cell = std::move(cell) | bold | color(theme::palette.selectionText) |
+            cell = std::move(cell) | theme::selectionBold |
+                   color(theme::palette.selectionText) |
                    bgcolor(theme::palette.selection);
         } else {
             cell = std::move(cell) | color(theme::palette.dialogText);

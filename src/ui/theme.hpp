@@ -5,6 +5,7 @@
 
 #include "support/error.hpp"
 #include "ui/term/color.hpp"
+#include "ui/term/element.hpp"
 
 namespace amberedit::ui::theme {
 
@@ -118,6 +119,25 @@ struct Palette {
     /// Written on that fill. Its own role rather than the message text reused:
     /// a theme that selects with a light fill needs something darker here.
     Color selectionText = builtin_theme::kSelectionText;
+    /// Whether what wears a selection fill is drawn bold along with it —
+    /// `selection_bold`, `on` or `off`. On by default: the bar is whatever Enter
+    /// would act on, and the weight says so a second time, which is what carries
+    /// it on a terminal whose own profile draws the theme's fill fainter than the
+    /// theme meant it.
+    ///
+    /// Off leaves the same bar in the same two colors and nothing else. That is
+    /// what a terminal drawing bold as a brighter foreground rather than a
+    /// heavier face wants — there the weight is a third color on the row that no
+    /// theme chose. It reaches every bar in the interface at once: the current
+    /// row of the lists, the selected button of a box, a button of the context
+    /// menu, the stop of the compose header the typing is on, and the message
+    /// the reader's sidebar marks.
+    ///
+    /// It says nothing about the bold that stands **without** a fill — a
+    /// heading, a title, a search hit, the cursor row of a list the typing has
+    /// left. There the weight is the whole of the mark, and dropping it would
+    /// leave the row saying nothing rather than saying it quietly.
+    bool selectionBold = true;
     /// Behind the message the reader's sidebar marks. A second selection fill
     /// because the panel is marking rather than choosing: the message is the one
     /// on the screen beside it, the keyboard is in the reader and never in the
@@ -319,6 +339,18 @@ struct Palette {
 /// threading it through each of them would add a parameter to every render
 /// function to describe something that cannot change while they run.
 inline Palette palette;
+
+/// `bold` where `selection_bold` is on and the element untouched where it is
+/// off — what every selection bar in the interface is written with in `bold`'s
+/// place, so that the switch is answered in one place rather than at each of
+/// them:
+///
+///     std::move(cell) | theme::selectionBold | color(palette.selectionText) |
+///         bgcolor(palette.selection)
+///
+/// It reads the palette in force, as the colors beside it do, so a call site
+/// carries nothing about the setting but the name.
+[[nodiscard]] term::Element selectionBold(term::Element child);
 
 /// Reads a theme file: a line of `role <0..255>` per color, in the same format
 /// the AmberEdit config is written in — the roles being Palette's fields in

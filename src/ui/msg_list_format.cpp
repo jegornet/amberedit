@@ -315,8 +315,8 @@ term::Element drawLine(const Row& row, const Line& columns, int width, Paint pai
         const theme::Color fill = paint == Paint::Selected
                                       ? theme::palette.selection
                                       : theme::palette.readerSidebarMsglistSelected;
-        return std::move(drawing) | bold | color(theme::palette.selectionText) |
-               bgcolor(fill);
+        return std::move(drawing) | theme::selectionBold |
+               color(theme::palette.selectionText) | bgcolor(fill);
     }
     // A message nobody has read yet takes the color across the whole row, the
     // number and the date included: a message is unread, not a column of it. A

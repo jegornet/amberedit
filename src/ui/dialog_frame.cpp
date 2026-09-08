@@ -124,8 +124,8 @@ Element button(const std::string& label, bool selected, bool pressed, bool tall)
         // The same fill as the current row in the lists: one color for whatever
         // Enter would act on, wherever the user is — frame and all, so that a
         // button is picked out from across the box.
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
+        return std::move(element) | theme::selectionBold |
+               color(theme::palette.selectionText) | bgcolor(theme::palette.selection);
     }
     return std::move(element) | color(theme::palette.dialogText);
 }

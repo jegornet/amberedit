@@ -108,7 +108,7 @@ Element radio(const std::string& label, bool chosen, bool current, int inner) {
 
     auto element = text(line + std::string(static_cast<size_t>(room), ' '));
     if (current) {
-        return dialog::framed(std::move(element) | bold |
+        return dialog::framed(std::move(element) | theme::selectionBold |
                               color(theme::palette.selectionText) |
                               bgcolor(theme::palette.selection));
     }

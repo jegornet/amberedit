@@ -749,12 +749,15 @@ Element render(AppState& state, Element background) {
 
         Element cell = text(padRight(truncateToWidth(row, inner), inner));
         if (index == picker.cursor && picker.focus == Focus::Files) {
-            cell = std::move(cell) | bold | color(theme::palette.selectionText) |
+            cell = std::move(cell) | theme::selectionBold |
+                   color(theme::palette.selectionText) |
                    bgcolor(theme::palette.selection);
         } else if (index == picker.cursor) {
             // The cursor is still on this row while the typing is elsewhere in
             // the box, so the row says so quietly rather than wearing the fill
-            // of a list being walked.
+            // of a list being walked. `bold` and not `theme::selectionBold`: the
+            // weight is the whole of the mark here rather than a second way of
+            // saying what a fill has said already.
             cell = std::move(cell) | bold | color(theme::palette.dialogLabel);
         } else {
             cell = std::move(cell) | color(theme::palette.dialogLabel);

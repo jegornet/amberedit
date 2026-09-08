@@ -548,7 +548,8 @@ Element render(AppState& state) {
         const auto styled = [&](std::string piece, bool dimmed) {
             Element cell = text(std::move(piece));
             if (selected) {
-                return std::move(cell) | bold | color(theme::palette.selectionText) |
+                return std::move(cell) | theme::selectionBold |
+                       color(theme::palette.selectionText) |
                        bgcolor(theme::palette.selection);
             }
             if (!entry.isAvailable() || dimmed) {

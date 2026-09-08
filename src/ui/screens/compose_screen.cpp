@@ -190,7 +190,7 @@ Element attributesColumn(AppState& state, int width, bool focused) {
     const bool pressed = state.isPressed(AppState::Pressed::ChangeAttributes);
     auto button = text(shown);
     if (focused) {
-        button = std::move(button) | bold |
+        button = std::move(button) | theme::selectionBold |
                  color(pressed ? theme::palette.animatedButtonText
                                : theme::palette.focusedText) |
                  bgcolor(theme::palette.focusedField);

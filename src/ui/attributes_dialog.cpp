@@ -122,8 +122,8 @@ Element checkbox(const Attribute& attribute, uint32_t attributes, bool current) 
 
     Element cell = text(padRight(label, cellWidth()));
     if (current) {
-        return std::move(cell) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection);
+        return std::move(cell) | theme::selectionBold |
+               color(theme::palette.selectionText) | bgcolor(theme::palette.selection);
     }
     if (on) return std::move(cell) | bold | color(theme::palette.dialogLabel);
     return std::move(cell) | color(theme::palette.dialogHint);

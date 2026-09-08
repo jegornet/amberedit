@@ -18,7 +18,9 @@ using amberedit::ui::theme::parsePalette;
 
 namespace {
 
-bool same(Color a, Color b) { return a == b; }
+bool same(Color a, Color b) {
+    return a == b;
+}
 
 }  // namespace
 
@@ -62,7 +64,7 @@ TEST_CASE("Colors are palette numbers, across the whole range [theme]") {
     CHECK(same(valueOf(parsePalette("text 255")).text, Color{255}));  // the grey ramp
 }
 
-TEST_CASE("A theme carries one setting that is not a color [theme]") {
+TEST_CASE("A theme carries settings that are not colors [theme]") {
     // `input_filler_show`, on or off as every other switch AmberEdit reads is
     // written, and the built-in palette's own answer where the file says
     // nothing — which is on, the fills it gives an idle field being steps of
@@ -71,10 +73,19 @@ TEST_CASE("A theme carries one setting that is not a color [theme]") {
     CHECK_FALSE(valueOf(parsePalette("input_filler_show off")).inputFillerShown);
     CHECK(valueOf(parsePalette("text 33")).inputFillerShown);
 
+    // `selection_bold` the same way, and on where the file says nothing: the
+    // interface has drawn what the selection fill covers bold since before
+    // there was a switch for it, and a theme that says nothing gets that.
+    CHECK(valueOf(parsePalette("selection_bold on")).selectionBold);
+    CHECK_FALSE(valueOf(parsePalette("selection_bold off")).selectionBold);
+    CHECK(valueOf(parsePalette("text 33")).selectionBold);
+
     // A number is not a switch, and neither is the palette complaint: the key
     // is answered as the setting it is.
     const std::string error = errorOf(parsePalette("input_filler_show 1", "theme.cfg"));
     REQUIRE_MESSAGE(contains(error, "on or off"), error);
+    const std::string other = errorOf(parsePalette("selection_bold 1", "theme.cfg"));
+    REQUIRE_MESSAGE(contains(other, "on or off"), other);
 }
 
 TEST_CASE("A key that is not a color is refused [theme]") {
@@ -112,13 +123,15 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.background, builtIn.background));
     CHECK(same(loaded.selection, builtIn.selection));
     CHECK(same(loaded.selectionText, builtIn.selectionText));
-    CHECK(same(loaded.readerSidebarMsglistSelected, builtIn.readerSidebarMsglistSelected));
+    CHECK(
+        same(loaded.readerSidebarMsglistSelected, builtIn.readerSidebarMsglistSelected));
     CHECK(same(loaded.inputField, builtIn.inputField));
     CHECK(same(loaded.inputText, builtIn.inputText));
     CHECK(same(loaded.focusedField, builtIn.focusedField));
     CHECK(same(loaded.focusedText, builtIn.focusedText));
     CHECK(same(loaded.inputFiller, builtIn.inputFiller));
     CHECK(loaded.inputFillerShown == builtIn.inputFillerShown);
+    CHECK(loaded.selectionBold == builtIn.selectionBold);
     CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK(same(loaded.dialogText, builtIn.dialogText));
     CHECK(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -167,11 +180,12 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.focusedField, builtIn.focusedField));
     CHECK_FALSE(same(loaded.focusedText, builtIn.focusedText));
     CHECK_FALSE(same(loaded.inputFiller, builtIn.inputFiller));
-    // The one setting a theme carries that is not a color. It agrees with the
-    // built-in palette here, and is stated in the file all the same, so that a
-    // theme is the whole palette written out and not the difference from
+    // The two settings a theme carries that are not colors. Both agree with the
+    // built-in palette here, and both are stated in the file all the same, so
+    // that a theme is the whole palette written out and not the difference from
     // another one.
     CHECK(loaded.inputFillerShown);
+    CHECK(loaded.selectionBold);
     CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
     CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));

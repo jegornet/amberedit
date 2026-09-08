@@ -64,13 +64,13 @@ const std::array<std::pair<std::string_view, Field>, 39> kFields{{
 }};
 
 /// The keys that are not colors, the same way round: the name in the file
-/// against the field it fills. One so far — `input_filler_show` — and a table
-/// rather than an `if`, so that a second one is a line here as a color is a line
-/// above.
+/// against the field it fills. A table rather than an `if`, so that another one
+/// is a line here as a color is a line above.
 using Switch = bool Palette::*;
 
-const std::array<std::pair<std::string_view, Switch>, 1> kSwitches{{
+const std::array<std::pair<std::string_view, Switch>, 2> kSwitches{{
     {"input_filler_show", &Palette::inputFillerShown},
+    {"selection_bold", &Palette::selectionBold},
 }};
 
 tl::expected<Palette, ErrorPtr> fromEntries(
@@ -117,6 +117,11 @@ tl::expected<Palette, ErrorPtr> fromEntries(
 }
 
 }  // namespace
+
+term::Element selectionBold(term::Element child) {
+    if (!palette.selectionBold) return child;
+    return term::bold(std::move(child));
+}
 
 tl::expected<Palette, ErrorPtr> parsePalette(const std::string& text,
                                              const std::string& originName) {

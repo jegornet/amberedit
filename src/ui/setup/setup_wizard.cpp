@@ -401,7 +401,7 @@ Element radio(const std::string& label, bool chosen, bool focused, int inner, Bo
     auto row =
         text(padRight("   " + std::string(chosen ? "(*) " : "( ) ") + label, inner));
     if (focused) {
-        return dialog::framed(std::move(row) | bold |
+        return dialog::framed(std::move(row) | theme::selectionBold |
                               color(theme::palette.selectionText) |
                               bgcolor(theme::palette.selection) | reflect(box));
     }
@@ -415,8 +415,9 @@ Element button(const std::string& label, bool focused, Box& box) {
     box = Box::Nowhere();
     auto element = text(" [ " + label + " ] ");
     if (focused) {
-        return std::move(element) | bold | color(theme::palette.selectionText) |
-               bgcolor(theme::palette.selection) | reflect(box);
+        return std::move(element) | theme::selectionBold |
+               color(theme::palette.selectionText) | bgcolor(theme::palette.selection) |
+               reflect(box);
     }
     return std::move(element) | color(theme::palette.dialogLabel) | reflect(box);
 }

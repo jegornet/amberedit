@@ -2300,14 +2300,29 @@ taking a row.
   measures itself against the window had to change. It is also the one node that
   paints outside its own box; `Screen::at()` drops what falls off the edge, so a
   box against the right-hand side simply casts less.
-- **A theme is colors and one switch.** `input_filler_show`, `on` or `off` as
-  every other switch AmberEdit reads is written, says whether a field's free
-  columns are underscored; it is a `bool` on `Palette` and a line in `kSwitches`,
-  the same table treatment the colors get, so a second setting is a line rather
-  than a special case. On in the built-in palette, whose fills are steps of
-  near-black, and in `16_colors.cfg`, where an idle field carries the screen's
-  own black; off in `blue.cfg`, which lights its idle fields plainly enough on
-  its own.
+- **A theme is colors and two switches.** Each is `on` or `off` as every other
+  switch AmberEdit reads is written, a `bool` on `Palette` and a line in
+  `kSwitches` — the same table treatment the colors get, so another one is a
+  line rather than a special case — and each is stated in every file under
+  `themes/`, the key-set test above holding them to it.
+  - `input_filler_show` says whether a field's free columns are underscored. On
+    in the built-in palette, whose fills are steps of near-black, and in
+    `16_colors.cfg`, where an idle field carries the screen's own black; off in
+    `blue.cfg`, which lights its idle fields plainly enough on its own.
+  - `selection_bold` says whether what wears a selection fill is drawn bold
+    along with it, and on in every shipped theme. **It is read in one place**:
+    `theme::selectionBold()` is `bold` where the switch is on and the element
+    untouched where it is off, and every bar in the interface is written with it
+    in `bold`'s place — the lists' current row, `dialog::button()`, a button of
+    the context menu, a radio of the find, import and setup boxes, the stop of
+    the compose header the typing is on, and the message the reader's sidebar
+    marks. A new bar takes it too; `| bold` beside a `bgcolor` of `selection`,
+    `focused_field` or `reader_sidebar_msglist_selected` is the mistake to look
+    for. What the switch does **not** touch is the bold that stands without a
+    fill — a heading, a title, a search hit, the cursor row of a list the typing
+    has left (the import, export and setup pickers, `bold` on `dialog_label`),
+    where the weight is the whole of the mark and dropping it would leave the
+    row saying nothing at all.
 - **The BBS color codes are markup taken out of the text; the style codes are
   markers left standing in it.** `bbs_codes_renegade` turns on the
   Renegade/Telegard pipe codes `|00`–`|31`: `ui/bbs_codes` reads them, the first
