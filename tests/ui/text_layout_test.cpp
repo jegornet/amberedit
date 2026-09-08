@@ -204,16 +204,44 @@ TEST_CASE("wrapText with a zero width returns nothing [layout]") {
 
 TEST_CASE("softWrapOffsets divides a line rather than rewriting it [layout]") {
     using Offsets = std::vector<size_t>;
+    // The width is the window's, and the last column of it is the cursor's, so
+    // the widths here are one more than the letters they hold.
+    //
     // A line that fits is one row, beginning where it begins.
-    CHECK(softWrapOffsets("aaa bbb", 7) == Offsets{0});
+    CHECK(softWrapOffsets("aaa bbb", 8) == Offsets{0});
     // The blank the break falls on closes the row it is on, so that no byte is
     // left without a row — what `wrapText` drops, this keeps.
-    CHECK(softWrapOffsets("aaa bbb ccc ddd", 7) == Offsets{0, 8});
+    CHECK(softWrapOffsets("aaa bbb ccc ddd", 8) == Offsets{0, 8});
     // A word with nowhere to break is cut where the width falls.
-    CHECK(softWrapOffsets("aaaaaaaaaa", 4) == Offsets{0, 4, 8});
-    CHECK(softWrapOffsets("aaaa bbbbbbbbbb", 6) == Offsets{0, 5, 11});
+    CHECK(softWrapOffsets("aaaaaaaaaa", 5) == Offsets{0, 4, 8});
+    CHECK(softWrapOffsets("aaaa bbbbbbbbbb", 7) == Offsets{0, 5, 11});
     // Nothing to lay out on, so nothing is laid out: one row, as it stands.
     CHECK(softWrapOffsets("text", 0) == Offsets{0});
+    CHECK(softWrapOffsets("text", 1) == Offsets{0});
+}
+
+TEST_CASE("softWrapOffsets keeps a letter out of the cursor's column [layout]") {
+    using Offsets = std::vector<size_t>;
+    // Six letters in a window of seven: they fill it to the column the cursor
+    // stands in, and nothing has had to move.
+    CHECK(softWrapOffsets("aaa bb", 7) == Offsets{0});
+    // The seventh takes its whole word down rather than standing in that
+    // column — which is what the eye sees a moment before the word moves.
+    CHECK(softWrapOffsets("aaa bbb", 7) == Offsets{0, 4});
+}
+
+TEST_CASE("softWrapOffsets lets a blank have the cursor's column [layout]") {
+    using Offsets = std::vector<size_t>;
+    // A space draws nothing in that column, so it is shown there and the row
+    // ends after it: the cursor typing it goes on to the row below rather than
+    // dragging the whole line sideways to stay in the window.
+    CHECK(softWrapOffsets("aaa bb ", 7) == Offsets{0, 7});
+    // What follows a space in that column opens the row below, as it would
+    // anywhere else a row has run out of room.
+    CHECK(softWrapOffsets("aaa bb c", 7) == Offsets{0, 7});
+    // And a run of them divides between rows like anything else, rather than
+    // piling up past an edge the cursor would then be carried over.
+    CHECK(softWrapOffsets("ab      ", 4) == Offsets{0, 4, 8});
 }
 
 TEST_CASE("softWrapOffsets does not exceed the width on Cyrillic [layout]") {
@@ -222,12 +250,15 @@ TEST_CASE("softWrapOffsets does not exceed the width on Cyrillic [layout]") {
     REQUIRE(starts.size() > 1);
     for (size_t i = 0; i < starts.size(); ++i) {
         const size_t end = i + 1 < starts.size() ? starts[i + 1] : line.size();
-        // The blanks a row ends with may run past the edge — they draw nothing
-        // there — so what is measured is the row with them taken off.
-        std::string row = line.substr(starts[i], end - starts[i]);
-        while (!row.empty() && row.back() == ' ') row.pop_back();
+        const std::string row = line.substr(starts[i], end - starts[i]);
         INFO(row);
+        // The window entire, blanks and all: a row runs past its right edge no
+        // further than the column kept for the cursor.
         CHECK(displayWidth(row) <= 12);
+        // And the letters stop a column short of that, so the cursor has it.
+        std::string letters = row;
+        while (!letters.empty() && letters.back() == ' ') letters.pop_back();
+        CHECK(displayWidth(letters) <= 11);
     }
 }
 

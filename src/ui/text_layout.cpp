@@ -208,13 +208,21 @@ std::vector<std::string> wrapText(std::string_view text, int width) {
 
 std::vector<size_t> softWrapOffsets(std::string_view line, int width) {
     std::vector<size_t> starts{0};
-    if (width <= 0) return starts;
+    if (width <= 1) return starts;
+
+    // What a character that is to be seen may fill: the last column of the row
+    // is the cursor's, and a letter drawn there would leave it nowhere to
+    // stand. A blank is not held to it — it draws nothing in that column, so it
+    // may have it.
+    const int letters = width - 1;
+
     // The lines of a message mostly fit, and this is asked of every one of them
-    // on every frame. A line of no more bytes than the width fits whatever is in
-    // it — UTF-8 never spends fewer bytes than columns — and one measured to fit
-    // is done with before a single cell has been cut out of it.
-    if (line.size() <= static_cast<size_t>(width)) return starts;
-    if (displayWidth(line) <= width) return starts;
+    // on every frame. A line of fewer bytes than the columns a letter may fill
+    // fits whatever is in it — UTF-8 never spends fewer bytes than columns —
+    // and one measured to fit is done with before a single cell has been cut
+    // out of it.
+    if (line.size() < static_cast<size_t>(width)) return starts;
+    if (displayWidth(line) < width) return starts;
 
     size_t rowStart = 0;
     size_t breakAt = 0;  // where the word being laid down began
@@ -225,13 +233,20 @@ std::vector<size_t> softWrapOffsets(std::string_view line, int width) {
     for (const auto& glyph : term::toGlyphs(line)) {
         const int cells = term::stringWidth(glyph);
         const bool blank = glyph.size() == 1 && isBlank(glyph[0]);
-        // Only a character that is to be seen can push a row past the edge.
-        // Blanks run past it instead of breaking there: a row broken before a
-        // space would open the next one with it, and a space at the right edge
-        // draws nothing worth a row of its own.
-        if (!blank) {
-            if (afterBlank) breakAt = pos;
+        if (blank) {
+            // A blank breaks a row only where the row has no column left for
+            // it at all, the cursor's included. Short of that it runs on to the
+            // end of the row it closes: a row broken before a space would open
+            // the next one with it, and a space draws nothing worth a row of
+            // its own.
             if (used + cells > width && pos > rowStart) {
+                starts.push_back(pos);
+                rowStart = pos;
+                used = 0;
+            }
+        } else {
+            if (afterBlank) breakAt = pos;
+            if (used + cells > letters && pos > rowStart) {
                 // Back to where the word began, unless the word is the whole
                 // row — one longer than the width has nowhere to break and is
                 // cut where the width falls.
@@ -245,6 +260,11 @@ std::vector<size_t> softWrapOffsets(std::string_view line, int width) {
         pos += glyph.size();
         afterBlank = blank;
     }
+    // A row filled to its last column has nothing left for a cursor standing
+    // past the end of it, so the place past the end of the line is the start of
+    // the row below. Only a blank fills a row that far — which is what puts the
+    // cursor on the next row the moment a space is typed against the edge.
+    if (used >= width) starts.push_back(line.size());
     return starts;
 }
 

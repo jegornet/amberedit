@@ -52,18 +52,25 @@ int quoteDepth(std::string_view line);
 /// Words longer than width are split by force.
 std::vector<std::string> wrapText(std::string_view text, int width);
 
-/// Where each row of `line` begins, in bytes, when the line is shown `width`
-/// columns wide: `{0}` for a line that fits, one offset per row for one that
-/// does not.
+/// Where each row of `line` begins, in bytes, when the line is shown in a
+/// window `width` columns wide: `{0}` for a line that fits, one offset per row
+/// for one that does not.
 ///
 /// This is `wrapText` for a line that is being written rather than read. The
 /// offsets divide the line and nothing else — every byte of it stands on
 /// exactly one row — so a cursor can be found among them by counting, which is
 /// what an editor needs and a reader does not. That is also why the blanks a
-/// break falls on stay at the end of the row they close: they draw nothing
-/// against the right edge, and dropping them the way `wrapText` does would
-/// leave bytes with no row to be on. A word longer than the width is cut where
-/// the width falls, having nowhere else to break.
+/// break falls on stay at the end of the row they close: dropping them the way
+/// `wrapText` does would leave bytes with no row to be on. A word longer than
+/// the width is cut where the width falls, having nowhere else to break.
+///
+/// **The last column of the window is the cursor's, and only a blank may share
+/// it.** A letter is held to the columns before it — one that would go there
+/// takes its whole word onto the next row instead — because a letter drawn in
+/// that column leaves the cursor after it nowhere to stand, and the row would
+/// be drawn scrolled sideways to show it. A blank draws nothing there and so
+/// may have it; what follows the blank is the next row, which is what carries
+/// the cursor down the moment a space is typed against the edge.
 std::vector<size_t> softWrapOffsets(std::string_view line, int width);
 
 /// Byte ranges, [begin, end), of the links in a line, in the order they appear.

@@ -1525,17 +1525,20 @@ decides what an occurrence is.
   the screen**, `composeTextRows` holds one spot per drawn row with the byte its
   left edge shows, and the arrows and page keys move by `moveByRows()`: a line
   four rows tall is four presses tall.
-- **The rightmost column of the editor window is the cursor's.** `layoutRows()`
-  breaks every line a column short of the width it is given, and nothing is ever
-  drawn in the one it keeps. That is where a cursor standing past the end of a
-  row goes, so no row is ever drawn scrolled sideways to keep it on screen — the
-  text sliding out from under the first column at the very moment the window has
-  a row to spare is what the kept column avoids. It is also what the user sees
-  next: with a letter in the second column from the edge and the cursor in the
-  last, the letter typed there does not go into that column — the word it
-  belongs to comes down onto the row below. The width is the same for every
-  line, the one the cursor is on included: a line broken against where the
-  cursor happens to stand would rewrap under the arrow keys.
+- **The rightmost column of the editor window is the cursor's, and only a blank
+  may share it.** `softWrapOffsets()` holds a letter to the columns before it, so
+  a cursor standing past the end of a row always has one to be drawn in and no
+  row is ever drawn scrolled sideways to keep it on screen — the text sliding out
+  from under the first column at the very moment the window has a row to spare is
+  what the kept column avoids. So a letter typed against that column does not go
+  into it: the word it belongs to comes down onto the row below. A space does go
+  into it — it draws nothing there, and what follows it is the row below, which
+  is what carries the cursor down the moment the space is typed. A run of blanks
+  divides between rows on the same rule rather than piling up past the edge,
+  where the cursor at the end of the line would be carried out of the window with
+  them. The width is the same for every line, the one the cursor is on included:
+  a line broken against where the cursor happens to stand would rewrap under the
+  arrow keys.
 - The one thing the editor does break is a **quote**: `insertText()` holds a line
   carrying a quote prefix to `quote_margin` and wraps it under that same prefix,
   which is the whole of what the setting is for. `quote_margin` says nothing

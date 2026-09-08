@@ -147,6 +147,39 @@ TEST_CASE("A letter typed against the kept column takes its word down "
     CHECK(rowOfCursor(rows, 0, buffer.col) == 1);
 }
 
+TEST_CASE("A space typed against the kept column is drawn in it [editlayout]") {
+    // Six letters fill a window seven wide up to the column the cursor stands
+    // in. What is typed there is a space and not a letter: it draws nothing in
+    // that column, so it is shown there and the cursor goes on to the row below
+    // — rather than the whole row sliding sideways to keep the cursor in the
+    // window.
+    TextBuffer buffer = bufferOf({"aaa bb"}, 0, 6);
+    insertText(buffer, " ", EditOptions{});
+
+    const auto rows = layoutRows(buffer, 7);
+    REQUIRE(rows.size() == 2);
+    CHECK(buffer.line().substr(rows[0].begin, rows[0].end - rows[0].begin) == "aaa bb ");
+    // Nothing came down with it: the word stays where it was written, and the
+    // row below is where the typing carries on.
+    CHECK(rows[1].begin == 7);
+    CHECK(rows[1].end == 7);
+    CHECK(rowOfCursor(rows, 0, buffer.col) == 1);
+
+    // The letter typed next opens that row rather than the one above it.
+    insertText(buffer, "c", EditOptions{});
+    const auto after = layoutRows(buffer, 7);
+    REQUIRE(after.size() == 2);
+    CHECK(buffer.line().substr(after[1].begin, after[1].end - after[1].begin) == "c");
+    CHECK(rowOfCursor(after, 0, buffer.col) == 1);
+}
+
+TEST_CASE("Trailing spaces divide between rows like anything else [editlayout]") {
+    // A run of them piling up past the right edge would carry the cursor at the
+    // end of the line out of the window along with them.
+    const std::vector<std::string> lines{"ab      "};
+    CHECK(shownRows(lines, 4) == std::vector<std::string>{"ab  ", "    ", ""});
+}
+
 TEST_CASE("Up and down move by rows of the screen, not by lines [editlayout]") {
     const std::vector<std::string> lines{"aaa bbb ccc ddd", "second"};
     TextBuffer buffer = bufferOf(lines, 0, 2);

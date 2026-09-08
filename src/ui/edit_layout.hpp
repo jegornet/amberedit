@@ -28,14 +28,11 @@ struct EditRow {
 /// The buffer as it is drawn `width` columns wide, top to bottom. Every line
 /// has a row, an empty one included — there is a cursor to put on it.
 ///
-/// **The rightmost column of the window is the cursor's**: the text is broken a
-/// column short of it and nothing is ever drawn there. A cursor at the end of a
-/// row stands in that column, so no row is ever scrolled sideways to keep it on
-/// screen — the text sliding out from under the first column at the very moment
-/// the window has a row to spare is what reserving the column avoids. It is
-/// also what the user is shown next: with a letter in the second column from
-/// the edge and the cursor in the last, the next letter typed does not go into
-/// that column, it takes its whole word down to the row below.
+/// **The rightmost column of the window is the cursor's**, and `softWrapOffsets`
+/// is where that is decided: no letter is drawn there, so a cursor at the end of
+/// a row stands in it and no row is ever scrolled sideways to keep it on screen.
+/// A letter typed against that column takes its whole word down to the row
+/// below; a space is drawn in it and carries the cursor down on its own.
 ///
 /// The width is the same for every line, the cursor's among them. A line broken
 /// against where the cursor happens to stand would rewrap under the arrow keys.

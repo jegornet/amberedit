@@ -21,40 +21,35 @@ std::string_view textOf(const std::string& line, const EditRow& row) {
 /// The byte of `line` the cursor stands on when it comes down onto `row` at
 /// `column`, counted in terminal columns from the row's left edge.
 size_t offsetAtColumn(const std::string& line, const EditRow& row, int column,
-                      int textWidth) {
+                      int width) {
     const std::string_view text = textOf(line, row);
 
-    // How far into the row the cursor may go. A row that closes its line has
-    // the place past its last character — that is where the typing carries on
-    // from. A row the line goes on past has not: the byte one past its end is
-    // the first byte of the row below, and the cursor would be drawn there.
-    int limit = displayWidth(text);
-    if (row.end < line.size()) limit = std::max(0, std::min(limit, textWidth) - 1);
+    // How far into the row the cursor may go. Never out of the window: the last
+    // column is the cursor's own, and a row a blank has filled into it has its
+    // last character standing there. A row that closes its line has the place
+    // past its last character — that is where the typing carries on from. A row
+    // the line goes on past has not: the byte one past its end is the first
+    // byte of the row below, and the cursor would be drawn there.
+    int limit = std::min(displayWidth(text), std::max(0, width - 1));
+    if (row.end < line.size()) limit = std::max(0, limit - 1);
 
     return std::min(row.begin, line.size()) +
            substrByWidth(text, 0, std::min(column, limit)).size();
 }
-
-/// The columns the text is broken at in a window `width` wide: one short of it,
-/// the last being the cursor's. A window of one column has nowhere to keep it
-/// and holds text instead — there is no window that narrow, and a width of
-/// nothing to write in would be worse than a cursor drawn over a letter.
-int textWidthOf(int width) { return std::max(1, width - 1); }
 
 }  // namespace
 
 std::vector<EditRow> layoutRows(const TextBuffer& buffer, int width) {
     std::vector<EditRow> rows;
     rows.reserve(buffer.lines.size());
-    const int textWidth = textWidthOf(width);
     for (size_t i = 0; i < buffer.lines.size(); ++i) {
         const std::string& line = buffer.lines[i];
 
-        // A column short of the window, so that the cursor standing past the
-        // end of a row has one the window holds to be drawn in. Every line is
-        // broken the same way, the one the cursor is on included: a line whose
-        // width followed the cursor would rewrap under the arrow keys.
-        const std::vector<size_t> starts = softWrapOffsets(line, textWidth);
+        // The window's own width: which of its columns a character may be drawn
+        // in is `softWrapOffsets()`'s to say. Every line is broken the same way,
+        // the one the cursor is on included — a line whose width followed the
+        // cursor would rewrap under the arrow keys.
+        const std::vector<size_t> starts = softWrapOffsets(line, width);
         for (size_t k = 0; k < starts.size(); ++k) {
             const size_t begin = std::min(starts[k], line.size());
             const size_t end = k + 1 < starts.size()
@@ -98,7 +93,7 @@ void moveByRows(TextBuffer& buffer, const std::vector<EditRow>& rows, int delta,
         std::clamp(static_cast<int>(at) + delta, 0, static_cast<int>(rows.size()) - 1);
     const EditRow& onto = rows[static_cast<size_t>(target)];
     buffer.row = std::clamp(onto.line, 0, static_cast<int>(buffer.lines.size()) - 1);
-    buffer.col = offsetAtColumn(buffer.line(), onto, column, textWidthOf(width));
+    buffer.col = offsetAtColumn(buffer.line(), onto, column, width);
 }
 
 }  // namespace amberedit::ui

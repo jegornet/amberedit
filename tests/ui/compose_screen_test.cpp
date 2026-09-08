@@ -1811,6 +1811,36 @@ TEST_CASE(
 }
 
 TEST_CASE(
+    "A space typed against the right edge does not drag the row sideways "
+    "[compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    compose::startNew(state);
+    fixture.walkToText();
+
+    // A line filling every column a letter may have, the cursor past the end of
+    // it in the one column left — the rightmost of the window.
+    const auto letters = static_cast<size_t>(state.width) - 1;
+    state.edit.lines[0] = std::string(letters - 6, 'a') + " bbbbb";
+    state.edit.row = 0;
+    state.edit.col = state.edit.lines[0].size();
+    CHECK(shows(screenRowsOf(state), state.edit.lines[0]));
+
+    // The space goes into that column, where it draws nothing. The line is
+    // shown from its first character still: a row scrolled sideways to keep the
+    // cursor in the window is what the column is kept to avoid.
+    compose::handleEvent(state, Event::Character(" "));
+    const std::vector<std::string> rows = screenRowsOf(state);
+    CHECK(shows(rows, std::string(letters - 6, 'a') + " bbbbb"));
+
+    // And the word stayed where it was written, rather than opening a row of
+    // its own: it is a letter typed against that column that takes a word down,
+    // not a space.
+    CHECK(state.edit.lines[0] == std::string(letters - 6, 'a') + " bbbbb ");
+    CHECK(columnOf(rows, "bbbbb") == static_cast<int>(letters) - 5);
+}
+
+TEST_CASE(
     "The wheel scrolls the message being written, the cursor coming along "
     "[compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
