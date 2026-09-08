@@ -101,6 +101,32 @@ group
 endgroup
 ```
 
+### Themes
+
+A theme is a file of `role  color` lines. A color in a theme is a number from
+0 to 255 — an entry in [256-color palette](https://www.ditig.com/256-colors-cheat-sheet).
+
+⚠️ **Full color palette support depends on your terminal app's capabilities and
+configuration. If you experience color display issues, make sure the `TERM`
+environment variable is set to `xterm-256color`**
+
+`themes/black.cfg` is the built-in palette written out — what AmberEdit draws
+with when the config names no theme, and the file to copy and edit.
+`themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
+customizing the pallete in your terminal app.
+Also, we have `themes/blue.cfg` and `themes/white.cfg`
+
+### Localization
+
+The language is the environment's, as it is for every other program on the
+system — `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`, in that order of
+preference. Nothing goes in the config:
+
+```bash
+LANG=ru_RU.UTF-8 amberedit          # Russian
+amberedit                           # whatever your shell already says
+```
+
 ### Keys
 
 **F1** opens the key list of whichever screen is up, each with what it does beside
@@ -254,29 +280,6 @@ globally or inside a `group … endgroup` block, and `twit_mode` says what becom
 of one — from a notice in place of the text to deleting it as the area opens.
 A long list can live in a file of its own: `twit @file:twit.list`. See
 `amberedit.cfg.example`.
-
-### Themes
-
-A color in a theme is a number from 0 to 255 — an entry in
-[256-color palette](https://www.ditig.com/256-colors-cheat-sheet). Entries 0–15 are the
-colors you have already chosen for everything else you run.
-
-`themes/black.cfg` is the built-in palette written out — what AmberEdit draws
-with when the config names no theme, and the file to copy and edit.
-`themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
-customizing the pallete in your terminal app.
-Also, we have `themes/blue.cfg` and `themes/white.cfg`
-
-### Language
-
-The language is the environment's, as it is for every other program on the
-system — `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`, in that order of
-preference. Nothing goes in the config:
-
-```bash
-LANG=ru_RU.UTF-8 amberedit          # Russian
-amberedit                           # whatever your shell already says
-```
 
 ## License
 
