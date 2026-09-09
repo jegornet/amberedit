@@ -2,6 +2,7 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "ui/term/element.hpp"
 #include "ui/term/screen.hpp"
@@ -134,6 +135,54 @@ TEST_CASE("a palette entry expands to the color it stands for [element]") {
     CHECK(paletteRgb(232) == 0x080808u);  // the ramp's dark end
     CHECK(paletteRgb(255) == 0xeeeeeeu);  // and its light one
     CHECK(paletteRgb(15) == 0xffffffu);   // bright white among the ANSI sixteen
+}
+
+TEST_CASE("a color falls back to the palette entry nearest it [element]") {
+    // Where a terminal will neither take a triple as written nor lend an entry
+    // to hold one, a truecolor role is drawn as the nearest entry there already
+    // — the theme quantised rather than nothing at all. Approximate matches, so
+    // these check the direction rather than an exact entry.
+    CHECK(nearestPaletteEntry(0xff0000u) == 196);  // the cube's red corner, exactly
+    CHECK(nearestPaletteEntry(0x080808u) == 232);  // and the grey ramp's dark end
+    CHECK(nearestPaletteEntry(0xeeeeeeu) == 255);
+    // Never one of the ANSI sixteen: what those look like is the terminal's own
+    // configuration, so matching a triple against an assumed value for one would
+    // pick a color by a name it may not answer to.
+    CHECK(nearestPaletteEntry(0x000000u) >= 16);
+    CHECK(nearestPaletteEntry(0xffffffu) >= 16);
+    // And in range, whatever it was handed.
+    for (uint32_t rgb : {0x1c1e2au, 0xaaffb2u, 0x6fa8dcu, 0xd17b7bu}) {
+        CAPTURE(rgb);
+        CHECK(nearestPaletteEntry(rgb) >= 16);
+        CHECK(nearestPaletteEntry(rgb) < 256);
+    }
+}
+
+TEST_CASE("the entry lent a color is the one nearest it [element]") {
+    // Which entry a terminal is lent to hold a truecolor role. A terminal that
+    // takes the redefinition draws the color exactly whichever entry it was, so
+    // this is chosen for the terminal that says through terminfo that it will
+    // and then ignores the sequence — PuTTY on TERM=xterm-256color being the one
+    // that does. Lending it the nearest entry leaves it drawing the theme
+    // quantised; lending it whatever was free would leave it drawing the whole
+    // interface in the grey ramp the top of the palette holds.
+    CHECK(nearestPaletteEntry(0xff0000u, {}) == 196);
+    CHECK(nearestPaletteEntry(0x080808u, {}) == 232);
+
+    // An entry the theme already draws with as a number is not lent, and the
+    // next-nearest is taken instead — still near the color asked for.
+    const int nearest = nearestPaletteEntry(0xd8dbe4u, {});
+    const int second = nearestPaletteEntry(0xd8dbe4u, {static_cast<uint8_t>(nearest)});
+    CHECK(second != nearest);
+    CHECK(second >= 16);
+    CHECK(paletteRgb(static_cast<uint8_t>(second)) !=
+          paletteRgb(static_cast<uint8_t>(nearest)));
+
+    // And -1 where every entry is spoken for, which is what sends the color
+    // through the approximation instead of through a lent entry.
+    std::vector<uint8_t> all;
+    for (int entry = 16; entry < 256; ++entry) all.push_back(static_cast<uint8_t>(entry));
+    CHECK(nearestPaletteEntry(0xff0000u, all) == -1);
 }
 
 TEST_CASE("the first eight colors follow the library's own order [element]") {

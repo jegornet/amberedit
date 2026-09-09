@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "support/error.hpp"
 #include "ui/term/color.hpp"
@@ -9,9 +10,9 @@
 
 namespace amberedit::ui::theme {
 
-/// A color in a theme is a number in the terminal's 256-color palette, which is
-/// what `term::Color` holds — there is no separate theme color type and nothing
-/// is converted anywhere.
+/// A color in a theme is a number in the terminal's 256-color palette or a
+/// truecolor triple, which is what `term::Color` holds — there is no separate
+/// theme color type and nothing is converted anywhere.
 using Color = term::Color;
 
 /// The palette used when the config names no theme.
@@ -352,11 +353,20 @@ inline Palette palette;
 /// carries nothing about the setting but the name.
 [[nodiscard]] term::Element selectionBold(term::Element child);
 
-/// Reads a theme file: a line of `role <0..255>` per color, in the same format
+/// Reads a theme file: a line of `role <color>` per color, in the same format
 /// the AmberEdit config is written in — the roles being Palette's fields in
-/// snake_case and the numbers entries in the terminal's own 256-color palette.
-/// Every role is optional and an absent one keeps its built-in color, so a file
-/// may state as little as one line.
+/// snake_case. Every role is optional and an absent one keeps its built-in
+/// color, so a file may state as little as one line.
+///
+/// **A color is told by its length**: one to three decimal digits is an entry in
+/// the terminal's own 256-color palette, `232`; exactly six hex digits is the
+/// color itself, `1c1e2a`. Nothing marks either — the config format has one
+/// meaning for `#`, which is that a comment starts here, and the two lengths
+/// cannot be read for one another. A theme may hold both.
+///
+/// A color is taken as it stands: nothing can ask a terminal whether it means
+/// 24-bit color, so what such a theme looks like is the user's own risk, and
+/// refusing it here would only refuse the terminals that do.
 ///
 /// Fails, naming the file and the key, if it cannot be read or parsed, if a key
 /// is not a role, or if a value is not a color. A theme is asked for explicitly,
@@ -368,8 +378,8 @@ inline Palette palette;
 [[nodiscard]] tl::expected<Palette, ErrorPtr> parsePalette(
     const std::string& text, const std::string& originName = "<string>");
 
-/// How many of a palette's roles are written above the sixteen ANSI colors and
-/// are out of reach of a terminal holding only `available` of them.
+/// How many of a palette's roles are out of reach of a terminal holding only
+/// `available` colors.
 ///
 /// Two roles count for nothing whatever the terminal reported. One left as the
 /// terminal's own color asks for no palette entry, so there is none to fall
@@ -381,9 +391,25 @@ inline Palette palette;
 /// it is the whole of a 24-bit range — is every number a theme can hold, and the
 /// answer there is always none.
 ///
+/// A truecolor role counts wherever the terminal has fewer than 256 colors, and
+/// there alone. A terminal with the whole palette either takes the triple as
+/// written or is lent one of its entries to hold it, and which of those happened
+/// is not something it can be asked — so a truecolor theme passes in silence on
+/// the terminals it was written for, and is counted only where there is not even
+/// an entry to lend.
+///
 /// Exposed for the tests, which are the only thing that can check this without
 /// eyes on a terminal, exactly as `term::nearestWithin` is.
 [[nodiscard]] int approximatedRoles(const Palette& palette, int available);
+
+/// The palette entries `palette` draws with as numbers — what
+/// `term::reservePaletteEntries` is told before the screen opens, so that a
+/// truecolor role is never lent an entry the theme itself draws with. A theme
+/// mixing the two spellings would otherwise repaint its own roles, and the
+/// entries it stands to lose are exactly the ones it wants: a role is lent the
+/// entry already nearest the color asked for, which is the entry a theme reached
+/// for by number for the same reason.
+[[nodiscard]] std::vector<uint8_t> ownEntries(const Palette& palette);
 
 /// What is worth saying about the colors this terminal turned out to have, or
 /// empty where there is nothing to say — which is every terminal that draws the

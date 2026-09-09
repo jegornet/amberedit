@@ -33,6 +33,10 @@ namespace amberedit::config::text {
     return c == ' ' || c == '\t' || c == '\n' || c == '\v' || c == '\f' || c == '\r';
 }
 
+[[nodiscard]] constexpr bool asciiIsHexDigit(char c) {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
 inline std::string toLower(std::string_view s) {
     std::string out(s);
     std::transform(out.begin(), out.end(), out.begin(), asciiLower);

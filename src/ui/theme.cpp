@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -97,18 +98,49 @@ tl::expected<Palette, ErrorPtr> fromEntries(
                               "' is not a color or a setting this theme knows");
         }
 
+        // A role with nothing after it is nearly always a color written with a
+        // '#' in front of it: that opens a comment, and the comment takes the
+        // color with it. Answered here rather than left to `one()`, whose
+        // "takes exactly one value" would say nothing about where the value went.
+        if (entry.values.empty()) {
+            return entry.fail(entry.key +
+                              " has no color after it — a color is written "
+                              "without a '#', which starts a comment here");
+        }
+
         auto value = entry.one();
         if (!value) return tl::make_unexpected(std::move(value).error());
 
-        // Said with the palette named rather than as a bare "not a number": a
-        // theme file is written by hand, and "#rrggbb" is what one predating
-        // palette numbers still has in it.
+        // Which of the two a color is, is settled by how it is written and by
+        // nothing else: exactly six hex digits is the color itself, one to three
+        // decimal digits an entry in the terminal's palette. The lengths cannot
+        // overlap, so `1c1e2a` and `232` each mean one thing — and no mark is
+        // needed in front of either, `#` being what opens a comment in every
+        // file AmberEdit reads.
         const auto isDigit = [](char c) { return c >= '0' && c <= '9'; };
-        if (value->empty() || !std::all_of(value->begin(), value->end(), isDigit)) {
-            return entry.fail(
-                entry.key + " must be a palette number from 0 to 255, not '" + *value +
-                "' — themes are written in the terminal's 256-color palette "
-                "rather than in #rrggbb");
+        const bool truecolor =
+            value->size() == 6 &&
+            std::all_of(value->begin(), value->end(), config::text::asciiIsHexDigit);
+
+        // What a terminal makes of the triple is `term::pairFor`'s business, and
+        // nothing here or there can ask it whether it means 24-bit color: a
+        // theme written in colors is the user's own risk, and is not refused.
+        if (truecolor) {
+            uint32_t triple = 0;
+            std::from_chars(value->data(), value->data() + value->size(), triple, 16);
+            palette.*(field->second) = Color::rgb(triple);
+            continue;
+        }
+
+        // Said with both spellings named rather than as a bare "not a number":
+        // a theme file is written by hand, and the two are the whole of what a
+        // color may be.
+        if (value->empty() || value->size() > 3 ||
+            !std::all_of(value->begin(), value->end(), isDigit)) {
+            return entry.fail(entry.key +
+                              " must be a palette number from 0 to 255, or six hex "
+                              "digits for the color itself as 1c1e2a is, not '" +
+                              *value + "'");
         }
         auto number = entry.numberIn(0, 255);
         if (!number) return tl::make_unexpected(std::move(number).error());
@@ -135,14 +167,35 @@ int approximatedRoles(const Palette& palette, int available) {
         // A role left as the terminal's own color asks for no palette entry, so
         // there is no entry to fall short of — see term::Color.
         if (color.defaulted) continue;
+        // A truecolor role. Everything above returned already where the terminal
+        // has the whole palette, so what is left is a terminal with fewer than
+        // 256 entries — one that can neither take the triple as written nor be
+        // lent an entry out of the 256-color range to hold it. On a terminal
+        // that has them this counts for nothing, which is why a truecolor theme
+        // says nothing on the usual one: whether the entry lent to it is really
+        // redrawn is not something a terminal can be asked.
+        if (color.trueColor) {
+            ++count;
+            continue;
+        }
         // The sixteen ANSI colors are the ones every terminal with color at all
         // has, and what it draws them as is its own configuration rather than
         // anything a number here settles. A theme written inside them is a theme
         // written for the terminal it is on, so nothing about it is worth saying.
-        if (color.index < 16) continue;
-        if (color.index >= available) ++count;
+        if (color.index() < 16) continue;
+        if (color.index() >= available) ++count;
     }
     return count;
+}
+
+std::vector<uint8_t> ownEntries(const Palette& palette) {
+    std::vector<uint8_t> used;
+    for (const auto& role : kFields) {
+        const Color color = palette.*(role.second);
+        if (color.defaulted || color.trueColor) continue;
+        used.push_back(color.index());
+    }
+    return used;
 }
 
 std::string colorWarning() {

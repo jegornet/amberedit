@@ -15,6 +15,7 @@
 #include "ui/error_log.hpp"
 #include "ui/keys.hpp"
 #include "ui/setup/setup_run.hpp"
+#include "ui/term/color.hpp"
 #include "ui/theme.hpp"
 #include "version.hpp"
 
@@ -304,6 +305,15 @@ int main(int argc, char* argv[]) {
             }
             amberedit::ui::theme::palette = *palette;
         }
+
+        // Which palette entries the theme spends on itself, told to the terminal
+        // layer while the palette is still being settled: a truecolor role is
+        // drawn by lending the terminal one of the entries left over, and
+        // lending it one the theme draws with as a number would repaint that
+        // role. Said for every theme, the built-in one included, since what it
+        // answers is a question about the palette and not about the terminal.
+        amberedit::ui::term::reservePaletteEntries(
+            amberedit::ui::theme::ownEntries(amberedit::ui::theme::palette));
 
         // Before the terminal is taken over, which is the only place there is
         // left to say anything about either of them.

@@ -2259,9 +2259,10 @@ taking a row.
   vector is built to its final size before the frame is laid out, for the reason
   `readThreadLinks` is.
 - **The palette is one struct, `ui::theme::palette`.** No screen names a color of
-  its own; a role not in `Palette` does not exist. Its fields are RGB numbers in
-  the terminal's own 256-color palette — `term::Color` holds one, and there is no
-  separate theme color type. It is a global **written once**, in `runApp()`
+  its own; a role not in `Palette` does not exist. Its fields are entries in the
+  terminal's own 256-color palette or truecolor triples — `term::Color` holds
+  either, told apart by its `trueColor` flag and never by the number, and there
+  is no separate theme color type. It is a global **written once**, in `runApp()`
   before the screen opens, and only read afterwards; do not write to it anywhere
   else.
 - **Two fills, and the terminal's own is neither of them.** `app_shell` paints
@@ -2295,11 +2296,48 @@ taking a row.
   `paletteRgb()` first. Skipping that is a silent wrong-color bug, not a missing
   optimisation — index 102 would go out as #000066. Color pairs are allocated as
   first asked for, so the count follows the theme rather than the roles.
+- **A truecolor role reaches the terminal one of three ways**, all of them in
+  `term::pairFor`. In direct mode the triple goes out as it stands. Otherwise a
+  terminal that will redefine its palette is **lent an entry** to hold the color
+  — one per distinct triple, and never one the theme itself draws with as a
+  number, which is what `term::reservePaletteEntries` is told by
+  `theme::ownEntries` before the screen opens. Where it will not, the nearest
+  entry it already has is drawn (`nearestPaletteEntry`), so the theme comes out
+  quantised rather than wrong.
+  - **The entry lent is the one already nearest the color**, not the first one
+    free. A terminal that honours the redefinition draws the color exactly
+    whichever entry it was, so the choice costs it nothing — and the choice is
+    made for the terminal that reports `ccc` through terminfo and then ignores
+    the sequence, which PuTTY on `TERM=xterm-256color` does. That terminal is
+    then left drawing the theme quantised, the same answer a terminal that never
+    claimed to could give. Lending from the top of the palette down instead put
+    the whole interface in the grey ramp entries 232-255 hold. Nothing can ask a
+    terminal whether the sequence landed, so the failure is made harmless rather
+    than detected. **An entry lent is the terminal's and
+  outlives the screen**: `suspendTrueColors()` puts it back before every
+  `endwin()` — the destructor and `handOver()` — and `resumeTrueColors()` writes
+  it again on the way back in, or a shell handed the terminal back would draw
+  everything else in this theme's colors.
+  - **Nothing detects whether the terminal meant it.** There is no such
+    question to ask, so none is asked and a truecolor theme is never refused,
+    downgraded or warned about on a terminal that has the 256 entries. That is
+    the user's own risk, and it is said in `README.md` and
+    `amberedit.cfg.example` rather than worked around here.
+- **A theme's colors are told apart by their length, and by nothing else**:
+  one to three decimal digits is a palette entry (`232`), exactly six hex digits
+  is the color itself (`1c1e2a`). Neither is marked, and neither may be — `#` is
+  what opens a comment in `config/cfg_file`, which the themes share, and a
+  literal spelled with one would have to change the comment rule for every file
+  AmberEdit reads. The two lengths cannot be read for one another, which is what
+  makes the mark unnecessary. A role written with a `#` in front of it therefore
+  reaches `fromEntries()` with no value at all, and is answered there by name
+  rather than by `CfgEntry::one()`'s "takes exactly one value".
 - **Adding a color role means three edits**: the field in `Palette`, the line in
   `kFields` in `ui/theme.cpp` tying it to its theme-file key (and the array's
   size with it), and an entry in every file under `themes/`. Tests load the shipped themes — `black.cfg`
   against the defaults field by field, `16_colors.cfg` for the opposite, that no
-  field was left at a default, and every file against `black.cfg`'s set of keys —
+  field was left at a default, `truecolor_bg_night.cfg` that every one of its values
+  is six hex digits, and every file against `black.cfg`'s set of keys —
   so forgetting a file fails the build.
 - **Every modal casts a shadow**, two columns to its right and one row below,
   wiped to `dialog_shadow`. `dialog::surface()` is the one place it is hung —
@@ -2346,7 +2384,10 @@ taking a row.
     the gate rather than a number the line quotes: a theme written inside the
     sixteen ANSI colors — `16_colors.cfg` is the one that is — passes in silence
     whatever the terminal reported, those sixteen being the terminal's own to
-    draw as it is configured to.
+    draw as it is configured to. A truecolor role counts only where the terminal
+    has fewer than 256 colors, there being no entry left to lend it there; on a
+    terminal that has them it says nothing, since whether the lent entry was
+    really redrawn is not something a terminal can be asked.
   - **Nothing is switched on the answer.** The theme the config named is the
     theme that is drawn; `term::nearestWithin()` approximating each number stays
     the only automatic thing that happens, and there is no fallback theme.
@@ -3664,7 +3705,8 @@ together — `keys_mode` says which.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one
   that has to keep in step with `Palette`'s defaults; `blue.cfg` is a navy
   screen, `white.cfg` paper for a light terminal, `16_colors.cfg` a sixteen-color
-  DOS one.
+  DOS one, and `truecolor_bg_night.cfg` ("Belgrade Night") the one written in
+  six hex digits throughout.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in

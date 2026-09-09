@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <set>
 #include <string>
 
@@ -135,11 +136,50 @@ TEST_CASE("A value that is not a palette number is refused [theme]") {
     CHECK_FALSE(parsePalette("text 33 34").has_value());  // a role is one color
 }
 
-TEST_CASE("The old #rrggbb spelling is refused by name [theme]") {
-    // What a file predating palette numbers still has in it. Saying only "not an
-    // integer" would leave the user to work out what happened.
-    const std::string error = errorOf(parsePalette("text \"#1c1e2a\"", "theme.cfg"));
-    REQUIRE_MESSAGE(contains(error, "256-color palette"), error);
+TEST_CASE("Six hex digits are the color itself [theme]") {
+    // The other spelling a color takes: the color asked for and nothing else,
+    // where a palette number is an entry the terminal draws as it is configured
+    // to. Nothing can ask a terminal whether it means 24-bit color, so this is
+    // taken as it stands rather than refused.
+    CHECK(same(valueOf(parsePalette("text 1c1e2a")).text, Color::rgb(0x1c1e2au)));
+    // Hex is hex either way round, as it is everywhere else it is written.
+    CHECK(same(valueOf(parsePalette("text AAFFB2")).text, Color::rgb(0xaaffb2u)));
+    // The ends of the range, one of them six decimal digits and a color all the
+    // same: it is the length that says which spelling this is.
+    CHECK(same(valueOf(parsePalette("text 000000")).text, Color::rgb(0x000000u)));
+    CHECK(same(valueOf(parsePalette("text ffffff")).text, Color::rgb(0xffffffu)));
+    CHECK(same(valueOf(parsePalette("text 123456")).text, Color::rgb(0x123456u)));
+
+    // A color and the palette entry numbered the same are different colors:
+    // 000021 is a color, and 33 is whatever entry 33 is drawn as.
+    CHECK_FALSE(same(Color::rgb(33), Color{33}));
+
+    // A theme may hold both, and one spelling says nothing about the other.
+    const Palette mixed = valueOf(parsePalette("text d8dbe4\nbackground 232\n"));
+    CHECK(same(mixed.text, Color::rgb(0xd8dbe4u)));
+    CHECK(same(mixed.background, Color{232}));
+}
+
+TEST_CASE("A color is six hex digits or a number, and nothing between [theme]") {
+    // The two lengths are what tells them apart, so anything else is neither.
+    // Five hex digits and seven are not colors; four decimal digits are not a
+    // palette number, whatever they add up to.
+    for (const char* line : {"text 1c1e2", "text 1c1e2aa", "text 0232", "text 1c1e2g",
+                             "text ffffffff", "text #1c1e2a"}) {
+        CAPTURE(line);
+        CHECK_FALSE(parsePalette(line, "theme.cfg").has_value());
+    }
+
+    // And the complaint names both spellings: a theme file is written by hand.
+    const std::string error = errorOf(parsePalette("text 1c1e2", "theme.cfg"));
+    REQUIRE_MESSAGE(contains(error, "six hex digits"), error);
+    REQUIRE_MESSAGE(contains(error, "0 to 255"), error);
+
+    // A color written with a '#' in front of it is a comment, so the role is
+    // left with no value at all. Saying only "takes exactly one value" would
+    // leave the user looking at a line whose color is plainly there.
+    const std::string hashed = errorOf(parsePalette("text #1c1e2a", "theme.cfg"));
+    REQUIRE_MESSAGE(contains(hashed, "starts a comment"), hashed);
 }
 
 TEST_CASE("The black theme is the built-in palette, written out [theme]") {
@@ -248,6 +288,45 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.animatedButtonText, builtIn.animatedButtonText));
 }
 
+TEST_CASE("The truecolor theme is written in colors and states every role [theme]") {
+    // A shipped theme has to parse, and this one has to reach every role in six
+    // hex digits: a role left at its default, or written as a palette number,
+    // would put a color the terminal draws as it is configured to in the middle
+    // of a screen whose whole point is that it does not. Which color each role
+    // gets is the theme's business and gets tuned — only that none was forgotten
+    // and that all of them are triples is checked here.
+    const Palette loaded = valueOf(amberedit::ui::theme::loadPalette(
+        amberedit::test::projectPath("themes/truecolor_bg_night.cfg")));
+
+    const auto text = valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("themes/truecolor_bg_night.cfg")));
+    const auto entries =
+        valueOf(amberedit::config::parseCfg(text, "truecolor_bg_night.cfg"));
+    int colors = 0;
+    for (const auto& entry : entries) {
+        REQUIRE(entry.values.size() == 1);
+        const std::string& value = entry.values.front();
+        // The two switches every theme carries; everything else is a color.
+        if (value == "on" || value == "off") continue;
+        CAPTURE(entry.key);
+        CHECK(value.size() == 6);
+        CHECK(std::all_of(value.begin(), value.end(),
+                          amberedit::config::text::asciiIsHexDigit));
+        ++colors;
+    }
+    CHECK(colors == allRolesAt(240).roles);
+
+    // And what was parsed is triples and not entries, role for role. Reading it
+    // back through the palette rather than off the file is what proves the
+    // parser kept them apart.
+    const Palette numbered = allRolesAt(240).palette;
+    CHECK(loaded.background.trueColor);
+    CHECK(loaded.text.trueColor);
+    CHECK(loaded.dialogBackground.trueColor);
+    CHECK(loaded.found.trueColor);
+    CHECK_FALSE(numbered.background.trueColor);
+}
+
 TEST_CASE("Every shipped theme states the same keys [theme]") {
     // `themes/black.cfg` is compared with the defaults field by field above, so
     // a role it forgot fails there. The others are held to it rather than to the
@@ -266,8 +345,8 @@ TEST_CASE("Every shipped theme states the same keys [theme]") {
 
     const std::set<std::string> written = keysOf("themes/black.cfg");
     REQUIRE(written.size() > 30);
-    for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/white.cfg"}) {
+    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg",
+                             "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         CHECK(keysOf(file) == written);
     }
@@ -278,8 +357,9 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
     // own, so every color drawn on that fill has to be something else. Left
     // unchecked it is an invisible confirmation rather than an ugly one — the
     // text is there, in the color of what is behind it.
-    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg",
-                             "themes/black.cfg", "themes/white.cfg"}) {
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+          "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
@@ -316,8 +396,9 @@ TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
     // compose screen puts down: a field standing idle and the one the typing is
     // in are both text on a fill of its own, and text the color of what is
     // behind it is a field that looks empty.
-    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg",
-                             "themes/black.cfg", "themes/white.cfg"}) {
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+          "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));

@@ -10,7 +10,7 @@ $$    $$ $$   $$   $$ `Q$$$$@' `@$$$$Q: $$       `@$$$$@% `Q@$$@@' $$   `@$$0'
 
 [![CI](https://github.com/jegornet/amberedit/actions/workflows/ci.yml/badge.svg)](https://github.com/jegornet/amberedit/actions/workflows/ci.yml)
 
-A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux and macOS.
+A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for modern systems.
 
 <img src="amberedit_demo.gif" alt="demo" width="400" />
 
@@ -35,7 +35,7 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for Linux
 - **Echolists**, compiled at startup on the same terms
 - **A setup wizard**: `amberedit --setup` asks what a first config has to say and
   writes one, so you don't have to edit it by hand before the first start
-- **Color Themes** in the terminal's own 256 colors
+- **Color Themes** in the terminal's own 256 colors, or in truecolor
 - **Russian and English UI**: the words on the screen come from a gettext
   catalog the config names by path, so adding a language is a `.po` file. Let me know which
   languages you'd like to add.
@@ -103,8 +103,15 @@ endgroup
 
 ### Themes
 
-A theme is a file of `role  color` lines. A color in a theme is a number from
-0 to 255 — an entry in [256-color palette](https://www.ditig.com/256-colors-cheat-sheet).
+A theme is a file of `role  color` lines. A color can be:
+
+- **one to three decimal digits** — `232` — an entry in the
+  [256-color palette](https://www.ditig.com/256-colors-cheat-sheet), which the
+  terminal draws as it is configured to;
+- **exactly six hex digits** — `aaffb2` — the color itself. There is no `#`
+  in front of a color.
+
+A theme may hold both spellings.
 
 Two of its keys are switches rather than colors, written `on` or `off` like
 every other switch AmberEdit reads: `selection_bold`, whether what wears the
@@ -116,10 +123,14 @@ left is underscored. Both are on unless a theme says otherwise.
 configuration. If you experience color display issues, make sure the `TERM`
 environment variable is set to `xterm-256color`**
 
+⚠️ **A theme written in truecolor is at your own risk.** AmberEdit cannot
+reliably determine whether your terminal supports 24-bit colors.
+
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
 with when the config names no theme, and the file to copy and edit.
 `themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
 customizing the pallete in your terminal app.
+`themes/truecolor_bg_night.cfg` — "Belgrade Night" — is the truecolor one.
 Also, we have `themes/blue.cfg` and `themes/white.cfg`
 
 ### Localization

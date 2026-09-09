@@ -343,10 +343,14 @@ attr_t attributesOf(uint8_t attrs) {
 /// in, comes out as 239, a dark grey on a blue bar. An extended number already
 /// says how bright it is, so bold comes off where one is in use and the color
 /// arrives as the theme wrote it.
+///
+/// A theme's own color counts as an extended entry too: whichever entry it is
+/// drawn through — one lent to hold it or the nearest already there — the number
+/// that reaches the library is above the sixteen. See `term::pairFor`.
 attr_t attributesFor(const Cell& cell) {
     attr_t out = attributesOf(cell.attrs);
 #ifdef _WIN32
-    if (!cell.fg.defaulted && cell.fg.index >= 16) {
+    if (!cell.fg.defaulted && (cell.fg.trueColor || cell.fg.index() >= 16)) {
         out &= ~static_cast<attr_t>(A_BOLD);
     }
 #endif
@@ -551,6 +555,11 @@ Terminal::~Terminal() {
     // is still the one being talked to.
     keyReporting.reset();
     flowControl.reset();
+    // And the palette entries a truecolor theme was lent, for the same reason:
+    // they are the terminal's and outlive the screen, so a shell handed one back
+    // with the top of its palette repainted would draw everything else wrong for
+    // the rest of the session.
+    suspendTrueColors();
     curs_set(1);
     endwin();
 }
@@ -639,6 +648,11 @@ void Terminal::handOver(const std::function<void()>& work) {
     // way in — by the same object, in the same order, as at the start of the run.
     keyReporting.reset();
     flowControl.reset();
+    // The entries lent to a truecolor theme go back too: the program being
+    // handed the terminal draws in the palette it found the terminal in, and an
+    // editor opened over a theme that had borrowed the top of it would be drawn
+    // in this theme's colors instead of its own.
+    suspendTrueColors();
     mousemask(0, nullptr);
     curs_set(1);
     def_prog_mode();
@@ -650,6 +664,7 @@ void Terminal::handOver(const std::function<void()>& work) {
     // and the keys defined with define_key belong to the SCREEN, which endwin()
     // suspends rather than destroys.
     reset_prog_mode();
+    resumeTrueColors();
     mousemask(mouseEvents(), nullptr);
     mouseinterval(0);
     flowControl = std::make_unique<FlowControlOff>();
