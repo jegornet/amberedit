@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8 — 2026-09-09
+
+- truecolor themes
+- warn if the terminal cannot display all colors
+- hide the address when the reader window is narrow
+- selection_bold, found_text theme parameters
+
 ## 0.7.3 — 2026-09-08
 
 - fix editor soft-wrapping (again)
