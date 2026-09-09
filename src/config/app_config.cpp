@@ -1259,6 +1259,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeFts1FieldLimits = *read;
+    } else if (key == "ucs_kludges") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.ucsKludges = *read;
     } else if (key == "compose_cc_list") {
         auto read = parseCarbonList(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());

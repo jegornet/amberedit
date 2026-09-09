@@ -114,6 +114,72 @@ std::vector<std::string> MessageBody::kludges() const {
 
 namespace {
 
+/// The control line with whatever stands for its ^A taken off: a base stores
+/// the character itself, and the reader shows it as the '@' a terminal can
+/// print. The line says the same thing under either.
+std::string_view withoutSoh(std::string_view line) {
+    if (!line.empty() && (line.front() == '\x01' || line.front() == '@')) {
+        line.remove_prefix(1);
+    }
+    return line;
+}
+
+/// Blanks off either end. A kludge is written "UCSFROM: <value>", and the space
+/// after the colon is the format's rather than part of the name.
+std::string_view trimBlanks(std::string_view s) {
+    const auto blank = [](char c) { return c == ' ' || c == '\t'; };
+    while (!s.empty() && blank(s.front())) s.remove_prefix(1);
+    while (!s.empty() && blank(s.back())) s.remove_suffix(1);
+    return s;
+}
+
+}  // namespace
+
+bool isUtf8Charset(std::string_view charset) {
+    return iequals(charset, "UTF-8") || iequals(charset, "UTF8");
+}
+
+bool isUcsFieldLine(std::string_view kludge) {
+    const std::string_view line = withoutSoh(kludge);
+    return startsWith(line, ucs::kFromLine) || startsWith(line, ucs::kToLine) ||
+           startsWith(line, ucs::kSubjectLine);
+}
+
+UcsFields ucsFieldsOf(const MessageBody& body) {
+    UcsFields out;
+    for (const auto& line : body.lines) {
+        if (!line.kludge) continue;
+        const std::string_view text = withoutSoh(line.text);
+        const auto take = [&text](std::string_view prefix, std::string& into) {
+            if (!into.empty() || !startsWith(text, prefix)) return;
+            into = std::string(trimBlanks(text.substr(prefix.size())));
+        };
+        take(ucs::kFromLine, out.from);
+        take(ucs::kToLine, out.to);
+        take(ucs::kSubjectLine, out.subject);
+    }
+    return out;
+}
+
+void applyUcsFields(MessageHeader& header, const MessageBody& body) {
+    // What the body was read in, and where the body could not be read at all,
+    // what the header was: the two are the same message's charset, read off the
+    // same CHRS line.
+    const std::string_view charset =
+        !body.charset.empty() ? body.charset : header.charset;
+    if (!isUtf8Charset(charset)) return;
+
+    const UcsFields whole = ucsFieldsOf(body);
+    // An empty line says nothing about the field, and FSP-1030 has the field
+    // itself never empty — so the stored one stands wherever the message states
+    // no substitute for it.
+    if (!whole.from.empty()) header.from = whole.from;
+    if (!whole.to.empty()) header.to = whole.to;
+    if (!whole.subject.empty()) header.subject = whole.subject;
+}
+
+namespace {
+
 /// Days from 1970-01-01 to a civil date, by the usual era-based algorithm.
 /// It is what `%a` and `%j` need: an FTN stamp holds no weekday, and mktime()
 /// would work one out in the local time zone — which the stamp is not in.

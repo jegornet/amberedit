@@ -205,7 +205,8 @@ tl::expected<void, ErrorPtr> AreaManager::reload(const ProgressFn& onArea) {
             continue;
         }
 
-        msgbase::FtnMsgBase base(cfg.defaultCharset, appConfig_.composeFts1FieldLimits);
+        msgbase::FtnMsgBase base(cfg.defaultCharset, appConfig_.composeFts1FieldLimits,
+                                 appConfig_.ucsKludges);
         if (const auto opened = base.open(entry.config); !opened) {
             entry.error = opened.error()->message();
             loaded.push_back(std::move(entry));
@@ -229,7 +230,8 @@ tl::expected<ports::IMsgBase*, ErrorPtr> AreaManager::openArea(const AreaConfig&
     // In the charset this area is read in, which an area group may have a word
     // about — the same answer reload() opened it with.
     auto base = std::make_unique<msgbase::FtnMsgBase>(
-        appConfig_.effectiveFor(area).defaultCharset, appConfig_.composeFts1FieldLimits);
+        appConfig_.effectiveFor(area).defaultCharset, appConfig_.composeFts1FieldLimits,
+        appConfig_.ucsKludges);
     if (auto opened = base->open(area); !opened) {
         // Nothing on disk at all is the ordinary state of an area the tosser
         // config declares and no tosser has yet written into: the base is made
@@ -292,7 +294,7 @@ void AreaManager::refreshArea(const AreaConfig& area) {
     }
 
     msgbase::FtnMsgBase base(appConfig_.effectiveFor(area).defaultCharset,
-                             appConfig_.composeFts1FieldLimits);
+                             appConfig_.composeFts1FieldLimits, appConfig_.ucsKludges);
     // An area that will not open keeps the counts it had, and the error it was
     // found with. It is already in the list as it was at startup, and a base
     // busy for a moment is not news worth replacing either with.

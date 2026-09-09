@@ -896,6 +896,17 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     state.readBody = state.base->body(msgNumber);
     state.readThread = state.base->thread(msgNumber);
 
+    // What a UTF-8 message states in the ^AUCSFROM, ^AUCSTO and ^AUCSSUBJ lines
+    // FSP-1030 keeps for them is what its From, To and Subject say: the stored
+    // fields hold as much of each as 35 and 71 bytes had room for, which in
+    // UTF-8 can be a quarter of a name. Here and not in the adapter, which also
+    // answers the message list: a row of that list is drawn from a header alone,
+    // without the body these lines are part of, and the column of stored fields
+    // is what it is for. This is the message being read, body and all.
+    if (state.config.ucsKludges) {
+        domain::applyUcsFields(*state.readHeader, *state.readBody);
+    }
+
     // Opening a message is what "read" means here, so the mark moves with it
     // rather than waiting for the area to be left: a reader killed mid-area
     // should still come back where it was.

@@ -607,6 +607,29 @@ struct AppConfig {
     /// stores what it is given.
     bool composeFts1FieldLimits{true};
 
+    /// Whether FSP-1030's ^AUCSFROM, ^AUCSTO and ^AUCSSUBJ control lines are
+    /// used for the From, To and Subject of a message written in UTF-8, and
+    /// shown in place of the stored fields for one read in it. On by default,
+    /// and not a per-area setting, for the same reason as the room above: the
+    /// packet's fields are the same in every echo.
+    ///
+    /// UTF-8 spells a character in up to four bytes, so the 35 and 71 FTS-0001
+    /// keeps hold as little as a quarter of a name or a subject. A message
+    /// written here states the whole of each in one of those lines and cuts the
+    /// stored field to fit — whatever `compose_fts1_field_limits` says, since
+    /// the line is what makes the cut readable and FSP-1030 has the field
+    /// itself never left empty. A message read here shows what its lines state
+    /// instead of the fields they were cut out of.
+    ///
+    /// Only in UTF-8. In an eight-bit charset a field holds as many characters
+    /// as the format keeps bytes for, and there is nothing over to carry beside
+    /// it.
+    ///
+    /// The message list shows the stored fields either way: it is a column of
+    /// what the base holds, and a row is drawn from a header the reader has not
+    /// opened the body of.
+    bool ucsKludges{true};
+
     /// What the `CC:` and `XC:`/`XP:` commands leave behind in the text of a
     /// message that carried them, from `compose_cc_list` and `compose_xc_list`.
     ///

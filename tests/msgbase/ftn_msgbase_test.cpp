@@ -756,6 +756,171 @@ TEST_CASE("A field that fits is written as it stands [squish]") {
     CHECK(header.subject == "Привет");
 }
 
+namespace {
+
+/// The control lines of the message just written, as the reader shows them —
+/// with the '@' standing in for the ^A a base stores.
+std::vector<std::string> kludgesOf(FtnMsgBase& msgbase, uint32_t number) {
+    return msgbase.body(number).kludges();
+}
+
+bool holds(const std::vector<std::string>& lines, const std::string& line) {
+    return std::find(lines.begin(), lines.end(), line) != lines.end();
+}
+
+/// Whether any of the lines begins with the prefix — how a test says a message
+/// carries no UCS line at all rather than not one particular one.
+bool anyStartsWith(const std::vector<std::string>& lines, const std::string& prefix) {
+    return std::any_of(lines.begin(), lines.end(), [&prefix](const std::string& line) {
+        return startsWith(line, prefix);
+    });
+}
+
+/// A draft in UTF-8 with the fields the caller states and nothing else worth
+/// saying: every UCS test differs in the three fields alone.
+amberedit::domain::MessageDraft utf8Draft(const std::string& from, const std::string& to,
+                                          const std::string& subject) {
+    amberedit::domain::MessageDraft draft;
+    draft.from = from;
+    draft.to = to;
+    draft.subject = subject;
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.charset = "UTF-8";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: UTF-8 4"};
+    draft.lines = {"Привет!"};
+    return draft;
+}
+
+}  // namespace
+
+TEST_CASE("A UTF-8 field too long for the packet states itself in a UCS line [squish]") {
+    // FSP-1030: the whole of the field goes into the control line, the stored
+    // field keeps as much of it as its 35 or 71 bytes have room for, and it is
+    // never left empty. 33 Cyrillic letters are 66 bytes in UTF-8, so a name of
+    // them holds 17 and a subject of two alphabets holds 35.
+    TempSquishBase base;
+    FtnMsgBase msgbase("UTF-8");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    const uint32_t number =
+        valueOf(msgbase.write(utf8Draft(kAlphabet, kAlphabet, kAlphabet + kAlphabet)));
+    REQUIRE(number != 0);
+
+    const auto header = msgbase.header(number);
+    CHECK(header.from == "абвгдеёжзийклмноп");
+    CHECK(header.to == "абвгдеёжзийклмноп");
+    CHECK(header.subject == kAlphabet + "аб");
+    CHECK_FALSE(header.from.empty());
+
+    const std::vector<std::string> kludges = kludgesOf(msgbase, number);
+    CHECK(holds(kludges, "@UCSFROM: " + kAlphabet));
+    CHECK(holds(kludges, "@UCSTO: " + kAlphabet));
+    CHECK(holds(kludges, "@UCSSUBJ: " + kAlphabet + kAlphabet));
+}
+
+TEST_CASE("A UTF-8 field that fits gets no UCS line [squish]") {
+    // The bytes decide and not the characters: 35 of them is the room there is,
+    // and a name filling it exactly has lost nothing to say in a line.
+    TempSquishBase base;
+    FtnMsgBase msgbase("UTF-8");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    const std::string exactly35(35, 'a');
+    const uint32_t number = valueOf(msgbase.write(utf8Draft(exactly35, "All", "Привет")));
+    REQUIRE(number != 0);
+    CHECK(msgbase.header(number).from == exactly35);
+
+    const std::vector<std::string> kludges = kludgesOf(msgbase, number);
+    CHECK_FALSE(anyStartsWith(kludges, "@UCS"));
+
+    // And one byte more is one byte over.
+    const std::string exactly36(36, 'a');
+    const uint32_t longer = valueOf(msgbase.write(utf8Draft(exactly36, "All", "Привет")));
+    REQUIRE(longer != 0);
+    CHECK(msgbase.header(longer).from == exactly35);
+    CHECK(holds(kludgesOf(msgbase, longer), "@UCSFROM: " + exactly36));
+}
+
+TEST_CASE("No UCS line outside UTF-8 [squish]") {
+    // In CP866 a letter is a byte, so 35 of them fit the field and there is
+    // nothing left over to carry. The lines are for the charset that overruns.
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    amberedit::domain::MessageDraft draft =
+        utf8Draft(kAlphabet + "абвгдеё", "All", kAlphabet + kAlphabet + kAlphabet);
+    draft.charset = "CP866";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
+
+    const uint32_t number = valueOf(msgbase.write(draft));
+    REQUIRE(number != 0);
+    CHECK(msgbase.header(number).from == kAlphabet + "аб");
+    CHECK_FALSE(anyStartsWith(kludgesOf(msgbase, number), "@UCS"));
+}
+
+TEST_CASE("ucs_kludges off writes no UCS line [squish]") {
+    TempSquishBase base;
+    FtnMsgBase msgbase("UTF-8", /*fieldLimits=*/true, /*ucsKludges=*/false);
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    const uint32_t number = valueOf(msgbase.write(utf8Draft(kAlphabet, "All", "Привет")));
+    REQUIRE(number != 0);
+    // Cut as it always was, and nothing said about what it was cut out of.
+    CHECK(msgbase.header(number).from == "абвгдеёжзийклмноп");
+    CHECK_FALSE(anyStartsWith(kludgesOf(msgbase, number), "@UCS"));
+}
+
+TEST_CASE("A UCS line is written whatever compose_fts1_field_limits says [jam]") {
+    // The two settings answer different questions. `compose_fts1_field_limits`
+    // off leaves a field too long for a packet to the format — JAM being the one
+    // that keeps whatever it is handed — but a field the message itself states
+    // the whole of is cut all the same: FSP-1030 has the stored field short and
+    // the line saying the rest, and a full field with a line beside it would be
+    // two answers to one question.
+    amberedit::test::TempJamBase base;
+    FtnMsgBase msgbase("UTF-8", /*fieldLimits=*/false, /*ucsKludges=*/true);
+
+    AreaConfig area;
+    area.tag = "area2";
+    area.path = base.path();
+    area.type = MsgBaseType::Jam;
+    REQUIRE(msgbase.open(area).has_value());
+
+    const uint32_t number = valueOf(msgbase.write(utf8Draft(kAlphabet, "All", "Привет")));
+    REQUIRE(number != 0);
+
+    CHECK(msgbase.header(number).from == "абвгдеёжзийклмноп");
+    CHECK(holds(kludgesOf(msgbase, number), "@UCSFROM: " + kAlphabet));
+    // The subject fits and is left alone, settings or no settings.
+    CHECK(msgbase.header(number).subject == "Привет");
+}
+
+TEST_CASE("A UCS line the draft carried is replaced by this message's own [squish]") {
+    // What a copy or a change hands back: the lines of the message it was read
+    // out of, the old UCSFROM among them. It describes that message's field and
+    // not this one's, so it goes and the field written now states itself.
+    TempSquishBase base;
+    FtnMsgBase msgbase("UTF-8");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    amberedit::domain::MessageDraft draft = utf8Draft(kAlphabet, "All", "Привет");
+    draft.kludges.push_back("UCSFROM: Somebody Else Entirely");
+    draft.kludges.push_back("UCSSUBJ: A subject this message no longer carries");
+
+    const uint32_t number = valueOf(msgbase.write(draft));
+    REQUIRE(number != 0);
+
+    const std::vector<std::string> kludges = kludgesOf(msgbase, number);
+    CHECK(holds(kludges, "@UCSFROM: " + kAlphabet));
+    CHECK_FALSE(holds(kludges, "@UCSFROM: Somebody Else Entirely"));
+    // The subject fits now, so nothing states it and the stale line is gone.
+    CHECK_FALSE(holds(kludges, "@UCSSUBJ: A subject this message no longer carries"));
+    CHECK(std::count_if(kludges.begin(), kludges.end(), [](const std::string& line) {
+              return startsWith(line, "@UCS");
+          }) == 1);
+}
+
 TEST_CASE("compose_fts1_field_limits off leaves the fields to the format [jam]") {
     // Off, the fields reach the driver as they were typed and each format does
     // what it does: JAM keeps subfields as long as it is handed, which is what

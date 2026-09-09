@@ -560,6 +560,19 @@ TEST_CASE("compose_fts1_field_limits is on unless it is turned off [app_config]"
     CHECK_MESSAGE(contains(error, "not for one area"), error);
 }
 
+TEST_CASE("ucs_kludges is on unless it is turned off [app_config]") {
+    // On by default: FSP-1030's lines are what makes a UTF-8 name survive the
+    // 35 bytes a packet keeps for it, and a reader that ignored them would show
+    // a quarter of one.
+    CHECK(with("").ucsKludges);
+    CHECK_FALSE(with("ucs_kludges off\n").ucsKludges);
+    CHECK(with("ucs_kludges on\n").ucsKludges);
+    CHECK_FALSE(loads("ucs_kludges maybe\n"));
+    // Not a per-area setting, for the same reason the room itself is not.
+    const std::string error = errorWith("group\nmember *\nucs_kludges off\nendgroup\n");
+    CHECK_MESSAGE(contains(error, "not for one area"), error);
+}
+
 TEST_CASE("AppConfig reads the reply area setting [app_config]") {
     CHECK(with("").replyToArea.empty());  // no area named unless the config names one
     CHECK(with("reply_to_area NETMAIL\n").replyToArea == "NETMAIL");

@@ -4,8 +4,11 @@
 
 #include "domain/message.hpp"
 
+using amberedit::domain::applyUcsFields;
 using amberedit::domain::isOriginLine;
 using amberedit::domain::isTearline;
+using amberedit::domain::isUcsFieldLine;
+using amberedit::domain::isUtf8Charset;
 using amberedit::domain::MessageBody;
 using amberedit::domain::MessageDate;
 using amberedit::domain::messageAttributes;
@@ -235,4 +238,93 @@ TEST_CASE("MessageBody keeps text and kludges apart but in order [message]") {
     CHECK(body.text() == "Hello All!\n\n--- Ed\n * Origin: x (2:1/1)");
     CHECK(body.kludges() == std::vector<std::string>{"@MSGID: 2:1/1 abcd1234",
                                                      "SEEN-BY: 1/1", "@PATH: 1/1"});
+}
+
+TEST_CASE("isUtf8Charset knows the charset the UCS lines are for [message]") {
+    CHECK(isUtf8Charset("UTF-8"));
+    CHECK(isUtf8Charset("utf-8"));
+    CHECK(isUtf8Charset("UTF8"));
+    CHECK_FALSE(isUtf8Charset("CP866"));
+    CHECK_FALSE(isUtf8Charset("UTF-16"));
+    CHECK_FALSE(isUtf8Charset(""));
+}
+
+TEST_CASE("isUcsFieldLine names the three FSP-1030 lines [message]") {
+    // A draft holds its control lines without the ^A; a body shows it as '@'.
+    CHECK(isUcsFieldLine("UCSFROM: \xd0\x98\xd0\xb2\xd0\xb0\xd0\xbd"));
+    CHECK(isUcsFieldLine("@UCSTO: All"));
+    CHECK(isUcsFieldLine("\x01UCSSUBJ: Hi"));
+    // Not the UCS line itself, which says what of Unicode a message uses, and
+    // not a MSGID that happens to sit beside them.
+    CHECK_FALSE(isUcsFieldLine("UCS: 1"));
+    CHECK_FALSE(isUcsFieldLine("MSGID: 2:1/1 abcd1234"));
+}
+
+TEST_CASE("ucsFieldsOf reads what a message states about its fields [message]") {
+    MessageBody body;
+    body.charset = "UTF-8";
+    body.lines = {
+        {"@MSGID: 2:382/736 abcd1234", true},
+        {"@UCSFROM: Ivan Petrov the Longest Name In This Echo", true},
+        {"@UCSSUBJ: A subject with more of it than a packet keeps room for", true},
+        {"UCSTO: not a kludge, just a line of text", false},
+        {"@UCSFROM: Somebody Else Entirely", true},
+        {"Hello All!", false},
+    };
+
+    const auto fields = amberedit::domain::ucsFieldsOf(body);
+    // The first of each; a message stating one twice has said it once.
+    CHECK(fields.from == "Ivan Petrov the Longest Name In This Echo");
+    CHECK(fields.subject == "A subject with more of it than a packet keeps room for");
+    // A line of text is text, whatever it begins with.
+    CHECK(fields.to.empty());
+    CHECK_FALSE(fields.empty());
+}
+
+TEST_CASE("applyUcsFields substitutes only in UTF-8 [message]") {
+    MessageBody body;
+    body.charset = "UTF-8";
+    body.lines = {{"@UCSFROM: Ivan Petrov the Longest Name", true},
+                  {"@UCSTO: All Of You Reading This Echo", true},
+                  {"@UCSSUBJ: The whole subject", true},
+                  {"Hello!", false}};
+
+    MessageHeader header;
+    header.charset = "UTF-8";
+    header.from = "Ivan Petrov the Longe";
+    header.to = "All Of You Reading Th";
+    header.subject = "The whole su";
+    applyUcsFields(header, body);
+    CHECK(header.from == "Ivan Petrov the Longest Name");
+    CHECK(header.to == "All Of You Reading This Echo");
+    CHECK(header.subject == "The whole subject");
+
+    // The same lines in a message written in an eight-bit charset say nothing:
+    // there the field holds as many characters as the format keeps bytes for.
+    body.charset = "CP866";
+    MessageHeader cp866;
+    cp866.charset = "CP866";
+    cp866.from = "Ivan Petrov the Longe";
+    applyUcsFields(cp866, body);
+    CHECK(cp866.from == "Ivan Petrov the Longe");
+}
+
+TEST_CASE("applyUcsFields leaves a field the message says nothing about [message]") {
+    MessageBody body;
+    body.charset = "UTF-8";
+    // An empty line is no substitute for the field: FSP-1030 has the stored
+    // field never empty, so what the base holds is what there is to show.
+    body.lines = {{"@UCSFROM: Ivan Petrov the Longest Name", true},
+                  {"@UCSTO:   ", true},
+                  {"Hello!", false}};
+
+    MessageHeader header;
+    header.charset = "UTF-8";
+    header.from = "Ivan Petrov the Longe";
+    header.to = "All";
+    header.subject = "Short enough";
+    applyUcsFields(header, body);
+    CHECK(header.from == "Ivan Petrov the Longest Name");
+    CHECK(header.to == "All");
+    CHECK(header.subject == "Short enough");
 }

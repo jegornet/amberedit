@@ -2326,3 +2326,80 @@ TEST_CASE("The thumb is re-measured against the window that was resized "
         fixture.state.readScroll);
     CHECK(after.last - after.first > before.last - before.first);
 }
+
+namespace {
+
+/// The Russian alphabet, 33 letters: 66 bytes in UTF-8, where a name has room
+/// for 35 of them. What a UCS line is for.
+const std::string kAlphabet = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+
+/// One UTF-8 message with names and a subject too long for the fields FTS-0001
+/// keeps, written through the adapter — which is what puts the UCSFROM, UCSTO
+/// and UCSSUBJ lines into it. The stored fields are the cut ones; the lines
+/// carry the whole of each.
+void putLongFields(AreaFixture& fixture) {
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.area));
+    REQUIRE(base != nullptr);
+    while (base->count() > 0) REQUIRE(base->remove(1).has_value());
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = kAlphabet;
+    draft.to = kAlphabet;
+    draft.subject = kAlphabet + kAlphabet;
+    draft.charset = "UTF-8";
+    draft.kludges = {"CHRS: UTF-8 4"};
+    draft.lines = {"Привет!"};
+    REQUIRE(amberedit::test::valueOf(base->write(draft)) != 0);
+
+    fixture.manager.closeCurrentArea();
+    static_cast<void>(fixture.manager.reload());
+}
+
+}  // namespace
+
+TEST_CASE(
+    "The reader shows what the UCS lines state and the list does not "
+    "[messageread][squish]") {
+    // FSP-1030: the message states its whole From, To and Subject in control
+    // lines of its own, the stored fields holding as much of each as 35 and 71
+    // bytes had room for. The reader has the body those lines are part of and
+    // shows them; the message list is a column of stored fields drawn from
+    // headers alone, and shows what the base holds.
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    putLongFields(fixture);
+
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::loadMessage(fixture.state, 1));
+    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readHeader->from == kAlphabet);
+    CHECK(fixture.state.readHeader->to == kAlphabet);
+    CHECK(fixture.state.readHeader->subject == kAlphabet + kAlphabet);
+
+    amberedit::ports::IMsgBase* opened =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.area));
+    REQUIRE(opened != nullptr);
+    const auto stored = opened->header(1);
+    CHECK(stored.from == "абвгдеёжзийклмноп");
+    CHECK(stored.subject == kAlphabet + "аб");
+}
+
+TEST_CASE(
+    "ucs_kludges off leaves the reader the stored fields "
+    "[messageread][squish]") {
+    TempSquishBase base;
+    amberedit::config::AppConfig config;
+    config.ucsKludges = false;
+    AreaFixture fixture(base.path(), config);
+    putLongFields(fixture);
+
+    // The message was written by a base built from the same config, so it
+    // carries no UCS line at all — and the reader would show the stored field
+    // whether it did or not.
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::loadMessage(fixture.state, 1));
+    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readHeader->from == "абвгдеёжзийклмноп");
+    CHECK(fixture.state.readHeader->subject == kAlphabet + "аб");
+}

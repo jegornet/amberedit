@@ -292,6 +292,60 @@ struct MessageBody {
     [[nodiscard]] std::vector<std::string> kludges() const;
 };
 
+/// The control lines FSP-1030 carries a message's whole From, To and Subject
+/// in, spelled as a message holds them once the ^A in front is off.
+///
+/// FTS-0001 keeps 36 bytes for either name and 72 for the subject, terminating
+/// zero counted. A UTF-8 character costs up to four of them, so those fields
+/// hold as little as a quarter of what a Latin name fits, and a message written
+/// in UTF-8 states the whole of each here instead. The packed field keeps as
+/// much of it as it has room for and is never left empty, which FSP-1030
+/// forbids: a reader that knows nothing of these lines still has a name to show.
+namespace ucs {
+
+inline constexpr std::string_view kFromLine = "UCSFROM:";
+inline constexpr std::string_view kToLine = "UCSTO:";
+inline constexpr std::string_view kSubjectLine = "UCSSUBJ:";
+
+}  // namespace ucs
+
+/// Whether the name is UTF-8, under either spelling in circulation.
+///
+/// The UCS lines are about that charset and no other: in an eight-bit one a
+/// field holds as many characters as the format keeps bytes for, and there is
+/// nothing left over to carry beside it.
+[[nodiscard]] bool isUtf8Charset(std::string_view charset);
+
+/// Whether the control line is one of the three, asked of a kludge with no ^A
+/// in front of it — the shape a draft holds its control lines in.
+[[nodiscard]] bool isUcsFieldLine(std::string_view kludge);
+
+/// The whole From, To and Subject a message states in its UCS lines, each empty
+/// where it carries no such line, or one saying nothing.
+struct UcsFields {
+    std::string from;
+    std::string to;
+    std::string subject;
+
+    [[nodiscard]] bool empty() const {
+        return from.empty() && to.empty() && subject.empty();
+    }
+};
+
+/// Reads them off the message. Control lines only — a line of text beginning
+/// with those characters is text — and the first of each, a message stating one
+/// twice having said it once already.
+[[nodiscard]] UcsFields ucsFieldsOf(const MessageBody& body);
+
+/// Puts what the message states in its UCS lines in place of the header's From,
+/// To and Subject — the fields as they were packed, which those lines are the
+/// uncut version of.
+///
+/// Only for a message written in UTF-8, and only field by field: one the message
+/// states nothing about keeps what the base holds, since FSP-1030 leaves each of
+/// the three to the writer separately.
+void applyUcsFields(MessageHeader& header, const MessageBody& body);
+
 /// One labelled value of the service report a base gives about a message —
 /// what `i` shows in the reader.
 struct MessageInfoField {

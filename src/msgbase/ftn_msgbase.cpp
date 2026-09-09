@@ -2,6 +2,8 @@
 
 #include <ctime>
 #include <filesystem>
+#include <string_view>
+#include <vector>
 
 #include "config/text_util.hpp"
 #include "msgbase/jam_base.hpp"
@@ -134,8 +136,8 @@ domain::MessageDate nowLocal() {
 
 }  // namespace
 
-FtnMsgBase::FtnMsgBase(std::string_view defaultCharset, bool fieldLimits)
-    : detector_(defaultCharset), fieldLimits_(fieldLimits) {}
+FtnMsgBase::FtnMsgBase(std::string_view defaultCharset, bool fieldLimits, bool ucsKludges)
+    : detector_(defaultCharset), fieldLimits_(fieldLimits), ucsKludges_(ucsKludges) {}
 
 FtnMsgBase::~FtnMsgBase() = default;
 
@@ -357,25 +359,54 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     const std::string charset =
         draft.charset.empty() ? detector_.defaultCharset() : draft.charset;
 
+    // Whether the message states its whole From, To and Subject in the control
+    // lines FSP-1030 keeps for them, `ucs_kludges` asking. Only in UTF-8: that
+    // is the charset the standard is about, and the one where a field cut to
+    // its 35 or 71 bytes loses three quarters of a name rather than none of it.
+    const bool statesUcsFields = ucsKludges_ && domain::isUtf8Charset(charset);
+    std::vector<std::string> ucsFieldLines;
+
     // Cut to what a packed message has room for where `compose_fts1_field_limits`
     // asks for it, and this is the one place the count can be taken: the editor
     // holds the fields to a length in characters, and what those cost in bytes
     // is decided here, by the charset the message is written in. Off, they go
     // as they were typed and the format decides — Squish and Fido *.msg cut
     // them to their fixed fields, JAM stores what it is handed.
-    const auto field = [&](const std::string& text, size_t capacity) {
+    //
+    // A field that overruns its room in a UTF-8 message is cut whatever that
+    // setting says, and its whole text written into a UCS line beside it. The
+    // setting is about what a field too long for a packet is left to — the
+    // format, or this cut — and there is no third answer once the message
+    // itself states what the field was cut out of: FSP-1030 has the packed
+    // field never empty, so it is written short and the line says the rest.
+    const auto field = [&](const std::string& text, size_t capacity,
+                           std::string_view line) {
+        if (statesUcsFields && text.size() > capacity) {
+            ucsFieldLines.emplace_back(std::string(line) + ' ' + text);
+            return fitField(recoder_, text, charset, capacity);
+        }
         return fieldLimits_ ? fitField(recoder_, text, charset, capacity)
                             : recoder_.fromUtf8(text, charset);
     };
-    raw.header.from = field(draft.from, kNameBytes);
-    raw.header.to = field(draft.to, kNameBytes);
-    raw.header.subject = field(draft.subject, kSubjectBytes);
+    raw.header.from = field(draft.from, kNameBytes, domain::ucs::kFromLine);
+    raw.header.to = field(draft.to, kNameBytes, domain::ucs::kToLine);
+    raw.header.subject = field(draft.subject, kSubjectBytes, domain::ucs::kSubjectLine);
     raw.header.origAddr = draft.origAddr;
     raw.header.destAddr = draft.destAddr;
     raw.header.utcOffsetMinutes = draft.utcOffsetMinutes;
 
     for (const auto& kludge : draft.kludges) {
+        // A UCS line the draft carried is about the message it was read out of.
+        // A copy or a change writes its own fields and its own cut, and the old
+        // line left standing would name a text this message's field was never
+        // cut out of — or none at all, where the field now fits.
+        if (statesUcsFields && domain::isUcsFieldLine(kludge)) continue;
         raw.kludges.push_back(recoder_.fromUtf8(kludge, charset));
+    }
+    // Behind the lines the draft brought, as the last thing said about the
+    // message: these describe its header fields, and nothing routes by them.
+    for (const auto& line : ucsFieldLines) {
+        raw.kludges.push_back(recoder_.fromUtf8(line, charset));
     }
     // A hard carriage return ends a line in an FTN message (FTS-0001); the
     // 0x0A a text editor would leave has no place in one, which is why the

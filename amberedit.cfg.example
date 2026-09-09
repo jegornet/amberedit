@@ -154,6 +154,19 @@ reply_original_charset off
 # does what it does with them.
 compose_fts1_field_limits on
 
+# Whether the UCSFROM, UCSTO and UCSSUBJ control lines of FSP-1030 are used for
+# the From, To and Subject of a message written in UTF-8, and shown in place of
+# the stored fields of one read in it. Optional; on by default.
+#
+# A UTF-8 character costs up to four bytes, so the 35 and 71 above hold as little
+# as a quarter of a name or a subject. A message written here states the whole of
+# each in one of those lines and cuts the stored field to fit — whatever
+# compose_fts1_field_limits says, since FSP-1030 has the stored field never left
+# empty and the line is what makes the cut readable. A message in UTF-8 read here
+# shows what its lines state; the message list shows the stored fields, being
+# drawn from headers without the bodies the lines are part of.
+ucs_kludges on
+
 # Which lastread slot in a message base is yours. Optional; 0 by default, which
 # is right on a single-user system. Squish (.sql) and Fido *.msg (the "lastread"
 # file in the area directory) are arrays indexed by this number; JAM (.jlr) finds

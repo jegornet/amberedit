@@ -2581,6 +2581,24 @@ taking a row.
   subjects in `default_charset` while the reader shows the body in the charset it
   declares. `testdata/msgbase/charsets` exists for this: the same word in KOI8-R
   and CP866 with matching kludges, and one message with no kludge at all.
+- **A UTF-8 message states its whole From, To and Subject in UCS lines, and the
+  reader shows those.** FTS-0001 keeps 35 bytes for a name and 71 for a subject,
+  and a UTF-8 character costs up to four of them, so those fields hold as little
+  as a quarter of what a Latin name fits. FSP-1030 answers it with `^AUCSFROM:`,
+  `^AUCSTO:` and `^AUCSSUBJ:` carrying the whole of each, the stored field keeping
+  as much as it has room for and never left empty — a reader that knows nothing of
+  the lines still has a name to show. `ucs_kludges` turns both directions off
+  together and is on unless a config says otherwise; the domain owns what the
+  lines are (`domain::ucsFieldsOf()`, `applyUcsFields()`, `isUcsFieldLine()`), and
+  the two ends of it sit where each can be answered:
+  - *Writing* is `FtnMsgBase::encode()`, beside the cut it goes with — see below.
+  - *Reading* is `message_read::loadMessage()`, and it cannot be the adapter:
+    `header()` also draws every row of the message list, which is a column of
+    what the base holds and is read without the body these lines are part of.
+    The reader has both, so the substitution is the reader's. Everything it
+    hands on carries the substituted fields — a reply is addressed to the whole
+    name, and writing it back out cuts the field and states it again, which is
+    what FSP-1030 asks of software answering such a message.
 - **Everything above the adapter is UTF-8, and the terminal layer encodes on the
   way out.** A cell reaches ncurses as `wchar_t` through `setcchar`, and ncurses
   writes it in whatever `LC_CTYPE` names — so an 8-bit terminal is supported by
@@ -3153,6 +3171,21 @@ drivers as they were typed and each format does what it does: `toFixedField()`
 cuts Squish and Fido `*.msg` to their fixed fields wherever that falls, and JAM
 stores what it is handed, which is more than a packet can carry.
 
+**And it is where FSP-1030's UCS lines are written**, `ucs_kludges` asking and on
+unless a config says otherwise. Only for a message written in UTF-8: that is the
+charset the standard is about, and the one where the room above holds a fraction
+of a name rather than the whole of it. A field over its 35 or 71 **bytes** —
+bytes, not characters, which is why this too can be nowhere else — goes whole
+into `UCSFROM:`, `UCSTO:` or `UCSSUBJ:` and the stored field is cut by the same
+`fitField()` as ever. Cut **whatever `compose_fts1_field_limits` says**: that
+setting decides what a field too long for a packet is left to, and there is no
+third answer once the message itself states what the field was cut out of —
+FSP-1030 has the stored field never empty, so it is written short and the line
+says the rest. A field that fits states nothing, there being nothing it could
+say the field does not. Any UCS line the draft brought is dropped first: a copy
+or a change hands back the lines of the message it was read out of, and one left
+standing would name a text this message's field was never cut out of.
+
 **`info()` is the one call that is about the storage rather than the message.**
 It answers the reader's `i`, and each driver answers with its own fields, there
 being nothing in common between a Squish frame and a JAM subfield worth
@@ -3699,8 +3732,8 @@ together — `keys_mode` says which.
   User documentation and a test fixture both.
 - `specs/` — format specifications: `Squish.txt`, `JAM.txt`, `fts-0001.016` (the
   base message and kludge format), and the ones a written message has to satisfy:
-  `fts-0009.001` (MSGID/REPLY), `fts-4008.002` (TZUTC), `fts-5003.001` (CHRS) and
-  `fsc-0004.001` (INTL).
+  `fts-0009.001` (MSGID/REPLY), `fts-4008.002` (TZUTC), `fts-5003.001` (CHRS),
+  `fsc-0004.001` (INTL) and `fsp-1030.002` (UTF-8 and the UCS header lines).
 - `default.tpl` — the template a message is built from, shipped as it stands and
   the whole token set `app/msg_template` implements.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one

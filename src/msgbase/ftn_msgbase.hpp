@@ -34,7 +34,14 @@ public:
     ///        written are cut to the room FTS-0001 keeps for them, from
     ///        `compose_fts1_field_limits`. See encode(), which is where the cut is
     ///        made and where the bytes it counts are known.
-    explicit FtnMsgBase(std::string_view defaultCharset, bool fieldLimits = true);
+    /// @param ucsKludges whether a message written in UTF-8 states its whole
+    ///        From, To and Subject in the ^AUCSFROM, ^AUCSTO and ^AUCSSUBJ
+    ///        control lines FSP-1030 keeps for them, where a field does not fit
+    ///        the room FTS-0001 has. From `ucs_kludges`, and independent of
+    ///        `fieldLimits`: a field written into one of those lines is cut
+    ///        whatever that setting says, since the line is what says it was.
+    explicit FtnMsgBase(std::string_view defaultCharset, bool fieldLimits = true,
+                        bool ucsKludges = true);
     ~FtnMsgBase() override;
 
     FtnMsgBase(const FtnMsgBase&) = delete;
@@ -101,12 +108,17 @@ private:
     /// the message is written in, so this is the only place it can be made: a
     /// name of 35 Cyrillic letters is 35 bytes in CP866 and 70 in UTF-8, and
     /// above this class the message is UTF-8 and nothing else.
+    ///
+    /// And where FSP-1030's UCS lines are written, for the same reason: which
+    /// fields overrun their room, and what they are cut to, is known here and
+    /// nowhere above.
     [[nodiscard]] RawDraft encode(const domain::MessageDraft& draft) const;
 
     std::unique_ptr<FormatDriver> driver_;
     domain::AreaConfig areaConfig_;
     encoding::CharsetDetector detector_;
     bool fieldLimits_{true};
+    bool ucsKludges_{true};
     mutable encoding::IconvRecoder recoder_;
 };
 
