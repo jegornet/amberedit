@@ -10,6 +10,7 @@
 
 #include "config/cfg_file.hpp"
 #include "config/text_util.hpp"
+#include "i18n/i18n.hpp"
 
 namespace amberedit::ui::theme {
 
@@ -121,6 +122,55 @@ tl::expected<Palette, ErrorPtr> fromEntries(
 term::Element selectionBold(term::Element child) {
     if (!palette.selectionBold) return child;
     return term::bold(std::move(child));
+}
+
+int approximatedRoles(const Palette& palette, int available) {
+    // Every number a theme can hold, and a direct-color terminal reports a whole
+    // 24-bit range here. Nothing is out of reach at either.
+    if (available >= 256) return 0;
+
+    int count = 0;
+    for (const auto& role : kFields) {
+        const Color color = palette.*(role.second);
+        // A role left as the terminal's own color asks for no palette entry, so
+        // there is no entry to fall short of — see term::Color.
+        if (color.defaulted) continue;
+        // The sixteen ANSI colors are the ones every terminal with color at all
+        // has, and what it draws them as is its own configuration rather than
+        // anything a number here settles. A theme written inside them is a theme
+        // written for the terminal it is on, so nothing about it is worth saying.
+        if (color.index < 16) continue;
+        if (color.index >= available) ++count;
+    }
+    return count;
+}
+
+std::string colorWarning() {
+    const int available = term::paletteSize();
+
+    // One gate for both lines below: a theme that names nothing above the
+    // sixteen ANSI colors is a theme this terminal draws as its own
+    // configuration says to, and there is nothing to tell the user about it.
+    if (approximatedRoles(palette, available) == 0) return {};
+
+    // No color at all, which `has_colors()` answered before any of the rest was
+    // asked. A line of its own because the one below quotes how many colors the
+    // terminal has, and "only 0 colors" is not what to say to somebody looking
+    // at an interface drawn in no colors whatever.
+    if (available <= 0) {
+        return _(
+            "this terminal reports no color at all, so the interface is drawn in "
+            "whatever two colors the terminal itself uses. If it does have color "
+            "after all, color_warning off in the config disables this message.");
+    }
+
+    return i18n::format(
+        _("colors may be distorted: this terminal can show only {0} colors, which "
+          "is not enough for the current theme. Setting the TERM environment "
+          "variable to xterm-256color usually fixes it, or you can use "
+          "themes/16_colors.cfg, which uses only the system colors. If the colors "
+          "look right, color_warning off in the config disables this message."),
+        {std::to_string(available)});
 }
 
 tl::expected<Palette, ErrorPtr> parsePalette(const std::string& text,

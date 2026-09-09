@@ -12,7 +12,9 @@
 using amberedit::test::contains;
 using amberedit::test::errorOf;
 using amberedit::test::valueOf;
+using amberedit::ui::theme::approximatedRoles;
 using amberedit::ui::theme::Color;
+using amberedit::ui::theme::colorWarning;
 using amberedit::ui::theme::Palette;
 using amberedit::ui::theme::parsePalette;
 
@@ -20,6 +22,36 @@ namespace {
 
 bool same(Color a, Color b) {
     return a == b;
+}
+
+/// A palette with every color role set to `index`, and how many roles that was.
+struct Everywhere {
+    Palette palette;
+    int roles{0};
+};
+
+/// Builds one, from the keys `themes/black.cfg` names rather than from a list
+/// written here: a role added to the palette is then covered by the checks below
+/// without a line being added to them, the same way the shipped themes are held
+/// to the same key set further up. Nothing about the numbers in that file is
+/// read — only which keys are colors, which is the keys whose value is a number.
+Everywhere allRolesAt(int index) {
+    const std::string text = valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("themes/black.cfg")));
+    const auto entries = valueOf(amberedit::config::parseCfg(text, "black.cfg"));
+
+    std::string written;
+    int roles = 0;
+    for (const auto& entry : entries) {
+        // The switches take on/off rather than a number, and are not colors.
+        if (entry.values.size() != 1) continue;
+        const char first = entry.values.front().front();
+        if (first < '0' || first > '9') continue;
+        written += entry.key + " " + std::to_string(index) + "\n";
+        ++roles;
+    }
+    REQUIRE(roles > 30);
+    return {valueOf(parsePalette(written, "built-here.cfg")), roles};
 }
 
 }  // namespace
@@ -315,4 +347,65 @@ TEST_CASE("A broken theme is refused with the file and line named [theme]") {
     // What a theme file written for the toml AmberEdit used to read has in it.
     const std::string error2 = errorOf(parsePalette("text = 33", "theme.cfg"));
     REQUIRE_MESSAGE(contains(error2, "old toml spelling"), error2);
+}
+
+TEST_CASE("A theme is measured against the colors the terminal has [theme]") {
+    const Everywhere high = allRolesAt(240);
+    const Everywhere ansi = allRolesAt(12);
+
+    // The whole palette a theme is written in, and a direct-color terminal
+    // reporting a whole 24-bit range. Nothing is out of reach at either.
+    CHECK(approximatedRoles(high.palette, 256) == 0);
+    CHECK(approximatedRoles(high.palette, 1 << 24) == 0);
+
+    // A terminal with sixteen, and one with eighty-eight: 240 is beyond both.
+    CHECK(approximatedRoles(high.palette, 16) == high.roles);
+    CHECK(approximatedRoles(high.palette, 88) == high.roles);
+    // And one with none at all, which has_colors() answering false leaves.
+    CHECK(approximatedRoles(high.palette, 0) == high.roles);
+
+    // A theme written inside the sixteen ANSI colors is never counted, whatever
+    // the terminal reported: those sixteen are the ones every terminal with
+    // color has, and what it draws them as is its own configuration. This is
+    // what makes themes/16_colors.cfg pass in silence everywhere.
+    CHECK(approximatedRoles(ansi.palette, 256) == 0);
+    CHECK(approximatedRoles(ansi.palette, 16) == 0);
+    CHECK(approximatedRoles(ansi.palette, 8) == 0);
+    CHECK(approximatedRoles(ansi.palette, 0) == 0);
+
+    // The line between the two is between 15 and 16, and is drawn on the number
+    // in the theme rather than on the number the terminal gave.
+    CHECK(approximatedRoles(allRolesAt(15).palette, 8) == 0);
+    const Everywhere sixteen = allRolesAt(16);
+    CHECK(approximatedRoles(sixteen.palette, 16) == sixteen.roles);
+    CHECK(approximatedRoles(sixteen.palette, 256) == 0);
+
+    // A role left as the terminal's own color asks for no palette entry, so
+    // there is none for it to fall short of.
+    Palette defaulted = high.palette;
+    defaulted.background = Color{};
+    CHECK(approximatedRoles(defaulted, 16) == high.roles - 1);
+}
+
+TEST_CASE("The color warning names the setting that switches it off [theme]") {
+    // The palette in force is a global another test may have written, so it is
+    // set here rather than trusted, and put back afterwards.
+    struct InForce {
+        Palette kept = amberedit::ui::theme::palette;
+        ~InForce() { amberedit::ui::theme::palette = kept; }
+    } restore;
+
+    // The tests never open a screen, so the terminal has reported no color at
+    // all and this is the line written for one.
+    amberedit::ui::theme::palette = allRolesAt(240).palette;
+    const std::string said = colorWarning();
+    REQUIRE_FALSE(said.empty());
+    // The count can be wrong where a TERM names less than the emulator behind
+    // it, so the line has to say what to switch off rather than leave it to be
+    // found. This is the whole of why `color_warning` exists.
+    CHECK_MESSAGE(contains(said, "color_warning off"), said);
+
+    // And a theme inside the sixteen ANSI colors says nothing at all.
+    amberedit::ui::theme::palette = allRolesAt(12).palette;
+    CHECK(colorWarning().empty());
 }

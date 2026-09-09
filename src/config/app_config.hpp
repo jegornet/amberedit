@@ -1487,6 +1487,24 @@ struct AppConfig {
     /// which is what most configs will say by saying nothing.
     std::string themePath;
 
+    /// Whether AmberEdit says so when the terminal turned out to hold fewer
+    /// colors than the theme in force is written in, from `color_warning`.
+    ///
+    /// On by default. What it governs is one line — into the `error_log` where
+    /// the config names one, and to stderr once the screen has been given back,
+    /// there being nowhere to say it while the interface is up. It is said only
+    /// where the theme names a color above the sixteen ANSI ones that this
+    /// terminal has not got: a theme written inside those sixteen is drawn as
+    /// the terminal is configured to draw them and passes in silence, whatever
+    /// the terminal turned out to report.
+    ///
+    /// Worth switching off where the answer is wrong rather than unwelcome. A
+    /// `TERM` naming less than the emulator behind it will have the terminal
+    /// report sixteen colors and draw all 256 regardless, and there is nothing
+    /// AmberEdit can ask that would know better — the count is what the terminal
+    /// said about itself. See `ui::theme::colorWarning`.
+    bool colorWarning{true};
+
     /// What a quoted line is prefixed with, from `quote_string`.
     /// The default is GoldED's, where the letters before the '>' stand for the
     /// initials of whoever is being quoted; putting them there is the business

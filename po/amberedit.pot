@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1936
+#: src/config/app_config.cpp:1940
 msgid "no description"
 msgstr ""
 
@@ -231,7 +231,7 @@ msgid "Run the system shell"
 msgstr ""
 
 #: src/config/commands.cpp:74 src/ui/export_dialog.cpp:84
-#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:439
+#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:440
 msgid "Save"
 msgstr ""
 
@@ -346,7 +346,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.7.3\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-05 13:47+0200\n"
+"POT-Creation-Date: 2026-09-09 07:54+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -398,7 +398,8 @@ msgstr[1] ""
 msgid "{0}{1} into {2}"
 msgstr ""
 
-#: src/main.cpp:89 src/main.cpp:119 src/main.cpp:207
+#: src/main.cpp:89 src/main.cpp:119 src/main.cpp:207 src/main.cpp:343
+#: src/ui/setup/setup_run.cpp:47
 #, c++-format
 msgid "warning: {0}"
 msgstr ""
@@ -445,7 +446,7 @@ msgid ""
 msgstr ""
 
 #: src/main.cpp:253 src/main.cpp:274 src/main.cpp:290 src/main.cpp:300
-#: src/main.cpp:315 src/main.cpp:327 src/main.cpp:341
+#: src/main.cpp:315 src/main.cpp:327 src/main.cpp:355
 #, c++-format
 msgid "error: {0}"
 msgstr ""
@@ -508,7 +509,7 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:753
+#: src/ui/app_shell.cpp:763
 msgid "Not found"
 msgstr ""
 
@@ -770,7 +771,7 @@ msgstr ""
 msgid " Dir: {0}▌ "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:785 src/ui/export_mode_dialog.cpp:84
+#: src/ui/export_dialog.cpp:788 src/ui/export_mode_dialog.cpp:84
 #, c++-format
 msgid "… and {0} more"
 msgstr ""
@@ -783,8 +784,8 @@ msgstr ""
 msgid "Files"
 msgstr ""
 
-#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:654
-#: src/ui/import_dialog.cpp:657
+#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:658
+#: src/ui/import_dialog.cpp:661
 msgid "Text"
 msgstr ""
 
@@ -909,7 +910,7 @@ msgstr ""
 msgid " File: {0}▌ "
 msgstr ""
 
-#: src/ui/import_dialog.cpp:654 src/ui/import_dialog.cpp:660
+#: src/ui/import_dialog.cpp:658 src/ui/import_dialog.cpp:664
 msgid "UUE"
 msgstr ""
 
@@ -1078,54 +1079,54 @@ msgstr ""
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1699
+#: src/ui/screens/message_read_screen.cpp:1730
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1720
+#: src/ui/screens/message_read_screen.cpp:1751
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2295
+#: src/ui/screens/message_read_screen.cpp:2326
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2298
+#: src/ui/screens/message_read_screen.cpp:2329
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2301
+#: src/ui/screens/message_read_screen.cpp:2332
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2304
+#: src/ui/screens/message_read_screen.cpp:2335
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2307
+#: src/ui/screens/message_read_screen.cpp:2338
 msgctxt "header block"
 msgid "Recd"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:19
+#: src/ui/setup/setup_run.cpp:21
 msgid "error: --setup asks questions, so it needs a terminal"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:41
+#: src/ui/setup/setup_run.cpp:51
 msgid "nothing was written — AmberEdit still has no config"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:44
+#: src/ui/setup/setup_run.cpp:54
 #, c++-format
 msgid "written: {0}"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:45
+#: src/ui/setup/setup_run.cpp:55
 msgid "Start AmberEdit from this directory."
 msgstr ""
 
@@ -1185,145 +1186,145 @@ msgstr ""
 msgid "say where the compiled nodelist goes"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:437
+#: src/ui/setup/setup_wizard.cpp:438
 msgid "Skip"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:438
+#: src/ui/setup/setup_wizard.cpp:439
 msgid "Back"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:439
+#: src/ui/setup/setup_wizard.cpp:440
 msgid "Next"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:454
+#: src/ui/setup/setup_wizard.cpp:455
 msgid " General parameters — step 1 of 6 "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:455
+#: src/ui/setup/setup_wizard.cpp:456
 msgid " Tosser config file — step 2 of 6 "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:456
+#: src/ui/setup/setup_wizard.cpp:457
 msgid " Incoming charset — step 3 of 6 "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:457
+#: src/ui/setup/setup_wizard.cpp:458
 msgid " Outgoing charset — step 4 of 6 "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:458
+#: src/ui/setup/setup_wizard.cpp:459
 msgid " Nodelist file — step 5 of 6 "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:461
+#: src/ui/setup/setup_wizard.cpp:462
 msgid " The config to write — step 6 of 6 "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:465
+#: src/ui/setup/setup_wizard.cpp:466
 msgid "Who the messages you write are from."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:468
+#: src/ui/setup/setup_wizard.cpp:469
 msgid " Name:    "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:469
+#: src/ui/setup/setup_wizard.cpp:470
 msgid " Address: "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:472
+#: src/ui/setup/setup_wizard.cpp:473
 msgid "e.g. John Doe, 2:382/9999"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:474
+#: src/ui/setup/setup_wizard.cpp:475
 msgid "Your areas come from your tosser's config, which is:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:493
+#: src/ui/setup/setup_wizard.cpp:494
 msgid "The charset in which the message you READ, when it has"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:494
+#: src/ui/setup/setup_wizard.cpp:495
 msgid "The charset in which the message you WRITE is"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:497
+#: src/ui/setup/setup_wizard.cpp:498
 msgid "no CHRS kludge — or it says something like IBMPC 2."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:500
+#: src/ui/setup/setup_wizard.cpp:501
 msgid " Charset: "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:502
+#: src/ui/setup/setup_wizard.cpp:503
 msgid "e.g. CP866 or CP437 or LATIN-1"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:503
+#: src/ui/setup/setup_wizard.cpp:504
 msgid "e.g. UTF-8 or CP866 or CP437 or LATIN-1"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:508
+#: src/ui/setup/setup_wizard.cpp:509
 msgid "A nodelist, to look addresses and sysops up in."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:510
+#: src/ui/setup/setup_wizard.cpp:511
 msgid "It may be a ZIP archive. Skip if you have none."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:516
+#: src/ui/setup/setup_wizard.cpp:517
 msgid " Compiled to: "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:537 src/ui/setup/setup_wizard.cpp:546
+#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:547
 msgid "Address:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:537 src/ui/setup/setup_wizard.cpp:545
+#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:546
 msgid "Name:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:547
+#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:548
 msgid "Areas:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:549
+#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:550
 msgid "Charset:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:552
+#: src/ui/setup/setup_wizard.cpp:540 src/ui/setup/setup_wizard.cpp:553
 msgid "Nodelist:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:550
+#: src/ui/setup/setup_wizard.cpp:551
 #, c++-format
 msgid "{0} read, {1} written"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:552
+#: src/ui/setup/setup_wizard.cpp:553
 msgid "none"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:555
+#: src/ui/setup/setup_wizard.cpp:556
 msgid " Config: "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:556
+#: src/ui/setup/setup_wizard.cpp:557
 msgid "The whole commented config, with your answers in it."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:563
+#: src/ui/setup/setup_wizard.cpp:564
 #, c++-format
 msgid "The setup wizard needs {0}x{1}, this window is {2}x{3}."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:567
+#: src/ui/setup/setup_wizard.cpp:568
 msgid "Make it bigger, or Esc to leave."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:678
+#: src/ui/setup/setup_wizard.cpp:679
 msgid "Where your tosser's config is."
 msgstr ""
 
@@ -1411,4 +1412,21 @@ msgstr ""
 #: src/ui/setup/wizard_checks.cpp:237
 #, c++-format
 msgid "there is no directory {0}"
+msgstr ""
+
+#: src/ui/theme.cpp:162
+msgid ""
+"this terminal reports no color at all, so the interface is drawn in whatever "
+"two colors the terminal itself uses. If it does have color after all, "
+"color_warning off in the config disables this message."
+msgstr ""
+
+#: src/ui/theme.cpp:168
+#, c++-format
+msgid ""
+"colors may be distorted: this terminal can show only {0} colors, which is "
+"not enough for the current theme. Setting the TERM environment variable to "
+"xterm-256color usually fixes it, or you can use themes/16_colors.cfg, which "
+"uses only the system colors. If the colors look right, color_warning off in "
+"the config disables this message."
 msgstr ""

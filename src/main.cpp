@@ -330,7 +330,21 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        return amberedit::ui::runApp(manager, appConfig, keys);
+        const int code = amberedit::ui::runApp(manager, appConfig, keys);
+
+        // Here rather than with every other startup warning above: how many
+        // colors a terminal has is not known until ncurses has started it, and
+        // by then stderr is under the interface. runApp has given the screen
+        // back by the time it returns, so this lands in the scrollback where it
+        // can be read — and `paletteSize()` outlives the screen it was asked of.
+        if (appConfig.colorWarning) {
+            const std::string warning = amberedit::ui::theme::colorWarning();
+            if (!warning.empty()) {
+                std::cerr << amberedit::i18n::format(_("warning: {0}"), {warning})
+                          << "\n";
+            }
+        }
+        return code;
     } catch (const std::exception& e) {
         // Only startup failures reach this point (no config, unreadable tosser
         // config), which is why there is a terminal to print to. Inside the UI

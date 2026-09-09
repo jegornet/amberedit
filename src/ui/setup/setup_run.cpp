@@ -3,12 +3,14 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <string>
 
 #include "i18n/i18n.hpp"
 #include "ui/setup/setup_wizard.hpp"
 #include "ui/setup/wizard_state.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/terminal.hpp"
+#include "ui/theme.hpp"
 
 namespace amberedit::ui::setup {
 
@@ -35,6 +37,14 @@ int runSetup(const std::string& programPath) {
             const Outcome outcome = handleEvent(state, terminal.poll());
             if (outcome == Outcome::Saved || outcome == Outcome::Cancelled) break;
         }
+    }
+
+    // Said unconditionally, `color_warning` being a line in a config that does
+    // not exist yet — writing one is what this run is for. The wizard draws in
+    // the built-in palette, which is written from 16 up, so a terminal short of
+    // colors has already shown the user a wizard it could not draw properly.
+    if (const std::string warning = theme::colorWarning(); !warning.empty()) {
+        std::cerr << i18n::format(_("warning: {0}"), {warning}) << "\n";
     }
 
     if (state.savedPath.empty()) {

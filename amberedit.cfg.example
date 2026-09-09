@@ -1094,6 +1094,10 @@ template_time_format "%H:%M"
 #theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
 #theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
 
+# Whether AmberEdit warns the user when the terminal cannot display the full
+# color palette defined in the current theme. Optional; on by default.
+#color_warning on
+
 # The interface's own language is the environment's, as it is for every other
 # program on the system: LANGUAGE, LC_ALL, LC_MESSAGES, LANG, in that order of
 # preference. `LANG=ru_RU.UTF-8 amberedit` is Russian, and there is no setting

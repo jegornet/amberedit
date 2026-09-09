@@ -2323,6 +2323,28 @@ taking a row.
     has left (the import, export and setup pickers, `bold` on `dialog_label`),
     where the weight is the whole of the mark and dropping it would leave the
     row saying nothing at all.
+- **How many colors the terminal has is not known until the screen is open, so
+  it is said on the way out.** `start_color()` is what makes the terminal
+  answer, and it runs inside `Terminal`'s constructor — by which time `stderr`
+  is under the interface and every other startup warning has already been
+  printed. So `theme::colorWarning()` is asked twice: in `runApp()` just after
+  the terminal is built, where the line goes to the `error_log` and survives a
+  session that ends badly, and in `main()` after `runApp()` returns, where the
+  screen has been given back and the line lands in the scrollback. `--setup`
+  says it in the block it already gives the terminal back in.
+  - **Only a color above 15 is worth a word.** `theme::approximatedRoles()`
+    counts the roles numbered 16 or higher that the terminal has not got, and is
+    the gate rather than a number the line quotes: a theme written inside the
+    sixteen ANSI colors — `16_colors.cfg` is the one that is — passes in silence
+    whatever the terminal reported, those sixteen being the terminal's own to
+    draw as it is configured to.
+  - **Nothing is switched on the answer.** The theme the config named is the
+    theme that is drawn; `term::nearestWithin()` approximating each number stays
+    the only automatic thing that happens, and there is no fallback theme.
+  - **The line names `color_warning`**, which is what switches it off. A `TERM`
+    naming less than the emulator behind it makes the color count the line
+    quotes plain wrong, and the reader is told what to turn off rather than left
+    to find it.
 - **The BBS color codes are markup taken out of the text; the style codes are
   markers left standing in it.** `bbs_codes_renegade` turns on the
   Renegade/Telegard pipe codes `|00`–`|31`: `ui/bbs_codes` reads them, the first

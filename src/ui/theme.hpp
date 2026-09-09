@@ -368,4 +368,37 @@ inline Palette palette;
 [[nodiscard]] tl::expected<Palette, ErrorPtr> parsePalette(
     const std::string& text, const std::string& originName = "<string>");
 
+/// How many of a palette's roles are written above the sixteen ANSI colors and
+/// are out of reach of a terminal holding only `available` of them.
+///
+/// Two roles count for nothing whatever the terminal reported. One left as the
+/// terminal's own color asks for no palette entry, so there is none to fall
+/// short of. One numbered 15 or below is one of the sixteen every terminal with
+/// color at all has, and what those look like is the terminal's own
+/// configuration rather than anything the number settles — which is why a theme
+/// written inside them, `themes/16_colors.cfg` being the one that is, is never
+/// worth a word about. `available` of 256 or more — direct color included, where
+/// it is the whole of a 24-bit range — is every number a theme can hold, and the
+/// answer there is always none.
+///
+/// Exposed for the tests, which are the only thing that can check this without
+/// eyes on a terminal, exactly as `term::nearestWithin` is.
+[[nodiscard]] int approximatedRoles(const Palette& palette, int available);
+
+/// What is worth saying about the colors this terminal turned out to have, or
+/// empty where there is nothing to say — which is every terminal that draws the
+/// palette in force as it is written.
+///
+/// Only answerable once the screen has been opened: it is `start_color()` that
+/// makes the terminal say how many colors it has, so this cannot be asked
+/// alongside the other startup warnings and is said on the way out instead. See
+/// `app_shell.cpp` and `main.cpp`.
+///
+/// The line names `color_warning` itself. A terminal can report sixteen and draw
+/// all 256 regardless — a `TERM` naming less than the emulator behind it is the
+/// usual way — so the reader is told what to switch off rather than left to find
+/// it. Whether it is switched off is not asked here: this describes the
+/// terminal, and the config is read by the callers.
+[[nodiscard]] std::string colorWarning();
+
 }  // namespace amberedit::ui::theme

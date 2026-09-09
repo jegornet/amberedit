@@ -634,6 +634,14 @@ TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     CHECK_FALSE(with("arealist_first_unread off\n").areaListFirstUnread);
     CHECK_FALSE(loads("arealist_first_unread yes\n"));
     CHECK_FALSE(loads("msglist_scrollbar 1\n"));
+
+    // Whether a terminal short of the colors the theme is written in is told
+    // about. On by default — it is a warning, and one turned off by default
+    // would be one nobody ever saw.
+    CHECK(with("").colorWarning);
+    CHECK(with("color_warning on\n").colorWarning);
+    CHECK_FALSE(with("color_warning off\n").colorWarning);
+    CHECK_FALSE(loads("color_warning yes\n"));
 }
 
 TEST_CASE("AppConfig reads what the message list's goto field does [app_config]") {

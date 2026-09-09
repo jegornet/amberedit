@@ -1463,6 +1463,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.themePath = text::expandTilde(*read);
+    } else if (key == "color_warning") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.colorWarning = *read;
     } else if (key == "template") {
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());

@@ -240,6 +240,16 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
     // reading any: a layout binding none leaves Escape unambiguous everywhere.
     Terminal terminal(keys.altLetters(), keys.altBackspace());
 
+    // The first moment the terminal has said how many colors it has: it is
+    // `start_color()`, inside the constructor above, that makes it say. Kept
+    // here rather than on the way out so that a session which ends badly has
+    // left it behind all the same; the line the user reads is printed by
+    // `main()`, once the screen has been given back.
+    if (config.colorWarning) {
+        if (const std::string warning = theme::colorWarning(); !warning.empty())
+            error_log::write("colors", warning);
+    }
+
     // Putting a frame on the screen from inside whatever is running, rather
     // than at the top of the loop. It lives here because the terminal does, and
     // it is what lets a long call — the rescan naming each area as it opens it —
