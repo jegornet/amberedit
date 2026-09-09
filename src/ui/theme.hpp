@@ -121,24 +121,23 @@ struct Palette {
     /// a theme that selects with a light fill needs something darker here.
     Color selectionText = builtin_theme::kSelectionText;
     /// Whether what wears a selection fill is drawn bold along with it —
-    /// `selection_bold`, `on` or `off`. On by default: the bar is whatever Enter
-    /// would act on, and the weight says so a second time, which is what carries
-    /// it on a terminal whose own profile draws the theme's fill fainter than the
-    /// theme meant it.
+    /// `selection_bold`, `on` or `off`. Off by default: the bar stands in its
+    /// two colors and nothing else, which is what a terminal drawing bold as a
+    /// brighter foreground rather than a heavier face wants — there the weight
+    /// is a third color on the row that no theme chose.
     ///
-    /// Off leaves the same bar in the same two colors and nothing else. That is
-    /// what a terminal drawing bold as a brighter foreground rather than a
-    /// heavier face wants — there the weight is a third color on the row that no
-    /// theme chose. It reaches every bar in the interface at once: the current
-    /// row of the lists, the selected button of a box, a button of the context
-    /// menu, the stop of the compose header the typing is on, and the message
-    /// the reader's sidebar marks.
+    /// On adds the weight, so that the bar says a second time what its fill
+    /// says, which is what carries it on a terminal whose own profile draws the
+    /// theme's fill fainter than the theme meant it. Either way it reaches every
+    /// bar in the interface at once: the current row of the lists, the selected
+    /// button of a box, a button of the context menu, the stop of the compose
+    /// header the typing is on, and the message the reader's sidebar marks.
     ///
     /// It says nothing about the bold that stands **without** a fill — a
     /// heading, a title, a search hit, the cursor row of a list the typing has
     /// left. There the weight is the whole of the mark, and dropping it would
     /// leave the row saying nothing rather than saying it quietly.
-    bool selectionBold = true;
+    bool selectionBold = false;
     /// Behind the message the reader's sidebar marks. A second selection fill
     /// because the panel is marking rather than choosing: the message is the one
     /// on the screen beside it, the keyboard is in the reader and never in the

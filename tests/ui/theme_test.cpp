@@ -106,12 +106,12 @@ TEST_CASE("A theme carries settings that are not colors [theme]") {
     CHECK_FALSE(valueOf(parsePalette("input_filler_show off")).inputFillerShown);
     CHECK(valueOf(parsePalette("text 33")).inputFillerShown);
 
-    // `selection_bold` the same way, and on where the file says nothing: the
-    // interface has drawn what the selection fill covers bold since before
-    // there was a switch for it, and a theme that says nothing gets that.
+    // `selection_bold` the same way, and off where the file says nothing: a bar
+    // is said by its fill, and the weight on top of it is a third color on the
+    // row that no theme chose, so a theme that says nothing does without it.
     CHECK(valueOf(parsePalette("selection_bold on")).selectionBold);
     CHECK_FALSE(valueOf(parsePalette("selection_bold off")).selectionBold);
-    CHECK(valueOf(parsePalette("text 33")).selectionBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).selectionBold);
 
     // A number is not a switch, and neither is the palette complaint: the key
     // is answered as the setting it is.
@@ -258,7 +258,7 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     // that a theme is the whole palette written out and not the difference from
     // another one.
     CHECK(loaded.inputFillerShown);
-    CHECK(loaded.selectionBold);
+    CHECK_FALSE(loaded.selectionBold);
     CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
     CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));

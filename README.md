@@ -117,7 +117,8 @@ Two of its keys are switches rather than colors, written `on` or `off` like
 every other switch AmberEdit reads: `selection_bold`, whether what wears the
 selection fill — the current row of a list, the selected button of a box — is
 drawn bold along with it, and `input_filler_show`, whether the room a field has
-left is underscored. Both are on unless a theme says otherwise.
+left is underscored. Unless a theme says otherwise, `selection_bold` is off and
+`input_filler_show` is on.
 
 ⚠️ **Full color palette support depends on your terminal app's capabilities and
 configuration. If you experience color display issues, make sure the `TERM`

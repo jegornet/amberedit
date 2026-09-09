@@ -2357,7 +2357,8 @@ taking a row.
     `16_colors.cfg`, where an idle field carries the screen's own black; off in
     `blue.cfg`, which lights its idle fields plainly enough on its own.
   - `selection_bold` says whether what wears a selection fill is drawn bold
-    along with it, and on in every shipped theme. **It is read in one place**:
+    along with it, and off in the built-in palette and in every shipped theme.
+    **It is read in one place**:
     `theme::selectionBold()` is `bold` where the switch is on and the element
     untouched where it is off, and every bar in the interface is written with it
     in `bold`'s place — the lists' current row, `dialog::button()`, a button of

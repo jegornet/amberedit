@@ -655,15 +655,15 @@ TEST_CASE(
     CHECK(screen.at(1, 4).fg != theme::palette.dimmed);
 }
 
-/// Turns the weight on the selection bar off for as long as it stands — what a
-/// theme with `selection_bold off` in it does.
-struct SelectionBoldOff {
-    SelectionBoldOff() { amberedit::ui::theme::palette.selectionBold = false; }
-    ~SelectionBoldOff() { amberedit::ui::theme::palette.selectionBold = was; }
+/// Turns the weight on the selection bar on for as long as it stands — what a
+/// theme with `selection_bold on` in it does.
+struct SelectionBoldOn {
+    SelectionBoldOn() { amberedit::ui::theme::palette.selectionBold = true; }
+    ~SelectionBoldOn() { amberedit::ui::theme::palette.selectionBold = was; }
     bool was{amberedit::ui::theme::palette.selectionBold};
 };
 
-TEST_CASE("selection_bold takes the weight off the bar and leaves its colors "
+TEST_CASE("selection_bold adds weight to the bar and changes nothing else "
           "[arealist][squish]") {
     using amberedit::config::AreaFieldKind;
     namespace term = amberedit::ui::term;
@@ -680,18 +680,20 @@ TEST_CASE("selection_bold takes the weight off the bar and leaves its colors "
     // The row the cursor opens on: the heading and the rule stand above it.
     constexpr int kCursorRow = 2;
 
+    // The switch is off unless a theme asks for it: the bar stands in its two
+    // colors, and which row Enter would act on is said by the fill alone.
     term::Screen screen(fixture.state.width, fixture.state.height);
     term::render(screen, area_list::render(fixture.state));
     REQUIRE(screen.at(1, kCursorRow).bg == theme::palette.selection);
-    CHECK((screen.at(1, kCursorRow).attrs & term::kBold) != 0);
+    CHECK(screen.at(1, kCursorRow).fg == theme::palette.selectionText);
+    CHECK((screen.at(1, kCursorRow).attrs & term::kBold) == 0);
 
-    // The switch is about the weight and nothing else: the bar keeps both its
-    // colors, so which row Enter would act on is said as plainly as before.
-    const SelectionBoldOff plain;
+    // On, the weight is added and nothing else is: the bar keeps both colors.
+    const SelectionBoldOn heavy;
     term::render(screen, area_list::render(fixture.state));
     CHECK(screen.at(1, kCursorRow).bg == theme::palette.selection);
     CHECK(screen.at(1, kCursorRow).fg == theme::palette.selectionText);
-    CHECK((screen.at(1, kCursorRow).attrs & term::kBold) == 0);
+    CHECK((screen.at(1, kCursorRow).attrs & term::kBold) != 0);
 }
 
 TEST_CASE("The area list draws the scrollbar where the list does not fit [arealist]") {
