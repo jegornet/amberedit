@@ -1,3 +1,9 @@
+amberedit (0.8.1-1) unstable; urgency=low
+
+  * FSP-1030 kludges support
+
+ -- Yegor Gluhov <git@jegor.net>  Wed, 09 Sep 2026 12:00:00 +0000
+
 amberedit (0.8-1) unstable; urgency=low
 
   * truecolor themes

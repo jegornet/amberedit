@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1 — 2026-09-09
+
+- FSP-1030 kludges support
+
 ## 0.8 — 2026-09-09
 
 - truecolor themes
