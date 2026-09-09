@@ -232,6 +232,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.error, builtIn.error));
     CHECK(same(loaded.unsent, builtIn.unsent));
     CHECK(same(loaded.found, builtIn.found));
+    CHECK(same(loaded.foundText, builtIn.foundText));
     CHECK(same(loaded.animatedButtonText, builtIn.animatedButtonText));
 }
 
@@ -285,6 +286,7 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.error, builtIn.error));
     CHECK_FALSE(same(loaded.unsent, builtIn.unsent));
     CHECK_FALSE(same(loaded.found, builtIn.found));
+    CHECK_FALSE(same(loaded.foundText, builtIn.foundText));
     CHECK_FALSE(same(loaded.animatedButtonText, builtIn.animatedButtonText));
 }
 
@@ -324,6 +326,7 @@ TEST_CASE("The truecolor theme is written in colors and states every role [theme
     CHECK(loaded.text.trueColor);
     CHECK(loaded.dialogBackground.trueColor);
     CHECK(loaded.found.trueColor);
+    CHECK(loaded.foundText.trueColor);
     CHECK_FALSE(numbered.background.trueColor);
 }
 
@@ -419,6 +422,21 @@ TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
         // And the two fills apart from each other, which is what says which of
         // the fields the typing is in.
         CHECK_FALSE(same(theme.focusedField, theme.inputField));
+    }
+}
+
+TEST_CASE("What a search lights up is legible on the fill lighting it [theme]") {
+    // The same rule again for the one fill that is put down inside running
+    // text: an occurrence the reader was told to find is `found_text` on
+    // `found`, and the two being one color is a hit that reads as a blank.
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+          "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
+        CAPTURE(file);
+        const Palette theme = valueOf(
+            amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
+
+        CHECK_FALSE(same(theme.foundText, theme.found));
     }
 }
 

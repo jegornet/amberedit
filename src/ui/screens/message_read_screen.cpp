@@ -112,9 +112,9 @@ Element headerLabel(const std::string& label) {
 }
 
 /// A stretch of text with what a search found in it lit up: the theme's `found`
-/// as a fill, with the screen's own background written on it, so that an
-/// occurrence is seen at a glance whatever color the text around it was in — a
-/// quote, a link, a header field or the message's own BBS codes.
+/// as a fill, with `found_text` written on it, so that an occurrence is seen at
+/// a glance whatever color the text around it was in — a quote, a link, a
+/// header field or the message's own BBS codes.
 ///
 /// `found` holds byte ranges of `shown` and nothing else is asked of it, which
 /// is what lets one function paint a header cell and a body row alike.
@@ -129,7 +129,7 @@ Element painted(const std::string& shown, theme::Color tint,
             runs.push_back(text(shown.substr(at, match.begin - at)) | color(tint));
         }
         runs.push_back(text(shown.substr(match.begin, match.end - match.begin)) | bold |
-                       color(theme::palette.background) | bgcolor(theme::palette.found));
+                       color(theme::palette.foundText) | bgcolor(theme::palette.found));
         at = match.end;
     }
     if (at < shown.size()) runs.push_back(text(shown.substr(at)) | color(tint));
@@ -508,7 +508,7 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
         // nothing — the same order the quote colors are already under.
         const bbs::Color coded = styles[at].coded;
         const theme::Color fg = pressed            ? theme::palette.animatedButtonText
-                                : styles[at].found ? theme::palette.background
+                                : styles[at].found ? theme::palette.foundText
                                 : inLink >= 0      ? theme::palette.link
                                 : coded.fg >= 0    ? bbs::paletteColor(coded.fg)
                                                    : base;

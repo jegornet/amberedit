@@ -17,7 +17,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-five constants for the thirty-nine roles below. Each is named after
+/// Twenty-five constants for the forty roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -316,14 +316,16 @@ struct Palette {
     Color error = builtin_theme::kError;
     Color unsent = builtin_theme::kUnsent;
     /// Behind every occurrence of what the reader was told to find, in the
-    /// message a search landed on — the body and the header block alike. It is
-    /// a **fill**, and what is written on it is `background`: a search
-    /// highlight has to be seen at a glance from anywhere in a long message,
-    /// and a foreground alone would have to compete with the quote colors, the
-    /// links and whatever a message's own BBS codes asked for. One role rather
-    /// than a pair, the screen's own background being what is legible on
-    /// anything bright enough to serve here.
+    /// message a search landed on — the body and the header block alike, and
+    /// the color written on that fill. A **fill** and not a foreground alone: a
+    /// search highlight has to be seen at a glance from anywhere in a long
+    /// message, where a text color would be competing with the quote colors,
+    /// the links and whatever a message's own BBS codes asked for. The text is
+    /// its own role rather than `background` reused — a theme is free to light
+    /// a hit with a fill its own background would be unreadable on, which is
+    /// what a fill near the screen's own color needs.
     Color found = builtin_theme::kSelectionText;
+    Color foundText = builtin_theme::kBackground;
     /// What a button on a screen says while a click on it is being shown — the
     /// Back button's arrow, a thread marker, the menu button in the corner. The
     /// frame around a label goes with it, so the whole button is what lights
