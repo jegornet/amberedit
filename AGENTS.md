@@ -294,7 +294,11 @@ places that carry them:
   the one `release.yml` reads.
 - `CHANGELOG.md` — a `## 0.7.2 — 2026-09-07` heading at the top of the list, one
   `- ` line per change. It is the same text as the spec entry, written for
-  people who are not holding a package manager.
+  people who are not holding a package manager. **This file changes only on a
+  bump commit.** A feature or a bugfix adds nothing to it: there is no
+  "unreleased" heading to append to and no entry to write ahead of the release.
+  The lines are written here when the version is cut, out of what went in since
+  the last one.
 - `po/amberedit.pot` and `po/ru.po` — the `Project-Id-Version: AmberEdit 0.7.2`
   line, and nothing else in either file. Both numbers come from
   `--package-version=${PROJECT_VERSION}` when the catalogs are regenerated, but
