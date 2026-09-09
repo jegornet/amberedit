@@ -1026,6 +1026,15 @@ Rules that hold the design together:
     corner buttons, and the frame the loop draws next has `Pressed::None` again
     and the message whole — including where `reader_edge stay` left the reader
     standing on the very message the pictogram was laid over.
+- **A narrow window drops the area's AKA from the title.** ` (2:382/736)` is
+  written only where `AppState::wideWindow()` is true, so a window under
+  `adaptive_ui_threshold` reads `ru.fidonet.today 867/867 -861` rather than
+  `ru.fidonet.today (2:382/736) 867/867 -861`. The address is the same for every
+  message of the area while the tag and the pair say where in it this one
+  stands, so it is what the title can spare when the columns run short. The
+  message list drops it at the same width: the two screens are the same title
+  word for word, and dragging between them must not restate the area
+  differently.
 - **A digit opens the goto field**, which is `AppState::readGoto` and nothing
   else: while it holds anything the title shows what is being typed in place of
   the `12/44` that says where the reader stands — the second is on its way to

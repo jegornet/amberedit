@@ -1906,6 +1906,33 @@ TEST_CASE("The reader answers the layout it was given [messageread][keys]") {
     CHECK(message_read::handleEvent(fixture.state, Event::Escape));
 }
 
+TEST_CASE("A narrow window drops the area's AKA from the title "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    fixture.state.currentArea.address =
+        *amberedit::domain::FtnAddress::parse("2:382/736");
+    const std::string aka = "(2:382/736)";
+
+    // Wide, the title names the address the area is presented under, between
+    // the tag and the pair saying which message of how many.
+    fixture.state.width = fixture.config.adaptiveUiThreshold;
+    std::string title = rowsOf(fixture)[0];
+    CHECK(title.find(aka) != std::string::npos);
+    CHECK(title.find("localnet " + aka) != std::string::npos);
+
+    // A column narrower, and the address is what the title gives up: the tag
+    // and the pair are still there, and they are now next to each other.
+    REQUIRE(fixture.state.readHeader);
+    const std::string pair = std::to_string(fixture.state.readHeader->number) + "/" +
+                             std::to_string(fixture.state.messageCount);
+    fixture.state.width = fixture.config.adaptiveUiThreshold - 1;
+    title = rowsOf(fixture)[0];
+    CHECK(title.find(aka) == std::string::npos);
+    CHECK(title.find("localnet " + pair) != std::string::npos);
+}
+
 TEST_CASE("A digit turns the message number into a field, and Enter goes there "
           "[messageread][squish]") {
     TempSquishBase base;

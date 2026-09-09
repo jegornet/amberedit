@@ -1047,6 +1047,30 @@ TEST_CASE("The list draws the number being typed as a header block field is "
     CHECK(screen.at(start + 3, 0).fg == theme::palette.inputFiller);
 }
 
+TEST_CASE("The list drops the AKA in a narrow window as the reader does "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('l')));
+    fixture.state.currentArea.address =
+        *amberedit::domain::FtnAddress::parse("2:382/736");
+    const std::string aka = "(2:382/736)";
+
+    // The two screens are the same title word for word, so where the reader
+    // names the address the list does...
+    fixture.state.width = fixture.config.adaptiveUiThreshold;
+    CHECK(rowsOf(fixture)[0].find("localnet " + aka) != std::string::npos);
+
+    // ...and where the reader gives it up for the columns, so does the list.
+    const std::string pair = std::to_string(fixture.state.messageCursor + 1) + "/" +
+                             std::to_string(fixture.state.messageCount);
+    fixture.state.width = fixture.config.adaptiveUiThreshold - 1;
+    const std::string title = rowsOf(fixture)[0];
+    CHECK(title.find(aka) == std::string::npos);
+    CHECK(title.find("localnet " + pair) != std::string::npos);
+}
+
 TEST_CASE("Leaving an area counts what it holds now [messagelist][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());

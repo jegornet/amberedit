@@ -1710,7 +1710,13 @@ Element render(AppState& state) {
     // The AKA the area is presented under, where the tosser config states one:
     // fidoconfig's -a, squish.cfg's -p. areas.bbs has no way to say it, so
     // there the parentheses are simply left out.
-    const std::string aka = state.currentArea.address.isValid()
+    //
+    // Left out as well in a window under `adaptive_ui_threshold`: the title is
+    // then short of columns, and of everything on the line the address is what
+    // a reader least needs to be told twice — it is the same address for every
+    // message of the area, while the tag and the pair of numbers say where in
+    // it this one stands.
+    const std::string aka = state.currentArea.address.isValid() && state.wideWindow()
                                 ? " (" + state.currentArea.address.toString() + ")"
                                 : "";
 

@@ -354,10 +354,11 @@ void leaveArea(AppState& state) {
 Element render(AppState& state) {
     // The reader's title, word for word: the tag, the AKA the area is presented
     // under, then which message of how many. The two screens show the same area
-    // and moving between them should not restate it differently. The AKA is
-    // absent only when the tosser config states none and the AmberEdit config has no
-    // address either.
-    const std::string aka = state.currentArea.address.isValid()
+    // and moving between them should not restate it differently — the AKA is
+    // dropped in a window narrower than `adaptive_ui_threshold` on both, for the
+    // reason the reader drops it. The AKA is absent besides when the tosser
+    // config states none and the AmberEdit config has no address either.
+    const std::string aka = state.currentArea.address.isValid() && state.wideWindow()
                                 ? " (" + state.currentArea.address.toString() + ")"
                                 : "";
     // Which message of how many, the pair the title ends in. The list is only
