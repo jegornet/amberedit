@@ -545,6 +545,9 @@ Element render(AppState& state) {
         // The row under the cursor keeps the selection's colors throughout: it
         // is marked out already, and the quiet color on the selection's
         // background would be the one thing on the row that could not be read.
+        // Everything else is `list_text`, asked for cell by cell rather than
+        // left to the screen's own `text`: the table is a role of its own, and
+        // a theme is free to settle it under the message being read.
         const auto styled = [&](std::string piece, bool dimmed) {
             Element cell = text(std::move(piece));
             if (selected) {
@@ -555,7 +558,7 @@ Element render(AppState& state) {
             if (!entry.isAvailable() || dimmed) {
                 return std::move(cell) | color(theme::palette.dimmed);
             }
-            return cell;
+            return std::move(cell) | color(theme::palette.listText);
         };
         const auto push = [&](const std::string& piece, bool dimmed) {
             const std::string fitted = substrByWidth(piece, 0, rowWidth - drawn);

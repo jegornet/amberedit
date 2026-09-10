@@ -650,7 +650,9 @@ TEST_CASE(
     CHECK(screen.at(kDescription, 3).fg == theme::palette.dimmed);
     CHECK(screen.at(kDescription, 4).fg == theme::palette.dimmed);
     // Only that column is quiet: the names beside it are what the list is read
-    // down, and they are drawn as ever.
+    // down, and they are drawn in `list_text`, the table's own role.
+    CHECK(screen.at(1, 3).fg == theme::palette.listText);
+    CHECK(screen.at(1, 4).fg == theme::palette.listText);
     CHECK(screen.at(1, 3).fg != theme::palette.dimmed);
     CHECK(screen.at(1, 4).fg != theme::palette.dimmed);
 }

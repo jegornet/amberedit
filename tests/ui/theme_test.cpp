@@ -215,6 +215,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.header, builtIn.header));
     CHECK(same(loaded.ownName, builtIn.ownName));
     CHECK(same(loaded.msglistUnread, builtIn.msglistUnread));
+    CHECK(same(loaded.listText, builtIn.listText));
     CHECK(same(loaded.text, builtIn.text));
     CHECK(same(loaded.link, builtIn.link));
     CHECK(same(loaded.quoteEven, builtIn.quoteEven));
@@ -270,6 +271,7 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.header, builtIn.header));
     CHECK_FALSE(same(loaded.ownName, builtIn.ownName));
     CHECK_FALSE(same(loaded.msglistUnread, builtIn.msglistUnread));
+    CHECK_FALSE(same(loaded.listText, builtIn.listText));
     CHECK_FALSE(same(loaded.text, builtIn.text));
     CHECK_FALSE(same(loaded.quoteEven, builtIn.quoteEven));
     CHECK_FALSE(same(loaded.quoteOdd, builtIn.quoteOdd));

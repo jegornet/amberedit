@@ -727,6 +727,9 @@ TEST_CASE("The message list paints a message nobody has read yet "
     message_list::ensureHeaders(fixture.state);
 
     CHECK(rowColor(fixture, read) != theme::palette.msglistUnread);
+    // A row no rule marks is `list_text` and not the color the screen is
+    // painted in behind it: the table is a role of its own.
+    CHECK(rowColor(fixture, read) == theme::palette.listText);
     CHECK(rowColor(fixture, read + 1) == theme::palette.msglistUnread);
 
     // Reading the next one marks it too, and its row stops standing out — the

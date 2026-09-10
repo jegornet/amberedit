@@ -324,7 +324,11 @@ term::Element drawLine(const Row& row, const Line& columns, int width, Paint pai
     // filling the box.
     if (paint == Paint::Unread)
         return std::move(drawing) | color(theme::palette.msglistUnread);
-    return drawing;
+    // Everything else is `list_text`, over the row for the same reason and with
+    // the same effect: the cells the format marked keep their own color, and
+    // the table is a role of its own rather than the screen's `text` showing
+    // through, so a theme may settle it under the message being read.
+    return std::move(drawing) | color(theme::palette.listText);
 }
 
 }  // namespace amberedit::ui::msg_format

@@ -823,6 +823,9 @@ Rules that hold the design together:
   them back into. **The row under the cursor keeps the selection's colors
   throughout**: it is marked out already, and the quiet color on the selection's
   background would be the one thing on the row that could not be read.
+  Everything neither selected nor dimmed is **`list_text`**, asked for cell by
+  cell rather than left to the screen's own `text` showing through — see the
+  message list's coloring bullet below, which the two lists share.
 - **Both lists draw the reader's scrollbar, and it costs their rows a column.**
   `arealist_scrollbar`, off by default, and `msglist_scrollbar`, on by default,
   one for each screen; `scrollbar::bar()` in the rightmost column, so a list
@@ -926,9 +929,14 @@ Rules that hold the design together:
   format against `reader_datetime_format`, and `stampOf()` writes it. What is
   laid out is `state.width` less the scrollbar's column wherever the bar is
   drawn — the `msglist_scrollbar` half of the bullet under the area list above.
-- **A row is colored by five rules, two over the whole row and three over a
-  cell.** Row-wide: the current row, and a message nobody has read yet
-  (`msglist_unread`, number and date included). Per-cell: a message written here
+- **A row is colored by six rules, three over the whole row and three over a
+  cell.** Row-wide: the current row, a message nobody has read yet
+  (`msglist_unread`, number and date included), and **`list_text`, which is what
+  every other row takes** — the two lists are a role of their own rather than the
+  screen's `text` showing through, so a theme may settle its tables a step under
+  the message being read without touching the message;
+  `themes/truecolor_bg_night.cfg` is the one shipped theme that does, and in the
+  built-in palette the two colors are the same. Per-cell: a message written here
   that has not gone out (`unsent`, over the whole row it is on), a From or To
   naming the user (`own_name`), and **the subject, which is drawn `dimmed`
   wherever it stands** — the one column that is prose rather than a fact about
@@ -937,7 +945,8 @@ Rules that hold the design together:
   changes. A row-wide rule leaves its cells plain and paints over the hbox,
   which works because `Painted` draws the child *after* filling the box — an
   inner color always wins, so the two kinds compose rather than compete. The
-  selection is the exception, suppressing the cells. Unread sits behind `unsent`
+  selection is the exception, suppressing the cells. The three row-wide rules are
+  one choice and not three coats: the bar, then unread, then `list_text`. Unread sits behind `unsent`
   deliberately: a message that has not gone out has not been read either, and
   painting such a row unread would leave nothing saying it is still sitting
   there. `highlight_unread` turns the unread rule off and nothing else.
@@ -2283,7 +2292,7 @@ taking a row.
   `dialog_border` — the frame, the rules closing it and the dividers inside it,
   `separator`'s counterpart in a box — and `dialog_shadow`, plus `menu_button`,
   which is only ever drawn inside one. A new dialog reaches for those rather than for `text`,
-  `table_header`, `header`,
+  `list_text`, `table_header`, `header`,
   `screen_buttons`/`dimmed`/`kludge`, `input_field`/`input_text`,
   `focused_field`/`focused_text`, `input_filler` and `animated_button_text`,
   which are the screen's counterparts and stay on the screen. The split is what

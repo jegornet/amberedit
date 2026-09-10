@@ -17,7 +17,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-five constants for the forty roles below. Each is named after
+/// Twenty-five constants for the forty-one roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -262,6 +262,18 @@ struct Palette {
     /// is the base's own mark — see `domain::MessageHeader::seen` — and
     /// `highlight_unread` is what decides whether this is used at all.
     Color msglistUnread = builtin_theme::kMsglistUnread;
+    /// A row of the area list or the message list that no rule above marks: the
+    /// name and the counts of an area, the number, date, From, To and Subject of
+    /// a message. Its own role rather than `text` reused, so that a theme may
+    /// settle the tables a step under the message being read without touching
+    /// the message; the built-in palette gives it `text`'s own color, which is
+    /// what a theme saying nothing about it keeps.
+    ///
+    /// It is drawn over the row and the cells with a color of their own keep
+    /// theirs — `dimmed` on the description and the subject, `own_name`,
+    /// `unsent` — and the rules that paint a whole row, the selection bar and
+    /// `msglist_unread`, are drawn instead of it.
+    Color listText = builtin_theme::kText;
     /// Message text.
     Color text = builtin_theme::kText;
     /// A link inside it. Only the address itself takes this color, the rest of
