@@ -555,6 +555,16 @@ struct AppConfig {
     /// file is.
     std::string errorLogPath;
 
+    /// A file the name of an area is added to after a message has been written
+    /// into it, from `echotosslog`. Empty where the config names none, which is
+    /// the ordinary case and means nothing is written down anywhere.
+    ///
+    /// It is what a tosser is pointed at to learn which areas have something
+    /// new in them: AmberEdit writes into a base and no tosser knows it
+    /// happened. Writing it is `msgbase/appendEchotossLog`'s, called by the adapter
+    /// that took the message — this layer only holds where the file is.
+    std::string echotossLogPath;
+
     /// Character set a message being *read* is decoded from when it carries no
     /// CHRS kludge — or one that names no particular encoding, "IBMPC" being
     /// the name that does that. Nothing else can say: no tosser config format

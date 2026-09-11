@@ -40,8 +40,13 @@ public:
     ///        the room FTS-0001 has. From `ucs_kludges`, and independent of
     ///        `fieldLimits`: a field written into one of those lines is cut
     ///        whatever that setting says, since the line is what says it was.
+    /// @param echotossLogPath file the name of this area is added to after a
+    ///        message has been written into it, from `echotosslog`. Empty —
+    ///        which is what a config naming none leaves — writes nowhere. See
+    ///        `msgbase/echotoss_log.hpp`; this class is where it is called because
+    ///        this is the one place a message reaching a base is a fact.
     explicit FtnMsgBase(std::string_view defaultCharset, bool fieldLimits = true,
-                        bool ucsKludges = true);
+                        bool ucsKludges = true, std::string echotossLogPath = {});
     ~FtnMsgBase() override;
 
     FtnMsgBase(const FtnMsgBase&) = delete;
@@ -119,6 +124,7 @@ private:
     encoding::CharsetDetector detector_;
     bool fieldLimits_{true};
     bool ucsKludges_{true};
+    std::string echotossLogPath_;
     mutable encoding::IconvRecoder recoder_;
 };
 

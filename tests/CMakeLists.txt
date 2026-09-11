@@ -29,6 +29,7 @@ add_executable(amberedit_tests
   msgbase/message_info_test.cpp
   msgbase/lastread_store_test.cpp
   msgbase/create_base_test.cpp
+  msgbase/echotoss_log_test.cpp
   echolist/echolist_parser_test.cpp
   echolist/echolist_db_test.cpp
   echolist/echolist_source_test.cpp

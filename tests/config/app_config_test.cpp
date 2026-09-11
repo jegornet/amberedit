@@ -320,6 +320,31 @@ TEST_CASE("map_path is not a per-area setting [app_config]") {
                    "a setting for the whole config and not for one area"));
 }
 
+TEST_CASE("AppConfig reads the toss log setting [app_config]") {
+    // Off unless a file is named, which is what most configs say by saying
+    // nothing at all.
+    CHECK(with("").echotossLogPath.empty());
+    CHECK(with("echotosslog /var/spool/ftn/echotoss.log\n").echotossLogPath ==
+          "/var/spool/ftn/echotoss.log");
+
+    const char* const home = std::getenv("HOME");
+    if (home != nullptr) {
+        CHECK(with("echotosslog ~/ftn/tmp/echotoss.log\n").echotossLogPath ==
+              std::string(home) + "/ftn/tmp/echotoss.log");
+    }
+}
+
+TEST_CASE("echotosslog is not a per-area setting [app_config]") {
+    // One file for the whole config: what a tosser reads is which areas have
+    // something new in them, and an area naming a second file would leave the
+    // messages written there announced to nobody the tosser asks.
+    CHECK(contains(errorWith("group\n"
+                             "  member *\n"
+                             "  echotosslog /var/spool/ftn/echotoss.log\n"
+                             "endgroup\n"),
+                   "a setting for the whole config and not for one area"));
+}
+
 TEST_CASE("The example config's map_path lines parse uncommented [app_config]") {
     // They ship commented out — they name a machine that is nobody's — so
     // nothing in the example itself reads them. Written out here as the example

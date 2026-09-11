@@ -3090,6 +3090,21 @@ lock for a *new* message: a message is a file of its own, created `O_EXCL`, and
 the loser of a race over a number rescans and takes the next. Rewriting one is
 locked all the same — the file is the message.
 
+**A message written into a base names its area in the `echotosslog`** —
+`msgbase/echotoss_log.cpp`, called from `FtnMsgBase::write()` and nowhere else,
+because that is the one place a message reaching a base is a fact and the tag is
+at hand. It is how a tosser learns the area has something to scan out: the tag on
+a line of its own, ended with LF (`std::ios::binary`, so the Windows build writes
+no CR), added to the end of the file and never read back — one area written into
+twice is two lines, the file holding what has happened since the tosser last took
+it away. `replace()` writes no line: the area was named when the message first
+reached it. Nor does the base `AreaManager::reload()` counts with, which is
+handed no path — only `openArea()` passes `cfg.echotossLogPath`, and only an area
+someone has opened is ever written into. A log that will not open is passed over
+in silence: the message is in the base by then, and a failure coming back as one
+would leave the editor open on a message already stored, which is a second copy
+of it waiting to be written.
+
 **An address the header is short of is completed from the kludges** —
 `completeAddresses()` in `raw_message.cpp`, called by the Squish and Fido `*.msg`
 drivers on the control lines they have read anyway. The zones come from `INTL`,

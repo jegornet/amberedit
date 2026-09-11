@@ -1030,6 +1030,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readPath(entry, "a file to write errors to");
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.errorLogPath = *read;
+    } else if (key == "echotosslog") {
+        auto read = readPath(entry, "a file to name written areas in");
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.echotossLogPath = *read;
     } else if (key == "default_charset") {
         auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());

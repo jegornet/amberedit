@@ -2,13 +2,16 @@
 
 #include <ctime>
 #include <filesystem>
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "config/text_util.hpp"
 #include "msgbase/jam_base.hpp"
 #include "msgbase/sdm_base.hpp"
 #include "msgbase/squish_base.hpp"
+#include "msgbase/echotoss_log.hpp"
 #include "sys/time.hpp"
 
 namespace amberedit::msgbase {
@@ -136,8 +139,12 @@ domain::MessageDate nowLocal() {
 
 }  // namespace
 
-FtnMsgBase::FtnMsgBase(std::string_view defaultCharset, bool fieldLimits, bool ucsKludges)
-    : detector_(defaultCharset), fieldLimits_(fieldLimits), ucsKludges_(ucsKludges) {}
+FtnMsgBase::FtnMsgBase(std::string_view defaultCharset, bool fieldLimits, bool ucsKludges,
+                       std::string echotossLogPath)
+    : detector_(defaultCharset),
+      fieldLimits_(fieldLimits),
+      ucsKludges_(ucsKludges),
+      echotossLogPath_(std::move(echotossLogPath)) {}
 
 FtnMsgBase::~FtnMsgBase() = default;
 
@@ -434,6 +441,11 @@ tl::expected<uint32_t, ErrorPtr> FtnMsgBase::write(const domain::MessageDraft& d
     const auto written = driver_->write(raw);
     if (!written)
         return failure("cannot write the message: " + written.error()->message());
+    // The area now holds a message nothing outside AmberEdit has been told
+    // about. Where the config names an `echotosslog`, this is where the area is
+    // named in it — after the base has taken the message and not before, so
+    // that nothing is announced that was never written.
+    appendEchotossLog(echotossLogPath_, areaConfig_.tag);
     return *written;
 }
 

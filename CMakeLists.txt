@@ -473,6 +473,7 @@ add_library(amberedit_core STATIC
   src/msgbase/jam_base.cpp
   src/msgbase/sdm_base.cpp
   src/msgbase/ftn_msgbase.cpp
+  src/msgbase/echotoss_log.cpp
   src/msgbase/lastread_file.cpp
   src/msgbase/squish_lastread_store.cpp
   src/msgbase/jam_lastread_store.cpp

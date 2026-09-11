@@ -175,6 +175,10 @@ ucs_kludges on
 # calls it SQUISHUSERNO / FIDOUSERNO.
 lastread_user 0
 
+# A file to log every area you write into. Optional; without one nothing is
+# written down anywhere, which is the default.
+#echotosslog ~/ftn/tmp/echotoss.log
+
 # --- nodelists & pointlists ---------------------------------------------------
 
 # The nodelists you keep. Optional; one line per nodelist, and their ORDER IS
