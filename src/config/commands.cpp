@@ -30,6 +30,8 @@ constexpr Commands::Info kCommands[] = {
      "Ctrl-U", true},
     {Command::AreaListRescan, "arealist.rescan", CommandScreen::AreaList, N_("Rescan"),
      N_("Read the message bases again"), "⟳", "Ctrl-R", true},
+    {Command::AreaListMarkToggle, "arealist.mark_toggle", CommandScreen::AreaList,
+     N_("Mark"), N_("Mark the area, or take the mark off"), "★", "Ctrl-T", true},
     {Command::MessageListMarkToggle, "msglist.mark_toggle", CommandScreen::MessageList,
      N_("Mark"), N_("Mark the message, or take the mark off"), "", "Ctrl-T", false},
     {Command::ReaderReply, "reader.reply", CommandScreen::Reader, N_("Reply"),

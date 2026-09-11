@@ -69,6 +69,7 @@ F1              app.help
 /               arealist.next_unread
 Ctrl-U          arealist.toggle_unread
 Ctrl-R          arealist.rescan
+Ctrl-T          arealist.mark_toggle
 
 # --- the message list ---------------------------------------------------------
 # Marking the message under the cursor. Space says the same thing and is not

@@ -106,11 +106,11 @@ tl::expected<std::vector<AreaSortCriterion>, ErrorPtr> parseAreaSort(
 const ListFormatSpec& areaFormatSpec() {
     static const ListFormatSpec spec{
         "arealist_format",
-        {{'a', 4}, {'e', 0}, {'d', 0}, {'g', 5}, {'c', 4}, {'u', 4}, {'n', 1}},
-        "a number, e echoid, d description, g group, c messages, u unread, "
+        {{'a', 4}, {'e', 0}, {'m', 1}, {'d', 0}, {'g', 5}, {'c', 4}, {'u', 4}, {'n', 1}},
+        "a number, e echoid, m mark, d description, g group, c messages, u unread, "
         "n unread marker",
-        "e c u\\nd n",
-        "e d c un",
+        "me c u\\n d n",
+        "me d c un",
     };
     return spec;
 }
@@ -119,6 +119,7 @@ AreaFieldKind areaFieldOf(char letter) {
     switch (letter) {
         case 'a': return AreaFieldKind::Number;
         case 'e': return AreaFieldKind::Echoid;
+        case 'm': return AreaFieldKind::Marked;
         case 'd': return AreaFieldKind::Description;
         case 'g': return AreaFieldKind::Group;
         case 'c': return AreaFieldKind::Total;

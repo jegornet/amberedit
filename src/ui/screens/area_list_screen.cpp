@@ -278,6 +278,23 @@ void toggleUnreadOnly(AppState& state) {
     clampCursor(state);
 }
 
+/// The area under the cursor, marked where it was not and unmarked where it
+/// was — the whole of what `arealist.mark_toggle` does. A mark is the user
+/// saying "this one, and I will say later what for", and the `m` column of
+/// `arealist_format` is where it is shown.
+///
+/// An empty list has nothing under the cursor and so nothing to mark. The search
+/// is left standing, unlike every other command here: marking picks rows out of
+/// what was searched for, and ending the query would put the rest of the list
+/// back under a cursor that has not moved.
+void toggleMark(AppState& state) {
+    const auto& areas = state.manager.areas();
+    if (state.areaCursor < 0 || state.areaCursor >= static_cast<int>(areas.size())) {
+        return;
+    }
+    state.toggleAreaMark(areas[static_cast<size_t>(state.areaCursor)].config.tag);
+}
+
 /// Puts the cursor on the next area with something unread in it — what `/`
 /// does. Nowhere to go is nowhere to go: the cursor stays where it is, the
 /// answer to "take me to the next unread area" when there is none being to stay
@@ -397,6 +414,7 @@ void runMenuCommand(AppState& state, Command command) {
         // in between.
         case Command::AreaListRescan: askRescan(state); break;
         case Command::AreaListToggleUnread: toggleUnreadOnly(state); break;
+        case Command::AreaListMarkToggle: toggleMark(state); break;
         // Refused rather than merely drawn dim, for the reason the editor's
         // Import is: a button the menu dimmed can still be walked onto and
         // pressed, and there is nowhere to walk to.
@@ -571,8 +589,9 @@ Element render(AppState& state) {
         // it. What the fields left of the width, and the margin on the right,
         // are the one blank piece closing the line.
         push(" ", false);
-        for (const auto& run : area_format::runs(entry, row + 1, columns,
-                                                 state.config.areaDescriptionDefault)) {
+        for (const auto& run :
+             area_format::runs(entry, row + 1, state.areaMarked(entry.config.tag), columns,
+                               state.config.areaDescriptionDefault)) {
             push(run.text, run.dimmed);
         }
         cells.push_back(
@@ -694,7 +713,7 @@ bool handleEvent(AppState& state, const Event& event) {
     const std::vector<int> shown = shownAreas(state);
     const int total = static_cast<int>(shown.size());
 
-    // The three commands come ahead of the quick search, which would otherwise
+    // The four commands come ahead of the quick search, which would otherwise
     // take the key for something typed. That is also what a layout binding a
     // bare letter here costs: the letter runs the command and stops being one an
     // area's name can be searched by.
@@ -707,6 +726,13 @@ bool handleEvent(AppState& state, const Event& event) {
     // wants the filter off again.
     if (state.keys.is(event, Command::AreaListToggleUnread)) {
         toggleUnreadOnly(state);
+        return true;
+    }
+    // Marking the area under the cursor. Swallowed even where there is no area
+    // to mark: an empty list answering a key by typing it into the search would
+    // be the one thing the key cannot have meant.
+    if (state.keys.is(event, Command::AreaListMarkToggle)) {
+        toggleMark(state);
         return true;
     }
     // Down the list to the next area with something unread in it, and round the

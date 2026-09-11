@@ -19,12 +19,13 @@ bool isNumeric(AreaFieldKind kind) {
            kind == AreaFieldKind::Unread;
 }
 
-/// What stands over a column. The star has none: a one-character label would
-/// say less about it than the stars underneath already do.
+/// What stands over a column. The star and the mark have none: a one-character
+/// label would say less about them than the glyphs underneath already do.
 std::string headingOf(AreaFieldKind kind) {
     switch (kind) {
         case AreaFieldKind::Number: return C_("area list column", "#");
         case AreaFieldKind::Echoid: return C_("area list column", "Area");
+        case AreaFieldKind::Marked: return "";
         case AreaFieldKind::Description: return C_("area list column", "Description");
         case AreaFieldKind::Group: return C_("area list column", "Grp");
         case AreaFieldKind::Total: return C_("area list column", "Msgs");
@@ -44,13 +45,14 @@ std::string fitHeading(const std::string& heading, int width) {
     return heading;
 }
 
-std::string cellText(const app::AreaEntry& entry, int ordinal, const Column& column,
-                     const std::string& descriptionDefault) {
+std::string cellText(const app::AreaEntry& entry, int ordinal, bool marked,
+                     const Column& column, const std::string& descriptionDefault) {
     switch (column.kind) {
         case AreaFieldKind::Number:
             return countText(static_cast<uint64_t>(std::max(0, ordinal)), column.width);
         case AreaFieldKind::Echoid:
             return truncateToWidth(entry.config.tag, column.width);
+        case AreaFieldKind::Marked: return marked ? ">" : "";
         case AreaFieldKind::Description:
             // An area nothing describes shows what `arealist_description_default`
             // stands in with — "no description" by default, and the empty string
@@ -131,12 +133,13 @@ std::string header(const Layout& layout) {
     return line;
 }
 
-std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, const Line& columns,
-                      const std::string& descriptionDefault) {
+std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, bool marked,
+                      const Line& columns, const std::string& descriptionDefault) {
     std::vector<Run> pieces;
     for (const auto& column : columns) {
         if (column.width <= 0) continue;
-        const std::string cell = cellText(entry, ordinal, column, descriptionDefault);
+        const std::string cell =
+            cellText(entry, ordinal, marked, column, descriptionDefault);
         // The description column, whatever it holds: what the area says about
         // itself is drawn as quiet as what the config stands in with where it
         // says nothing. The column is prose either way, and the fields beside it
@@ -155,10 +158,10 @@ std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, const Line& colu
     return pieces;
 }
 
-std::string row(const app::AreaEntry& entry, int ordinal, const Line& columns,
-                const std::string& descriptionDefault) {
+std::string row(const app::AreaEntry& entry, int ordinal, bool marked,
+                const Line& columns, const std::string& descriptionDefault) {
     std::string line;
-    for (const auto& run : runs(entry, ordinal, columns, descriptionDefault)) {
+    for (const auto& run : runs(entry, ordinal, marked, columns, descriptionDefault)) {
         line += run.text;
     }
     return line;

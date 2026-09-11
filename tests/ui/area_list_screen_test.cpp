@@ -5,6 +5,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -428,6 +429,70 @@ TEST_CASE("The area list draws the columns arealist_format asks for [arealist]")
     CHECK(rowText(screen, 0) == "   # Area           ");
     CHECK(rowText(screen, 2) == "   1 one            ");
     CHECK(rowText(screen, 3) == "   2 two            ");
+}
+
+TEST_CASE("The area list marks the area under the cursor [arealist][marks]") {
+    using amberedit::config::AreaFieldKind;
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.areaListFormatNarrow = {
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.state.width = 20;
+    fixture.config.arealistMenu.clear();
+
+    const auto mark = [&fixture] {
+        return area_list::handleEvent(fixture.state,
+                                      Event::Character("t", true, false, false));
+    };
+    const auto drawnRow = [&fixture](int y) {
+        namespace term = amberedit::ui::term;
+        term::Screen screen(fixture.state.width, fixture.state.height);
+        term::render(screen, area_list::render(fixture.state));
+        return rowText(screen, y);
+    };
+
+    // The column stands blank until something is marked, so the row is the row
+    // it always was.
+    CHECK(drawnRow(2) == "  one               ");
+
+    fixture.state.areaCursor = 1;
+    REQUIRE(mark());
+    CHECK(fixture.state.areaMarks == std::set<std::string>{"two"});
+    CHECK(drawnRow(2) == "  one               ");
+    CHECK(drawnRow(3) == " >two               ");
+
+    // The same key again takes the mark off, and the mark is the area's own:
+    // the cursor moving does not take it along.
+    REQUIRE(mark());
+    CHECK(fixture.state.areaMarks.empty());
+    CHECK(drawnRow(3) == "  two               ");
+}
+
+TEST_CASE("Marking an area is by tag, so the list may move under it "
+          "[arealist][marks]") {
+    Fixture fixture({passthroughArea("one"), passthroughArea("two"),
+                     passthroughArea("three")});
+    fixture.state.areaCursor = 2;
+    REQUIRE(area_list::handleEvent(fixture.state,
+                                   Event::Character("t", true, false, false)));
+    REQUIRE(fixture.state.areaMarked("three"));
+
+    // The tosser config is read again with the area somewhere else in the list:
+    // the mark is still on the area it was put on rather than on the third row.
+    fixture.areas = {passthroughArea("three"), passthroughArea("one")};
+    static_cast<void>(fixture.manager.reload());
+    CHECK(fixture.state.areaMarked("three"));
+    CHECK_FALSE(fixture.state.areaMarked("one"));
+}
+
+TEST_CASE("The key is swallowed where there is no area to mark [arealist][marks]") {
+    Fixture fixture({});
+    // Nothing under the cursor, and nothing typed into the quick search either:
+    // a key bound to a command is that command wherever the list stands.
+    CHECK(area_list::handleEvent(fixture.state,
+                                 Event::Character("t", true, false, false)));
+    CHECK(fixture.state.areaMarks.empty());
+    CHECK(fixture.state.areaSearch.empty());
 }
 
 TEST_CASE(

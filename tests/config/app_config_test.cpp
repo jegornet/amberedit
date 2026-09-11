@@ -926,9 +926,11 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     CHECK_FALSE(loads("reader_menu save\n"));
     CHECK_FALSE(loads("compose_menu reply\n"));
     CHECK_FALSE(loads("arealist_menu reply\n"));
-    // The message list's one command is not the area list's, and no list of
-    // any screen may name a key answered before every screen.
-    CHECK_FALSE(loads("arealist_menu mark_toggle\n"));
+    // A name two screens share is read against the screen whose list it was
+    // written in: `mark_toggle` in the area list's menu is `arealist.mark_toggle`
+    // and nothing else. No list of any screen may name a key answered before
+    // every screen.
+    CHECK(loads("arealist_menu mark_toggle\n"));
     CHECK_FALSE(loads("arealist_menu quit\n"));
     CHECK_FALSE(loads("reader_menu delete\n"));
     CHECK_FALSE(loads("compose_menu delete_line\n"));
@@ -1114,18 +1116,21 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     // the counts leave, and the description under it across whatever the star
     // leaves.
     CHECK(with("").areaListFormatNarrow ==
-          AreaListFormat{Line{{AreaFieldKind::Echoid, 0},
+          AreaListFormat{Line{{AreaFieldKind::Marked, 1},
+                              {AreaFieldKind::Echoid, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Total, 4},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Unread, 4}},
-                         Line{{AreaFieldKind::Description, 0},
+                         Line{{AreaFieldKind::Space, 1},
+                              {AreaFieldKind::Description, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::UnreadFlag, 1}}});
     // The default wide one is a single line: the description goes beside the
     // name, the two sharing what the counts leave.
     CHECK(with("").areaListFormatWide ==
-          AreaListFormat{Line{{AreaFieldKind::Echoid, 0},
+          AreaListFormat{Line{{AreaFieldKind::Marked, 1},
+                              {AreaFieldKind::Echoid, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Description, 0},
                               {AreaFieldKind::Space, 1},
@@ -1133,8 +1138,9 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Unread, 4},
                               {AreaFieldKind::UnreadFlag, 1}}});
-    CHECK(formatOf("\"e c u\\nd n\"") == with("").areaListFormatNarrow);
-    CHECK(wideFormatOf("\"e c u\\nd n\" \"e d c un\"") == with("").areaListFormatWide);
+    CHECK(formatOf("\"me c u\\n d n\"") == with("").areaListFormatNarrow);
+    CHECK(wideFormatOf("\"me c u\\n d n\" \"me d c un\"") ==
+          with("").areaListFormatWide);
 
     // One format is every window's: a config written before the second value
     // existed says the same thing it always did.
@@ -1173,15 +1179,16 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
                               {AreaFieldKind::UnreadFlag, 1}}});
 
     // Every letter, with the default widths the table promises.
-    CHECK(formatOf("aedgcun") == AreaListFormat{Line{{AreaFieldKind::Number, 4},
-                                                     {AreaFieldKind::Echoid, 0},
-                                                     {AreaFieldKind::Description, 0},
-                                                     {AreaFieldKind::Group, 5},
-                                                     {AreaFieldKind::Total, 4},
-                                                     {AreaFieldKind::Unread, 4},
-                                                     {AreaFieldKind::UnreadFlag, 1}}});
+    CHECK(formatOf("aemdgcun") == AreaListFormat{Line{{AreaFieldKind::Number, 4},
+                                                      {AreaFieldKind::Echoid, 0},
+                                                      {AreaFieldKind::Marked, 1},
+                                                      {AreaFieldKind::Description, 0},
+                                                      {AreaFieldKind::Group, 5},
+                                                      {AreaFieldKind::Total, 4},
+                                                      {AreaFieldKind::Unread, 4},
+                                                      {AreaFieldKind::UnreadFlag, 1}}});
     // Case means nothing, as it means nothing in arealist_sort.
-    CHECK(formatOf("AEDGCUN") == formatOf("aedgcun"));
+    CHECK(formatOf("AEMDGCUN") == formatOf("aemdgcun"));
 
     // A field written twice is a layout, not a slip: the same number may stand
     // at both ends of a row.

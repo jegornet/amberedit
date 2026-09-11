@@ -373,6 +373,7 @@ arealist_sort te
 # optionally followed by the width in columns it is given:
 #   a   the area's number in the list, counted from one      4 columns
 #   e   the echoid (the area tag)                            what is left
+#   m   a ">" where you have marked the area (Ctrl-T)        1 column
 #   d   the description (-d in fidoconfig, or an echolist)   what is left
 #   g   the group, where the tosser config has one           5 columns
 #   c   how many messages the area holds                     4 columns
@@ -396,7 +397,7 @@ arealist_sort te
 # Where the two formats are not the same height, dragging the window across
 # adaptive_ui_threshold keeps the selected area where it stands on the screen
 # and counts the areas above and below it again.
-arealist_format "e c u\nd n" "e d c un"
+arealist_format "me c u\n d n" "me d c un"
 
 # Which description an area is shown by where it has two — one from the tosser
 # config (or an "area ... endarea" block here) and one from an echolist.
@@ -489,8 +490,8 @@ arealist_first_unread off
 # it goes to strftime as it was written — and a format wanting a literal ")" is
 # not a thing that can be written here.
 #
-# "m" holds one character or none: a star where the message is one of the ones
-# you have marked — with "t" in the list or in the reader, or from the box the
+# "m" holds one character or none: a ">" where the message is one of the ones you
+# have marked — with "ctrl-t" in the list or in the reader, or from the box the
 # reader's "s" opens — and a blank the rest of the time. It stands in the default
 # formats where the blank between the number and the first name used to, so a
 # list with nothing marked in it reads exactly as it always has; and the column
@@ -857,7 +858,7 @@ hint_bar_capitalize off
 # a name reads as a "_", so a config written when they were spelled
 # "reply-elsewhere" is read as it stands:
 #
-#   arealist_hints  next_unread  toggle_unread  rescan  quit  help
+#   arealist_hints  next_unread  toggle_unread  rescan  mark_toggle  quit  help
 #
 #   msglist_hints   mark_toggle  quit  help
 #
@@ -938,6 +939,8 @@ reader_side_tap_width 6
 #                                  something unread in them, as ^U does
 #                 next_unread      down to the next area with something unread
 #                                  in it, as `/` does
+#                 mark_toggle      mark the area, or take the mark off it, as
+#                                  Ctrl-T does
 #
 #   reader_menu   list             the list of messages in the area
 #                 reply            answer the message, quoting it
@@ -973,12 +976,13 @@ reader_side_tap_width 6
 #
 # The three lines below are the defaults. "change", "info", "export",
 # "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's,
-# and "next_unread" out of the list's — write them in to have them:
+# and "next_unread" and "mark_toggle" out of the list's — write them in to have
+# them:
 #
 #   reader_menu   list reply reply_elsewhere comment_reply new forward find
 #                 change info export nodelist mark_toggle mark_menu shell
 #
-#   arealist_menu rescan toggle_unread next_unread
+#   arealist_menu rescan toggle_unread next_unread mark_toggle
 #
 # The message list carries no menu button and has no setting for one: marking
 # the message under the cursor is its one command, and one button is no menu.

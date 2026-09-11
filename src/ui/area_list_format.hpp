@@ -66,8 +66,12 @@ struct Run {
 /// The line `columns` lays out, for `entry`, in the runs it is drawn in.
 /// `row()` is these joined back together, which is what a screen drawing the
 /// line in one color wants.
-std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, const Line& columns,
-                      const std::string& descriptionDefault);
+///
+/// `marked` is what the `m` column draws its arrow from — whether the user has
+/// picked this area out. It is carried in rather than read off the entry: a mark
+/// is a note about this session's list and nothing the tosser config knows.
+std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, bool marked,
+                      const Line& columns, const std::string& descriptionDefault);
 
 /// One line of the row for `entry`, standing `ordinal` in the list, counted
 /// from one — the line being the one `columns` lays out, which for a format
@@ -78,8 +82,8 @@ std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, const Line& colu
 /// `descriptionDefault` — `arealist_description_default` — is what the
 /// description column shows for an area nothing describes. Empty leaves that
 /// column blank, which is what the setting is written empty for.
-std::string row(const app::AreaEntry& entry, int ordinal, const Line& columns,
-                const std::string& descriptionDefault);
+std::string row(const app::AreaEntry& entry, int ordinal, bool marked,
+                const Line& columns, const std::string& descriptionDefault);
 
 /// A count written to fit `width` columns: the number itself where it fits,
 /// then thousands as `17k`, millions as `1M` and so on, and a bare `+` when
