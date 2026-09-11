@@ -125,7 +125,9 @@ configuration. If you experience color display issues, make sure the `TERM`
 environment variable is set to `xterm-256color`**
 
 ⚠️ **A theme written in truecolor is at your own risk.** AmberEdit cannot
-reliably determine whether your terminal supports 24-bit colors.
+reliably determine whether your terminal supports 24-bit colors. PuTTY draws
+one quantised to the nearest palette entry; see
+[PuTTY-truecolor.md](PuTTY-truecolor.md) for instructions on how to fix this.
 
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
 with when the config names no theme, and the file to copy and edit.

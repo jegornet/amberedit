@@ -50,6 +50,6 @@ package() {
     # The sample configs stay documentation: AmberEdit looks for its config
     # where the user keeps it, and these are here to be copied.
     install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" \
-            README.md KEYS.md KEYS_REBINDING.md INSTALL.md amberedit.cfg.example \
+            README.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md amberedit.cfg.example \
             amberkeys.cfg.example
 }
