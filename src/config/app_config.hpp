@@ -209,7 +209,7 @@ using AreaListFormat = std::vector<AreaListLine>;
 /// What one field of `msglist_format` shows.
 enum class MsgFieldKind {
     Number,   ///< 'a' — the message's number in the area, counted from one
-    Marked,   ///< 'm' — a star where the message is marked, a blank where it is not
+    Marked,   ///< 'm' — an arrow where the message is marked, a blank where it is not
     From,     ///< 'f' — who the message is from
     To,       ///< 't' — who it is to
     Subject,  ///< 's' — what it is about

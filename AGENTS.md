@@ -959,7 +959,7 @@ Rules that hold the design together:
   deliberately: a message that has not gone out has not been read either, and
   painting such a row unread would leave nothing saying it is still sitting
   there. `highlight_unread` turns the unread rule off and nothing else.
-- **`t` and Space mark the message under the cursor**, through
+- **`Ctrl-T` and Space mark the message under the cursor**, through
   `marks::toggle()`, and they are the whole of what this screen answers besides
   moving about in the area. `msglist.mark_toggle` is the command and the only
   one the message list has; **Space is not bound and cannot be**, being one of
@@ -1307,11 +1307,11 @@ screens showing an area draw what the set holds.
   Nothing is written to disk — a mark is a note about this session's reading, not
   a fact about the message.
 - **It is shown in two places and drawn from the same set.** The message list's
-  `m` column is a `*` where the row is marked and a blank where it is not, and
-  the reader's title puts the same star after the pair naming the message —
-  `localnet (2:382/736) 111/111*` — in `header`, the color the block under it is
+  `m` column is a `>` where the row is marked and a blank where it is not, and
+  the reader's title puts the same arrow after the pair naming the message —
+  `localnet (2:382/736) 111/111>` — in `header`, the color the block under it is
   written in, since it is a fact about the message and not a piece of the area's
-  name. The star is taken out of what is left of the title row the way a thread
+  name. The arrow is taken out of what is left of the title row the way a thread
   marker is, so a window with no column to spare drops it rather than pushing the
   row past its edge.
 - **The `m` column is reserved, not conjured.** It stands a column wide whether
@@ -1321,7 +1321,7 @@ screens showing an area draw what the set holds.
   shifts no field sideways. A format written without `m` shows no marks and is
   not corrected: what a row holds is `msglist_format`'s.
 - **Marking one message is a key; marking a run is a box.** `reader.mark_toggle`
-  and `msglist.mark_toggle` are the key on each screen, `t` by default and Space
+  and `msglist.mark_toggle` are the key on each screen, `Ctrl-T` by default and Space
   besides in the list; `reader.mark_menu` (`s`) opens `ui/mark_dialog.*`, whose
   five answers are the whole of what can be done to the set at once — the area
   entire, nothing at all, inside out, everything after the message being read and

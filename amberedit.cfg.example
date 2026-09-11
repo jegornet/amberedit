@@ -452,7 +452,7 @@ arealist_first_unread off
 # wide one's, each a set of letters in any case, each optionally followed by the
 # width in columns it is given:
 #   a   the message's number in the area, counted from one   the numbers in it
-#   m   a "*" where you have marked the message              1 column
+#   m   a ">" where you have marked the message              1 column
 #   f   who the message is from                              20 columns
 #   t   who it is to                                         20 columns
 #   s   what it is about                                     what is left
@@ -953,7 +953,7 @@ reader_side_tap_width 6
 #                 export           write it out to a text file, as `w` does
 #                 nodelist         look an address or a sysop up, as Ctrl-N does
 #                 mark_toggle      mark the message, or take the mark off it,
-#                                  as `t` does
+#                                  as Ctrl-T does
 #                 mark_menu        the box that marks a run of messages at once,
 #                                  as `s` does
 #                 shell            hand the terminal to your own shell until you

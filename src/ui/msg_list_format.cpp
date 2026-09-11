@@ -85,7 +85,7 @@ std::string cellText(const Row& row, const Column& column) {
     switch (column.kind) {
         case MsgFieldKind::Number:
             return truncateToWidth(std::to_string(std::max(0, row.number)), column.width);
-        case MsgFieldKind::Marked: return row.marked ? "*" : "";
+        case MsgFieldKind::Marked: return row.marked ? ">" : "";
         case MsgFieldKind::From: return truncateToWidth(row.header->from, column.width);
         case MsgFieldKind::To: return truncateToWidth(row.header->to, column.width);
         case MsgFieldKind::Subject:

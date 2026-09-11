@@ -28,7 +28,7 @@ left unbound is not in it at all.
 | `↑` `↓` `PgUp` `PgDn` | move |
 | `Home`, `End` | first, last |
 | `Enter`, `→`, click | open the message |
-| `t`, `Space` | mark the message under the cursor, or take the mark off it |
+| `Ctrl-T`, `Space` | mark the message under the cursor, or take the mark off it |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` opens that message — or puts the cursor on its row with `msglist_goto_field_opens off` — `Backspace` edits it, `Esc` closes it |
 | `Esc` `←` `Backspace` | back to the area list |
 
@@ -53,7 +53,7 @@ left unbound is not in it at all.
 | `l` / `F9` | the list of messages                                                         |
 | `k` | show the kludges — a reply then quotes them, a forward carries them          |
 | `b` | toggle the scrollbar                                                         |
-| `t` | mark the message, or take the mark off it                                    |
+| `Ctrl-T` | mark the message, or take the mark off it                               |
 | `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `i` | technical info from the message base                                         |

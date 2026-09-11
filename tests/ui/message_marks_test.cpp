@@ -36,6 +36,11 @@ namespace term = amberedit::ui::term;
 
 namespace {
 
+/// Ctrl held with a letter, as the input layer hands it over.
+Event ctrl(char letter) {
+    return Event::Character(std::string(1, letter), true, false, false);
+}
+
 using Action = amberedit::ui::AppState::MarkPicker::Action;
 using ScopeMode = amberedit::ui::AppState::ScopePicker::Mode;
 using ForwardMode = amberedit::ui::AppState::ForwardPicker::Mode;
@@ -232,7 +237,7 @@ TEST_CASE("The message list marks the row under the cursor [marks][squish]") {
     fixture.state.messageCursor = 1;  // the second message
 
     SUBCASE("the bound key") {
-        CHECK(message_list::handleEvent(fixture.state, Event::Character('t')));
+        CHECK(message_list::handleEvent(fixture.state, ctrl('t')));
     }
     SUBCASE("and Space, which no layout binds") {
         CHECK(message_list::handleEvent(fixture.state, Event::Character(' ')));
@@ -246,13 +251,13 @@ TEST_CASE("The reader marks the message it is showing [marks][squish]") {
     enter(fixture);
     message_read::goToMessage(fixture.state, 3);
 
-    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('t')));
+    REQUIRE(message_read::handleEvent(fixture.state, ctrl('t')));
     CHECK(markedNumbers(fixture) == std::vector<uint32_t>{3});
-    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('t')));
+    REQUIRE(message_read::handleEvent(fixture.state, ctrl('t')));
     CHECK(fixture.state.marks.empty());
 }
 
-TEST_CASE("A marked message wears a star in both places it is shown [marks][squish]") {
+TEST_CASE("A marked message wears an arrow in both places it is shown [marks][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     enter(fixture);
@@ -264,25 +269,25 @@ TEST_CASE("A marked message wears a star in both places it is shown [marks][squi
     const std::string pair = "1/" + std::to_string(fixture.state.messageCount);
 
     const std::string plainRow = listRow(fixture, 3);
-    CHECK(plainRow.find('*') == std::string::npos);
-    CHECK_FALSE(contains(readerTitle(fixture), pair + "*"));
+    CHECK(plainRow.find('>') == std::string::npos);
+    CHECK_FALSE(contains(readerTitle(fixture), pair + ">"));
 
     marks::toggle(fixture.state, 1);
 
-    // The star stands in the blank column beside the number, so the row is
+    // The arrow stands in the blank column beside the number, so the row is
     // exactly as wide as it was and every field after it is where it was: one
     // character of the row differs and no other.
     const std::string markedRow = listRow(fixture, 3);
-    const size_t star = markedRow.find('*');
-    REQUIRE(star != std::string::npos);
-    REQUIRE(star > 0);
-    CHECK(markedRow[star - 1] == '1');
-    CHECK(plainRow[star] == ' ');
+    const size_t arrow = markedRow.find('>');
+    REQUIRE(arrow != std::string::npos);
+    REQUIRE(arrow > 0);
+    CHECK(markedRow[arrow - 1] == '1');
+    CHECK(plainRow[arrow] == ' ');
     std::string blanked = markedRow;
-    blanked[star] = ' ';
+    blanked[arrow] = ' ';
     CHECK(blanked == plainRow);
     // And in the reader's title, right after the pair naming the message.
-    CHECK(contains(readerTitle(fixture), pair + "*"));
+    CHECK(contains(readerTitle(fixture), pair + ">"));
 }
 
 TEST_CASE("Leaving the area takes its marks with it [marks][squish]") {

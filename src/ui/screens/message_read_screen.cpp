@@ -1939,8 +1939,8 @@ Element render(AppState& state) {
 
     int titleLeft = titleRoom - displayWidth(titleShown) - gotoWidth;
 
-    // The star saying the message on screen is one of the user's marked ones,
-    // right after the pair that names it — `111/111*`. In the color the header
+    // The arrow saying the message on screen is one of the user's marked ones,
+    // right after the pair that names it — `111/111>`. In the color the header
     // block under it is written in rather than the title's own: it is a fact
     // about this message and not a piece of the area's name, and the two colors
     // are what say which is which.
@@ -1950,7 +1950,7 @@ Element render(AppState& state) {
     // pushing the row past its edge.
     if (titleLeft > 0 && marks::isMarked(state, header.number)) {
         --titleLeft;
-        titleCells.push_back(text("*") | bold | color(theme::palette.header));
+        titleCells.push_back(text(">") | bold | color(theme::palette.header));
     }
     for (const auto& marker : markers) {
         const int width = displayWidth(marker.text);
