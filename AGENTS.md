@@ -713,9 +713,60 @@ Rules that hold the design together:
   settled by the frame that draws the list, since the window has no size yet
   when this runs. Nothing unread anywhere leaves the cursor at the top, and
   nothing puts it back there once it has been moved.
+- **Ctrl-T marks the area under the cursor.** `arealist.mark_toggle` is the
+  command, `area_list::toggleMark()` the whole of what it does, and
+  `AppState::areaMarks` the set — **tags and not places in the list**, for the
+  reason a message's mark is a UID: the list is sorted, filtered and rescanned
+  under the cursor, and a set of positions would come back on somebody else's
+  area. `AppState::areaMarked()` and `toggleAreaMark()` are the pair that reaches
+  it, and nothing else does. The set lives as long as the session — the list is
+  one screen and is never left the way an area is — and nothing is written to
+  disk. The key is swallowed on a list with nothing on it, a key bound to a
+  command being that command wherever the cursor stands, and it is the one
+  command here that leaves the quick search standing: marking picks rows out of
+  what was searched for, and ending the query would put the rest of the list back
+  under a cursor that has not moved. **Nothing acts on a marked area**: the mark
+  is shown and that is all it is for.
+- **The mark is the `m` column of `arealist_format`**, a `>` where the area is
+  marked and a blank where it is not, exactly as `msglist_format`'s `m` is. It
+  stands a column wide whether or not anything is marked, and both defaults open
+  the row with it — the narrow format's second line begins with a space so the
+  description stands under the name rather than under the mark. Whether a row is
+  marked is carried into `area_format::runs()` as a `bool` rather than read off
+  the `AreaEntry`: a mark is a note about this session's list, and the entry is
+  the tosser config's. A format written without `m` shows no marks and is not
+  corrected, what a row holds being `arealist_format`'s.
+- **Alt-C catches an area up**: `arealist.catch_up` puts its lastread mark on
+  the newest message it holds, so the area counts as read through and its `New`
+  column falls to zero. `AreaManager::catchUp()` is the work and is the one place
+  a mark is moved for an area nobody is standing in — the mark is a UID, so the
+  base is opened for the length of one `uidOf(count)` and closed again, exactly
+  as `refreshArea()` reads its counts. The area that *is* open is read through
+  the base already open on it, since a second handle on the same files would
+  have nothing to say that the first does not. It answers `false` and writes
+  nothing for an area the list does not hold, a passthrough, a base that will not
+  open and an empty area: there is no newest message to stand read to, and an
+  empty area had nothing unread either way. The entry's unread count is brought
+  to zero with the mark, so the row says what the mark now says without a
+  rescan, and `clampCursor()` runs after: under `arealist_unread_only` the row
+  just caught up has left the list.
+- **What the key means depends on the marks, and the box is the question.** With
+  nothing marked `arealist.catch_up` is the area under the cursor and can be
+  nothing else, so it acts where it stands. With a set standing it opens
+  `ui/scope_dialog.*` — the same Marked/Current/Cancel box the reader's three
+  keys raise, counting areas rather than messages — and `app_shell.cpp` calls
+  `area_list::catchUpMarked()` or `area_list::catchUp()` once the box is away,
+  as every other modal's answer is acted on. **Marked empties `areaMarks`
+  afterwards**: the set was gathered to say which areas this was for and it has
+  said it, and a mark on an area a rescan has since taken away goes out with the
+  rest having done nothing. Both it and `mark_toggle` leave the quick search
+  standing, unlike every other command here — marking and catching up pick rows
+  out of what was searched for, and ending the query would put the rest of the
+  list back under a cursor that has not moved.
 - **The list has a menu of its own**, behind the same corner the reader and the
   editor carry one behind — `arealist_menu`, `rescan` and `toggle_unread` by
-  default, with `next_unread` and the ten utilities there to be written in. It
+  default, with `next_unread`, `mark_toggle`, `catch_up` and the ten utilities
+  there to be written in. It
   costs no row: the two it stands in are the column headings and the rule under
   them, so the button takes the right-hand end of the heading and nothing from
   the rows. `area_list::openMenu()` settles what each button can do as it opens
@@ -792,7 +843,7 @@ Rules that hold the design together:
   written on it — and `ui/area_list_format.*` lays them out a line at a time:
   fields with a width keep it, fields written `0` share what is left of *their
   own line* equally and the first takes the odd column. The line names one format
-  or two — `"e c u\nd n" "e d c un"` by
+  or two — `"me c u\n d n" "me d c un"` by
   default — and `AppState::areaListFormat()` picks between them on every frame by
   `adaptive_ui_threshold`, the same line `when_narrow` and `when_wide` are read
   against; one format stands for both windows. Each format is one config value,
@@ -959,7 +1010,7 @@ Rules that hold the design together:
   deliberately: a message that has not gone out has not been read either, and
   painting such a row unread would leave nothing saying it is still sitting
   there. `highlight_unread` turns the unread rule off and nothing else.
-- **`t` and Space mark the message under the cursor**, through
+- **`Ctrl-T` and Space mark the message under the cursor**, through
   `marks::toggle()`, and they are the whole of what this screen answers besides
   moving about in the area. `msglist.mark_toggle` is the command and the only
   one the message list has; **Space is not bound and cannot be**, being one of
@@ -1307,11 +1358,11 @@ screens showing an area draw what the set holds.
   Nothing is written to disk — a mark is a note about this session's reading, not
   a fact about the message.
 - **It is shown in two places and drawn from the same set.** The message list's
-  `m` column is a `*` where the row is marked and a blank where it is not, and
-  the reader's title puts the same star after the pair naming the message —
-  `localnet (2:382/736) 111/111*` — in `header`, the color the block under it is
+  `m` column is a `>` where the row is marked and a blank where it is not, and
+  the reader's title puts the same arrow after the pair naming the message —
+  `localnet (2:382/736) 111/111>` — in `header`, the color the block under it is
   written in, since it is a fact about the message and not a piece of the area's
-  name. The star is taken out of what is left of the title row the way a thread
+  name. The arrow is taken out of what is left of the title row the way a thread
   marker is, so a window with no column to spare drops it rather than pushing the
   row past its edge.
 - **The `m` column is reserved, not conjured.** It stands a column wide whether
@@ -1320,8 +1371,14 @@ screens showing an area draw what the set holds.
   marked in it is byte for byte the list it always was, and marking something
   shifts no field sideways. A format written without `m` shows no marks and is
   not corrected: what a row holds is `msglist_format`'s.
+- **The area list marks the same way and shares nothing with this.** Its set is
+  `AppState::areaMarks`, tags rather than UIDs, `arealist.mark_toggle` is on the
+  same `Ctrl-T`, and `arealist.catch_up` is the one key that acts on the set —
+  see [The area list](#the-area-list). Two screens, two sets: an area is picked
+  out of a config and a message out of a base, and neither set can answer for the
+  other.
 - **Marking one message is a key; marking a run is a box.** `reader.mark_toggle`
-  and `msglist.mark_toggle` are the key on each screen, `t` by default and Space
+  and `msglist.mark_toggle` are the key on each screen, `Ctrl-T` by default and Space
   besides in the list; `reader.mark_menu` (`s`) opens `ui/mark_dialog.*`, whose
   five answers are the whole of what can be done to the set at once — the area
   entire, nothing at all, inside out, everything after the message being read and
@@ -1334,8 +1391,14 @@ screens showing an area draw what the set holds.
   so nothing is read back off a box that is gone.
 - **A set standing changes what a key asks first.** `ui/scope_dialog.*` is that
   question — Marked, Current, Cancel, with the count under it because what
-  follows an answer is not undoable and the marks are spread down an area that
-  does not fit on the screen — and three keys raise it. With nothing marked none
+  follows an answer is not undoable and the marks are spread down a list that
+  does not fit on the screen — and three keys raise it in the reader, a fourth
+  in the area list. **`ScopePicker::of` says which set the box is about**:
+  `Messages` counts `AppState::marks` and the reader stands behind it,
+  `Areas` counts `AppState::areaMarks` and the area list does — one box, two
+  sets, and the count line is the only line that differs.
+  `scope_dialog::openForAreas()` is the area list's way in, and it asks for no
+  message on screen the way `open()` does. With nothing marked none
   of them is ambiguous and the box is never opened: `d` asks its yes/no
   confirmation, and `m` and `w` put their own boxes up as they always have.
   `Cancel` carries no letter for the same reason `Marked` and `Current` do carry
@@ -1399,7 +1462,11 @@ screens showing an area draw what the set holds.
   is a key one presses while reading and not a button one goes looking for — but
   both may be written into `reader_menu` and any of the hint lists, so both carry
   a glyph and `inMenu`. `msglist.mark_toggle` is the message list's first and
-  only command, and the screen has no menu button to offer it in.
+  only command, and the screen has no menu button to offer it in. A name after
+  the dot may stand on two screens — `mark_toggle` is the area list's, the
+  message list's and the reader's — and which command it names is decided by the
+  list it was written in, so `arealist_menu mark_toggle` is
+  `arealist.mark_toggle` and can be nothing else.
 
 ### Finding a message
 

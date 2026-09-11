@@ -163,6 +163,18 @@ struct AppState {
     /// shown in place of the input line — the search has no state of its own
     /// beyond this string.
     std::string areaSearch;
+    /// The areas the user has marked, by tag.
+    ///
+    /// **Tags and not places in the list**, for the reason a message's mark is a
+    /// UID: the list is sorted, filtered and rescanned under the cursor, and a
+    /// set of positions would come back pointing at somebody else's area. A tag
+    /// is what names an area in every config AmberEdit reads, and no two areas
+    /// may share one.
+    ///
+    /// It lives as long as the session does — the list is one screen and never
+    /// left the way an area is — and nothing is written to disk: a mark is a
+    /// note about this session's reading, not a fact about the area.
+    std::set<std::string> areaMarks;
     /// Whether a rescan of the areas has been asked for. Ctrl-R sets it and the
     /// shell clears it, having done the reading: the modal saying what is going
     /// on has to be on the screen before every base is opened again, and that
@@ -533,6 +545,15 @@ struct AppState {
             Delete,   ///< `reader.delete`
             Forward,  ///< `reader.forward`
             Export,   ///< `reader.export`
+            CatchUp,  ///< `arealist.catch_up`
+        };
+        /// What the marked answer stands for: the messages marked in the area
+        /// being read, or the areas marked in the list. The three answers are
+        /// the same three either way — this is what the count line under the
+        /// question is written from, and which set the shell empties.
+        enum class Of {
+            Messages,  ///< `AppState::marks`, and the reader is behind the box
+            Areas,     ///< `AppState::areaMarks`, and the area list is
         };
         /// The three answers, in the order they are drawn and stepped through.
         /// The one that raised the question first, and the way out last.
@@ -542,6 +563,7 @@ struct AppState {
             Cancel,   ///< nothing at all
         };
         For purpose{For::Delete};
+        Of of{Of::Messages};
         Mode mode{Mode::Marked};
         /// How many were marked when the box went up, which is what its second
         /// line says: what follows an answer is not undoable, and the count is
@@ -1736,6 +1758,20 @@ struct AppState {
     /// the format this window follows, and never less than one.
     [[nodiscard]] int areaRowHeight() const {
         return std::max(1, static_cast<int>(areaListFormat().size()));
+    }
+
+    /// Whether the area with that tag is one of the user's marked ones, which
+    /// the `m` column of `arealist_format` draws its arrow from.
+    [[nodiscard]] bool areaMarked(const std::string& tag) const {
+        return areaMarks.count(tag) != 0;
+    }
+
+    /// Marks the area where it is not marked and unmarks it where it is — the
+    /// whole of what `arealist.mark_toggle` does. An empty tag names no area and
+    /// is left alone: nothing in the list can be picked out by it.
+    void toggleAreaMark(const std::string& tag) {
+        if (tag.empty()) return;
+        if (areaMarks.erase(tag) == 0) areaMarks.insert(tag);
     }
 
     /// How many areas the list shows at once — the lines it has, divided by how

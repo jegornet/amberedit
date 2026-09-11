@@ -173,6 +173,7 @@ struct AreaSortCriterion {
 enum class AreaFieldKind {
     Number,       ///< 'a' — the area's place in the list, counted from one
     Echoid,       ///< 'e' — the area tag
+    Marked,       ///< 'm' — an arrow where the area is marked, a blank where it is not
     Description,  ///< 'd' — the tosser config's -d, or what an echolist says
     Group,        ///< 'g' — the tosser's group, where the format has one
     Total,        ///< 'c' — how many messages the area holds
@@ -209,7 +210,7 @@ using AreaListFormat = std::vector<AreaListLine>;
 /// What one field of `msglist_format` shows.
 enum class MsgFieldKind {
     Number,   ///< 'a' — the message's number in the area, counted from one
-    Marked,   ///< 'm' — a star where the message is marked, a blank where it is not
+    Marked,   ///< 'm' — an arrow where the message is marked, a blank where it is not
     From,     ///< 'f' — who the message is from
     To,       ///< 't' — who it is to
     Subject,  ///< 's' — what it is about
@@ -681,18 +682,21 @@ struct AppConfig {
     /// the row is drawn on, and on each the fields in the order they were
     /// written, each as wide as it was asked for.
     ///
-    /// The default is `"e c u\nd n"` — the area's name across whatever the two
-    /// counts leave, and under it the description across whatever the star
-    /// leaves. A narrow window has no room to put the description beside the
-    /// name, and a line of its own is the room it does have. The group is in
-    /// neither default: areas.bbs has no groups at all, and where a fidoconfig
-    /// has them `g` puts the column back.
-    AreaListFormat areaListFormatNarrow{{{AreaFieldKind::Echoid, 0},
+    /// The default is `"me c u\n d n"` — the mark column, the area's name across
+    /// whatever the two counts leave, and under it the description across
+    /// whatever the star leaves, indented the one column the mark took. A narrow
+    /// window has no room to put the description beside the name, and a line of
+    /// its own is the room it does have. The group is in neither default:
+    /// areas.bbs has no groups at all, and where a fidoconfig has them `g` puts
+    /// the column back.
+    AreaListFormat areaListFormatNarrow{{{AreaFieldKind::Marked, 1},
+                                         {AreaFieldKind::Echoid, 0},
                                          {AreaFieldKind::Space, 1},
                                          {AreaFieldKind::Total, 4},
                                          {AreaFieldKind::Space, 1},
                                          {AreaFieldKind::Unread, 4}},
-                                        {{AreaFieldKind::Description, 0},
+                                        {{AreaFieldKind::Space, 1},
+                                         {AreaFieldKind::Description, 0},
                                          {AreaFieldKind::Space, 1},
                                          {AreaFieldKind::UnreadFlag, 1}}};
 
@@ -701,10 +705,11 @@ struct AppConfig {
     /// format gives that format to both, so a config that says nothing about
     /// wide windows keeps behaving as it did.
     ///
-    /// The default is `"e d c un"`, one line: a wide window has the columns to
+    /// The default is `"me d c un"`, one line: a wide window has the columns to
     /// put the description beside the name, so a row there is a row and the
     /// screen holds twice the areas the narrow one does.
-    AreaListFormat areaListFormatWide{{{AreaFieldKind::Echoid, 0},
+    AreaListFormat areaListFormatWide{{{AreaFieldKind::Marked, 1},
+                                       {AreaFieldKind::Echoid, 0},
                                        {AreaFieldKind::Space, 1},
                                        {AreaFieldKind::Description, 0},
                                        {AreaFieldKind::Space, 1},

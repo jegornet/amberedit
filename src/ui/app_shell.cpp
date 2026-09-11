@@ -850,6 +850,17 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                         case AppState::ScopePicker::For::Export:
                             export_dialog::open(state, {}, marked);
                             break;
+                        // The one purpose asked from the area list rather than
+                        // from the reader, and the one that acts on the answer
+                        // there and then: the marks are the areas', and the
+                        // Marked answer takes them off once it has used them.
+                        case AppState::ScopePicker::For::CatchUp:
+                            if (marked) {
+                                screens::area_list::catchUpMarked(state);
+                            } else {
+                                screens::area_list::catchUp(state);
+                            }
+                            break;
                     }
                 }
             }

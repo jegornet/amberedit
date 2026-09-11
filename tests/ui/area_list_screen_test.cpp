@@ -5,6 +5,7 @@
 #include <fstream>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "ui/error_dialog.hpp"
 #include "ui/keys.hpp"
 #include "ui/menu_dialog.hpp"
+#include "ui/scope_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
 #include "ui/screens/message_read_screen.hpp"
 #include "ui/term/element.hpp"
@@ -225,6 +227,11 @@ Event toggleUnread() {
     return Event::Character("u", true, false, false);
 }
 
+/// Alt-C, which is what `arealist.catch_up` stands on by default.
+Event catchUpKey() {
+    return Event::Character("c", false, true, false);
+}
+
 /// The three areas the filter's tests are built on: copies of one base, with
 /// the middle one read to its end, so that two of the three have something
 /// unread and one has not.
@@ -428,6 +435,184 @@ TEST_CASE("The area list draws the columns arealist_format asks for [arealist]")
     CHECK(rowText(screen, 0) == "   # Area           ");
     CHECK(rowText(screen, 2) == "   1 one            ");
     CHECK(rowText(screen, 3) == "   2 two            ");
+}
+
+TEST_CASE("The area list marks the area under the cursor [arealist][marks]") {
+    using amberedit::config::AreaFieldKind;
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.areaListFormatNarrow = {
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.state.width = 20;
+    fixture.config.arealistMenu.clear();
+
+    const auto mark = [&fixture] {
+        return area_list::handleEvent(fixture.state,
+                                      Event::Character("t", true, false, false));
+    };
+    const auto drawnRow = [&fixture](int y) {
+        namespace term = amberedit::ui::term;
+        term::Screen screen(fixture.state.width, fixture.state.height);
+        term::render(screen, area_list::render(fixture.state));
+        return rowText(screen, y);
+    };
+
+    // The column stands blank until something is marked, so the row is the row
+    // it always was.
+    CHECK(drawnRow(2) == "  one               ");
+
+    fixture.state.areaCursor = 1;
+    REQUIRE(mark());
+    CHECK(fixture.state.areaMarks == std::set<std::string>{"two"});
+    CHECK(drawnRow(2) == "  one               ");
+    CHECK(drawnRow(3) == " >two               ");
+
+    // The same key again takes the mark off, and the mark is the area's own:
+    // the cursor moving does not take it along.
+    REQUIRE(mark());
+    CHECK(fixture.state.areaMarks.empty());
+    CHECK(drawnRow(3) == "  two               ");
+}
+
+TEST_CASE("Marking an area is by tag, so the list may move under it "
+          "[arealist][marks]") {
+    Fixture fixture({passthroughArea("one"), passthroughArea("two"),
+                     passthroughArea("three")});
+    fixture.state.areaCursor = 2;
+    REQUIRE(area_list::handleEvent(fixture.state,
+                                   Event::Character("t", true, false, false)));
+    REQUIRE(fixture.state.areaMarked("three"));
+
+    // The tosser config is read again with the area somewhere else in the list:
+    // the mark is still on the area it was put on rather than on the third row.
+    fixture.areas = {passthroughArea("three"), passthroughArea("one")};
+    static_cast<void>(fixture.manager.reload());
+    CHECK(fixture.state.areaMarked("three"));
+    CHECK_FALSE(fixture.state.areaMarked("one"));
+}
+
+TEST_CASE("The key is swallowed where there is no area to mark [arealist][marks]") {
+    Fixture fixture({});
+    // Nothing under the cursor, and nothing typed into the quick search either:
+    // a key bound to a command is that command wherever the list stands.
+    CHECK(area_list::handleEvent(fixture.state,
+                                 Event::Character("t", true, false, false)));
+    CHECK(fixture.state.areaMarks.empty());
+    CHECK(fixture.state.areaSearch.empty());
+}
+
+TEST_CASE("Catch-up marks the area under the cursor read [arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    Fixture fixture({squishArea("first", first.path()),
+                     squishArea("second", second.path())});
+    REQUIRE(fixture.manager.areas().size() == 2);
+    REQUIRE(fixture.manager.areas()[0].unread > 0);
+    REQUIRE(fixture.manager.areas()[1].unread > 0);
+    // A mark of its own for "first", so that what is written for "second" is
+    // not what "first" reads back: the stub keeps one mark for the areas nobody
+    // has named, and these two bases are copies of one another.
+    fixture.lastRead->set("first", 0);
+
+    fixture.state.areaCursor = 1;
+    REQUIRE(area_list::handleEvent(fixture.state, catchUpKey()));
+
+    // The row says the area is read, and so does the store: the mark was put on
+    // disk rather than only counted away, which is what reading the whole list
+    // again proves.
+    CHECK(fixture.manager.areas()[1].unread == 0);
+    CHECK(fixture.manager.areas()[0].unread > 0);
+    static_cast<void>(fixture.manager.reload());
+    CHECK(fixture.manager.areas()[1].unread == 0);
+    CHECK(fixture.manager.areas()[0].unread > 0);
+
+    // Nothing was marked, so there was nothing to ask about: the key acted
+    // where it stood.
+    CHECK_FALSE(fixture.state.scopePicker);
+}
+
+TEST_CASE("Catch-up asks which areas once something is marked [arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture({squishArea("first", first.path()),
+                     squishArea("second", second.path()),
+                     squishArea("third", third.path())});
+    using ScopePicker = amberedit::ui::AppState::ScopePicker;
+
+    fixture.state.areaMarks = {"first", "third"};
+    fixture.state.areaCursor = 1;
+    REQUIRE(area_list::handleEvent(fixture.state, catchUpKey()));
+
+    // The box, over the list, counting areas rather than messages. Nothing has
+    // been caught up yet: the answer is what acts, and the shell calls back
+    // once the box is off the screen.
+    REQUIRE(fixture.state.scopePicker);
+    CHECK(fixture.state.scopePicker->purpose == ScopePicker::For::CatchUp);
+    CHECK(fixture.state.scopePicker->of == ScopePicker::Of::Areas);
+    CHECK(fixture.state.scopePicker->marked == 2);
+    CHECK(fixture.manager.areas()[0].unread > 0);
+
+    // And the box counts areas, the screen behind it being the list: the count
+    // line is the one thing that screen cannot be read for.
+    {
+        namespace term = amberedit::ui::term;
+        term::Screen screen(fixture.state.width, fixture.state.height);
+        term::render(screen, amberedit::ui::scope_dialog::render(
+                                 fixture.state, area_list::render(fixture.state)));
+        std::string drawn;
+        for (int y = 0; y < screen.height(); ++y) drawn += rowText(screen, y);
+        CHECK(amberedit::test::contains(drawn, "2 areas marked"));
+    }
+
+    SUBCASE("Marked catches up the set and takes the marks off") {
+        fixture.state.scopePicker.reset();
+        area_list::catchUpMarked(fixture.state);
+
+        CHECK(fixture.manager.areas()[0].unread == 0);
+        CHECK(fixture.manager.areas()[2].unread == 0);
+        // The area under the cursor was not one of them and is untouched.
+        CHECK(fixture.manager.areas()[1].unread > 0);
+        CHECK(fixture.state.areaMarks.empty());
+    }
+    SUBCASE("Current catches up the one under the cursor and leaves the marks") {
+        fixture.state.scopePicker.reset();
+        area_list::catchUp(fixture.state);
+
+        CHECK(fixture.manager.areas()[1].unread == 0);
+        CHECK(fixture.manager.areas()[0].unread > 0);
+        CHECK(fixture.manager.areas()[2].unread > 0);
+        CHECK(fixture.state.areaMarks == std::set<std::string>{"first", "third"});
+    }
+}
+
+TEST_CASE("A mark on an area the list no longer holds catches nothing up "
+          "[arealist][squish]") {
+    const TempSquishBase first;
+    const TempSquishBase second;
+    Fixture fixture({squishArea("first", first.path()),
+                     squishArea("second", second.path())});
+
+    // The tosser config is read again without "first" in it, the mark on it
+    // standing: it names nothing the list holds, and goes out with the rest.
+    fixture.state.areaMarks = {"first", "second"};
+    fixture.areas = {squishArea("second", second.path())};
+    static_cast<void>(fixture.manager.reload());
+
+    area_list::catchUpMarked(fixture.state);
+    REQUIRE(fixture.manager.areas().size() == 1);
+    CHECK(fixture.manager.areas()[0].unread == 0);
+    CHECK(fixture.state.areaMarks.empty());
+}
+
+TEST_CASE("Catch-up does nothing to an area with no base [arealist]") {
+    Fixture fixture({passthroughArea("one")});
+    // A passthrough has no base to read to the end of. The key is answered all
+    // the same — it is the command wherever the cursor stands — and the list is
+    // left as it was.
+    CHECK(area_list::handleEvent(fixture.state, catchUpKey()));
+    CHECK(fixture.manager.areas()[0].unread == 0);
+    CHECK_FALSE(fixture.state.scopePicker);
 }
 
 TEST_CASE(

@@ -184,10 +184,10 @@ together — and only there, since in a western area they are six different lett
 
 ### Marking messages
 
-**`t` in the reader or in the message list** marks the message, and `t` again
-takes the mark off. `Space` says the same thing in the list. A marked message
-wears a `*` beside its number in the list and after the `111/111` in the reader's
-top line.
+**`Ctrl-T` in the reader or in the message list** marks the message, and
+`Ctrl-T` again takes the mark off. `Space` says the same thing in the list. A
+marked message wears a `>` beside its number in the list and after the `111/111`
+in the reader's top line.
 
 **`s` in the reader** opens a box for marking a run at once: every message in the
 area, no message at all, the marks turned inside out, everything after the
@@ -215,7 +215,7 @@ in the order they stand in the area.
 Marks are yours for as long as the area is open — nothing is written to the
 message base, and leaving the area forgets them.
 
-The `*` is the `m` field of `msglist_format`, which the default formats put where
+The `>` is the `m` field of `msglist_format`, which the default formats put where
 the blank between the number and the first name used to stand: a list with
 nothing marked in it looks exactly as it always did. Take `m` out of your own
 format and the list simply shows no marks.

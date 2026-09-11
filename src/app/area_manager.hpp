@@ -103,6 +103,23 @@ public:
     /// the reading that was just done rather than what was true on startup.
     void markRead(uint32_t index);
 
+    /// Puts an area's lastread mark on the newest message it holds — "all of
+    /// this has been read" — without the area being opened to read it.
+    ///
+    /// What the area list's catch-up is made of, and the one place a mark is
+    /// moved for an area nobody is standing in. The mark is stored as a UID, so
+    /// the base has to be opened to find out which UID the newest message
+    /// carries: the area that is open is read through the base already open on
+    /// it, and any other is opened for the reading and closed again, exactly as
+    /// `refreshArea()` does it. The list's unread count for the area is brought
+    /// to zero with it, so the row says what the mark now says.
+    ///
+    /// Answers whether the mark was moved. It was not for an area the list does
+    /// not hold, a passthrough, one whose base will not open, and one with no
+    /// messages in it — an empty area has no newest message to stand read to,
+    /// and nothing in it was unread either way.
+    bool catchUp(const domain::AreaConfig& area);
+
     /// Records that the open area stands read no further than its front: the
     /// mark is taken off it, and every message in it counts as unread again.
     ///

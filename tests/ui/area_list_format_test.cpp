@@ -52,8 +52,10 @@ std::string headerOf(const std::string& format, int width) {
 /// says otherwise.
 std::string rowOf(const std::string& format, int width, const AreaEntry& entry,
                   int ordinal = 1,
-                  const std::string& descriptionDefault = "no description") {
-    return area_format::row(entry, ordinal, line(format, width), descriptionDefault);
+                  const std::string& descriptionDefault = "no description",
+                  bool marked = false) {
+    return area_format::row(entry, ordinal, marked, line(format, width),
+                            descriptionDefault);
 }
 
 }  // namespace
@@ -111,9 +113,9 @@ TEST_CASE("The area list's row for a line of the format is that line alone "
     const AreaEntry entry = areaEntry("ru.linux", 120, 7);
     const auto rows = area_format::layout(fields("e c u\\nd n"), 25);
 
-    CHECK(area_format::row(entry, 1, rows[0], "no description") ==
+    CHECK(area_format::row(entry, 1, /*marked=*/false, rows[0], "no description") ==
           "ru.linux         120    7");
-    CHECK(area_format::row(entry, 1, rows[1], "no description") ==
+    CHECK(area_format::row(entry, 1, /*marked=*/false, rows[1], "no description") ==
           "no description          *");
 }
 
@@ -140,6 +142,39 @@ TEST_CASE("An area list row is laid out by the format [arealist][format]") {
     CHECK(rowOf("a e", 20, entry, 12) == "  12 ru.linux       ");
     // A name too long for its column is truncated, the ellipsis saying so.
     CHECK(rowOf("e8 c4", 13, areaEntry("ru.comp.os.linux", 5, 0)) == "ru.comp…    5");
+}
+
+TEST_CASE("The mark column is an arrow where the area is marked [arealist][format]") {
+    const AreaEntry entry = areaEntry("ru.linux", 120, 7);
+
+    // The column stands a column wide whether or not anything is marked, so a
+    // list with no marks in it is laid out exactly as a list with them: one
+    // character of the row differs and no other.
+    const std::string plain = rowOf("me c un", 25, entry);
+    const std::string marked =
+        rowOf("me c un", 25, entry, 1, "no description", /*marked=*/true);
+    CHECK(plain == " ru.linux       120    7*");
+    CHECK(marked == ">ru.linux       120    7*");
+
+    // Nothing stands over it: a one-character heading would say less about the
+    // column than the arrows underneath already do.
+    CHECK(headerOf("me c un", 25) == " Area          Msgs  New ");
+}
+
+TEST_CASE("The default narrow format puts the description under the name "
+          "[arealist][format]") {
+    // `"me c u\n d n"`, the narrow default: the mark opens the row, and the
+    // second line is indented the one column it took, so the description stands
+    // under the name rather than under the mark.
+    AreaEntry entry = areaEntry("ru.linux", 120, 7);
+    entry.config.description = "Linux";
+    const auto rows = area_format::layout(fields("me c u\\n d n"), 25);
+    REQUIRE(rows.size() == 2);
+
+    CHECK(area_format::row(entry, 1, /*marked=*/true, rows[0], "no description") ==
+          ">ru.linux        120    7");
+    CHECK(area_format::row(entry, 1, /*marked=*/true, rows[1], "no description") ==
+          " Linux                  *");
 }
 
 TEST_CASE("An area nothing describes shows the default description "

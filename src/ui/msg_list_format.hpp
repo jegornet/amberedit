@@ -48,8 +48,8 @@ struct Row {
     int number{0};
     bool fromIsOwn{false};
     bool toIsOwn{false};
-    /// Whether the user has marked this message, which the `m` column draws a
-    /// star for.
+    /// Whether the user has marked this message, which the `m` column draws an
+    /// arrow for.
     bool marked{false};
 };
 
@@ -156,7 +156,7 @@ std::string line(const Row& row, const Line& columns);
 /// the same loudness would leave the eye to work out which of them was which.
 ///
 /// None of them is about a message the user has *marked*: that is the `m`
-/// column's star and no bar at all, a mark being something the reader chose and
+/// column's arrow and no bar at all, a mark being something the reader chose and
 /// a row's paint being where the message stands.
 enum class Paint {
     None,      ///< whatever the runs say and nothing more

@@ -349,6 +349,48 @@ void AreaManager::markRead(uint32_t index) {
     updateUnread(currentArea_, index);
 }
 
+bool AreaManager::catchUp(const AreaConfig& area) {
+    const auto found =
+        std::find_if(areas_.begin(), areas_.end(), [&area](const AreaEntry& entry) {
+            // Tag and path together name an area, as everywhere else here.
+            return entry.config.tag == area.tag && entry.config.path == area.path;
+        });
+    if (found == areas_.end() || found->config.isPassthrough()) return false;
+
+    // The UID of the newest message, which is the whole of what is wanted from
+    // the base. Taken through whatever handle there is: the base open on the
+    // area where it is the open one — a second handle on the same files would
+    // have nothing to say that this one does not — and one opened here
+    // otherwise, which is the area list's own case, nothing being open there.
+    const auto uidOfNewest = [](ports::IMsgBase& base) -> uint32_t {
+        const uint32_t count = base.count();
+        return count == 0 ? 0 : base.uidOf(count);
+    };
+
+    uint32_t uid = 0;
+    if (currentBase_ && currentArea_.tag == area.tag && currentArea_.path == area.path) {
+        uid = uidOfNewest(*currentBase_);
+    } else {
+        msgbase::FtnMsgBase base(appConfig_.effectiveFor(found->config).defaultCharset,
+                                 appConfig_.composeFts1FieldLimits,
+                                 appConfig_.ucsKludges);
+        // An area that will not open keeps the mark it had, as it keeps the
+        // counts it had when the list is read again: a base busy for a moment is
+        // not a reason to write anything.
+        if (!base.open(found->config)) return false;
+        uid = uidOfNewest(base);
+        base.close();
+    }
+    if (uid == 0) return false;
+
+    // The area as the list holds it rather than as the caller spelled it: which
+    // file the mark goes in is read off the config, and the entry's is the one
+    // every other count here was taken with.
+    lastRead_->setLastRead(found->config, uid);
+    found->unread = 0;
+    return true;
+}
+
 void AreaManager::markUnread() {
     if (!currentBase_) return;
 

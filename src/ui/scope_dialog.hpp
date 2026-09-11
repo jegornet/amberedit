@@ -13,10 +13,16 @@
 /// boxes up as they always have. Marks are what raise the question, so they are
 /// what opens it.
 ///
-/// Three keys ask it and the purpose is the whole of the difference: `d` deletes
-/// what is answered, `m` sends it elsewhere and `w` writes it out. The wording of
-/// the question follows the purpose; everything else about the box is the same
-/// whichever asked, which is what makes it one box and not three.
+/// Three keys ask it in the reader and the purpose is the whole of the
+/// difference: `d` deletes what is answered, `m` sends it elsewhere and `w`
+/// writes it out. The wording of the question follows the purpose; everything
+/// else about the box is the same whichever asked, which is what makes it one
+/// box and not three.
+///
+/// **The area list asks it too**, and there the marked set is areas rather than
+/// messages: `arealist.catch_up` puts it up where anything in the list is
+/// marked, Current is the area under the cursor, and the count line says areas.
+/// `ScopePicker::of` is what carries that difference into the box.
 ///
 /// **For `d` it is the confirmation as well as the question** — Cancel stands
 /// where No would, and an answer of either of the other two deletes there and
@@ -35,6 +41,11 @@ enum class Outcome {
 /// Puts it up over the reader, on the marks as they stand. Does nothing where
 /// there is no message on screen: neither key has anything to ask about then.
 void open(AppState& state, AppState::ScopePicker::For purpose);
+
+/// The same box over the area list, counting the areas marked rather than the
+/// messages — `arealist.catch_up` is the one key that asks it there. The three
+/// answers are the same three, and Current is the area under the cursor.
+void openForAreas(AppState& state, AppState::ScopePicker::For purpose);
 
 /// Draws it over whatever the screen was showing. Not const: where each button
 /// landed is written back as they are laid out, so that a click is tested

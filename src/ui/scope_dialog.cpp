@@ -52,6 +52,21 @@ std::optional<Mode> modeFor(const Event& event) {
     return std::nullopt;
 }
 
+/// The box with its buttons nowhere yet: a default `Box` holds the screen's
+/// top-left cell, which is a click nobody meant for a button, and the frame
+/// puts each of them somewhere as it lays them out.
+AppState::ScopePicker pickerFor(For purpose, AppState::ScopePicker::Of of,
+                                size_t marked) {
+    AppState::ScopePicker picker;
+    picker.purpose = purpose;
+    picker.of = of;
+    picker.marked = marked;
+    picker.markedBox = Box::Nowhere();
+    picker.currentBox = Box::Nowhere();
+    picker.cancelBox = Box::Nowhere();
+    return picker;
+}
+
 }  // namespace
 
 /// The question, in the words the purpose asks it in. The rest of the box says
@@ -61,22 +76,20 @@ const char* question(For purpose) {
         case For::Delete: return _("Which messages are to be deleted?");
         case For::Forward: return _("Which messages are to go elsewhere?");
         case For::Export: return _("Which messages are to be written out?");
+        case For::CatchUp: return _("Which areas are to be marked read?");
     }
-    return "";  // unreachable; a For is one of the three
+    return "";  // unreachable; a For is one of the four
 }
 
 void open(AppState& state, For purpose) {
     if (state.base == nullptr || !state.readHeader) return;
+    state.scopePicker =
+        pickerFor(purpose, AppState::ScopePicker::Of::Messages, state.marks.size());
+}
 
-    AppState::ScopePicker picker;
-    picker.purpose = purpose;
-    picker.marked = state.marks.size();
-    // Nowhere until the frame puts each of them somewhere: a default Box holds
-    // the screen's top-left cell, which is a click nobody meant for a button.
-    picker.markedBox = Box::Nowhere();
-    picker.currentBox = Box::Nowhere();
-    picker.cancelBox = Box::Nowhere();
-    state.scopePicker = picker;
+void openForAreas(AppState& state, For purpose) {
+    state.scopePicker =
+        pickerFor(purpose, AppState::ScopePicker::Of::Areas, state.areaMarks.size());
 }
 
 Element render(AppState& state, Element background) {
@@ -100,10 +113,12 @@ Element render(AppState& state, Element background) {
     };
 
     // How many are marked, under the question. It is the one thing the screen
-    // behind the box cannot be read for — the marks are spread down an area that
+    // behind the box cannot be read for — the marks are spread down a list that
     // does not fit on it — and what follows an answer here is not undoable.
+    const bool areas = picker.of == AppState::ScopePicker::Of::Areas;
     const std::string count = i18n::format(
-        i18n::plural("{0} message marked", "{0} messages marked", picker.marked),
+        areas ? i18n::plural("{0} area marked", "{0} areas marked", picker.marked)
+              : i18n::plural("{0} message marked", "{0} messages marked", picker.marked),
         {std::to_string(picker.marked)});
 
     auto content = vbox({

@@ -73,7 +73,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bfhq");
+    CHECK(keys.altLetters() == "bcfhq");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -263,7 +263,7 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
           std::vector<Event>{Event::Character('l'), Event::F9});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bfhjq");
+    CHECK(keys.altLetters() == "bcfhjq");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.
