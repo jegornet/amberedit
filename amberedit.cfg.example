@@ -415,13 +415,15 @@ arealist_description_priority area
 # a word: unset, it is said in whatever language the interface is in, and a line
 # written here is that line in every language.
 # Written empty (arealist_description_default "") the column stays blank, which
-# is what it did before this setting existed. The description column is drawn in
-# the theme's "dimmed" color throughout, quiet like a kludge line — what the area
-# says about itself as much as what stands in where it says nothing: it is the
-# one column that is prose rather than a fact about the area, and the names and
-# the counts beside it are what the list is read down. Only the column is
-# concerned: the @CDESC/@ODESC template tokens are still empty where there is no
-# description.
+# is what it did before this setting existed. Written @area it repeats the area's
+# own name — the one value read rather than shown, spelled like a template token
+# and read without regard to case.
+# The description column is drawn in the theme's "dimmed" color throughout, quiet
+# like a kludge line — what the area says about itself as much as what stands in
+# where it says nothing: it is the one column that is prose rather than a fact
+# about the area, and the names and the counts beside it are what the list is
+# read down. Only the column is concerned: the @CDESC/@ODESC template tokens are
+# still empty where there is no description.
 #arealist_description_default "no description"
 
 # Whether the area list draws the reader's scrollbar in its rightmost column.

@@ -81,7 +81,8 @@ std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, bool marked,
 ///
 /// `descriptionDefault` — `arealist_description_default` — is what the
 /// description column shows for an area nothing describes. Empty leaves that
-/// column blank, which is what the setting is written empty for.
+/// column blank, which is what the setting is written empty for, and `@area`
+/// puts the area's own name there.
 std::string row(const app::AreaEntry& entry, int ordinal, bool marked,
                 const Line& columns, const std::string& descriptionDefault);
 

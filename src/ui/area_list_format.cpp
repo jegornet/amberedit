@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <string>
 
+#include "config/text_util.hpp"
 #include "i18n/i18n.hpp"
 #include "ui/text_layout.hpp"
 
@@ -45,6 +46,17 @@ std::string fitHeading(const std::string& heading, int width) {
     return heading;
 }
 
+/// What the description column shows for an area nothing describes: the text
+/// `arealist_description_default` was written with, unless that text is `@area`
+/// — the one value read rather than shown, which names the area itself.
+const std::string& standIn(const app::AreaEntry& entry,
+                           const std::string& descriptionDefault) {
+    if (config::text::iequals(descriptionDefault, config::kAreaDescriptionEcho)) {
+        return entry.config.tag;
+    }
+    return descriptionDefault;
+}
+
 std::string cellText(const app::AreaEntry& entry, int ordinal, bool marked,
                      const Column& column, const std::string& descriptionDefault) {
     switch (column.kind) {
@@ -55,10 +67,11 @@ std::string cellText(const app::AreaEntry& entry, int ordinal, bool marked,
         case AreaFieldKind::Marked: return marked ? ">" : "";
         case AreaFieldKind::Description:
             // An area nothing describes shows what `arealist_description_default`
-            // stands in with — "no description" by default, and the empty string
-            // where the config asks for the blank column instead.
+            // stands in with — "no description" by default, the empty string
+            // where the config asks for the blank column instead, and the area's
+            // own name where it is written `@area`.
             return truncateToWidth(entry.config.description.empty()
-                                       ? descriptionDefault
+                                       ? standIn(entry, descriptionDefault)
                                        : entry.config.description,
                                    column.width);
         case AreaFieldKind::Group:

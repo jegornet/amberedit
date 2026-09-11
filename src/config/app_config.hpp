@@ -255,6 +255,11 @@ enum class DescriptionPriority {
     Echolist,  ///< `echolist` — what the echolists say
 };
 
+/// The one `arealist_description_default` value that is not shown as it stands:
+/// `@area` puts the area's own name in the column where nothing describes it.
+/// Read without regard to case, as the template tokens it is written like are.
+inline constexpr std::string_view kAreaDescriptionEcho = "@area";
+
 /// What the reader does at the ends of an area — → on the last message and
 /// ← on the first — from `reader_edge`.
 ///
@@ -508,6 +513,10 @@ struct AppConfig {
     /// the column is concerned: `@CDESC` and the rest speak for the message
     /// being written, and "no description" in a message would be a line the
     /// program wrote in the user's name.
+    ///
+    /// `@area` — `kAreaDescriptionEcho` — is the one value read rather than
+    /// shown: it puts the area's own name in the column. Kept here as written,
+    /// since what it means is the area list's and settled where the row is.
     ///
     /// The one default here that is a word and not a number or a path, and so
     /// the one a translation replaces: `fromEntries()` sets it from the catalog,

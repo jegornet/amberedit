@@ -871,7 +871,10 @@ Rules that hold the design together:
   [The echolist](#the-echolist). Nothing in the area list knows about it: the
   answer is settled in `AreaConfig::description` before the list is ever built.
   **What the column shows where neither answered is `arealist_description_default`**,
-  `no description` by default and blank where the setting is written `""`. It stands
+  `no description` by default, blank where the setting is written `""`, and the
+  area's own name where it is written `@area` — `config::kAreaDescriptionEcho`,
+  the one value of the setting read rather than shown, matched without regard to
+  case in `area_format`'s `standIn()`. It stands
   in at the column and nowhere else — `@CDESC` and `@ODESC` are still empty for
   an area nothing describes, a dash in a message being a dash rather than a
   missing description. **The description column is drawn in `dimmed` whatever it
@@ -3575,7 +3578,8 @@ about is described by the echolist whichever way round the setting stands. That
 is the whole of the rule and it lives in one `if` in `loadAreas()`. Where neither
 side had anything to say the description stays empty here, and what the area
 list's column draws in its place is `arealist_description_default`'s — a display
-setting, read where the row is laid out and not in the area itself.
+setting, read where the row is laid out and not in the area itself. Its `@area`
+is the area's own name repeated in the column.
 
 **The format is `echolist_format.hpp`, and its layout is documented there.**
 `AMBERECH`, version 1, little-endian, and `format::kVersion` goes up on the same

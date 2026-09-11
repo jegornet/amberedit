@@ -192,6 +192,15 @@ TEST_CASE("An area nothing describes shows the default description "
     CHECK(rowOf("e8 d", 25, entry, 1, "") == "ru.linux                 ");
     // The stand-in is cut to its column exactly as a description is.
     CHECK(rowOf("e8 d4", 13, entry, 1, "no idea") == "ru.linux no …");
+    // `@area` is the one value read rather than shown: the column repeats the
+    // area's own name, and case is no more its concern than a token's.
+    CHECK(rowOf("e8 d", 25, entry, 1, "@area") == "ru.linux ru.linux        ");
+    CHECK(rowOf("e8 d", 25, entry, 1, "@AREA") == "ru.linux ru.linux        ");
+    // Cut to its column as anything else in it is.
+    CHECK(rowOf("e8 d4", 13, entry, 1, "@area") == "ru.linux ru.…");
+    // An area that describes itself is untouched by it.
+    entry.config.description = "Linux";
+    CHECK(rowOf("e8 d", 25, entry, 1, "@area") == "ru.linux Linux           ");
 }
 
 TEST_CASE("An area that would not open shows no counts [arealist][format]") {

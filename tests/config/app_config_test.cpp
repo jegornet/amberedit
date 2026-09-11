@@ -1955,6 +1955,10 @@ TEST_CASE("AppConfig reads what stands in for a missing description [app_config]
     // Written empty it asks for the blank column, which is what the area list
     // showed before there was a setting for it.
     CHECK(with("arealist_description_default \"\"\n").areaDescriptionDefault.empty());
+    // `@area` is kept as written: what it means is the area list's, settled
+    // where the row is laid out rather than here.
+    CHECK(with("arealist_description_default @area\n").areaDescriptionDefault ==
+          "@area");
     // A line with no value at all is the one shape that is refused: the blank
     // column is worth saying out loud.
     const std::string error = errorWith("arealist_description_default\n");
