@@ -24,6 +24,7 @@ enum class Command : uint8_t {
     AreaListToggleUnread,   ///< arealist.toggle_unread
     AreaListRescan,         ///< arealist.rescan
     AreaListMarkToggle,     ///< arealist.mark_toggle
+    AreaListCatchUp,        ///< arealist.catch_up
     MessageListMarkToggle,  ///< msglist.mark_toggle
     ReaderReply,            ///< reader.reply
     ReaderReplyElsewhere,   ///< reader.reply_elsewhere

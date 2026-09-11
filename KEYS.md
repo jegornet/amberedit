@@ -20,6 +20,7 @@ left unbound is not in it at all.
 | `Ctrl-U` | show only the areas with unread messages, or all of them again |
 | `Ctrl-R` | rescan the message bases                                   |
 | `Ctrl-T` | mark the area under the cursor, or take the mark off it     |
+| `Alt-C` | catch up — mark the area read to its newest message; with areas marked, asks whether you mean those or this one |
 | `Esc` | quit                                                             |
 
 ## Message list

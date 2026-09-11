@@ -14,6 +14,7 @@
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/quick_search.hpp"
+#include "ui/scope_dialog.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/scrollbar.hpp"
 #include "ui/text_layout.hpp"
@@ -398,6 +399,52 @@ void cursorToNextArea(AppState& state) {
     clampCursor(state);
 }
 
+void catchUp(AppState& state) {
+    const auto& areas = state.manager.areas();
+    if (state.areaCursor < 0 || state.areaCursor >= static_cast<int>(areas.size())) {
+        return;
+    }
+    // Copied out of the list rather than referred to, as entering an area
+    // copies it: catching up writes the entry's unread count back, and the
+    // reference would be to the thing being written.
+    const domain::AreaConfig area = areas[static_cast<size_t>(state.areaCursor)].config;
+    static_cast<void>(state.manager.catchUp(area));
+    // An area with nothing unread in it is off the filtered list, so the row
+    // under the cursor may have just gone: the cursor is put back on the list as
+    // it now stands, exactly as turning the filter on puts it back.
+    clampCursor(state);
+}
+
+void catchUpMarked(AppState& state) {
+    // The areas named by the marks, copied out before any of them is caught up:
+    // what a mark holds is a tag, and the entry it names is the thing being
+    // written to.
+    std::vector<domain::AreaConfig> targets;
+    targets.reserve(state.areaMarks.size());
+    for (const auto& entry : state.manager.areas()) {
+        if (state.areaMarks.count(entry.config.tag) != 0) targets.push_back(entry.config);
+    }
+    for (const auto& area : targets) static_cast<void>(state.manager.catchUp(area));
+
+    // The set has said what it was gathered to say. A mark on an area the list
+    // no longer holds went with it and did nothing, which is the only thing a
+    // mark nothing answers to could do.
+    state.areaMarks.clear();
+    clampCursor(state);
+}
+
+void askCatchUp(AppState& state) {
+    // With nothing marked the key means the area under the cursor and can mean
+    // nothing else, so there is no question to ask. With a set standing it could
+    // mean either, and the box is that question — answered by the shell, which
+    // calls back here once it is off the screen.
+    if (state.areaMarks.empty()) {
+        catchUp(state);
+        return;
+    }
+    scope_dialog::openForAreas(state, AppState::ScopePicker::For::CatchUp);
+}
+
 void openMenu(AppState& state) {
     std::vector<AppState::MenuView::Item> items;
     items.reserve(state.config.arealistMenu.size());
@@ -415,6 +462,7 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::AreaListRescan: askRescan(state); break;
         case Command::AreaListToggleUnread: toggleUnreadOnly(state); break;
         case Command::AreaListMarkToggle: toggleMark(state); break;
+        case Command::AreaListCatchUp: askCatchUp(state); break;
         // Refused rather than merely drawn dim, for the reason the editor's
         // Import is: a button the menu dimmed can still be walked onto and
         // pressed, and there is nowhere to walk to.
@@ -713,7 +761,7 @@ bool handleEvent(AppState& state, const Event& event) {
     const std::vector<int> shown = shownAreas(state);
     const int total = static_cast<int>(shown.size());
 
-    // The four commands come ahead of the quick search, which would otherwise
+    // The five commands come ahead of the quick search, which would otherwise
     // take the key for something typed. That is also what a layout binding a
     // bare letter here costs: the letter runs the command and stops being one an
     // area's name can be searched by.
@@ -733,6 +781,13 @@ bool handleEvent(AppState& state, const Event& event) {
     // be the one thing the key cannot have meant.
     if (state.keys.is(event, Command::AreaListMarkToggle)) {
         toggleMark(state);
+        return true;
+    }
+    // Catching up: the area under the cursor read to its end, or the box asking
+    // which areas are meant where something is marked. Swallowed on the same
+    // terms.
+    if (state.keys.is(event, Command::AreaListCatchUp)) {
+        askCatchUp(state);
         return true;
     }
     // Down the list to the next area with something unread in it, and round the

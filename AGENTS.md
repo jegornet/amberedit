@@ -736,10 +736,37 @@ Rules that hold the design together:
   the `AreaEntry`: a mark is a note about this session's list, and the entry is
   the tosser config's. A format written without `m` shows no marks and is not
   corrected, what a row holds being `arealist_format`'s.
+- **Alt-C catches an area up**: `arealist.catch_up` puts its lastread mark on
+  the newest message it holds, so the area counts as read through and its `New`
+  column falls to zero. `AreaManager::catchUp()` is the work and is the one place
+  a mark is moved for an area nobody is standing in — the mark is a UID, so the
+  base is opened for the length of one `uidOf(count)` and closed again, exactly
+  as `refreshArea()` reads its counts. The area that *is* open is read through
+  the base already open on it, since a second handle on the same files would
+  have nothing to say that the first does not. It answers `false` and writes
+  nothing for an area the list does not hold, a passthrough, a base that will not
+  open and an empty area: there is no newest message to stand read to, and an
+  empty area had nothing unread either way. The entry's unread count is brought
+  to zero with the mark, so the row says what the mark now says without a
+  rescan, and `clampCursor()` runs after: under `arealist_unread_only` the row
+  just caught up has left the list.
+- **What the key means depends on the marks, and the box is the question.** With
+  nothing marked `arealist.catch_up` is the area under the cursor and can be
+  nothing else, so it acts where it stands. With a set standing it opens
+  `ui/scope_dialog.*` — the same Marked/Current/Cancel box the reader's three
+  keys raise, counting areas rather than messages — and `app_shell.cpp` calls
+  `area_list::catchUpMarked()` or `area_list::catchUp()` once the box is away,
+  as every other modal's answer is acted on. **Marked empties `areaMarks`
+  afterwards**: the set was gathered to say which areas this was for and it has
+  said it, and a mark on an area a rescan has since taken away goes out with the
+  rest having done nothing. Both it and `mark_toggle` leave the quick search
+  standing, unlike every other command here — marking and catching up pick rows
+  out of what was searched for, and ending the query would put the rest of the
+  list back under a cursor that has not moved.
 - **The list has a menu of its own**, behind the same corner the reader and the
   editor carry one behind — `arealist_menu`, `rescan` and `toggle_unread` by
-  default, with `next_unread`, `mark_toggle` and the ten utilities there to be
-  written in. It
+  default, with `next_unread`, `mark_toggle`, `catch_up` and the ten utilities
+  there to be written in. It
   costs no row: the two it stands in are the column headings and the rule under
   them, so the button takes the right-hand end of the heading and nothing from
   the rows. `area_list::openMenu()` settles what each button can do as it opens
@@ -1345,10 +1372,11 @@ screens showing an area draw what the set holds.
   shifts no field sideways. A format written without `m` shows no marks and is
   not corrected: what a row holds is `msglist_format`'s.
 - **The area list marks the same way and shares nothing with this.** Its set is
-  `AppState::areaMarks`, tags rather than UIDs, and `arealist.mark_toggle` is on
-  the same `Ctrl-T` — see [The area list](#the-area-list). Two screens, two sets:
-  an area is picked out of a config and a message out of a base, and neither set
-  can answer for the other.
+  `AppState::areaMarks`, tags rather than UIDs, `arealist.mark_toggle` is on the
+  same `Ctrl-T`, and `arealist.catch_up` is the one key that acts on the set —
+  see [The area list](#the-area-list). Two screens, two sets: an area is picked
+  out of a config and a message out of a base, and neither set can answer for the
+  other.
 - **Marking one message is a key; marking a run is a box.** `reader.mark_toggle`
   and `msglist.mark_toggle` are the key on each screen, `Ctrl-T` by default and Space
   besides in the list; `reader.mark_menu` (`s`) opens `ui/mark_dialog.*`, whose
@@ -1363,8 +1391,14 @@ screens showing an area draw what the set holds.
   so nothing is read back off a box that is gone.
 - **A set standing changes what a key asks first.** `ui/scope_dialog.*` is that
   question — Marked, Current, Cancel, with the count under it because what
-  follows an answer is not undoable and the marks are spread down an area that
-  does not fit on the screen — and three keys raise it. With nothing marked none
+  follows an answer is not undoable and the marks are spread down a list that
+  does not fit on the screen — and three keys raise it in the reader, a fourth
+  in the area list. **`ScopePicker::of` says which set the box is about**:
+  `Messages` counts `AppState::marks` and the reader stands behind it,
+  `Areas` counts `AppState::areaMarks` and the area list does — one box, two
+  sets, and the count line is the only line that differs.
+  `scope_dialog::openForAreas()` is the area list's way in, and it asks for no
+  message on screen the way `open()` does. With nothing marked none
   of them is ambiguous and the box is never opened: `d` asks its yes/no
   confirmation, and `m` and `w` put their own boxes up as they always have.
   `Cancel` carries no letter for the same reason `Marked` and `Current` do carry

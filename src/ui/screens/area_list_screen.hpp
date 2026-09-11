@@ -55,6 +55,27 @@ void cursorToFirstUnread(AppState& state);
 /// is settled here, as it opens, on the list as it stands then.
 void openMenu(AppState& state);
 
+/// Marks the area under the cursor read to its newest message — what
+/// `arealist.catch_up` does with nothing in the list marked, and what the
+/// Current answer of the box below does.
+///
+/// The mark is put on disk there and then and the row's unread count falls to
+/// zero with it. An area the list cannot open, a passthrough and an empty one
+/// are left exactly as they stand: there is no newest message to stand read to.
+void catchUp(AppState& state);
+
+/// The same for every area the user has marked, and **the marks are taken off
+/// afterwards**: the set was gathered to say which areas this was for, and it
+/// has said it. A mark on an area the list no longer holds — one a rescan took
+/// away — is dropped with the rest and does nothing on the way out.
+void catchUpMarked(AppState& state);
+
+/// What the key itself runs: `catchUp()` where nothing is marked, and the
+/// Marked/Current/Cancel box (`ui/scope_dialog.*`) where something is, since
+/// then the key could mean either. The box is answered by the shell, which
+/// calls one of the two above once it has put it away.
+void askCatchUp(AppState& state);
+
 /// Runs what was picked in that menu, the box having been put away first: the
 /// rescan puts a modal of its own up, and two at once is not something the
 /// shell can mean.

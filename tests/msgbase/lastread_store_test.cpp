@@ -300,6 +300,76 @@ TEST_CASE(
     CHECK(manager.startingMessage(area, total) == total - 1);
 }
 
+TEST_CASE("Catching an area up puts the mark on its newest message "
+          "[lastread][squish][catchup]") {
+    amberedit::test::TempSquishBase base;
+    const AreaConfig area = areaAt(base.path(), MsgBaseType::Squish);
+
+    amberedit::config::AppConfig config;
+    config.tosserConfigPath = "/dev/null";
+
+    const auto makeManager = [&] {
+        std::vector<AreaConfig> areas{area};
+        return amberedit::app::AreaManager(
+            std::make_unique<StubAreaSource>(std::move(areas)),
+            std::make_unique<MsgBaseLastReadStore>(0, "Ivan Petrov"), config);
+    };
+
+    uint32_t total = 0;
+    {
+        auto manager = makeManager();
+        static_cast<void>(manager.reload());
+        REQUIRE(manager.areas().size() == 1);
+        total = manager.areas().front().total;
+        REQUIRE(total >= 3);
+        // The fixture carries a mark of its own, so some of it stands read
+        // already: what matters is that not all of it does.
+        REQUIRE(manager.areas().front().unread > 0);
+
+        // Nothing is open: this is the area list's case, where the mark is
+        // moved for an area nobody is standing in.
+        CHECK(manager.catchUp(area));
+        CHECK(manager.areas().front().unread == 0);
+    }
+
+    // A second run, reading the mark back off disk rather than out of memory:
+    // the area stands read, and the reader opening it lands on the newest
+    // message, there being nothing after it to move on to.
+    auto manager = makeManager();
+    static_cast<void>(manager.reload());
+    CHECK(manager.areas().front().unread == 0);
+    REQUIRE(manager.openArea(area).has_value());
+    CHECK(manager.startingMessage(area, total) == total);
+
+    // And again through the base already open on it, which is the other half of
+    // the same call: the answer does not change, the area being read already.
+    CHECK(manager.catchUp(area));
+    CHECK(manager.areas().front().unread == 0);
+}
+
+TEST_CASE("Catching up an area with no base of its own moves no mark "
+          "[lastread][catchup]") {
+    amberedit::config::AppConfig config;
+    config.tosserConfigPath = "/dev/null";
+
+    AreaConfig passthrough;
+    passthrough.tag = "net.pass";
+    passthrough.type = MsgBaseType::Passthrough;
+
+    std::vector<AreaConfig> areas{passthrough};
+    amberedit::app::AreaManager manager(
+        std::make_unique<StubAreaSource>(std::move(areas)),
+        std::make_unique<MsgBaseLastReadStore>(0, "Ivan Petrov"), config);
+    static_cast<void>(manager.reload());
+
+    // A passthrough holds nothing and keeps no mark, and an area the list never
+    // heard of is not this manager's to write for.
+    CHECK_FALSE(manager.catchUp(passthrough));
+    AreaConfig stranger;
+    stranger.tag = "not.here";
+    CHECK_FALSE(manager.catchUp(stranger));
+}
+
 TEST_CASE(
     "Where an area resumes is reader_lastread_auto_next's "
     "[lastread][squish]") {

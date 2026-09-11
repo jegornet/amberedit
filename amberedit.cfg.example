@@ -858,7 +858,8 @@ hint_bar_capitalize off
 # a name reads as a "_", so a config written when they were spelled
 # "reply-elsewhere" is read as it stands:
 #
-#   arealist_hints  next_unread  toggle_unread  rescan  mark_toggle  quit  help
+#   arealist_hints  next_unread  toggle_unread  rescan  mark_toggle  catch_up
+#                   quit  help
 #
 #   msglist_hints   mark_toggle  quit  help
 #
@@ -941,6 +942,8 @@ reader_side_tap_width 6
 #                                  in it, as `/` does
 #                 mark_toggle      mark the area, or take the mark off it, as
 #                                  Ctrl-T does
+#                 catch_up         mark the area read to its newest message, as
+#                                  Alt-C does
 #
 #   reader_menu   list             the list of messages in the area
 #                 reply            answer the message, quoting it
@@ -976,13 +979,13 @@ reader_side_tap_width 6
 #
 # The three lines below are the defaults. "change", "info", "export",
 # "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's,
-# and "next_unread" and "mark_toggle" out of the list's — write them in to have
-# them:
+# and "next_unread", "mark_toggle" and "catch_up" out of the list's — write them
+# in to have them:
 #
 #   reader_menu   list reply reply_elsewhere comment_reply new forward find
 #                 change info export nodelist mark_toggle mark_menu shell
 #
-#   arealist_menu rescan toggle_unread next_unread mark_toggle
+#   arealist_menu rescan toggle_unread next_unread mark_toggle catch_up
 #
 # The message list carries no menu button and has no setting for one: marking
 # the message under the cursor is its one command, and one button is no menu.

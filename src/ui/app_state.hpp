@@ -545,6 +545,15 @@ struct AppState {
             Delete,   ///< `reader.delete`
             Forward,  ///< `reader.forward`
             Export,   ///< `reader.export`
+            CatchUp,  ///< `arealist.catch_up`
+        };
+        /// What the marked answer stands for: the messages marked in the area
+        /// being read, or the areas marked in the list. The three answers are
+        /// the same three either way — this is what the count line under the
+        /// question is written from, and which set the shell empties.
+        enum class Of {
+            Messages,  ///< `AppState::marks`, and the reader is behind the box
+            Areas,     ///< `AppState::areaMarks`, and the area list is
         };
         /// The three answers, in the order they are drawn and stepped through.
         /// The one that raised the question first, and the way out last.
@@ -554,6 +563,7 @@ struct AppState {
             Cancel,   ///< nothing at all
         };
         For purpose{For::Delete};
+        Of of{Of::Messages};
         Mode mode{Mode::Marked};
         /// How many were marked when the box went up, which is what its second
         /// line says: what follows an answer is not undoable, and the count is
