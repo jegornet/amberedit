@@ -504,9 +504,15 @@ Rules that hold the design together:
   `splitBody` in `ftn_msgbase.cpp` marks them. `PATH:` carries a ^A; `SEEN-BY:`
   does not but is service data all the same. So is the `AREA:` line a packet
   carries — no ^A, and service data **only as the very first line**, where
-  FTS-0001 puts it and where `splitBody` looks; the same characters further down
-  are a line somebody wrote. Since ^A cannot be printed, `@` stands in for it, so
-  `@PATH:` is right and `@SEEN-BY:` and `@AREA:` are not. The reader hides
+  FTS-0004 puts it and where `splitBody` looks; the same characters further down
+  are a line somebody wrote. FTS-0004 is where the whole echomail apparatus is
+  spelled out — the `AREA:` line, the tearline and origin pair, SEEN-BY and PATH —
+  and **AmberEdit originates none of the routing ones**: the tosser adds
+  `AREA:`, SEEN-BY and PATH when it exports, and this editor keeps the ones a
+  base already holds where it holds them. A tearline and an origin are the only
+  lines of the set it writes, and it writes them for a message it composes.
+  Since ^A cannot be printed, `@` stands in for it, so `@PATH:` is right and
+  `@SEEN-BY:` and `@AREA:` are not. The reader hides
   service lines and shows them on `k`, in dark grey and **in the position the
   base stores them** — AREA:/MSGID ahead of the text, SEEN-BY and PATH after the
   origin. Do not gather them into a block. `preservedLines()` puts the ^A-less
@@ -527,8 +533,11 @@ Rules that hold the design together:
   after the origin. It has to be decided over the whole body, because `---` is
   also used mid-message as a separator and only the closing one is a tearline.
   The flag travels on `MessageLine`, set by the adapter, so the reader only
-  renders it. `isOriginLine()` checks the prefix and nothing else: the
-  parentheses may hold a 4D address, a 5D one, or the network name too.
+  renders it. `isOriginLine()` checks the prefix and nothing else, because
+  FTS-0004 fixes `" * Origin: "` and leaves the rest of the line to whoever
+  wrote it: the parentheses may hold a 4D address, a 5D one, or the network name
+  too. The tearline is the same shape — three dashes and an optional banner
+  after them.
 - **A message body has two line terminators, 0DH and 0AH. Every other byte is
   text.** `splitBody` looks for those two and for nothing else, and nothing may
   be added that looks for anything else. FTS-0001 (§ Message Text) also gives
@@ -3744,9 +3753,11 @@ together — `keys_mode` says which.
   file; a test keeps it equal to `KeyMap::defaults()`.
   User documentation and a test fixture both.
 - `specs/` — format specifications: `Squish.txt`, `JAM.txt`, `fts-0001.016` (the
-  base message and kludge format), and the ones a written message has to satisfy:
-  `fts-0009.001` (MSGID/REPLY), `fts-4008.002` (TZUTC), `fts-5003.001` (CHRS),
-  `fsc-0004.001` (INTL) and `fsp-1030.002` (UTF-8 and the UCS header lines).
+  base message and kludge format), `fts-0004.001` (echomail: the `AREA:` line, the
+  tearline and origin pair, SEEN-BY and PATH), and the ones a written message has
+  to satisfy: `fts-0009.001` (MSGID/REPLY), `fts-4008.002` (TZUTC),
+  `fts-5003.001` (CHRS), `fsc-0004.001` (INTL) and `fsp-1030.002` (UTF-8 and the
+  UCS header lines).
 - `default.tpl` — the template a message is built from, shipped as it stands and
   the whole token set `app/msg_template` implements.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one
