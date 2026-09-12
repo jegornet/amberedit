@@ -8,6 +8,7 @@
 #include "config/config_writer.hpp"
 #include "config/embedded_resources.hpp"
 #include "config/text_util.hpp"
+#include "encoding/iconv_recoder.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
@@ -78,8 +79,10 @@ TEST_CASE("a rendered config carries every answer [config_writer]") {
 
     // Each of them once: the sample states them all, and a second line would be
     // refused by the parser as a setting written twice.
-    for (const char* key : {"name", "address", "tosser_config", "tosser_config_format",
-                            "default_charset", "compose_charset", "template"}) {
+    CHECK(config.configCharset == "UTF-8");
+    for (const char* key :
+         {"name", "address", "tosser_config", "tosser_config_format", "config_charset",
+          "default_charset", "compose_charset", "template"}) {
         CHECK_MESSAGE(stated(text, key) == 1, key);
     }
 }
@@ -198,6 +201,33 @@ TEST_CASE("writeConfig leaves a config a start can read [config_writer]") {
     CHECK_FALSE(std::filesystem::exists(path + ".new"));
     const auto loaded = AppConfig::loadFromFile(path);
     CHECK_MESSAGE(loaded.has_value(), errorOf(loaded));
+}
+
+TEST_CASE("writeConfig writes the file in the charset it says [config_writer]") {
+    // A config that says `config_charset CP866` and holds UTF-8 bytes is
+    // mojibake from its first start, so the sample is encoded before it goes to
+    // disk — comments and all, the sample being UTF-8.
+    const amberedit::test::TempDir dir;
+    const std::string path = dir.path("amberedit.cfg");
+
+    ConfigAnswers a = answers();
+    a.configCharset = "CP866";
+    a.userName = "Вася Пупкин";
+    const auto written = writeConfig(path, a);
+    REQUIRE_MESSAGE(written.has_value(), errorOf(written));
+
+    // The bytes on disk are CP866: the name is there in that charset and not in
+    // the one the answer was handed over in.
+    const std::string bytes = valueOf(amberedit::config::text::readFile(path));
+    CHECK_FALSE(contains(bytes, "Вася Пупкин"));
+    CHECK(contains(bytes, valueOf(amberedit::encoding::IconvRecoder{}.intoCharset(
+                              "Вася Пупкин", "CP866"))));
+
+    // And read back the way a start reads it, the name is the one that was
+    // answered — which is the whole of what the setting is for.
+    const AppConfig loaded = valueOf(AppConfig::loadFromFile(path));
+    CHECK(loaded.configCharset == "CP866");
+    CHECK(loaded.userName == "Вася Пупкин");
 }
 
 TEST_CASE("writeConfig does not write over a config already there [config_writer]") {

@@ -329,7 +329,8 @@ TemplateResult expandTemplate(const std::string& text, const TemplateContext& co
                 if (path.is_relative() && !context.includeDir.empty()) {
                     path = std::filesystem::path(context.includeDir) / path;
                 }
-                if (const auto text = config::text::readFile(path.string())) {
+                if (const auto text =
+                        config::text::readFileIn(path.string(), context.includeCharset)) {
                     for (auto& included : config::text::splitLines(*text)) {
                         result.lines.push_back(std::move(included));
                     }

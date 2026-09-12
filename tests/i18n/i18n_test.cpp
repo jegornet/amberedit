@@ -226,8 +226,8 @@ TEST_CASE("Every message the source carries is in the Russian catalog [i18n]") {
     CHECK(std::string(_(" Message info ")) != " Message info ");
     CHECK(std::string(_("Rescanning areas...")) != "Rescanning areas...");
     CHECK(std::string(_("Nothing to look for")) != "Nothing to look for");
-    CHECK(std::string(_(" General parameters — step 1 of 6 ")) !=
-          " General parameters — step 1 of 6 ");
+    CHECK(std::string(_(" General parameters — step 1 of 7 ")) !=
+          " General parameters — step 1 of 7 ");
 }
 
 // --- what actually reaches the screen ----------------------------------------

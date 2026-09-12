@@ -1,8 +1,12 @@
 #include <doctest/doctest.h>
 
+#include <fstream>
 #include <string>
 
 #include "app/msg_template.hpp"
+#include "encoding/iconv_recoder.hpp"
+#include "temp_dir.hpp"
+#include "test_strings.hpp"
 
 using amberedit::app::expandTemplate;
 using amberedit::app::TemplateContext;
@@ -254,4 +258,28 @@ TEST_CASE("A template says where the cursor starts and what the header holds "
     CHECK(forced.setTo == "Sysop");
     CHECK_FALSE(forced.forceTo);
     CHECK(forced.lines.empty());
+}
+
+TEST_CASE("@include is read in the charset the template was [template]") {
+    // A template and the files it pulls in are one document written by one
+    // person in one editor, so `config_charset` answers for both — there is
+    // nothing here a second setting could say.
+    const amberedit::test::TempDir dir;
+    amberedit::encoding::IconvRecoder recoder;
+    const std::string cp866 =
+        amberedit::test::valueOf(recoder.intoCharset("Привет\n", "CP866"));
+    {
+        std::ofstream out(dir.path("greeting.txt"), std::ios::binary);
+        out << cp866;
+    }
+
+    auto context = replyContext();
+    context.includeDir = dir.path("");
+    context.includeCharset = "CP866";
+    CHECK(expanded("@include greeting.txt", context) == "Привет");
+
+    // The same file with nothing said about it is read as UTF-8, which it is
+    // not — and a template is never stopped by what an include held.
+    context.includeCharset.clear();
+    CHECK(expanded("@include greeting.txt", context) != "Привет");
 }

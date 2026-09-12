@@ -15,6 +15,25 @@
 #
 # Each setting below says what it does, what it takes and what it defaults to.
 
+# The character set THIS FILE is written in, and with it every file it names:
+# your tosser's config and whatever that includes, the message template and
+# whatever it @includes, the files the four settings above keep their values in,
+# and the "@file" a CC: or an XC: line in a message names its recipients in.
+# Optional; UTF-8 if this line is not here at all.
+#
+# It is about files, not about messages — a message says its own charset in a
+# CHRS kludge and falls back on "default_charset", which is a different question
+# and further down. What this answers is the one nothing else could: an origin
+# line, a tearline, an area description in a twenty-year-old tosser config are
+# somebody's own words in a file that never says what charset it is in.
+#
+# The name may be written the Fidonet way or the iconv way: CP866, +7_FIDO, 866
+# and IBM866 are one charset. "IBMPC" is refused — it names no particular one.
+#
+# The themes and the keys file are not in the list: every value either of them
+# holds is an ASCII word, and their comments never leave the parser.
+config_charset UTF-8
+
 # --- who you are --------------------------------------------------------------
 
 # The name a message you write is from. Required; may be set per area in a group

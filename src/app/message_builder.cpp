@@ -251,6 +251,7 @@ TemplateContext contextFor(const BuildRequest& request) {
         context.includeDir =
             std::filesystem::path(request.config.templatePath).parent_path().string();
     }
+    context.includeCharset = request.config.configCharset;
 
     // Last, because these two are themselves written with tokens in them: they
     // are expanded against the context as it stands here, in which @tearline
@@ -421,7 +422,8 @@ StartingText startingText(const BuildRequest& request) {
         // and a reply still opens on the quote, which is the one thing it
         // cannot be written without.
         haveTemplate = false;
-    } else if (const auto read = config::text::readFile(request.config.templatePath)) {
+    } else if (const auto read = config::text::readFileIn(request.config.templatePath,
+                                                          request.config.configCharset)) {
         templateText = *read;
     } else {
         out.error = i18n::format(_("template: {0}"), {read.error()->message()});
@@ -585,7 +587,8 @@ std::vector<std::string> changeNotice(const BuildRequest& request) {
         context.c3daddr = threeDimensional(*parsed);
     }
 
-    const auto text = config::text::readFile(request.config.templatePath);
+    const auto text = config::text::readFileIn(request.config.templatePath,
+                                               request.config.configCharset);
     // The same template the editor would have opened on, and the same silence:
     // a notice that cannot be read is no reason to refuse the change.
     if (!text) return {};

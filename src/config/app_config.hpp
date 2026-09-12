@@ -575,6 +575,27 @@ struct AppConfig {
     /// that took the message — this layer only holds where the file is.
     std::string echotossLogPath;
 
+    /// Character set this config file itself is written in, and with it every
+    /// file the config names: the tosser config and the files it includes, the
+    /// message template and its `@include`s, and the `@file:` lists a setting
+    /// keeps its values in. Optional; UTF-8 unless a line says otherwise.
+    ///
+    /// Not a setting about messages. It is about the files on disk that carry
+    /// somebody's own words into AmberEdit — an origin, a tearline, an area
+    /// description — none of which declares a charset the way a message does,
+    /// and all of which used to have to be UTF-8 whatever the rest of a
+    /// twenty-year-old FTN setup was written in.
+    ///
+    /// It is read before any of them, twice over: once off the raw bytes of the
+    /// config to settle what the config itself says, and then again as an
+    /// ordinary setting. Under the name iconv knows it by, as the other two
+    /// charsets are — `readCharset()` reads all three.
+    ///
+    /// The themes and the keys file are deliberately not in that list: every
+    /// value either holds is an ASCII word, and their comments are dropped by
+    /// the parser before anything sees them.
+    std::string configCharset{"UTF-8"};
+
     /// Character set a message being *read* is decoded from when it carries no
     /// CHRS kludge — or one that names no particular encoding, "IBMPC" being
     /// the name that does that. Nothing else can say: no tosser config format

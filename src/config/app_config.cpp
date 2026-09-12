@@ -17,6 +17,7 @@
 #include "config/text_util.hpp"
 #include "domain/message.hpp"
 #include "encoding/charset_detector.hpp"
+#include "encoding/iconv_recoder.hpp"
 #include "i18n/i18n.hpp"
 
 namespace amberedit::config {
@@ -754,11 +755,16 @@ constexpr std::string_view kListFileMark = "@file:";
 /// setting looks itself up by later is the text on its own line, and the two
 /// have to agree.
 ///
+/// Read in `charset` — `config_charset`, settled before this runs: an origin is
+/// a line of somebody's own words, and it is written in whatever the config it
+/// belongs to is written in.
+///
 /// A file that will not open stops the config, naming the line that named it. A
 /// path in a config says nothing about a file on disk, and a twit list that
 /// silently held nobody would be a config quietly reading everybody.
 [[nodiscard]] tl::expected<ListFiles, ErrorPtr> readListFiles(
-    const std::vector<CfgEntry>& entries, const std::string& configDir) {
+    const std::vector<CfgEntry>& entries, const std::string& configDir,
+    const std::string& charset) {
     ListFiles lists;
     for (const CfgEntry& entry : entries) {
         const auto name = listFileRef(entry);
@@ -773,7 +779,7 @@ constexpr std::string_view kListFileMark = "@file:";
         if (path.is_relative() && !configDir.empty()) {
             path = std::filesystem::path(configDir) / path;
         }
-        auto content = text::readFile(path.string());
+        auto content = text::readFileIn(path.string(), charset);
         if (!content) {
             return entry.fail(entry.key + " @file:" + *name + ": " +
                               content.error()->message());
@@ -933,6 +939,26 @@ tl::expected<std::string, ErrorPtr> readCharset(const CfgEntry& entry) {
     return resolved;
 }
 
+/// What `config_charset` says, taken off the entries before a single setting
+/// has been applied — because it is what says how the rest of them are to be
+/// read, and how every file they name is.
+///
+/// Over the flat list, the lines inside blocks included: it is not a per-area
+/// setting, and one written inside a block is refused by the block checks
+/// further down rather than quietly passed over here. The first line wins,
+/// which matters to nothing — a config stating a setting twice is refused where
+/// every doubled setting is.
+///
+/// UTF-8 where no line states it. That is the default, and it is also what a
+/// config had to be written in before there was a setting to say otherwise.
+[[nodiscard]] tl::expected<std::string, ErrorPtr> statedConfigCharset(
+    const std::vector<CfgEntry>& entries) {
+    for (const CfgEntry& entry : entries) {
+        if (entry.key == "config_charset") return readCharset(entry);
+    }
+    return std::string("UTF-8");
+}
+
 /// One setting, read onto a config. False when the key is not a setting at all,
 /// which is the caller's to complain about: the same line is refused with a
 /// different message at the top level and inside a group.
@@ -1035,6 +1061,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readPath(entry, "a file to name written areas in");
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.echotossLogPath = *read;
+    } else if (key == "config_charset") {
+        auto read = readCharset(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.configCharset = *read;
     } else if (key == "default_charset") {
         auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1955,9 +1985,18 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
     // path of its own, relative to wherever AmberEdit was started.
     cfg.configDir = std::filesystem::path(originName).parent_path().string();
 
+    // And in which charset those files are written, settled before them for the
+    // same reason `loadFromString()` settles it before parsing: it is the one
+    // setting the reading of everything else depends on. The line is read again
+    // below, as an ordinary setting, which is what refuses a doubled one and one
+    // written inside a block.
+    auto charset = statedConfigCharset(entries);
+    if (!charset) return tl::make_unexpected(std::move(charset).error());
+    cfg.configCharset = *charset;
+
     // Before the first setting is applied, because a setting may *be* a file:
     // `origin @file:origins.txt` has no value until that file has been read.
-    auto lists = readListFiles(entries, cfg.configDir);
+    auto lists = readListFiles(entries, cfg.configDir, cfg.configCharset);
     if (!lists) return tl::make_unexpected(std::move(lists).error());
     if (!lists->empty())
         cfg.listFiles = std::make_shared<const ListFiles>(std::move(*lists));
@@ -2302,6 +2341,27 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
     const std::string& text, const std::string& originName) {
     auto entries = parseCfg(text, originName);
     if (!entries) return tl::make_unexpected(std::move(entries).error());
+
+    // Which charset the file was written in is a line of the file, and there is
+    // no way round that: the answer has to be read out of the bytes it is about.
+    // It can be, because the question is asked of a key and a charset name, and
+    // those are ASCII in every charset a config was ever written in — so the
+    // first parse finds the line whatever the high bytes around it mean, and
+    // then the whole text is decoded and parsed again, this time in UTF-8 like
+    // everything above this layer.
+    auto charset = statedConfigCharset(*entries);
+    if (!charset) return tl::make_unexpected(std::move(charset).error());
+    if (*charset != "UTF-8") {
+        encoding::IconvRecoder recoder;
+        auto decoded = recoder.intoUtf8(text, *charset);
+        if (!decoded) {
+            return failure(originName +
+                           ": config_charset: " + decoded.error()->message());
+        }
+        auto reread = parseCfg(*decoded, originName);
+        if (!reread) return tl::make_unexpected(std::move(reread).error());
+        return fromEntries(*reread, originName);
+    }
     return fromEntries(*entries, originName);
 }
 
@@ -2327,7 +2387,7 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(const std::string& pat
                        ": template is not set — it must point at the file "
                        "a new message starts from");
     }
-    if (const auto read = text::readFile(cfg.templatePath); !read) {
+    if (const auto read = text::readFileIn(cfg.templatePath, cfg.configCharset); !read) {
         return failure("message template: " + read.error()->message());
     }
 
@@ -2341,7 +2401,8 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(const std::string& pat
             auto applied = applySetting(probe, setting);
             if (!applied) return tl::make_unexpected(std::move(applied).error());
         }
-        if (const auto read = text::readFile(probe.templatePath); !read) {
+        if (const auto read = text::readFileIn(probe.templatePath, cfg.configCharset);
+            !read) {
             return failure("message template of the group at line " +
                            std::to_string(group.line) + ": " + read.error()->message());
         }

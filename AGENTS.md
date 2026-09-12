@@ -2079,10 +2079,15 @@ taking a row.
   so `ui/setup/*` keeps a `SetupState` of its own and `setup_run.cpp` owns a
   `Terminal` and a loop of its own, the shape `ui/term/terminal.hpp` describes.
   Everything but that one file is drawn and dispatched like any other dialog and
-  is driven by the tests without a terminal. It asks five questions — who you
-  are and which tosser config, where that config is, the charset read and the
-  charset written, and a nodelist that may be skipped — and the sixth step is
-  the config itself: what will be written, where, and the button that writes it.
+  is driven by the tests without a terminal. It asks six questions — who you
+  are and which tosser config, where that config is, the charset read, the
+  charset written, the charset the config file and everything it names is
+  written in, and a nodelist that may be skipped — and the seventh step is the
+  config itself: what will be written, where, and the button that writes it.
+  The three charset steps share `renderCharset()` and `charsetField()`, and the
+  third of them is asked last of the three and guesses nothing from the two
+  before it: those are what the mail is written in, and a config written today
+  is UTF-8 whatever the echoes hold.
   - **Enter walks the questions of a step; Next is what checks them.** This is
     the one dialog where Enter does not act wherever the typing is: a step is
     several fields, and a name typed with the address still empty is a step being
@@ -2587,6 +2592,53 @@ taking a row.
 - **Charset resolution**: the `CHRS:`/`CHARSET:`/`CODEPAGE:` kludge, then
   `default_charset`. Fidonet names are mapped onto iconv names in
   `charset_detector.cpp` — `+7_FIDO` and `866` both mean CP866.
+- **`config_charset` is the third charset setting, and it is about files rather
+  than about mail.** It says what charset the AmberEdit config itself is written
+  in, and with it every file the config names: the tosser config and whatever
+  that includes, the message template and whatever it `@include`s, the `@file:`
+  lists the four signature and twit settings may keep their values in, and the
+  `@file` a `CC:`/`XC:` line names. Optional, UTF-8 where no line states it,
+  read by the same `readCharset()` as the other two and so held under iconv's
+  name — and **not a per-area setting**: a file has one charset, and a `group`
+  block stating it would be a block of a config claiming the file is written
+  differently from the line above it.
+  - **Everything it covers is somebody's own words in a file that declares
+    nothing** — an origin, a tearline, an area description in a tosser config
+    twenty years older than UTF-8. A message has a CHRS kludge and falls back on
+    `default_charset`; none of these has anything of the kind, and before this
+    setting they all had to be UTF-8 whatever the rest of the setup was.
+  - **It is read twice, and the first read is off the raw bytes.** Which charset
+    a file is written in is a line *of that file*, so `loadFromString()` parses
+    the config once as it stands, asks `statedConfigCharset()` what it says,
+    and — where that is not UTF-8 — decodes the whole text and parses it again.
+    That works because the question is asked of a key and a charset name, and
+    both are ASCII in every charset a config was ever written in. The second
+    read is the ordinary one, in `applySetting()`, and it is what refuses a
+    doubled line and one written inside a block. `fromEntries()` asks
+    `statedConfigCharset()` too, before `readListFiles()`: a `@file:` list is
+    read before the first setting is applied, and it has to be read in something.
+  - **One reader for all of it: `text::readFileIn(path, charset)`.** It is
+    `readFile()` with `IconvRecoder::intoUtf8()` behind it, in the strict form —
+    broken bytes still become U+FFFD, but a charset this machine's iconv has
+    never heard of is a failure naming the path rather than mojibake handed on
+    in silence. An empty charset and `UTF-8` are the same thing and cost
+    nothing. The three tosser parsers take the charset as a constructor
+    argument beside their `PathMap`, from `makeTosserSource()`; the template
+    reaches it through `AppConfig::configCharset` at each of the three places a
+    template is read, and an `@include` through `TemplateContext::includeCharset`.
+  - **The themes and the keys file are deliberately not in the list.** Every
+    value either of them holds is an ASCII word, and `parseCfg()` drops their
+    comments before anything sees them — so recoding them could not change what
+    is drawn, and a user who set `config_charset CP866` would otherwise find the
+    shipped UTF-8 themes in `themes/` unreadable.
+  - **`--setup` writes the config in the charset it says.** `writeConfig()`
+    encodes the rendered sample with `intoCharset()` before anything looks at
+    it, and the parse-check and the read-back then run on those bytes — the same
+    reading the next start will do. A file saying `config_charset CP866` and
+    holding UTF-8 bytes would be mojibake from its first start. The sample is
+    UTF-8 and its comments are written with the characters UTF-8 has, so an em
+    dash comes out of iconv as a hyphen or a `?`; a comment reading a little
+    plainer is the cost of the file being what it says it is.
 - **Reading and writing have separate settings, both required.**
   `default_charset` is only ever a fallback for a message being read;
   `compose_charset` is what a new message is encoded in and what its CHRS
@@ -2697,12 +2749,14 @@ taking a row.
   setting the locale to match it (`LC_CTYPE=ru_RU.KOI8-R`) and nothing else. Do
   not reach for `iconv` for this. `Terminal::codeset()` says what the locale
   settled on and nothing reports it to the user.
-- **A file on disk that declares nothing is read in the locale's charset.**
-  `encoding::localeCharset()` is `LC_CTYPE` from the environment, and what asks
-  is a `nodelist` or an `echolist` line stating no charset of its own. It is not
-  a fallback for a *message*: a message declares its charset in a CHRS kludge and
-  falls back on `default_charset`, and neither has anything to do with the
-  terminal's.
+- **A nodelist or an echolist that declares nothing is read in the locale's
+  charset.** `encoding::localeCharset()` is `LC_CTYPE` from the environment, and
+  what asks is a `nodelist` or an `echolist` line stating no charset of its own
+  — those two lines carry the charset themselves, a file a network publishes
+  being nobody's config. It is not a fallback for a *message*: a message
+  declares its charset in a CHRS kludge and falls back on `default_charset`,
+  and neither has anything to do with the terminal's. Nor for a file the config
+  names, which is `config_charset` above.
 - **The locale is not left to chance.** `term::ensureUtf8Locale()` runs before
   ncurses starts. A locale the user chose is kept, whatever its charset; where
   the environment names none, or names the C locale, a UTF-8 one is found and
@@ -2855,6 +2909,9 @@ taking a row.
     missing from the map — which is every file on the throwaway config
     `isKnownSetting()` probes with — is no values rather than an error; whether
     it opens was settled once, at load, where a failure names the line.
+  - **They are read in `config_charset`**, which `fromEntries()` settles just
+    before `readListFiles()` for exactly that reason — see "Charsets and the
+    locale".
   - **`cfg.configDir` is settled in `fromEntries()`**, from the name the entries
     were parsed under, because the lists are read there. It is the config's own
     directory for anything read off a disk and empty for a string parsed under
@@ -2873,11 +2930,13 @@ taking a row.
   so what `--setup` leaves on disk is the whole commented file with the answers
   in the lines that state them. The lines it edits are matched at column 0 with
   their trailing space (`name `, `address `, `tosser_config `,
-  `tosser_config_format `, `default_charset `, `compose_charset `, `template `,
-  `origin `, `#nodelist `, `#nodelist_db `), and a sample that no longer holds
-  exactly one of them fails the render rather than writing a config that is
-  missing a required key. Move a setting inside the sample freely; do not take
-  one of those lines out or write a second one.
+  `tosser_config_format `, `config_charset `, `default_charset `,
+  `compose_charset `, `template `, `origin `, `#nodelist `, `#nodelist_db `),
+  and a sample that no longer holds exactly one of them fails the render rather
+  than writing a config that is missing a required key. Move a setting inside
+  the sample freely; do not take one of those lines out or write a second one.
+  What is rendered is UTF-8; `writeConfig()` encodes it in `config_charset`
+  before it goes to disk, and checks and reads back those bytes.
 - **`tmpdir` is optional, and `config::makeTempDir()` is the one place that
   knows why.** Whoever needs somewhere to work calls it with `cfg.tempDirPath`
   and gets a directory made and ready: the setting where it names one, and
@@ -2975,6 +3034,17 @@ taking a row.
   `std::filesystem`, so resolving first looks for `c:\fido\...` under the
   config's own directory and finds nothing. In fidoconfig the map is asked after
   `[name]` expansion, so what it sees is the path the line means.
+  - **An `include` naming a file that is not there is passed over and
+    remembered, not refused.** Reading goes on — a config whose optional
+    include is gone still names areas, and a start that stopped at one would be
+    AmberEdit refusing to run over a file it does not need. The path, in the
+    spelling it was looked for under, lands in
+    `FidoconfigParser::missingIncludes()` for whoever has somebody in front of
+    them to say out loud. `checkTosserConfig()` is the one that does: an HPT
+    config commonly holds nothing but `include` lines, so a missing one comes
+    out of the parser as no areas at all, and `--setup` answering that with
+    "is it really a fidoconfig?" sends the reader off to check the one file
+    that is right.
   Nothing of AmberEdit's own config goes through it — not `tmpdir`, not an
   `area ... endarea` block's path — and `makeAreaSource()` is where that line is
   drawn: the map reaches `makeTosserSource()` and stops there.

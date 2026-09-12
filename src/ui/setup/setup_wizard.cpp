@@ -101,9 +101,13 @@ void fitBox(SetupState& state) {
     state.rows = std::max(1, state.height - kChromeRows - kWindowMargin);
 }
 
-/// The charset field the step being asked is about.
+/// The charset field the step being asked is about. Three steps ask for a
+/// charset; anywhere else the answer is unused and has only to be a field, the
+/// click handler asking every one of them where it was drawn.
 TextField& charsetField(SetupState& state) {
-    return state.step == Step::ReadCharset ? state.readCharset : state.composeCharset;
+    if (state.step == Step::ReadCharset) return state.readCharset;
+    if (state.step == Step::ComposeCharset) return state.composeCharset;
+    return state.configCharset;
 }
 
 /// The ring of the step that is up, in the order the rows are drawn.
@@ -115,7 +119,8 @@ std::vector<Stop> stopsFor(const SetupState& state) {
             return {Stop::Name, Stop::Address, Stop::Format, Stop::Next};
         case Step::TosserFile: return {Stop::Picker, Stop::Back, Stop::Next};
         case Step::ReadCharset:
-        case Step::ComposeCharset: return {Stop::Charset, Stop::Back, Stop::Next};
+        case Step::ComposeCharset:
+        case Step::ConfigCharset: return {Stop::Charset, Stop::Back, Stop::Next};
         case Step::Nodelist:
             return {Stop::Picker, Stop::NodelistDb, Stop::Skip, Stop::Back, Stop::Next};
         case Step::Summary: break;
@@ -308,6 +313,18 @@ Outcome advance(SetupState& state) {
                 state.error = ok.error()->message();
                 return Outcome::Ignored;
             }
+            enterStep(state, Step::ConfigCharset);
+            return Outcome::Ignored;
+        }
+        case Step::ConfigCharset: {
+            // Nothing is guessed from the two charsets before it: those are
+            // what the mail is written in, and this is what the files on this
+            // machine are. UTF-8 is what the field starts on and what a config
+            // written today ought to be.
+            if (const auto ok = checkCharsetAnswer(state.configCharset.value); !ok) {
+                state.error = ok.error()->message();
+                return Outcome::Ignored;
+            }
             openNodelistPicker(state);
             enterStep(state, Step::Nodelist);
             return Outcome::Ignored;
@@ -350,7 +367,8 @@ void retreat(SetupState& state) {
             enterStep(state, Step::TosserFile);
             return;
         case Step::ComposeCharset: enterStep(state, Step::ReadCharset); return;
-        case Step::Nodelist: enterStep(state, Step::ComposeCharset); return;
+        case Step::ConfigCharset: enterStep(state, Step::ComposeCharset); return;
+        case Step::Nodelist: enterStep(state, Step::ConfigCharset); return;
         case Step::Summary: break;
     }
     openNodelistPicker(state);
@@ -452,14 +470,15 @@ Element buttons(SetupState& state, int inner) {
 /// it has on what the user knew before they started.
 std::string titleOf(const SetupState& state) {
     switch (state.step) {
-        case Step::Identity: return _(" General parameters — step 1 of 6 ");
-        case Step::TosserFile: return _(" Tosser config file — step 2 of 6 ");
-        case Step::ReadCharset: return _(" Incoming charset — step 3 of 6 ");
-        case Step::ComposeCharset: return _(" Outgoing charset — step 4 of 6 ");
-        case Step::Nodelist: return _(" Nodelist file — step 5 of 6 ");
+        case Step::Identity: return _(" General parameters — step 1 of 7 ");
+        case Step::TosserFile: return _(" Tosser config file — step 2 of 7 ");
+        case Step::ReadCharset: return _(" Incoming charset — step 3 of 7 ");
+        case Step::ComposeCharset: return _(" Outgoing charset — step 4 of 7 ");
+        case Step::ConfigCharset: return _(" Config file charset — step 5 of 7 ");
+        case Step::Nodelist: return _(" Nodelist file — step 6 of 7 ");
         case Step::Summary: break;
     }
-    return _(" The config to write — step 6 of 6 ");
+    return _(" The config to write — step 7 of 7 ");
 }
 
 void renderIdentity(SetupState& state, Elements& lines, int inner) {
@@ -490,18 +509,30 @@ void renderPickerStep(SetupState& state, Elements& lines, int inner,
 
 void renderCharset(SetupState& state, Elements& lines, int inner) {
     const bool incoming = state.step == Step::ReadCharset;
-    lines.push_back(note(incoming
-                             ? _("The charset in which the message you READ, when it has")
-                             : _("The charset in which the message you WRITE is"),
-                         inner, theme::palette.dialogText));
+    const bool config = state.step == Step::ConfigCharset;
+    if (config) {
+        // Two lines, because this is the step nobody came looking for: it is
+        // about files on this machine and the two before it were about mail,
+        // and the difference is the whole of what has to be said.
+        lines.push_back(note(_("The charset THIS CONFIG FILE and the files it names"),
+                             inner, theme::palette.dialogText));
+        lines.push_back(note(_("are written in — your tosser's config, the template."),
+                             inner, theme::palette.dialogText));
+    } else {
+        lines.push_back(
+            note(incoming ? _("The charset in which the message you READ, when it has")
+                          : _("The charset in which the message you WRITE is"),
+                 inner, theme::palette.dialogText));
+    }
     if (incoming) {
         lines.push_back(note(_("no CHRS kludge — or it says something like IBMPC 2."),
                              inner, theme::palette.dialogText));
     }
     lines.push_back(labelledField(_(" Charset: "), charsetField(state), inner,
                                   state.stop == Stop::Charset));
-    lines.push_back(note(incoming ? _("e.g. CP866 or CP437 or LATIN-1")
-                                  : _("e.g. UTF-8 or CP866 or CP437 or LATIN-1"),
+    lines.push_back(note(config     ? _("Depends on your existing setup")
+                         : incoming ? _("e.g. CP866 or CP437 or LATIN-1")
+                                    : _("e.g. UTF-8 or CP866 or CP437 or LATIN-1"),
                          inner, theme::palette.dialogHint));
 }
 
@@ -535,9 +566,10 @@ std::string fitPath(const std::string& path, int room) {
 void renderSummary(SetupState& state, Elements& lines, int inner) {
     // The labels are padded to the widest of them rather than to a number, so
     // that the values line up whatever language the words are in.
-    const int labels = std::max({displayWidth(_("Name:")), displayWidth(_("Address:")),
-                                 displayWidth(_("Areas:")), displayWidth(_("Charset:")),
-                                 displayWidth(_("Nodelist:"))});
+    const int labels =
+        std::max({displayWidth(_("Name:")), displayWidth(_("Address:")),
+                  displayWidth(_("Areas:")), displayWidth(_("Charset:")),
+                  displayWidth(_("Files in:")), displayWidth(_("Nodelist:"))});
     const auto say = [&](const std::string& label, const std::string& value) {
         const std::string written = padRight(label, labels + 1);
         lines.push_back(note(written + fitPath(value, inner - displayWidth(written) - 1),
@@ -550,6 +582,7 @@ void renderSummary(SetupState& state, Elements& lines, int inner) {
     say(_("Charset:"),
         i18n::format(_("{0} read, {1} written"),
                      {state.readCharset.value, state.composeCharset.value}));
+    say(_("Files in:"), state.configCharset.value);
     say(_("Nodelist:"), state.nodelistPath.empty() ? _("none") : state.nodelistPath);
     lines.push_back(dialog::divider(inner));
     lines.push_back(
@@ -630,6 +663,9 @@ void begin(SetupState& state, const std::string& programPath) {
     // the directory they are standing in, which is the first of the three places
     // AmberEdit looks and the one they can see.
     setFieldValue(state.target, "amberedit.cfg");
+    // The one answer with a default worth starting on: a config written today
+    // is UTF-8 unless the setup it is being written for is older than that.
+    setFieldValue(state.configCharset, "UTF-8");
     enterStep(state, Step::Identity);
 }
 
@@ -641,6 +677,7 @@ config::ConfigAnswers answersOf(const SetupState& state) {
     answers.tosserFormat = state.format;
     answers.defaultCharset = std::string(config::text::trim(state.readCharset.value));
     answers.composeCharset = std::string(config::text::trim(state.composeCharset.value));
+    answers.configCharset = std::string(config::text::trim(state.configCharset.value));
     if (!state.nodelistPath.empty()) {
         answers.nodelistPath = abbreviateHome(state.nodelistPath);
         answers.nodelistDbPath = std::string(config::text::trim(state.nodelistDb.value));
@@ -661,6 +698,7 @@ Element render(SetupState& state) {
     state.address.box = Box::Nowhere();
     state.readCharset.box = Box::Nowhere();
     state.composeCharset.box = Box::Nowhere();
+    state.configCharset.box = Box::Nowhere();
     state.nodelistDb.box = Box::Nowhere();
     state.target.box = Box::Nowhere();
     state.picker.path.box = Box::Nowhere();
@@ -680,7 +718,8 @@ Element render(SetupState& state) {
                                  lookingFor(state.format));
                 break;
             case Step::ReadCharset:
-            case Step::ComposeCharset: renderCharset(state, lines, inner); break;
+            case Step::ComposeCharset:
+            case Step::ConfigCharset: renderCharset(state, lines, inner); break;
             case Step::Nodelist: renderNodelist(state, lines, inner); break;
             case Step::Summary: renderSummary(state, lines, inner); break;
         }

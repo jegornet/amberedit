@@ -6,6 +6,7 @@
 
 #include "config/fidoconfig_parser.hpp"
 #include "config/path_map.hpp"
+#include "encoding/iconv_recoder.hpp"
 #include "temp_dir.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
@@ -395,6 +396,42 @@ TEST_CASE("what an include leaves behind holds for the file below it [fidoconfig
     CHECK(areas[1].path == "/ftn/msg/two");
     CHECK(areas[1].type == MsgBaseType::Squish);
     CHECK(areas[1].group == "F");
+}
+
+TEST_CASE("a tosser config is read in the charset it was built with [fidoconfig]") {
+    // An area description is the one thing in a tosser config that is somebody's
+    // words rather than a path, and no tosser config format says what charset it
+    // is written in — so the AmberEdit config naming the file says, through
+    // `config_charset`, and the include is read the same way.
+    const amberedit::test::TempDir dir;
+    const std::string common = dir.path("common");
+    const std::string config = dir.path("config");
+
+    amberedit::encoding::IconvRecoder recoder;
+    const auto cp866 = [&recoder](const std::string& utf8) {
+        return amberedit::test::valueOf(recoder.intoCharset(utf8, "CP866"));
+    };
+    const auto write = [](const std::string& path, const std::string& text) {
+        std::ofstream out(path, std::ios::binary);
+        out << text;
+    };
+    write(common, cp866("EchoArea ru.two /ftn/msg/two -d \"Разговоры обо всём\"\n"));
+    write(config, cp866("EchoArea ru.one /ftn/msg/one -d \"Из Москвы с любовью\"\n"
+                        "include common\n"));
+
+    FidoconfigParser parser(config, PathMap{}, "CP866");
+    const auto areas = amberedit::test::valueOf(parser.loadAreas());
+
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].description == "Из Москвы с любовью");
+    CHECK(areas[1].description == "Разговоры обо всём");
+
+    // Without the charset the same bytes are taken for UTF-8, which they are
+    // not: the setting is what does the work.
+    FidoconfigParser plain(config);
+    const auto raw = amberedit::test::valueOf(plain.loadAreas());
+    REQUIRE(raw.size() == 2);
+    CHECK(raw[0].description != "Из Москвы с любовью");
 }
 
 TEST_CASE("map_path rewrites an area's path, after the variables [fidoconfig]") {

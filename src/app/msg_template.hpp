@@ -95,6 +95,12 @@ struct TemplateContext {
     /// Where a relative @include path is looked for — the template's own
     /// directory, as every other reader resolves them.
     std::string includeDir;
+
+    /// The charset an @include is read in: `config_charset`, which is what the
+    /// template itself was read in. Empty means UTF-8. A template and the files
+    /// it pulls in are one document written by one person in one editor, so
+    /// there is nothing here for a second setting to say.
+    std::string includeCharset;
 };
 
 /// A template expanded into the lines a message starts from.

@@ -12,14 +12,15 @@ namespace amberedit::ui::setup {
 
 /// Which of the wizard's questions is being asked.
 ///
-/// Six numbered steps, the last of which is the config the other five answered:
-/// the numbers are a promise about how much is left, and writing the file is a
-/// step like the rest — the one the user is walking towards.
+/// Seven numbered steps, the last of which is the config the other six
+/// answered: the numbers are a promise about how much is left, and writing the
+/// file is a step like the rest — the one the user is walking towards.
 enum class Step {
     Identity,
     TosserFile,
     ReadCharset,
     ComposeCharset,
+    ConfigCharset,
     Nodelist,
     Summary,
 };
@@ -54,6 +55,10 @@ struct SetupState {
     TextField address;
     TextField readCharset;
     TextField composeCharset;
+    /// The charset the config file itself — and every file it names — is
+    /// written in. UTF-8 unless the user says otherwise, and asked last of the
+    /// three because it is the one that is about files rather than about mail.
+    TextField configCharset;
     TextField nodelistDb;
     TextField target;
 

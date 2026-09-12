@@ -12,6 +12,7 @@
 #include "config/text_util.hpp"
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
+#include "encoding/iconv_recoder.hpp"
 #include "sys/env.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
@@ -199,6 +200,69 @@ TEST_CASE("AppConfig refuses a charset that names none in particular [app_config
     // A name AmberEdit does not know is another matter: it is passed to iconv
     // as it stands, and iconv is asked at the first message, not here.
     CHECK(reason("default_charset CP1125\ncompose_charset +7_FIDO\n").empty());
+}
+
+/// The same words in CP866, which is what a config written when the setup was
+/// built holds. Converted here rather than written out as a table of byte
+/// escapes: what every test below says is that AmberEdit reads back what iconv
+/// would have written, and the conversion says that where hex would not.
+std::string cp866(const std::string& utf8) {
+    amberedit::encoding::IconvRecoder recoder;
+    return amberedit::test::valueOf(recoder.intoCharset(utf8, "CP866"));
+}
+
+TEST_CASE("config_charset is UTF-8 unless a line says otherwise [app_config]") {
+    CHECK(with("").configCharset == "UTF-8");
+    // Under iconv's name for it, as the other two charsets are: `+7_FIDO` is
+    // how a Fidonet config spells CP866 and nothing below this layer knows it.
+    CHECK(with("config_charset +7_FIDO\n").configCharset == "CP866");
+    CHECK(with("config_charset koi8-r\n").configCharset == "KOI8-R");
+}
+
+TEST_CASE("A config written in CP866 is read in CP866 [app_config]") {
+    // The whole file, not the one line: the charset is settled off the raw
+    // bytes first — `config_charset` and the name of a charset being ASCII in
+    // every charset a config was ever written in — and then the text is decoded
+    // and parsed again.
+    const std::string body = cp866(
+        "config_charset CP866\n"
+        "tosser_config a\ntosser_config_format hpt\n"
+        "default_charset CP866\ncompose_charset CP866\n"
+        "address 2:5020/9999.1\n"
+        "name Вася Пупкин\n"
+        "origin Из Москвы с любовью\n");
+
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(body));
+    CHECK(cfg.configCharset == "CP866");
+    CHECK(cfg.userName == "Вася Пупкин");
+    REQUIRE(cfg.origins.size() == 1);
+    CHECK(cfg.origins[0] == "Из Москвы с любовью");
+
+    // And the same bytes with the line taken out are read as UTF-8, which is
+    // what they are not: the setting is doing the work, not the content.
+    std::string utf8Claimed = body;
+    const std::string line = "config_charset CP866\n";
+    utf8Claimed.erase(0, line.size());
+    const auto guessed = amberedit::test::valueOf(AppConfig::loadFromString(utf8Claimed));
+    CHECK(guessed.configCharset == "UTF-8");
+    CHECK(guessed.userName != "Вася Пупкин");
+}
+
+TEST_CASE("config_charset is not a per-area setting [app_config]") {
+    // It is about the file, and a file has one charset. A group stating it
+    // would be a block of a config claiming the config is written differently
+    // from the line above it.
+    const std::string grouped = errorWith(
+        "group\n"
+        "  member ru.*\n"
+        "  config_charset CP866\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(grouped, "is a setting for the whole config"), grouped);
+
+    // And it is read like the other two charsets, so a name that means no
+    // charset in particular is refused where it stands.
+    const std::string vague = errorWith("config_charset IBMPC\n");
+    CHECK_MESSAGE(contains(vague, "names no charset in particular"), vague);
 }
 
 TEST_CASE("AppConfig requires the name and the address [app_config]") {
@@ -2992,6 +3056,19 @@ TEST_CASE("A list file that cannot be read stops the config [app_config]") {
 
     const std::string bare = errorWithLists("twit @file:\n");
     CHECK_MESSAGE(contains(bare, "twit @file: needs the name of the file"), bare);
+}
+
+TEST_CASE("A @file: list is read in the config's charset [app_config]") {
+    // An origin is a line of somebody's own words in a file that says nothing
+    // about how it is encoded — so the config it belongs to says, once, for the
+    // file and for every other file it names.
+    listFile("cp866.txt", cp866("Из Москвы с любовью\nШапка\n"));
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(
+        kRequired + "config_charset CP866\n" + "origin @file:cp866.txt\n",
+        (listDir() / "amberedit.cfg").string()));
+    REQUIRE(cfg.origins.size() == 2);
+    CHECK(cfg.origins[0] == "Из Москвы с любовью");
+    CHECK(cfg.origins[1] == "Шапка");
 }
 
 TEST_CASE("Only the four settings that take one read a @file: [app_config]") {

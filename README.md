@@ -73,13 +73,14 @@ through ncurses. Everything else is the same code.
 ## Running
 
 ```bash
-amberedit --setup                         # six steps, and you have a config
+amberedit --setup                         # seven steps, and you have a config
 amberedit                                 # or: amberedit -c some/amberedit.cfg
 ```
 
-**First run: `amberedit --setup`.** Six steps — who you are and which tosser
+**First run: `amberedit --setup`.** Seven steps — who you are and which tosser
 config you keep, where that file is, the charset your mail is read in and the one
-it is written in, a nodelist if you have one, and where the config goes.
+it is written in, the charset the config file and everything it names is written
+in, a nodelist if you have one, and where the config goes.
 
 Run `amberedit --help` for more command line options.
 
@@ -89,6 +90,12 @@ Without `-c` the config is looked for in `$AMBEREDIT_CONFIG`, `./amberedit.cfg`
 and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
 defaults to, is in `amberedit.cfg.example`. Also, `amberedit --setup` writes
 a config out of that file for you.
+
+The config is UTF-8 unless `config_charset` says otherwise, and whatever it says
+holds for every file the config names as well — your tosser's config, the
+message template, and the files a setting may keep its values in. An old setup
+whose area descriptions and origins are CP866 needs the one line and no
+re-encoding.
 
 A `group … endgroup` block states settings for the echoes its `member` patterns
 match — the charsets, the origin, the template, the twits and the rest of what is

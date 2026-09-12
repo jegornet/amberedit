@@ -52,6 +52,15 @@ struct ParseState {
     /// defaults" looks like, which is also what the statement leaves behind
     /// when it names nothing.
     AreaConfig defaults;
+
+    /// Every `include` that named a file which is not there, as the path was
+    /// looked for — mapped, expanded and resolved. Kept rather than complained
+    /// about: a start goes on reading, and an area list short by an include is
+    /// still better than no AmberEdit at all. What it is for is the caller who
+    /// has somebody in front of it, `checkTosserConfig()` in the setup wizard,
+    /// where "no areas in this file" and "this file includes one that is not
+    /// there" are the same fact and only the second is worth reading.
+    std::vector<std::string> missingIncludes;
 };
 
 /// The variables a config can use without setting them.
@@ -179,7 +188,7 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
                                        std::vector<AreaConfig>& areas,
                                        const std::filesystem::path& baseDir,
                                        int includeDepth, ParseState& state,
-                                       const PathMap& paths);
+                                       const PathMap& paths, const std::string& charset);
 
 /// Reads the options an area line and an `echoareadefaults` line both take,
 /// from `first` to the end of the line, into an area that already holds
@@ -289,7 +298,7 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
                                        std::vector<AreaConfig>& areas,
                                        const std::filesystem::path& baseDir,
                                        int includeDepth, ParseState& state,
-                                       const PathMap& paths) {
+                                       const PathMap& paths, const std::string& charset) {
     for (const auto& rawLine : text::splitLines(content)) {
         // The comment goes first and the variables second, which is the order
         // the format reads them in: what a variable expands to is text, and a
@@ -329,11 +338,14 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
             std::filesystem::path included(paths.apply(tokens[1]));
             if (included.is_relative()) included = baseDir / included;
             std::error_code ec;
-            if (!std::filesystem::exists(included, ec)) continue;
-            auto text = text::readFile(included.string());
+            if (!std::filesystem::exists(included, ec)) {
+                state.missingIncludes.push_back(included.string());
+                continue;
+            }
+            auto text = text::readFileIn(included.string(), charset);
             if (!text) return tl::make_unexpected(std::move(text).error());
             auto read = parseInto(*text, areas, included.parent_path(), includeDepth - 1,
-                                  state, paths);
+                                  state, paths, charset);
             if (!read) return tl::make_unexpected(std::move(read).error());
             continue;
         }
@@ -348,28 +360,30 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
 
 }  // namespace
 
-FidoconfigParser::FidoconfigParser(std::string path, PathMap paths)
-    : path_(std::move(path)), paths_(std::move(paths)) {}
+FidoconfigParser::FidoconfigParser(std::string path, PathMap paths, std::string charset)
+    : path_(std::move(path)), paths_(std::move(paths)), charset_(std::move(charset)) {}
 
 tl::expected<std::vector<AreaConfig>, ErrorPtr> FidoconfigParser::loadAreas() {
-    auto content = text::readFile(path_);
+    missingIncludes_.clear();
+    auto content = text::readFileIn(path_, charset_);
     if (!content) return tl::make_unexpected(std::move(content).error());
     std::vector<AreaConfig> areas;
-    ParseState state{initialVariables(), AreaConfig{}};
+    ParseState state{initialVariables(), AreaConfig{}, {}};
     auto read = parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
-                          /*includeDepth=*/8, state, paths_);
+                          /*includeDepth=*/8, state, paths_, charset_);
     if (!read) return tl::make_unexpected(std::move(read).error());
+    missingIncludes_ = std::move(state.missingIncludes);
     return areas;
 }
 
 std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content,
                                                     const PathMap& paths) {
     std::vector<AreaConfig> areas;
-    ParseState state{initialVariables(), AreaConfig{}};
+    ParseState state{initialVariables(), AreaConfig{}, {}};
     // includeDepth 0, so the one thing parseInto can fail at — reading an
     // include — cannot happen and the answer is nothing to check.
     static_cast<void>(parseInto(content, areas, std::filesystem::current_path(),
-                                /*includeDepth=*/0, state, paths));
+                                /*includeDepth=*/0, state, paths, /*charset=*/""));
     return areas;
 }
 

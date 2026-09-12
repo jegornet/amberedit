@@ -833,7 +833,7 @@ std::optional<domain::AreaConfig> carbonArea(AppState& state) {
 std::vector<app::CopyCommand> commandsIn(AppState& state,
                                          const std::vector<std::string>& lines) {
     std::vector<app::CopyCommand> commands =
-        app::findCopyCommands(lines, state.config.configDir);
+        app::findCopyCommands(lines, state.config.configDir, state.config.configCharset);
     if (carbonArea(state)) return commands;
 
     commands.erase(std::remove_if(commands.begin(), commands.end(),

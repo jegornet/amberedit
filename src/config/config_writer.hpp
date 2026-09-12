@@ -21,6 +21,10 @@ struct ConfigAnswers {
     std::string address;  ///< as it is to be written; parsed before it got here
     std::string tosserConfigPath;
     TosserConfigFormat tosserFormat{TosserConfigFormat::Fidoconfig};
+    /// The charset the config file itself is written in — and so the charset
+    /// `writeConfig()` encodes it in before it goes to disk. UTF-8 where the
+    /// wizard was not told otherwise.
+    std::string configCharset{"UTF-8"};
     std::string defaultCharset;
     std::string composeCharset;
     std::string templatePath;
@@ -51,9 +55,18 @@ struct ConfigAnswers {
 [[nodiscard]] tl::expected<std::string, ErrorPtr> renderConfig(
     const ConfigAnswers& answers);
 
-/// Renders the config, checks that what it rendered parses, writes it beside
-/// `path` and renames it over — and then reads it back the way a start reads it,
-/// which is the check that the template is where the answers said.
+/// Renders the config, encodes it in `configCharset`, checks that what came out
+/// parses, writes it beside `path` and renames it over — and then reads it back
+/// the way a start reads it, which is the check that the template is where the
+/// answers said.
+///
+/// The encoding is not decoration: the file says `config_charset` and a file
+/// that says one thing and is written in another is mojibake from its first
+/// start. The sample is UTF-8 and its comments are written with the characters
+/// UTF-8 has, so a character the chosen charset has no room for comes out as
+/// iconv's nearest — a hyphen for an em dash — or as a '?'. That is a comment
+/// reading a little plainer, and it is the cost of the file being what it says
+/// it is.
 ///
 /// A file already at `path` is refused rather than replaced: this is the first
 /// config being written, and there is no version of overwriting somebody's own

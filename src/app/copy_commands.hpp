@@ -64,9 +64,13 @@ struct CopyCommand {
 /// this message.
 ///
 /// `fileDir` is where a `@file` token is looked for when it names no directory
-/// of its own — the directory the config was read from.
+/// of its own — the directory the config was read from — and `fileCharset` is
+/// `config_charset`, the charset that file is read in: a list of everybody one
+/// copies to is a file kept beside the config and written in the same editor,
+/// not a message with a charset of its own. Empty means UTF-8.
 [[nodiscard]] std::vector<CopyCommand> findCopyCommands(
-    const std::vector<std::string>& lines, const std::string& fileDir);
+    const std::vector<std::string>& lines, const std::string& fileDir,
+    const std::string& fileCharset = {});
 
 /// Whether the line begins with one of the three prefixes — the same test
 /// `findCopyCommands` makes, without reading the rest of the line.

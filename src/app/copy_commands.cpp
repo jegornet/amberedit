@@ -121,13 +121,13 @@ std::optional<CopyToken> makeToken(std::string_view raw, CopyKind kind) {
 /// A leading `~/` names the home directory, as it does in a config's paths: the
 /// list of everybody one copies to lives beside the rest of one's own files,
 /// and that is how a person writes where those are.
-void readTokenFile(const std::string& name, const std::string& fileDir, CopyKind kind,
-                   CopyCommand& command) {
+void readTokenFile(const std::string& name, const std::string& fileDir,
+                   const std::string& fileCharset, CopyKind kind, CopyCommand& command) {
     std::filesystem::path path(config::text::expandTilde(name));
     if (path.is_relative() && !fileDir.empty())
         path = std::filesystem::path(fileDir) / path;
 
-    const auto bytes = config::text::readFile(path.string());
+    const auto bytes = config::text::readFileIn(path.string(), fileCharset);
     if (!bytes) {
         command.error = bytes.error()->message();
         return;
@@ -292,7 +292,8 @@ bool isCopyCommand(std::string_view line) {
 }
 
 std::vector<CopyCommand> findCopyCommands(const std::vector<std::string>& lines,
-                                          const std::string& fileDir) {
+                                          const std::string& fileDir,
+                                          const std::string& fileCharset) {
     std::vector<CopyCommand> commands;
     for (size_t i = 0; i < lines.size(); ++i) {
         const std::string& line = lines[i];
@@ -308,8 +309,8 @@ std::vector<CopyCommand> findCopyCommands(const std::vector<std::string>& lines,
             const std::string_view trimmed = config::text::trim(raw);
             if (trimmed.empty()) continue;
             if (trimmed.front() == '@') {
-                readTokenFile(std::string(trimmed.substr(1)), fileDir, prefix->kind,
-                              command);
+                readTokenFile(std::string(trimmed.substr(1)), fileDir, fileCharset,
+                              prefix->kind, command);
                 continue;
             }
             if (const auto token = makeToken(trimmed, prefix->kind)) {

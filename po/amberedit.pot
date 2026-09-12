@@ -1,4 +1,4 @@
-#: src/app/area_manager.cpp:140
+#: src/app/area_manager.cpp:144
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr ""
 
@@ -18,7 +18,7 @@ msgstr ""
 msgid "file exists: {0}"
 msgstr ""
 
-#: src/app/message_builder.cpp:427
+#: src/app/message_builder.cpp:429
 #, c++-format
 msgid "template: {0}"
 msgstr ""
@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1949
+#: src/config/app_config.cpp:1979
 msgid "no description"
 msgstr ""
 
@@ -244,7 +244,7 @@ msgid "Run the system shell"
 msgstr ""
 
 #: src/config/commands.cpp:78 src/ui/export_dialog.cpp:84
-#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:440
+#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:458
 msgid "Save"
 msgstr ""
 
@@ -359,7 +359,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-11 22:48+0200\n"
+"POT-Creation-Date: 2026-09-12 08:53+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -551,32 +551,32 @@ msgstr ""
 msgid " Area: {0}▌ "
 msgstr ""
 
-#: src/ui/area_list_format.cpp:26
+#: src/ui/area_list_format.cpp:27
 msgctxt "area list column"
 msgid "#"
 msgstr ""
 
-#: src/ui/area_list_format.cpp:27
+#: src/ui/area_list_format.cpp:28
 msgctxt "area list column"
 msgid "Area"
 msgstr ""
 
-#: src/ui/area_list_format.cpp:29
+#: src/ui/area_list_format.cpp:30
 msgctxt "area list column"
 msgid "Description"
 msgstr ""
 
-#: src/ui/area_list_format.cpp:30
+#: src/ui/area_list_format.cpp:31
 msgctxt "area list column"
 msgid "Grp"
 msgstr ""
 
-#: src/ui/area_list_format.cpp:31
+#: src/ui/area_list_format.cpp:32
 msgctxt "area list column"
 msgid "Msgs"
 msgstr ""
 
-#: src/ui/area_list_format.cpp:32
+#: src/ui/area_list_format.cpp:33
 msgctxt "area list column"
 msgid "New"
 msgstr ""
@@ -1198,157 +1198,177 @@ msgstr ""
 msgid "An HPT config is called whatever your sysop called it."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:234
+#: src/ui/setup/setup_wizard.cpp:239
 msgid "pick your tosser's config — it is where the areas come from"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:319
+#: src/ui/setup/setup_wizard.cpp:336
 msgid "pick a nodelist, or Skip — AmberEdit reads mail without one"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:323
+#: src/ui/setup/setup_wizard.cpp:340
 msgid "say where the compiled nodelist goes"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:438
+#: src/ui/setup/setup_wizard.cpp:456
 msgid "Skip"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:439
+#: src/ui/setup/setup_wizard.cpp:457
 msgid "Back"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:440
+#: src/ui/setup/setup_wizard.cpp:458
 msgid "Next"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:455
-msgid " General parameters — step 1 of 6 "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:456
-msgid " Tosser config file — step 2 of 6 "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:457
-msgid " Incoming charset — step 3 of 6 "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:458
-msgid " Outgoing charset — step 4 of 6 "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:459
-msgid " Nodelist file — step 5 of 6 "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:462
-msgid " The config to write — step 6 of 6 "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:466
-msgid "Who the messages you write are from."
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:469
-msgid " Name:    "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:470
-msgid " Address: "
-msgstr ""
-
 #: src/ui/setup/setup_wizard.cpp:473
-msgid "e.g. John Doe, 2:382/9999"
+msgid " General parameters — step 1 of 7 "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:474
+msgid " Tosser config file — step 2 of 7 "
 msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:475
-msgid "Your areas come from your tosser's config, which is:"
+msgid " Incoming charset — step 3 of 7 "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:476
+msgid " Outgoing charset — step 4 of 7 "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:477
+msgid " Config file charset — step 5 of 7 "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:478
+msgid " Nodelist file — step 6 of 7 "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:481
+msgid " The config to write — step 7 of 7 "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:485
+msgid "Who the messages you write are from."
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:488
+msgid " Name:    "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:489
+msgid " Address: "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:492
+msgid "e.g. John Doe, 2:382/9999"
 msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:494
-msgid "The charset in which the message you READ, when it has"
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:495
-msgid "The charset in which the message you WRITE is"
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:498
-msgid "no CHRS kludge — or it says something like IBMPC 2."
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:501
-msgid " Charset: "
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:503
-msgid "e.g. CP866 or CP437 or LATIN-1"
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:504
-msgid "e.g. UTF-8 or CP866 or CP437 or LATIN-1"
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:509
-msgid "A nodelist, to look addresses and sysops up in."
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:511
-msgid "It may be a ZIP archive. Skip if you have none."
+msgid "Your areas come from your tosser's config, which is:"
 msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:517
+msgid "The charset THIS CONFIG FILE and the files it names"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:519
+msgid "are written in — your tosser's config, the template."
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:523
+msgid "The charset in which the message you READ, when it has"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:524
+msgid "The charset in which the message you WRITE is"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:528
+msgid "no CHRS kludge — or it says something like IBMPC 2."
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:531
+msgid " Charset: "
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:533
+msgid "Depends on your existing setup"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:534
+msgid "e.g. CP866 or CP437 or LATIN-1"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:535
+msgid "e.g. UTF-8 or CP866 or CP437 or LATIN-1"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:540
+msgid "A nodelist, to look addresses and sysops up in."
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:542
+msgid "It may be a ZIP archive. Skip if you have none."
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:548
 msgid " Compiled to: "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:547
+#: src/ui/setup/setup_wizard.cpp:570 src/ui/setup/setup_wizard.cpp:579
 msgid "Address:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:546
+#: src/ui/setup/setup_wizard.cpp:570 src/ui/setup/setup_wizard.cpp:578
 msgid "Name:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:548
+#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:580
 msgid "Areas:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:550
+#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:582
 msgid "Charset:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:540 src/ui/setup/setup_wizard.cpp:553
+#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:585
+msgid "Files in:"
+msgstr ""
+
+#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:586
 msgid "Nodelist:"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:551
+#: src/ui/setup/setup_wizard.cpp:583
 #, c++-format
 msgid "{0} read, {1} written"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:553
+#: src/ui/setup/setup_wizard.cpp:586
 msgid "none"
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:556
+#: src/ui/setup/setup_wizard.cpp:589
 msgid " Config: "
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:557
+#: src/ui/setup/setup_wizard.cpp:590
 msgid "The whole commented config, with your answers in it."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:564
+#: src/ui/setup/setup_wizard.cpp:597
 #, c++-format
 msgid "The setup wizard needs {0}x{1}, this window is {2}x{3}."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:568
+#: src/ui/setup/setup_wizard.cpp:601
 msgid "Make it bigger, or Esc to leave."
 msgstr ""
 
-#: src/ui/setup/setup_wizard.cpp:679
+#: src/ui/setup/setup_wizard.cpp:717
 msgid "Where your tosser's config is."
 msgstr ""
 
@@ -1398,42 +1418,47 @@ msgstr ""
 msgid "no tosser config is named"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:116 src/ui/setup/wizard_checks.cpp:222
+#: src/ui/setup/wizard_checks.cpp:116 src/ui/setup/wizard_checks.cpp:237
 msgid "a path"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:137
+#: src/ui/setup/wizard_checks.cpp:148
+#, c++-format
+msgid "{0} includes {1}, which is not there — no areas without it"
+msgstr ""
+
+#: src/ui/setup/wizard_checks.cpp:152
 #, c++-format
 msgid "no areas in {0} — is it really a {1}?"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:195
+#: src/ui/setup/wizard_checks.cpp:210
 #, c++-format
 msgid ""
 "there is a default.tpl at {0} that cannot be read — the config needs a "
 "template it can"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:204 src/ui/setup/wizard_checks.cpp:211
+#: src/ui/setup/wizard_checks.cpp:219 src/ui/setup/wizard_checks.cpp:226
 #, c++-format
 msgid "cannot write the message template: {0}"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:220
+#: src/ui/setup/wizard_checks.cpp:235
 msgid "say where the config is to be written"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:229
+#: src/ui/setup/wizard_checks.cpp:244
 #, c++-format
 msgid "{0} is a directory"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:230
+#: src/ui/setup/wizard_checks.cpp:245
 #, c++-format
 msgid "there is already a file at {0}"
 msgstr ""
 
-#: src/ui/setup/wizard_checks.cpp:237
+#: src/ui/setup/wizard_checks.cpp:252
 #, c++-format
 msgid "there is no directory {0}"
 msgstr ""

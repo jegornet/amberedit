@@ -211,6 +211,18 @@ inline std::vector<std::string> splitLines(std::string_view text) {
 /// which is the one thing a caller cannot add and a reader needs.
 [[nodiscard]] tl::expected<std::string, ErrorPtr> readFile(const std::string& path);
 
+/// The same read, with what it read brought into UTF-8 from `charset` — which
+/// is how every file the config names is read, `config_charset` being what
+/// says which charset that is.
+///
+/// An empty `charset` and `UTF-8` are the same thing and cost nothing: the
+/// bytes come back as they stand. Anything else goes through `IconvRecoder`,
+/// so a charset this machine's iconv does not know is a failure naming the
+/// path — a config file half-decoded is worse than one that did not open, and
+/// the name came from a line somebody wrote.
+[[nodiscard]] tl::expected<std::string, ErrorPtr> readFileIn(const std::string& path,
+                                                             const std::string& charset);
+
 /// One line of a file as a message can carry it: tabs opened out to the next
 /// eight-column stop — which is what a tab has meant since the teletype, and
 /// what the file was written against — and every other control byte dropped.

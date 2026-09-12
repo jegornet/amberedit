@@ -256,10 +256,10 @@ TEST_CASE("the picker leaves out what the format will not have [setup]") {
     CHECK(picker.entries.front().name == "..");
 }
 
-TEST_CASE("the wizard asks the five questions in order [setup]") {
+TEST_CASE("the wizard asks the six questions in order [setup]") {
     setup::SetupState state = wizard();
 
-    CHECK(saysSomewhere(state, "General parameters — step 1 of 6"));
+    CHECK(saysSomewhere(state, "General parameters — step 1 of 7"));
     type(state, "John Doe");
     setup::handleEvent(state, Event::Tab);
     type(state, "2:382/736");
@@ -268,24 +268,33 @@ TEST_CASE("the wizard asks the five questions in order [setup]") {
     pressNext(state);
     CHECK(state.step == setup::Step::TosserFile);
     CHECK(state.readCharset.value == "LATIN-1");
-    CHECK(saysSomewhere(state, "Tosser config file — step 2 of 6"));
+    CHECK(saysSomewhere(state, "Tosser config file — step 2 of 7"));
 
     state.tosserConfigPath = projectPath("testdata/tossers/areas");
     pressNext(state);
     REQUIRE_MESSAGE(state.step == setup::Step::ReadCharset, state.error);
-    CHECK(saysSomewhere(state, "Incoming charset — step 3 of 6"));
+    CHECK(saysSomewhere(state, "Incoming charset — step 3 of 7"));
     CHECK(saysSomewhere(state, "e.g. CP866 or CP437 or LATIN-1"));
 
     pressNext(state);
     REQUIRE(state.step == setup::Step::ComposeCharset);
     // The charset written follows the one read until somebody says otherwise.
     CHECK(state.composeCharset.value == "LATIN-1");
-    CHECK(saysSomewhere(state, "Outgoing charset — step 4 of 6"));
+    CHECK(saysSomewhere(state, "Outgoing charset — step 4 of 7"));
     CHECK(saysSomewhere(state, "e.g. UTF-8 or CP866 or CP437 or LATIN-1"));
 
     pressNext(state);
+    REQUIRE(state.step == setup::Step::ConfigCharset);
+    // The charset the FILES are in is asked on its own, and it follows neither
+    // of the two before it: a config written today is UTF-8 whatever the mail
+    // in the echoes is written in.
+    CHECK(state.configCharset.value == "UTF-8");
+    CHECK(saysSomewhere(state, "Config file charset — step 5 of 7"));
+    CHECK(saysSomewhere(state, "THIS CONFIG FILE"));
+
+    pressNext(state);
     REQUIRE(state.step == setup::Step::Nodelist);
-    CHECK(saysSomewhere(state, "Nodelist file — step 5 of 6"));
+    CHECK(saysSomewhere(state, "Nodelist file — step 6 of 7"));
     CHECK(saysSomewhere(state, "ZIP"));
 
     // The nodelist may be skipped, which is what the button on that step is for.
@@ -293,7 +302,7 @@ TEST_CASE("the wizard asks the five questions in order [setup]") {
     setup::handleEvent(state, Event::Return);
     CHECK(state.step == setup::Step::Summary);
     // The last step is the file itself, numbered like the rest.
-    CHECK(saysSomewhere(state, "The config to write — step 6 of 6"));
+    CHECK(saysSomewhere(state, "The config to write — step 7 of 7"));
     CHECK(state.nodelistPath.empty());
 }
 
@@ -381,6 +390,7 @@ TEST_CASE("the wizard writes the config it showed [setup][slow]") {
     REQUIRE_MESSAGE(state.step == setup::Step::ReadCharset, state.error);
     pressNext(state);
     pressNext(state);
+    pressNext(state);
     REQUIRE(state.step == setup::Step::Nodelist);
 
     while (state.stop != setup::Stop::Skip) setup::handleEvent(state, Event::Tab);
@@ -405,6 +415,105 @@ TEST_CASE("the wizard writes the config it showed [setup][slow]") {
     CHECK(contains(readFile(state.savedPath), "default_charset LATIN-1"));
     CHECK(written.defaultCharset == "ISO-8859-1");
     CHECK(written.nodelistSources.empty());
+}
+
+TEST_CASE("the summary fits the smallest window the wizard draws in [setup]") {
+    // The step with the most rows in it, in the smallest window that is not
+    // answered with "make it bigger": every row has to be on the screen, the
+    // bottom rule included — that is where a wizard says what is wrong.
+    setup::SetupState state = wizard();
+    state.step = setup::Step::Summary;
+    state.stop = setup::Stop::Target;
+    state.width = 46;
+    state.height = 14;
+
+    CHECK(saysSomewhere(state, "Files in:"));
+    CHECK(saysSomewhere(state, "Nodelist:"));
+    CHECK(saysSomewhere(state, "Config:"));
+    // The bottom rule is where the wizard says what is wrong with an answer,
+    // so a summary that pushed it off the screen would be a step that cannot
+    // report its own failure.
+    CHECK(saysSomewhere(state, "Esc leave"));
+}
+
+TEST_CASE("the charset the config is written in is asked and used [setup][slow]") {
+    const TempDir dir;
+    setup::SetupState state = wizard();
+
+    type(state, "Vasya Pupkin");
+    setup::handleEvent(state, Event::Tab);
+    type(state, "2:5020/9999.1");
+    pressNext(state);
+
+    state.tosserConfigPath = projectPath("testdata/tossers/areas.bbs");
+    state.format = amberedit::config::TosserConfigFormat::AreasBbs;
+    pressNext(state);
+    REQUIRE_MESSAGE(state.step == setup::Step::ReadCharset, state.error);
+    pressNext(state);
+    REQUIRE(state.step == setup::Step::ComposeCharset);
+    pressNext(state);
+    REQUIRE_MESSAGE(state.step == setup::Step::ConfigCharset, state.error);
+
+    // The field starts on UTF-8, and it is typed over here as a user with an
+    // older setup would.
+    CHECK(state.configCharset.value == "UTF-8");
+    amberedit::ui::setFieldValue(state.configCharset, "CP866");
+    state.configCharset.touched = true;
+    pressNext(state);
+    REQUIRE_MESSAGE(state.step == setup::Step::Nodelist, state.error);
+
+    while (state.stop != setup::Stop::Skip) setup::handleEvent(state, Event::Tab);
+    setup::handleEvent(state, Event::Return);
+    REQUIRE(state.step == setup::Step::Summary);
+    // The summary says it, as it says every other answer.
+    CHECK(saysSomewhere(state, "CP866"));
+
+    amberedit::ui::setFieldValue(state.target, dir.path("amberedit.cfg"));
+    REQUIRE_MESSAGE(pressNext(state) == setup::Outcome::Saved, state.error);
+
+    const AppConfig written = valueOf(AppConfig::loadFromFile(state.savedPath));
+    CHECK(written.configCharset == "CP866");
+    CHECK(contains(readFile(state.savedPath), "config_charset CP866"));
+}
+
+TEST_CASE("a charset the wizard does not know is refused on its step [setup]") {
+    setup::SetupState state = wizard();
+    state.step = setup::Step::ConfigCharset;
+    state.stop = setup::Stop::Charset;
+    amberedit::ui::setFieldValue(state.configCharset, "NO-SUCH-CHARSET");
+
+    pressNext(state);
+    CHECK(state.step == setup::Step::ConfigCharset);
+    CHECK_FALSE(state.error.empty());
+}
+
+TEST_CASE("an HPT config whose include is not there says so [setup]") {
+    // The shape this failure actually takes: an HPT config commonly holds
+    // nothing but `include` lines, so an include pointing nowhere comes out as
+    // an area list of nothing — and "is it really a fidoconfig?" sends the
+    // reader off to check the one file that is right.
+    const TempDir dir;
+    {
+        std::ofstream out(dir.path("config"));
+        out << "version 1.9\ninclude " << dir.path("areas") << "\n";
+    }
+
+    const auto missing =
+        setup::checkTosserConfig(dir.path("config"), TosserConfigFormat::Fidoconfig);
+    REQUIRE_FALSE(missing.has_value());
+    CHECK_MESSAGE(contains(errorOf(missing), "which is not there"), errorOf(missing));
+    CHECK_MESSAGE(contains(errorOf(missing), dir.path("areas")), errorOf(missing));
+
+    // And with the file there, the areas in it are the answer — the include is
+    // followed, and followed from the including file's own directory.
+    {
+        std::ofstream out(dir.path("areas"));
+        out << "EchoArea ru.test /ftn/msg/ru.test -b squish\n";
+    }
+    const auto found =
+        setup::checkTosserConfig(dir.path("config"), TosserConfigFormat::Fidoconfig);
+    REQUIRE_MESSAGE(found.has_value(), errorOf(found));
+    CHECK(*found == 1);
 }
 
 TEST_CASE("a nodelist is written as the pattern it is one of [setup]") {
@@ -526,3 +635,4 @@ TEST_CASE("a listing nobody has touched is not an answer [setup]") {
     CHECK(state.step == setup::Step::TosserFile);
     CHECK_MESSAGE(contains(state.error, "pick"), state.error);
 }
+

@@ -5,6 +5,8 @@
 #include <sstream>
 #include <system_error>
 
+#include "encoding/iconv_recoder.hpp"
+
 namespace amberedit::config::text {
 
 tl::expected<void, ErrorPtr> insistItIsAFile(const std::string& path) {
@@ -25,6 +27,24 @@ tl::expected<std::string, ErrorPtr> readFile(const std::string& path) {
     buffer << in.rdbuf();
     if (in.bad()) return failure("error reading file: " + path);
     return buffer.str();
+}
+
+tl::expected<std::string, ErrorPtr> readFileIn(const std::string& path,
+                                               const std::string& charset) {
+    auto bytes = readFile(path);
+    if (!bytes) return bytes;
+    if (charset.empty() || charset == "UTF-8" || charset == "UTF8") return bytes;
+
+    encoding::IconvRecoder recoder;
+    auto decoded = recoder.intoUtf8(*bytes, charset);
+    // The strict form and not `toUtf8()`: the bytes we could not decode are a
+    // config somebody wrote, and handing them on undecoded would put mojibake
+    // into an origin line or an area description with nothing said out loud.
+    // Broken bytes are still not a failure — they arrive as U+FFFD — so what
+    // this catches is the one thing worth catching, a charset iconv has never
+    // heard of.
+    if (!decoded) return failure(path + ": " + decoded.error()->message());
+    return decoded;
 }
 
 std::string messageLine(std::string_view line) {

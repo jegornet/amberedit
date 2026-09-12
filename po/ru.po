@@ -1,4 +1,4 @@
-#: src/app/area_manager.cpp:140
+#: src/app/area_manager.cpp:144
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr "конфиг не называет конфиг тоссера и не объявляет своих областей"
 
@@ -18,7 +18,7 @@ msgstr "нечего сохранять"
 msgid "file exists: {0}"
 msgstr "файл уже есть: {0}"
 
-#: src/app/message_builder.cpp:427
+#: src/app/message_builder.cpp:429
 #, c++-format
 msgid "template: {0}"
 msgstr "шаблон: {0}"
@@ -34,7 +34,7 @@ msgstr "не удаётся запустить {0}: {1}"
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:1949
+#: src/config/app_config.cpp:1979
 msgid "no description"
 msgstr "нет описания"
 
@@ -244,7 +244,7 @@ msgid "Run the system shell"
 msgstr "Запустить системный шелл"
 
 #: src/config/commands.cpp:78 src/ui/export_dialog.cpp:84
-#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:440
+#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:458
 msgid "Save"
 msgstr "Сохранить"
 
@@ -366,7 +366,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-11 22:48+0200\n"
+"POT-Creation-Date: 2026-09-12 08:53+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -585,32 +585,32 @@ msgstr " Ответить в области "
 msgid " Area: {0}▌ "
 msgstr " Область: {0}▌ "
 
-#: src/ui/area_list_format.cpp:26
+#: src/ui/area_list_format.cpp:27
 msgctxt "area list column"
 msgid "#"
 msgstr "№"
 
-#: src/ui/area_list_format.cpp:27
+#: src/ui/area_list_format.cpp:28
 msgctxt "area list column"
 msgid "Area"
 msgstr "Область"
 
-#: src/ui/area_list_format.cpp:29
+#: src/ui/area_list_format.cpp:30
 msgctxt "area list column"
 msgid "Description"
 msgstr "Описание"
 
-#: src/ui/area_list_format.cpp:30
+#: src/ui/area_list_format.cpp:31
 msgctxt "area list column"
 msgid "Grp"
 msgstr "Грп"
 
-#: src/ui/area_list_format.cpp:31
+#: src/ui/area_list_format.cpp:32
 msgctxt "area list column"
 msgid "Msgs"
 msgstr "Кол."
 
-#: src/ui/area_list_format.cpp:32
+#: src/ui/area_list_format.cpp:33
 msgctxt "area list column"
 msgid "New"
 msgstr "Нов."
@@ -1232,160 +1232,180 @@ msgstr "Ищется squish.cfg."
 
 #: src/ui/setup/setup_wizard.cpp:91
 msgid "An HPT config is called whatever your sysop called it."
-msgstr "Конфиг HPT называется так, как его назвал ваш сисоп."
+msgstr "Конфиг HPT, он же FIDOCONFIG."
 
-#: src/ui/setup/setup_wizard.cpp:234
+#: src/ui/setup/setup_wizard.cpp:239
 msgid "pick your tosser's config — it is where the areas come from"
 msgstr "выберите конфиг вашего тоссера — области берутся из него"
 
-#: src/ui/setup/setup_wizard.cpp:319
+#: src/ui/setup/setup_wizard.cpp:336
 msgid "pick a nodelist, or Skip — AmberEdit reads mail without one"
 msgstr ""
 "выберите нодлист или нажмите «Пропустить» — AmberEdit читает почту и без него"
 
-#: src/ui/setup/setup_wizard.cpp:323
+#: src/ui/setup/setup_wizard.cpp:340
 msgid "say where the compiled nodelist goes"
 msgstr "укажите, куда класть скомпилированный нодлист"
 
-#: src/ui/setup/setup_wizard.cpp:438
+#: src/ui/setup/setup_wizard.cpp:456
 msgid "Skip"
 msgstr "Пропустить"
 
-#: src/ui/setup/setup_wizard.cpp:439
+#: src/ui/setup/setup_wizard.cpp:457
 msgid "Back"
 msgstr "Назад"
 
-#: src/ui/setup/setup_wizard.cpp:440
+#: src/ui/setup/setup_wizard.cpp:458
 msgid "Next"
 msgstr "Дальше"
 
-#: src/ui/setup/setup_wizard.cpp:455
-msgid " General parameters — step 1 of 6 "
-msgstr " Общие параметры — шаг 1 из 6 "
+#: src/ui/setup/setup_wizard.cpp:473
+msgid " General parameters — step 1 of 7 "
+msgstr " Общие параметры — шаг 1 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:456
-msgid " Tosser config file — step 2 of 6 "
-msgstr " Конфиг тоссера — шаг 2 из 6 "
+#: src/ui/setup/setup_wizard.cpp:474
+msgid " Tosser config file — step 2 of 7 "
+msgstr " Конфиг тоссера — шаг 2 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:457
-msgid " Incoming charset — step 3 of 6 "
-msgstr " Кодировка входящих — шаг 3 из 6 "
+#: src/ui/setup/setup_wizard.cpp:475
+msgid " Incoming charset — step 3 of 7 "
+msgstr " Кодировка входящих — шаг 3 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:458
-msgid " Outgoing charset — step 4 of 6 "
-msgstr " Кодировка исходящих — шаг 4 из 6 "
+#: src/ui/setup/setup_wizard.cpp:476
+msgid " Outgoing charset — step 4 of 7 "
+msgstr " Кодировка исходящих — шаг 4 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:459
-msgid " Nodelist file — step 5 of 6 "
-msgstr " Файл нодлиста — шаг 5 из 6 "
+#: src/ui/setup/setup_wizard.cpp:477
+msgid " Config file charset — step 5 of 7 "
+msgstr " Кодировка конфигов — шаг 5 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:462
-msgid " The config to write — step 6 of 6 "
-msgstr " Какой конфиг записать — шаг 6 из 6 "
+#: src/ui/setup/setup_wizard.cpp:478
+msgid " Nodelist file — step 6 of 7 "
+msgstr " Файл нодлиста — шаг 6 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:466
+#: src/ui/setup/setup_wizard.cpp:481
+msgid " The config to write — step 7 of 7 "
+msgstr " Какой конфиг записать — шаг 7 из 7 "
+
+#: src/ui/setup/setup_wizard.cpp:485
 msgid "Who the messages you write are from."
 msgstr "От кого будут сообщения, которые вы пишете."
 
-#: src/ui/setup/setup_wizard.cpp:469
+#: src/ui/setup/setup_wizard.cpp:488
 msgid " Name:    "
 msgstr " Имя:     "
 
-#: src/ui/setup/setup_wizard.cpp:470
+#: src/ui/setup/setup_wizard.cpp:489
 msgid " Address: "
 msgstr " Адрес:   "
 
-#: src/ui/setup/setup_wizard.cpp:473
+#: src/ui/setup/setup_wizard.cpp:492
 msgid "e.g. John Doe, 2:382/9999"
 msgstr "напр. Vasya Pupkin, 2:5020/9999"
 
-#: src/ui/setup/setup_wizard.cpp:475
+#: src/ui/setup/setup_wizard.cpp:494
 msgid "Your areas come from your tosser's config, which is:"
 msgstr "Тип конфига тоссера:"
 
-#: src/ui/setup/setup_wizard.cpp:494
+#: src/ui/setup/setup_wizard.cpp:517
+msgid "The charset THIS CONFIG FILE and the files it names"
+msgstr "Кодировка, в которой написан ЭТОТ КОНФИГ и файлы,"
+
+#: src/ui/setup/setup_wizard.cpp:519
+msgid "are written in — your tosser's config, the template."
+msgstr "на которые он ссылается — конфиг тоссера, темплейт."
+
+#: src/ui/setup/setup_wizard.cpp:523
 msgid "The charset in which the message you READ, when it has"
 msgstr "Кодировка, в которой вы ЧИТАЕТЕ сообщение, когда"
 
-#: src/ui/setup/setup_wizard.cpp:495
+#: src/ui/setup/setup_wizard.cpp:524
 msgid "The charset in which the message you WRITE is"
-msgstr "Кодировка, в которой вы ПИШЕТЕ сообщение,"
+msgstr "Кодировка, в которой вы ПИШЕТЕ сообщение"
 
-#: src/ui/setup/setup_wizard.cpp:498
+#: src/ui/setup/setup_wizard.cpp:528
 msgid "no CHRS kludge — or it says something like IBMPC 2."
 msgstr "у него нет клуджа CHRS — или там что-то вроде IBMPC 2."
 
-#: src/ui/setup/setup_wizard.cpp:501
+#: src/ui/setup/setup_wizard.cpp:531
 msgid " Charset: "
 msgstr " Кодир.:  "
 
-#: src/ui/setup/setup_wizard.cpp:503
+#: src/ui/setup/setup_wizard.cpp:533
+msgid "Depends on your existing setup"
+msgstr "Зависит от вашей системы"
+
+#: src/ui/setup/setup_wizard.cpp:534
 msgid "e.g. CP866 or CP437 or LATIN-1"
 msgstr "напр. CP866, или CP437, или LATIN-1"
 
-#: src/ui/setup/setup_wizard.cpp:504
+#: src/ui/setup/setup_wizard.cpp:535
 msgid "e.g. UTF-8 or CP866 or CP437 or LATIN-1"
 msgstr "напр. UTF-8, или CP866, или CP437, или LATIN-1"
 
-#: src/ui/setup/setup_wizard.cpp:509
+#: src/ui/setup/setup_wizard.cpp:540
 msgid "A nodelist, to look addresses and sysops up in."
 msgstr "Нодлист, чтобы искать в нём адреса и сисопов."
 
-#: src/ui/setup/setup_wizard.cpp:511
+#: src/ui/setup/setup_wizard.cpp:542
 msgid "It may be a ZIP archive. Skip if you have none."
 msgstr "Это может быть ZIP-архив. Пропустите, если его нет."
 
-#: src/ui/setup/setup_wizard.cpp:517
+#: src/ui/setup/setup_wizard.cpp:548
 msgid " Compiled to: "
 msgstr " Компилировать в: "
 
-#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:547
+#: src/ui/setup/setup_wizard.cpp:570 src/ui/setup/setup_wizard.cpp:579
 msgid "Address:"
 msgstr "Адрес:"
 
-#: src/ui/setup/setup_wizard.cpp:538 src/ui/setup/setup_wizard.cpp:546
+#: src/ui/setup/setup_wizard.cpp:570 src/ui/setup/setup_wizard.cpp:578
 msgid "Name:"
 msgstr "Имя:"
 
-#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:548
+#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:580
 msgid "Areas:"
 msgstr "Области:"
 
-#: src/ui/setup/setup_wizard.cpp:539 src/ui/setup/setup_wizard.cpp:550
+#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:582
 msgid "Charset:"
 msgstr "Кодировка:"
 
-#: src/ui/setup/setup_wizard.cpp:540 src/ui/setup/setup_wizard.cpp:553
+#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:585
+msgid "Files in:"
+msgstr "Файлы в:"
+
+#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:586
 msgid "Nodelist:"
 msgstr "Нодлист:"
 
-#: src/ui/setup/setup_wizard.cpp:551
+#: src/ui/setup/setup_wizard.cpp:583
 #, c++-format
 msgid "{0} read, {1} written"
 msgstr "{0} на чтение, {1} на запись"
 
-#: src/ui/setup/setup_wizard.cpp:553
+#: src/ui/setup/setup_wizard.cpp:586
 msgid "none"
 msgstr "нет"
 
-#: src/ui/setup/setup_wizard.cpp:556
+#: src/ui/setup/setup_wizard.cpp:589
 msgid " Config: "
 msgstr " Конфиг: "
 
-#: src/ui/setup/setup_wizard.cpp:557
+#: src/ui/setup/setup_wizard.cpp:590
 msgid "The whole commented config, with your answers in it."
 msgstr "Весь конфиг с комментариями и вашими ответами в нём."
 
-#: src/ui/setup/setup_wizard.cpp:564
+#: src/ui/setup/setup_wizard.cpp:597
 #, c++-format
 msgid "The setup wizard needs {0}x{1}, this window is {2}x{3}."
 msgstr "Мастеру настройки нужно {0}x{1}, а это окно {2}x{3}."
 
-#: src/ui/setup/setup_wizard.cpp:568
+#: src/ui/setup/setup_wizard.cpp:601
 msgid "Make it bigger, or Esc to leave."
 msgstr "Растяните его или нажмите Esc, чтобы выйти."
 
-#: src/ui/setup/setup_wizard.cpp:679
+#: src/ui/setup/setup_wizard.cpp:717
 msgid "Where your tosser's config is."
 msgstr "Где лежит конфиг вашего тоссера."
 
@@ -1438,16 +1458,21 @@ msgstr ""
 msgid "no tosser config is named"
 msgstr "конфиг тоссера не назван"
 
-#: src/ui/setup/wizard_checks.cpp:116 src/ui/setup/wizard_checks.cpp:222
+#: src/ui/setup/wizard_checks.cpp:116 src/ui/setup/wizard_checks.cpp:237
 msgid "a path"
 msgstr "путь"
 
-#: src/ui/setup/wizard_checks.cpp:137
+#: src/ui/setup/wizard_checks.cpp:148
+#, c++-format
+msgid "{0} includes {1}, which is not there — no areas without it"
+msgstr "{0} подключает {1}, а этого файла нет — без него областей не будет"
+
+#: src/ui/setup/wizard_checks.cpp:152
 #, c++-format
 msgid "no areas in {0} — is it really a {1}?"
 msgstr "в {0} нет ни одной области — это точно {1}?"
 
-#: src/ui/setup/wizard_checks.cpp:195
+#: src/ui/setup/wizard_checks.cpp:210
 #, c++-format
 msgid ""
 "there is a default.tpl at {0} that cannot be read — the config needs a "
@@ -1456,26 +1481,26 @@ msgstr ""
 "по пути {0} есть default.tpl, который не читается, — конфигу нужен шаблон, "
 "который читается"
 
-#: src/ui/setup/wizard_checks.cpp:204 src/ui/setup/wizard_checks.cpp:211
+#: src/ui/setup/wizard_checks.cpp:219 src/ui/setup/wizard_checks.cpp:226
 #, c++-format
 msgid "cannot write the message template: {0}"
 msgstr "не удаётся записать шаблон сообщения: {0}"
 
-#: src/ui/setup/wizard_checks.cpp:220
+#: src/ui/setup/wizard_checks.cpp:235
 msgid "say where the config is to be written"
 msgstr "укажите, куда записать конфиг"
 
-#: src/ui/setup/wizard_checks.cpp:229
+#: src/ui/setup/wizard_checks.cpp:244
 #, c++-format
 msgid "{0} is a directory"
 msgstr "{0} — это каталог"
 
-#: src/ui/setup/wizard_checks.cpp:230
+#: src/ui/setup/wizard_checks.cpp:245
 #, c++-format
 msgid "there is already a file at {0}"
 msgstr "по пути {0} уже есть файл"
 
-#: src/ui/setup/wizard_checks.cpp:237
+#: src/ui/setup/wizard_checks.cpp:252
 #, c++-format
 msgid "there is no directory {0}"
 msgstr "каталога {0} нет"
@@ -1504,3 +1529,6 @@ msgstr ""
 "переменной окружения TERM=xterm-256color, либо можно установить тему themes/"
 "16_colors.cfg, использующую только системные цвета. Если цвета отображены "
 "корректно, color_warning off в конфиге убирает это сообщение."
+
+#~ msgid "UTF-8 unless your setup predates it."
+#~ msgstr "UTF-8, если ваша система не старше него."

@@ -58,11 +58,11 @@ std::optional<AreaConfig> parseLine(const std::string& rawLine, const PathMap& p
 
 }  // namespace
 
-AreasBbsParser::AreasBbsParser(std::string path, PathMap paths)
-    : path_(std::move(path)), paths_(std::move(paths)) {}
+AreasBbsParser::AreasBbsParser(std::string path, PathMap paths, std::string charset)
+    : path_(std::move(path)), paths_(std::move(paths)), charset_(std::move(charset)) {}
 
 tl::expected<std::vector<AreaConfig>, ErrorPtr> AreasBbsParser::loadAreas() {
-    auto content = text::readFile(path_);
+    auto content = text::readFileIn(path_, charset_);
     if (!content) return tl::make_unexpected(std::move(content).error());
     return parseText(*content, paths_);
 }

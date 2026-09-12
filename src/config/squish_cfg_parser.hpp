@@ -26,7 +26,10 @@ namespace amberedit::config {
 /// with — a squish.cfg is the format most likely to hold DOS paths.
 class SquishCfgParser final : public ports::IAreaConfigSource {
 public:
-    explicit SquishCfgParser(std::string path, PathMap paths = {});
+    /// `charset` is `config_charset` — the charset the AmberEdit config, and
+    /// so the tosser config it names, is written in. Empty means UTF-8.
+    explicit SquishCfgParser(std::string path, PathMap paths = {},
+                             std::string charset = {});
 
     [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
         override;
@@ -38,6 +41,7 @@ public:
 private:
     std::string path_;
     PathMap paths_;
+    std::string charset_;
 };
 
 }  // namespace amberedit::config

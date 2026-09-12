@@ -109,19 +109,23 @@ namespace {
 ///
 /// The `map_path` rules go in here and nowhere else: they are what a path *that
 /// config* writes means here, and the parser is the one thing that reads one.
+/// `config_charset` goes with them, for the same reason: the tosser config and
+/// the files it includes are read in the charset the AmberEdit config naming
+/// them is written in, and an area description is the one thing in such a file
+/// that is words rather than a path.
 std::unique_ptr<ports::IAreaConfigSource> makeTosserSource(const AppConfig& cfg) {
     if (cfg.tosserConfigPath.empty()) return nullptr;
 
     switch (cfg.tosserConfigFormat) {
         case TosserConfigFormat::Fidoconfig:
-            return std::make_unique<config::FidoconfigParser>(cfg.tosserConfigPath,
-                                                              cfg.tosserPaths);
+            return std::make_unique<config::FidoconfigParser>(
+                cfg.tosserConfigPath, cfg.tosserPaths, cfg.configCharset);
         case TosserConfigFormat::AreasBbs:
-            return std::make_unique<config::AreasBbsParser>(cfg.tosserConfigPath,
-                                                            cfg.tosserPaths);
+            return std::make_unique<config::AreasBbsParser>(
+                cfg.tosserConfigPath, cfg.tosserPaths, cfg.configCharset);
         case TosserConfigFormat::SquishCfg:
-            return std::make_unique<config::SquishCfgParser>(cfg.tosserConfigPath,
-                                                             cfg.tosserPaths);
+            return std::make_unique<config::SquishCfgParser>(
+                cfg.tosserConfigPath, cfg.tosserPaths, cfg.configCharset);
     }
     // The format is stated explicitly in the config and validated while parsing
     // it, so getting here means someone added an enum value and forgot this.

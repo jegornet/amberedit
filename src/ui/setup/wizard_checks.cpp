@@ -118,10 +118,12 @@ tl::expected<size_t, ErrorPtr> checkTosserConfig(const std::string& path,
     }
 
     tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> areas = failure("");
+    // Named rather than temporary, because an HPT config that came out empty
+    // has something more to be asked about it afterwards: which of its
+    // `include` lines named a file that is not there.
+    config::FidoconfigParser hpt(path);
     switch (format) {
-        case config::TosserConfigFormat::Fidoconfig:
-            areas = config::FidoconfigParser(path).loadAreas();
-            break;
+        case config::TosserConfigFormat::Fidoconfig: areas = hpt.loadAreas(); break;
         case config::TosserConfigFormat::AreasBbs:
             areas = config::AreasBbsParser(path).loadAreas();
             break;
@@ -134,6 +136,19 @@ tl::expected<size_t, ErrorPtr> checkTosserConfig(const std::string& path,
     // An empty answer is nearly always the wrong file or the wrong format, and
     // the user is standing right here to say which.
     if (areas->empty()) {
+        // Unless the file said where its areas are and that file is not there,
+        // which is a different mistake with a different answer: an HPT config
+        // commonly holds nothing but `include` lines, and blaming the format
+        // for one of them pointing nowhere sends the reader off to look at the
+        // one file that is right. The first is named — a config that cannot
+        // find two of its includes is a directory that moved, and fixing the
+        // first fixes the rest.
+        if (!hpt.missingIncludes().empty()) {
+            return failure(
+                i18n::format(_("{0} includes {1}, which is not there — no areas "
+                               "without it"),
+                             {path, hpt.missingIncludes().front()}));
+        }
         return failure(i18n::format(_("no areas in {0} — is it really a {1}?"),
                                     {path, config::formatWord(format)}));
     }

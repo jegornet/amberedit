@@ -24,7 +24,10 @@ namespace amberedit::config {
 /// the parser was built with.
 class AreasBbsParser final : public ports::IAreaConfigSource {
 public:
-    explicit AreasBbsParser(std::string path, PathMap paths = {});
+    /// `charset` is `config_charset` — the charset the AmberEdit config, and
+    /// so the tosser config it names, is written in. Empty means UTF-8.
+    explicit AreasBbsParser(std::string path, PathMap paths = {},
+                            std::string charset = {});
 
     [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
         override;
@@ -36,6 +39,7 @@ public:
 private:
     std::string path_;
     PathMap paths_;
+    std::string charset_;
 };
 
 }  // namespace amberedit::config

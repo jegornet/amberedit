@@ -7,6 +7,7 @@
 
 #include "config/embedded_resources.hpp"
 #include "config/text_util.hpp"
+#include "encoding/iconv_recoder.hpp"
 
 namespace amberedit::config {
 namespace {
@@ -30,6 +31,7 @@ constexpr Anchor kName{"name ", "the name line"};
 constexpr Anchor kAddress{"address ", "the address line"};
 constexpr Anchor kTosserConfig{"tosser_config ", "the tosser_config line"};
 constexpr Anchor kTosserFormat{"tosser_config_format ", "the tosser_config_format line"};
+constexpr Anchor kConfigCharset{"config_charset ", "the config_charset line"};
 constexpr Anchor kDefaultCharset{"default_charset ", "the default_charset line"};
 constexpr Anchor kComposeCharset{"compose_charset ", "the compose_charset line"};
 constexpr Anchor kTemplate{"template ", "the template line"};
@@ -124,6 +126,7 @@ tl::expected<std::string, ErrorPtr> renderConfigFrom(std::string_view sample,
         {kAddress, "address", answers.address},
         {kTosserConfig, "tosser_config", answers.tosserConfigPath},
         {kTosserFormat, "tosser_config_format", formatWord(answers.tosserFormat)},
+        {kConfigCharset, "config_charset", answers.configCharset},
         {kDefaultCharset, "default_charset", answers.defaultCharset},
         {kComposeCharset, "compose_charset", answers.composeCharset},
         {kTemplate, "template", answers.templatePath},
@@ -179,10 +182,21 @@ tl::expected<void, ErrorPtr> writeConfig(const std::string& path,
     auto text = renderConfig(answers);
     if (!text) return tl::make_unexpected(std::move(text).error());
 
-    // What was rendered, read as a config: a wizard that writes a file the
-    // program will not start on has failed, and this is where that is found out
-    // rather than at the next start.
-    if (const auto parsed = AppConfig::loadFromString(*text, path); !parsed) {
+    // Into the charset the file says it is written in, before anything looks at
+    // it as a config: what goes to disk has to be what `config_charset` claims,
+    // and the sample this was rendered out of is UTF-8.
+    encoding::IconvRecoder recoder;
+    auto bytes = recoder.intoCharset(*text, answers.configCharset);
+    if (!bytes) {
+        return failure("the config cannot be written in " + answers.configCharset + ": " +
+                       bytes.error()->message());
+    }
+
+    // What was rendered, read as a config — the bytes, so that this is the same
+    // reading the next start will do, `config_charset` and all. A wizard that
+    // writes a file the program will not start on has failed, and this is where
+    // that is found out rather than at the next start.
+    if (const auto parsed = AppConfig::loadFromString(*bytes, path); !parsed) {
         return failure("the config that was written does not load: " +
                        parsed.error()->message());
     }
@@ -200,7 +214,7 @@ tl::expected<void, ErrorPtr> writeConfig(const std::string& path,
     {
         std::ofstream out(temporary, std::ios::binary | std::ios::trunc);
         if (!out) return failure("cannot write the config: " + temporary.string());
-        out.write(text->data(), static_cast<std::streamsize>(text->size()));
+        out.write(bytes->data(), static_cast<std::streamsize>(bytes->size()));
         out.close();
         if (!out) {
             fs::remove(temporary, ec);
