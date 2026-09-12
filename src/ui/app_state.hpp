@@ -327,6 +327,11 @@ struct AppState {
     /// the message still under it. Reading it as "throw it away" would put an
     /// hour's writing behind `:q` and would buy nothing, the way to discard
     /// being on the screen already.
+    ///
+    /// **A forward is not refused by an untouched file either way.** It carries
+    /// a message written before the editor was opened, so leaving that message
+    /// as it stands is passing it on rather than declining to write one, and
+    /// the box goes up over it the first time as every other time.
     bool externalReviewShown{false};
 
     /// The four answers to what the editor left, and where each button was

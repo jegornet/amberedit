@@ -260,6 +260,35 @@ TEST_CASE("A refusal is an untouched file the box never stood over [externaledit
     }
 }
 
+TEST_CASE("A forward comes back from an untouched file as a message [externaleditor]") {
+    ExternalFixture fixture;
+    auto& state = fixture.state;
+    fixture.readingAMessage();
+
+    compose::startForwardTo(state, state.currentArea);
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    // Out of the header the ordinary way, which is what hands the message over.
+    while (!state.externalEditRequested) {
+        REQUIRE(compose::handleEvent(state, Event::Return));
+    }
+    state.externalEditRequested = false;
+    REQUIRE_FALSE(state.externalReviewShown);
+
+    const std::vector<std::string> handed = state.edit.lines;
+    // Read through and left as it stands: what a forward carries is written
+    // already, so this is passing it on rather than refusing to write it.
+    compose::externalEditReturned(state, /*changed=*/false, handed);
+    CHECK(state.navigator.current() == ScreenId::Compose);
+    REQUIRE(state.externalReview);
+    CHECK(state.edit.lines == handed);
+    // With both answers on the box: throwing a forward away is Discard, and
+    // there is nothing left that an untouched file could mean.
+    const auto withBox =
+        rowsOf(state, external_dialog::render(state, compose::render(state)));
+    CHECK(shows(withBox, "Save"));
+    CHECK(shows(withBox, "Discard"));
+}
+
 TEST_CASE("Continue that changed nothing keeps the message [externaleditor]") {
     ExternalFixture fixture;
     auto& state = fixture.state;

@@ -2303,13 +2303,25 @@ void externalEditReturned(AppState& state, bool changed,
         // It has not: the editor was the only thing in front of them, being
         // left without writing is how every editor there is says no, and the
         // message is dropped with the reader coming back — nothing asked and
-        // nothing stored. See `AppState::externalReviewShown`.
+        // nothing stored, a forward excepted. See
+        // `AppState::externalReviewShown`.
         if (state.externalReviewShown) {
             state.externalReview = AppState::ExternalReview{};
             return;
         }
-        dropMessage(state);
-        return;
+        // A forward is the one message the rule does not hold for. What it
+        // carries is written already — the message being passed on, under
+        // whatever the template says over it — so opening the editor, reading
+        // it through and leaving it as it stands is passing it on, which is
+        // the whole of what a forward is for. Nothing is thrown away on an
+        // untouched file here: the message goes under the box with Save and
+        // Discard on it, and which of the two it is stays the user's to say.
+        if (!state.compose.forward) {
+            dropMessage(state);
+            return;
+        }
+        // What was handed over is what came back, and it becomes the message
+        // the same way anything else the editor left does.
     }
 
     state.edit.lines = std::move(lines);

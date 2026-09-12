@@ -157,6 +157,11 @@ void requestExternalEditor(AppState& state);
 /// with the reader coming back, nothing stored and nothing asked; after it has,
 /// it is the user having looked and changed nothing, and the box comes back.
 ///
+/// **A forward is never refused that way.** What it carries is written already,
+/// so reading it through and leaving the editor as it stands is passing the
+/// message on: the text comes back as the message and the box goes up over it,
+/// box shown or not, and Discard is how a forward is thrown away.
+///
 /// Otherwise `lines` become the message, the template is never expanded over it
 /// again, and the review box goes up over it.
 void externalEditReturned(AppState& state, bool changed,
