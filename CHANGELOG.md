@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.2 — 2026-09-12
+
+- mark areas in the area list (Ctrl-T)
+- catch up: mark an area read (Alt-C)
+- mark toggle moves from T to Ctrl-T key
+- add config_charset
+- add echotosslog
+- add @area value to arealist_description_default
+- add list_text theme color
+- keep forwards when the external editor writes nothing
+- document the PuTTY truecolor workaround
+
 ## 0.8.1 — 2026-09-09
 
 - FSP-1030 kludges support

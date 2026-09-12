@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.8.1
+Version:        0.8.2
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -107,6 +107,17 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Sat Sep 12 2026 Yegor Gluhov <git@jegor.net> - 0.8.2-1
+- mark areas in the area list (Ctrl-T)
+- catch up: mark an area read (Alt-C)
+- mark toggle moves from T to Ctrl-T key
+- add config_charset
+- add echotosslog
+- add @area value to arealist_description_default
+- add list_text theme color
+- keep forwards when the external editor writes nothing
+- document the PuTTY truecolor workaround
+
 * Wed Sep 09 2026 Yegor Gluhov <git@jegor.net> - 0.8.1-1
 - FSP-1030 kludges support
 
