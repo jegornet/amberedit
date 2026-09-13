@@ -17,6 +17,7 @@
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
 #include "ui/attributes_dialog.hpp"
+#include "ui/charset_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/error_log.hpp"
@@ -175,6 +176,9 @@ Element document(AppState& state) {
     }
     if (state.findPicker) {
         body = find_dialog::render(state, std::move(body));
+    }
+    if (state.charsetPicker) {
+        body = charset_dialog::render(state, std::move(body));
     }
     if (state.markPicker) {
         body = mark_dialog::render(state, std::move(body));
@@ -762,6 +766,22 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 } else if (state.findPicker) {
                     state.findPicker->error = _("Not found");
                 }
+            }
+            continue;
+        }
+
+        // And the charset box, which stands over the reader in the same way. It
+        // checks the name — a charset iconv cannot open leaves it standing with
+        // the reason in its bottom rule — and the reader is what reads the
+        // message again in it, the box having nothing to do with message bases.
+        if (state.charsetPicker) {
+            if (charset_dialog::handleEvent(state, event) ==
+                charset_dialog::Outcome::Read) {
+                // Copied out first: the box is put away before the message is
+                // read again, and nothing is to be read back off it across that.
+                const std::string charset = state.charsetPicker->charset;
+                state.charsetPicker.reset();
+                screens::message_read::readInCharset(state, charset);
             }
             continue;
         }

@@ -63,6 +63,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Look an address or a sysop up"), "⚲", "Ctrl-N F10", true},
     {Command::ReaderKludges, "reader.kludges", CommandScreen::Reader, N_("Kludges"),
      N_("Show or hide the service lines"), "", "k", false},
+    {Command::ReaderCharset, "reader.charset", CommandScreen::Reader, N_("Charset"),
+     N_("Read this message in another charset"), "Æ", "Alt-E", true},
     {Command::ReaderScrollbar, "reader.scrollbar", CommandScreen::Reader, N_("Scrollbar"),
      N_("Show or hide the scrollbar"), "", "b", false},
     {Command::ReaderThreadUp, "reader.thread_up", CommandScreen::Reader, N_("Thread up"),

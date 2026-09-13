@@ -79,7 +79,7 @@ msgid "Read the message bases again"
 msgstr ""
 
 #: src/config/commands.cpp:34 src/config/commands.cpp:38
-#: src/config/commands.cpp:72
+#: src/config/commands.cpp:74
 msgid "Mark"
 msgstr ""
 
@@ -95,7 +95,7 @@ msgstr ""
 msgid "Mark the area read"
 msgstr ""
 
-#: src/config/commands.cpp:38 src/config/commands.cpp:73
+#: src/config/commands.cpp:38 src/config/commands.cpp:75
 msgid "Mark the message, or take the mark off"
 msgstr ""
 
@@ -204,147 +204,155 @@ msgid "Show or hide the service lines"
 msgstr ""
 
 #: src/config/commands.cpp:66
-msgid "Scrollbar"
+msgid "Charset"
 msgstr ""
 
 #: src/config/commands.cpp:67
-msgid "Show or hide the scrollbar"
+msgid "Read this message in another charset"
 msgstr ""
 
 #: src/config/commands.cpp:68
-msgid "Thread up"
+msgid "Scrollbar"
 msgstr ""
 
 #: src/config/commands.cpp:69
+msgid "Show or hide the scrollbar"
+msgstr ""
+
+#: src/config/commands.cpp:70
+msgid "Thread up"
+msgstr ""
+
+#: src/config/commands.cpp:71
 msgid "The message this one answers"
 msgstr ""
 
-#: src/config/commands.cpp:71
+#: src/config/commands.cpp:73
 msgid "The next answer to this message"
 msgstr ""
 
-#: src/config/commands.cpp:71
+#: src/config/commands.cpp:73
 msgid "Thread down"
 msgstr ""
 
-#: src/config/commands.cpp:74
+#: src/config/commands.cpp:76
 msgid "Marks"
 msgstr ""
 
-#: src/config/commands.cpp:75
+#: src/config/commands.cpp:77
 msgid "Mark a run of messages at once"
 msgstr ""
 
-#: src/config/commands.cpp:76
+#: src/config/commands.cpp:78
 msgid "Shell"
 msgstr ""
 
-#: src/config/commands.cpp:77
+#: src/config/commands.cpp:79
 msgid "Run the system shell"
 msgstr ""
 
-#: src/config/commands.cpp:78 src/ui/export_dialog.cpp:84
+#: src/config/commands.cpp:80 src/ui/export_dialog.cpp:84
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:458
 msgid "Save"
 msgstr ""
 
-#: src/config/commands.cpp:79
+#: src/config/commands.cpp:81
 msgid "Save the message"
 msgstr ""
 
-#: src/config/commands.cpp:81
+#: src/config/commands.cpp:83
 msgid "Attributes"
 msgstr ""
 
-#: src/config/commands.cpp:81
+#: src/config/commands.cpp:83
 msgid "Change the message attributes"
 msgstr ""
 
-#: src/config/commands.cpp:82
+#: src/config/commands.cpp:84
 msgid "Import"
 msgstr ""
 
-#: src/config/commands.cpp:83
+#: src/config/commands.cpp:85
 msgid "Read a file into the message"
 msgstr ""
 
-#: src/config/commands.cpp:85
+#: src/config/commands.cpp:87
 msgid "Back up into the header fields"
 msgstr ""
 
-#: src/config/commands.cpp:85 src/ui/external_dialog.cpp:79
+#: src/config/commands.cpp:87 src/ui/external_dialog.cpp:79
 msgid "Header"
 msgstr ""
 
-#: src/config/commands.cpp:87
+#: src/config/commands.cpp:89
 msgid "Delete line"
 msgstr ""
 
-#: src/config/commands.cpp:87
+#: src/config/commands.cpp:89
 msgid "Delete the line the cursor is on"
 msgstr ""
 
-#: src/config/commands.cpp:89
+#: src/config/commands.cpp:91
 msgid "Put the last deleted line back"
 msgstr ""
 
-#: src/config/commands.cpp:89
+#: src/config/commands.cpp:91
 msgid "Restore line"
 msgstr ""
 
-#: src/config/commands.cpp:91
+#: src/config/commands.cpp:93
 msgid "Delete quote"
 msgstr ""
 
-#: src/config/commands.cpp:91
+#: src/config/commands.cpp:93
 msgid "Delete the quoted text after the cursor"
 msgstr ""
 
-#: src/config/commands.cpp:94
+#: src/config/commands.cpp:96
 msgid "Delete the word before the cursor"
 msgstr ""
 
-#: src/config/commands.cpp:94
+#: src/config/commands.cpp:96
 msgid "Delete word"
 msgstr ""
 
-#: src/config/commands.cpp:97
+#: src/config/commands.cpp:99
 msgid "A word to the left"
 msgstr ""
 
-#: src/config/commands.cpp:97
+#: src/config/commands.cpp:99
 msgid "Word left"
 msgstr ""
 
-#: src/config/commands.cpp:99
+#: src/config/commands.cpp:101
 msgid "A word to the right"
 msgstr ""
 
-#: src/config/commands.cpp:99
+#: src/config/commands.cpp:101
 msgid "Word right"
 msgstr ""
 
-#: src/config/commands.cpp:101
+#: src/config/commands.cpp:103
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:101
+#: src/config/commands.cpp:103
 msgid "To the start of the line"
 msgstr ""
 
-#: src/config/commands.cpp:102
+#: src/config/commands.cpp:104
 msgid "Line end"
 msgstr ""
 
-#: src/config/commands.cpp:103
+#: src/config/commands.cpp:105
 msgid "To the end of the line"
 msgstr ""
 
-#: src/config/commands.cpp:170
+#: src/config/commands.cpp:172
 msgid "Run the program the config names"
 msgstr ""
 
-#: src/config/commands.cpp:170
+#: src/config/commands.cpp:172
 msgid "Utility"
 msgstr ""
 
@@ -359,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.2\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-12 08:53+0200\n"
+"POT-Creation-Date: 2026-09-13 11:37+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -517,16 +525,16 @@ msgstr ""
 msgid "Cannot open the area: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:116
+#: src/ui/app_shell.cpp:117
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:763
+#: src/ui/app_shell.cpp:767
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:607 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:625 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -659,6 +667,46 @@ msgstr ""
 
 #: src/ui/attributes_dialog.cpp:236
 msgid "space toggle · ctrl-z clear · enter done · esc cancel"
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:42
+msgid " Charset "
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:45 src/ui/setup/setup_wizard.cpp:531
+msgid " Charset: "
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:48
+msgid "Enter read · Esc close"
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:53
+msgid "Name a charset"
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:58
+msgid "Read"
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:75
+#, c++-format
+msgid " Read as {0}, which its CHRS kludge names."
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:78
+#, c++-format
+msgid " Read as {0}, which you asked for."
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:82
+#, c++-format
+msgid " Read as {0}, the area's default."
+msgstr ""
+
+#: src/ui/charset_dialog.cpp:152
+#, c++-format
+msgid "{0} names no charset in particular"
 msgstr ""
 
 #: src/ui/confirm_dialog.cpp:21
@@ -1099,40 +1147,40 @@ msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:548
+#: src/ui/screens/message_read_screen.cpp:549
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1747
+#: src/ui/screens/message_read_screen.cpp:1788
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1768
+#: src/ui/screens/message_read_screen.cpp:1809
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2343
+#: src/ui/screens/message_read_screen.cpp:2391
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2346
+#: src/ui/screens/message_read_screen.cpp:2394
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2349
+#: src/ui/screens/message_read_screen.cpp:2397
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2352
+#: src/ui/screens/message_read_screen.cpp:2400
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2355
+#: src/ui/screens/message_read_screen.cpp:2403
 msgctxt "header block"
 msgid "Recd"
 msgstr ""
@@ -1288,10 +1336,6 @@ msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:528
 msgid "no CHRS kludge — or it says something like IBMPC 2."
-msgstr ""
-
-#: src/ui/setup/setup_wizard.cpp:531
-msgid " Charset: "
 msgstr ""
 
 #: src/ui/setup/setup_wizard.cpp:533

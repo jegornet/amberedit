@@ -28,6 +28,26 @@ public:
     [[nodiscard]] virtual domain::MessageHeader header(uint32_t index) const = 0;
     [[nodiscard]] virtual domain::MessageBody body(uint32_t index) const = 0;
 
+    /// The same two, read in `charset` rather than in the one the message
+    /// declares — what the reader asks for when the user has said the CHRS
+    /// kludge is wrong, or the area's `default_charset` is not what this
+    /// message was written in.
+    ///
+    /// The charset is an iconv name, resolved before it gets here: what a
+    /// message is decoded with is `iconv_open()`'s business, and a Fidonet
+    /// spelling reaching this far would fail as mojibake rather than as an
+    /// answer. An empty one is the message's own answer again, so that one call
+    /// serves both — see `CharsetDetector::normalize()`, which is what resolves
+    /// a name somebody typed.
+    ///
+    /// It changes nothing on disk and is remembered nowhere: the base hands
+    /// back the message decoded another way, and the next call without a
+    /// charset hands back what the message says of itself.
+    [[nodiscard]] virtual domain::MessageHeader header(uint32_t index,
+                                                       const std::string& charset) const = 0;
+    [[nodiscard]] virtual domain::MessageBody body(uint32_t index,
+                                                   const std::string& charset) const = 0;
+
     /// What the message answers and what answers it, as message numbers.
     ///
     /// Asked for one message at a time rather than carried in every header:

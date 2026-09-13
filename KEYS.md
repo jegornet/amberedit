@@ -54,6 +54,7 @@ left unbound is not in it at all.
 | `Ctrl-F` / `F6` | look for a message in the area                                               |
 | `l` / `F9` | the list of messages                                                         |
 | `k` | show the kludges — a reply then quotes them, a forward carries them          |
+| `Alt-E` | read this message in another charset |
 | `b` | toggle the scrollbar                                                         |
 | `Ctrl-T` | mark the message, or take the mark off it                               |
 | `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |

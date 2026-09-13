@@ -2200,6 +2200,18 @@ taking a row.
   again. The box asks and does not search: what walks the base and moves the
   reader is `message_read::findMessage()`, which the shell calls with what the
   box holds. See [Finding a message](#finding-a-message).
+- **`Alt-E` in the reader reads the message on screen in another charset**,
+  with `charset` on the list `reader_menu` may name. `ui/charset_dialog.*` is the
+  modal: a line saying what the message is being read in and which of three
+  things decided that — its own CHRS kludge, the area's `default_charset`, or an
+  earlier answer to this same box — and a field under it holding that same name,
+  with the cursor at the end of it. Two stops, the field and the **Read** button,
+  and Enter reads from either. The name is checked *here*, `CharsetDetector::normalize()`
+  then `encoding::checkCharset()`, so that `+7_FIDO` is taken and `IBMPC` and a
+  name this machine's iconv cannot open are refused with the reason in the bottom
+  rule — the box standing with the name still in it, the find box's habit. What
+  comes back to the shell is an iconv name, and `message_read::readInCharset()` is
+  what reads the message again in it. See [Charsets and the locale](#charsets-and-the-locale).
 - **`w` in the reader writes the message out to a text file**, with `export` on
   the list `reader_menu` may name. `ui/export_dialog.*` is the modal and
   `app/export_file.*` does the writing; it is the import box with the answers the
@@ -2592,6 +2604,37 @@ taking a row.
 - **Charset resolution**: the `CHRS:`/`CHARSET:`/`CODEPAGE:` kludge, then
   `default_charset`. Fidonet names are mapped onto iconv names in
   `charset_detector.cpp` — `+7_FIDO` and `866` both mean CP866.
+- **One message can be read in a charset nobody configured, and that is the
+  reader's own doing.** `Alt-E` puts up `ui/charset_dialog.*`, and what it is
+  answered with reaches the base through the second form of `IMsgBase::header()`
+  and `IMsgBase::body()`, which take the charset to read in instead of asking the
+  message. `FtnMsgBase::charsetFor()` is the whole of the rule: the name asked
+  for where there is one, `detect()` where there is not. The name is taken as it
+  stands rather than put through `detect()` — that one falls back on the area's
+  default for a charset it does not know, which is the opposite of what somebody
+  who has just typed a name means, and the box has already asked iconv about it.
+  - **It lives as long as the message is on the screen.** `AppState::readCharset`
+    is the whole of the memory, and `loadMessage()` clears it — every way to
+    another message goes through there, and so does every way out of the area.
+    Nothing is written anywhere: the message on disk is untouched, its CHRS is
+    untouched, and the row behind the reader in the message list goes on showing
+    the message as the area is read. A kludge that lied about one message says
+    nothing about the next.
+  - **The header goes with the body.** The names and the subject are stored in
+    the same charset as the text — which is why `header()` reads the control
+    lines at all — so a message read wrong is read wrong in the block above it,
+    and reading it again in another charset has to take both.
+  - **A reply is written from the message as it is being read.** `BuildRequest`
+    carries `state.readHeader` and `state.readBody`, so a message re-read in
+    another charset is quoted as it stands on the screen — and where
+    `reply_original_charset` keeps the answered message's charset, the charset it
+    keeps is the one asked for. That is the answer it should keep: a CHRS that
+    was wrong about the message would otherwise be copied onto the reply.
+  - **`MessageBody::charsetDeclared` is what the box says out loud**: whether
+    `detect()` took its answer from the message's CHRS or fell back on
+    `default_charset`. It is read off the kludge every time, override or no, so
+    that the box still says what the message declares once it has been overruled.
+    Nothing decides anything by it.
 - **`config_charset` is the third charset setting, and it is about files rather
   than about mail.** It says what charset the AmberEdit config itself is written
   in, and with it every file the config names: the tosser config and whatever

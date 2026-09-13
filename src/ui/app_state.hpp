@@ -358,6 +358,19 @@ struct AppState {
 
     std::optional<domain::MessageHeader> readHeader;
     std::optional<domain::MessageBody> readBody;
+
+    /// The charset the user asked this one message to be read in, over what it
+    /// declares and over the area's `default_charset` — an iconv name, resolved
+    /// by the box that asked for it, and empty where nothing was asked.
+    ///
+    /// **It belongs to the message on screen and to no other.** `loadMessage()`
+    /// clears it, which every way to another message goes through, and so does
+    /// leaving the area: a kludge that lied about one message says nothing
+    /// about the next, and a charset that stayed on would be a setting nobody
+    /// had set. Nothing is written anywhere — the message on disk is untouched,
+    /// and the message list behind this screen goes on showing the row as the
+    /// area is read.
+    std::string readCharset;
     /// What the message on screen answers and what answers it, as the title
     /// shows beside its number.
     domain::MessageThread readThread;
@@ -816,6 +829,60 @@ struct AppState {
         int layoutHeight{0};
     };
     std::optional<FindPicker> findPicker;
+
+    /// The box that asks which charset the message on screen is to be read in.
+    ///
+    /// It says what it is being read in now and where that came from — the
+    /// message's own CHRS kludge or the area's `default_charset` — and asks for
+    /// a name in a field under it. What comes back is `readCharset` above, for
+    /// this message and no other.
+    struct CharsetPicker {
+        /// The name as it is being typed, and where the cursor stands in it.
+        /// It opens holding the charset the message is being read in, so that
+        /// Enter on an untouched box changes nothing and the name to correct is
+        /// there to be edited.
+        std::string charset;
+        size_t cursor{0};
+        /// The byte the field's leftmost column shows, filled in by
+        /// `ui::inputField()` — the one place the sideways scroll is worked
+        /// out, and so the only thing a click can be measured against.
+        size_t origin{0};
+
+        /// What the message is being read in as the box opens, and where that
+        /// came from: the message's CHRS kludge, the area's `default_charset`,
+        /// or the last answer to this box. Read once, at opening — the line is
+        /// about the message and not about what is half typed under it.
+        std::string current;
+        enum class From {
+            Kludge,    ///< the message's own CHRS control line
+            Default,   ///< the area's `default_charset`, the message naming none
+            Override,  ///< this box, answered already for this message
+        };
+        From from{From::Default};
+
+        /// Which stop of the box the cursor is at: the field, or the button
+        /// that closes it.
+        enum class Focus { Charset, Button };
+        Focus focus{Focus::Charset};
+
+        /// Why the last Enter did nothing — a name iconv cannot open, or an
+        /// empty field — said in the bottom rule where every other dialog says
+        /// it. The box stays up with the name still in it to be corrected.
+        std::string error;
+
+        /// Where the pieces were drawn, filled in by render() so that a click
+        /// is tested against the box rather than against a second copy of its
+        /// arithmetic.
+        term::Box charsetBox;
+        term::Box applyBox;
+
+        /// Measured once off the window, as every modal is, and again only when
+        /// the window itself changes size.
+        int inner{0};
+        int layoutWidth{0};
+        int layoutHeight{0};
+    };
+    std::optional<CharsetPicker> charsetPicker;
 
     /// What the last search was and where it came to.
     ///
@@ -1475,6 +1542,7 @@ struct AppState {
         ExportSave,        ///< the button that writes the files a message carries
         FindScope,         ///< one of the find dialog's two, which `pressedLink` says
         FindButton,        ///< the button that runs the search
+        CharsetButton,     ///< the button that reads the message in another charset
         ThreadLink,        ///< one of the thread markers beside the message number
         UrlLink,           ///< a link in the message text, by its place in the frame
         MenuButton,        ///< the menu button in the top-right corner

@@ -285,6 +285,17 @@ struct MessageBody {
     std::string charset;  ///< what the base actually used
     std::string origin;   ///< the " * Origin: ..." line, if there was one
 
+    /// Whether `charset` is what the message itself declares — its CHRS kludge
+    /// — rather than the area's `default_charset` standing in for a message
+    /// that declares nothing, declares `IBMPC`, or declares a name this
+    /// machine's iconv cannot open.
+    ///
+    /// Nothing decides anything by it: it is what the reader says to the user
+    /// before asking them to name another charset, a message read wrong being
+    /// one thing when the message was wrong about itself and another when the
+    /// config was. False where there was no message to read.
+    bool charsetDeclared{false};
+
     /// The visible text, service lines dropped, joined with newlines.
     [[nodiscard]] std::string text() const;
 

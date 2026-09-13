@@ -62,6 +62,22 @@ void showEmptyArea(AppState& state);
 /// Re-wraps the body if the terminal width changed.
 void relayout(AppState& state);
 
+/// Reads the message on screen again in `charset` — an iconv name — over what
+/// its CHRS kludge says and over the area's `default_charset`. The answer to
+/// the charset box, which is where the name is checked; nothing is read here
+/// that iconv has not already been asked about.
+///
+/// The header fields go with the body: the names and the subject are stored in
+/// the same charset as the text, so a message read wrong is read wrong in the
+/// block above it as well.
+///
+/// **It lives as long as the message does.** `AppState::readCharset` is the
+/// whole of the memory, `loadMessage()` clears it, and nothing is written
+/// anywhere: the message on disk is untouched, and the row behind this screen
+/// in the message list goes on showing the message as the area is read. Moving
+/// to the next message and back undoes it.
+void readInCharset(AppState& state, const std::string& charset);
+
 /// Opens message `number` in the reader, keeping the message list's cursor on
 /// it — what the thread keys and a click on a thread marker do.
 void goToMessage(AppState& state, uint32_t number);

@@ -656,6 +656,7 @@ add_executable(amberedit
   src/ui/export_dialog.cpp
   src/ui/export_mode_dialog.cpp
   src/ui/external_dialog.cpp
+  src/ui/charset_dialog.cpp
   src/ui/find_dialog.cpp
   src/ui/attributes_dialog.cpp
   src/ui/forward_dialog.cpp

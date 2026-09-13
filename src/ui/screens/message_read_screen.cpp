@@ -17,6 +17,7 @@
 #include "i18n/i18n.hpp"
 #include "ui/ansi_canvas.hpp"
 #include "ui/back_button.hpp"
+#include "ui/charset_dialog.hpp"
 #include "ui/event_util.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
@@ -810,6 +811,7 @@ bool commandEnabled(const AppState& state, Command command) {
         case Command::ReaderFind:
         case Command::ReaderMarkToggle:
         case Command::ReaderMarkMenu:
+        case Command::ReaderCharset:
         case Command::ReaderList: return state.messageCount > 0;
         default: return true;
     }
@@ -845,6 +847,7 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ReaderInfo: info_dialog::open(state); break;
         case Command::ReaderExport: askExport(state); break;
         case Command::ReaderFind: find_dialog::open(state); break;
+        case Command::ReaderCharset: charset_dialog::open(state); break;
         case Command::ReaderNodelist: nodelist_dialog::open(state); break;
         case Command::ReaderList: openList(state); break;
         case Command::ReaderMarkToggle:
@@ -880,6 +883,12 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     // thread marker puts the title back rather than leaving a field standing
     // over the message it did not open.
     state.readGoto.clear();
+    // And the charset the user asked for was asked for that message: its CHRS
+    // kludge lying says nothing about the next message's, and a charset that
+    // stayed on would be a setting nobody had set. This is the one place it is
+    // taken off — every way to another message, and every way out of the area,
+    // comes through here.
+    state.readCharset.clear();
 
     if (state.base == nullptr || msgNumber == 0 || msgNumber > state.messageCount) {
         return false;
@@ -963,6 +972,9 @@ void showEmptyArea(AppState& state) {
     // There is no message to go to in an empty area, so nothing is left half
     // typed over one.
     state.readGoto.clear();
+    // And no message for a charset to have been asked for. Cleared here as well
+    // as in loadMessage(): an area holding nothing does not go through it.
+    state.readCharset.clear();
 }
 
 void openMessage(AppState& state, uint32_t number) {
@@ -1665,6 +1677,35 @@ void relayout(AppState& state) {
     state.readScroll = std::clamp(state.readScroll, 0, maxScroll(state));
 }
 
+void readInCharset(AppState& state, const std::string& charset) {
+    if (state.base == nullptr || !state.readHeader || charset.empty()) return;
+    const uint32_t number = state.readHeader->number;
+
+    // Read again rather than re-decoded in place: the bytes on disk are the
+    // only thing that still holds the message as it was written, and what is on
+    // screen has been through iconv once already — a second conversion would be
+    // made out of whatever the first one settled for, U+FFFD and all.
+    state.readCharset = charset;
+    state.readHeader = state.base->header(number, charset);
+    state.readBody = state.base->body(number, charset);
+    if (state.config.ucsKludges) {
+        domain::applyUcsFields(*state.readHeader, *state.readBody);
+    }
+
+    // What a search lit was lit in the text the message had a moment ago, by
+    // offsets into lines that have just been decoded again. Taken off rather
+    // than carried over: the words may not even be there in this charset.
+    state.findHighlight.clear();
+
+    // The window is the same size and the text is not, so the layout has to be
+    // made again — `toggleKludges()`'s habit, and for the same reason. The
+    // reading stays where it was: the same message in another charset is the
+    // same message, and the line the user was looking at is still the line they
+    // were looking at. relayout() clamps it where the text came out shorter.
+    state.readLayoutWidth = 0;
+    relayout(state);
+}
+
 namespace {
 
 /// Turns the kludges on or off and re-lays out the body around them.
@@ -2250,6 +2291,13 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (state.keys.is(event, Command::ReaderKludges)) {
         toggleKludges(state);
+        return true;
+    }
+    // Reading this one message in some other charset than the one it declares.
+    // The box says what it is being read in and asks what it should be; the
+    // shell hands its answer back to readInCharset() below.
+    if (state.keys.is(event, Command::ReaderCharset)) {
+        charset_dialog::open(state);
         return true;
     }
     if (state.keys.is(event, Command::ReaderScrollbar)) {

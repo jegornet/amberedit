@@ -80,6 +80,10 @@ public:
     [[nodiscard]] uint32_t count() const override;
     [[nodiscard]] domain::MessageHeader header(uint32_t index) const override;
     [[nodiscard]] domain::MessageBody body(uint32_t index) const override;
+    [[nodiscard]] domain::MessageHeader header(uint32_t index,
+                                               const std::string& charset) const override;
+    [[nodiscard]] domain::MessageBody body(uint32_t index,
+                                           const std::string& charset) const override;
 
     [[nodiscard]] domain::MessageThread thread(uint32_t index) const override;
 

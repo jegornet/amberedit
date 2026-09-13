@@ -574,6 +574,51 @@ TEST_CASE("A message's own CHRS decides its header, not the default [squish]") {
     CHECK(isValidUtf8(asKoi8.header(3).subject));
 }
 
+TEST_CASE("A message can be read in a charset it does not name [squish]") {
+    // What the reader asks for when the CHRS kludge is wrong, or the area's
+    // default is not what the message was written in: the same message decoded
+    // another way, for as long as somebody is looking at it.
+    AreaConfig area;
+    area.tag = "charsets";
+    area.path = amberedit::test::projectPath("testdata/msgbase/charsets");
+    area.type = MsgBaseType::Squish;
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+    REQUIRE(msgbase.count() == 3);
+
+    // Message 2 is CP866 and says so.
+    CHECK(msgbase.body(2).charset == "CP866");
+    CHECK(msgbase.body(2).charsetDeclared);
+    CHECK(msgbase.header(2).subject == "Привет");
+
+    // Asked for KOI8-R it is read in KOI8-R, the header with the body — the
+    // two are stored in the one charset.
+    CHECK(msgbase.body(2, "KOI8-R").charset == "KOI8-R");
+    CHECK(msgbase.body(2, "KOI8-R").text() != msgbase.body(2).text());
+    CHECK(msgbase.header(2, "KOI8-R").subject != "Привет");
+    CHECK(isValidUtf8(msgbase.header(2, "KOI8-R").subject));
+    // And what the message declares is still what the message declares: the
+    // asking overrules the reading and not the kludge.
+    CHECK(msgbase.body(2, "KOI8-R").charsetDeclared);
+
+    // Nothing is remembered: the next read without a charset is the message as
+    // it says of itself.
+    CHECK(msgbase.body(2).charset == "CP866");
+    CHECK(msgbase.header(2).subject == "Привет");
+
+    // Message 3 declares nothing, so the area's default answers for it — and
+    // that is the other thing the reader has to be able to say.
+    CHECK_FALSE(msgbase.body(3).charsetDeclared);
+    CHECK(msgbase.body(3).charset == "CP866");
+    CHECK(msgbase.body(3, "KOI8-R").charset == "KOI8-R");
+
+    // An empty name is the message's own answer again, which is what lets one
+    // call serve both.
+    CHECK(msgbase.body(1, "").charset == msgbase.body(1).charset);
+    CHECK(msgbase.header(1, "").subject == msgbase.header(1).subject);
+}
+
 TEST_CASE("A CHRS nothing can convert from reads under the default [squish]") {
     // "+7 FIDO 2" is what a real message off R50 carries: "+7_FIDO 2" with the
     // underscore lost upstream. It parses as no charset at all, so the area's

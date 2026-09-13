@@ -39,6 +39,7 @@ enum class Command : uint8_t {
     ReaderInfo,             ///< reader.info
     ReaderNodelist,         ///< reader.nodelist
     ReaderKludges,          ///< reader.kludges
+    ReaderCharset,          ///< reader.charset
     ReaderScrollbar,        ///< reader.scrollbar
     ReaderThreadUp,         ///< reader.thread_up
     ReaderThreadDown,       ///< reader.thread_down

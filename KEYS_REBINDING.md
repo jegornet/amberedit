@@ -52,7 +52,7 @@ and the editor never being the same screen.
 | `app.` | every screen | `quit`, `help` |
 | `arealist.` | the area list | `next_unread`, `toggle_unread`, `rescan`, `mark_toggle`, `catch_up` |
 | `msglist.` | the message list | `mark_toggle` |
-| `reader.` | the reader | `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`, `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `scrollbar`, `thread_up`, `thread_down`, `mark_toggle`, `mark_menu`, `shell` |
+| `reader.` | the reader | `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`, `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `charset`, `scrollbar`, `thread_up`, `thread_down`, `mark_toggle`, `mark_menu`, `shell` |
 | `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `word_left`, `word_right`, `line_start`, `line_end` |
 
 `app.quit` is answered ahead of every dialog as well: no box is worth being the

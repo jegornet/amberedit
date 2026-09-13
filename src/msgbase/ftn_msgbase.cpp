@@ -241,6 +241,14 @@ uint32_t FtnMsgBase::count() const {
 }
 
 MessageHeader FtnMsgBase::header(uint32_t index) const {
+    return header(index, std::string{});
+}
+
+MessageBody FtnMsgBase::body(uint32_t index) const {
+    return body(index, std::string{});
+}
+
+MessageHeader FtnMsgBase::header(uint32_t index, const std::string& asked) const {
     MessageHeader out;
     out.number = index;
     if (!driver_ || index == 0 || index > driver_->count()) return out;
@@ -255,7 +263,13 @@ MessageHeader FtnMsgBase::header(uint32_t index) const {
     // header. Reading the control lines here is what keeps a message list from
     // showing subjects in one charset while the reader shows the body in
     // another.
-    const std::string charset = detector_.detect(raw.control);
+    //
+    // Or the charset asked for, where the reader has asked for one. Taken as it
+    // stands rather than put through `detect()`: it is an iconv name by the time
+    // it reaches this class, and that one falls back on the area's default for a
+    // name it does not know, which is the opposite of what somebody who has just
+    // typed a name means.
+    const std::string charset = asked.empty() ? detector_.detect(raw.control) : asked;
     out.charset = charset;
     out.from = recoder_.toUtf8(raw.header.from, charset);
     out.to = recoder_.toUtf8(raw.header.to, charset);
@@ -274,7 +288,7 @@ MessageHeader FtnMsgBase::header(uint32_t index) const {
     return out;
 }
 
-MessageBody FtnMsgBase::body(uint32_t index) const {
+MessageBody FtnMsgBase::body(uint32_t index, const std::string& asked) const {
     MessageBody out;
     if (!driver_ || index == 0 || index > driver_->count()) return out;
 
@@ -288,7 +302,20 @@ MessageBody FtnMsgBase::body(uint32_t index) const {
     // header() reads them: one message is read in one charset, and a charset
     // taken from the whole body here would be a charset a message list built
     // from the control block alone could not arrive at.
-    out.charset = detector_.detect(raw.control);
+    // Or the charset asked for, as in header() and for the same reasons.
+    const std::string declared = detector_.detect(raw.control);
+    out.charset = asked.empty() ? declared : asked;
+
+    // Whether that answer came from the message or from the area's
+    // `default_charset` — which is what the reader tells the user before asking
+    // them to name another one. Asked of what `detect()` settled on rather than
+    // of the kludge alone: a CHRS naming something this machine's iconv has
+    // never heard of is a kludge that decided nothing, and the default stood in
+    // for it. Read off the message either way, so it still says what the
+    // message declares once another charset has been asked for.
+    const std::string named = encoding::CharsetDetector::normalize(
+        encoding::CharsetDetector::extractChrsKludge(raw.control));
+    out.charsetDeclared = !named.empty() && named == declared;
     for (auto& line : out.lines) line.text = recoder_.toUtf8(line.text, out.charset);
     out.origin = recoder_.toUtf8(out.origin, out.charset);
     return out;
