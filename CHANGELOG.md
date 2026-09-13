@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.3 — 2026-09-13
+
+- override charset (Alt-E)
+- optimization: search for CHRS kludge only in the control block
+
 ## 0.8.2 — 2026-09-12
 
 - mark areas in the area list (Ctrl-T)
