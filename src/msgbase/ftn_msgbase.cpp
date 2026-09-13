@@ -284,7 +284,11 @@ MessageBody FtnMsgBase::body(uint32_t index) const {
     const std::string whole = raw.control + raw.text;
     splitBody(whole, out);
 
-    out.charset = detector_.detect(whole);
+    // The control lines, and not the text after them, for the same reason
+    // header() reads them: one message is read in one charset, and a charset
+    // taken from the whole body here would be a charset a message list built
+    // from the control block alone could not arrive at.
+    out.charset = detector_.detect(raw.control);
     for (auto& line : out.lines) line.text = recoder_.toUtf8(line.text, out.charset);
     out.origin = recoder_.toUtf8(out.origin, out.charset);
     return out;

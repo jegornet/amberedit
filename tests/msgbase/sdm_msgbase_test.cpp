@@ -88,6 +88,28 @@ void writeAsciiDatedMsg(const fs::path& file) {
     out.put('\0');
 }
 
+/// A message whose only CHRS stands behind the text, where nothing puts one:
+/// the leading kludges say nothing about the charset, and the text is a pair of
+/// bytes both charsets spell, differently — E0 A1 is "рб" in CP866 and "Ю║" in
+/// KOI8-R.
+void writeTrailingChrsMsg(const fs::path& file) {
+    std::string raw(kHeaderSize, '\0');
+    const auto put = [&raw](size_t at, const std::string& text) {
+        raw.replace(at, text.size(), text);
+    };
+    put(0, "Somebody Else");
+    put(36, "Yegor Gluhov");
+    put(72, "a kludge out of place");
+    put(144, "13 Aug 26  10:15:20");
+
+    std::ofstream out(file, std::ios::binary);
+    out.write(raw.data(), static_cast<std::streamsize>(raw.size()));
+    const std::string body = std::string("\x01") + "MSGID: 192:168/2 deadbeef\r" +
+                             "\xe0\xa1\r" + std::string("\x01") + "CHRS: KOI8-R 2\r";
+    out.write(body.data(), static_cast<std::streamsize>(body.size()));
+    out.put('\0');
+}
+
 }  // namespace
 
 TEST_CASE("The Fido *.msg test base is present in the repository [sdm]") {
@@ -341,6 +363,30 @@ TEST_CASE("A *.msg carrying only the ASCII date is read with it [sdm]") {
     CHECK(header.date.hour == 2);
     CHECK(header.date.minute == 34);
     CHECK(header.date.second == 56);
+}
+
+TEST_CASE("A CHRS behind the text does not decide the charset [sdm]") {
+    TempSdmBase base;
+    writeTrailingChrsMsg(base.dir() / "201.msg");
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
+    REQUIRE(msgbase.count() == 2);
+
+    // The charset comes from the control lines, which in a *.msg are the
+    // leading ^A lines and nothing else. A kludge behind the text is not among
+    // them, and reading the whole body to find it would decode the message in
+    // one charset and its row in the message list — built from the control
+    // lines alone — in another. So the area's default stands for both.
+    const auto header = msgbase.header(2);
+    const auto body = msgbase.body(2);
+    CHECK(header.charset == "CP866");
+    CHECK(body.charset == "CP866");
+    CHECK(body.charset == header.charset);
+
+    // Decoded as the default says, not as the kludge behind the text does.
+    CHECK(body.text().find("рб") != std::string::npos);
+    CHECK(body.text().find("Ю") == std::string::npos);
 }
 
 TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {

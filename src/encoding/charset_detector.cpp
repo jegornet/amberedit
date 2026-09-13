@@ -117,8 +117,7 @@ CharsetDetector::CharsetDetector(std::string_view defaultCharset)
     : defaultCharset_(normalize(defaultCharset)) {}
 
 std::string CharsetDetector::extractChrsKludge(std::string_view rawBody) {
-    // Kludges are lines starting with ^A. They cluster at the top of a message,
-    // but CHRS also turns up after the text, so scan the whole body.
+    // Kludges are lines starting with ^A.
     size_t pos = 0;
     while (pos < rawBody.size()) {
         size_t lineEnd = rawBody.find_first_of("\r\n", pos);
