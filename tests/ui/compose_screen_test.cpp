@@ -573,10 +573,11 @@ TEST_CASE("A netmail to a robot loses its template on the way down [compose]") {
     state.compose.toAddr = "2:5020/1";
     fixture.walkToText();
     CHECK_FALSE(textHas(state, "Hello"));
-    // The pair closing the message stays: it is the message's and not the
-    // template's, and a robot stops reading at the tearline.
-    CHECK(textHas(state, " * Origin:"));
-    REQUIRE(state.edit.lines.size() == 3);
+    // And the pair closing the message goes with it: the same names stand in
+    // `netmail_skip_footer` by default, and a robot stops reading at a tearline.
+    CHECK_FALSE(textHas(state, " * Origin:"));
+    CHECK_FALSE(textHas(state, "---"));
+    REQUIRE(state.edit.lines.size() == 1);
     CHECK(state.edit.lines[0].empty());
     CHECK(state.edit.row == 0);
 }

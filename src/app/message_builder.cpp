@@ -57,13 +57,20 @@ bool isBlank(std::string_view line) {
 /// typing moved — and is invalidated rather than left to be read as ours: a
 /// tosser stops at the first tearline it finds, and would cut the message
 /// there.
+///
+/// `footer` is false for the recipients `netmail_skip_footer` names, and then
+/// none of that happens: no pair is written, and a line of the message that
+/// reads like one is left exactly as it was typed. There is no closing pair of
+/// ours for it to be confused with, and what the robot has to read is every
+/// line.
 std::vector<std::string> closeMessage(std::vector<std::string> lines,
                                       const std::string& tearline,
-                                      const std::string& origin) {
+                                      const std::string& origin, bool footer) {
     // Blank lines at the end are padding. Dropping them first is also what
     // lets a tearline and origin followed by nothing but blanks still count as
     // closing the message.
     while (!lines.empty() && isBlank(lines.back())) lines.pop_back();
+    if (!footer) return lines;
 
     const size_t count = lines.size();
     if (count >= 2 && domain::isTearline(lines[count - 2]) &&
@@ -264,6 +271,17 @@ TemplateContext contextFor(const BuildRequest& request) {
     return context;
 }
 
+/// Whether this message closes with a tearline and an origin line at all —
+/// false for a netmail to one of the robots `netmail_skip_footer` names.
+///
+/// Asked of the header rather than of the template context because it is true
+/// of every netmail to that recipient: a new one, a reply and a forward alike.
+/// A robot reads commands, and a tearline is where it stops reading — which is
+/// the one thing a message made of commands cannot afford.
+bool closesWithFooter(const BuildRequest& request) {
+    return !(request.fields.netmail && request.config.skipsFooter(request.fields.toName));
+}
+
 }  // namespace
 
 /// The fields the local time shows, in no time zone of their own — which is
@@ -441,14 +459,17 @@ StartingText startingText(const BuildRequest& request) {
     // The message closes with a tearline and an origin from the moment it is
     // opened, rather than having them appear at the last moment: they are part
     // of what is being written, and a user who wants them gone should be able
-    // to delete them and see them gone.
+    // to delete them and see them gone. Unless it closes with neither, and then
+    // the editor opens on a message that has none either — what is being
+    // written is what will be stored.
+    const bool footer = closesWithFooter(request);
     out.lines = closeMessage(std::move(out.lines), context.tearline,
-                             originLine(context.origin, request.fields.fromAddr));
+                             originLine(context.origin, request.fields.fromAddr), footer);
 
     // The cursor belongs in the message, not on the lines closing it — so a
     // template that names no @position, or one that produced no text at all,
     // gets a line to start typing on.
-    const int closing = static_cast<int>(out.lines.size()) - 2;
+    const int closing = static_cast<int>(out.lines.size()) - (footer ? 2 : 0);
     if (out.cursorLine >= closing) {
         out.lines.insert(out.lines.begin() + closing, std::string{});
         out.cursorLine = closing;
@@ -621,7 +642,8 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     // the user has been looking at all along.
     const TemplateContext context = contextFor(request);
     draft.lines = closeMessage(text, context.tearline,
-                               originLine(context.origin, addressText(draft.origAddr)));
+                               originLine(context.origin, addressText(draft.origAddr)),
+                               closesWithFooter(request));
 
     // Everything the base will convert, which is what the charset has to have
     // room for: the header fields sit in XMSG rather than in the text, and the

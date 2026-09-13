@@ -1701,12 +1701,26 @@ decides what an occurrence is.
   it reads the template file. What a robot is sent is commands, and a template's
   greeting and sign-off come back as complaints about commands it does not know.
   A **new netmail and nothing else**: a forward carries somebody's message and a
-  reply carries the quote, which is what the template puts in. The tearline and
-  the origin still close it — `closeMessage()` is about the message and not
-  about the template, and a robot stops reading at the tearline. Because
+  reply carries the quote, which is what the template puts in. Because
   `refreshTemplate()` expands again when the header changes, typing the name (or
   an `address_macro` that fills it in) into a message already opened on the
   template empties it on the way down into the text.
+- **A netmail to a robot closes with nothing.** `netmail_skip_footer` names
+  them, `AppConfig::skipsFooter()` answers for the To name the same way
+  `skipsTemplate()` does, and `closesWithFooter()` in `message_builder.cpp` is
+  what both `startingText()` and `buildDraft()` ask before `closeMessage()`
+  writes the pair — so the editor opens on a message with no tearline and no
+  origin, and that is what is stored. A robot stops reading at the tearline, and
+  a message whose commands stand under one is a message whose commands never
+  arrive. **Netmail and every netmail to the name**: a new one, a reply and a
+  forward alike, since what decides it is who is being written to. Nothing in
+  the text is disarmed either — there is no closing pair of ours for a line that
+  reads like one to be taken for. The setting is an `std::optional`: written, it
+  stands alone; unwritten, `netmailSkipFooterNames()` answers with
+  `netmail_skip_template`'s names, so the two lines may stand in either order
+  and a config naming its own AreaFix once has named it for both. An empty
+  `netmail_skip_footer` line is how a config says nobody, and then every message
+  closes the way every other one does.
 - **The addresses are checked when the message is stored, not when the header is
   left.** `addressesReady()` wants the sender's always — it is what the MSGID is
   made of — and the recipient's in netmail. Missing and malformed are one case

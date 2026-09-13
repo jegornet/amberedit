@@ -3350,3 +3350,41 @@ TEST_CASE("netmail_skip_template names the robots a new netmail skips the "
     CHECK(nobody.netmailSkipTemplate.empty());
     CHECK_FALSE(nobody.skipsTemplate("AreaFix"));
 }
+
+TEST_CASE("netmail_skip_footer names the robots that close with nothing [app_config]") {
+    // Nothing of its own, and then it is `netmail_skip_template` over again —
+    // the same robots, whether those are the six built in or the config's own,
+    // and whichever order the two lines stand in.
+    const auto stock = with("");
+    CHECK_FALSE(stock.netmailSkipFooter.has_value());
+    CHECK(stock.netmailSkipFooterNames() == stock.netmailSkipTemplate);
+    CHECK(stock.skipsFooter("areafix"));
+    CHECK(stock.skipsFooter("  FaqServer  "));
+    CHECK_FALSE(stock.skipsFooter("AreaFixov"));
+    CHECK_FALSE(stock.skipsFooter(""));
+
+    const auto followed = with("netmail_skip_template hpt \"Robot Fixov\"\n");
+    CHECK(followed.skipsFooter("hpt"));
+    CHECK_FALSE(followed.skipsFooter("AreaFix"));
+
+    // Its own list where the config writes one, and the two lines are then read
+    // apart: a robot may be sent no template and still be written to under a
+    // tearline, or the other way about.
+    const auto own = with(
+        "netmail_skip_template AreaFix\n"
+        "netmail_skip_footer \"Robot Fixov\"\n");
+    REQUIRE(own.netmailSkipFooter.has_value());
+    CHECK(*own.netmailSkipFooter == std::vector<std::string>{"Robot Fixov"});
+    CHECK(own.skipsFooter("robot fixov"));
+    CHECK_FALSE(own.skipsFooter("AreaFix"));
+    CHECK(own.skipsTemplate("AreaFix"));
+    CHECK_FALSE(own.skipsTemplate("Robot Fixov"));
+
+    // And an empty line is how a config says nobody: every message closes the
+    // way every other one does, the template list notwithstanding.
+    const auto always = with("netmail_skip_footer\n");
+    REQUIRE(always.netmailSkipFooter.has_value());
+    CHECK(always.netmailSkipFooterNames().empty());
+    CHECK_FALSE(always.skipsFooter("AreaFix"));
+    CHECK(always.skipsTemplate("AreaFix"));
+}

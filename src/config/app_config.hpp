@@ -1702,6 +1702,31 @@ struct AppConfig {
     std::vector<std::string> netmailSkipTemplate{"AreaFix", "AreaMgr", "AllFix",
                                                  "FileFix", "T-Fix",   "FaqServer"};
 
+    /// The recipients a netmail is closed off to with no tearline and no origin
+    /// line under it, from `netmail_skip_footer`: the robots again. Written the
+    /// same way `netmail_skip_template` is — names, one per word, a name with a
+    /// space in it in quotes, compared case-insensitively whole against the To
+    /// name — and asked about by `skipsFooter()`.
+    ///
+    /// A robot stops reading at the tearline, which is what closes a message to
+    /// one that has commands in it and nothing else. But a robot answered in a
+    /// message the commands stand *under* — a reply, a second request typed
+    /// below the last answer — is a robot that reads as far as the tearline and
+    /// no further, and the commands never reach it. So for these names the pair
+    /// is not written at all, and every line of the message is the robot's to
+    /// read.
+    ///
+    /// Netmail only, and every netmail: a new one, a reply and a forward alike,
+    /// since what decides this is who is being written to and not what the
+    /// message is. An echo carries no recipient a robot answers to.
+    ///
+    /// Nothing where the config states none, and then `netmail_skip_template`'s
+    /// names stand in — the same robots, which is what a config naming its own
+    /// AreaFix means by naming it once. An empty `netmail_skip_footer` line is
+    /// how a config says nobody: every message closes the way every other one
+    /// does.
+    std::optional<std::vector<std::string>> netmailSkipFooter;
+
     /// The directory the config was read from, which is where a file named
     /// without a path is looked for — the `@file` a `CC:` or an `XC:` command
     /// may name its recipients in, and the `@file:` a setting may hold its
@@ -1813,6 +1838,18 @@ struct AppConfig {
     /// folded for ASCII: a robot is written to by its name and not by a name
     /// holding it, or an `AreaFixov` would be one.
     [[nodiscard]] bool skipsTemplate(std::string_view toName) const;
+
+    /// The names `netmail_skip_footer` stands for: its own where the config
+    /// wrote the line, and `netmail_skip_template`'s where it did not.
+    ///
+    /// Answered here rather than settled while the config was read, so that the
+    /// two lines may stand in either order in the file.
+    [[nodiscard]] const std::vector<std::string>& netmailSkipFooterNames() const;
+
+    /// Whether a netmail to this recipient closes with no tearline and no
+    /// origin line — whether `netmailSkipFooterNames()` names them. Matched as
+    /// `skipsTemplate()` matches: the whole name, trimmed and folded for ASCII.
+    [[nodiscard]] bool skipsFooter(std::string_view toName) const;
 
     /// Whether the address is one of ours — the `address` line or one of the
     /// AKAs. Compared over the four numbers only: nothing in a message base

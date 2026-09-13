@@ -1565,6 +1565,12 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         // otherwise be no way to be rid of one. An empty line is that same
         // statement about all six — the whole list, replaced by nothing.
         cfg.netmailSkipTemplate = entry.values;
+    } else if (key == "netmail_skip_footer") {
+        // In place of the built-in names for the same reason, and an empty line
+        // says nobody the same way. The difference is that a config writing no
+        // line at all is not saying nothing: it is saying `netmail_skip_template`
+        // over again, which is what the empty optional stands for.
+        cfg.netmailSkipFooter = entry.values;
     } else if (key == "quote_string") {
         // One '>' and no more: it is what quote levels are counted in, so a
         // second one would send a first-level quote out looking like a
@@ -2333,14 +2339,34 @@ const AddressMacro* AppConfig::addressMacroFor(std::string_view typed) const {
     return nullptr;
 }
 
-bool AppConfig::skipsTemplate(std::string_view toName) const {
+namespace {
+
+/// Whether the list names that recipient: the whole name, trimmed and read
+/// without regard to case. Matching inside a name would make every robot a word
+/// nobody could write to — an `AreaFixov` would be one.
+[[nodiscard]] bool namesRobot(const std::vector<std::string>& robots,
+                              std::string_view toName) {
     const std::string_view name = text::trim(toName);
     if (name.empty()) return false;
 
-    for (const auto& robot : netmailSkipTemplate) {
+    for (const auto& robot : robots) {
         if (text::iequals(robot, name)) return true;
     }
     return false;
+}
+
+}  // namespace
+
+bool AppConfig::skipsTemplate(std::string_view toName) const {
+    return namesRobot(netmailSkipTemplate, toName);
+}
+
+const std::vector<std::string>& AppConfig::netmailSkipFooterNames() const {
+    return netmailSkipFooter ? *netmailSkipFooter : netmailSkipTemplate;
+}
+
+bool AppConfig::skipsFooter(std::string_view toName) const {
+    return namesRobot(netmailSkipFooterNames(), toName);
 }
 
 std::optional<std::string> AppConfig::areaSeparatorNameOf(std::string_view id) const {

@@ -1135,12 +1135,11 @@ TEST_CASE("A new netmail to a robot is begun with no template [builder]") {
 
     // Not a template that failed: nothing was read and nothing is said.
     CHECK(text.error.empty());
-    // A line to type the commands on, and the pair closing the message under it
-    // — a robot stops reading at the tearline, which is what it is for.
-    REQUIRE(text.lines.size() == 3);
+    // A line to type the commands on and nothing else: `netmail_skip_footer`
+    // stands for the same names unless the config says otherwise, and a robot
+    // stops reading at a tearline.
+    REQUIRE(text.lines.size() == 1);
     CHECK(text.lines[0].empty());
-    CHECK(text.lines[1] == kTearline);
-    CHECK(text.lines[2] == kOrigin);
     CHECK(text.cursorLine == 0);
 }
 
@@ -1163,7 +1162,7 @@ TEST_CASE("Everything but a new netmail to the name keeps its template "
 
     const BuildRequest netmail{cfg,     net,     fields,     nullptr,
                                nullptr, nullptr, 0x68A1B2C3, 180};
-    REQUIRE(startingText(netmail).lines.size() == 3);
+    REQUIRE(startingText(netmail).lines.size() == 1);
 
     // A name holding one of theirs is somebody else: the whole name is what is
     // matched, or every Fixov would be a robot.
@@ -1192,15 +1191,84 @@ TEST_CASE("Everything but a new netmail to the name keeps its template "
     const BuildRequest answer{cfg,   net,     fields,     &original,
                               &body, nullptr, 0x68A1B2C3, 180};
     const auto reply = startingText(answer);
-    REQUIRE(reply.lines.size() == 6);
+    REQUIRE(reply.lines.size() == 4);
     CHECK(reply.lines[0] == "AreaFix wrote:");
     CHECK(reply.lines[1].find("OK: ru.linux") != std::string::npos);
+    // The template is what an answer keeps; the closing pair is what the name
+    // loses, in a reply as in a new message.
+    CHECK(reply.lines[2] == "Hello AreaFix.");
 
-    // And a config naming nobody skips nothing.
+    // And a config naming nobody skips nothing — neither the template nor, the
+    // footer list standing in for it, the pair closing the message.
     cfg.netmailSkipTemplate.clear();
     const BuildRequest nobody{cfg,     net,     fields,     nullptr,
                               nullptr, nullptr, 0x68A1B2C3, 180};
     const auto whole = startingText(nobody);
     REQUIRE(whole.lines.size() == 4);
     CHECK(whole.lines[0] == "Hello AreaFix.");
+    CHECK(whole.lines[2] == kTearline);
+    CHECK(whole.lines[3] == kOrigin);
+}
+
+TEST_CASE("netmail_skip_footer closes a robot's message with nothing [builder]") {
+    const TempFile tpl("Hello @tname.\n@position\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    const AreaConfig net = areaOf(AreaKind::Netmail);
+    const AreaConfig echo = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.toName = "AreaFix";
+    fields.toAddr = "2:382/736";
+
+    // The user typed the commands, and what is stored is the commands: nothing
+    // stands after them for the robot to stop at.
+    const BuildRequest request{cfg,     net,     fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto draft = buildDraft(request, {"%LIST", "%HELP"});
+    REQUIRE(draft.lines == std::vector<std::string>{"%LIST", "%HELP"});
+
+    // A line of the message that reads like a tearline is left alone too: there
+    // is no closing pair of ours for it to be taken for.
+    const auto quoted = buildDraft(request, {"--- not ours", "%LIST"});
+    REQUIRE(quoted.lines == std::vector<std::string>{"--- not ours", "%LIST"});
+
+    // A forward and a reply to the same name close the same way: it is who is
+    // being written to that decides, not what the message is.
+    MessageHeader original;
+    original.from = "AreaFix";
+    MessageBody body;
+    body.lines = {{"OK: ru.linux", false}};
+    const BuildRequest answer{cfg,   net,     fields,     &original,
+                              &body, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(answer, {"%LIST"}).lines == std::vector<std::string>{"%LIST"});
+
+    // An echo to the same word closes as every echo does.
+    ComposeFields posted = fields;
+    posted.netmail = false;
+    const BuildRequest inEcho{cfg,     echo,    posted,     nullptr,
+                              nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto broadcast = buildDraft(inEcho, {"Hello."});
+    REQUIRE(broadcast.lines.size() == 3);
+    CHECK(broadcast.lines[1] == kTearline);
+
+    // A list of its own is what the config says instead, template or no
+    // template: the two lines are read apart.
+    cfg.netmailSkipFooter = std::vector<std::string>{"Robot Fixov"};
+    const BuildRequest named{cfg,     net,     fields,     nullptr,
+                             nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto closed = buildDraft(named, {"%LIST"});
+    REQUIRE(closed.lines.size() == 3);
+    CHECK(closed.lines[1] == kTearline);
+    CHECK(closed.lines[2] == kOrigin);
+    // And the template is still skipped — `netmail_skip_template` is untouched.
+    CHECK(startingText(named).lines.size() == 3);
+
+    // An empty list is how a config says nobody, and then every message closes
+    // the way every other one does.
+    cfg.netmailSkipFooter = std::vector<std::string>{};
+    const BuildRequest always{cfg,     net,     fields,     nullptr,
+                              nullptr, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(always, {"%LIST"}).lines.size() == 3);
 }

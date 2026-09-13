@@ -1250,6 +1250,10 @@ template /usr/share/amberedit/default.tpl
 # Default: AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
 #netmail_skip_template AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
 
+# Skip tearline and origin line for the robots (new netmails only)
+# Defaults to netmail_skip_template value
+#netmail_skip_footer AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
+
 # What a quoted line is prefixed with. Optional; " FL> " by default, which is
 # GoldED's — the letters before the ">" stand for the initials of whoever is
 # being quoted. Exactly one ">" is required: that character is what quote levels
