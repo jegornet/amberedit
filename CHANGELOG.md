@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.4 — 2026-09-14
+
+- arealist separators
+- netmail_skip_footer
+
 ## 0.8.3 — 2026-09-13
 
 - override charset (Alt-E)
