@@ -202,14 +202,17 @@ TEST_CASE("sortAreas orders the list by echoid [areamanager][sort]") {
     CHECK(tagsOf(areas) == std::vector<std::string>{"Ru.Linux", "ru.fido", "alt.test"});
 }
 
-TEST_CASE("sortAreas orders the types net, echo, local [areamanager][sort]") {
+TEST_CASE(
+    "sortAreas orders the types netmail, echo, local, bad, dupe "
+    "[areamanager][sort]") {
     std::vector<AreaEntry> areas{
         entryOf("dupes", 0, AreaKind::Dupe), entryOf("local.notes", 0, AreaKind::Local),
-        entryOf("ru.linux", 0, AreaKind::Echo), entryOf("netmail", 0, AreaKind::Netmail)};
+        entryOf("badmail", 0, AreaKind::Bad), entryOf("ru.linux", 0, AreaKind::Echo),
+        entryOf("netmail", 0, AreaKind::Netmail)};
 
     sortAreas(areas, {{AreaSortKey::Type, false}});
-    CHECK(tagsOf(areas) ==
-          std::vector<std::string>{"netmail", "ru.linux", "local.notes", "dupes"});
+    CHECK(tagsOf(areas) == std::vector<std::string>{"netmail", "ru.linux", "local.notes",
+                                                    "badmail", "dupes"});
 }
 
 TEST_CASE("sortAreas breaks a tie with the next criterion [areamanager][sort]") {

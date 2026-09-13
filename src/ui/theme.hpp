@@ -17,7 +17,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-five constants for the forty-one roles below. Each is named after
+/// Twenty-six constants for the forty-two roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -90,8 +90,12 @@ inline constexpr Color kTrailer{249};    // #b2b2b2, light grey
 /// headings name what is under them instead of being part of it, and a hue
 /// nothing else on the screen carries says so without another step of white.
 inline constexpr Color kTableHeader{110};  // #87afd7, light blue
-inline constexpr Color kSeparator{239};    // #4e4e4e, dark grey
-inline constexpr Color kError{196};        // #ff0000, red
+/// The name in a rule between two sections of the area list: the heading's blue
+/// a step quieter. The rule names what is under it the way the column headings
+/// do, and stands between them and the `kSeparator` line it is drawn in.
+inline constexpr Color kAreaSeparator{67};  // #5f87af, steel blue
+inline constexpr Color kSeparator{239};     // #4e4e4e, dark grey
+inline constexpr Color kError{196};         // #ff0000, red
 /// A message written here that has not gone out yet. Softer than `kError`: it is
 /// a state the user put the message in rather than something that went wrong.
 inline constexpr Color kUnsent{210};  // #ff8787, salmon
@@ -311,6 +315,14 @@ struct Palette {
     /// button that cannot be pressed is drawn in.
     Color trailer = builtin_theme::kTrailer;
     Color tableHeader = builtin_theme::kTableHeader;
+    /// The name in the middle of a rule between two sections of the area list,
+    /// where `arealist_separators` draws them. A role of its own rather than the
+    /// `dimmed` it would otherwise take: the rule names what is under it the way
+    /// the column headings do, so every shipped theme draws it in a step-quieter
+    /// `table_header` — quieter because a section's name is read once on the way
+    /// past, where the headings name every column under them. The rule the name
+    /// stands in is `separator`.
+    Color arealistSeparator = builtin_theme::kAreaSeparator;
     Color menuButton = builtin_theme::kDialogText;
     /// The hint bar along the last row of the screen — the commands of whichever
     /// screen is up. Quiet on purpose: the row is a reminder, not something to

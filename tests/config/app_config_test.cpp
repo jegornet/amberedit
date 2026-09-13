@@ -1682,6 +1682,52 @@ TEST_CASE("AppConfig reads the area list order [app_config]") {
     CHECK_MESSAGE(contains(error6, "trailing +/-"), error6);
 }
 
+TEST_CASE("AppConfig reads the area list's section rules [app_config]") {
+    // Off until the config asks: a list divided into sections is a way of
+    // looking at it, not the way it has always looked.
+    CHECK_FALSE(with("").areaListSeparators);
+    CHECK(with("arealist_separators on\n").areaListSeparators);
+    CHECK_FALSE(with("arealist_separators off\n").areaListSeparators);
+    CHECK_FALSE(errorWith("arealist_separators yes\n").empty());
+
+    // A section is named by the word the rule reads it back with or by the
+    // short spelling of it, and case means nothing in either.
+    const AppConfig named = with(
+        "arealist_separator_name NET \"Netmail Areas\"\n"
+        "arealist_separator_name echomail \"Echoes\"\n"
+        "arealist_separator_name \"Group A\" \"Important\"\n"
+        "arealist_separator_name \"no group\" \"Other Areas\"\n");
+    CHECK(named.areaSeparatorNameOf("netmail") == "Netmail Areas");
+    CHECK(named.areaSeparatorNameOf("net") == "Netmail Areas");
+    CHECK(named.areaSeparatorNameOf("echo") == "Echoes");
+    CHECK(named.areaSeparatorNameOf("a") == "Important");
+    CHECK(named.areaSeparatorNameOf("A") == "Important");
+    CHECK(named.areaSeparatorNameOf("No Group") == "Other Areas");
+    // A section nobody renamed is drawn under its own word, which is the
+    // screen's and not this file's.
+    CHECK_FALSE(named.areaSeparatorNameOf("local").has_value());
+
+    // Half a line is not a statement about anything.
+    const std::string error = errorWith("arealist_separator_name netmail\n");
+    CHECK_MESSAGE(contains(error, "what to call it"), error);
+    const std::string error2 =
+        errorWith("arealist_separator_name netmail Netmail Areas\n");
+    CHECK_MESSAGE(contains(error2, "what to call it"), error2);
+    const std::string error3 = errorWith("arealist_separator_name \"\" \"Areas\"\n");
+    CHECK_MESSAGE(contains(error3, "cannot be blank"), error3);
+
+    // The same section twice is a contradiction, and the two spellings of one
+    // are the same section.
+    const std::string error4 = errorWith(
+        "arealist_separator_name net \"Mail\"\n"
+        "arealist_separator_name netmail \"Netmail\"\n");
+    CHECK_MESSAGE(contains(error4, "twice"), error4);
+    const std::string error5 = errorWith(
+        "arealist_separator_name a \"Important\"\n"
+        "arealist_separator_name \"Group A\" \"Other\"\n");
+    CHECK_MESSAGE(contains(error5, "twice"), error5);
+}
+
 TEST_CASE("AppConfig reads the message template [app_config]") {
     CHECK(with("").templatePath.empty());  // nothing to compose with
     CHECK(with("template /etc/amberedit/msg.tpl\n").templatePath ==

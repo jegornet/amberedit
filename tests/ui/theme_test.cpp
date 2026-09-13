@@ -226,6 +226,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.scrollThumb, builtIn.scrollThumb));
     CHECK(same(loaded.trailer, builtIn.trailer));
     CHECK(same(loaded.tableHeader, builtIn.tableHeader));
+    CHECK(same(loaded.arealistSeparator, builtIn.arealistSeparator));
     CHECK(same(loaded.menuButton, builtIn.menuButton));
     CHECK(same(loaded.separator, builtIn.separator));
     CHECK(same(loaded.scrollTrack, builtIn.scrollTrack));

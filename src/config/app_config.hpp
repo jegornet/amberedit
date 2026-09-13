@@ -154,7 +154,7 @@ enum class AreaSortKey {
     Address,  ///< 'a' — the AKA the area is presented under
     Echoid,   ///< 'e' — the area tag
     Group,    ///< 'g' — the tosser's group, where the format has one
-    Type,     ///< 't' — netmail first, then echo, then the local kinds
+    Type,     ///< 't' — netmail, then echo, then local, bad and dupe
     Unread,   ///< 'u' — how many messages are unread
 };
 
@@ -166,6 +166,20 @@ struct AreaSortCriterion {
 
     friend bool operator==(const AreaSortCriterion& a, const AreaSortCriterion& b) {
         return a.key == b.key && a.descending == b.descending;
+    }
+};
+
+/// One `arealist_separator_name` line: the section of the area list it renames
+/// and what to call it.
+struct AreaSeparatorName {
+    /// The section, as the line spelled it. Which section that is — and which
+    /// second spelling it answers to — is `AppConfig::areaSeparatorNameOf()`.
+    std::string id;
+    /// The word the rule over the section carries in place of its own.
+    std::string text;
+
+    friend bool operator==(const AreaSeparatorName& a, const AreaSeparatorName& b) {
+        return a.id == b.id && a.text == b.text;
     }
 };
 
@@ -706,6 +720,19 @@ struct AppConfig {
     /// tosser config's own order, which `arealist_sort ""` asks for.
     std::vector<AreaSortCriterion> areaListSort{{AreaSortKey::Type, false},
                                                 {AreaSortKey::Echoid, false}};
+
+    /// Whether the area list draws a rule between its sections, and the section's
+    /// name in the middle of it — `arealist_separators`, off by default.
+    ///
+    /// It is read only where `arealist_sort` begins with `t` or `g`: a section is
+    /// a run of areas the first criterion put together, and under any other
+    /// first letter the areas the rule would divide are not next to each other.
+    bool areaListSeparators{false};
+
+    /// What the user called those sections, from `arealist_separator_name`, in
+    /// the order the lines were written. Empty is every section drawn under its
+    /// own word.
+    std::vector<AreaSeparatorName> areaListSeparatorNames;
 
     /// What each row of the area list holds in a window narrower than
     /// `adaptive_ui_threshold`, from `arealist_format`'s first value: the lines
@@ -1792,6 +1819,18 @@ struct AppConfig {
     /// carries a domain, so an address out of one could never match a 5D
     /// spelling in the config.
     [[nodiscard]] bool isOwnAddress(const domain::FtnAddress& addr) const;
+
+    /// What the config called that section of the area list, or nothing where it
+    /// called it nothing. `id` is the section's own identifier: `netmail`,
+    /// `echomail`, `local`, a group's name as the tosser config spells it, or
+    /// `No Group`.
+    ///
+    /// Case means nothing here, as it means nothing in a config key, and every
+    /// section answers to a second spelling: `net` and `echo` for the two long
+    /// ones, and `Group A` for the group called `A`. That is one section and not
+    /// two, so a config naming it both ways round is refused as it is written.
+    [[nodiscard]] std::optional<std::string> areaSeparatorNameOf(
+        std::string_view id) const;
 
     /// The word a menu button or a hint is written with: the utility's own
     /// `title` where the command runs one, and `Commands::labelOf()` — the

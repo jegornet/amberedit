@@ -23,7 +23,7 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 41> kFields{{
+const std::array<std::pair<std::string_view, Field>, 42> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
@@ -56,6 +56,7 @@ const std::array<std::pair<std::string_view, Field>, 41> kFields{{
     {"scroll_thumb", &Palette::scrollThumb},
     {"trailer", &Palette::trailer},
     {"table_header", &Palette::tableHeader},
+    {"arealist_separator", &Palette::arealistSeparator},
     {"menu_button", &Palette::menuButton},
     {"hint_bar", &Palette::hintBar},
     {"separator", &Palette::separator},

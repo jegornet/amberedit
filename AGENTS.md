@@ -865,6 +865,33 @@ Rules that hold the design together:
   row starts on, working the areas above the cursor out again for the new height
   — `AppState::areaRowHeightShown` is the height the offset was last settled
   against. `clampCursor()` still has the last word near the end of a list.
+- **The list draws rules between its sections where `arealist_separators` asks.**
+  Off by default, and read only where `arealist_sort` begins with `t` or `g`: a
+  section is a run of areas the first criterion put together, so under any other
+  first letter there are no runs to divide and the setting is ignored rather than
+  refused. `area_list_screen.cpp`'s `sectionsOf()` works them out from the rows
+  themselves and not from the sections there could be — a section the unread-only
+  filter has emptied simply is not there, and `-t` reverses their order without a
+  word being said about it. Under `t` there are three, the local kinds standing
+  together because bad and dupe are bases the tosser fills by itself; under `g`
+  one per group, and one for the areas in none. **What a section is called is
+  `arealist_separator_name`**, one line per section, each answering to two
+  spellings — `net` beside `netmail`, `Group A` beside `A` — which
+  `AppConfig::areaSeparatorNameOf()` folds to one, so naming the same section
+  both ways round is the contradiction it looks like. A section the config names
+  `""` is the rule alone, and one it names nothing is drawn under its own word,
+  which is the screen's and translated. **The line is `separator` and the name in
+  it `arealist_separator`**, a role of its own: every shipped theme draws it a
+  step quieter than its `table_header`, the rule naming what is under it the way
+  a column heading does but being read once on the way past. **The first rule stands in place of the
+  rule under the column headings** where the list is scrolled to the top: the
+  screen draws a rule there either way. Hence `linesOf()` — the first row's rule
+  costs no line and every other one costs one, so how many areas a screen holds
+  depends on which area it starts at, and `itemsFrom()`/`lastOffset()` are what
+  `AppState::areaListItems()` answers for a list with no rules in it. **A rule is
+  not a row**: it is not in `shown`, so no cursor can reach it, and `clickedRow()`
+  walks the lines the way `render()` drew them so that a click on one is a click
+  on nothing.
 - **A row's description may come from two places.** The tosser config's `-d` (or
   an `area … endarea` block) and the compiled echolist both answer for one, and
   `arealist_description_priority` says which wins — see

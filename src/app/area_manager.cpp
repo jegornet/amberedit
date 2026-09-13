@@ -46,9 +46,9 @@ int compareNames(const std::string& a, const std::string& b) {
     return compareValues(a.size(), b.size());
 }
 
-/// Where a kind sorts under 't': netmail, then echo, then the local ones. The
-/// bad and dupe areas are local bases the tosser fills by itself, so they go
-/// with local rather than among the echoes someone reads.
+/// Where a kind sorts under 't': netmail, then echo, then local, bad and dupe.
+/// The bad and dupe bases are ones the tosser fills by itself, so they stand at
+/// the end rather than among the echoes someone reads.
 int typeRank(AreaKind kind) {
     switch (kind) {
         case AreaKind::Netmail: return 0;

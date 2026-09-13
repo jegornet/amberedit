@@ -69,6 +69,188 @@ std::vector<int> shownAreas(const AppState& state) {
     return shown;
 }
 
+/// What a section of areas in no group at all is renamed by, and the one
+/// section whose identifier is not something the tosser config wrote.
+constexpr std::string_view kNoGroup = "No Group";
+
+/// A section of the list: a run of areas the first `arealist_sort` criterion put
+/// together, with a rule over the first row of it.
+struct Section {
+    /// The identifier `arealist_separator_name` renames the section by.
+    std::string id;
+    /// The word the rule carries where the config renames nothing.
+    std::string title;
+};
+
+/// Whether the list divides itself into sections at all: `arealist_separators`,
+/// and a sort whose first criterion is one the areas come in runs of. Under any
+/// other first letter the areas a rule would divide are not next to each other,
+/// and the setting is ignored rather than refused — it says how to draw a list
+/// that is sorted that way, and says nothing about one that is not.
+bool sectionsShown(const AppState& state) {
+    if (!state.config.areaListSeparators || state.config.areaListSort.empty())
+        return false;
+    const config::AreaSortKey first = state.config.areaListSort.front().key;
+    return first == config::AreaSortKey::Type || first == config::AreaSortKey::Group;
+}
+
+/// The section each shown row stands in, and nothing at all where the list
+/// draws no rules.
+///
+/// Worked out from the rows themselves rather than from the sections there
+/// could be: a section is a run of rows and nothing more, so one the
+/// unread-only filter has emptied simply is not there, and `-t` puts the three
+/// of them in the other order without a word being said about it here.
+std::vector<Section> sectionsOf(const AppState& state, const std::vector<int>& shown) {
+    std::vector<Section> sections;
+    if (!sectionsShown(state)) return sections;
+
+    const bool byGroup =
+        state.config.areaListSort.front().key == config::AreaSortKey::Group;
+    const auto& areas = state.manager.areas();
+    sections.reserve(shown.size());
+    for (const int index : shown) {
+        const domain::AreaConfig& area = areas[static_cast<size_t>(index)].config;
+        if (byGroup) {
+            // The group as the tosser config spells it, and the areas belonging
+            // to no group in a section of their own: `arealist_sort g` puts
+            // them together, and they are the one section whose name the list
+            // has to find for itself.
+            if (area.group.empty()) {
+                sections.push_back(
+                    {std::string(kNoGroup), C_("area list section", "No Group")});
+            } else {
+                sections.push_back(
+                    {area.group,
+                     i18n::format(C_("area list section", "Group {0}"), {area.group})});
+            }
+            continue;
+        }
+        // The three runs `arealist_sort t` makes. The local kinds are one
+        // section: bad and dupe are local bases the tosser fills by itself, and
+        // a rule of their own would divide the list by something nobody reads
+        // it by.
+        switch (area.kind) {
+            case domain::AreaKind::Netmail:
+                sections.push_back({"netmail", C_("area list section", "Netmail")});
+                break;
+            case domain::AreaKind::Echo:
+                sections.push_back({"echomail", C_("area list section", "Echomail")});
+                break;
+            default:
+                sections.push_back({"local", C_("area list section", "Local")});
+                break;
+        }
+    }
+    return sections;
+}
+
+/// Whether a rule stands over that row: the first row of the list, and every row
+/// whose section is not the one the row above it is in. Case is nothing here,
+/// as it is nothing to the sort that made the runs.
+bool opensSection(const std::vector<Section>& sections, int row) {
+    if (sections.empty() || row < 0 || row >= static_cast<int>(sections.size()))
+        return false;
+    if (row == 0) return true;
+    return !config::text::iequals(sections[static_cast<size_t>(row)].id,
+                                  sections[static_cast<size_t>(row) - 1].id);
+}
+
+/// How many lines a row of the list takes: the row itself, and one more for the
+/// rule over it where it opens a section.
+///
+/// **The first row's rule costs nothing**: the list is scrolled to the top
+/// wherever that row is drawn, and there the rule stands in place of the one
+/// under the column headings, which the screen has either way.
+int linesOf(const AppState& state, const std::vector<Section>& sections, int row) {
+    return state.areaRowHeight() + (row > 0 && opensSection(sections, row) ? 1 : 0);
+}
+
+/// How many whole rows the screen holds with the list scrolled to `offset` —
+/// what `AppState::areaListItems()` answers for a list with no rules in it, and
+/// what everything about scrolling is counted in.
+///
+/// It depends on where the screen starts, which is the whole of what the rules
+/// change: each of them stands in a line a row would otherwise have had. Never
+/// fewer than one, for the reason `areaListItems()` is never fewer than one — a
+/// window too short for a whole row still shows the area at the top of it.
+int itemsFrom(const AppState& state, const std::vector<Section>& sections, int offset,
+              int total) {
+    const int room = state.areaListRows();
+    int lines = 0;
+    int items = 0;
+    for (int row = offset; row < total; ++row) {
+        lines += linesOf(state, sections, row);
+        if (lines > room) break;
+        ++items;
+    }
+    return std::max(1, items);
+}
+
+/// The offset that puts the last row of the list at the bottom of a full screen
+/// — as far down as the list is ever scrolled.
+///
+/// Counted from the bottom up, which is the only end it can be counted from: a
+/// screenful is as many rows as fit, and which rows those are is what is being
+/// asked.
+int lastOffset(const AppState& state, const std::vector<Section>& sections, int total) {
+    const int room = state.areaListRows();
+    int lines = 0;
+    for (int row = total - 1; row > 0; --row) {
+        lines += linesOf(state, sections, row);
+        if (lines + linesOf(state, sections, row - 1) > room) return row;
+    }
+    return 0;
+}
+
+/// How many whole rows the screen holds as it stands — what a page of the list
+/// is measured in.
+int visibleRows(const AppState& state, const std::vector<int>& shown) {
+    return itemsFrom(state, sectionsOf(state, shown), state.areaOffset,
+                     static_cast<int>(shown.size()));
+}
+
+/// The word the rule over a section carries: what `arealist_separator_name`
+/// called it, and the section's own word where the config called it nothing. A
+/// section the config named `""` is the rule alone.
+std::string headingOf(const AppState& state, const Section& section) {
+    if (const auto named = state.config.areaSeparatorNameOf(section.id)) return *named;
+    return section.title;
+}
+
+/// The rule over a section: a line in `separator` from one edge to the other
+/// with the section's name in the middle of it, drawn in `arealist_separator`.
+///
+/// `width` is the room the rule fills and `across` the width it is centred
+/// against, and the two are the same for every rule but one: the first section's
+/// rule doubles as the rule under the column headings, which stops short of the
+/// corner button. Centred in what is left of that line the name would sit half a
+/// button to the left of every name under it, so it is centred against the rows
+/// instead and only its rule is cut short — with a column of rule kept before
+/// the word, and none required after it.
+///
+/// A rule with no name to carry is the plain line the screen has drawn under its
+/// headings all along, which is what a window too narrow to say anything in
+/// comes to as well.
+Element sectionRule(const std::string& title, int width, int across) {
+    const auto rule = [](int columns) {
+        return columns > 0
+                   ? text(horizontalRule(columns)) | color(theme::palette.separator)
+                   : text("");
+    };
+    // The space either side of the word, and a column of rule beyond each: a
+    // name with no line around it would not read as a rule at all.
+    constexpr int kAround = 4;
+    if (title.empty() || width < kAround + 1) return rule(width);
+
+    const std::string word =
+        " " + truncateToWidth(title, std::min(width, across) - kAround) + " ";
+    const int taken = displayWidth(word);
+    const int left = std::clamp((across - taken) / 2, 1, width - taken);
+    return hbox({rule(left), text(word) | color(theme::palette.arealistSeparator),
+                 rule(width - left - taken)});
+}
+
 /// Which row of the list the cursor's area stands on.
 ///
 /// Where the filter has taken that area off the list — an area read to its end
@@ -95,7 +277,7 @@ void putOnRow(AppState& state, const std::vector<int>& shown, int row) {
         state.areaOffset = 0;
         return;
     }
-    const int rows = state.areaListItems();
+    const std::vector<Section> sections = sectionsOf(state, shown);
     const int last = static_cast<int>(shown.size()) - 1;
     row = std::clamp(row, 0, last);
     state.areaCursor = shown[static_cast<size_t>(row)];
@@ -103,9 +285,16 @@ void putOnRow(AppState& state, const std::vector<int>& shown, int row) {
     // Areas, not lines: a row two lines tall halves how many of them a screen
     // holds, and everything about where the list is scrolled to is counted in
     // areas.
+    //
+    // Down a row at a time rather than in one subtraction, because how many
+    // areas a screen holds depends on which one it starts at: the rules between
+    // the sections stand in lines the rows would otherwise have had.
     state.areaOffset = std::min(state.areaOffset, row);
-    if (row >= state.areaOffset + rows) state.areaOffset = row - rows + 1;
-    state.areaOffset = std::clamp(state.areaOffset, 0, std::max(0, last + 1 - rows));
+    while (row >=
+           state.areaOffset + itemsFrom(state, sections, state.areaOffset, last + 1))
+        ++state.areaOffset;
+    state.areaOffset =
+        std::clamp(state.areaOffset, 0, lastOffset(state, sections, last + 1));
 }
 
 void clampCursor(AppState& state) {
@@ -327,12 +516,27 @@ std::optional<int> clickedRow(const AppState& state, const Event& event,
 
     const int line = click->y - kHeaderRows;
     if (line < 0) return std::nullopt;
-    const int row = line / state.areaRowHeight();
-    if (row >= state.areaListItems()) return std::nullopt;
 
-    const int at = state.areaOffset + row;
-    if (at >= static_cast<int>(shown.size())) return std::nullopt;
-    return at;
+    // Down the screen the way render() drew it, because the rules between the
+    // sections are what a line and a row no longer have in common. A click on
+    // one of them is a click on nothing: a rule is not a row, and the cursor
+    // cannot be put on it either.
+    const std::vector<Section> sections = sectionsOf(state, shown);
+    const int total = static_cast<int>(shown.size());
+    const int height = state.areaRowHeight();
+    const int items = itemsFrom(state, sections, state.areaOffset, total);
+    int y = 0;
+    for (int i = 0; i < items; ++i) {
+        const int row = state.areaOffset + i;
+        if (row >= total) break;
+        if (row > 0 && opensSection(sections, row)) {
+            if (line == y) return std::nullopt;
+            ++y;
+        }
+        if (line < y + height) return row;
+        y += height;
+    }
+    return std::nullopt;
 }
 
 /// Whether the list's own menu offers that button. Only the walk to the next
@@ -505,8 +709,12 @@ Element render(AppState& state) {
 
     const int visibleLines = state.areaListRows();
     const int rowHeight = state.areaRowHeight();
-    const int visibleAreas = state.areaListItems();
     const int total = static_cast<int>(shown.size());
+    // Which section each row stands in, and so where the rules between them go.
+    // Empty where the list draws none, which is what everything below reads it
+    // as: the screen is then laid out exactly as it always was.
+    const std::vector<Section> sections = sectionsOf(state, shown);
+    const int visibleAreas = itemsFrom(state, sections, state.areaOffset, total);
     // The bar the reader draws beside a message too long for the window, in the
     // rightmost column and beside the rows alone — the heading and the rule
     // above them span the whole width. Only where the list is longer than the
@@ -558,8 +766,14 @@ Element render(AppState& state) {
     // standing beside it rather than a piece of it — the same column the reader
     // and the editor leave between the two.
     const int ruleWidth = std::max(0, state.width - (menu ? menu_button::kWidth + 1 : 0));
-    Element separator = text(horizontalRule(ruleWidth) + (menu ? " " : "")) |
-                        color(theme::palette.separator);
+    // The rule under the headings is the first section's own where the list is
+    // scrolled to the top: the screen draws a rule there either way, and two of
+    // them one under the other would be a line spent saying nothing. It is why
+    // the first row's rule costs no line at all (`linesOf()`).
+    const bool topSection = !sections.empty() && state.areaOffset == 0;
+    Element separator =
+        sectionRule(topSection ? headingOf(state, sections.front()) : std::string(),
+                    ruleWidth, listWidth);
     if (menu) {
         // The filler is what holds the button against the right edge whatever
         // the heading came to, and it is a child of this row rather than of the
@@ -568,7 +782,9 @@ Element render(AppState& state) {
         // lights up as one thing rather than as the half the pointer landed on.
         const bool pressed = state.isPressed(AppState::Pressed::MenuButton);
         header = hbox({std::move(header), filler(), menu_button::topRow(pressed)});
-        separator = hbox({std::move(separator), menu_button::bottomRow(pressed)});
+        separator =
+            hbox({std::move(separator), text(" ") | color(theme::palette.separator),
+                  menu_button::bottomRow(pressed)});
     }
 
     // The unread-only filter with nothing left to show. It is said in the middle
@@ -647,19 +863,30 @@ Element render(AppState& state) {
         return hbox(std::move(cells));
     };
 
+    // The lines, and beside each of them which area of the screen it belongs to:
+    // the scrollbar is drawn against the areas rather than the lines they took,
+    // and a rule between two sections stands with the section it opens.
     Elements lines;
+    std::vector<int> lineArea;
     lines.reserve(static_cast<size_t>(visibleLines));
+    lineArea.reserve(static_cast<size_t>(visibleLines));
+    const auto put = [&](Element line, int area) {
+        lines.push_back(std::move(line));
+        lineArea.push_back(area);
+    };
     for (int i = 0; i < visibleAreas; ++i) {
         const int row = state.areaOffset + i;
+        if (row >= total) break;
+        if (row > 0 && opensSection(sections, row) &&
+            static_cast<int>(lines.size()) < visibleLines) {
+            put(sectionRule(headingOf(state, sections[static_cast<size_t>(row)]),
+                            listWidth, listWidth),
+                i);
+        }
+        const int index = shown[static_cast<size_t>(row)];
         for (int line = 0;
              line < rowHeight && static_cast<int>(lines.size()) < visibleLines; ++line) {
-            if (row >= total) {
-                lines.push_back(text(""));
-                continue;
-            }
-            const int index = shown[static_cast<size_t>(row)];
-            lines.push_back(
-                lineOf(areas[static_cast<size_t>(index)], index, row, layout[line]));
+            put(lineOf(areas[static_cast<size_t>(index)], index, row, layout[line]), i);
         }
     }
     // The lines at the bottom that no whole row fitted in. A row is drawn whole
@@ -669,7 +896,9 @@ Element render(AppState& state) {
     // The window too short for even one whole row is the one exception, and the
     // count above is what makes it one: there is always an area on the screen,
     // so as much of the first row as there is room for is drawn.
-    while (static_cast<int>(lines.size()) < visibleLines) lines.push_back(text(""));
+    // Past the bottom of the list, so past the bottom of the bar's thumb as
+    // well: there is nothing down there to point at.
+    while (static_cast<int>(lines.size()) < visibleLines) put(text(""), visibleAreas);
 
     Element table = vbox(std::move(lines));
     if (scrollbarShown) {
@@ -686,13 +915,7 @@ Element render(AppState& state) {
             scrollbar::thumbOf(visibleAreas, total, state.areaOffset);
         Elements cells;
         cells.reserve(static_cast<size_t>(visibleLines));
-        for (int i = 0; static_cast<int>(cells.size()) < visibleLines; ++i) {
-            for (int line = 0;
-                 line < rowHeight && static_cast<int>(cells.size()) < visibleLines;
-                 ++line) {
-                cells.push_back(scrollbar::cell(i, thumb));
-            }
-        }
+        for (const int area : lineArea) cells.push_back(scrollbar::cell(area, thumb));
         table = hbox({std::move(table) | flex, vbox(std::move(cells))});
     }
 
@@ -868,14 +1091,14 @@ bool handleEvent(AppState& state, const Event& event) {
         endSearch();
         putOnRow(state, shown,
                  pageUpTarget(rowOf(shown, state.areaCursor), state.areaOffset,
-                              state.areaListItems()));
+                              visibleRows(state, shown)));
         return true;
     }
     if (event == Event::PageDown || event == Event::Character(' ')) {
         endSearch();
         putOnRow(state, shown,
                  pageDownTarget(rowOf(shown, state.areaCursor), state.areaOffset,
-                                state.areaListItems(), total));
+                                visibleRows(state, shown), total));
         return true;
     }
     if (event == Event::Home) {

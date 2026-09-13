@@ -102,6 +102,26 @@ tl::expected<std::vector<AreaSortCriterion>, ErrorPtr> parseAreaSort(
     return criteria;
 }
 
+/// The spelling two `arealist_separator_name` lines are the same section by:
+/// the case folded away, and each section's two spellings brought to one.
+///
+/// It is what makes `net` beside `netmail`, and `a` beside `Group A`, the
+/// contradiction they are rather than a line that silently loses. The same
+/// folding answers a lookup, so a section is found under either spelling.
+std::string separatorNameKey(std::string_view id) {
+    std::string key = text::toLower(text::trim(id));
+    if (key == "net") return "netmail";
+    if (key == "echo") return "echomail";
+    // The group's own name is what a group section is known by, `Group A` being
+    // only how the rule reads it back. A group actually called `Group A` is
+    // named by writing `Group Group A`, which is the price of the shorter
+    // spelling being there at all.
+    constexpr std::string_view kGroup = "group ";
+    if (key.size() > kGroup.size() && text::startsWith(key, kGroup))
+        return key.substr(kGroup.size());
+    return key;
+}
+
 /// The letters `arealist_format` is written with, what each shows, and how wide
 /// it stands when no width is written after it.
 const ListFormatSpec& areaFormatSpec() {
@@ -1118,6 +1138,35 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaDescriptionDefault = *read;
+    } else if (key == "arealist_separators") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.areaListSeparators = *read;
+    } else if (key == "arealist_separator_name") {
+        // Two values and no default for either: the line exists to say that a
+        // section of the list is called something, and half of that is not a
+        // statement about anything.
+        if (entry.values.size() != 2) {
+            return entry.fail(
+                "arealist_separator_name takes the section and what to call it, as: "
+                "arealist_separator_name netmail \"Netmail Areas\"");
+        }
+        AreaSeparatorName named;
+        named.id = std::string(text::trim(entry.values[0]));
+        named.text = entry.values[1];
+        if (named.id.empty()) {
+            return entry.fail(
+                "arealist_separator_name: the section is netmail, echomail, local, a "
+                "group's name or \"No Group\", and cannot be blank");
+        }
+        // The same section twice is a contradiction, and the line that lost
+        // would be an invisible one — the same reason `map_path` refuses a path
+        // it has already mapped.
+        if (cfg.areaSeparatorNameOf(named.id)) {
+            return entry.fail("arealist_separator_name names the section '" + named.id +
+                              "' twice");
+        }
+        cfg.areaListSeparatorNames.push_back(std::move(named));
     } else if (key == "arealist_scrollbar") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1617,7 +1666,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
 [[nodiscard]] bool isRepeatable(const std::string& key) {
     return key == "aka" || key == "akamatch" || key == "nodelist" || key == "echolist" ||
            key == "address_macro" || key == "map_path" || key == "twit" ||
-           key == "twit_subj";
+           key == "twit_subj" || key == "arealist_separator_name";
 }
 
 /// Whether the key is a setting at all — which only applySetting() can say, so
@@ -2292,6 +2341,14 @@ bool AppConfig::skipsTemplate(std::string_view toName) const {
         if (text::iequals(robot, name)) return true;
     }
     return false;
+}
+
+std::optional<std::string> AppConfig::areaSeparatorNameOf(std::string_view id) const {
+    const std::string key = separatorNameKey(id);
+    for (const auto& named : areaListSeparatorNames) {
+        if (separatorNameKey(named.id) == key) return named.text;
+    }
+    return std::nullopt;
 }
 
 std::string AppConfig::labelOf(Command command) const {

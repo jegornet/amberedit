@@ -373,7 +373,7 @@ reader_show_message_size off
 #   a   the address (AKA) the area is presented under
 #   e   the echoid (the area tag)
 #   g   the group, where the tosser config has one
-#   t   the type, in the order net, echo, local
+#   t   the type, in the order netmail, echo, local, bad, dupe
 #   u   unread messages (try it!)
 # Each letter may be preceded by "-" for descending or "+" for ascending (the
 # default). The first letter decides and the rest break its ties, so "-u+e" is
@@ -444,6 +444,39 @@ arealist_description_priority area
 # read down. Only the column is concerned: the @CDESC/@ODESC template tokens are
 # still empty where there is no description.
 #arealist_description_default "no description"
+
+# Whether the area list is divided into sections, with a rule between them
+# carrying the section's name. Optional; off by default.
+#
+# It is applied only where arealist_sort begins with t or g, and ignored
+# otherwise: a section is a run of areas the first criterion put together, and
+# under any other first letter the areas a rule would divide are not next to
+# each other. Under "t" there are three sections — Netmail, Echomail, and Local
+# for every other kind, bad and dupe areas treated as Local. Under "g" there is
+# one section per group, named "Group A" for the group A, and one called
+# "No Group" for the areas belonging to none.
+#
+# The rule is drawn in the theme's "separator" color and the name in its
+# "arealist_separator" one. Where the list is scrolled to the top the first rule
+# stands in place of the rule under the column headings, which is there either
+# way, and its name still lines up with the names under it. A rule is not a row:
+# the cursor steps over it, and a click on it does nothing.
+arealist_separators off
+
+# What to call one of those sections. Optional; written once per section, and
+# every section not named here is drawn under its own word — which is said in
+# whatever language the interface is in, where a line written here is that line
+# in every language.
+#
+# The section is netmail, echomail or local under arealist_sort t, and a group's
+# own name or "No Group" under g. Case means nothing, and each section answers
+# to a second spelling: net and echo for the two long ones, and "Group A" for
+# the group called A. Naming the same section twice — once each way round —
+# is refused rather than silently taken the second time. Written "" the rule
+# carries no name at all and is the plain line it would have been.
+#arealist_separator_name net "Netmail Areas"
+#arealist_separator_name a "Important Areas"
+#arealist_separator_name "No Group" "Other Areas"
 
 # Whether the area list draws the reader's scrollbar in its rightmost column.
 # Optional; off by default. It is drawn only where the list is longer than the

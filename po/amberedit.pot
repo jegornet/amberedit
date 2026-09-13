@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:1979
+#: src/config/app_config.cpp:2028
 msgid "no description"
 msgstr ""
 
@@ -367,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.3\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-13 11:37+0200\n"
+"POT-Creation-Date: 2026-09-13 19:57+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -516,11 +516,11 @@ msgstr ""
 msgid "{0}: the message is busy"
 msgstr ""
 
-#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:223
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:401
 msgid "the base could not be opened"
 msgstr ""
 
-#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:225
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:403
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr ""
@@ -1104,20 +1104,46 @@ msgstr[1] ""
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:487
+#: src/ui/screens/area_list_screen.cpp:121
+msgctxt "area list section"
+msgid "No Group"
+msgstr ""
+
+#: src/ui/screens/area_list_screen.cpp:125
+#, c++-format
+msgctxt "area list section"
+msgid "Group {0}"
+msgstr ""
+
+#: src/ui/screens/area_list_screen.cpp:135
+msgctxt "area list section"
+msgid "Netmail"
+msgstr ""
+
+#: src/ui/screens/area_list_screen.cpp:138
+msgctxt "area list section"
+msgid "Echomail"
+msgstr ""
+
+#: src/ui/screens/area_list_screen.cpp:140
+msgctxt "area list section"
+msgid "Local"
+msgstr ""
+
+#: src/ui/screens/area_list_screen.cpp:680
 msgid " The tosser config declares no areas."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:488
+#: src/ui/screens/area_list_screen.cpp:681
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:551
+#: src/ui/screens/area_list_screen.cpp:748
 #, c++-format
 msgid " Area: {0}▌"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:584
+#: src/ui/screens/area_list_screen.cpp:788
 msgid "Every area has been read."
 msgstr ""
 

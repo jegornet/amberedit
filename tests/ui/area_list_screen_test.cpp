@@ -242,6 +242,47 @@ std::vector<AreaConfig> threeAreas(const TempSquishBase& first,
             squishArea("third", third.path())};
 }
 
+/// An area of a kind of its own, which is what `arealist_sort t` puts in runs
+/// and what the rules between them are drawn over.
+AreaConfig kindArea(const std::string& tag, amberedit::domain::AreaKind kind) {
+    AreaConfig area = passthroughArea(tag);
+    area.kind = kind;
+    return area;
+}
+
+/// The same for a group, which is the other thing a list can be divided by.
+AreaConfig groupArea(const std::string& tag, const std::string& group) {
+    AreaConfig area = passthroughArea(tag);
+    area.group = group;
+    return area;
+}
+
+/// A list drawn with the rules between its sections on, in one-line rows and
+/// with no corner button over them: what every test below reads.
+///
+/// The areas are handed to the fixture in the order the sort would have put
+/// them in, the manager having taken its own copy of the config already. What
+/// `arealist_sort` does to the list is `sortAreas()`'s and has its own tests;
+/// what the screen does with a list already in runs is these.
+void withSeparators(Fixture& fixture, amberedit::config::AreaSortKey by) {
+    using amberedit::config::AreaFieldKind;
+    fixture.config.areaListSort = {{by, false}};
+    fixture.config.areaListSeparators = true;
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.config.arealistMenu.clear();
+    fixture.state.width = 20;
+    fixture.state.height = 10;
+}
+
+/// The screen as it stands, drawn.
+amberedit::ui::term::Screen drawn(Fixture& fixture) {
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, area_list::render(fixture.state));
+    return screen;
+}
+
 }  // namespace
 
 TEST_CASE(
@@ -1774,4 +1815,240 @@ TEST_CASE("Walking off the front of an area goes to the list whatever reader_edg
     REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
     CHECK(fixture.state.areaCursor == 1);
+}
+
+TEST_CASE("The area list draws a rule over each section [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture({kindArea("netmail", AreaKind::Netmail),
+                     kindArea("ru.linux", AreaKind::Echo),
+                     kindArea("notes", AreaKind::Local)});
+    withSeparators(fixture, AreaSortKey::Type);
+
+    const auto screen = drawn(fixture);
+
+    // The rule under the column headings is the first section's own: the screen
+    // draws a rule there either way, and two of them one under the other would
+    // be a line spent saying nothing.
+    CHECK(rowText(screen, 0) == " Area               ");
+    CHECK(rowText(screen, 1) == "───── Netmail ──────");
+    CHECK(rowText(screen, 2) == " netmail            ");
+    CHECK(rowText(screen, 3) == "───── Echomail ─────");
+    CHECK(rowText(screen, 4) == " ru.linux           ");
+    CHECK(rowText(screen, 5) == "────── Local ───────");
+    CHECK(rowText(screen, 6) == " notes              ");
+}
+
+TEST_CASE("The rules are off until the config asks for them [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+    fixture.config.areaListSeparators = false;
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "────────────────────");
+    CHECK(rowText(screen, 2) == " netmail            ");
+    CHECK(rowText(screen, 3) == " ru.linux           ");
+}
+
+TEST_CASE("A sort that puts no areas in runs draws no rules [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    // Sorted by name, the two kinds are not next to each other, so there is
+    // nothing a rule between them could divide. The setting is ignored rather
+    // than refused: it says how to draw a list sorted by type or by group.
+    withSeparators(fixture, AreaSortKey::Echoid);
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "────────────────────");
+    CHECK(rowText(screen, 2) == " netmail            ");
+    CHECK(rowText(screen, 3) == " ru.linux           ");
+}
+
+TEST_CASE("The local kinds are one section [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture({kindArea("notes", AreaKind::Local),
+                     kindArea("badmail", AreaKind::Bad),
+                     kindArea("dupes", AreaKind::Dupe)});
+    withSeparators(fixture, AreaSortKey::Type);
+
+    const auto screen = drawn(fixture);
+    // Bad and dupe are local bases the tosser fills by itself: one rule over
+    // the three of them, and no rule between them.
+    CHECK(rowText(screen, 1) == "────── Local ───────");
+    CHECK(rowText(screen, 2) == " notes              ");
+    CHECK(rowText(screen, 3) == " badmail            ");
+    CHECK(rowText(screen, 4) == " dupes              ");
+}
+
+TEST_CASE("A section is called what the config calls it [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+    // `net` is `netmail` written the short way, and `echomail` is the long
+    // spelling of `echo`: one section each, whichever way the line names it.
+    fixture.config.areaListSeparatorNames = {{"net", "Mail"}, {"echomail", "Echoes"}};
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "─────── Mail ───────");
+    CHECK(rowText(screen, 3) == "────── Echoes ──────");
+}
+
+TEST_CASE("A section named nothing is the rule alone [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+    fixture.config.areaListSeparatorNames = {{"netmail", ""}};
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "────────────────────");
+    CHECK(rowText(screen, 3) == "───── Echomail ─────");
+}
+
+TEST_CASE("The groups are sections of their own [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    Fixture fixture({groupArea("alt.test", ""), groupArea("ru.linux", "A"),
+                     groupArea("ru.fido", "A"), groupArea("esp.chat", "B")});
+    withSeparators(fixture, AreaSortKey::Group);
+
+    const auto screen = drawn(fixture);
+    // The areas in no group at all are a section like any other, and the one
+    // whose name the list has to find for itself.
+    CHECK(rowText(screen, 1) == "───── No Group ─────");
+    CHECK(rowText(screen, 2) == " alt.test           ");
+    CHECK(rowText(screen, 3) == "───── Group A ──────");
+    CHECK(rowText(screen, 4) == " ru.linux           ");
+    CHECK(rowText(screen, 5) == " ru.fido            ");
+    CHECK(rowText(screen, 6) == "───── Group B ──────");
+    CHECK(rowText(screen, 7) == " esp.chat           ");
+}
+
+TEST_CASE("A group section is renamed either way round [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    Fixture fixture({groupArea("alt.test", ""), groupArea("ru.linux", "A")});
+    withSeparators(fixture, AreaSortKey::Group);
+    // The group's own name and the words the rule reads it back with are one
+    // identifier, so either line names the same section.
+    fixture.config.areaListSeparatorNames = {{"No Group", "Other Areas"},
+                                             {"Group A", "Important"}};
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "─── Other Areas ────");
+    CHECK(rowText(screen, 3) == "──── Important ─────");
+}
+
+TEST_CASE("The rules take the lines the rows would have had [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("echo1", AreaKind::Echo),
+         kindArea("echo2", AreaKind::Echo), kindArea("echo3", AreaKind::Echo),
+         kindArea("local1", AreaKind::Local), kindArea("local2", AreaKind::Local)});
+    withSeparators(fixture, AreaSortKey::Type);
+    fixture.state.height = 7;  // five lines for the list
+
+    // Four areas and the rule between two of them, which is the fifth line: the
+    // first section's rule costs nothing, standing where the headings' own rule
+    // stands.
+    const auto top = drawn(fixture);
+    CHECK(rowText(top, 1) == "───── Netmail ──────");
+    CHECK(rowText(top, 2) == " netmail            ");
+    CHECK(rowText(top, 3) == "───── Echomail ─────");
+    CHECK(rowText(top, 4) == " echo1              ");
+    CHECK(rowText(top, 5) == " echo2              ");
+    CHECK(rowText(top, 6) == " echo3              ");
+
+    // The bottom of the list, where the rule over the last section is a line of
+    // the table like any other and the headings' rule is a plain one again.
+    REQUIRE(area_list::handleEvent(fixture.state, Event::End));
+    CHECK(fixture.state.areaCursor == 5);
+    CHECK(fixture.state.areaOffset == 2);
+    const auto bottom = drawn(fixture);
+    CHECK(rowText(bottom, 1) == "────────────────────");
+    CHECK(rowText(bottom, 2) == " echo2              ");
+    CHECK(rowText(bottom, 3) == " echo3              ");
+    CHECK(rowText(bottom, 4) == "────── Local ───────");
+    CHECK(rowText(bottom, 5) == " local1             ");
+    CHECK(rowText(bottom, 6) == " local2             ");
+}
+
+TEST_CASE("A click on a rule is a click on nothing [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    namespace term = amberedit::ui::term;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+
+    const auto clickAt = [](int y) {
+        term::MouseEvent mouse;
+        mouse.x = 2;
+        mouse.y = y;
+        mouse.button = term::MouseEvent::Button::Left;
+        mouse.motion = term::MouseEvent::Motion::Pressed;
+        return Event::Mouse(mouse);
+    };
+
+    // The rule over the echoes stands on the line between the two areas. It is
+    // not a row: nothing is opened and the cursor does not move.
+    CHECK_FALSE(area_list::handleEvent(fixture.state, clickAt(3)));
+    CHECK(fixture.state.areaCursor == 0);
+    CHECK(fixture.state.navigator.current() == amberedit::app::ScreenId::AreaList);
+
+    // The line under it is the area the rule opened.
+    REQUIRE(area_list::handleEvent(fixture.state, clickAt(4)));
+    CHECK(fixture.state.areaCursor == 1);
+}
+
+TEST_CASE("The corner and the bar stand beside the rules [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture({kindArea("netmail", AreaKind::Netmail),
+                     kindArea("echo1", AreaKind::Echo), kindArea("echo2", AreaKind::Echo),
+                     kindArea("echo3", AreaKind::Echo),
+                     kindArea("local1", AreaKind::Local)});
+    withSeparators(fixture, AreaSortKey::Type);
+    fixture.config.arealistMenu = {amberedit::config::Command::AreaListRescan};
+    fixture.config.areaListScrollbar = true;
+    fixture.state.height = 6;  // four lines for the list
+
+    const auto screen = drawn(fixture);
+
+    // The first section's rule is still the rule under the headings, and it
+    // still stops a column short of the corner button — but the name in it is
+    // centred against the rows below and not against what the button left of
+    // the line, so it stands where the names under it stand.
+    CHECK(rowText(screen, 1) == "───── Netmail  └───┘");
+    // The bar is beside the rows, and a rule between two sections is one of the
+    // lines it stands beside: it belongs to the section it opens.
+    CHECK(rowText(screen, 2) == " netmail           █");
+    CHECK(rowText(screen, 3) == "──── Echomail ─────│");
+    CHECK(rowText(screen, 4) == " echo1             │");
+    CHECK(rowText(screen, 5) == " echo2             │");
+}
+
+TEST_CASE("The first name stands where the others do [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+    fixture.config.arealistMenu = {amberedit::config::Command::AreaListRescan};
+    // One word for both sections, so that the two rules can be read against
+    // each other: the corner button shortens the top one, and a name centred in
+    // what is left of it would sit half a button to the left of the other.
+    fixture.config.areaListSeparatorNames = {{"netmail", "Mail"}, {"echomail", "Mail"}};
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "─────── Mail ─ └───┘");
+    CHECK(rowText(screen, 3) == "─────── Mail ───────");
 }
