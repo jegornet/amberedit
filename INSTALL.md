@@ -82,7 +82,7 @@ sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
 **Debian, Ubuntu** — on Ubuntu `libexpected-dev` is in universe:
 
 ```bash
-sudo apt install g++ cmake git libncurses-dev zlib1g-dev \
+sudo apt install g++ cmake git pkg-config libncurses-dev zlib1g-dev \
                  libexpected-dev doctest-dev gettext
 ```
 

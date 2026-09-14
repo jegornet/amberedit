@@ -124,6 +124,8 @@ if(WIN32)
   set(amberedit_curses_lib amberedit_curses)
 elseif(TARGET PkgConfig::NCURSESW)
   set(amberedit_curses_lib PkgConfig::NCURSESW)
+  set(amberedit_curses_probe_includes ${NCURSESW_INCLUDE_DIRS})
+  set(amberedit_curses_probe_libs ${NCURSESW_LINK_LIBRARIES})
 else()
   set(CURSES_NEED_NCURSES TRUE)
   set(CURSES_NEED_WIDE TRUE)
@@ -132,6 +134,8 @@ else()
   target_link_libraries(amberedit_curses INTERFACE ${CURSES_LIBRARIES})
   target_include_directories(amberedit_curses INTERFACE ${CURSES_INCLUDE_DIRS})
   set(amberedit_curses_lib amberedit_curses)
+  set(amberedit_curses_probe_includes ${CURSES_INCLUDE_DIRS})
+  set(amberedit_curses_probe_libs ${CURSES_LIBRARIES})
 endif()
 
 # Does the header live under ncursesw/, and does what we found do wide
@@ -155,12 +159,23 @@ cmake_push_check_state()
 # of an INTERFACE target nor the target itself — the name arrives at the linker
 # as `-lamberedit_curses` — and a library in a prefix of its own is then reported
 # as missing rather than as unlinked.
+#
+# Which is why every branch above sets `amberedit_curses_probe_libs` and
+# `_includes` beside the target it sets: the target is what amberedit_term
+# links, the paths are what the probe is given. Handing the target name here
+# instead costs a build that had everything it needed — ld answers `cannot find
+# -lamberedit_curses`, the probe fails, and the message below then says the wide
+# ncurses is not installed on a system where CMake has just printed the full
+# path to it. An imported target — PkgConfig::NCURSESW — survives try_compile
+# and hides the fault; a plain INTERFACE one does not, so the fallback branch is
+# where it shows, which is every system without pkg-config installed.
 if(WIN32)
   set(CMAKE_REQUIRED_INCLUDES ${PDCURSES_INCLUDE_DIR})
   set(CMAKE_REQUIRED_LIBRARIES ${PDCURSES_LIBRARY} winmm user32 advapi32)
   set(CMAKE_REQUIRED_DEFINITIONS -DPDC_WIDE=1 -DPDC_FORCE_UTF8=1 -DPDC_NCMOUSE=1)
 else()
-  set(CMAKE_REQUIRED_LIBRARIES ${amberedit_curses_lib})
+  set(CMAKE_REQUIRED_INCLUDES ${amberedit_curses_probe_includes})
+  set(CMAKE_REQUIRED_LIBRARIES ${amberedit_curses_probe_libs})
   set(CMAKE_REQUIRED_DEFINITIONS -DNCURSES_WIDECHAR=1)
 endif()
 

@@ -62,6 +62,19 @@ jobs:
           - name: Arch Linux (rolling)
             image: archlinux:latest
             deps: pacman -Syu --noconfirm --needed gcc cmake make pkgconf ncurses zlib tl-expected doctest gettext
+          # Oldstable, and the only job in this matrix built without pkg-config.
+          # Both halves of that are deliberate. `debian:stable` is trixie now,
+          # so nothing else here covers bookworm's GCC 12 and CMake 3.25 — the
+          # deb built for it in release.yml is built from the same two. And
+          # every other Linux job installs pkg-config, which sends the curses
+          # lookup to PkgConfig::NCURSESW and leaves the find_package(Curses)
+          # branch beside it — what a machine without pkg-config takes — with no
+          # coverage at all. macOS does not stand in for it either: CMake feeds
+          # CMAKE_PREFIX_PATH to pkg-config, so Homebrew's ncursesw.pc is found
+          # there and that job takes the same branch the Linux ones do.
+          - name: Debian 12 (oldstable, no pkg-config)
+            image: debian:12
+            deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
           # doctest-dev is one name across all four of these, and across the
           # three RHEL rebuilds above under doctest-devel.
           - name: Debian stable

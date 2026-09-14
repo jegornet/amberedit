@@ -158,6 +158,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Named rather than left to `debian:stable`, which is trixie: a deb
+          # built against trixie's glibc does not install on bookworm, and
+          # bookworm is what the machines reporting build failures still run.
+          # The two cannot collide on the release page — the suffix below is
+          # read from the image's own os-release, so these are ~debian12 and
+          # ~debian13.
+          - name: debian-12
+            image: debian:12
           - name: debian-stable
             image: debian:stable
           - name: ubuntu-22.04
