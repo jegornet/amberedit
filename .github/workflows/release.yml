@@ -76,23 +76,32 @@ jobs:
           path: amberedit-*.tar.gz
 
   rpm:
-    name: RPM (${{ matrix.name }})
+    name: RPM (${{ matrix.distro }}, ${{ matrix.arch }})
     needs: tarball
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
+        # Two axes and not one list of eight. A release has to carry every
+        # distribution on both architectures — an aarch64 machine cannot install
+        # an x86_64 rpm — and written as axes a distribution added below is built
+        # for both without being written twice. The per-distribution keys arrive
+        # through `include`, which merges an entry naming a `distro` into both
+        # combinations of that distro rather than making a job of its own.
+        arch: [x86_64, arm64]
+        distro: [el8, el9, el10, fedora]
         include:
           # One job and no more writes the source RPM — see the step below for
-          # why one is enough. This is the one, being the oldest rpm of the four.
-          - name: el8
+          # why one is enough. This is the one, being the oldest rpm of the four;
+          # the arch check on SRPM below keeps it to one of its two jobs.
+          - distro: el8
             image: rockylinux:8
             srpm: true
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext
           # EPEL 9 and later carry the 2.13 series the tests want as
           # makes the same distinction, so these two lines and the spec have to
           # agree.
-          - name: el9
+          - distro: el9
             image: rockylinux:9
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # `rockylinux/rockylinux`, not `rockylinux`: the Docker Official image
@@ -100,10 +109,10 @@ jobs:
           # zlib-ng-compat-devel is zlib on RHEL 10 — the spec asks for
           # `pkgconfig(zlib)` and gets the right one of the two either way, but
           # the container has to be told a real name.
-          - name: el10
+          - distro: el10
             image: rockylinux/rockylinux:10
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel gettext glibc-gconv-extra
-          - name: fedora
+          - distro: fedora
             image: fedora:latest
             deps: dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
     steps:
@@ -118,7 +127,7 @@ jobs:
         env:
           DEPS: ${{ matrix.deps }}
           IMAGE: ${{ matrix.image }}
-          SRPM: ${{ matrix.srpm }}
+          SRPM: ${{ matrix.srpm == true && matrix.arch == 'x86_64' }}
         run: |
           mkdir -p out
           docker run --rm -v "$PWD":/src -e DEPS -e SRPM "$IMAGE" sh -c '
@@ -147,16 +156,23 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rpm-${{ matrix.name }}
+          name: rpm-${{ matrix.distro }}-${{ matrix.arch }}
           path: out/*.rpm
 
   deb:
-    name: deb (${{ matrix.name }})
+    name: deb (${{ matrix.distro }}, ${{ matrix.arch }})
     needs: tarball
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
+        # Two axes, for the reason the rpm job above gives. Nothing has to be
+        # added to the version for the second architecture: dpkg already writes
+        # it into the file name, so amberedit_0.1.1~debian12_amd64.deb and
+        # ..._arm64.deb are two names and cannot overwrite one another the way
+        # two distributions under one name would.
+        arch: [x86_64, arm64]
+        distro: [debian-12, debian-stable, ubuntu-22.04, ubuntu-24.04, ubuntu-26.04]
         include:
           # Named rather than left to `debian:stable`, which is trixie: a deb
           # built against trixie's glibc does not install on bookworm, and
@@ -164,15 +180,15 @@ jobs:
           # The two cannot collide on the release page — the suffix below is
           # read from the image's own os-release, so these are ~debian12 and
           # ~debian13.
-          - name: debian-12
+          - distro: debian-12
             image: debian:12
-          - name: debian-stable
+          - distro: debian-stable
             image: debian:stable
-          - name: ubuntu-22.04
+          - distro: ubuntu-22.04
             image: ubuntu:22.04
-          - name: ubuntu-24.04
+          - distro: ubuntu-24.04
             image: ubuntu:24.04
-          - name: ubuntu-26.04
+          - distro: ubuntu-26.04
             image: ubuntu:26.04
     steps:
       - uses: actions/checkout@v4
@@ -222,7 +238,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: deb-${{ matrix.name }}
+          name: deb-${{ matrix.distro }}-${{ matrix.arch }}
           path: out/*.deb
 
   arch:
@@ -239,6 +255,9 @@ jobs:
 
       # Arch is rolling and has one release, so unlike the rpm and deb jobs there
       # is nothing here to matrix over and no suffix to stamp into the version.
+      # There is no arm64 counterpart either, and it is not an omission: the
+      # official `archlinux` image is published for amd64 only — Arch Linux ARM
+      # is a separate distribution — and `PKGBUILD` says arch=('x86_64').
       #
       # makepkg refuses to run as root and has no override for it, so a build
       # user is made and the tree handed to it. Every dependency is installed by
@@ -311,9 +330,50 @@ jobs:
           path: amberedit-*.tar.gz
 
   windows:
-    name: Windows x86_64
+    name: Windows ${{ matrix.arch }}
     needs: tarball
-    runs-on: windows-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two entries written out, rather than the rpm and deb jobs' pair of
+        # axes: the environments differ in more than a prefix. UCRT64 is x86_64
+        # and built with GCC; the aarch64 environment MSYS2 publishes is
+        # CLANGARM64 and built with clang, there being no GCC for aarch64 in it.
+        # Both link the Universal CRT, which is the half that matters and the
+        # reason neither of them is MINGW64.
+        #
+        # llvm-objdump is named in the second list. The import check below needs
+        # an objdump, CLANGARM64 has no binutils, and a missing one makes that
+        # step exit 2 rather than quietly pass a zip nobody can run.
+        include:
+          - arch: x86_64
+            runner: windows-latest
+            msystem: UCRT64
+            packages: >-
+              git zip
+              mingw-w64-ucrt-x86_64-gcc
+              mingw-w64-ucrt-x86_64-cmake
+              mingw-w64-ucrt-x86_64-ninja
+              mingw-w64-ucrt-x86_64-zlib
+              mingw-w64-ucrt-x86_64-libiconv
+              mingw-w64-ucrt-x86_64-gettext
+              mingw-w64-ucrt-x86_64-tl-expected
+              mingw-w64-ucrt-x86_64-pdcurses
+          - arch: arm64
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            packages: >-
+              git zip
+              mingw-w64-clang-aarch64-clang
+              mingw-w64-clang-aarch64-llvm
+              mingw-w64-clang-aarch64-cmake
+              mingw-w64-clang-aarch64-ninja
+              mingw-w64-clang-aarch64-zlib
+              mingw-w64-clang-aarch64-libiconv
+              mingw-w64-clang-aarch64-gettext
+              mingw-w64-clang-aarch64-tl-expected
+              mingw-w64-clang-aarch64-pdcurses
     defaults:
       run:
         shell: msys2 {0}
@@ -324,18 +384,9 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: ${{ matrix.msystem }}
           update: true
-          install: >-
-            git zip
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-zlib
-            mingw-w64-ucrt-x86_64-libiconv
-            mingw-w64-ucrt-x86_64-gettext
-            mingw-w64-ucrt-x86_64-tl-expected
-            mingw-w64-ucrt-x86_64-pdcurses
+          install: ${{ matrix.packages }}
 
       # Statically, so that what ships is one .exe rather than an .exe and a
       # handful of DLLs out of the build host's MSYS2. Nothing is passed for it
@@ -363,11 +414,11 @@ jobs:
         run: |
           v='${{ needs.tarball.outputs.version }}'
           cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
-          (cd stage && zip -qr "../amberedit-$v-windows-x86_64.zip" .)
+          (cd stage && zip -qr "../amberedit-$v-windows-${{ matrix.arch }}.zip" .)
 
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-x86_64
+          name: windows-${{ matrix.arch }}
           path: amberedit-*.zip
 
   publish:

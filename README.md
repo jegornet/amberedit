@@ -51,8 +51,8 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for moder
 
 Every tagged release carries built packages —
 [Releases](https://github.com/jegornet/amberedit/releases) has prebuilt packages for RHEL 8, 9,
-10, Fedora, Arch Linux, Debian stable, Ubuntu 22.04, 24.04 and 26.04, tarballs for macOS
-on both arm64 and x86_64, and a zip for Windows on x86_64.
+10, Fedora, Debian 12 and 13, Ubuntu 22.04, 24.04 and 26.04, tarballs for macOS and a zip for
+Windows — each of those for x86_64 and arm64 both — and a package for Arch Linux, x86_64 only.
 
 Building it yourself needs CMake ≥ 3.16, a C++17 compiler, git, iconv, zlib,
 tl::expected and the wide-character ncurses — [INSTALL.md](INSTALL.md) has the commands,

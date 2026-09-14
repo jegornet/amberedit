@@ -101,11 +101,12 @@ a container, `-Werror=c++20-extensions` on a Clang build catches the language
 half of the same thing.
 
 **CI runs that same command, on every push.** `.github/workflows/ci.yml` walks
-Rocky 8, 9 and 10, Fedora, Arch, Debian stable and Ubuntu 22.04, 24.04 and 26.04
-this way, plus macOS on both architectures. Arch is the far end of the span
+Rocky 8, 9 and 10, Fedora, Arch, Debian 12 and stable, and Ubuntu 22.04, 24.04
+and 26.04 this way, **each of them on x86_64 and arm64 both** except Arch, plus
+macOS and Windows on both architectures. Arch is the far end of the span
 whose near end is the floor: rolling, so normally ahead of even Fedora on GCC,
-and the one job where the wide ncurses is the only ncurses there is. Two things about the file
-are decisions rather than detail:
+and the one job where the wide ncurses is the only ncurses there is. Three things
+about the file are decisions rather than detail:
 
 - The Linux jobs run their distribution under `docker run` from an ordinary
   `ubuntu-latest`, **not** through Actions' `container:` key. `container:` makes
@@ -115,6 +116,19 @@ are decisions rather than detail:
 - The macOS jobs are the only coverage two branches of `CMakeLists.txt` get at
   all: `find_library(ICONV_LIBRARY ...)`, because glibc has iconv in libc, and
   the `<ncursesw/curses.h>` spelling. Do not drop them for being slow.
+- The Linux matrix is two axes, `arch` and `distro`, and not a list of jobs:
+  every distribution is walked on both architectures, and each one's packages
+  are written once. Two things it says that one architecture cannot. Plain
+  `char` is signed on x86_64 and **unsigned on aarch64**, and the byte-at-a-time
+  work in the charset tables is where that lands; and the images are each
+  distribution's own aarch64 build, so the second half of the matrix is also
+  what says its repositories carry the same packages there. **Arch is the one
+  exclusion**, and it is not a gap that can be closed: the official `archlinux`
+  image is published for amd64 only — Arch Linux ARM is a separate distribution,
+  not a second architecture of this one — and `PKGBUILD` says `arch=('x86_64')`.
+  The Windows arm64 job is **CLANGARM64** rather than UCRT64, MSYS2 publishing
+  no GCC for aarch64 — it links the same Universal CRT, which is what UCRT64 was
+  chosen for.
 
 ## Packaging
 
@@ -160,7 +174,14 @@ tree is added to all four of those, `release.yml` included, or it ships nowhere.
   which is why that job builds as a user it makes on the spot.
 - `.github/workflows/release.yml` — everything a `v*` tag produces. It checks the
   tag against `project(AmberEdit VERSION ...)` before building anything: a tag
-  disagreeing with the source is a release nobody can rebuild.
+  disagreeing with the source is a release nobody can rebuild. Unlike CI, every
+  rpm, deb, macOS tarball and Windows zip is built for **both architectures** —
+  a release is what users install, and an aarch64 machine cannot install an
+  x86_64 package. The rpm and deb jobs are two axes, `arch` and `distro`, so
+  that a distribution added to the list is built for both without being written
+  twice, and the artifact names carry the architecture or two jobs would upload
+  under one name. The source RPM stays at one copy for the whole matrix, which
+  is why the SRPM check names an architecture as well as a distribution.
 
 So C++20 does not go back in. The three corners that keep wanting to:
 `std::ranges::` algorithms (use the iterator-pair `std::` ones), `starts_with` /

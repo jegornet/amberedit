@@ -2,9 +2,12 @@
 
 Every tagged release carries built packages —
 [Releases](https://github.com/jegornet/amberedit/releases) has RPMs for RHEL 8,
-9, 10 and Fedora, debs for Debian stable and Ubuntu 22.04, 24.04 and 26.04, a
-package for Arch, and tarballs for macOS on both architectures. Building it
-yourself is the rest of this file.
+9, 10 and Fedora, debs for Debian 12 and stable and Ubuntu 22.04, 24.04 and 26.04, and
+tarballs for macOS, each of those for **x86_64 and arm64 both**; a package for
+Arch and a zip for Windows on each of the two. Take the file whose name carries
+your architecture — `uname -m` says which, `x86_64` or `aarch64`. The Arch
+package is x86_64 only, Arch Linux ARM being a distribution of its own.
+Building it yourself is the rest of this file.
 
 ## What it needs
 
@@ -155,7 +158,7 @@ a build-time tool.
 
 ## Windows
 
-**Windows 10 or later**, on x86_64. The release zip needs nothing installed:
+**Windows 10 or later**, on x86_64 or arm64. The release zip needs nothing installed:
 unpack it and run `bin\amberedit.exe`. **Keep `share\` beside `bin\`** — the
 message template, the themes and the message catalogs are looked for relative to
 the executable, so moving the .exe out on its own leaves it without them.
@@ -176,6 +179,13 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
+
+On an arm64 machine the environment is **CLANGARM64**, and every package above
+is spelled `mingw-w64-clang-aarch64-` instead of `mingw-w64-ucrt-x86_64-` — the
+same list, except that the compiler is `clang`, MSYS2 publishing no GCC for
+aarch64. The cmake lines are unchanged. Both environments link the Universal
+CRT, which is the half of the choice AmberEdit cares about and the reason
+neither of them is MINGW64.
 
 The curses is PDCursesMod rather than ncurses, and MSYS2's package of it is what
 the build uses. It carries all three of its ports, so CMake asks for the

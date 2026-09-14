@@ -1,10 +1,10 @@
 # Build and test on every system AmberEdit is meant to build on.
 #
 # The Linux jobs run their distribution in `docker run` from an ordinary
-# ubuntu-latest runner rather than through the `container:` key. That is
-# deliberate: `container:` makes every action run its own Node inside the image,
-# and RHEL 8's glibc sits exactly on the boundary of what current Node builds
-# accept. Checking out on the host and mounting the tree in sidesteps the
+# ubuntu-latest or ubuntu-24.04-arm runner rather than through the `container:`
+# key. That is deliberate: `container:` makes every action run its own Node
+# inside the image, and RHEL 8's glibc sits exactly on the boundary of what
+# current Node builds accept. Checking out on the host and mounting the tree in sidesteps the
 # question entirely, and it is the same command AGENTS.md gives for checking the
 # compiler floor by hand.
 
@@ -25,20 +25,42 @@ concurrency:
 
 jobs:
   linux:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
+        # Two axes, so that every distribution is walked on both architectures
+        # and each one's packages are written once. The per-distribution keys
+        # arrive through `include`: an entry naming a `distro` merges into both
+        # combinations of that distro rather than becoming a job of its own, so
+        # adding a distribution below adds it to both architectures.
+        #
+        # aarch64 is not a rerun of the same question. Plain `char` is signed on
+        # x86_64 and unsigned there, and the byte-at-a-time work in the charset
+        # tables is where that lands; the images are the distributions' own
+        # aarch64 builds, so what the second half of this matrix also says is
+        # that every one of these repositories carries the same packages for it.
+        arch: [x86_64, arm64]
+        distro: [rocky8, rocky9, rocky10, fedora, arch, debian12, debian-stable, ubuntu2204, ubuntu2404, ubuntu2604]
+        # Arch is the one distribution with no aarch64 job to run: the official
+        # `archlinux` image is published for amd64 only — Arch Linux ARM is a
+        # separate distribution, not a second architecture of this one — and
+        # `PKGBUILD` says arch=('x86_64').
+        exclude:
+          - arch: arm64
+            distro: arch
         include:
           # The floor, and the whole reason the project is C++17: stock GCC 8.5
           # and the CMake the release ships, no gcc-toolset. It is also the
           # reason the tests are on doctest: EPEL 8 has no Catch2 v3 at all.
           # EPEL supplies expected-devel here too, and Fedora carries its own.
-          - name: Rocky Linux 8 (GCC 8, the floor)
+          - distro: rocky8
+            name: Rocky Linux 8 (GCC 8, the floor)
             image: rockylinux:8
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext
-          - name: Rocky Linux 9
+          - distro: rocky9
+            name: Rocky Linux 9
             image: rockylinux:9
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # Two things are not typos. The image is `rockylinux/rockylinux`, not
@@ -46,12 +68,14 @@ jobs:
           # at 9 and Rocky publishes 10 itself. And zlib on RHEL 10 is zlib-ng
           # wearing the old name — `zlib-devel` does not exist there, and
           # `zlib-ng-compat-devel` is what carries zlib.h and zlib.pc.
-          - name: Rocky Linux 10
+          - distro: rocky10
+            name: Rocky Linux 10
             image: rockylinux/rockylinux:10
             deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-ng-compat-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # The newest GCC any point release carries, which is where a warning or
           # a tightened header shows up years before it reaches an LTS.
-          - name: Fedora latest (newest GCC)
+          - distro: fedora
+            name: Fedora latest (newest GCC)
             image: fedora:latest
             deps: dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # Rolling, so normally ahead of even Fedora: the ceiling of this matrix
@@ -59,7 +83,8 @@ jobs:
           # upgrades are unsupported on Arch and the base image lags the mirrors.
           # base-devel is not asked for — it drags in fakeroot, sudo and patch,
           # which this job has no use for — so the four tools are named instead.
-          - name: Arch Linux (rolling)
+          - distro: arch
+            name: Arch Linux (rolling)
             image: archlinux:latest
             deps: pacman -Syu --noconfirm --needed gcc cmake make pkgconf ncurses zlib tl-expected doctest gettext
           # Oldstable, and the only job in this matrix built without pkg-config.
@@ -72,24 +97,29 @@ jobs:
           # coverage at all. macOS does not stand in for it either: CMake feeds
           # CMAKE_PREFIX_PATH to pkg-config, so Homebrew's ncursesw.pc is found
           # there and that job takes the same branch the Linux ones do.
-          - name: Debian 12 (oldstable, no pkg-config)
+          - distro: debian12
+            name: Debian 12 (oldstable, no pkg-config)
             image: debian:12
             deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
-          # doctest-dev is one name across all four of these, and across the
+          # doctest-dev is one name across all five of these, and across the
           # three RHEL rebuilds above under doctest-devel.
-          - name: Debian stable
+          - distro: debian-stable
+            name: Debian stable
             image: debian:stable
             deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
-          - name: Ubuntu 22.04
+          - distro: ubuntu2204
+            name: Ubuntu 22.04
             image: ubuntu:22.04
             deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
-          - name: Ubuntu 24.04
+          - distro: ubuntu2404
+            name: Ubuntu 24.04
             image: ubuntu:24.04
             deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
           # The first target carrying CMake 4, which refuses the compatibility of
           # anything older than 3.5. The floor is 3.16 and so is accepted, but
           # this is the job that says so.
-          - name: Ubuntu 26.04
+          - distro: ubuntu2604
+            name: Ubuntu 26.04
             image: ubuntu:26.04
             deps: apt-get update && apt-get -y install --no-install-recommends g++ cmake make pkg-config libncurses-dev zlib1g-dev libexpected-dev doctest-dev gettext
     steps:
@@ -144,8 +174,57 @@ jobs:
         run: ctest --test-dir build --output-on-failure
 
   windows:
-    name: Windows x86_64 (MSYS2/MinGW)
-    runs-on: windows-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two entries written out, rather than the pair of axes the Linux job
+        # has: these environments differ in more than a prefix. UCRT64 is x86_64
+        # and built with GCC; the aarch64 environment MSYS2 publishes is
+        # CLANGARM64 and built with clang, there being no GCC for aarch64 in it.
+        #
+        # What both of them are, and MINGW64 is not, is UCRT. The two differ in
+        # which C runtime they link, and that is not a detail: MINGW64 builds
+        # against the msvcrt.dll that has been in Windows since the nineties,
+        # whose strftime has no `%n` and answers a format holding one with
+        # nothing at all. UCRT is what Windows 10 and later ship and what a
+        # cross-build from Linux or macOS links, so this is the runtime the
+        # binary users get is tested against — on both architectures.
+        #
+        # llvm-objdump is named in the second list. The import check below needs
+        # an objdump, CLANGARM64 has no binutils, and a missing one makes that
+        # step exit 2 rather than quietly pass.
+        include:
+          - name: Windows x86_64 (MSYS2/UCRT64)
+            runner: windows-latest
+            msystem: UCRT64
+            packages: >-
+              git
+              mingw-w64-ucrt-x86_64-gcc
+              mingw-w64-ucrt-x86_64-cmake
+              mingw-w64-ucrt-x86_64-ninja
+              mingw-w64-ucrt-x86_64-zlib
+              mingw-w64-ucrt-x86_64-libiconv
+              mingw-w64-ucrt-x86_64-gettext
+              mingw-w64-ucrt-x86_64-tl-expected
+              mingw-w64-ucrt-x86_64-doctest
+              mingw-w64-ucrt-x86_64-pdcurses
+          - name: Windows arm64 (MSYS2/CLANGARM64)
+            runner: windows-11-arm
+            msystem: CLANGARM64
+            packages: >-
+              git
+              mingw-w64-clang-aarch64-clang
+              mingw-w64-clang-aarch64-llvm
+              mingw-w64-clang-aarch64-cmake
+              mingw-w64-clang-aarch64-ninja
+              mingw-w64-clang-aarch64-zlib
+              mingw-w64-clang-aarch64-libiconv
+              mingw-w64-clang-aarch64-gettext
+              mingw-w64-clang-aarch64-tl-expected
+              mingw-w64-clang-aarch64-doctest
+              mingw-w64-clang-aarch64-pdcurses
     # MSYS2's shell for every step, so that the paths CMake is handed and the
     # paths the compiler resolves are the same paths.
     defaults:
@@ -156,28 +235,11 @@ jobs:
 
       # pacman, the same way the Linux jobs use dnf and apt: every dependency is
       # a package, and none of them is fetched by the build.
-      #
-      # UCRT64 and not MINGW64: the two differ in which C runtime they link, and
-      # that is not a detail. MINGW64 builds against the msvcrt.dll that has been
-      # in Windows since the nineties, whose strftime has no `%n` and answers a
-      # format holding one with nothing at all. UCRT is what Windows 10 and later
-      # ship and what a cross-build from Linux or macOS links, so this is the
-      # runtime the binary users get is tested against.
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: UCRT64
+          msystem: ${{ matrix.msystem }}
           update: true
-          install: >-
-            git
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-zlib
-            mingw-w64-ucrt-x86_64-libiconv
-            mingw-w64-ucrt-x86_64-gettext
-            mingw-w64-ucrt-x86_64-tl-expected
-            mingw-w64-ucrt-x86_64-doctest
-            mingw-w64-ucrt-x86_64-pdcurses
+          install: ${{ matrix.packages }}
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -187,14 +249,15 @@ jobs:
 
       # The same check the release job runs, here as well as there so that a
       # dependency that stops being linked statically is a failed push rather
-      # than a broken zip. This job builds the way the release does — the link is
-      # static because AMBEREDIT_STATIC defaults on for Windows — so the two are
-      # asking the same question of the same binary.
+      # than a broken zip. These jobs build the way the release does — the link
+      # is static because AMBEREDIT_STATIC defaults on for Windows, and it covers
+      # clang as well as GCC — so the two are asking the same question of the
+      # same binary.
       - name: Check what the .exe needs
         run: tools/check-w64-imports.sh build/bin/amberedit.exe
 
-      # The whole suite runs here, which is the reason this job builds on Windows
-      # rather than cross-building for it: a binary cross-built on Linux is a
-      # binary nothing on the build host can run.
+      # The whole suite runs here, which is the reason these jobs build on
+      # Windows rather than cross-building for it: a binary cross-built on Linux
+      # is a binary nothing on the build host can run.
       - name: Test
         run: ctest --test-dir build --output-on-failure
