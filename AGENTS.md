@@ -915,7 +915,10 @@ Rules that hold the design together:
   screen draws a rule there either way. Hence `linesOf()` — the first row's rule
   costs no line and every other one costs one, so how many areas a screen holds
   depends on which area it starts at, and `itemsFrom()`/`lastOffset()` are what
-  `AppState::areaListItems()` answers for a list with no rules in it. **A rule is
+  `AppState::areaListItems()` answers for a list with no rules in it. A rule the
+  screen has the line for but not the row under it is drawn anyway, on the
+  bottom line: a section opens there either way, and a blank line where the next
+  rule plainly belongs reads as a glitch. **A rule is
   not a row**: it is not in `shown`, so no cursor can reach it, and `clickedRow()`
   walks the lines the way `render()` drew them so that a click on one is a click
   on nothing.

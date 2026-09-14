@@ -955,6 +955,19 @@ Element render(AppState& state) {
             put(lineOf(areas[static_cast<size_t>(index)], index, row, layout[line]), i);
         }
     }
+    // A rule the screen has the line for but not the row under it is drawn all
+    // the same: a section opens there whether or not there is room to show what
+    // is in it, and a line left blank where the next rule plainly belongs reads
+    // as something gone wrong rather than as a list that stopped.
+    const int next = state.areaOffset + visibleAreas;
+    if (next < total && opensSection(sections, next) &&
+        static_cast<int>(lines.size()) < visibleLines) {
+        put(sectionRule(state, layout,
+                        headingOf(state, sections[static_cast<size_t>(next)]), listWidth,
+                        listWidth),
+            visibleAreas);
+    }
+
     // The lines at the bottom that no whole row fitted in. A row is drawn whole
     // or not at all: half of one would read as an area shown, and the fields cut
     // off it are the ones the format put lowest because they matter least.

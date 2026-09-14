@@ -2150,3 +2150,24 @@ TEST_CASE("The default puts the name over the description [arealist][separators]
     const auto narrow = drawn(fixture);
     CHECK(rowText(narrow, 1) == "─ Netmail ──────────────────────────────");
 }
+
+TEST_CASE("A rule with no room for its rows is still drawn [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture({kindArea("netmail", AreaKind::Netmail),
+                     kindArea("echo1", AreaKind::Echo), kindArea("echo2", AreaKind::Echo),
+                     kindArea("local1", AreaKind::Local),
+                     kindArea("local2", AreaKind::Local)});
+    withSeparators(fixture, AreaSortKey::Type);
+    fixture.state.height = 7;  // five lines: four of them spent on three areas
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "───── Netmail ──────");
+    CHECK(rowText(screen, 2) == " netmail            ");
+    CHECK(rowText(screen, 3) == "───── Echomail ─────");
+    CHECK(rowText(screen, 4) == " echo1              ");
+    CHECK(rowText(screen, 5) == " echo2              ");
+    // The line left over is the next section's rule and not a blank: the
+    // section opens there whether or not there is room to show what is in it.
+    CHECK(rowText(screen, 6) == "────── Local ───────");
+}
