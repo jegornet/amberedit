@@ -45,7 +45,7 @@ it writes goes out only when a tosser carries it.
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j
+cmake --build build -j2              # raise -j[number] on a bigger/newer machine
 ./build/bin/amberedit_tests          # or: ctest --test-dir build
 ```
 

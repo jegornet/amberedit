@@ -99,7 +99,7 @@ Then, on any of them:
 git clone https://github.com/jegornet/amberedit && cd amberedit
 
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake --build build -j2         # raise -j[number] on a bigger/newer machine
 ctest --test-dir build          # optional
 sudo cmake --install build      # /usr/local/bin/amberedit
 ```
