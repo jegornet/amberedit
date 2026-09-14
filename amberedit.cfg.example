@@ -463,6 +463,14 @@ arealist_description_priority area
 # the cursor steps over it, and a click on it does nothing.
 arealist_separators off
 
+# Where the name stands inside one of those rules. Optional; "d" by default —
+# over the description column.
+#
+# "left" and "right" stand it flush against that end of the rule, "center" in
+# the middle. A letter of arealist_format (e.g. "e" for echoid) puts its first
+# character in that column's first one.
+#arealist_separators_align e
+
 # What to call one of those sections. Optional; written once per section, and
 # every section not named here is drawn under its own word — which is said in
 # whatever language the interface is in, where a line written here is that line

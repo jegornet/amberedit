@@ -268,6 +268,10 @@ void withSeparators(Fixture& fixture, amberedit::config::AreaSortKey by) {
     using amberedit::config::AreaFieldKind;
     fixture.config.areaListSort = {{by, false}};
     fixture.config.areaListSeparators = true;
+    // Centred, which is what every test below but the alignment's own reads.
+    // The default puts the name over the description column, and these formats
+    // have no description in them.
+    fixture.config.areaSeparatorAlign = {amberedit::config::AreaSeparatorAlign::Center};
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.config.arealistMenu.clear();
@@ -2051,4 +2055,98 @@ TEST_CASE("The first name stands where the others do [arealist][separators]") {
     const auto screen = drawn(fixture);
     CHECK(rowText(screen, 1) == "─────── Mail ─ └───┘");
     CHECK(rowText(screen, 3) == "─────── Mail ───────");
+}
+
+TEST_CASE("arealist_separators_align places the name [arealist][separators]") {
+    using amberedit::config::AreaFieldKind;
+    using amberedit::config::AreaSeparatorAlign;
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+    // A numbered column, a gap and the name: the third field starts in the
+    // fifth column of the screen, which is where the letter `e` puts the name.
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
+                                            {AreaFieldKind::Space, 1},
+                                            {AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+
+    const auto ruleWith = [&fixture](amberedit::config::AreaSeparatorAlignment align) {
+        fixture.config.areaSeparatorAlign = align;
+        return rowText(drawn(fixture), 1);
+    };
+
+    // Flush against the edge, with nothing between the name and it: the space
+    // the name carries is only on the side the line runs away from it.
+    CHECK(ruleWith({AreaSeparatorAlign::Left}) == "Netmail ────────────");
+    CHECK(ruleWith({AreaSeparatorAlign::Center}) == "───── Netmail ──────");
+    CHECK(ruleWith({AreaSeparatorAlign::Right}) == "──────────── Netmail");
+    // The name stands where the column does, its first letter in the column's
+    // first one.
+    CHECK(ruleWith({AreaSeparatorAlign::Field, AreaFieldKind::Echoid}) ==
+          "──── Netmail ───────");
+    // The leftmost column starts a column in, which is the row's own margin, so
+    // the name standing over it keeps the space and loses the line.
+    CHECK(ruleWith({AreaSeparatorAlign::Field, AreaFieldKind::Number}) ==
+          " Netmail ───────────");
+    // A column this format never names: the name goes left rather than nowhere.
+    CHECK(ruleWith({AreaSeparatorAlign::Field, AreaFieldKind::Description}) ==
+          "Netmail ────────────");
+}
+
+TEST_CASE("A column on the row's second line is still a column [arealist][separators]") {
+    using amberedit::config::AreaFieldKind;
+    using amberedit::config::AreaSeparatorAlign;
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    withSeparators(fixture, AreaSortKey::Type);
+    // The name on one line and the description under it, indented past a mark
+    // column and a gap: where in the row the format put it makes no difference,
+    // the column being a column of the table either way.
+    fixture.config.areaListFormatNarrow = {
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}},
+        {{AreaFieldKind::Space, 3}, {AreaFieldKind::Description, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.config.areaSeparatorAlign = {AreaSeparatorAlign::Field,
+                                         AreaFieldKind::Description};
+
+    const auto screen = drawn(fixture);
+    CHECK(rowText(screen, 1) == "─── Netmail ────────");
+}
+
+TEST_CASE("The default puts the name over the description [arealist][separators]") {
+    using amberedit::config::AreaSortKey;
+    using amberedit::domain::AreaKind;
+    Fixture fixture(
+        {kindArea("netmail", AreaKind::Netmail), kindArea("ru.linux", AreaKind::Echo)});
+    // The shipped format and the shipped alignment, which is the list a user
+    // who turns the rules on and says nothing else gets.
+    fixture.config.areaListSort = {{AreaSortKey::Type, false}};
+    fixture.config.areaListSeparators = true;
+    fixture.config.arealistMenu.clear();
+    fixture.state.height = 10;
+
+    // A wide window draws "me d c un" on one line, and the name stands where
+    // the Description heading does.
+    fixture.state.width = 80;
+    const auto wide = drawn(fixture);
+    // The heading begins in the thirty-seventh column of the screen, and the
+    // rule below is thirty-five columns of line and a space before the name —
+    // so the two words begin in the same column, which is the whole of what
+    // aligning to one means. (The rule cannot be searched for the name the way
+    // the heading is: a line is three bytes a column.)
+    CHECK(rowText(wide, 0).find("Description") == 36);
+    CHECK(rowText(wide, 1) ==
+          "─────────────────────────────────── Netmail "
+          "────────────────────────────────────");
+
+    // A narrow one puts the description on a line of its own, a column in from
+    // the edge, and the name follows it there: where in the row the format put
+    // the column makes no difference to which column it is.
+    fixture.state.width = 40;
+    const auto narrow = drawn(fixture);
+    CHECK(rowText(narrow, 1) == "─ Netmail ──────────────────────────────");
 }

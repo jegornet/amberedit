@@ -230,6 +230,40 @@ AreaListField areaFieldFrom(const ListFormatField& field) {
     return AreaListField{areaFieldOf(field.letter), field.width};
 }
 
+/// `arealist_separators_align`: the three words, or a letter of
+/// `arealist_format` naming the column the name is to stand over.
+///
+/// The space is not one of the letters here, though a format is written with it:
+/// it is the gap between two columns, and nothing to line a name up with. A
+/// letter the format itself never names is not refused — it is a letter this
+/// setting may be written with, and whether the window has that column is the
+/// screen's to answer, a narrow format and a wide one being free to differ.
+tl::expected<AreaSeparatorAlignment, ErrorPtr> parseSeparatorAlign(
+    const CfgEntry& entry) {
+    auto read = entry.one();
+    if (!read) return tl::make_unexpected(std::move(read).error());
+
+    const std::string value = text::toLower(*read);
+    // The column is left at its default where a word answers: it says nothing
+    // then, and a value nobody reads is still a value two of these compare by.
+    if (value == "left") return AreaSeparatorAlignment{AreaSeparatorAlign::Left};
+    if (value == "center") return AreaSeparatorAlignment{AreaSeparatorAlign::Center};
+    if (value == "right") return AreaSeparatorAlignment{AreaSeparatorAlign::Right};
+
+    const auto& letters = areaFormatSpec().letters;
+    const auto known =
+        std::find_if(letters.begin(), letters.end(), [&value](const ListFormatLetter& l) {
+            return value.size() == 1 && l.letter == value.front() && l.letter != ' ';
+        });
+    if (known != letters.end()) {
+        return AreaSeparatorAlignment{AreaSeparatorAlign::Field,
+                                      areaFieldOf(known->letter)};
+    }
+    return entry.fail("arealist_separators_align: '" + *read +
+                      "' is not left, center, right or a column of arealist_format (" +
+                      std::string(areaFormatSpec().fields) + ")");
+}
+
 MsgListField msgFieldFrom(const ListFormatField& field) {
     return MsgListField{msgFieldOf(field.letter), field.width, field.format};
 }
@@ -1142,6 +1176,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.areaListSeparators = *read;
+    } else if (key == "arealist_separators_align") {
+        auto read = parseSeparatorAlign(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.areaSeparatorAlign = *read;
     } else if (key == "arealist_separator_name") {
         // Two values and no default for either: the line exists to say that a
         // section of the list is called something, and half of that is not a

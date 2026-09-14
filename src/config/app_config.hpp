@@ -209,6 +209,32 @@ struct AreaListField {
     }
 };
 
+/// Where the name in a rule between two sections of the area list stands —
+/// `arealist_separators_align`.
+enum class AreaSeparatorAlign {
+    Left,    ///< `left`, against the left-hand end of the rule
+    Center,  ///< `center`, in the middle of it
+    Right,   ///< `right`, against the other end
+    Field,   ///< a letter of `arealist_format`: where that column of the row stands
+};
+
+/// What `arealist_separators_align` came to: where the name stands, and under
+/// `Field` which column of the row it stands over.
+///
+/// The column is read wherever `arealist_format` put it, on the row's first line
+/// or on any line under it, and a format that never names it leaves the name at
+/// `Left` — the fallback is the screen's, not this file's: which columns there
+/// are depends on the width of the window, which only the screen knows.
+struct AreaSeparatorAlignment {
+    AreaSeparatorAlign where{AreaSeparatorAlign::Field};
+    AreaFieldKind field{AreaFieldKind::Description};
+
+    friend bool operator==(const AreaSeparatorAlignment& a,
+                           const AreaSeparatorAlignment& b) {
+        return a.where == b.where && a.field == b.field;
+    }
+};
+
 /// One line of a row of the area list: the fields on it, in the order written.
 ///
 /// A line is what a width of `0` is measured against — the fields under it are
@@ -733,6 +759,12 @@ struct AppConfig {
     /// the order the lines were written. Empty is every section drawn under its
     /// own word.
     std::vector<AreaSeparatorName> areaListSeparatorNames;
+
+    /// Where the name in one of those rules stands, from
+    /// `arealist_separators_align`. `d` by default — over the description
+    /// column, which is the widest thing on a row and the one a name beside it
+    /// has room to be read in.
+    AreaSeparatorAlignment areaSeparatorAlign;
 
     /// What each row of the area list holds in a window narrower than
     /// `adaptive_ui_threshold`, from `arealist_format`'s first value: the lines

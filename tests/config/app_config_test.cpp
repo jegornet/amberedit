@@ -1728,6 +1728,47 @@ TEST_CASE("AppConfig reads the area list's section rules [app_config]") {
     CHECK_MESSAGE(contains(error5, "twice"), error5);
 }
 
+TEST_CASE("AppConfig reads where a section rule's name stands [app_config]") {
+    using amberedit::config::AreaFieldKind;
+    using amberedit::config::AreaSeparatorAlign;
+    using amberedit::config::AreaSeparatorAlignment;
+
+    const auto alignOf = [](const std::string& value) {
+        return with("arealist_separators_align " + value + "\n").areaSeparatorAlign;
+    };
+
+    // The description column by default: it is the widest thing on a row, so a
+    // name standing over it has room to be read.
+    CHECK(with("").areaSeparatorAlign ==
+          AreaSeparatorAlignment{AreaSeparatorAlign::Field, AreaFieldKind::Description});
+
+    CHECK(alignOf("left") ==
+          AreaSeparatorAlignment{AreaSeparatorAlign::Left, AreaFieldKind::Description});
+    CHECK(alignOf("CENTER").where == AreaSeparatorAlign::Center);
+    CHECK(alignOf("right").where == AreaSeparatorAlign::Right);
+
+    // A letter of arealist_format names the column the name stands over, read
+    // without regard to case as the format's own letters are.
+    CHECK(alignOf("e") ==
+          AreaSeparatorAlignment{AreaSeparatorAlign::Field, AreaFieldKind::Echoid});
+    CHECK(alignOf("U") ==
+          AreaSeparatorAlignment{AreaSeparatorAlign::Field, AreaFieldKind::Unread});
+    // A letter the format is free to name but this config's format does not is
+    // read here all the same: whether the window has that column is the
+    // screen's to answer, and the two formats may differ.
+    CHECK(alignOf("g").field == AreaFieldKind::Group);
+
+    // The gap between two columns is not a column to line anything up with.
+    const std::string error = errorWith("arealist_separators_align \" \"\n");
+    CHECK_MESSAGE(contains(error, "not left, center, right"), error);
+    const std::string error2 = errorWith("arealist_separators_align middle\n");
+    CHECK_MESSAGE(contains(error2, "not left, center, right"), error2);
+    const std::string error3 = errorWith("arealist_separators_align z\n");
+    CHECK_MESSAGE(contains(error3, "d description"), error3);
+    CHECK_FALSE(errorWith("arealist_separators_align\n").empty());
+    CHECK_FALSE(errorWith("arealist_separators_align left right\n").empty());
+}
+
 TEST_CASE("AppConfig reads the message template [app_config]") {
     CHECK(with("").templatePath.empty());  // nothing to compose with
     CHECK(with("template /etc/amberedit/msg.tpl\n").templatePath ==

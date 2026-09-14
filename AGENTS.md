@@ -901,8 +901,14 @@ Rules that hold the design together:
   `AppConfig::areaSeparatorNameOf()` folds to one, so naming the same section
   both ways round is the contradiction it looks like. A section the config names
   `""` is the rule alone, and one it names nothing is drawn under its own word,
-  which is the screen's and translated. **The line is `separator` and the name in
-  it `arealist_separator`**, a role of its own: every shipped theme draws it a
+  which is the screen's and translated. **Where the name stands in the rule is
+  `arealist_separators_align`**: `left`, `center`, `right`, or a letter of
+  `arealist_format`, which puts the name's first character in that column's
+  first one — `fieldColumn()` walks the laid-out row line by line, so a
+  description written under the name is found there, and a letter this window's
+  format does not name falls back to the left rather than nowhere. `d` by
+  default, the description being the widest thing on a row. **The line is
+  `separator` and the name in it `arealist_separator`**, a role of its own: every shipped theme draws it a
   step quieter than its `table_header`, the rule naming what is under it the way
   a column heading does but being read once on the way past. **The first rule stands in place of the
   rule under the column headings** where the list is scrolled to the top: the

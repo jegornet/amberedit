@@ -218,35 +218,100 @@ std::string headingOf(const AppState& state, const Section& section) {
     return section.title;
 }
 
-/// The rule over a section: a line in `separator` from one edge to the other
-/// with the section's name in the middle of it, drawn in `arealist_separator`.
+/// Where that column of a row stands, counted from the left edge of the screen,
+/// or nothing where `arealist_format` never names it.
 ///
-/// `width` is the room the rule fills and `across` the width it is centred
+/// Line by line, because a format is free to put the description under the name
+/// rather than beside it: the column is at the column it is drawn in, whichever
+/// line of the row the format put it on. The first of two fields written with
+/// the same letter answers, a format being free to name one twice.
+std::optional<int> fieldColumn(const area_format::Layout& layout,
+                               config::AreaFieldKind kind) {
+    for (const area_format::Line& line : layout) {
+        int at = kIndent;
+        for (const area_format::Column& column : line) {
+            if (column.kind == kind) return at;
+            at += column.width;
+        }
+    }
+    return std::nullopt;
+}
+
+/// `arealist_separators_align` as this window answers it, and under `Field` the
+/// column the name is to stand over.
+///
+/// A letter this window's format does not name comes back as `Left`: whether the
+/// column is there depends on the width — the narrow format and the wide one are
+/// free to differ — and a name that cannot be placed still has to be somewhere.
+struct Placement {
+    config::AreaSeparatorAlign where{config::AreaSeparatorAlign::Left};
+    int column{0};
+};
+
+Placement placementOf(const AppState& state, const area_format::Layout& layout) {
+    const config::AreaSeparatorAlignment& align = state.config.areaSeparatorAlign;
+    if (align.where != config::AreaSeparatorAlign::Field) return {align.where, 0};
+    if (const auto at = fieldColumn(layout, align.field))
+        return {config::AreaSeparatorAlign::Field, *at};
+    return {config::AreaSeparatorAlign::Left, 0};
+}
+
+/// Which column the name would start at, before the rule it stands in has its
+/// say. `taken` is what the name and the space beside it come to, and `across`
+/// the width it is placed against.
+int nameStart(const Placement& placement, int taken, int across) {
+    switch (placement.where) {
+        case config::AreaSeparatorAlign::Center: return (across - taken) / 2;
+        case config::AreaSeparatorAlign::Right: return across - taken;
+        // The column's own place, less the space the name carries in front of
+        // it, so that the name's first character is the column's first one.
+        case config::AreaSeparatorAlign::Field: return placement.column - 1;
+        case config::AreaSeparatorAlign::Left: break;
+    }
+    return 0;
+}
+
+/// The rule over a section: a line in `separator` from one edge to the other
+/// with the section's name in it, drawn in `arealist_separator` and placed by
+/// `arealist_separators_align`.
+///
+/// The name carries a space on each side it has a line beside, and none on a
+/// side it is against the edge of: `left` and `right` stand the name flush
+/// against that end, where everything else keeps the line running past it both
+/// ways.
+///
+/// `width` is the room the rule fills and `across` the width the name is placed
 /// against, and the two are the same for every rule but one: the first section's
 /// rule doubles as the rule under the column headings, which stops short of the
-/// corner button. Centred in what is left of that line the name would sit half a
-/// button to the left of every name under it, so it is centred against the rows
-/// instead and only its rule is cut short — with a column of rule kept before
-/// the word, and none required after it.
+/// corner button. Placed in what is left of that line the name would sit half a
+/// button to the left of every name under it, so it is placed against the rows
+/// instead and only its rule is cut short.
 ///
 /// A rule with no name to carry is the plain line the screen has drawn under its
 /// headings all along, which is what a window too narrow to say anything in
 /// comes to as well.
-Element sectionRule(const std::string& title, int width, int across) {
+Element sectionRule(const AppState& state, const area_format::Layout& layout,
+                    const std::string& title, int width, int across) {
     const auto rule = [](int columns) {
         return columns > 0
                    ? text(horizontalRule(columns)) | color(theme::palette.separator)
                    : text("");
     };
-    // The space either side of the word, and a column of rule beyond each: a
-    // name with no line around it would not read as a rule at all.
-    constexpr int kAround = 4;
-    if (title.empty() || width < kAround + 1) return rule(width);
+    // What the name cannot have: the space on each side it is not flush
+    // against, and a column of line beyond it — a name with no line around it
+    // would not read as a rule at all.
+    const Placement placement = placementOf(state, layout);
+    const bool flushLeft = placement.where == config::AreaSeparatorAlign::Left;
+    const bool flushRight = placement.where == config::AreaSeparatorAlign::Right;
+    const int around = flushLeft || flushRight ? 2 : 4;
+    constexpr int kNarrowest = 5;
+    if (title.empty() || width < kNarrowest) return rule(width);
 
-    const std::string word =
-        " " + truncateToWidth(title, std::min(width, across) - kAround) + " ";
+    const std::string word = (flushLeft ? "" : " ") +
+                             truncateToWidth(title, std::min(width, across) - around) +
+                             (flushRight ? "" : " ");
     const int taken = displayWidth(word);
-    const int left = std::clamp((across - taken) / 2, 1, width - taken);
+    const int left = std::clamp(nameStart(placement, taken, across), 0, width - taken);
     return hbox({rule(left), text(word) | color(theme::palette.arealistSeparator),
                  rule(width - left - taken)});
 }
@@ -771,9 +836,9 @@ Element render(AppState& state) {
     // them one under the other would be a line spent saying nothing. It is why
     // the first row's rule costs no line at all (`linesOf()`).
     const bool topSection = !sections.empty() && state.areaOffset == 0;
-    Element separator =
-        sectionRule(topSection ? headingOf(state, sections.front()) : std::string(),
-                    ruleWidth, listWidth);
+    Element separator = sectionRule(
+        state, layout, topSection ? headingOf(state, sections.front()) : std::string(),
+        ruleWidth, listWidth);
     if (menu) {
         // The filler is what holds the button against the right edge whatever
         // the heading came to, and it is a child of this row rather than of the
@@ -879,7 +944,8 @@ Element render(AppState& state) {
         if (row >= total) break;
         if (row > 0 && opensSection(sections, row) &&
             static_cast<int>(lines.size()) < visibleLines) {
-            put(sectionRule(headingOf(state, sections[static_cast<size_t>(row)]),
+            put(sectionRule(state, layout,
+                            headingOf(state, sections[static_cast<size_t>(row)]),
                             listWidth, listWidth),
                 i);
         }
