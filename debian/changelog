@@ -1,3 +1,10 @@
+amberedit (0.8.5-1) unstable; urgency=low
+
+  * add arealist_separators_align
+  * draw a section rule with no room for its rows
+
+ -- Yegor Gluhov <git@jegor.net>  Tue, 15 Sep 2026 12:00:00 +0000
+
 amberedit (0.8.4-1) unstable; urgency=low
 
   * arealist separators

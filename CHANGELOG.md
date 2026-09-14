@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.5 — 2026-09-15
+
+- add arealist_separators_align
+- draw a section rule with no room for its rows
+- add Debian 12 build
+- add arm64 builds
+
 ## 0.8.4 — 2026-09-14
 
 - arealist separators
