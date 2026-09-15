@@ -156,11 +156,19 @@ private:
 /// the order the tosser config names them in. An empty order leaves the list
 /// exactly as it came.
 ///
+/// `sections` is what `arealist_separator_name` said, and the only thing it is
+/// read for here is the place a line numbered its section at: a `t` or `g`
+/// criterion puts the numbered sections first, lowest number first, and leaves
+/// the rest behind them in the order that criterion would have given them all.
+/// Nothing numbered — which is every config until one says otherwise — is that
+/// criterion exactly as it was.
+///
 /// Sorting by unread counts is done once, when the list is built. The counts go
 /// on changing as messages are read, but a list that reordered itself under the
 /// cursor while someone walked down it would be unusable.
 void sortAreas(std::vector<AreaEntry>& areas,
-               const std::vector<config::AreaSortCriterion>& order);
+               const std::vector<config::AreaSortCriterion>& order,
+               const std::vector<config::AreaSeparatorName>& sections = {});
 
 /// Builds an area source from the app config, picking fidoconfig or areas.bbs
 /// according to the format stated there.

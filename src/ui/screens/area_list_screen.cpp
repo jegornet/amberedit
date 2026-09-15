@@ -69,10 +69,6 @@ std::vector<int> shownAreas(const AppState& state) {
     return shown;
 }
 
-/// What a section of areas in no group at all is renamed by, and the one
-/// section whose identifier is not something the tosser config wrote.
-constexpr std::string_view kNoGroup = "No Group";
-
 /// A section of the list: a run of areas the first `arealist_sort` criterion put
 /// together, with a rule over the first row of it.
 struct Section {
@@ -117,8 +113,8 @@ std::vector<Section> sectionsOf(const AppState& state, const std::vector<int>& s
             // them together, and they are the one section whose name the list
             // has to find for itself.
             if (area.group.empty()) {
-                sections.push_back(
-                    {std::string(kNoGroup), C_("area list section", "No Group")});
+                sections.push_back({std::string(config::kNoGroupSection),
+                                    C_("area list section", "No Group")});
             } else {
                 sections.push_back(
                     {area.group,

@@ -169,19 +169,41 @@ struct AreaSortCriterion {
     }
 };
 
-/// One `arealist_separator_name` line: the section of the area list it renames
-/// and what to call it.
+/// One `arealist_separator_name` line: the section of the area list it renames,
+/// what to call it, and where it stands among the other sections.
 struct AreaSeparatorName {
     /// The section, as the line spelled it. Which section that is — and which
     /// second spelling it answers to — is `AppConfig::areaSeparatorNameOf()`.
     std::string id;
     /// The word the rule over the section carries in place of its own.
     std::string text;
+    /// The third value, where the line wrote one: the section's place in the
+    /// list, lowest first. Nothing is the section taking the place the sort
+    /// itself gives it, which is behind every numbered one — see
+    /// `AppConfig::areaSeparatorPriorityOf()`.
+    std::optional<int> priority;
 
     friend bool operator==(const AreaSeparatorName& a, const AreaSeparatorName& b) {
-        return a.id == b.id && a.text == b.text;
+        return a.id == b.id && a.text == b.text && a.priority == b.priority;
     }
 };
+
+/// What the section holding the areas in no group at all is called, the one
+/// section of the area list whose name is not something a tosser config wrote.
+///
+/// Here rather than in either of the two files that need it: the screen spells
+/// a section to look up its name, the sort spells one to look up its place, and
+/// a section found by one and not the other would be a silent nothing.
+inline constexpr std::string_view kNoGroupSection = "No Group";
+
+/// The spelling two `arealist_separator_name` lines are the same section by:
+/// the case folded away, and each section's two spellings brought to one.
+///
+/// It is what makes `net` beside `netmail`, and `a` beside `Group A`, the
+/// contradiction they are rather than a line that silently loses, and it is how
+/// a section of the list finds the line that named it — the list spells a
+/// section `netmail`, `echomail`, `local`, a group's own name or `No Group`.
+[[nodiscard]] std::string areaSeparatorKey(std::string_view id);
 
 /// What one field of `arealist_format` shows.
 enum class AreaFieldKind {
@@ -1936,6 +1958,15 @@ struct AppConfig {
     /// two, so a config naming it both ways round is refused as it is written.
     [[nodiscard]] std::optional<std::string> areaSeparatorNameOf(
         std::string_view id) const;
+
+    /// What place the config gave that section in the list — the third value of
+    /// its `arealist_separator_name` line — or nothing where the line wrote
+    /// none, which is every section under a config that numbers nothing.
+    ///
+    /// `id` is spelled and folded exactly as `areaSeparatorNameOf()` spells and
+    /// folds it: one line says both things about a section, and a section is
+    /// found by either of its two spellings here as it is there.
+    [[nodiscard]] std::optional<int> areaSeparatorPriorityOf(std::string_view id) const;
 
     /// The word a menu button or a hint is written with: the utility's own
     /// `title` where the command runs one, and `Commands::labelOf()` — the

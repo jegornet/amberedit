@@ -471,10 +471,10 @@ arealist_separators off
 # character in that column's first one.
 #arealist_separators_align e
 
-# What to call one of those sections. Optional; written once per section, and
-# every section not named here is drawn under its own word — which is said in
-# whatever language the interface is in, where a line written here is that line
-# in every language.
+# What to call one of those sections, and optionally where it stands among
+# them. Optional; written once per section, and every section not named here is
+# drawn under its own word — which is said in whatever language the interface is
+# in, where a line written here is that line in every language.
 #
 # The section is netmail, echomail or local under arealist_sort t, and a group's
 # own name or "No Group" under g. Case means nothing, and each section answers
@@ -482,8 +482,19 @@ arealist_separators off
 # the group called A. Naming the same section twice — once each way round —
 # is refused rather than silently taken the second time. Written "" the rule
 # carries no name at all and is the plain line it would have been.
+#
+# The third value is where the section stands in the list: a whole number,
+# lowest first, and the sections no line numbered follow every section some
+# line did, in the order arealist_sort would have given them all. Two sections
+# numbered the same are ordered by arealist_sort between themselves. It is
+# read under arealist_sort t or g, the two the rules are read under, and
+# whether or not arealist_separators draws them — a section is a run of areas
+# either way. "-t" and "-g" reverse the criterion whole, the numbered sections
+# with it.
+#arealist_separator_name i "Important Areas" 0
+#arealist_separator_name n "Not So Important Areas" 1
+#arealist_separator_name l "Least Important Areas" 2
 #arealist_separator_name net "Netmail Areas"
-#arealist_separator_name a "Important Areas"
 #arealist_separator_name "No Group" "Other Areas"
 
 # Whether the area list draws the reader's scrollbar in its rightmost column.

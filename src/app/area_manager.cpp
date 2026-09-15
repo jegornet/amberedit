@@ -2,8 +2,11 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <utility>
 
 #include "config/areas_bbs_parser.hpp"
@@ -25,6 +28,10 @@ using domain::AreaKind;
 using domain::FtnAddress;
 
 namespace {
+
+/// Where `arealist_separator_name` put each section it numbered, under the
+/// folded spelling that section is found by.
+using SectionPlaces = std::unordered_map<std::string, int>;
 
 /// Three-way comparison, so that a criterion says "before", "after" or "leave
 /// them alone" and `descending` is one negation rather than a second lambda.
@@ -68,7 +75,55 @@ int compareAddresses(const FtnAddress& a, const FtnAddress& b) {
     return compareNames(a.domain, b.domain);
 }
 
-int compareBy(AreaSortKey key, const AreaEntry& a, const AreaEntry& b) {
+/// The section an area stands in under that criterion, spelled as
+/// `arealist_separator_name` spells it — the same three runs `t` makes and the
+/// same one per group `g` makes, which is what the rules over the list are
+/// drawn from.
+///
+/// The local kinds are one section here as they are one section there: bad and
+/// dupe are bases the tosser fills by itself, and they are numbered — if they
+/// are numbered at all — along with the rest of the local ones.
+std::string sectionIdOf(AreaSortKey key, const AreaEntry& area) {
+    if (key == AreaSortKey::Group) {
+        return area.config.group.empty() ? std::string(config::kNoGroupSection)
+                                         : area.config.group;
+    }
+    switch (area.config.kind) {
+        case AreaKind::Netmail: return "netmail";
+        case AreaKind::Echo: return "echomail";
+        default: return "local";
+    }
+}
+
+/// Where the sections the two areas are in stand against each other, by the
+/// numbers `arealist_separator_name` gave them: lowest first, and a section
+/// nobody numbered behind every section somebody did.
+///
+/// Two sections left equal here — both unnumbered, or numbered the same — are
+/// ordered by the criterion itself, which is the whole of the old behaviour.
+int comparePlaces(const SectionPlaces& places, AreaSortKey key, const AreaEntry& a,
+                  const AreaEntry& b) {
+    const auto placeOf = [&places, key](const AreaEntry& area) {
+        const auto found = places.find(config::areaSeparatorKey(sectionIdOf(key, area)));
+        return found == places.end() ? std::optional<int>{} : found->second;
+    };
+    const std::optional<int> left = placeOf(a);
+    const std::optional<int> right = placeOf(b);
+    if (left && right) return compareValues(*left, *right);
+    if (left) return -1;
+    if (right) return 1;
+    return 0;
+}
+
+int compareBy(AreaSortKey key, const AreaEntry& a, const AreaEntry& b,
+              const SectionPlaces& places) {
+    // Only the two keys the list comes in sections of: a place is a statement
+    // about a section, and under `a`, `e` or `u` the areas one holds are not
+    // even next to each other.
+    if (!places.empty() && (key == AreaSortKey::Type || key == AreaSortKey::Group)) {
+        if (const int byPlace = comparePlaces(places, key, a, b); byPlace != 0)
+            return byPlace;
+    }
     switch (key) {
         case AreaSortKey::Address:
             return compareAddresses(a.config.address, b.config.address);
@@ -81,20 +136,33 @@ int compareBy(AreaSortKey key, const AreaEntry& a, const AreaEntry& b) {
     return 0;
 }
 
+/// The places out of the `arealist_separator_name` lines, under the spelling a
+/// section is found by, and empty where no line wrote one — which is the sort
+/// exactly as it was before any of this, comparison for comparison.
+SectionPlaces placesOf(const std::vector<config::AreaSeparatorName>& sections) {
+    SectionPlaces places;
+    for (const auto& named : sections) {
+        if (named.priority)
+            places.emplace(config::areaSeparatorKey(named.id), *named.priority);
+    }
+    return places;
+}
+
 }  // namespace
 
-void sortAreas(std::vector<AreaEntry>& areas,
-               const std::vector<AreaSortCriterion>& order) {
+void sortAreas(std::vector<AreaEntry>& areas, const std::vector<AreaSortCriterion>& order,
+               const std::vector<config::AreaSeparatorName>& sections) {
     if (order.empty()) return;
+    const SectionPlaces places = placesOf(sections);
 
     // stable_sort is the whole of what "areas the criteria leave equal keep the
     // config's order" means: the comparator answers false both ways round for
     // such a pair, and only a stable sort promises anything about where they
     // then land.
     std::stable_sort(areas.begin(), areas.end(),
-                     [&order](const AreaEntry& a, const AreaEntry& b) {
+                     [&order, &places](const AreaEntry& a, const AreaEntry& b) {
                          for (const auto& criterion : order) {
-                             const int result = compareBy(criterion.key, a, b);
+                             const int result = compareBy(criterion.key, a, b, places);
                              if (result != 0)
                                  return criterion.descending ? result > 0 : result < 0;
                          }
@@ -223,7 +291,7 @@ tl::expected<void, ErrorPtr> AreaManager::reload(const ProgressFn& onArea) {
 
     // Last, not per area: sorting by unread needs the counts, and they are only
     // all known once every base has been opened.
-    sortAreas(loaded, appConfig_.areaListSort);
+    sortAreas(loaded, appConfig_.areaListSort, appConfig_.areaListSeparatorNames);
     areas_ = std::move(loaded);
     return {};
 }

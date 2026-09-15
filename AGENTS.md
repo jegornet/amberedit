@@ -850,7 +850,9 @@ Rules that hold the design together:
   sorting by unread needs counts that only exist after every base has been
   opened, and re-sorting as messages are read would move the list under the
   cursor. `std::stable_sort` is the whole of what "areas the criteria cannot tell
-  apart keep the tosser config's order" means.
+  apart keep the tosser config's order" means. The one thing outside
+  `arealist_sort` it reads is where `arealist_separator_name` numbered a
+  section — see the section rules below.
 - **What a row holds is `arealist_format`'s.** The shape of the value —
   letters, the width after each, a space standing for itself, `\n` for the next
   line of the row, at most five lines and no empty ones — is
@@ -898,10 +900,18 @@ Rules that hold the design together:
   one per group, and one for the areas in none. **What a section is called is
   `arealist_separator_name`**, one line per section, each answering to two
   spellings — `net` beside `netmail`, `Group A` beside `A` — which
-  `AppConfig::areaSeparatorNameOf()` folds to one, so naming the same section
-  both ways round is the contradiction it looks like. A section the config names
-  `""` is the rule alone, and one it names nothing is drawn under its own word,
-  which is the screen's and translated. **Where the name stands in the rule is
+  `areaSeparatorKey()` folds to one, so naming the same section both ways round
+  is the contradiction it looks like. A section the config names `""` is the
+  rule alone, and one it names nothing is drawn under its own word, which is the
+  screen's and translated. **The line's third value is where the section
+  stands**, lowest number first, and the sections no line numbered come behind
+  every section some line did, in the order they would have had on their own.
+  That is `sortAreas()`'s and not the screen's — the screen reads runs of rows
+  and knows nothing about it: a `t` or `g` criterion compares the two sections'
+  numbers before it compares anything of its own, so the sections are ordered
+  whether or not `arealist_separators` draws a rule between them, `-t` and `-g`
+  reverse the numbered sections along with everything else, and a number under a
+  criterion that makes no sections says nothing. **Where the name stands in the rule is
   `arealist_separators_align`**: `left`, `center`, `right`, or a letter of
   `arealist_format`, which puts the name's first character in that column's
   first one — `fieldColumn()` walks the laid-out row line by line, so a

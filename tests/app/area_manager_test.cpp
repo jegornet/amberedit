@@ -242,6 +242,80 @@ TEST_CASE(
     CHECK(tagsOf(areas) == written);
 }
 
+TEST_CASE(
+    "sortAreas puts the sections arealist_separator_name numbered first "
+    "[areamanager][sort]") {
+    using amberedit::config::AreaSeparatorName;
+
+    // Numbered lowest first, and the two sections no line numbered behind them
+    // in the order the criterion itself gives them — which is where the areas
+    // in no group at all sort, their name being the empty string.
+    const std::vector<AreaSeparatorName> sections{
+        {"Group Mid", "Middling", 0}, {"zeta", "Zed", 1}, {"alpha", "Alphabetical", {}}};
+    std::vector<AreaEntry> areas{
+        entryOf("a.one", 0, AreaKind::Echo, "Zeta"),
+        entryOf("b.two", 0, AreaKind::Echo, "Alpha"),
+        entryOf("c.three", 0, AreaKind::Echo, "Mid"),
+        entryOf("d.four", 0, AreaKind::Echo, ""),
+    };
+
+    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}},
+              sections);
+    CHECK(tagsOf(areas) ==
+          std::vector<std::string>{"c.three", "a.one", "d.four", "b.two"});
+
+    // The same lines with the numbers taken off are the old order back: every
+    // group alphabetical, the ungrouped areas at the top.
+    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}},
+              {{"Group Mid", "Middling", {}}, {"zeta", "Zed", {}}});
+    CHECK(tagsOf(areas) ==
+          std::vector<std::string>{"d.four", "b.two", "c.three", "a.one"});
+
+    // "No Group" is a section like any other, and it answers to the one
+    // spelling the list knows it by.
+    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}},
+              {{"no group", "Other Areas", 5}, {"zeta", "Zed", 0}});
+    CHECK(tagsOf(areas) ==
+          std::vector<std::string>{"a.one", "d.four", "b.two", "c.three"});
+}
+
+TEST_CASE("sortAreas numbers the sections under t as well [areamanager][sort]") {
+    using amberedit::config::AreaSeparatorName;
+
+    // Bad and dupe stand in the local section here as they do on the screen, so
+    // a number given to "local" is given to all three.
+    std::vector<AreaEntry> areas{
+        entryOf("netmail", 0, AreaKind::Netmail), entryOf("ru.linux", 0, AreaKind::Echo),
+        entryOf("local.notes", 0, AreaKind::Local), entryOf("badmail", 0, AreaKind::Bad)};
+    const std::vector<AreaSeparatorName> sections{{"local", "Yours", 0},
+                                                  {"echo", "Echoes", 1}};
+
+    sortAreas(areas, {{AreaSortKey::Type, false}}, sections);
+    CHECK(tagsOf(areas) ==
+          std::vector<std::string>{"local.notes", "badmail", "ru.linux", "netmail"});
+
+    // "-t" reverses the criterion whole, the numbered sections with it: one
+    // criterion is one comparison, and the minus is one negation of it.
+    sortAreas(areas, {{AreaSortKey::Type, true}}, sections);
+    CHECK(tagsOf(areas) ==
+          std::vector<std::string>{"netmail", "ru.linux", "badmail", "local.notes"});
+}
+
+TEST_CASE(
+    "sortAreas reads a section's number under t and g and nowhere else "
+    "[areamanager][sort]") {
+    using amberedit::config::AreaSeparatorName;
+
+    // A list sorted by echoid is not in sections at all — the areas one would
+    // hold are not even next to each other — so the numbers say nothing here.
+    const std::vector<AreaSeparatorName> sections{{"zeta", "Zed", 0}};
+    std::vector<AreaEntry> areas{entryOf("ru.fido", 0, AreaKind::Echo, "Alpha"),
+                                 entryOf("alt.test", 0, AreaKind::Echo, "Zeta")};
+
+    sortAreas(areas, {{AreaSortKey::Echoid, false}}, sections);
+    CHECK(tagsOf(areas) == std::vector<std::string>{"alt.test", "ru.fido"});
+}
+
 TEST_CASE("reload() sorts the list the config asks for [areamanager][sort]") {
     AppConfig config = configWithAddress("2:5020/1");
     config.areaListSort = {{AreaSortKey::Echoid, true}};
@@ -249,6 +323,25 @@ TEST_CASE("reload() sorts the list the config asks for [areamanager][sort]") {
     auto manager = makeManager({areaNamed("alt.test"), areaNamed("ru.linux")}, config);
     static_cast<void>(manager.reload());
 
+    CHECK(tagsOf(manager.areas()) == std::vector<std::string>{"ru.linux", "alt.test"});
+}
+
+TEST_CASE(
+    "reload() puts the sections where arealist_separator_name numbered them "
+    "[areamanager][sort]") {
+    AppConfig config = configWithAddress("2:5020/1");
+    config.areaListSort = {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}};
+    config.areaListSeparatorNames = {{"Group Work", "Work", 0}, {"fun", "Fun", {}}};
+
+    AreaConfig fun = areaNamed("alt.test");
+    fun.group = "Fun";
+    AreaConfig work = areaNamed("ru.linux");
+    work.group = "Work";
+    auto manager = makeManager({fun, work}, config);
+    static_cast<void>(manager.reload());
+
+    // "Fun" comes first alphabetically and last here: it is the section no line
+    // numbered.
     CHECK(tagsOf(manager.areas()) == std::vector<std::string>{"ru.linux", "alt.test"});
 }
 

@@ -1,6 +1,7 @@
 #include "config/app_config.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <filesystem>
 #include <memory>
@@ -21,6 +22,23 @@
 #include "i18n/i18n.hpp"
 
 namespace amberedit::config {
+
+// Declared in the header: the sort reads it too, a section of the area list
+// having to find the line that numbered it.
+std::string areaSeparatorKey(std::string_view id) {
+    std::string key = text::toLower(text::trim(id));
+    if (key == "net") return "netmail";
+    if (key == "echo") return "echomail";
+    // The group's own name is what a group section is known by, `Group A` being
+    // only how the rule reads it back. A group actually called `Group A` is
+    // named by writing `Group Group A`, which is the price of the shorter
+    // spelling being there at all.
+    constexpr std::string_view kGroup = "group ";
+    if (key.size() > kGroup.size() && text::startsWith(key, kGroup))
+        return key.substr(kGroup.size());
+    return key;
+}
+
 namespace {
 
 tl::expected<TosserConfigFormat, ErrorPtr> parseFormat(const CfgEntry& entry) {
@@ -100,26 +118,6 @@ tl::expected<std::vector<AreaSortCriterion>, ErrorPtr> parseAreaSort(
     if (modifierSeen)
         return entry.fail("arealist_sort: a trailing +/- names no criterion");
     return criteria;
-}
-
-/// The spelling two `arealist_separator_name` lines are the same section by:
-/// the case folded away, and each section's two spellings brought to one.
-///
-/// It is what makes `net` beside `netmail`, and `a` beside `Group A`, the
-/// contradiction they are rather than a line that silently loses. The same
-/// folding answers a lookup, so a section is found under either spelling.
-std::string separatorNameKey(std::string_view id) {
-    std::string key = text::toLower(text::trim(id));
-    if (key == "net") return "netmail";
-    if (key == "echo") return "echomail";
-    // The group's own name is what a group section is known by, `Group A` being
-    // only how the rule reads it back. A group actually called `Group A` is
-    // named by writing `Group Group A`, which is the price of the shorter
-    // spelling being there at all.
-    constexpr std::string_view kGroup = "group ";
-    if (key.size() > kGroup.size() && text::startsWith(key, kGroup))
-        return key.substr(kGroup.size());
-    return key;
 }
 
 /// The letters `arealist_format` is written with, what each shows, and how wide
@@ -1194,11 +1192,13 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
     } else if (key == "arealist_separator_name") {
         // Two values and no default for either: the line exists to say that a
         // section of the list is called something, and half of that is not a
-        // statement about anything.
-        if (entry.values.size() != 2) {
+        // statement about anything. The third is the place the section takes in
+        // the list, and a line that leaves it out leaves the sort to say.
+        if (entry.values.size() != 2 && entry.values.size() != 3) {
             return entry.fail(
-                "arealist_separator_name takes the section and what to call it, as: "
-                "arealist_separator_name netmail \"Netmail Areas\"");
+                "arealist_separator_name takes the section, what to call it and "
+                "optionally where it stands, as: arealist_separator_name netmail "
+                "\"Netmail Areas\" 0");
         }
         AreaSeparatorName named;
         named.id = std::string(text::trim(entry.values[0]));
@@ -1207,6 +1207,23 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
             return entry.fail(
                 "arealist_separator_name: the section is netmail, echomail, local, a "
                 "group's name or \"No Group\", and cannot be blank");
+        }
+        if (entry.values.size() == 3) {
+            const std::string_view written = text::trim(entry.values[2]);
+            int priority = 0;
+            const char* end = written.data() + written.size();
+            const auto [stopped, ec] = std::from_chars(written.data(), end, priority);
+            if (ec != std::errc{} || stopped != end) {
+                // The likeliest way to get here is a name with a space in it
+                // and no quotes round it, which is why the line says so.
+                return entry.fail(
+                    "arealist_separator_name: where the section stands is a whole "
+                    "number, not '" +
+                    std::string(entry.values[2]) +
+                    "' — and what to call the section goes in double quotes where it "
+                    "is more than one word");
+            }
+            named.priority = priority;
         }
         // The same section twice is a contradiction, and the line that lost
         // would be an invisible one — the same reason `map_path` refuses a path
@@ -2423,9 +2440,17 @@ bool AppConfig::skipsFooter(std::string_view toName) const {
 }
 
 std::optional<std::string> AppConfig::areaSeparatorNameOf(std::string_view id) const {
-    const std::string key = separatorNameKey(id);
+    const std::string key = areaSeparatorKey(id);
     for (const auto& named : areaListSeparatorNames) {
-        if (separatorNameKey(named.id) == key) return named.text;
+        if (areaSeparatorKey(named.id) == key) return named.text;
+    }
+    return std::nullopt;
+}
+
+std::optional<int> AppConfig::areaSeparatorPriorityOf(std::string_view id) const {
+    const std::string key = areaSeparatorKey(id);
+    for (const auto& named : areaListSeparatorNames) {
+        if (areaSeparatorKey(named.id) == key) return named.priority;
     }
     return std::nullopt;
 }

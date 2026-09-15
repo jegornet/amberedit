@@ -1732,9 +1732,12 @@ TEST_CASE("AppConfig reads the area list's section rules [app_config]") {
     // Half a line is not a statement about anything.
     const std::string error = errorWith("arealist_separator_name netmail\n");
     CHECK_MESSAGE(contains(error, "what to call it"), error);
+    // Three words is a third value, and the third value is where the section
+    // stands — so an unquoted two-word name is refused for being no number,
+    // and told what it was missing.
     const std::string error2 =
         errorWith("arealist_separator_name netmail Netmail Areas\n");
-    CHECK_MESSAGE(contains(error2, "what to call it"), error2);
+    CHECK_MESSAGE(contains(error2, "double quotes"), error2);
     const std::string error3 = errorWith("arealist_separator_name \"\" \"Areas\"\n");
     CHECK_MESSAGE(contains(error3, "cannot be blank"), error3);
 
@@ -1748,6 +1751,32 @@ TEST_CASE("AppConfig reads the area list's section rules [app_config]") {
         "arealist_separator_name a \"Important\"\n"
         "arealist_separator_name \"Group A\" \"Other\"\n");
     CHECK_MESSAGE(contains(error5, "twice"), error5);
+}
+
+TEST_CASE("AppConfig reads where a section of the area list stands [app_config]") {
+    // The third value is where the section stands among the others, and it is
+    // found by either spelling of the section, as its name is.
+    const AppConfig placed = with(
+        "arealist_separator_name NET \"Netmail Areas\" 0\n"
+        "arealist_separator_name \"Group A\" \"Important\" -1\n"
+        "arealist_separator_name echo \"Echoes\"\n");
+    CHECK(placed.areaSeparatorPriorityOf("netmail") == 0);
+    CHECK(placed.areaSeparatorPriorityOf("net") == 0);
+    CHECK(placed.areaSeparatorPriorityOf("a") == -1);
+    CHECK(placed.areaSeparatorPriorityOf("Group A") == -1);
+    // A line that said nothing about where its section stands leaves it where
+    // the sort put it, which is not the same as standing first.
+    CHECK_FALSE(placed.areaSeparatorPriorityOf("echomail").has_value());
+    CHECK(placed.areaSeparatorNameOf("echomail") == "Echoes");
+    // And a section no line named at all is neither named nor placed.
+    CHECK_FALSE(placed.areaSeparatorPriorityOf("local").has_value());
+
+    // A place that is not a number is a mistake worth stopping for, and so is a
+    // fourth value.
+    const std::string error = errorWith("arealist_separator_name net \"Mail\" first\n");
+    CHECK_MESSAGE(contains(error, "whole number"), error);
+    const std::string error2 = errorWith("arealist_separator_name net \"Mail\" 0 1\n");
+    CHECK_MESSAGE(contains(error2, "what to call it"), error2);
 }
 
 TEST_CASE("AppConfig reads where a section rule's name stands [app_config]") {
