@@ -214,14 +214,21 @@ tl::expected<void, ErrorPtr> SdmBase::read(uint32_t index, RawMessage& out,
         if (terminator != std::string::npos) body.resize(terminator);
     }
     splitLeadingKludges(body, &out.control, &out.text);
-    if (!withText) out.text.clear();
 
     // INTL names both zones; FMPT and TOPT the points. Nothing else states
     // either, so what the kludges do not say is the area's own zone — the one
     // a *.msg header is read under.
     completeAddresses(out.header, out.control);
+    // Before the zone below is filled in, which would leave a header naming
+    // nobody looking like an address: the two words of a *.msg header may be
+    // zero in an echo, where the origin line is what says who wrote it. The
+    // whole text is at hand either way — a *.msg is read in one piece.
+    if (echo_ && !out.header.origAddr.isValid()) {
+        completeEchoSender(out.header, out.control, out.text);
+    }
     if (out.header.origAddr.zone == 0) out.header.origAddr.zone = defaultZone_;
     if (out.header.destAddr.zone == 0) out.header.destAddr.zone = defaultZone_;
+    if (!withText) out.text.clear();
     return {};
 }
 

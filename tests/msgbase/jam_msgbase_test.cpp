@@ -202,10 +202,10 @@ TEST_CASE("FtnMsgBase writes a message into a JAM base and reads it back [jam]")
     CHECK(header.from == "Yegor Gluhov");
     CHECK(header.to == "Иван Петров");
     CHECK(header.subject == "Привет");
-    // JAM stores an address subfield for netmail only; an echomail message
-    // carries its origin in the Origin line and MSGID, so the header comes
-    // back with none — the driver skips the subfield for echo areas.
-    CHECK(header.origAddr.toString() == "0:0/0");
+    // JAM stores an address subfield for netmail only, so the stored header
+    // names no sender at all; the origin line does, and that is where a
+    // header-only read of an echo area finds it.
+    CHECK(header.origAddr.toString() == "192:168/2");
     CHECK_FALSE(header.isPrivate());
 
     const auto body = msgbase.body(number);

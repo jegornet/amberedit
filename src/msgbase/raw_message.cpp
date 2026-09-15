@@ -95,6 +95,63 @@ uint16_t pointFrom(std::string_view value) {
     return point <= 0xffff ? static_cast<uint16_t>(point) : 0;
 }
 
+/// A word as a 4D address, or an invalid one where the word is not an address.
+/// The domain an address may be written with is dropped: what a base holds is
+/// 4D, and every driver hands back addresses of that width.
+domain::FtnAddress addressWord(std::string_view word) {
+    const auto parsed = domain::FtnAddress::parse(word);
+    if (!parsed || !parsed->isValid()) return {};
+    domain::FtnAddress out = *parsed;
+    out.domain.clear();
+    return out;
+}
+
+/// Whether a line is one of the service lines that stand after the origin
+/// line: SEEN-BY, PATH and the Via lines a message may have collected.
+/// Everything a ^A opens is one — that is what the drivers put back there —
+/// and SEEN-BY is the one such line that never had a ^A to begin with.
+bool isTrailerLine(std::string_view line) {
+    if (!line.empty() && line.front() == kSoh) return true;
+    return config::text::startsWith(line, "SEEN-BY:") ||
+           config::text::startsWith(line, "PATH:");
+}
+
+/// A line with nothing on it. The NUL is counted as nothing because Squish
+/// counts its terminator in the message length, so the end of a text read out
+/// of one may be padding.
+bool isBlankLine(std::string_view line) {
+    for (const char ch : line) {
+        if (ch != ' ' && ch != '\t' && ch != '\0') return false;
+    }
+    return true;
+}
+
+/// The address out of the last brackets of an origin line. Many a line carries
+/// more than the address in them — a BBS name, a second address in another
+/// domain, a note about the system — so the words are tried from the last
+/// backwards and the first that is an address wins.
+domain::FtnAddress addressInBrackets(std::string_view line) {
+    const size_t close = line.find_last_of(')');
+    if (close == std::string_view::npos) return {};
+    const size_t open = line.find_last_of('(', close);
+    if (open == std::string_view::npos) return {};
+
+    const std::string_view inside = line.substr(open + 1, close - open - 1);
+    size_t end = inside.size();
+    while (end != 0) {
+        const size_t space = inside.find_last_of(" \t", end - 1);
+        const size_t start = space == std::string_view::npos ? 0 : space + 1;
+        if (const domain::FtnAddress address =
+                addressWord(inside.substr(start, end - start));
+            address.isValid()) {
+            return address;
+        }
+        if (start == 0) break;
+        end = start - 1;
+    }
+    return {};
+}
+
 }  // namespace
 
 std::string controlBlockToKludges(std::string_view block) {
@@ -193,6 +250,45 @@ void completeAddresses(RawHeader& header, std::string_view control) {
     if (header.destAddr.point == 0) {
         header.destAddr.point = pointFrom(kludgeValue(control, "TOPT"));
     }
+}
+
+domain::FtnAddress senderFromOrigin(std::string_view tail) {
+    // Backwards from the end, stepping over the routing a tosser added after
+    // the origin line. The first line under that with anything on it is either
+    // the origin line or proof there is none: a message ending in something
+    // else was written without one, and reading further up for a line that
+    // looks like one would find whatever its author quoted.
+    size_t end = tail.size();
+    while (end != 0) {
+        const size_t lineBreak = tail.find_last_of("\r\n", end - 1);
+        const size_t start = lineBreak == std::string_view::npos ? 0 : lineBreak + 1;
+        const std::string_view line = tail.substr(start, end - start);
+        if (!isBlankLine(line) && !isTrailerLine(line)) {
+            if (!domain::isOriginLine(line)) return {};
+            return addressInBrackets(line);
+        }
+        if (start == 0) break;
+        end = start - 1;
+    }
+    return {};
+}
+
+domain::FtnAddress senderFromMsgid(std::string_view control) {
+    const std::string msgid = kludgeValue(control, "MSGID:");
+    const std::string_view value = msgid;
+    return addressWord(value.substr(0, value.find_first_of(" \t")));
+}
+
+void completeEchoSender(RawHeader& header, std::string_view control,
+                        std::string_view tail) {
+    if (header.origAddr.isValid()) return;
+    domain::FtnAddress sender = senderFromOrigin(tail);
+    // The origin line is the one place an echomail message is *meant* to state
+    // where it came from, so it is asked first. A MSGID is a dupe check's
+    // field and nothing obliges a tosser to put an address in it, but the
+    // address is what is nearly always there.
+    if (!sender.isValid()) sender = senderFromMsgid(control);
+    if (sender.isValid()) header.origAddr = sender;
 }
 
 void splitLeadingKludges(std::string_view body, std::string* control, std::string* text) {

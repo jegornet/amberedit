@@ -113,6 +113,11 @@ private:
                                                               const std::string& control,
                                                               const std::string& text);
 
+    /// The last `kOriginTailBytes` of the text at `at`, `length` bytes long —
+    /// where an echo area's origin line is. What a header-only read looks in
+    /// for a sender the XMSG left at zero.
+    [[nodiscard]] std::string textTail(uint64_t at, uint32_t length) const;
+
     [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexEntry(uint32_t index);
 
     BinaryFile data_;
@@ -123,6 +128,11 @@ private:
     /// than a constant: a base whose frame header is not 28 bytes long is not
     /// version one and is left alone.
     uint16_t frameHeaderSize_{28};
+    /// Whether this is an echo area, which is the one thing about a Squish
+    /// base the driver is told rather than reads: nothing in the files says it,
+    /// and it decides whether a message with no address in its header is
+    /// answered for out of its origin line.
+    bool echo_{false};
 };
 
 }  // namespace amberedit::msgbase

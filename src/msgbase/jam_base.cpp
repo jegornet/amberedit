@@ -615,7 +615,29 @@ tl::expected<void, ErrorPtr> JamBase::read(uint32_t index, RawMessage& out,
         if (!out.text.empty() && out.text.back() != '\r') out.text += '\r';
         out.text += trailing;
     }
+
+    // Who wrote it, where the subfields did not say. JAM has no header field
+    // for an address, and an echo is written without the subfields that would
+    // carry one — by hpt, and by this driver's own writer. The origin line is
+    // where such a message states it.
+    if (echo_ && !out.header.origAddr.isValid()) {
+        std::string tail;
+        if (!withText) tail = textTail(header);
+        completeEchoSender(out.header, out.control, withText ? out.text : tail);
+    }
     return {};
+}
+
+std::string JamBase::textTail(const Header& header) const {
+    if (header.textLength == 0) return {};
+    const auto length =
+        static_cast<uint32_t>(std::min<uint64_t>(header.textLength, kOriginTailBytes));
+    std::string tail(length, '\0');
+    if (text_.readAt(header.textOffset + header.textLength - length, &tail[0], length)
+            .failed()) {
+        return {};
+    }
+    return tail;
 }
 
 domain::MessageInfo JamBase::info(uint32_t index) const {

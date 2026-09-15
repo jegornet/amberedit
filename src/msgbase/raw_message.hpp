@@ -122,6 +122,48 @@ struct RawDraft {
 /// are not the header's belongs to a message this one was routed inside of.
 void completeAddresses(RawHeader& header, std::string_view control);
 
+/// How much of the end of an echomail message's text is read to look for its
+/// origin line, where the message is read for its header alone and there is no
+/// text at hand: enough that the SEEN-BY and PATH lines of a widely carried
+/// area still stand inside it. A message whose routing runs longer than this is
+/// left to its MSGID.
+constexpr size_t kOriginTailBytes = 8192;
+
+/// The address an echomail message's origin line signs it with, read out of
+/// `tail` — the end of the message's text, or the whole of it.
+///
+/// FTS-0004 puts the address last on that line and in brackets, and says
+/// nothing about what else may stand in them: the last word inside the last
+/// brackets that is an address is the one the line is signed with. Invalid
+/// where the message's last visible line is not an origin line at all, or the
+/// brackets hold no address — a message may perfectly well carry neither.
+[[nodiscard]] domain::FtnAddress senderFromOrigin(std::string_view tail);
+
+/// The address a MSGID names: its first word, which FTS-0009 has be the address
+/// of the system that wrote the message. Invalid where the message carries no
+/// MSGID, or where what stands there is not an address — a bare serial and an
+/// internet message id are both written into that field in the wild.
+[[nodiscard]] domain::FtnAddress senderFromMsgid(std::string_view control);
+
+/// Fills in the sender of an **echomail** message the base itself does not
+/// name, out of what the message says about itself: the origin line first, the
+/// MSGID after it.
+///
+/// JAM is why this is here. The format keeps no address field — the two
+/// addresses are optional subfields — and a tosser writing an echo leaves them
+/// out, the message being a broadcast rather than a letter to a node; hpt does,
+/// and so does this program's own writer. Squish and Fido `*.msg` have header
+/// words and usually fill them in, but a tosser is at liberty to leave those at
+/// zero in an echo for the same reason. Without this the From line of every
+/// message in such an area is a name with no address beside it, and a reply
+/// carbon, a twit rule or a nodelist lookup has nothing to match on.
+///
+/// Only where the header named **nothing at all**: what a base states is what a
+/// base holds. The recipient is not answered for — an echomail message is
+/// addressed to whoever reads it, and no line of it names a destination node.
+void completeEchoSender(RawHeader& header, std::string_view control,
+                        std::string_view tail);
+
 /// Splits the leading control lines off a Fido *.msg body, where the kludges
 /// are the first lines of the text rather than a block of their own. The
 /// AREA: line counts as one of them, which is what smapi does and what keeps

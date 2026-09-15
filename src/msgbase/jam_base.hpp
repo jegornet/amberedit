@@ -101,6 +101,12 @@ private:
     [[nodiscard]] tl::expected<void, ErrorPtr> readSubfields(
         const ActiveMessage& message, std::vector<Subfield>& out) const;
 
+    /// The last `kOriginTailBytes` of a message's text, which is where an echo
+    /// area's origin line is. What a header-only read looks in for the sender
+    /// the subfields did not name: the text is not wanted for such a read, and
+    /// this is a page of it rather than the whole.
+    [[nodiscard]] std::string textTail(const Header& header) const;
+
     /// Turns a draft into the two blocks JAM stores it as: the subfields —
     /// names, subject, addresses and the kludges the format keeps as data — and
     /// the text with the routing lifted out of it. `header` comes back with the

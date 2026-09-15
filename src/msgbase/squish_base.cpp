@@ -159,9 +159,10 @@ uint32_t controlBlockLength(const std::string& control) {
 
 }  // namespace
 
-tl::expected<void, ErrorPtr> SquishBase::open(const std::string& path, bool /*echo*/,
+tl::expected<void, ErrorPtr> SquishBase::open(const std::string& path, bool echo,
                                               uint16_t /*defaultZone*/) {
     close();
+    echo_ = echo;
 
     if (!data_.open(path + ".sqd", true)) {
         return failure("cannot open " + path + ".sqd");
@@ -468,13 +469,14 @@ tl::expected<void, ErrorPtr> SquishBase::read(uint32_t index, RawMessage& out,
     // for the charset regardless, shows the same address the reader does.
     completeAddresses(out.header, out.control);
 
+    const uint32_t textLength = body - controlLength;
+    const uint64_t textAt = controlAt + controlLength;
+
     out.text.clear();
     if (withText) {
-        const uint32_t textLength = body - controlLength;
         if (textLength != 0) {
             out.text.assign(textLength, '\0');
-            if (const auto io = data_.readAt(controlAt + controlLength, &out.text[0],
-                                             out.text.size());
+            if (const auto io = data_.readAt(textAt, &out.text[0], out.text.size());
                 io.failed()) {
                 return failure("cannot read the text of message " +
                                std::to_string(index) + ": " + io.message());
@@ -483,7 +485,25 @@ tl::expected<void, ErrorPtr> SquishBase::read(uint32_t index, RawMessage& out,
             while (!out.text.empty() && out.text.back() == '\0') out.text.pop_back();
         }
     }
+
+    // An XMSG has words for the whole of both addresses, and a tosser writing
+    // an echo is at liberty to leave the sender's at zero — the message is a
+    // broadcast, and the origin line is where it says who wrote it.
+    if (echo_ && !out.header.origAddr.isValid()) {
+        std::string tail;
+        if (!withText) tail = textTail(textAt, textLength);
+        completeEchoSender(out.header, out.control, withText ? out.text : tail);
+    }
     return {};
+}
+
+std::string SquishBase::textTail(uint64_t at, uint32_t length) const {
+    if (length == 0) return {};
+    const auto want = static_cast<uint32_t>(std::min<uint64_t>(length, kOriginTailBytes));
+    std::string tail(want, '\0');
+    if (data_.readAt(at + length - want, &tail[0], want).failed()) return {};
+    while (!tail.empty() && tail.back() == '\0') tail.pop_back();
+    return tail;
 }
 
 domain::MessageInfo SquishBase::info(uint32_t index) const {

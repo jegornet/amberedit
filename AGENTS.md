@@ -3442,6 +3442,29 @@ no kludge says one; Squish leaves the zero, its header being the place a zone wa
 meant to be. `info()` shows the stored words either way — that screen is a dump
 of the record, not of what was made of it.
 
+**In an echo area the sender is read off the message where the base names
+none** — `completeEchoSender()` in `raw_message.cpp`, called by all three
+drivers. JAM is why it exists: the format has no address field, only optional
+subfields, and a tosser writing an echo leaves them out — the message is a
+broadcast rather than a letter to a node, so hpt writes none and neither does
+this program's own writer. Squish and Fido `*.msg` have header words and
+usually fill them in, but nothing obliges a tosser to. Without this the From
+line of every message in such an area is a name with no address beside it, and
+a reply, a `twit` rule or a nodelist lookup has nothing to match on. The origin
+line is asked first — it is the one place FTS-0004 has an echomail message say
+where it came from — and the MSGID after it, whose first word is an address in
+nearly every message and by no rule. The origin line is looked for **backwards
+from the end of the text**, over the SEEN-BY, PATH and Via lines, and the first
+line with anything on it is either the origin line or proof there is none:
+reading further up would find whatever the author quoted. The address is the
+last word inside the **last** brackets that parses as one, a great many lines
+carrying a name or a second address in them as well, and the domain is dropped —
+what a base holds is 4D. A header-only read has no text at hand and reads the
+last `kOriginTailBytes` of it rather than the whole message; one whose routing
+runs longer than that is left to its MSGID. Only where the header named
+**nothing at all**, and only the sender: an echomail message is addressed to
+whoever reads it, and no line of it names a destination node.
+
 **Fido `*.msg` is the Opus header, not FTS-0001's.** The 190 bytes a message file
 opens with are: `from` at 0 and `to` at 36, both 36 bytes; the subject at 72, 72
 bytes; the ASCII date at **144**, 20 bytes; times-read at **164**; then
