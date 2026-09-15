@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.8.5
+Version:        0.8.6
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -107,6 +107,12 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Tue Sep 16 2026 Yegor Gluhov <git@jegor.net> - 0.8.6-1
+- add reader_position_after_save
+- order the arealist sections with arealist_separator_name
+- override any config setting from the command line (-o)
+- read the sender address from the Origin line if the message base has none
+
 * Tue Sep 15 2026 Yegor Gluhov <git@jegor.net> - 0.8.5-1
 - add arealist_separators_align
 - draw a section rule with no room for its rows

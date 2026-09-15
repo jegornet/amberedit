@@ -1,8 +1,14 @@
 # Changelog
 
+## 0.8.6 — 2026-09-16
+
+- add reader_position_after_save
+- order the arealist sections with arealist_separator_name
+- override any config setting from the command line (-o)
+- read the sender address from the Origin line if the message base has none
+
 ## 0.8.5 — 2026-09-15
 
-- override any config setting from the command line (-o)
 - add arealist_separators_align
 - draw a section rule with no room for its rows
 - add Debian 12 build
