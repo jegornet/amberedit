@@ -1,4 +1,4 @@
-#: src/app/area_manager.cpp:144
+#: src/app/area_manager.cpp:212
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr "конфиг не называет конфиг тоссера и не объявляет своих областей"
 
@@ -18,7 +18,7 @@ msgstr "нечего сохранять"
 msgid "file exists: {0}"
 msgstr "файл уже есть: {0}"
 
-#: src/app/message_builder.cpp:429
+#: src/app/message_builder.cpp:447
 #, c++-format
 msgid "template: {0}"
 msgstr "шаблон: {0}"
@@ -34,7 +34,7 @@ msgstr "не удаётся запустить {0}: {1}"
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/config/app_config.cpp:2028
+#: src/config/app_config.cpp:2104
 msgid "no description"
 msgstr "нет описания"
 
@@ -374,7 +374,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.5\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-13 19:57+0200\n"
+"POT-Creation-Date: 2026-09-15 20:32+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -396,13 +396,10 @@ msgid ""
 "\n"
 "Options:\n"
 "  -c, --config <path>   path to the AmberEdit config\n"
-"      --setup           ask what a first config should say and write\n"
-"                        one; refused where there is a config already\n"
-"      --compile         compile the nodelists and echolists before\n"
-"                        starting, whether or not they look like they\n"
-"                        have changed\n"
+"      --setup           run the setup wizard\n"
+"      --compile         compile the nodelists and echolists\n"
 "  -h, --help            this help\n"
-"  -V, --version         the version AmberEdit signs its messages with\n"
+"  -V, --version         the AmberEdit version\n"
 "\n"
 "Without -c the config is looked up in: $AMBEREDIT_CONFIG,\n"
 "./amberedit.cfg, ~/.ambereditrc\n"
@@ -415,18 +412,15 @@ msgstr ""
 "\n"
 "Ключи:\n"
 "  -c, --config <путь>   путь к конфигу AmberEdit\n"
-"      --setup           спросить, что писать в первом конфиге, и\n"
-"                        записать его; отказ, если конфиг уже есть\n"
-"      --compile         скомпилировать нодлисты и эхолисты перед\n"
-"                        запуском, даже если они выглядят\n"
-"                        неизменившимися\n"
+"      --setup           запустить мастер настройки\n"
+"      --compile         скомпилировать нодлисты и эхолисты\n"
 "  -h, --help            эта справка\n"
-"  -V, --version         версия, которой AmberEdit подписывает сообщения\n"
+"  -V, --version         версия AmberEdit\n"
 "\n"
 "Без -c конфиг ищется в: $AMBEREDIT_CONFIG,\n"
 "./amberedit.cfg, ~/.ambereditrc\n"
 
-#: src/main.cpp:76
+#: src/main.cpp:73
 #, c++-format
 msgid "{0} node"
 msgid_plural "{0} nodes"
@@ -434,7 +428,7 @@ msgstr[0] "{0} узел"
 msgstr[1] "{0} узла"
 msgstr[2] "{0} узлов"
 
-#: src/main.cpp:82
+#: src/main.cpp:79
 #, c++-format
 msgid " and {0} point"
 msgid_plural " and {0} points"
@@ -442,18 +436,18 @@ msgstr[0] " и {0} поинт"
 msgstr[1] " и {0} поинта"
 msgstr[2] " и {0} поинтов"
 
-#: src/main.cpp:85
+#: src/main.cpp:82
 #, c++-format
 msgid "{0}{1} into {2}"
 msgstr "{0}{1} в {2}"
 
-#: src/main.cpp:90 src/main.cpp:120 src/main.cpp:208 src/main.cpp:353
+#: src/main.cpp:87 src/main.cpp:117 src/main.cpp:205 src/main.cpp:350
 #: src/ui/setup/setup_run.cpp:47
 #, c++-format
 msgid "warning: {0}"
 msgstr "предупреждение: {0}"
 
-#: src/main.cpp:114
+#: src/main.cpp:111
 #, c++-format
 msgid "{0} area into {1}"
 msgid_plural "{0} areas into {1}"
@@ -461,26 +455,26 @@ msgstr[0] "{0} область в {1}"
 msgstr[1] "{0} области в {1}"
 msgstr[2] "{0} областей в {1}"
 
-#: src/main.cpp:142
+#: src/main.cpp:139
 #, c++-format
 msgid "{0} is bound to {1}, which no {2} line sets"
 msgstr "{0} назначена на {1}, но ни одна строка {2} её не задаёт"
 
-#: src/main.cpp:189
+#: src/main.cpp:186
 #, c++-format
 msgid "error: {0} needs a value"
 msgstr "ошибка: {0} требует значения"
 
-#: src/main.cpp:196
+#: src/main.cpp:193
 #, c++-format
 msgid "error: unknown option '{0}'"
 msgstr "ошибка: неизвестный ключ «{0}»"
 
-#: src/main.cpp:217
+#: src/main.cpp:214
 msgid "error: --setup writes a config of its own, so it does not take -c"
 msgstr "ошибка: --setup пишет свой собственный конфиг и потому не принимает -c"
 
-#: src/main.cpp:228
+#: src/main.cpp:225
 #, c++-format
 msgid ""
 "error: there is already an AmberEdit config: {0}\n"
@@ -489,7 +483,7 @@ msgstr ""
 "ошибка: конфиг AmberEdit уже есть: {0}\n"
 "Правьте его или отодвиньте в сторону и запустите --setup снова."
 
-#: src/main.cpp:241
+#: src/main.cpp:238
 #, c++-format
 msgid ""
 "error: no AmberEdit config found.\n"
@@ -500,8 +494,8 @@ msgstr ""
 "Запустите {0} --setup, чтобы вас спросили, что в нём писать, или скопируйте "
 "amberedit.cfg.example в ./amberedit.cfg или ~/.ambereditrc."
 
-#: src/main.cpp:254 src/main.cpp:275 src/main.cpp:291 src/main.cpp:301
-#: src/main.cpp:325 src/main.cpp:337 src/main.cpp:365
+#: src/main.cpp:251 src/main.cpp:272 src/main.cpp:288 src/main.cpp:298
+#: src/main.cpp:322 src/main.cpp:334 src/main.cpp:362
 #, c++-format
 msgid "error: {0}"
 msgstr "ошибка: {0}"
@@ -550,11 +544,11 @@ msgstr "{0}: база занята"
 msgid "{0}: the message is busy"
 msgstr "{0}: сообщение занято"
 
-#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:401
+#: src/ui/after_handover.cpp:95 src/ui/screens/area_list_screen.cpp:473
 msgid "the base could not be opened"
 msgstr "базу не удалось открыть"
 
-#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:403
+#: src/ui/after_handover.cpp:98 src/ui/screens/area_list_screen.cpp:475
 #, c++-format
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
@@ -1140,46 +1134,46 @@ msgstr[2] "помечено {0} сообщений"
 msgid "←→ choose · Enter confirm · m/c · Esc cancel"
 msgstr "←→ выбор · Enter подтвердить · m/c · Esc отмена"
 
-#: src/ui/screens/area_list_screen.cpp:121
+#: src/ui/screens/area_list_screen.cpp:117
 msgctxt "area list section"
 msgid "No Group"
 msgstr "Без группы"
 
-#: src/ui/screens/area_list_screen.cpp:125
+#: src/ui/screens/area_list_screen.cpp:121
 #, c++-format
 msgctxt "area list section"
 msgid "Group {0}"
 msgstr "Группа {0}"
 
-#: src/ui/screens/area_list_screen.cpp:135
+#: src/ui/screens/area_list_screen.cpp:131
 msgctxt "area list section"
 msgid "Netmail"
 msgstr "Нетмейл"
 
-#: src/ui/screens/area_list_screen.cpp:138
+#: src/ui/screens/area_list_screen.cpp:134
 msgctxt "area list section"
 msgid "Echomail"
 msgstr "Эхомейл"
 
-#: src/ui/screens/area_list_screen.cpp:140
+#: src/ui/screens/area_list_screen.cpp:137
 msgctxt "area list section"
 msgid "Local"
 msgstr "Локальные"
 
-#: src/ui/screens/area_list_screen.cpp:680
+#: src/ui/screens/area_list_screen.cpp:752
 msgid " The tosser config declares no areas."
 msgstr " В конфиге тоссера нет ни одной области."
 
-#: src/ui/screens/area_list_screen.cpp:681
+#: src/ui/screens/area_list_screen.cpp:753
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr " Проверьте general.tosser_config в конфиге AmberEdit."
 
-#: src/ui/screens/area_list_screen.cpp:748
+#: src/ui/screens/area_list_screen.cpp:820
 #, c++-format
 msgid " Area: {0}▌"
 msgstr " Область: {0}▌"
 
-#: src/ui/screens/area_list_screen.cpp:788
+#: src/ui/screens/area_list_screen.cpp:861
 msgid "Every area has been read."
 msgstr "Все области прочитаны."
 
@@ -1575,7 +1569,7 @@ msgstr "по пути {0} уже есть файл"
 msgid "there is no directory {0}"
 msgstr "каталога {0} нет"
 
-#: src/ui/theme.cpp:217
+#: src/ui/theme.cpp:218
 msgid ""
 "this terminal reports no color at all, so the interface is drawn in whatever "
 "two colors the terminal itself uses. If it does have color after all, "
@@ -1585,7 +1579,7 @@ msgstr ""
 "теми двумя цветами, которыми терминал пользуется сам. Если цвет всё же есть, "
 "color_warning off в конфиге убирает это сообщение."
 
-#: src/ui/theme.cpp:223
+#: src/ui/theme.cpp:224
 #, c++-format
 msgid ""
 "colors may be distorted: this terminal can show only {0} colors, which is "
