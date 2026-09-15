@@ -630,6 +630,8 @@ TEST_CASE("Writing and deleting keep the area list's counts honest [other_area]"
 
     REQUIRE(message_list::enterArea(state, fixture.source).has_value());
     REQUIRE(state.readHeader);
+    const uint32_t unreadBefore =
+        fixture.manager.areas()[static_cast<size_t>(row)].unread;
 
     // An ordinary reply, written where it was read.
     compose::startReply(state);
@@ -638,9 +640,11 @@ TEST_CASE("Writing and deleting keep the area list's counts honest [other_area]"
     compose::saveMessage(state);
 
     CHECK(fixture.manager.areas()[static_cast<size_t>(row)].total == before + 1);
-    // Read as soon as it is written — the reader opens on it — so it is not
-    // among the unread.
-    CHECK(fixture.manager.areas()[static_cast<size_t>(row)].unread == 0);
+    // The reader came back on the message that was answered — what
+    // `reader_position_after_save` says by default — so the answer has not been
+    // read, and the list counts it among the unread like any other message that
+    // has not.
+    CHECK(fixture.manager.areas()[static_cast<size_t>(row)].unread == unreadBefore + 1);
 
     // And the other way: a message taken out is one the list stops counting.
     message_read::deleteMessage(state);

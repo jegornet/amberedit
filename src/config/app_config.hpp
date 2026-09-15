@@ -323,6 +323,28 @@ enum class EdgeBehavior {
     NextUnreadOnly,
 };
 
+/// Where the reader stands once a new message has been written, from
+/// `reader_position_after_save`.
+///
+/// Writing a message is something done in the middle of reading an area, and
+/// the three answers differ in what the reading does next: carries on from the
+/// message just written, picks up where it was interrupted, or moves on past
+/// it.
+enum class PositionAfterSave {
+    /// `new` — on the message just written. A reply read back as soon as it is
+    /// made, and the only answer an empty area can give: the message written
+    /// into it is the only one there is.
+    New,
+    /// `current` — on the message that was being read when the editor was
+    /// opened, exactly as it was left.
+    Current,
+    /// `next` — on the message after that one. Written into the area being
+    /// read, from its last message, that is the new message itself: it stands
+    /// next after the one answered. Where there is nothing after it, the reader
+    /// stays on the message it was on.
+    Next,
+};
+
 /// What a `keys` file does to the layout that is already there, from
 /// `keys_mode`.
 enum class KeysMode {
@@ -1138,6 +1160,20 @@ struct AppConfig {
     /// area being unread whole again by then: looked at as the next unread area
     /// it would be this one, and the reader would be sent straight back.
     EdgeBehavior edgeBehavior{EdgeBehavior::Exit};
+
+    /// Where the reader stands once a new message has been written, from
+    /// `reader_position_after_save`.
+    ///
+    /// `current` by default: writing a message is an interruption of the
+    /// reading, and what is wanted when it is over is the message that was on
+    /// the screen before it. `new` opens the reader on the message just
+    /// written, and `next` on the one after the message that was being read.
+    ///
+    /// It answers for every *new* message — a reply, a comment, a forward and a
+    /// message begun from nothing alike, and one written into another area as
+    /// much as one written here. A message being *changed* is not among them:
+    /// there is one message in it either way, and the reader comes back to it.
+    PositionAfterSave positionAfterSave{PositionAfterSave::Current};
 
     /// Where entering an area from the area list lands, from
     /// `reader_lastread_auto_next`: on the message after the lastread mark, or

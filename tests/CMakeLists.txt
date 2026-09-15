@@ -76,6 +76,7 @@ add_executable(amberedit_tests
   ui/external_editor_test.cpp
   ui/change_message_test.cpp
   ui/other_area_test.cpp
+  ui/position_after_save_test.cpp
   ui/carbon_copy_test.cpp
   ui/back_button_test.cpp
   ui/delete_line_button_test.cpp

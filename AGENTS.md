@@ -2085,9 +2085,33 @@ decides what an occurrence is.
   dropped, the target opened and written to, and the area being read opened again
   straight after. Nothing on the screen underneath comes off the base while it is
   away — the header and body being read are copies, as are the list's headers —
-  so the reader is left exactly as it was, scroll and all, and dropping the
-  message needs no swap at all. A target that refuses the message keeps the
-  editor open on it; a source area that will not reopen ends on the area list.
+  so the reader comes back to the message it was on, scroll and all, and
+  dropping the message needs no swap at all. A target that refuses the message
+  keeps the editor open on it; a source area that will not reopen ends on the
+  area list.
+- **Where the reader stands afterwards is `reader_position_after_save`**, and
+  `readerAfterSave()` is the whole of it: `new` opens it on the message just
+  written, `current` leaves it on the message the editor was opened over, and
+  `next` moves it on to the one after that. The number the editor was opened
+  over is read at the top of `saveMessage()`, before anything is written.
+  - **`current` does not load the message again.** It is on the screen already,
+    and `loadMessage()` would clear the scroll, the charset asked for, a twit
+    shown after all — exactly what the setting was asked for. Only
+    `messageCursor` is set, and the window of headers the reader and the panel
+    beside it draw from is cleared by `saveMessage()` and read again as they
+    are drawn.
+  - **`next` never leaves the area.** `reader_edge` answers for a key walked off
+    the end, and this is not that key: with nothing after the message, the
+    reader stays on it. Written into the area being read there always is one —
+    the message went on the end, so answering the last message lands on the
+    answer.
+  - A message written into **another area** has no number here, so `new` and
+    `current` both leave the reader where it is and `next` still moves on. An
+    **empty** area has no message to stay on and none after one, so every answer
+    opens the reader on the message just written — which is also what unblocks
+    the message list there. A message being **changed** answers to none of it:
+    the reader comes back to that message, there being one message in it either
+    way.
 
 ### Changing a message
 

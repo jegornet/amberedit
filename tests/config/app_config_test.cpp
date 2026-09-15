@@ -694,6 +694,28 @@ TEST_CASE("AppConfig reads the two carbon copy list settings [app_config]") {
     CHECK_MESSAGE(contains(error2, "compose_xc_list"), error2);
 }
 
+TEST_CASE("AppConfig reads where the reader stands after a save [app_config]") {
+    using amberedit::config::PositionAfterSave;
+    // On the message that was being read unless the config says otherwise.
+    CHECK(with("").positionAfterSave == PositionAfterSave::Current);
+    CHECK(with("reader_position_after_save new\n").positionAfterSave ==
+          PositionAfterSave::New);
+    CHECK(with("reader_position_after_save current\n").positionAfterSave ==
+          PositionAfterSave::Current);
+    CHECK(with("reader_position_after_save next\n").positionAfterSave ==
+          PositionAfterSave::Next);
+    // Written whatever case it is written in, as every other keyword value is.
+    CHECK(with("reader_position_after_save NEXT\n").positionAfterSave ==
+          PositionAfterSave::Next);
+    // Not one of its values, and not a flag.
+    CHECK_FALSE(loads("reader_position_after_save on\n"));
+    CHECK_FALSE(loads("reader_position_after_save last\n"));
+    CHECK_FALSE(loads("reader_position_after_save new next\n"));
+    // It says where the reader stands and not what a message carries, so an
+    // area group has no say in it.
+    CHECK_FALSE(loads("group g\nmember *\nreader_position_after_save new\nendgroup\n"));
+}
+
 TEST_CASE("AppConfig reads the lastread auto next setting [app_config]") {
     CHECK(with("").lastreadAutoNext);  // after the mark unless the config says otherwise
     CHECK(with("reader_lastread_auto_next on\n").lastreadAutoNext);

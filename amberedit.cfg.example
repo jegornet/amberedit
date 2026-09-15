@@ -769,6 +769,14 @@ reader_stylecodes off
 # the message on the screen. An area holding no messages is left by both keys.
 reader_edge exit
 
+# Where the reader stands once a new message has been written. It doesn't apply
+# to changing a message. Optional; "current" by default.
+#
+#   current  on the message that was being read when the editor was opened
+#   next     on the message after the one that was being read
+#   new      on the message just written
+#reader_position_after_save current
+
 # Where entering an area from the area list lands: on the message after the
 # lastread mark, or on the marked one itself. Optional; on by default. A mark on
 # the newest message, and an area with no mark at all, open the same way

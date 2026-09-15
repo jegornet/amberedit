@@ -1816,6 +1816,55 @@ bool textKey(AppState& state, const Event& event) {
     return true;
 }
 
+/// Puts the reader where `reader_position_after_save` asks for it, a new
+/// message having been stored and the editor left.
+///
+/// `stored` is the number the message was given in the area on screen, or zero
+/// where it went into another area and there is nothing here to open on it;
+/// `reading` is the message the editor was opened over, or zero where the area
+/// held none.
+void readerAfterSave(AppState& state, uint32_t stored, uint32_t reading) {
+    const config::PositionAfterSave where = state.config.positionAfterSave;
+
+    // An area that held nothing has no message to stay on and none to move on
+    // to, so the message just written is the only thing there is to show —
+    // whichever way the setting stands, and that is also what unblocks the
+    // message list in an area that was empty. One written into another area
+    // leaves this one as empty as it found it, and the reader keeps its blank
+    // rows.
+    if (where == config::PositionAfterSave::New || reading == 0) {
+        if (stored != 0) {
+            state.messageCursor = static_cast<int>(stored) - 1;
+            message_read::loadMessage(state, stored);
+        }
+        return;
+    }
+
+    if (where == config::PositionAfterSave::Next && reading < state.messageCount) {
+        // The message after the one that was being read — which, answering the
+        // last message of the area, is the answer itself: it was written onto
+        // the end and stands next after what it answers. The messages
+        // `twit_mode` walks past are walked past here as → walks past them, and
+        // a run of them reaching the end of the area comes back to where the
+        // reading was.
+        message_read::openMessage(state, reading + 1);
+        return;
+    }
+
+    // Staying — `current`, and `next` with nothing after the message to move
+    // on to, which is a message stored in some other area than this one. The
+    // message on the screen is deliberately **not** read again: its text, where
+    // it was scrolled to, a twit shown after all, a charset asked for are all
+    // still true of it, and loading it afresh would throw away exactly what the
+    // setting was asked for. Only the cursor is moved, and only to say again
+    // what it already says — the reader and the list agree on this message.
+    //
+    // The area around it has one message more, and nothing here has to be told
+    // so: the window of headers both this screen and the panel beside it draw
+    // from was cleared by the caller and is read again as they are drawn.
+    state.messageCursor = static_cast<int>(reading) - 1;
+}
+
 }  // namespace
 
 void editHeader(AppState& state) {
@@ -2133,6 +2182,12 @@ void saveMessage(AppState& state) {
     // leaves by; a failed check leaves the cursor on the field at fault.
     if (!addressesReady(state)) return;
 
+    // The message the editor was opened over, read before anything is written:
+    // it is what `reader_position_after_save` counts from, and the header
+    // block the reader is holding is a copy that nothing here disturbs. Zero
+    // is an area that held no message at all.
+    const uint32_t reading = state.readHeader ? state.readHeader->number : 0;
+
     if (state.compose.changing) {
         // Over the message it came from, and nowhere else: no tearline is added
         // and nothing of the template, since this message was written once
@@ -2200,15 +2255,20 @@ void saveMessage(AppState& state) {
         // message is a message nothing was copied on account of. `false` is the
         // area on screen failing to open again, which storeElsewhere() has
         // already answered for where it happened there.
+        bool left = false;
         if (copying && state.base != nullptr && !writeCopies(state, text)) {
             message_list::leaveArea(state);
+            left = true;
         }
-        // Nothing to open the reader on: it is already showing the message that
-        // was answered or passed on, in the area it was read in. When that area
-        // is the one that would not open again, leaveArea() has reset the
-        // navigator and the pop below falls away — the area list has no screen
-        // under it to go back to.
         leaveEditor(state);
+        // The reader is showing the message that was answered or passed on, in
+        // the area it was read in, and there is nothing of the new message
+        // here to open on: `new` and `current` both leave it exactly as it was,
+        // and `next` moves on from it, a message written being a message
+        // written whichever area it went into. When the area is the one that
+        // would not open again, leaveArea() has reset the navigator — there is
+        // no reader left under this screen, and nowhere to put it.
+        if (!left) readerAfterSave(state, /*stored=*/0, reading);
         reportUnresolved(state, unresolved);
         return;
     }
@@ -2230,18 +2290,17 @@ void saveMessage(AppState& state) {
         return;
     }
 
-    // The area is one message longer, and the reader opens on the new one —
-    // which is also what unblocks the message list in an area that was empty.
-    // The area list is told to count again rather than given the one more it
-    // could work out for itself: the base is what knows, and it is open.
+    // The area is one message longer, and where the reader stands over it is
+    // `reader_position_after_save`. The area list is told to count again rather
+    // than given the one more it could work out for itself: the base is what
+    // knows, and it is open.
     state.manager.refreshArea(state.currentArea);
     state.messageCount = state.base->count();
     state.headers.clear();
     state.headersStart = 0;
-    state.messageCursor = static_cast<int>(number) - 1;
 
     leaveEditor(state);
-    message_read::loadMessage(state, number);
+    readerAfterSave(state, number, reading);
     reportUnresolved(state, unresolved);
 }
 

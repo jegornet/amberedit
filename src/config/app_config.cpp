@@ -731,6 +731,17 @@ tl::expected<EdgeBehavior, ErrorPtr> parseEdgeBehavior(const CfgEntry& entry) {
                       "stay | next_unread_area | next_unread_only)");
 }
 
+tl::expected<PositionAfterSave, ErrorPtr> parsePositionAfterSave(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "new") return PositionAfterSave::New;
+    if (value == "current") return PositionAfterSave::Current;
+    if (value == "next") return PositionAfterSave::Next;
+    return entry.fail("reader_position_after_save: '" + *only +
+                      "' is not one of its values (new | current | next)");
+}
+
 tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -1365,6 +1376,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseEdgeBehavior(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.edgeBehavior = *read;
+    } else if (key == "reader_position_after_save") {
+        auto read = parsePositionAfterSave(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.positionAfterSave = *read;
     } else if (key == "reader_lastread_auto_next") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

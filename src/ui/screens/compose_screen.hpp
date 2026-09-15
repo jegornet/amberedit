@@ -134,10 +134,14 @@ void editHeader(AppState& state);
 /// header, and the message is not stored.
 [[nodiscard]] bool addressesReady(AppState& state);
 
-/// Stores what the editor holds and goes back to the reader, on the message
-/// just written. Called when the save confirmation is answered yes. A message
-/// whose addresses are not there is not stored; the cursor lands on the field
-/// at fault instead.
+/// Stores what the editor holds and goes back to the reader, where
+/// `reader_position_after_save` puts it: on the message that was being read,
+/// on the one after it, or on the message just written. Called when the save
+/// confirmation is answered yes. A message whose addresses are not there is not
+/// stored; the cursor lands on the field at fault instead.
+///
+/// A message being *changed* answers to none of that: it is the one message
+/// there was either way, and the reader comes back to it.
 void saveMessage(AppState& state);
 
 /// Leaves the editor with nothing stored, the answer to the other question.
