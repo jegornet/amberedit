@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:2104
+#: src/config/app_config.cpp:2148
 msgid "no description"
 msgstr ""
 
@@ -367,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.5\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-15 20:32+0200\n"
+"POT-Creation-Date: 2026-09-15 21:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -377,17 +377,18 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/main.cpp:30
+#: src/main.cpp:31
 #, c++-format
 msgid ""
 "AmberEdit — a Fidonet mail editor.\n"
 "\n"
 "Usage:\n"
-"  {0} [-c <config>] [--compile]\n"
+"  {0} [-c <config>] [-o <line>]... [--compile]\n"
 "  {0} --setup\n"
 "\n"
 "Options:\n"
 "  -c, --config <path>   path to the AmberEdit config\n"
+"  -o, --option <line>   override config line\n"
 "      --setup           run the setup wizard\n"
 "      --compile         compile the nodelists and echolists\n"
 "  -h, --help            this help\n"
@@ -395,78 +396,80 @@ msgid ""
 "\n"
 "Without -c the config is looked up in: $AMBEREDIT_CONFIG,\n"
 "./amberedit.cfg, ~/.ambereditrc\n"
+"\n"
+"  {0} -o \"theme themes/white.cfg\" -o \"quote_margin 72\"\n"
 msgstr ""
 
-#: src/main.cpp:73
+#: src/main.cpp:77
 #, c++-format
 msgid "{0} node"
 msgid_plural "{0} nodes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:79
+#: src/main.cpp:83
 #, c++-format
 msgid " and {0} point"
 msgid_plural " and {0} points"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:82
+#: src/main.cpp:86
 #, c++-format
 msgid "{0}{1} into {2}"
 msgstr ""
 
-#: src/main.cpp:87 src/main.cpp:117 src/main.cpp:205 src/main.cpp:350
+#: src/main.cpp:91 src/main.cpp:121 src/main.cpp:231 src/main.cpp:377
 #: src/ui/setup/setup_run.cpp:47
 #, c++-format
 msgid "warning: {0}"
 msgstr ""
 
-#: src/main.cpp:111
+#: src/main.cpp:115
 #, c++-format
 msgid "{0} area into {1}"
 msgid_plural "{0} areas into {1}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:139
+#: src/main.cpp:143
 #, c++-format
 msgid "{0} is bound to {1}, which no {2} line sets"
 msgstr ""
 
-#: src/main.cpp:186
+#: src/main.cpp:191 src/main.cpp:205
 #, c++-format
 msgid "error: {0} needs a value"
 msgstr ""
 
-#: src/main.cpp:193
+#: src/main.cpp:211 src/main.cpp:278 src/main.cpp:299 src/main.cpp:315
+#: src/main.cpp:325 src/main.cpp:349 src/main.cpp:361 src/main.cpp:389
+#, c++-format
+msgid "error: {0}"
+msgstr ""
+
+#: src/main.cpp:219
 #, c++-format
 msgid "error: unknown option '{0}'"
 msgstr ""
 
-#: src/main.cpp:214
-msgid "error: --setup writes a config of its own, so it does not take -c"
+#: src/main.cpp:240
+msgid "error: --setup writes a config of its own, so it does not take -c or -o"
 msgstr ""
 
-#: src/main.cpp:225
+#: src/main.cpp:251
 #, c++-format
 msgid ""
 "error: there is already an AmberEdit config: {0}\n"
 "Edit it, or move it aside and run --setup again."
 msgstr ""
 
-#: src/main.cpp:238
+#: src/main.cpp:264
 #, c++-format
 msgid ""
 "error: no AmberEdit config found.\n"
 "Run {0} --setup to be asked what one should say, or copy "
 "amberedit.cfg.example to ./amberedit.cfg or ~/.ambereditrc."
-msgstr ""
-
-#: src/main.cpp:251 src/main.cpp:272 src/main.cpp:288 src/main.cpp:298
-#: src/main.cpp:322 src/main.cpp:334 src/main.cpp:362
-#, c++-format
-msgid "error: {0}"
 msgstr ""
 
 #: src/support/error.cpp:25

@@ -3037,6 +3037,41 @@ taking a row.
   `key = value` — are named for what they are rather than read as odd values.
   `group ... endgroup` is read out of the flat list by `app_config.cpp`, not by
   `cfg_file.cpp`, which the themes share and where a block would mean nothing.
+- **Any setting can be said on the command line, because `-o` is a config line.**
+  `amberedit -o "quote_margin 72"` is that line of the file, quoting and all,
+  and there is no second grammar and no flag per key: `AppConfig::parseOverride()`
+  runs the argument through `parseCfg()` and hands back one `CfgEntry`, which is
+  then read by the same `applySetting()` chain every line goes through. So adding
+  a setting is still one branch in `fromEntries()` and it is overridable the day
+  it lands, a bad value on the command line is refused with the file's own
+  wording, and `-o` may be written as often as there are settings to change.
+  - **An override stands in place of the file's line, rather than beside it.**
+    `withOverrides()` drops every *global* line stating a key an override states
+    and puts the overrides at the end. Dropped rather than added to, because a
+    config stating a key twice is refused and the command line is meant to win,
+    not to contradict; and a key a config may repeat — `aka`, `nodelist`, `twit`
+    — loses the whole of what the file said, so that `-o` states that list
+    rather than lengthening it. Two `-o` naming one key are the contradiction a
+    doubled line is, and are refused as one.
+  - **The blocks are left alone.** `-o` cannot write `area`/`group`/`member` —
+    a block is several lines and this is one, and that is refused where the
+    argument is parsed — and the lines *inside* a block are not replaced either:
+    a group lays its settings over the file's for the areas it covers, and it
+    goes on doing that over what `-o` left. What `-o` replaces is what the file
+    says generally, which is exactly what the group was written to override.
+  - **`config_charset` is overridable like anything else**, which is why
+    `loadFromString()` lays the overrides on *before* it asks what charset the
+    file is in, and again over the re-parse it does in that charset: an override
+    came off a command line and was never in the file's bytes to be decoded out
+    of. A config in CP866 that says so nowhere is readable with one `-o` and
+    unreadable without.
+  - **A complaint about an override names the option and no line number.** The
+    `CfgEntry`'s origin is `-o '<the argument>'` and its line is 0, so
+    `ConfigError` prints `-o 'quote_margin 500': quote_margin must be between 20
+    and 255, got 500` — the file's own sentence with the argument where a file
+    and a line would stand.
+  - **`--setup` takes neither `-c` nor `-o`.** It writes a config rather than
+    reading one, and an override of a config it is not reading means nothing.
 - **A setting may keep its values in a file, and four of them may**: `origin`,
   `tearline`, `twit` and `twit_subj`, written `@file:<name>` (`takesListFile()`
   is the whitelist, so `@file:` is inert in every other value). The name is the

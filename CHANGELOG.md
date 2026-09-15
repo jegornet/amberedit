@@ -2,6 +2,7 @@
 
 ## 0.8.5 — 2026-09-15
 
+- override any config setting from the command line (-o)
 - add arealist_separators_align
 - draw a section rule with no room for its rows
 - add Debian 12 build

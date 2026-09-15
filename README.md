@@ -75,6 +75,7 @@ through ncurses. Everything else is the same code.
 ```bash
 amberedit --setup                         # seven steps, and you have a config
 amberedit                                 # or: amberedit -c some/amberedit.cfg
+amberedit -o "theme themes/white.cfg"     # one setting, for this run only
 ```
 
 **First run: `amberedit --setup`.** Seven steps — who you are and which tosser
@@ -90,6 +91,19 @@ Without `-c` the config is looked for in `$AMBEREDIT_CONFIG`, `./amberedit.cfg`
 and `~/.ambereditrc`, in that order. Every setting, what it takes and what it
 defaults to, is in `amberedit.cfg.example`. Also, `amberedit --setup` writes
 a config out of that file for you.
+
+`-o` takes one whole line of the config — the same spelling, the same quoting —
+and it stands in place of whatever the file said about that setting for that run.
+Any setting at all, and as many `-o` as there are settings to change:
+
+```bash
+amberedit -o "quote_margin 72" -o "name Ivan Petrov" -o "address 2:382/736"
+```
+
+A key the config may repeat, like `aka` or `nodelist`, loses the whole of what
+the file said rather than being added to, so `-o` states that list. The
+`area … endarea` and `group … endgroup` blocks are not written this way — a block
+is several lines — and a group goes on laying its settings over what `-o` left.
 
 The config is UTF-8 unless `config_charset` says otherwise, and whatever it says
 holds for every file the config names as well — your tosser's config, the

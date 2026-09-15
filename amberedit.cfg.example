@@ -13,6 +13,11 @@
 # values in a file instead of on the line, written "@file:<name>". See "values
 # kept in a file" below; everywhere else "@file:" is the text it looks like.
 #
+# Any line here can be said on the command line instead, in this same spelling:
+# amberedit -o "quote_margin 72". It replaces what this file says about that
+# setting, a repeatable key's whole list included. Not applicable to "area" and
+# "group" blocks.
+#
 # Each setting below says what it does, what it takes and what it defaults to.
 
 # The character set THIS FILE is written in, and with it every file it names:

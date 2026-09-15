@@ -1990,14 +1990,42 @@ struct AppConfig {
     /// `extern_utilN` line set.
     [[nodiscard]] const ExternUtil* externUtilFor(Command command) const;
 
+    /// One `-o` option from the command line, read as a line of a config.
+    ///
+    /// The grammar is the config file's own, entire: `-o "quote_margin 72"` says
+    /// what that line says in a file, a value with a space in it is quoted the
+    /// way it is there, and a key taking two values takes two here. Which is why
+    /// there is one option and not one per setting — a config with two hundred
+    /// keys does not want two hundred flags kept in step with it, and the only
+    /// spelling anybody has to learn is the one already in the file.
+    ///
+    /// Refuses what a single line cannot say: nothing at all, more than one
+    /// line, and the `area`/`group` blocks, which are several lines apiece.
+    [[nodiscard]] static tl::expected<CfgEntry, ErrorPtr> parseOverride(
+        std::string_view text);
+
     /// Reads a config file, or says why it could not be read or parsed, or
     /// which required field is missing.
+    ///
+    /// `overrides` are `parseOverride()`'s lines, laid over the file's: every
+    /// line of the file stating a key an override states is dropped, and the
+    /// overrides stand at the end in the order they were given. Dropped rather
+    /// than added to, because a config refuses a setting stated twice and the
+    /// command line is meant to win, not to contradict; and for a key a config
+    /// may repeat — `aka`, `nodelist`, `twit` — the whole of what the file said
+    /// goes, so that `-o` states that list rather than lengthening it.
+    ///
+    /// A `group ... endgroup` block is not touched. A group lays its settings
+    /// over the file's for the areas it covers, and it goes on doing that here:
+    /// `-o` replaces what the file says generally, which is exactly what the
+    /// group was written to override.
     [[nodiscard]] static tl::expected<AppConfig, ErrorPtr> loadFromFile(
-        const std::string& path);
+        const std::string& path, const std::vector<CfgEntry>& overrides = {});
 
     /// Parses a config from a string — the entry point used by the tests.
     [[nodiscard]] static tl::expected<AppConfig, ErrorPtr> loadFromString(
-        const std::string& text, const std::string& originName = "<string>");
+        const std::string& text, const std::string& originName = "<string>",
+        const std::vector<CfgEntry>& overrides = {});
 
     /// Paths searched when no config is given on the command line:
     /// $AMBEREDIT_CONFIG, ./amberedit.cfg, ~/.ambereditrc.

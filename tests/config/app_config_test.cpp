@@ -78,6 +78,29 @@ std::string errorWithOwnAddress(const std::string& body) {
         AppConfig::loadFromString(kSettings + std::string(kName) + body));
 }
 
+/// The `-o` lines of a command line, parsed as `main()` parses them. A line
+/// this refuses is a test's own mistake, so it is required rather than returned.
+std::vector<amberedit::config::CfgEntry> options(const std::vector<std::string>& lines) {
+    std::vector<amberedit::config::CfgEntry> parsed;
+    for (const std::string& line : lines) {
+        parsed.push_back(amberedit::test::valueOf(AppConfig::parseOverride(line)));
+    }
+    return parsed;
+}
+
+/// A config with the required settings, the given body, and the given `-o`
+/// lines laid over both.
+AppConfig withOptions(const std::string& body, const std::vector<std::string>& lines) {
+    return amberedit::test::valueOf(
+        AppConfig::loadFromString(kRequired + body, "<string>", options(lines)));
+}
+
+std::string errorWithOptions(const std::string& body,
+                             const std::vector<std::string>& lines) {
+    return amberedit::test::errorOf(
+        AppConfig::loadFromString(kRequired + body, "<string>", options(lines)));
+}
+
 }  // namespace
 
 TEST_CASE("AppConfig parses a complete config [app_config]") {
@@ -3479,4 +3502,124 @@ TEST_CASE("netmail_skip_footer names the robots that close with nothing [app_con
     CHECK(always.netmailSkipFooterNames().empty());
     CHECK_FALSE(always.skipsFooter("AreaFix"));
     CHECK(always.skipsTemplate("AreaFix"));
+}
+
+TEST_CASE(
+    "-o is one line of the config, and nothing a line cannot be "
+    "[app_config]") {
+    using amberedit::config::CfgEntry;
+
+    // The config's own grammar entire: the key is lowercased like any other, a
+    // quoted value is one value, and a comment ends the line where it starts.
+    const CfgEntry simple =
+        amberedit::test::valueOf(AppConfig::parseOverride("Quote_Margin 60"));
+    CHECK(simple.key == "quote_margin");
+    CHECK(simple.values == std::vector<std::string>{"60"});
+    // No line of any file, so nothing to number: the whole option stands where
+    // a file and a line would, and that is what a complaint about it names.
+    CHECK(simple.line == 0);
+    CHECK(simple.origin == "-o 'Quote_Margin 60'");
+
+    const CfgEntry quoted =
+        amberedit::test::valueOf(AppConfig::parseOverride("name \"Vasya Pupkin\"  # me"));
+    CHECK(quoted.values == std::vector<std::string>{"Vasya Pupkin"});
+
+    const CfgEntry two =
+        amberedit::test::valueOf(AppConfig::parseOverride("map_path c:\\fido /mnt/fido"));
+    CHECK(two.values == std::vector<std::string>{"c:\\fido", "/mnt/fido"});
+
+    // And what a single line cannot say. Each is refused here, before a config
+    // has been looked for, rather than somewhere further in.
+    CHECK(contains(amberedit::test::errorOf(AppConfig::parseOverride("")),
+                   "names no setting"));
+    CHECK(contains(amberedit::test::errorOf(AppConfig::parseOverride("   # nothing")),
+                   "names no setting"));
+    CHECK(contains(
+        amberedit::test::errorOf(AppConfig::parseOverride("quote_margin 60\ntheme t")),
+        "more than one line"));
+    for (const char* block :
+         {"area ru.linux", "endarea", "group", "endgroup", "member ru.*"}) {
+        CHECK(contains(amberedit::test::errorOf(AppConfig::parseOverride(block)),
+                       "several lines"));
+    }
+}
+
+TEST_CASE("-o stands in place of the line the config wrote [app_config]") {
+    // The setting the file states, and the setting it does not: the first is
+    // replaced rather than added to — a config stating a key twice is refused,
+    // and the command line is meant to win and not to contradict.
+    CHECK(withOptions("quote_margin 40\n", {"quote_margin 60"}).quoteMargin == 60);
+    CHECK(withOptions("", {"quote_margin 60"}).quoteMargin == 60);
+
+    // A key the config may repeat loses the whole of what the file said, so
+    // that -o states that list rather than lengthening it.
+    const auto akas = withOptions("aka 2:382/736\naka 2:6000/9999\n", {"aka 2:5020/1"});
+    REQUIRE(akas.akaMatches.size() == 1);
+    CHECK(akas.akaMatches.front().aka == FtnAddress::parse("2:5020/1"));
+
+    // And written twice it is a list of two, in the order it was written.
+    const auto both = withOptions("aka 2:382/736\n", {"aka 2:5020/1", "aka 2:5020/2"});
+    REQUIRE(both.akaMatches.size() == 2);
+    CHECK(both.akaMatches[0].aka == FtnAddress::parse("2:5020/1"));
+    CHECK(both.akaMatches[1].aka == FtnAddress::parse("2:5020/2"));
+
+    // The last word on the required settings too, which is what makes one
+    // config runnable as somebody else for an afternoon.
+    CHECK(withOptions("", {"name Ivan Petrov"}).userName == "Ivan Petrov");
+    CHECK(withOptions("", {"address 2:382/736"}).userAddress ==
+          FtnAddress::parse("2:382/736"));
+    CHECK(withOptions("", {"compose_charset UTF-8"}).composeCharset == "UTF-8");
+}
+
+TEST_CASE(
+    "-o is refused the way the same line in the config would be "
+    "[app_config]") {
+    // The value is read by the one chain that reads it anywhere, so the
+    // complaint is word for word the file's — with the option in front of it in
+    // place of a file and a line number.
+    CHECK(errorWithOptions("", {"quote_margin 500"}) ==
+          "-o 'quote_margin 500': quote_margin must be between 20 and 255, got 500");
+    CHECK(contains(errorWithOptions("", {"nonsense 1"}), "unknown setting 'nonsense'"));
+
+    // Two of them stating the same key are the contradiction a doubled line in
+    // a file is, and neither is the one the command line meant.
+    CHECK(contains(errorWithOptions("", {"quote_margin 60", "quote_margin 70"}),
+                   "quote_margin is set twice"));
+}
+
+TEST_CASE("-o leaves the group blocks standing [app_config]") {
+    // A group lays its settings over the file's for the areas it covers, and it
+    // goes on doing that: -o replaces what the file says generally, which is
+    // exactly what the group was written to override.
+    const auto cfg = withOptions(
+        "quote_margin 40\n"
+        "group\n"
+        "  member ru.*\n"
+        "  quote_margin 50\n"
+        "endgroup\n",
+        {"quote_margin 60"});
+    CHECK(cfg.quoteMargin == 60);
+    CHECK(cfg.effectiveFor(area("ru.linux")).quoteMargin == 50);
+    CHECK(cfg.effectiveFor(area("de.linux")).quoteMargin == 60);
+}
+
+TEST_CASE(
+    "-o says which charset the config it is read beside was written in "
+    "[app_config]") {
+    // The one setting the reading of every other one depends on, so the one a
+    // command line has to be able to state: a config in CP866 that says so
+    // nowhere is read as the UTF-8 it is not, and nothing inside it can say
+    // otherwise once it has been.
+    amberedit::encoding::IconvRecoder recoder;
+    const std::string cp866 = recoder.fromUtf8(kRequired + "origin Привет\n", "CP866");
+
+    const auto raw = amberedit::test::valueOf(AppConfig::loadFromString(cp866));
+    REQUIRE(raw.origins.size() == 1);
+    CHECK(raw.origins[0] != "Привет");
+
+    const auto cfg = amberedit::test::valueOf(
+        AppConfig::loadFromString(cp866, "<string>", options({"config_charset CP866"})));
+    CHECK(cfg.configCharset == "CP866");
+    REQUIRE(cfg.origins.size() == 1);
+    CHECK(cfg.origins[0] == "Привет");
 }

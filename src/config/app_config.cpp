@@ -1745,6 +1745,50 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
            key == "twit_subj" || key == "arealist_separator_name";
 }
 
+/// Whether the key is one of the four words that open and close a block, or the
+/// `member` line that only stands inside one. None of them is a setting, and
+/// none of them means anything on a command line: a block is several lines.
+[[nodiscard]] bool isBlockKey(const std::string& key) {
+    return key == "area" || key == "endarea" || key == "group" || key == "endgroup" ||
+           key == "member";
+}
+
+/// The file's lines with the command line's laid over them.
+///
+/// A file line is dropped where an override states its key and no block is open
+/// around it — the block lines are left exactly as they were, for the reason
+/// `loadFromFile()` gives. The overrides go at the end, in the order they were
+/// written, which is where the last word belongs and what makes `-o nodelist`
+/// twice compile the two in the order given.
+///
+/// Whether a block is open is read off the openers here rather than asked of
+/// `splitBlocks()`, which has not run yet and runs on what this returns: a file
+/// whose blocks do not balance is refused there, as it would have been without
+/// a single `-o` on the command line.
+[[nodiscard]] std::vector<CfgEntry> withOverrides(
+    std::vector<CfgEntry> entries, const std::vector<CfgEntry>& overrides) {
+    if (overrides.empty()) return entries;
+
+    std::set<std::string> stated;
+    for (const CfgEntry& entry : overrides) stated.insert(entry.key);
+
+    std::vector<CfgEntry> merged;
+    merged.reserve(entries.size() + overrides.size());
+    bool inBlock = false;
+    for (CfgEntry& entry : entries) {
+        if (entry.key == "area" || entry.key == "group") {
+            inBlock = true;
+        } else if (entry.key == "endarea" || entry.key == "endgroup") {
+            inBlock = false;
+        } else if (!inBlock && stated.count(entry.key) != 0) {
+            continue;
+        }
+        merged.push_back(std::move(entry));
+    }
+    merged.insert(merged.end(), overrides.begin(), overrides.end());
+    return merged;
+}
+
 /// Whether the key is a setting at all — which only applySetting() can say, so
 /// it is asked by reading the line onto a config that is thrown away.
 ///
@@ -2498,10 +2542,50 @@ std::optional<domain::FtnAddress> AppConfig::akaMatching(
     return std::nullopt;
 }
 
+tl::expected<CfgEntry, ErrorPtr> AppConfig::parseOverride(std::string_view text) {
+    // The option as it was typed, where a file and a line number would stand:
+    // there is no file, and "line 1" of an argument says nothing the argument
+    // itself does not say better. It reads back as
+    // `-o 'quote_margin 500': quote_margin must be between 20 and 255`.
+    const std::string origin = "-o '" + std::string(text) + "'";
+
+    auto entries = parseCfg(text, origin);
+    if (!entries) return tl::make_unexpected(std::move(entries).error());
+    if (entries->empty()) {
+        return failure<ConfigError>(origin, 0,
+                                    "names no setting — write the config line it is "
+                                    "to stand for, as -o \"quote_margin 72\"");
+    }
+    if (entries->size() > 1) {
+        return failure<ConfigError>(origin, 0,
+                                    "is more than one line — write one -o per setting");
+    }
+
+    CfgEntry entry = std::move(entries->front());
+    if (isBlockKey(entry.key)) {
+        return failure<ConfigError>(
+            origin, 0,
+            entry.key +
+                " belongs to an area or group block, which is several lines and has "
+                "to be written in the config");
+    }
+    // Zero rather than the one line it was: the origin carries the whole of it.
+    entry.line = 0;
+    return entry;
+}
+
 tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
-    const std::string& text, const std::string& originName) {
+    const std::string& text, const std::string& originName,
+    const std::vector<CfgEntry>& overrides) {
     auto entries = parseCfg(text, originName);
     if (!entries) return tl::make_unexpected(std::move(entries).error());
+
+    // Laid over before the charset is asked for, so that `-o "config_charset
+    // CP866"` answers that question too — it is the one setting that says how
+    // the rest of the file is to be read, and a command line that could not
+    // state it could not state a config written in the wrong charset back into
+    // readability.
+    std::vector<CfgEntry> merged = withOverrides(std::move(*entries), overrides);
 
     // Which charset the file was written in is a line of the file, and there is
     // no way round that: the answer has to be read out of the bytes it is about.
@@ -2510,7 +2594,7 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
     // first parse finds the line whatever the high bytes around it mean, and
     // then the whole text is decoded and parsed again, this time in UTF-8 like
     // everything above this layer.
-    auto charset = statedConfigCharset(*entries);
+    auto charset = statedConfigCharset(merged);
     if (!charset) return tl::make_unexpected(std::move(charset).error());
     if (*charset != "UTF-8") {
         encoding::IconvRecoder recoder;
@@ -2521,19 +2605,22 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
         }
         auto reread = parseCfg(*decoded, originName);
         if (!reread) return tl::make_unexpected(std::move(reread).error());
-        return fromEntries(*reread, originName);
+        // Again, over the lines the second parse made: the overrides came off a
+        // command line and were never in the file's charset to be decoded out of.
+        return fromEntries(withOverrides(std::move(*reread), overrides), originName);
     }
-    return fromEntries(*entries, originName);
+    return fromEntries(merged, originName);
 }
 
-tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(const std::string& path) {
+tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(
+    const std::string& path, const std::vector<CfgEntry>& overrides) {
     std::error_code ec;
     if (!std::filesystem::exists(path, ec)) {
         return failure("config not found: " + path);
     }
     auto content = text::readFile(path);
     if (!content) return tl::make_unexpected(std::move(content).error());
-    auto parsed = loadFromString(*content, path);
+    auto parsed = loadFromString(*content, path, overrides);
     if (!parsed) return tl::make_unexpected(std::move(parsed).error());
     AppConfig cfg = std::move(*parsed);
 

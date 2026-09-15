@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "app/area_manager.hpp"
 #include "config/app_config.hpp"
@@ -30,18 +31,21 @@ void printUsage(const char* program) {
         _("AmberEdit — a Fidonet mail editor.\n"
           "\n"
           "Usage:\n"
-          "  {0} [-c <config>] [--compile]\n"
+          "  {0} [-c <config>] [-o <line>]... [--compile]\n"
           "  {0} --setup\n"
           "\n"
           "Options:\n"
           "  -c, --config <path>   path to the AmberEdit config\n"
+          "  -o, --option <line>   override config line\n"
           "      --setup           run the setup wizard\n"
           "      --compile         compile the nodelists and echolists\n"
           "  -h, --help            this help\n"
           "  -V, --version         the AmberEdit version\n"
           "\n"
           "Without -c the config is looked up in: $AMBEREDIT_CONFIG,\n"
-          "./amberedit.cfg, ~/.ambereditrc\n"),
+          "./amberedit.cfg, ~/.ambereditrc\n"
+          "\n"
+          "  {0} -o \"theme themes/white.cfg\" -o \"quote_margin 72\"\n"),
         {program});
 }
 
@@ -146,6 +150,7 @@ std::string unnamedUtility(const amberedit::config::AppConfig& config,
 
 int main(int argc, char* argv[]) {
     std::string configPath;
+    std::vector<amberedit::config::CfgEntry> overrides;
     bool forceCompile = false;
     bool setup = false;
 
@@ -190,6 +195,27 @@ int main(int argc, char* argv[]) {
             configPath = argv[++i];
             continue;
         }
+        // One line of a config, in the config's own spelling, standing in place
+        // of whatever the file said about that setting. Read here rather than
+        // kept as a string, so that something that is not a config line at all
+        // is refused as the argument error it is — before a config has been
+        // looked for, and with the exit code an unknown option gets.
+        if (arg == "-o" || arg == "--option") {
+            if (i + 1 >= argc) {
+                std::cerr << amberedit::i18n::format(_("error: {0} needs a value"), {arg})
+                          << "\n";
+                return 2;
+            }
+            auto line = amberedit::config::AppConfig::parseOverride(argv[++i]);
+            if (!line) {
+                std::cerr << amberedit::i18n::format(_("error: {0}"),
+                                                     {line.error()->message()})
+                          << "\n";
+                return 2;
+            }
+            overrides.push_back(std::move(*line));
+            continue;
+        }
         std::cerr << amberedit::i18n::format(_("error: unknown option '{0}'"), {arg})
                   << "\n";
         printUsage(argv[0]);
@@ -210,9 +236,9 @@ int main(int argc, char* argv[]) {
             // -c says which config to read, and this reads none. Where the two
             // are written together it is not clear which of them was meant, and
             // guessing at that would be guessing at where a config goes.
-            if (!configPath.empty()) {
+            if (!configPath.empty() || !overrides.empty()) {
                 std::cerr << _("error: --setup writes a config of its own, so it "
-                               "does not take -c")
+                               "does not take -c or -o")
                           << "\n";
                 printUsage(argv[0]);
                 return 2;
@@ -246,7 +272,8 @@ int main(int argc, char* argv[]) {
             configPath = *found;
         }
 
-        const auto loaded = amberedit::config::AppConfig::loadFromFile(configPath);
+        const auto loaded =
+            amberedit::config::AppConfig::loadFromFile(configPath, overrides);
         if (!loaded) {
             std::cerr << amberedit::i18n::format(_("error: {0}"),
                                                  {loaded.error()->message()})
