@@ -26,7 +26,8 @@ TEST_CASE("AreasBbsParser parses testdata/tossers/areas.bbs [areasbbs]") {
     AreasBbsParser parser(amberedit::test::projectPath("testdata/tossers/areas.bbs"));
     const auto areas = amberedit::test::valueOf(parser.loadAreas());
 
-    REQUIRE(areas.size() == 4);
+    // Five lines, two of them passthrough and so not in the list.
+    REQUIRE(areas.size() == 3);
 
     SUBCASE("no prefix means Fido *.msg") {
         const auto* area = findArea(areas, "localnet");
@@ -58,14 +59,11 @@ TEST_CASE("AreasBbsParser parses testdata/tossers/areas.bbs [areasbbs]") {
         CHECK(area->links[1].toString() == "2:5015/46");
     }
 
-    SUBCASE("a P field means passthrough with no path") {
-        const auto* area = findArea(areas, "su.general");
-        REQUIRE(area != nullptr);
-        CHECK(area->type == MsgBaseType::Passthrough);
-        CHECK(area->isPassthrough());
-        CHECK(area->path.empty());
-        // An area with no links is legal and still belongs in the list.
-        CHECK(area->links.empty());
+    SUBCASE("a P field means passthrough, and such an area is left out") {
+        // There is no base on disk behind a P, with links written after the
+        // tag or without.
+        CHECK(findArea(areas, "su.general") == nullptr);
+        CHECK(findArea(areas, "su.tormoz") == nullptr);
     }
 
     SUBCASE("the format carries no groups") {
@@ -126,7 +124,9 @@ TEST_CASE("map_path rewrites the path under its type prefix [areasbbs]") {
         "P a.four 2:5020/1\n",
         paths);
 
-    REQUIRE(areas.size() == 4);
+    // Three of the four: the P line names no path for a rule to be asked
+    // about, and no area for the list either.
+    REQUIRE(areas.size() == 3);
     // The prefix names the base type and is not part of the path, so a rule
     // sees the path and the type survives it.
     CHECK(areas[0].type == MsgBaseType::Squish);
@@ -134,6 +134,20 @@ TEST_CASE("map_path rewrites the path under its type prefix [areasbbs]") {
     CHECK(areas[1].type == MsgBaseType::Jam);
     CHECK(areas[1].path == "/mnt/fido/msgbase/two");
     CHECK(areas[2].path == "d:\\other\\three");
-    CHECK(areas[3].type == MsgBaseType::Passthrough);
-    CHECK(areas[3].path.empty());
+}
+
+TEST_CASE("AreasBbsParser leaves passthrough areas out [areasbbs]") {
+    const auto areas = AreasBbsParser::parseText(
+        "$/ftn/one a.one 2:5020/1\n"
+        "P     su.tormoz                    2:5020/9999\n"
+        "p su.lower 2:5020/1\n"
+        "!/ftn/two a.two\n");
+
+    // The mail only passes through such an area: nothing is written down, so
+    // there is no base to open and no line to put in the list. The field is
+    // matched without regard to case, as the tosser matches it — a lower-case
+    // `p` is the same marker and not a relative path.
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].tag == "a.one");
+    CHECK(areas[1].tag == "a.two");
 }

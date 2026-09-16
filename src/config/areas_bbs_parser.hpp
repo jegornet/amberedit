@@ -17,8 +17,8 @@ namespace amberedit::config {
 ///
 /// The path field is `[prefix]path`, where the prefix names the base type:
 /// `$` for Squish, `!` for JAM, no prefix for Fido *.msg. A field of just `P`
-/// marks a passthrough area (no base on disk). Lines starting with `;` are
-/// comments.
+/// marks a passthrough area, and such an area is left out of the list — there
+/// is no base on disk to read. Lines starting with `;` are comments.
 ///
 /// The path, once the prefix is off it, comes back through the `map_path` rules
 /// the parser was built with.

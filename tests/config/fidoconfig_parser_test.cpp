@@ -31,6 +31,7 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas [fidoconfig]") {
     FidoconfigParser parser(amberedit::test::projectPath("testdata/tossers/areas"));
     const auto areas = amberedit::test::valueOf(parser.loadAreas());
 
+    // Nine area lines, three of them passthrough and so not in the list.
     REQUIRE(areas.size() == 6);
 
     SUBCASE("netmailarea of type msg") {
@@ -57,6 +58,15 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas [fidoconfig]") {
         CHECK(findArea(areas, "BAD")->kind == AreaKind::Bad);
         CHECK(findArea(areas, "DUPES")->kind == AreaKind::Dupe);
         CHECK(findArea(areas, "BAD")->group == "B");
+    }
+
+    SUBCASE("the passthrough areas are left out, however they are marked") {
+        // `Passthrough` where the base would be, `-pass` beside a base written
+        // out in full, and a line under passthrough defaults that names no
+        // base at all.
+        CHECK(findArea(areas, "RU.HUSKY") == nullptr);
+        CHECK(findArea(areas, "RU.UNIX") == nullptr);
+        CHECK(findArea(areas, "RU.SPARE") == nullptr);
     }
 
     SUBCASE("-a gives the AKA, the bare addresses that follow are links") {
@@ -136,17 +146,42 @@ TEST_CASE("FidoconfigParser reads the area group [fidoconfig]") {
     CHECK(areas[3].group.empty());  // the option is optional
 }
 
-TEST_CASE("FidoconfigParser understands passthrough [fidoconfig]") {
+TEST_CASE("FidoconfigParser leaves passthrough areas out [fidoconfig]") {
+    // The mail only passes through such an area: the tosser writes nothing
+    // down, so there is no base to open and no line to put in the list.
     const auto areas = FidoconfigParser::parseText(
-        "EchoArea su.general passthrough -a 2:5020/1 2:5020/715\n");
+        "EchoArea a.one /ftn/one -b squish\n"
+        "EchoArea su.general passthrough -a 2:5020/1 2:5020/715\n"
+        // The word is matched without regard to case, as husky matches it.
+        "EchoArea RU.HUSKY Passthrough -a 2:5020/1042 -g R 2:5020/1042\n"
+        "EchoArea a.two /ftn/two -b jam\n");
+
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].tag == "a.one");
+    CHECK(areas[1].tag == "a.two");
+}
+
+TEST_CASE("-pass makes an area passthrough beside a base of its own "
+          "[fidoconfig]") {
+    // A base written out in full and `-pass` beside it is how a config turns
+    // an area off for a while without losing the line, and the option wins
+    // wherever on the line it stands — before `-b` as after it.
+    const auto areas = FidoconfigParser::parseText(
+        "EchoArea ru.husky /var/spool/fido/msgb/ru.husky -b Squish -pass "
+        "-a 2:5020/1042 2:5020/9999\n"
+        "EchoArea ru.unix /var/spool/fido/msgb/ru.unix -pass -b squish\n"
+        "EchoArea a.kept /ftn/kept -b squish\n");
 
     REQUIRE(areas.size() == 1);
-    CHECK(areas[0].isPassthrough());
-    CHECK(areas[0].type == MsgBaseType::Passthrough);
-    CHECK(areas[0].path.empty());
-    CHECK(areas[0].address.toString() == "2:5020/1");
-    REQUIRE(areas[0].links.size() == 1);
-    CHECK(areas[0].links[0].toString() == "2:5020/715");
+    CHECK(areas[0].tag == "a.kept");
+}
+
+TEST_CASE("the word where the base stands beats a -b after it [fidoconfig]") {
+    // husky ignores `-b` outright once the file field says passthrough, so an
+    // area written this way has no base however the line goes on.
+    const auto areas =
+        FidoconfigParser::parseText("EchoArea su.general passthrough -b squish\n");
+    CHECK(areas.empty());
 }
 
 TEST_CASE("FidoconfigParser leaves the AKA unset when -a is absent [fidoconfig]") {
@@ -291,26 +326,40 @@ TEST_CASE("passthrough defaults let the area leave the path out [fidoconfig]") {
         "EchoArea a.two -g L 2:6000/9999\n"
         "EchoArea a.three /ftn/three -b squish\n");
 
-    REQUIRE(areas.size() == 3);
+    // a.two is the one that inherited the passthrough and left its path out,
+    // and it is left out of the list in turn.
+    REQUIRE(areas.size() == 2);
 
     // A token holding a path separator is a path whatever the defaults say,
     // which is how husky itself tells the two apart — and why an address in
     // that position reads as one rather than as a link.
+    CHECK(areas[0].tag == "a.one");
     CHECK(areas[0].path == "2:382/736");
     CHECK_FALSE(areas[0].isPassthrough());
     CHECK(areas[0].group == "F");
 
-    CHECK(areas[1].isPassthrough());
-    CHECK(areas[1].path.empty());
-    CHECK(areas[1].group == "L");
-    REQUIRE(areas[1].links.size() == 1);
-    CHECK(areas[1].links[0].toString() == "2:6000/9999");
-
     // An area that names a base of its own is not passthrough for having
     // inherited it.
-    CHECK_FALSE(areas[2].isPassthrough());
-    CHECK(areas[2].path == "/ftn/three");
-    CHECK(areas[2].type == MsgBaseType::Squish);
+    CHECK(areas[1].tag == "a.three");
+    CHECK_FALSE(areas[1].isPassthrough());
+    CHECK(areas[1].path == "/ftn/three");
+    CHECK(areas[1].type == MsgBaseType::Squish);
+}
+
+TEST_CASE("defaults the config takes back are passthrough no longer "
+          "[fidoconfig]") {
+    // `EchoAreaDefaults` replaces the one before it whole, so the statement
+    // that names nothing is how a config stops inheriting the passthrough —
+    // and the areas below it are in the list again.
+    const auto areas = FidoconfigParser::parseText(
+        "EchoAreaDefaults passthrough -g R\n"
+        "EchoArea a.pass -a 2:5020/1042 2:5020/9999\n"
+        "EchoAreaDefaults off\n"
+        "EchoArea a.kept /ftn/kept -b squish\n");
+
+    REQUIRE(areas.size() == 1);
+    CHECK(areas[0].tag == "a.kept");
+    CHECK(areas[0].group.empty());
 }
 
 TEST_CASE("set defines what [name] stands for [fidoconfig]") {
@@ -445,14 +494,14 @@ TEST_CASE("map_path rewrites an area's path, after the variables [fidoconfig]") 
         "EchoArea a.three passthrough\n",
         paths);
 
-    REQUIRE(areas.size() == 3);
+    // An area with no base of its own has no path for a rule to be asked
+    // about, and no place in the list either.
+    REQUIRE(areas.size() == 2);
     // The variable is expanded first, so what a rule is asked about is the path
     // the line means and not the text it is written as.
     CHECK(areas[0].path == "/mnt/fido/msgbase/one");
     // A path no rule covers is opened as it stands.
     CHECK(areas[1].path == "/home/ftn/two");
-    // And an area with no base of its own is left with none.
-    CHECK(areas[2].path.empty());
 }
 
 TEST_CASE("map_path reaches the file an include names [fidoconfig]") {

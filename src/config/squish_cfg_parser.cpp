@@ -101,8 +101,11 @@ std::vector<AreaConfig> SquishCfgParser::parseText(const std::string& content,
         if (tokens.empty()) continue;
 
         if (auto kind = parseAreaKeyword(tokens[0])) {
-            if (auto area = parseAreaLine(tokens, *kind, paths))
-                areas.push_back(std::move(*area));
+            auto area = parseAreaLine(tokens, *kind, paths);
+            // A passthrough area is not in the list at all: the tosser routes
+            // the mail through it and writes nothing down, so there is no base
+            // to open and nothing to read.
+            if (area && !area->isPassthrough()) areas.push_back(std::move(*area));
         }
     }
     return areas;

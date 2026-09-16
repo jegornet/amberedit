@@ -197,11 +197,26 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
 /// inheriting means here.
 void applyAreaOptions(const std::vector<std::string>& tokens, size_t first,
                       AreaConfig& area) {
+    // Decided over the whole line rather than where it is read: husky lets
+    // `-pass` stand anywhere among the options and the word `passthrough`
+    // where the base would be, and neither is undone by a `-b` after it.
+    // Inherited too — `echoareadefaults passthrough` is a default like any
+    // other, and an area that leaves its path out keeps it.
+    bool passthrough = area.type == MsgBaseType::Passthrough;
+
     for (size_t i = first; i < tokens.size(); ++i) {
         const std::string& token = tokens[i];
 
         if (!token.empty() && token[0] == '-') {
             const std::string option = text::toLower(token);
+
+            // `-pass` makes the area passthrough with the path and the base
+            // type written out beside it (fidoconf/src/line.c), which is how a
+            // config turns a base off for a while without losing the line.
+            if (option == "-pass") {
+                passthrough = true;
+                continue;
+            }
 
             if (valueOptions().count(option) == 0) continue;  // boolean flag
             if (i + 1 >= tokens.size()) break;
@@ -233,8 +248,7 @@ void applyAreaOptions(const std::vector<std::string>& tokens, size_t first,
         // `passthrough` names no base of its own wherever it stands, which on
         // an `echoareadefaults` line is the only place it can stand.
         if (text::iequals(token, "passthrough")) {
-            area.type = MsgBaseType::Passthrough;
-            area.path.clear();
+            passthrough = true;
             continue;
         }
 
@@ -242,6 +256,11 @@ void applyAreaOptions(const std::vector<std::string>& tokens, size_t first,
         // The links the defaults named are already in the list, and these come
         // after them.
         if (auto addr = FtnAddress::parse(token)) area.links.push_back(*addr);
+    }
+
+    if (passthrough) {
+        area.type = MsgBaseType::Passthrough;
+        area.path.clear();
     }
 }
 
@@ -351,8 +370,13 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
         }
 
         if (auto kind = parseAreaKeyword(tokens[0])) {
-            if (auto area = parseAreaLine(tokens, *kind, state, paths))
-                areas.push_back(std::move(*area));
+            auto area = parseAreaLine(tokens, *kind, state, paths);
+            // A passthrough area is not in the list at all. The tosser routes
+            // the mail through it and writes nothing down, so there is no base
+            // to open, nothing to read and nowhere to write — and a line in the
+            // area list that answers every key with "passthrough" is one more
+            // thing between the reader and the echoes they do carry.
+            if (area && !area->isPassthrough()) areas.push_back(std::move(*area));
         }
     }
     return {};

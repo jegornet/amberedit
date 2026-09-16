@@ -3202,6 +3202,21 @@ taking a row.
   options carry their value **attached** — `-$` for a Squish base (absent means
   Fido `*.msg`), `-$gA` for the group, `-p2:382/736` for the area's AKA, bare
   addresses after them being links. Squish cannot describe JAM at all.
+- **A passthrough area the tosser config declares is left out of the area
+  list**, in all three formats and however the format marks one: the word
+  `passthrough` where the base would stand (fidoconfig and squish.cfg), `P`
+  where the path would (areas.bbs), fidoconfig's `-pass` beside a base written
+  out in full, and a fidoconfig line that names no base at all under
+  `echoareadefaults passthrough`. The mail passes through such an area and
+  nothing is written down, so there is no base to open, nothing to read and
+  nowhere to write — a row that answers every key with "passthrough" is one
+  more thing between the reader and the echoes they do carry. The drop is in
+  each parser, where the area list is built, and not in `AreaManager`: what
+  never comes out of the tosser's config is not sorted, counted or drawn.
+  `area ... endarea` blocks are the exception and stay: `type passthrough`
+  there is what somebody wrote about this one area on purpose, and
+  `AreaManager::reload()` still marks such an entry `passthrough` rather than
+  opening a base for it.
 - **`map_path` translates the tosser config's paths and no others.** The lines
   are read into `AppConfig::tosserPaths` (a repeatable key, the same source
   refused twice), and `config::PathMap` is what applies them: whole components
@@ -3236,7 +3251,11 @@ taking a row.
   flag makes it eat the token after it — a stray `-pack` would swallow
   `-b squish` and leave the area with no base type. The authority is
   `parseAreaOption()` in `fidoconf/src/line.c`. A value is never allowed to start
-  with `-`, as a second line of defence if the two drift apart.
+  with `-`, as a second line of defence if the two drift apart. `-pass` is the
+  one flag read rather than skipped, and it is decided over the whole line: it
+  makes the area passthrough wherever among the options it stands, a `-b` after
+  it undoing nothing, which is how a config turns a base off for a while
+  without losing the line.
 - **fidoconfig's `echoareadefaults` states what the echo, local, bad and dupe
   areas below it inherit.** Netmail inherits nothing: the statement is
   echomail's, and neither the group the echoes are filed under nor the base type
@@ -3245,7 +3264,10 @@ taking a row.
   readability — is how inheriting stops. An option on the area line beats the
   inherited one, and the area's own links come after the ones the defaults
   named. Where the defaults say `passthrough` an area may leave its path out,
-  and the token after the tag is then a path only where it holds a separator.
+  and the token after the tag is then a path only where it holds a separator —
+  an area that does leave it out inherits the passthrough and is left out of
+  the list with it, while one naming a base of its own is an ordinary area
+  again.
 - **fidoconfig's `set <name>=<value>` defines what `[name]` stands for** in every
   line below it, the path of an `include` among them. The definitions live for
   the whole parse — an included file neither starts from a clean slate nor gives

@@ -39,6 +39,8 @@ std::optional<AreaConfig> parseLine(const std::string& rawLine, const PathMap& p
     area.kind = AreaKind::Echo;
 
     // A "P" field (in any case) means passthrough: there is no base on disk.
+    // Read all the same rather than dropped here, so that the line still needs
+    // a tag after it to be an area line at all.
     if (text::iequals(tokens[0], "P")) {
         area.type = MsgBaseType::Passthrough;
     } else {
@@ -71,7 +73,11 @@ std::vector<AreaConfig> AreasBbsParser::parseText(const std::string& content,
                                                   const PathMap& paths) {
     std::vector<AreaConfig> areas;
     for (const auto& line : text::splitLines(content)) {
-        if (auto area = parseLine(line, paths)) areas.push_back(std::move(*area));
+        auto area = parseLine(line, paths);
+        // A passthrough area is not in the list at all: the tosser routes the
+        // mail through it and writes nothing down, so there is no base to open
+        // and nothing to read.
+        if (area && !area->isPassthrough()) areas.push_back(std::move(*area));
     }
     return areas;
 }

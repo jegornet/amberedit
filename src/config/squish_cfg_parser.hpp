@@ -22,6 +22,10 @@ namespace amberedit::config {
 ///
 /// JAM is deliberately absent: Squish's own configuration cannot describe it.
 ///
+/// `passthrough` where the path stands marks an area the mail only passes
+/// through, and such an area is left out of the list: there is no base on disk
+/// to read.
+///
 /// An area's path comes back through the `map_path` rules the parser was built
 /// with — a squish.cfg is the format most likely to hold DOS paths.
 class SquishCfgParser final : public ports::IAreaConfigSource {

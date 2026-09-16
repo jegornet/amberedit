@@ -19,6 +19,11 @@ namespace amberedit::config {
 /// is ignored: AmberEdit only needs the area list and does not aim to
 /// understand the whole tosser config.
 ///
+/// Passthrough areas are left out of the list, however the config marks them —
+/// `passthrough` where the base would be, the `-pass` option beside a base
+/// written out in full, or a line that names no base at all under
+/// `echoareadefaults passthrough`. There is nothing on disk to read.
+///
 /// Every path it takes out of the file — an area's base and the file an
 /// `include` names — comes back through the `map_path` rules it was built with,
 /// so a config written for a tosser that runs elsewhere opens here.

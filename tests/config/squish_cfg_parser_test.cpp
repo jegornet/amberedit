@@ -27,7 +27,8 @@ TEST_CASE("SquishCfgParser parses testdata/tossers/squish.cfg [squishcfg]") {
     SquishCfgParser parser(amberedit::test::projectPath("testdata/tossers/squish.cfg"));
     const auto areas = amberedit::test::valueOf(parser.loadAreas());
 
-    REQUIRE(areas.size() == 7);
+    // Seven area lines, two of them passthrough and so not in the list.
+    REQUIRE(areas.size() == 6);
 
     SUBCASE("-$ selects a Squish base") {
         const auto* area = findArea(areas, "localnet");
@@ -69,17 +70,11 @@ TEST_CASE("SquishCfgParser parses testdata/tossers/squish.cfg [squishcfg]") {
         CHECK(area->links.empty());
     }
 
-    SUBCASE("passthrough has no base whatever the other options say") {
-        const auto* area = findArea(areas, "su.general");
-        REQUIRE(area != nullptr);
-        CHECK(area->isPassthrough());
-        CHECK(area->type == MsgBaseType::Passthrough);
-        CHECK(area->path.empty());
-        CHECK(area->group == "A");
-        // -p takes the first address, so only the second is a link.
-        CHECK(area->address.toString() == "2:382/736");
-        REQUIRE(area->links.size() == 1);
-        CHECK(area->links[0].toString() == "2:5020/715");
+    SUBCASE("a passthrough area is left out of the list") {
+        // `passthrough` where the path stands, whatever the options beside it
+        // say: there is no base on disk, so there is nothing to show.
+        CHECK(findArea(areas, "su.general") == nullptr);
+        CHECK(findArea(areas, "boring.flame") == nullptr);
     }
 
     SUBCASE("BadArea and LocalArea are recognised by keyword") {
@@ -153,11 +148,25 @@ TEST_CASE("map_path rewrites an area's path [squishcfg]") {
         "EchoArea a.two passthrough -0\n",
         paths);
 
-    REQUIRE(areas.size() == 2);
+    // A passthrough area has no path for a rule to be asked about, and no
+    // place in the list either.
+    REQUIRE(areas.size() == 1);
     CHECK(areas[0].type == MsgBaseType::Squish);
     CHECK(areas[0].path == "/mnt/fido/msgbase/one");
     CHECK(areas[0].address.toString() == "2:382/736");
-    // A passthrough area has no path for a rule to be asked about.
-    CHECK(areas[1].type == MsgBaseType::Passthrough);
-    CHECK(areas[1].path.empty());
+}
+
+TEST_CASE("SquishCfgParser leaves passthrough areas out [squishcfg]") {
+    const auto areas = SquishCfgParser::parseText(
+        "EchoArea a.one /ftn/one -$ -p2:382/736\n"
+        "EchoArea boring.flame passthrough -0 -$gZ -p2:5020/9999 2:5020/9998\n"
+        "EchoArea a.two /ftn/two -$\n"
+        "NetArea a.pass PassThrough\n");
+
+    // The mail only passes through such an area: nothing is written down, so
+    // there is no base to open and no line to put in the list. The word is
+    // matched without regard to case, as the tosser matches it.
+    REQUIRE(areas.size() == 2);
+    CHECK(areas[0].tag == "a.one");
+    CHECK(areas[1].tag == "a.two");
 }
