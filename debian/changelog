@@ -1,3 +1,9 @@
+amberedit (0.8.7-1) unstable; urgency=low
+
+  * skip passthrough areas
+
+ -- Yegor Gluhov <git@jegor.net>  Wed, 16 Sep 2026 12:00:00 +0000
+
 amberedit (0.8.6-1) unstable; urgency=low
 
   * add reader_position_after_save

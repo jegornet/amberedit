@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.7 — 2026-09-16
+
+- skip passthrough areas
+
 ## 0.8.6 — 2026-09-16
 
 - add reader_position_after_save
