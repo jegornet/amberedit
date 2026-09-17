@@ -417,6 +417,39 @@ TEST_CASE("Echomail is not addressed, so it carries no INTL [builder]") {
           "CHRS: CP866 2|");
 }
 
+TEST_CASE("A PID says what wrote the message, where one is asked for [builder]") {
+    AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.toName = "All";
+    fields.toAddr.clear();
+
+    // Off, which is how it stands: no PID, and the message carries the lines
+    // every message of ours carries and nothing besides.
+    const BuildRequest silent{cfg,     area,    fields,     nullptr,
+                              nullptr, nullptr, 0x68A1B2C3, 180};
+    CHECK(kludgesOf(buildDraft(silent, {})) ==
+          "MSGID: 2:382/736.1 68a1b2c3|"
+          "TZUTC: 0300|"
+          "CHRS: CP866 2|");
+
+    // Asked for, FSC-0046's line stands last of the ones written here: the
+    // short name of this build, then the version.
+    cfg.composeAddPid = true;
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto draft = buildDraft(request, {});
+    REQUIRE_FALSE(draft.kludges.empty());
+    CHECK(draft.kludges.back() == "PID: " + std::string(amberedit::kProductId) + " " +
+                                      std::string(amberedit::kVersion));
+    CHECK(amberedit::test::contains(draft.kludges.back(), "PID: AMBEREDIT"));
+    // Inside the ten characters FSC-0046 keeps for the name, whichever system
+    // this was built for — which is what the short name is for.
+    CHECK(std::string(amberedit::kProductId).size() <= 10);
+}
+
 TEST_CASE("The area a message names is read off its first line only [builder]") {
     const auto tagOf = [](std::vector<amberedit::domain::MessageLine> lines) {
         MessageBody body;

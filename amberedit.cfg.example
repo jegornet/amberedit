@@ -178,6 +178,10 @@ reply_original_charset off
 # does what it does with them.
 compose_fts1_field_limits on
 
+# Whether a message you write carries the PID control line of FSC-0046, which
+# names the program that wrote it. Optional; off by default.
+compose_add_pid off
+
 # Whether the UCSFROM, UCSTO and UCSSUBJ control lines of FSP-1030 are used for
 # the From, To and Subject of a message written in UTF-8, and shown in place of
 # the stored fields of one read in it. Optional; on by default.

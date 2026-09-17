@@ -14,6 +14,13 @@ inline constexpr std::string_view kVersion = "@PROJECT_VERSION@";
 /// The system AmberEdit was built for, lowercase: "linux", "darwin", "freebsd".
 inline constexpr std::string_view kSystemName = "@AMBEREDIT_SYSTEM@";
 
+/// What FSC-0046 calls the pID: the program and the system it runs on, in the
+/// ten characters the standard keeps for that field. The name takes nine of
+/// them and the system the tenth — "AMBEREDITL" on Linux, and `W` for Windows,
+/// `M` for macOS, `B` for a BSD, `U` for a Unix none of those name. The system
+/// is spelled out on the tearline, where there is room for it.
+inline constexpr std::string_view kProductId = "AMBEREDIT@AMBEREDIT_SYSTEM_LETTER@";
+
 /// The long form of the name, as FTN programs have always written it: the
 /// program, a slash, and the system it runs on — "AmberEdit/linux". It is what a
 /// reader of the tearline wants when a message turns out to have been written

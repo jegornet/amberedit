@@ -688,6 +688,16 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     draft.kludges.push_back("TZUTC: " + tzutcOffset(request.utcOffsetMinutes));
     draft.kludges.push_back("CHRS: " + charsetIdentifier(draft.charset) + " " +
                             std::to_string(charsetLevel(draft.charset)));
+    // What wrote it: FSC-0046's PID, the short name of the program and this
+    // version, which is what a message turning out to have been written wrong is
+    // traced by. Only here, and only on a message this editor creates — the
+    // standard allows one PID per message and has it added by whatever wrote the
+    // message, never by whatever passes it on, which is why a change keeps the
+    // one it has and a copy carries the original's.
+    if (request.config.composeAddPid) {
+        draft.kludges.push_back("PID: " + std::string(kProductId) + " " +
+                                std::string(kVersion));
+    }
     // Last of them, after the lines FTS-0009 and its like ask for: these are
     // the writer's own note of who else has this message, and nothing routes
     // by them.

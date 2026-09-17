@@ -539,6 +539,20 @@ Rules that hold the design together:
   origin. Do not gather them into a block. `preservedLines()` puts the ^A-less
   leading one back at the head of a message being changed, and `standsFirst()`
   keeps a MSGID from being inserted in front of it.
+- **The PID says what wrote the message.** FSC-0046's `^APID:` line, written by
+  `buildDraft()` behind CHRS, `compose_add_pid` asking and off unless a config
+  asks for one — few echoes read them. It carries the short name and the
+  version, `kProductId` from `version.hpp`: "PID: AMBEREDITL 0.8.7". The
+  standard keeps ten characters for that field, the name takes nine of them, and
+  the system gets the tenth — `L`, `W`, `M`, `B`, and `U` for a Unix none of
+  those name, worked out at configure time beside `AMBEREDIT_SYSTEM` itself. The
+  system is spelled out on the tearline, where there is room for it. One per message, added by whatever
+  created it: only a message composed here gets a PID, a message changed keeps
+  the line it was written with, and one moved or copied carries its author's.
+  The tearline is a separate line and stays the writer's to decide, `tearline`
+  saying what goes on it — FSC-0046 would have a message carrying a PID name no
+  program after the tearline, and that is the writer's call rather than this
+  editor's.
 - **What the reader is showing is what an answer carries.** `BuildRequest::kludgesShown`
   is the reader's `k`, and `quotableLines()` keeps the control lines with the text
   when it is set: a reply quotes them under the same initials as everything else,
@@ -2136,8 +2150,9 @@ decides what an occurrence is.
   address in an echo area). What the editor does not show is kept in
   `AppState::changeKept`: `app::preservedLines()` splits the service lines where
   the text begins, and `app::buildChange()` puts both back around the text when
-  it is stored, in the charset the message was read in. No REPLY is invented and
-  no tearline.
+  it is stored, in the charset the message was read in. No REPLY is invented,
+  no tearline and no PID — this message was created once already, and FSC-0046
+  keeps its line for whatever created it.
 - The exceptions are the two control lines that describe the *writing* rather
   than the message, both from `app::ChangeStamp`: a **new MSGID**, naming this
   system (`app::ownAddress()`, falling back to the message's own From address
@@ -4140,8 +4155,8 @@ together — `keys_mode` says which.
   base message and kludge format), `fts-0004.001` (echomail: the `AREA:` line, the
   tearline and origin pair, SEEN-BY and PATH), and the ones a written message has
   to satisfy: `fts-0009.001` (MSGID/REPLY), `fts-4008.002` (TZUTC),
-  `fts-5003.001` (CHRS), `fsc-0004.001` (INTL) and `fsp-1030.002` (UTF-8 and the
-  UCS header lines).
+  `fts-5003.001` (CHRS), `fsc-0004.001` (INTL), `fsc-0046.005` (PID) and
+  `fsp-1030.002` (UTF-8 and the UCS header lines).
 - `default.tpl` — the template a message is built from, shipped as it stands and
   the whole token set `app/msg_template` implements.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one

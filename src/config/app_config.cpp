@@ -1413,6 +1413,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeFts1FieldLimits = *read;
+    } else if (key == "compose_add_pid") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.composeAddPid = *read;
     } else if (key == "ucs_kludges") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

@@ -672,6 +672,20 @@ TEST_CASE("compose_fts1_field_limits is on unless it is turned off [app_config]"
     CHECK_MESSAGE(contains(error, "not for one area"), error);
 }
 
+TEST_CASE("compose_add_pid is off unless it is asked for [app_config]") {
+    // Off by default: FSC-0046's line is read in few echoes, and a message
+    // carries nothing nobody asked for.
+    CHECK_FALSE(with("").composeAddPid);
+    CHECK_FALSE(with("compose_add_pid off\n").composeAddPid);
+    CHECK(with("compose_add_pid on\n").composeAddPid);
+    CHECK_FALSE(loads("compose_add_pid sometimes\n"));
+    // Not a per-area setting: the program that writes the message is the same
+    // one in every echo.
+    const std::string error =
+        errorWith("group\nmember *\ncompose_add_pid off\nendgroup\n");
+    CHECK_MESSAGE(contains(error, "not for one area"), error);
+}
+
 TEST_CASE("ucs_kludges is on unless it is turned off [app_config]") {
     // On by default: FSP-1030's lines are what makes a UTF-8 name survive the
     // 35 bytes a packet keeps for it, and a reader that ignored them would show

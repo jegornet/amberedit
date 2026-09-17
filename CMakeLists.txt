@@ -514,6 +514,21 @@ add_library(amberedit_core STATIC
 # taken at configure time rather than from the preprocessor: it is the system
 # AmberEdit is built for, which is what a message signed "AmberEdit/linux" claims.
 string(TOLOWER "${CMAKE_SYSTEM_NAME}" AMBEREDIT_SYSTEM)
+# The same system in the single letter a PID ends with. FSC-0046 keeps ten
+# characters for the product identifier, and the name takes nine of them, so the
+# system gets the one that is left. A system none of these names is a Unix as far
+# as a message is concerned, and says so.
+if(AMBEREDIT_SYSTEM STREQUAL "linux")
+  set(AMBEREDIT_SYSTEM_LETTER "L")
+elseif(AMBEREDIT_SYSTEM STREQUAL "darwin")
+  set(AMBEREDIT_SYSTEM_LETTER "M")
+elseif(AMBEREDIT_SYSTEM MATCHES "^(windows|msys|cygwin|mingw)")
+  set(AMBEREDIT_SYSTEM_LETTER "W")
+elseif(AMBEREDIT_SYSTEM MATCHES "bsd$|^dragonfly")
+  set(AMBEREDIT_SYSTEM_LETTER "B")
+else()
+  set(AMBEREDIT_SYSTEM_LETTER "U")
+endif()
 configure_file(src/version.hpp.in ${CMAKE_BINARY_DIR}/generated/version.hpp @ONLY)
 
 target_include_directories(amberedit_core PUBLIC src ${CMAKE_BINARY_DIR}/generated)

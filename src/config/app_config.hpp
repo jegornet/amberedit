@@ -732,6 +732,18 @@ struct AppConfig {
     /// stores what it is given.
     bool composeFts1FieldLimits{true};
 
+    /// Whether a message written here carries the ^APID control line of
+    /// FSC-0046, which names the program that created it. Off by default, few
+    /// echoes having any use for it, and not a per-area setting: the program is
+    /// the same one in every echo.
+    ///
+    /// It is written as the short name FSC-0046 keeps ten characters for and
+    /// the version — "PID: AMBEREDITL 0.8.7" — and only on a message this editor
+    /// creates. A message being changed keeps the PID it was created with and a
+    /// copy carries the original's: FSC-0046 allows one PID per message and has
+    /// it added by whatever wrote the message, not by whatever passes it on.
+    bool composeAddPid{false};
+
     /// Whether FSP-1030's ^AUCSFROM, ^AUCSTO and ^AUCSSUBJ control lines are
     /// used for the From, To and Subject of a message written in UTF-8, and
     /// shown in place of the stored fields for one read in it. On by default,
