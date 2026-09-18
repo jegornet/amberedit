@@ -182,6 +182,9 @@ compose_fts1_field_limits on
 # names the program that wrote it. Optional; off by default.
 compose_add_pid off
 
+# Add a custom kludge
+#compose_add_kludge RealName "John Doe"
+
 # Whether the UCSFROM, UCSTO and UCSSUBJ control lines of FSP-1030 are used for
 # the From, To and Subject of a message written in UTF-8, and shown in place of
 # the stored fields of one read in it. Optional; on by default.
@@ -1473,12 +1476,15 @@ twit_mode blank
 #   reader_stylecodes     areareplydirect       reply_to_area
 #   reply_original_charset
 #   bbs_codes_renegade    bbs_codes_ansi
-#   compose_cc_list       compose_xc_list
+#   compose_cc_list       compose_xc_list       compose_add_kludge
 #   twit                  twit_subj             twit_to      twit_mode
 #
 # A group's "twit" and "twit_subj" lines are ADDED to the ones outside it, and a
 # group cannot take a twit off the list — "twit_mode show" is the one thing that
-# says "not here". An "address" stated in a group overrides the one the tosser
+# says "not here". A group's "compose_add_kludge" lines are added the same way,
+# except that one naming a control line the file outside it already named states
+# what that line says for the areas it covers: a message carries one of each.
+# An "address" stated in a group overrides the one the tosser
 # config gives that area. Everything else is the whole config's: the layout, the
 # menus, the theme, the area list's own order and columns, the tosser config, and
 # the aka / akamatch rules.

@@ -450,6 +450,71 @@ TEST_CASE("A PID says what wrote the message, where one is asked for [builder]")
     CHECK(std::string(amberedit::kProductId).size() <= 10);
 }
 
+TEST_CASE("compose_add_kludge lines are carried behind the standard ones [builder]") {
+    AppConfig cfg = config();
+    cfg.composeAddKludges = {{"RealName", "Yegor Gluhov"}, {"X-Comment", "my own note"}};
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.toName = "All";
+    fields.toAddr.clear();
+
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    // Behind every line a standard asks for, in the order the config wrote
+    // them, the name and the colon put back together.
+    CHECK(kludgesOf(buildDraft(request, {})) ==
+          "MSGID: 2:382/736.1 68a1b2c3|"
+          "TZUTC: 0300|"
+          "CHRS: CP866 2|"
+          "RealName: Yegor Gluhov|"
+          "X-Comment: my own note|");
+
+    // And ahead of the CC: lines the caller adds, which stay last: those are
+    // this message's own note of who else has it.
+    BuildRequest copied = request;
+    copied.extraKludges = {"CC: Vasya Pupkin"};
+    const auto draft = buildDraft(copied, {});
+    REQUIRE(draft.kludges.size() >= 2);
+    CHECK(draft.kludges.back() == "CC: Vasya Pupkin");
+    CHECK(draft.kludges[draft.kludges.size() - 2] == "X-Comment: my own note");
+}
+
+TEST_CASE("A compose_add_kludge line counts towards the charset [builder]") {
+    // It is text somebody wrote, and the base converts it with the rest of the
+    // message: a reply keeping the answered message's charset keeps it only
+    // where that charset has room for the config's lines too.
+    AppConfig cfg = config();  // compose_charset CP866
+    cfg.replyOriginalCharset = true;
+    cfg.composeAddKludges = {{"RealName", "Егор Глухов"}};
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    MessageHeader header;
+    header.from = "John Doe";
+
+    MessageBody body;
+    body.charset = "CP437";  // a western echo: no Cyrillic in it
+    body.lines = {{"hello there", false}};
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.reply = true;
+    fields.toName = "John Doe";
+    fields.toAddr.clear();
+
+    const BuildRequest request{cfg,   area,    fields,     &header,
+                               &body, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(request, {"hello back"}).charset == "CP866");
+
+    // A line CP437 has room for leaves the answer in the charset it answers.
+    AppConfig latin = cfg;
+    latin.composeAddKludges = {{"RealName", "Yegor Gluhov"}};
+    const BuildRequest fits{latin, area,    fields,     &header,
+                            &body, nullptr, 0x68A1B2C3, 180};
+    CHECK(buildDraft(fits, {"hello back"}).charset == "CP437");
+}
+
 TEST_CASE("The area a message names is read off its first line only [builder]") {
     const auto tagOf = [](std::vector<amberedit::domain::MessageLine> lines) {
         MessageBody body;

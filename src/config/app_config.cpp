@@ -684,6 +684,74 @@ tl::expected<AddressMacro, ErrorPtr> readAddressMacro(const CfgEntry& entry) {
     return macro;
 }
 
+/// The control lines a message composed here is given by AmberEdit itself, and
+/// that a `compose_add_kludge` line may therefore not name.
+///
+/// Every one of them says something worked out while the message is written or
+/// carried — where it is going, what tells it apart from every other message,
+/// which charset it is in, which systems have already seen it — and a second
+/// one stating something else would be believed by whichever program reads it
+/// first. What a config may add is a line nothing routes by.
+constexpr std::string_view kReservedKludges[] = {
+    "AREA", "MSGID", "REPLY",   "INTL", "TOPT",    "FMPT",  "TID",     "PID",
+    "CHRS", "TZUTC", "SEEN-BY", "PATH", "UCSFROM", "UCSTO", "UCSSUBJ", "Via"};
+
+/// One `compose_add_kludge` line, read onto the control line it describes: the
+/// name first and everything after it the text that goes on the line.
+tl::expected<CustomKludge, ErrorPtr> readCustomKludge(const CfgEntry& entry) {
+    constexpr const char* kNeeds =
+        "compose_add_kludge takes the name of a control line and what it says, "
+        "e.g. compose_add_kludge RealName \"Vasiliy Pupkin\"";
+    if (entry.values.size() < 2) return entry.fail(kNeeds);
+
+    CustomKludge kludge;
+    kludge.name = entry.values.front();
+    // The rest joined by single spaces, as `text()` joins the values of every
+    // other setting: `compose_add_kludge RealName Vasiliy Pupkin` and the same
+    // line with the text in quotes say the same thing.
+    for (size_t i = 1; i < entry.values.size(); ++i) {
+        if (i > 1) kludge.value += ' ';
+        kludge.value += entry.values[i];
+    }
+    if (kludge.name.empty() || kludge.value.empty()) return entry.fail(kNeeds);
+
+    // The name is one word and the colon is none of it: both are written into
+    // the message here, and a config that wrote either itself would be asking
+    // for a line no reader could tell from text.
+    if (kludge.name.find_first_of(" \t") != std::string::npos) {
+        return entry.fail("compose_add_kludge: '" + kludge.name +
+                          "' is not the name of a control line — a name is one word");
+    }
+    if (const size_t colon = kludge.name.find(':'); colon != std::string::npos) {
+        return entry.fail(
+            "compose_add_kludge: write the name without the colon, e.g. "
+            "compose_add_kludge " +
+            kludge.name.substr(0, colon) + " \"Vasiliy Pupkin\"");
+    }
+    // The ^A is written here too, and one inside the line would split it into
+    // two control lines in a base that stores them run together.
+    for (const std::string* part : {&kludge.name, &kludge.value}) {
+        for (const char c : *part) {
+            const auto byte = static_cast<unsigned char>(c);
+            if (byte < 0x20 || byte == 0x7F) {
+                return entry.fail(
+                    "compose_add_kludge: a control line holds no control characters "
+                    "— the ^A in front of it is written for you");
+            }
+        }
+    }
+
+    const auto reserved = [&kludge](std::string_view name) {
+        return text::iequals(name, kludge.name);
+    };
+    if (std::any_of(std::begin(kReservedKludges), std::end(kReservedKludges), reserved)) {
+        return entry.fail("compose_add_kludge: '" + kludge.name +
+                          "' is a control line AmberEdit writes itself, and what it "
+                          "says is worked out for each message");
+    }
+    return kludge;
+}
+
 /// The value of `compose_cc_list`: what a message keeps of the `CC:` lines it
 /// was written with.
 tl::expected<CarbonList, ErrorPtr> parseCarbonList(const CfgEntry& entry) {
@@ -1417,6 +1485,26 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeAddPid = *read;
+    } else if (key == "compose_add_kludge") {
+        auto read = readCustomKludge(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        // An area group restates the line its own areas carry, so a group naming
+        // a kludge the file already named stands in its place rather than beside
+        // it: a message carries one of each control line, whichever of the two
+        // put it there. Two lines naming it in the same place are the
+        // contradiction any other key written twice is, and that is refused
+        // where the lines are read — this code runs again for every area a group
+        // covers, and by then the file's own line is already on the list.
+        const auto same = [&read](const CustomKludge& earlier) {
+            return text::iequals(earlier.name, read->name);
+        };
+        const auto at = std::find_if(cfg.composeAddKludges.begin(),
+                                     cfg.composeAddKludges.end(), same);
+        if (at != cfg.composeAddKludges.end()) {
+            *at = std::move(*read);
+        } else {
+            cfg.composeAddKludges.push_back(std::move(*read));
+        }
     } else if (key == "ucs_kludges") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1729,6 +1817,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "reply_to_area",
                                                       "compose_cc_list",
                                                       "compose_xc_list",
+                                                      "compose_add_kludge",
                                                       "twit",
                                                       "twit_subj",
                                                       "twit_to",
@@ -1746,7 +1835,32 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
 [[nodiscard]] bool isRepeatable(const std::string& key) {
     return key == "aka" || key == "akamatch" || key == "nodelist" || key == "echolist" ||
            key == "address_macro" || key == "map_path" || key == "twit" ||
-           key == "twit_subj" || key == "arealist_separator_name";
+           key == "twit_subj" || key == "arealist_separator_name" ||
+           key == "compose_add_kludge";
+}
+
+/// What a line says that no other line in the same place may say again: the key
+/// for nearly every setting, and the key with the name for `compose_add_kludge`,
+/// whose every line names a control line of its own. Folded, because the names
+/// are compared that way everywhere else.
+///
+/// Empty where a second line is no contradiction at all — another `twit` names
+/// another person, and the list is the whole of what the key is for.
+[[nodiscard]] std::string statedOnce(const CfgEntry& entry) {
+    if (!isRepeatable(entry.key)) return entry.key;
+    if (entry.key == "compose_add_kludge" && !entry.values.empty()) {
+        return entry.key + ' ' + text::toLower(entry.values.front());
+    }
+    return {};
+}
+
+/// What the complaint about it calls it, which is what was written rather than
+/// what was compared: `compose_add_kludge RealName` and not the folded name.
+[[nodiscard]] std::string statedName(const CfgEntry& entry) {
+    if (entry.key == "compose_add_kludge" && !entry.values.empty()) {
+        return entry.key + ' ' + entry.values.front();
+    }
+    return entry.key;
 }
 
 /// Whether the key is one of the four words that open and close a block, or the
@@ -1956,11 +2070,14 @@ tl::expected<void, ErrorPtr> readGroups(const std::vector<Block>& blocks,
                 continue;
             }
             // Twice in one group is the contradiction it is anywhere else,
-            // barring the keys that are a list. The set is the group's own: the
+            // barring the keys that are a list — and `compose_add_kludge` is a
+            // list whose every line still says one thing, so what may not be
+            // repeated there is the kludge name. The set is the group's own: the
             // same key outside the group is another setting entirely, and the
             // two never see each other.
-            if (!isRepeatable(entry->key) && !seen.insert(entry->key).second) {
-                return entry->fail(entry->key + " is set twice in this group");
+            const std::string stated = statedOnce(*entry);
+            if (!stated.empty() && !seen.insert(stated).second) {
+                return entry->fail(statedName(*entry) + " is set twice in this group");
             }
             if (!isGroupSetting(entry->key)) {
                 // A key the top level knows is refused for what it is; one
@@ -2195,18 +2312,21 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
         // A `nodelist` line is a list as well — several of them compile into
         // one file, and their order is what settles which one keeps an address
         // two of them both name — and so are `address_macro`, one line per
-        // macro, and `twit`/`twit_subj`, one line per person or subject not
-        // worth reading. They differ from the AKAs only in needing nothing said
-        // once the whole config has been read, so they are applied where they
-        // stand rather than being collected. What a repeated `address_macro`
-        // may not do is name the same word twice, which `applySetting` refuses
-        // where it reads the line.
+        // macro, `twit`/`twit_subj`, one line per person or subject not worth
+        // reading, and `compose_add_kludge`, one line per control line added to
+        // a message. They differ from the AKAs only in needing nothing said once
+        // the whole config has been read, so they are applied where they stand
+        // rather than being collected. What the last two may not do is name the
+        // same thing twice: `applySetting` refuses a repeated `address_macro`
+        // word where it reads the line, and `statedOnce()` refuses a repeated
+        // kludge name here, a group being able to restate one the file stated.
         //
         // Anything else said twice is a contradiction, and the line that lost
         // would be an invisible one. Which of them was meant is not ours to
         // guess.
-        if (!isRepeatable(key) && !seen.insert(key).second) {
-            return entry->fail(key + " is set twice");
+        const std::string stated = statedOnce(*entry);
+        if (!stated.empty() && !seen.insert(stated).second) {
+            return entry->fail(statedName(*entry) + " is set twice");
         }
 
         auto applied = applySetting(cfg, *entry);

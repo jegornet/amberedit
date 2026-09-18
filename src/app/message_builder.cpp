@@ -18,6 +18,21 @@
 namespace amberedit::app {
 namespace {
 
+/// The control lines `compose_add_kludge` asks a message to carry, in the order
+/// they were written and each one `Name: value`.
+///
+/// The config of the area being written into, which an area group may have had
+/// the last word on: what a message states about itself is the echo's business
+/// where an echo has an opinion.
+std::vector<std::string> customKludges(const config::AppConfig& config) {
+    std::vector<std::string> lines;
+    lines.reserve(config.composeAddKludges.size());
+    for (const config::CustomKludge& kludge : config.composeAddKludges) {
+        lines.push_back(kludge.name + ": " + kludge.value);
+    }
+    return lines;
+}
+
 /// The tearline built from what the config puts after the "--- ". A tearline
 /// names the program that wrote the message (FTS-0004) — the one thing it is
 /// read for, when a message turns out to have been written wrong — but what it
@@ -653,6 +668,11 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     encoded.insert(encoded.end(), draft.lines.begin(), draft.lines.end());
     encoded.insert(encoded.end(), request.extraKludges.begin(),
                    request.extraKludges.end());
+    // The config's own control lines are text somebody wrote — a real name, a
+    // language, whatever an echo asks its writers to state — so the charset has
+    // to hold them as surely as it holds the message.
+    const std::vector<std::string> custom = customKludges(request.config);
+    encoded.insert(encoded.end(), custom.begin(), custom.end());
     // The charset the area this message is going into is written in — the
     // config's `compose_charset`, or an area group's where one covers the tag,
     // the caller having resolved that before building the request — unless that
@@ -698,6 +718,9 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
         draft.kludges.push_back("PID: " + std::string(kProductId) + " " +
                                 std::string(kVersion));
     }
+    // Then the lines `compose_add_kludge` asks for, behind every line a standard
+    // asks for: they are the writer's own and nothing is routed by them.
+    draft.kludges.insert(draft.kludges.end(), custom.begin(), custom.end());
     // Last of them, after the lines FTS-0009 and its like ask for: these are
     // the writer's own note of who else has this message, and nothing routes
     // by them.

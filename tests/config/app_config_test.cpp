@@ -686,6 +686,77 @@ TEST_CASE("compose_add_pid is off unless it is asked for [app_config]") {
     CHECK_MESSAGE(contains(error, "not for one area"), error);
 }
 
+TEST_CASE("compose_add_kludge adds a control line of the writer's own [app_config]") {
+    // Nothing unless a config asks: there is no line AmberEdit would think of
+    // adding beyond the ones the standards ask for.
+    CHECK(with("").composeAddKludges.empty());
+
+    const auto cfg = with(
+        "compose_add_kludge RealName \"Yegor Gluhov\"\n"
+        "compose_add_kludge X-Comment my own note\n");
+    REQUIRE(cfg.composeAddKludges.size() == 2);
+    // The name as it was written — it goes into the message that way — and
+    // everything after it, joined by single spaces as every other setting joins
+    // its values.
+    CHECK(cfg.composeAddKludges[0].name == "RealName");
+    CHECK(cfg.composeAddKludges[0].value == "Yegor Gluhov");
+    CHECK(cfg.composeAddKludges[1].name == "X-Comment");
+    CHECK(cfg.composeAddKludges[1].value == "my own note");
+
+    // A name and what it says, both of them: a line with only a name is
+    // somebody who stopped halfway.
+    CHECK_FALSE(loads("compose_add_kludge RealName\n"));
+    CHECK_FALSE(loads("compose_add_kludge\n"));
+    // The colon and the ^A are written into the message here.
+    const std::string colon = errorWith("compose_add_kludge RealName: Yegor\n");
+    CHECK_MESSAGE(contains(colon, "without the colon"), colon);
+    const std::string spaced = errorWith("compose_add_kludge \"Real Name\" Yegor\n");
+    CHECK_MESSAGE(contains(spaced, "one word"), spaced);
+}
+
+TEST_CASE("compose_add_kludge adds each control line once [app_config]") {
+    // The same line twice is the contradiction any other key written twice is,
+    // and a message carries one of each control line.
+    const std::string twice = errorWith(
+        "compose_add_kludge RealName Yegor\n"
+        "compose_add_kludge RealName Vasya\n");
+    CHECK_MESSAGE(contains(twice, "compose_add_kludge RealName is set twice"), twice);
+    // Told apart the way every name in a config is: without regard to case.
+    CHECK_FALSE(
+        loads("compose_add_kludge RealName Yegor\n"
+              "compose_add_kludge realname Vasya\n"));
+    // Two different lines are two lines, which is what the key is for.
+    CHECK(
+        loads("compose_add_kludge RealName Yegor\n"
+              "compose_add_kludge X-Comment note\n"));
+
+    const std::string inGroup = errorWith(
+        "group\n"
+        "  member esp.*\n"
+        "  compose_add_kludge RealName Yegor\n"
+        "  compose_add_kludge RealName Vasya\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(inGroup, "is set twice in this group"), inGroup);
+}
+
+TEST_CASE("compose_add_kludge refuses the lines AmberEdit writes itself [app_config]") {
+    // Every one of them is worked out while the message is written or carried,
+    // and a second one stating something else would be believed by whichever
+    // program read it first.
+    for (const char* name :
+         {"AREA", "MSGID", "REPLY", "INTL", "TOPT", "FMPT", "TID", "PID", "CHRS", "TZUTC",
+          "SEEN-BY", "PATH", "UCSFROM", "UCSTO", "UCSSUBJ", "Via"}) {
+        const std::string error =
+            errorWith("compose_add_kludge " + std::string(name) + " whatever\n");
+        CHECK_MESSAGE(contains(error, "AmberEdit writes itself"), error);
+    }
+    // Whatever case it is written in, as the kludges themselves are read.
+    CHECK_FALSE(loads("compose_add_kludge msgid 2:382/736 deadbeef\n"));
+    CHECK_FALSE(loads("compose_add_kludge seen-by 382/736\n"));
+    // A name that merely begins like one of them is a line of the writer's own.
+    CHECK(loads("compose_add_kludge PIDGIN yes\n"));
+}
+
 TEST_CASE("ucs_kludges is on unless it is turned off [app_config]") {
     // On by default: FSP-1030's lines are what makes a UTF-8 name survive the
     // 35 bytes a packet keeps for it, and a reader that ignored them would show
@@ -2638,6 +2709,31 @@ TEST_CASE("Groups are laid over one another one setting at a time [app_config]")
     CHECK(cfg.effectiveFor(area("esp.chile")).userName == "Vasya Pupkin");
     // And one outside them both keeps the widest group's answer.
     CHECK(cfg.effectiveFor(area("ru.linux")).composeCharset == "CP866");
+}
+
+TEST_CASE("A group states the control lines its areas carry [app_config]") {
+    const auto cfg = with(
+        "compose_add_kludge RealName \"Yegor Gluhov\"\n"
+        "group\n"
+        "  member esp.*\n"
+        "  compose_add_kludge RealName \"Egor Gluhov\"\n"
+        "  compose_add_kludge X-Lang es\n"
+        "endgroup\n");
+
+    // The group restates the line the file already named, so its value stands
+    // in place of the file's rather than beside it — one message, one RealName —
+    // and the line the file never named is added behind it.
+    const auto spanish = cfg.effectiveFor(area("esp.argentina"));
+    REQUIRE(spanish.composeAddKludges.size() == 2);
+    CHECK(spanish.composeAddKludges[0].name == "RealName");
+    CHECK(spanish.composeAddKludges[0].value == "Egor Gluhov");
+    CHECK(spanish.composeAddKludges[1].name == "X-Lang");
+    CHECK(spanish.composeAddKludges[1].value == "es");
+
+    // An area the group does not cover keeps what the file itself said.
+    const auto other = cfg.effectiveFor(area("ru.linux"));
+    REQUIRE(other.composeAddKludges.size() == 1);
+    CHECK(other.composeAddKludges[0].value == "Yegor Gluhov");
 }
 
 TEST_CASE("A group may say whether replies follow the AREA: line [app_config]") {

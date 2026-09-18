@@ -86,6 +86,23 @@ struct AddressMacro {
     std::optional<uint32_t> attributes;
 };
 
+/// One `compose_add_kludge` line: a control line of the writer's own, and what
+/// it says.
+///
+/// The name is written without the ^A and without the colon — `RealName` for
+/// the `^ARealName: ...` the message carries — and the two are put back together
+/// where the message is built. A kludge nothing in FTN is routed by: the lines
+/// this editor has to write itself are refused here, so that a config cannot
+/// state a second MSGID or a CHRS naming a charset the message is not in.
+struct CustomKludge {
+    /// The name as it was written, case and all: it goes into the message the
+    /// way the config spells it, and only the comparisons fold case.
+    std::string name;
+    /// Everything after it on the line, joined by single spaces, as every other
+    /// setting reads its text.
+    std::string value;
+};
+
 /// What is left in the message where its `CC:` lines stood, from
 /// `compose_cc_list`.
 ///
@@ -743,6 +760,24 @@ struct AppConfig {
     /// copy carries the original's: FSC-0046 allows one PID per message and has
     /// it added by whatever wrote the message, not by whatever passes it on.
     bool composeAddPid{false};
+
+    /// The `compose_add_kludge` lines: control lines of the writer's own that a
+    /// message composed here carries beside the ones the standards ask for, in
+    /// the order they were written. Empty unless a config asks for one — there
+    /// is no line AmberEdit would add on its own beyond those.
+    ///
+    /// One line per kludge and one kludge per message: a name already on the
+    /// list is the config saying the same thing twice, which is refused where
+    /// the line is read. An area group states the line its own areas carry, and
+    /// a group naming a kludge the file already named stands in its place
+    /// rather than beside it — a message never carries the same control line
+    /// twice, whichever of the two put it there.
+    ///
+    /// Only a message this editor composes gets them. A message being changed
+    /// keeps the lines it was written with and a copy carries the original's,
+    /// for the reason every other control line is kept: it is the same message,
+    /// and what it says about itself is not this config's to rewrite.
+    std::vector<CustomKludge> composeAddKludges;
 
     /// Whether FSP-1030's ^AUCSFROM, ^AUCSTO and ^AUCSSUBJ control lines are
     /// used for the From, To and Subject of a message written in UTF-8, and

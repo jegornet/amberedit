@@ -553,6 +553,25 @@ Rules that hold the design together:
   saying what goes on it — FSC-0046 would have a message carrying a PID name no
   program after the tearline, and that is the writer's call rather than this
   editor's.
+- **`compose_add_kludge` is the writer's own control line.** A name and what it
+  says — `compose_add_kludge RealName "Yegor Gluhov"` writes
+  `@RealName: Yegor Gluhov` — read into `config::CustomKludge` and written by `buildDraft()`
+  behind every line a standard asks for and ahead of the `CC:` lines the caller
+  adds. The ^A and the colon are the code's to add, so a name carrying either is
+  refused, and so is one carrying a space: what the config states is a name and a
+  text. A repeatable key whose lines each say one thing, so what may not be
+  repeated is the *name* (`statedOnce()`), folded as every name in a config is.
+  The sixteen lines AmberEdit works out for itself — AREA, MSGID, REPLY, INTL,
+  TOPT, FMPT, TID, PID, CHRS, TZUTC, SEEN-BY, PATH, UCSFROM, UCSTO, UCSSUBJ, Via
+  — are refused outright (`kReservedKludges`): each says something settled while
+  the message is written or carried, and a second one saying otherwise would be
+  believed by whichever program read it first. A group setting, and the one whose
+  lines neither replace the file's list nor simply lengthen it: a group naming a
+  kludge the file named restates *that* line for its areas, since one message
+  carries one of each. The lines count towards `draftCharset()` like the text
+  does — they are words somebody wrote, and the base converts them. Only a
+  message composed here gets them, for the reason a PID stays with whatever
+  created the message.
 - **What the reader is showing is what an answer carries.** `BuildRequest::kludgesShown`
   is the reader's `k`, and `quotableLines()` keeps the control lines with the text
   when it is set: a reply quotes them under the same initials as everything else,
@@ -3122,6 +3141,12 @@ taking a row.
     its origin out on the line is as deterministic as it always was. `twit` and
     `twit_subj` are repeatable keys and a `@file:` line adds every entry to what
     the config wrote out, a group's lines adding to the file's as ever.
+  - **A repeated key is refused by what the line states, not by the key.**
+    `statedOnce()` answers the key for an ordinary setting, nothing for a list,
+    and the key with the folded kludge name for `compose_add_kludge` — whose
+    lines are a list that still says one thing apiece. It is asked in both places
+    a scope is known, the globals and a group's own lines; `statedName()` is the
+    same thing spelled as it was written, for the complaint.
 - **`amberedit.cfg.example` is a build input, not only documentation.**
   `cmake/embed_resources.cmake` puts it and `default.tpl` into the binary, and
   `config/config_writer.cpp` writes a first config by filling that sample in —
