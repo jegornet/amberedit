@@ -895,6 +895,54 @@ struct SelectionBoldOn {
     bool was{amberedit::ui::theme::palette.selectionBold};
 };
 
+TEST_CASE("The mark is drawn in the theme's mark color [arealist][marks][squish]") {
+    using amberedit::config::AreaFieldKind;
+    namespace theme = amberedit::ui::theme;
+
+    const TempSquishBase first;
+    const TempSquishBase second;
+    // The cursor stands on the first row and a selected row keeps the
+    // selection's colors throughout, so the marked area is the one below it.
+    // The third area will not open, so its row is drawn quiet: the arrow on it
+    // is what says the quiet does not reach a mark.
+    Fixture fixture({squishArea("one", first.path()), squishArea("two", second.path()),
+                     passthroughArea("three")});
+    fixture.config.areaListFormatNarrow = {
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    fixture.state.width = 20;
+    fixture.config.arealistMenu.clear();
+    fixture.state.areaMarks = {"two", "three"};
+
+    namespace term = amberedit::ui::term;
+    const auto drawn = [&fixture] {
+        term::Screen screen(fixture.state.width, fixture.state.height);
+        term::render(screen, area_list::render(fixture.state));
+        return screen;
+    };
+
+    term::Screen screen = drawn();
+    REQUIRE(rowText(screen, 3) == " >two               ");
+    // The arrow is the one thing on the row the user put there, so it is drawn
+    // in `mark` and the name beside it in the table's own `list_text`.
+    CHECK(screen.at(1, 3).fg == theme::palette.mark);
+    CHECK(screen.at(2, 3).fg == theme::palette.listText);
+
+    // An area the list cannot open is drawn quiet across the row, and the mark
+    // is not part of that: the user picked it out as much as any other.
+    REQUIRE(rowText(screen, 4) == " >three             ");
+    CHECK(screen.at(2, 4).fg == theme::palette.dimmed);
+    CHECK(screen.at(1, 4).fg == theme::palette.mark);
+    CHECK(screen.at(1, 4).fg != theme::palette.dimmed);
+
+    // The selection bar covers it like everything else on the row it lights: an
+    // arrow in another color there would read as a hole in the bar.
+    fixture.state.areaCursor = 1;
+    screen = drawn();
+    REQUIRE(screen.at(1, 3).glyph == ">");
+    CHECK(screen.at(1, 3).fg == theme::palette.selectionText);
+}
+
 TEST_CASE("selection_bold adds weight to the bar and changes nothing else "
           "[arealist][squish]") {
     using amberedit::config::AreaFieldKind;

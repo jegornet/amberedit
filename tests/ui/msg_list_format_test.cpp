@@ -7,6 +7,9 @@
 #include "domain/message.hpp"
 #include "test_strings.hpp"
 #include "ui/msg_list_format.hpp"
+#include "ui/term/element.hpp"
+#include "ui/term/screen.hpp"
+#include "ui/theme.hpp"
 
 using amberedit::config::AppConfig;
 using amberedit::config::MsgFieldKind;
@@ -66,6 +69,27 @@ msg_format::Layout rows(const std::string& format, int width, uint32_t messageCo
 msg_format::Line line(const std::string& format, int width, uint32_t messageCount,
                       const std::vector<msg_format::Row>& shown) {
     return rows(format, width, messageCount, shown).front();
+}
+
+/// What the `>` of the `m` column is drawn in, on a line painted `paint` — and
+/// the fg of the cell beside it, which is whatever the row itself carries.
+struct MarkColors {
+    amberedit::ui::term::Color arrow;
+    amberedit::ui::term::Color beside;
+};
+
+MarkColors markColors(const msg_format::Row& drawn, const msg_format::Line& columns,
+                      int width, msg_format::Paint paint) {
+    namespace term = amberedit::ui::term;
+    term::Screen screen(width, 1);
+    term::render(screen, msg_format::drawLine(drawn, columns, width, paint));
+    for (int x = 0; x < width; ++x) {
+        if (screen.at(x, 0).glyph == ">") {
+            return {screen.at(x, 0).fg, screen.at(x + 1, 0).fg};
+        }
+    }
+    FAIL("the line has no arrow in it");
+    return {};
 }
 
 }  // namespace
@@ -273,4 +297,62 @@ TEST_CASE("A message row with no header read yet is drawn blank [msglist][format
     CHECK(drawn.find_first_not_of(' ') == std::string::npos);
     CHECK(msg_format::line(pending, columns).size() ==
           msg_format::line(row(header, 4), columns).size());
+}
+
+TEST_CASE("The mark is a run of its own, and only where there is one "
+          "[msglist][format]") {
+    using amberedit::ui::msg_format::Ink;
+    const MessageHeader header = message("Vasya", "All", "Hello");
+
+    msg_format::Row drawn = row(header, 1);
+    const auto columns = line("m a3 f8 s d", 60, 999, {drawn});
+
+    // Nothing marked: the `m` column is a blank like any other, and cutting the
+    // line at it would only make a run of a space.
+    auto runs = msg_format::runs(drawn, columns);
+    for (const auto& piece : runs) CHECK(piece.ink != Ink::Mark);
+
+    // Marked: the arrow is cut out of the row as a run of its own, the column
+    // being the one thing on the line the user put there.
+    drawn.marked = true;
+    runs = msg_format::runs(drawn, columns);
+    REQUIRE(runs.size() > 1);
+    CHECK(runs[0].ink == Ink::Mark);
+    CHECK(runs[0].text.find('>') != std::string::npos);
+    CHECK(runs[1].ink == Ink::Plain);
+}
+
+TEST_CASE("The mark keeps its color over what paints the row [msglist][format]") {
+    using amberedit::ui::theme::palette;
+    const MessageHeader header = message("Vasya", "All", "Hello");
+
+    msg_format::Row drawn = row(header, 1);
+    drawn.marked = true;
+    const int width = 60;
+    const auto columns = line("m a3 f8 s d", width, 999, {drawn});
+
+    // A row nothing is said about, one nobody has read and one that has not gone
+    // out: the arrow is `mark` on all three, where the row beside it is painted
+    // whatever the message is. The arrow says the user picked this row out, and
+    // that is as true of an unsent message as of any other.
+    const MarkColors plain = markColors(drawn, columns, width, msg_format::Paint::None);
+    CHECK(plain.arrow == palette.mark);
+    CHECK(plain.beside == palette.listText);
+
+    const MarkColors unread =
+        markColors(drawn, columns, width, msg_format::Paint::Unread);
+    CHECK(unread.arrow == palette.mark);
+    CHECK(unread.beside == palette.msglistUnread);
+
+    const MarkColors unsent =
+        markColors(drawn, columns, width, msg_format::Paint::Unsent);
+    CHECK(unsent.arrow == palette.mark);
+    CHECK(unsent.beside == palette.unsent);
+
+    // The selection bar is the one thing that covers it: a bar is drawn over the
+    // whole row, and an arrow in another color on it would read as a hole in the
+    // bar rather than as a mark.
+    const MarkColors bar = markColors(drawn, columns, width, msg_format::Paint::Selected);
+    CHECK(bar.arrow == palette.selectionText);
+    CHECK(bar.beside == palette.selectionText);
 }

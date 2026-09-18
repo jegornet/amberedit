@@ -17,7 +17,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-six constants for the forty-two roles below. Each is named after
+/// Twenty-six constants for the forty-three roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -35,8 +35,8 @@ inline constexpr Color kBackground{232};  // #080808, near-black
 inline constexpr Color kSelection{25};    // #005faf, a lit blue bar
 /// White, and the brightest thing here — which is why so much takes it: what is
 /// written on the selection bar and on the field the typing is in, a name that
-/// is the user's own, a search hit, and the tenth of a second a button lights up
-/// for.
+/// is the user's own, the arrow marking a row, a search hit, and the tenth of a
+/// second a button lights up for.
 inline constexpr Color kSelectionText{231};  // #ffffff, white
 /// A step above the screen, which is all a field needs to read as a box that
 /// takes typing: enough to see the slot, not enough to shout about it. A modal
@@ -266,6 +266,22 @@ struct Palette {
     /// is the base's own mark — see `domain::MessageHeader::seen` — and
     /// `highlight_unread` is what decides whether this is used at all.
     Color msglistUnread = builtin_theme::kMsglistUnread;
+    /// The `>` that says the user has picked this row out — the `m` column of
+    /// the area list and of the message list, and the same arrow after the pair
+    /// naming the message in the reader's title.
+    ///
+    /// White in every theme that ships but `themes/white.cfg`, which goes black
+    /// instead: a mark is one column wide and the one thing on a row the user
+    /// put there themselves, so it is drawn as far from the theme's own paper as
+    /// that theme goes rather than in a hue of its own — white on a dark screen,
+    /// black on a light one.
+    ///
+    /// It is drawn over whatever paints the row, `msglist_unread` and `unsent`
+    /// included: the arrow means the same thing on every row, and the paint is
+    /// about the message. The selection bar is the exception — it covers the row
+    /// it lights, and an arrow in another color on it would read as a hole in
+    /// the bar rather than as a mark.
+    Color mark = builtin_theme::kSelectionText;
     /// A row of the area list or the message list that no rule above marks: the
     /// name and the counts of an area, the number, date, From, To and Subject of
     /// a message. Its own role rather than `text` reused, so that a theme may

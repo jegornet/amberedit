@@ -891,36 +891,43 @@ Element render(AppState& state) {
         // Everything else is `list_text`, asked for cell by cell rather than
         // left to the screen's own `text`: the table is a role of its own, and
         // a theme is free to settle it under the message being read.
-        const auto styled = [&](std::string piece, bool dimmed) {
+        const auto styled = [&](std::string piece, area_format::Ink ink) {
             Element cell = text(std::move(piece));
             if (selected) {
                 return std::move(cell) | theme::selectionBold |
                        color(theme::palette.selectionText) |
                        bgcolor(theme::palette.selection);
             }
-            if (!entry.isAvailable() || dimmed) {
+            // The mark outranks the quiet an area that will not open is drawn
+            // in: the arrow says the user picked this area out, which is as true
+            // of an area the list cannot open as of any other.
+            if (ink == area_format::Ink::Mark) {
+                return std::move(cell) | color(theme::palette.mark);
+            }
+            if (!entry.isAvailable() || ink == area_format::Ink::Dimmed) {
                 return std::move(cell) | color(theme::palette.dimmed);
             }
             return std::move(cell) | color(theme::palette.listText);
         };
-        const auto push = [&](const std::string& piece, bool dimmed) {
+        const auto push = [&](const std::string& piece, area_format::Ink ink) {
             const std::string fitted = substrByWidth(piece, 0, rowWidth - drawn);
             if (fitted.empty()) return;
             drawn += displayWidth(fitted);
-            cells.push_back(styled(fitted, dimmed));
+            cells.push_back(styled(fitted, ink));
         };
 
         // The margin on the left is the row's own, so that the highlight covers
         // it. What the fields left of the width, and the margin on the right,
         // are the one blank piece closing the line.
-        push(" ", false);
+        push(" ", area_format::Ink::Plain);
         for (const auto& run :
              area_format::runs(entry, row + 1, state.areaMarked(entry.config.tag), columns,
                                state.config.areaDescriptionDefault)) {
-            push(run.text, run.dimmed);
+            push(run.text, run.ink);
         }
         cells.push_back(
-            styled(std::string(static_cast<size_t>(rowWidth - drawn) + 1, ' '), false));
+            styled(std::string(static_cast<size_t>(rowWidth - drawn) + 1, ' '),
+                   area_format::Ink::Plain));
         return hbox(std::move(cells));
     };
 

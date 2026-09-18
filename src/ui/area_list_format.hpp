@@ -48,19 +48,35 @@ Layout layout(const config::AreaListFormat& format, int width);
 /// and a second row of furniture would cost the list an area.
 std::string header(const Layout& layout);
 
+/// What a run of a row is drawn in beyond whatever the row itself is painted.
+///
+/// The screen decides what those colors are and when a row's own outranks a
+/// run's; this only says which part of the row is which. `msg_format::Ink` is
+/// the message list's counterpart and says the same things about a row there.
+enum class Ink {
+    Plain,   ///< the row's own color, whatever the row has
+    Dimmed,  ///< the description: prose rather than a fact about the area
+    Mark,    ///< the arrow of the `m` column, where the area is marked
+};
+
 /// One run of a row that is drawn in one color: the text as it stands in the
-/// row, padding and all, and whether it is drawn quiet.
+/// row, padding and all, and what it is drawn in.
 ///
 /// The description column is what is quiet, and the whole of it — what the area
 /// says about itself as much as what the config stands in with where it says
 /// nothing. It is the one column that is prose rather than a fact about the
 /// area, and the names and the counts are what the eye goes down the list for.
+/// The mark is the other way about: one column wide and the one thing on the
+/// row the user put there, so it is drawn in `mark` rather than in the row's own
+/// color. An `m` column with nothing in it is `Plain` — a blank is not a mark,
+/// and giving it an ink of its own would only cut the row into more runs.
+///
 /// The runs are where the screen learns which part of the row that is: a row is
 /// cut into them only where the color changes, so a row with no description in
-/// it is a single run.
+/// it and nothing marked is a single run.
 struct Run {
     std::string text;
-    bool dimmed{false};
+    Ink ink{Ink::Plain};
 };
 
 /// The line `columns` lays out, for `entry`, in the runs it is drawn in.

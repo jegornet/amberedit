@@ -782,7 +782,10 @@ Rules that hold the design together:
   under a cursor that has not moved. **Nothing acts on a marked area**: the mark
   is shown and that is all it is for.
 - **The mark is the `m` column of `arealist_format`**, a `>` where the area is
-  marked and a blank where it is not, exactly as `msglist_format`'s `m` is. It
+  marked and a blank where it is not, drawn in the theme's `mark` exactly as
+  `msglist_format`'s `m` is — `area_format::Ink::Mark`, which the screen answers
+  over the quiet an area that will not open is otherwise drawn in: the user
+  picked that area out as much as any other. It
   stands a column wide whether or not anything is marked, and both defaults open
   the row with it — the narrow format's second line begins with a space so the
   description stands under the name rather than under the mark. Whether a row is
@@ -1463,11 +1466,19 @@ screens showing an area draw what the set holds.
 - **It is shown in two places and drawn from the same set.** The message list's
   `m` column is a `>` where the row is marked and a blank where it is not, and
   the reader's title puts the same arrow after the pair naming the message —
-  `localnet (2:382/736) 111/111>` — in `header`, the color the block under it is
-  written in, since it is a fact about the message and not a piece of the area's
-  name. The arrow is taken out of what is left of the title row the way a thread
-  marker is, so a window with no column to spare drops it rather than pushing the
-  row past its edge.
+  `localnet (2:382/736) 111/111>` — both of them in the theme's **`mark`**, since
+  it is a fact about the message and not a piece of the area's name. The arrow is
+  taken out of what is left of the title row the way a thread marker is, so a
+  window with no column to spare drops it rather than pushing the row past its
+  edge.
+- **The arrow keeps `mark` over whatever paints the row.** In the list it is
+  `msg_format::Ink::Mark`, cut out as a run of its own and answered in
+  `drawLine()` **before** `Paint::Unsent` and over `Paint::Unread` — the paint is
+  about the message, and the arrow is the user's own note about the row. Only a
+  cell with an arrow in it takes the ink: a blank `m` column is `Plain`, so a
+  list with nothing marked is cut into exactly the runs it always was. The
+  selection bar is the one thing that covers it, as it covers everything else on
+  the row it lights.
 - **The `m` column is reserved, not conjured.** It stands a column wide whether
   or not anything is marked, and in both default formats it stands where the
   blank between the number and the first name stood — so a list with nothing
@@ -2527,7 +2538,7 @@ taking a row.
   `dialog_border` — the frame, the rules closing it and the dividers inside it,
   `separator`'s counterpart in a box — and `dialog_shadow`, plus `menu_button`,
   which is only ever drawn inside one. A new dialog reaches for those rather than for `text`,
-  `list_text`, `table_header`, `header`,
+  `list_text`, `table_header`, `header`, `mark`,
   `screen_buttons`/`dimmed`/`kludge`, `input_field`/`input_text`,
   `focused_field`/`focused_text`, `input_filler` and `animated_button_text`,
   which are the screen's counterparts and stay on the screen. The split is what

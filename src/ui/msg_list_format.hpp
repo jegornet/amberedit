@@ -118,6 +118,7 @@ enum class Ink {
     Plain,    ///< the row's own color, whatever the row has
     Dimmed,   ///< the subject: prose rather than a fact about the message
     OwnName,  ///< a From or To that names the user themselves
+    Mark,     ///< the arrow of the `m` column, where the message is marked
 };
 
 /// One run of a row that is drawn in one color: the text as it stands in the
@@ -156,8 +157,9 @@ std::string line(const Row& row, const Line& columns);
 /// the same loudness would leave the eye to work out which of them was which.
 ///
 /// None of them is about a message the user has *marked*: that is the `m`
-/// column's arrow and no bar at all, a mark being something the reader chose and
-/// a row's paint being where the message stands.
+/// column's arrow, drawn in `mark` and given no bar at all, a mark being
+/// something the reader chose and a row's paint being where the message stands.
+/// The arrow keeps that color through every paint below, the bar aside.
 enum class Paint {
     None,      ///< whatever the runs say and nothing more
     Unread,    ///< nobody has read this message yet

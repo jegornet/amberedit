@@ -89,6 +89,22 @@ std::string cellText(const app::AreaEntry& entry, int ordinal, bool marked,
     return "";
 }
 
+/// What a column of the row is drawn in.
+///
+/// The description column, whatever it holds: what the area says about itself is
+/// drawn as quiet as what the config stands in with where it says nothing. The
+/// column is prose either way, and the fields beside it are what the list is
+/// read down. The `m` column is the opposite — the one thing on the row the user
+/// put there — and takes `mark`, but only where there is an arrow in it: a blank
+/// column is nothing to color.
+Ink inkOf(AreaFieldKind kind, bool marked) {
+    switch (kind) {
+        case AreaFieldKind::Description: return Ink::Dimmed;
+        case AreaFieldKind::Marked: return marked ? Ink::Mark : Ink::Plain;
+        default: return Ink::Plain;
+    }
+}
+
 }  // namespace
 
 Line layoutLine(const config::AreaListLine& fields, int width) {
@@ -153,19 +169,16 @@ std::vector<Run> runs(const app::AreaEntry& entry, int ordinal, bool marked,
         if (column.width <= 0) continue;
         const std::string cell =
             cellText(entry, ordinal, marked, column, descriptionDefault);
-        // The description column, whatever it holds: what the area says about
-        // itself is drawn as quiet as what the config stands in with where it
-        // says nothing. The column is prose either way, and the fields beside it
-        // are what the list is read down.
-        const bool dimmed = column.kind == AreaFieldKind::Description;
+        const Ink ink = inkOf(column.kind, marked);
         std::string drawn = isNumeric(column.kind) ? padLeft(cell, column.width)
                                                    : padRight(cell, column.width);
         // A run is only ever cut where the color changes, so a row with no
-        // description in it is the one run the whole row used to be.
-        if (!pieces.empty() && pieces.back().dimmed == dimmed) {
+        // description in it and nothing marked is the one run the whole row used
+        // to be.
+        if (!pieces.empty() && pieces.back().ink == ink) {
             pieces.back().text += drawn;
         } else {
-            pieces.push_back(Run{std::move(drawn), dimmed});
+            pieces.push_back(Run{std::move(drawn), ink});
         }
     }
     return pieces;

@@ -1981,17 +1981,17 @@ Element render(AppState& state) {
     int titleLeft = titleRoom - displayWidth(titleShown) - gotoWidth;
 
     // The arrow saying the message on screen is one of the user's marked ones,
-    // right after the pair that names it — `111/111>`. In the color the header
-    // block under it is written in rather than the title's own: it is a fact
-    // about this message and not a piece of the area's name, and the two colors
-    // are what say which is which.
+    // right after the pair that names it — `111/111>`. In `mark` rather than the
+    // title's own color: it is a fact about this message and not a piece of the
+    // area's name, and it is the same arrow the `m` column of either list draws,
+    // so it is drawn in the same color there and here.
     //
     // Taken out of what is left of the row the way a thread marker is, and for
     // the same reason: a window with no column to spare drops it rather than
     // pushing the row past its edge.
     if (titleLeft > 0 && marks::isMarked(state, header.number)) {
         --titleLeft;
-        titleCells.push_back(text(">") | bold | color(theme::palette.header));
+        titleCells.push_back(text(">") | bold | color(theme::palette.mark));
     }
     for (const auto& marker : markers) {
         const int width = displayWidth(marker.text);

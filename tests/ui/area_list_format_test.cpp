@@ -161,6 +161,29 @@ TEST_CASE("The mark column is an arrow where the area is marked [arealist][forma
     CHECK(headerOf("me c un", 25) == " Area          Msgs  New ");
 }
 
+TEST_CASE("The mark is a run of its own, and only where there is one "
+          "[arealist][format]") {
+    using amberedit::ui::area_format::Ink;
+    AreaEntry entry = areaEntry("ru.linux", 120, 7);
+    entry.config.description = "Linux";
+    const auto columns = line("me c d", 30);
+
+    // Nothing marked: the `m` column is a blank like any other, and cutting the
+    // row at it would only make a run of a space.
+    auto pieces =
+        area_format::runs(entry, 1, /*marked=*/false, columns, "no description");
+    for (const auto& piece : pieces) CHECK(piece.ink != Ink::Mark);
+
+    // Marked: the arrow is cut out of the row as a run of its own, the column
+    // being the one thing on it the user put there.
+    pieces = area_format::runs(entry, 1, /*marked=*/true, columns, "no description");
+    REQUIRE(pieces.size() > 1);
+    CHECK(pieces[0].ink == Ink::Mark);
+    CHECK(pieces[0].text == ">");
+    CHECK(pieces[1].ink == Ink::Plain);
+    CHECK(pieces.back().ink == Ink::Dimmed);
+}
+
 TEST_CASE("The default narrow format puts the description under the name "
           "[arealist][format]") {
     // `"me c u\n d n"`, the narrow default: the mark opens the row, and the

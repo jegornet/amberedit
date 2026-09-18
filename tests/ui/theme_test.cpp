@@ -215,6 +215,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.header, builtIn.header));
     CHECK(same(loaded.ownName, builtIn.ownName));
     CHECK(same(loaded.msglistUnread, builtIn.msglistUnread));
+    CHECK(same(loaded.mark, builtIn.mark));
     CHECK(same(loaded.listText, builtIn.listText));
     CHECK(same(loaded.text, builtIn.text));
     CHECK(same(loaded.link, builtIn.link));

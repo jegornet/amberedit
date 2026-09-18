@@ -105,6 +105,10 @@ Ink inkOf(const Row& row, MsgFieldKind kind) {
         case MsgFieldKind::Subject: return Ink::Dimmed;
         case MsgFieldKind::From: return row.fromIsOwn ? Ink::OwnName : Ink::Plain;
         case MsgFieldKind::To: return row.toIsOwn ? Ink::OwnName : Ink::Plain;
+        // The one column the user filled in themselves, and only where there is
+        // an arrow in it: a blank column is nothing to color, and an ink of its
+        // own would only cut the line into more runs.
+        case MsgFieldKind::Marked: return row.marked ? Ink::Mark : Ink::Plain;
         default: return Ink::Plain;
     }
 }
@@ -272,6 +276,12 @@ term::Element drawLine(const Row& row, const Line& columns, int width, Paint pai
     const auto styled = [&](std::string piece, Ink ink) {
         Element cell = text(std::move(piece));
         if (highlighted) return cell;
+        // The mark outranks the row's paint, unsent included: the arrow is the
+        // user's own note about the row and means the same thing on every one of
+        // them, where the paint is about the message. The bar is the exception
+        // above — it covers the whole row, and an arrow in another color on it
+        // would read as a hole in the bar rather than as a mark.
+        if (ink == Ink::Mark) return std::move(cell) | color(theme::palette.mark);
         if (paint == Paint::Unsent) return std::move(cell) | color(theme::palette.unsent);
         switch (ink) {
             // Elsewhere a cell is left in the row's own color rather than being
@@ -283,6 +293,7 @@ term::Element drawLine(const Row& row, const Line& columns, int width, Paint pai
             // to say both.
             case Ink::Dimmed: return std::move(cell) | color(theme::palette.dimmed);
             case Ink::OwnName: return std::move(cell) | color(theme::palette.ownName);
+            case Ink::Mark:  // answered above, before the row's own paint
             case Ink::Plain: break;
         }
         return cell;

@@ -19,6 +19,7 @@
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/screen.hpp"
+#include "ui/theme.hpp"
 
 using amberedit::test::AreaFixture;
 using amberedit::test::contains;
@@ -71,6 +72,26 @@ std::string listRow(AreaFixture& fixture, int row) {
     std::string text;
     for (int x = 0; x < fixture.state.width; ++x) text += screen.at(x, row).glyph;
     return text;
+}
+
+/// What the arrow in the reader's title is drawn in, and the color of the
+/// character before it — the number pair, which is the title's own.
+struct TitleColors {
+    term::Color arrow;
+    term::Color before;
+};
+
+TitleColors titleColors(AreaFixture& fixture) {
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    message_read::relayout(fixture.state);
+    term::render(screen, message_read::render(fixture.state));
+    for (int x = 1; x < fixture.state.width; ++x) {
+        if (screen.at(x, 0).glyph == ">") {
+            return {screen.at(x, 0).fg, screen.at(x - 1, 0).fg};
+        }
+    }
+    FAIL("the title has no arrow in it");
+    return {};
 }
 
 /// The reader's title row, as drawn.
@@ -288,6 +309,42 @@ TEST_CASE("A marked message wears an arrow in both places it is shown [marks][sq
     CHECK(blanked == plainRow);
     // And in the reader's title, right after the pair naming the message.
     CHECK(contains(readerTitle(fixture), pair + ">"));
+}
+
+TEST_CASE("The arrow is drawn in the theme's mark color in both places [marks][squish]") {
+    namespace theme = amberedit::ui::theme;
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    enter(fixture);
+    REQUIRE(fixture.state.messageCount > 2);
+
+    // The cursor stays on the first message and the second is the one marked: a
+    // selected row wears the bar throughout, and what is read here is the color
+    // the arrow has when nothing covers it.
+    message_read::goToMessage(fixture.state, 1);
+    message_list::centerCursor(fixture.state);
+    message_list::ensureHeaders(fixture.state);
+    marks::toggle(fixture.state, 2);
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_list::render(fixture.state));
+    const std::string row = listRow(fixture, 4);
+    const size_t arrow = row.find('>');
+    REQUIRE(arrow != std::string::npos);
+    const int at = static_cast<int>(arrow);
+    CHECK(screen.at(at, 4).fg == theme::palette.mark);
+    // And whatever the row is painted — these messages are unread — stops at
+    // it: the arrow is the one cell on the row the user put there.
+    CHECK(screen.at(at - 1, 4).fg == theme::palette.msglistUnread);
+    CHECK(screen.at(at - 1, 4).fg != theme::palette.mark);
+
+    // The reader draws the same arrow in the same color, where the title's own
+    // text is the heading color: the arrow is a fact about the message and not a
+    // piece of the area's name.
+    marks::toggle(fixture.state, 1);
+    const TitleColors title = titleColors(fixture);
+    CHECK(title.arrow == theme::palette.mark);
+    CHECK(title.before == theme::palette.tableHeader);
 }
 
 TEST_CASE("Leaving the area takes its marks with it [marks][squish]") {
