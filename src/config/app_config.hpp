@@ -755,7 +755,7 @@ struct AppConfig {
     /// the same one in every echo.
     ///
     /// It is written as the short name FSC-0046 keeps ten characters for and
-    /// the version — "PID: AMBEREDITL 0.8.7" — and only on a message this editor
+    /// the version — "PID: AMBEREDITL version" — and only on a message this editor
     /// creates. A message being changed keeps the PID it was created with and a
     /// copy carries the original's: FSC-0046 allows one PID per message and has
     /// it added by whatever wrote the message, not by whatever passes it on.

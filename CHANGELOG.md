@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.8 — 2026-09-18
+
+- compose_add_pid
+- compose_add_kludge
+- mark color theme role
+- pass message file to external utilities
+
 ## 0.8.7 — 2026-09-16
 
 - skip passthrough areas

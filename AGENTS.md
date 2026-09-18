@@ -542,11 +542,11 @@ Rules that hold the design together:
 - **The PID says what wrote the message.** FSC-0046's `^APID:` line, written by
   `buildDraft()` behind CHRS, `compose_add_pid` asking and off unless a config
   asks for one — few echoes read them. It carries the short name and the
-  version, `kProductId` from `version.hpp`: "PID: AMBEREDITL 0.8.7". The
-  standard keeps ten characters for that field, the name takes nine of them, and
-  the system gets the tenth — `L`, `W`, `M`, `B`, and `U` for a Unix none of
-  those name, worked out at configure time beside `AMBEREDIT_SYSTEM` itself. The
-  system is spelled out on the tearline, where there is room for it. One per message, added by whatever
+  version, `kProductId` from `version.hpp`. The standard keeps ten characters
+  for that field, the name takes nine of them, and the system gets the tenth —
+  `L`, `W`, `M`, `B`, and `U` for a Unix none of those name, worked out at 
+  configure time beside `AMBEREDIT_SYSTEM` itself. The system is spelled out on
+  the tearline, where there is room for it. One per message, added by whatever
   created it: only a message composed here gets a PID, a message changed keeps
   the line it was written with, and one moved or copied carries its author's.
   The tearline is a separate line and stays the writer's to decide, `tearline`
