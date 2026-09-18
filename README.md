@@ -75,7 +75,6 @@ through ncurses. Everything else is the same code.
 ```bash
 amberedit --setup                         # seven steps, and you have a config
 amberedit                                 # or: amberedit -c some/amberedit.cfg
-amberedit -o "theme themes/white.cfg"     # one setting, for this run only
 ```
 
 **First run: `amberedit --setup`.** Seven steps — who you are and which tosser
@@ -180,8 +179,8 @@ it — the layout read back, so a rebound key is the key the box shows.
 
 Every key that runs a command can be moved: a `keys` line in `amberedit.cfg`
 names a layout of your own, and `keys_mode` says whether it is read on top of
-the standard one or in place of it. [KEYS_REBINDING.md](KEYS_REBINDING.md) is
-how such a file is written, and which commands there are to bind.
+the standard one or in place of it. See [KEYS_REBINDING.md](KEYS_REBINDING.md)
+for more information.
 
 ### Finding a message
 
@@ -233,8 +232,7 @@ still where they were; Move takes them out of the area and the marks with them.
 **`w` (or `F7`) writes the marked messages out into one file**, one after another
 in the order they stand in the area. 
 
-Marks are yours for as long as the area is open — nothing is written to the
-message base, and leaving the area forgets them.
+Marks are yours for as long as the area is open — leaving the area forgets them.
 
 The `>` is the `m` field of `msglist_format`, which the default formats put where
 the blank between the number and the first name used to stand: a list with
