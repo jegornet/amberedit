@@ -2405,6 +2405,32 @@ void externalEditReturned(AppState& state, bool changed,
     state.externalReview = AppState::ExternalReview{};
 }
 
+void externUtilReturned(AppState& state, std::vector<std::string> lines) {
+    state.edit.lines = std::move(lines);
+    // A message the utility emptied is still a message with a line in it: the
+    // editor is written against a buffer that always has one, and the same
+    // guard stands wherever text is put into it.
+    if (state.edit.lines.empty()) state.edit.lines.emplace_back();
+
+    // Where the user was, and not the top of the message: a utility is run over
+    // the text being written rather than in place of writing it, and coming
+    // back to the first line would lose the place in a message that may be
+    // pages long. Text that came back shorter than the cursor was far down puts
+    // it on the last line there is.
+    state.edit.row =
+        std::clamp(state.edit.row, 0, static_cast<int>(state.edit.lines.size()) - 1);
+    state.edit.col = std::min(state.edit.col, state.edit.line().size());
+    // Under an external editor there is no cursor in the text to keep on
+    // screen — the message is shown and never typed into — so what is kept is
+    // the window: a message that came back shorter is scrolled back to what
+    // there is to see rather than left showing nothing.
+    if (state.externalEditing()) {
+        scrollBy(state, 0);
+    } else {
+        scrollToCursor(state);
+    }
+}
+
 void externalEditFailed(AppState& state) {
     // Nothing was written and the message is still here. The typing goes back
     // into the header, which is the only half of this screen that takes any —

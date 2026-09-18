@@ -2,9 +2,12 @@
 
 #include <unistd.h>
 
+#include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 
 #include "app/run_program.hpp"
@@ -38,12 +41,12 @@ tl::expected<std::string, ErrorPtr> externalEditPath(
     return *dir + "/amberedit-" + std::to_string(static_cast<long>(::getpid())) + ".msg";
 }
 
-std::vector<std::string> externalEditorCommand(const std::vector<std::string>& editor,
-                                               const std::string& path) {
+std::vector<std::string> commandWithMessageFile(const std::vector<std::string>& words,
+                                                const std::string& path) {
     const std::string_view mark = config::AppConfig::kMsgPlaceholder;
     std::vector<std::string> command;
-    command.reserve(editor.size());
-    for (const std::string& word : editor) {
+    command.reserve(words.size());
+    for (const std::string& word : words) {
         std::string filled = word;
         for (size_t at = filled.find(mark); at != std::string::npos;
              at = filled.find(mark, at + path.size())) {
@@ -52,6 +55,21 @@ std::vector<std::string> externalEditorCommand(const std::vector<std::string>& e
         command.push_back(std::move(filled));
     }
     return command;
+}
+
+bool namesMessageFile(const std::vector<std::string>& command) {
+    const std::string_view mark = config::AppConfig::kMsgPlaceholder;
+    return std::any_of(command.begin(), command.end(), [mark](const std::string& word) {
+        return word.find(mark) != std::string::npos;
+    });
+}
+
+tl::expected<std::string, ErrorPtr> externUtilMsgPath(
+    const std::string& configuredTempDir) {
+    auto dir = config::makeTempDir(configuredTempDir);
+    if (!dir) return tl::make_unexpected(std::move(dir).error());
+    return *dir + "/amberedit-" + std::to_string(static_cast<long>(::getpid())) +
+           "-util.msg";
 }
 
 tl::expected<ExternalEdit, ErrorPtr> runExternalEditor(
@@ -75,7 +93,7 @@ tl::expected<ExternalEdit, ErrorPtr> runExternalEditor(
     auto written = writeWhole(path, handed);
     if (!written) return tl::make_unexpected(std::move(written).error());
 
-    auto ran = runProgram(externalEditorCommand(editor, path));
+    auto ran = runProgram(commandWithMessageFile(editor, path));
     if (!ran) return tl::make_unexpected(std::move(ran).error());
 
     auto read = config::text::readFile(path);
@@ -100,6 +118,18 @@ tl::expected<ExternalEdit, ErrorPtr> runExternalEditor(
         edited.lines.push_back(config::text::messageLine(line));
     }
     return edited;
+}
+
+tl::expected<ExternalEdit, ErrorPtr> runUtilOnMessage(
+    const std::vector<std::string>& command, const std::string& path,
+    const std::vector<std::string>& lines, const std::string& charset) {
+    auto ran = runExternalEditor(command, path, lines, charset);
+    // Taken away whatever came of it, the failures included: a charset that
+    // could not be written leaves no file, and one the program could not be
+    // started on leaves the message sitting in `tmpdir` for nobody.
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+    return ran;
 }
 
 }  // namespace amberedit::app

@@ -4071,6 +4071,19 @@ together — `keys_mode` says which.
   *answer*: the bytes read against the bytes written say whether the user wanted
   the message at all. `ui/after_handover` is not called — the editor is left
   alone, for the reason the foot of this section gives.
+- **A utility whose line writes `$msg` down takes that same trip**, through
+  `runUtilOnMessage()` — the editor's write, run and read back, on a file of its
+  own and taken away at the end of it. Two files rather than one: a utility is
+  reached from the editor as readily as from the reader, and the editor's file
+  holds the message being written for as long as it is being written. The
+  *answer* is what differs, and the screen decides it. The reader drops what came
+  back — the message it shows is one the base holds, and a pager was run over it
+  to look at it; what it is handed is the text without the service lines,
+  `reader.kludges` or no. The editor takes it as the message, `externUtilReturned()`
+  putting it into `AppState::edit` with the cursor left where it stood; an
+  untouched file means nothing there, which is exactly the opposite of what it
+  means coming back from the editor. The area list has no message to hand over,
+  so `$msg` is filled in with nothing and comes out of the command line.
 - **What the shell and the utilities may have done to the base is read again on
   the way back**, and `ui/after_handover` is the whole of it. Not the link
   handler: a browser does not write to a message base, and reopening one after
@@ -4118,6 +4131,14 @@ together — `keys_mode` says which.
   `Commands::externUtilOf()` can read a slot off a value. The message list has
   none: a screen one passes through on the way to a message is not where a
   program is reached for.
+
+  **The command is what `AppState::externUtilRequested` carries, not the slot.**
+  The slot says which program runs and the screen in front of the name says
+  whether it is handed the message as well —
+  `ui/extern_util`'s `handsOverMessage()` and `messageFor()` are the whole of
+  that question, and `runApp()` asks them rather than reading the screen off the
+  navigator. A slot named on three screens is one utility and three answers to
+  `$msg`.
 
   Three things follow from a title being the config's and not the table's.
   `AppConfig::labelOf()` is what a menu button and a hint are written with — the
@@ -4244,7 +4265,8 @@ being written may carry, and the copies and crossposts they ask for; a keyboard
 layout of one's own, from `keys`, and the help box behind `app.help` that reads
 it back; the user's own shell behind `reader.shell`;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
-a menu button or a hint on the area list, in the reader or in the editor, with
+a menu button or a hint on the area list, in the reader or in the editor, handed
+the message in a file where their line writes `$msg` down, with
 the area they may have written to read again on the way back.
 
 Deliberately out of scope until asked for:

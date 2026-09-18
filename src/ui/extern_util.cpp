@@ -1,7 +1,9 @@
 #include "ui/extern_util.hpp"
 
 #include <cstddef>
+#include <vector>
 
+#include "app/external_editor.hpp"
 #include "ui/keys.hpp"
 
 namespace amberedit::ui::extern_util {
@@ -21,8 +23,26 @@ bool run(AppState& state, Command command) {
     // in a menu or a hint list and `main()` refuses a key bound to it, so this
     // is the belt to those braces and not a case anybody reaches.
     if (!slot || !state.config.externUtils[*slot].isSet()) return false;
-    state.externUtilRequested = slot;
+    state.externUtilRequested = command;
     return true;
+}
+
+bool handsOverMessage(const AppState& state, Command command) {
+    const auto slot = Commands::externUtilOf(command);
+    if (!slot) return false;
+    if (!app::namesMessageFile(state.config.externUtils[*slot].command)) return false;
+    return Commands::of(command).screen != CommandScreen::AreaList;
+}
+
+std::vector<std::string> messageFor(const AppState& state, Command command) {
+    const CommandScreen screen = Commands::of(command).screen;
+    if (screen == CommandScreen::Compose) return state.edit.lines;
+    if (screen != CommandScreen::Reader || !state.readBody) return {};
+    std::vector<std::string> lines;
+    for (const auto& line : state.readBody->lines) {
+        if (!line.kludge) lines.push_back(line.text);
+    }
+    return lines;
 }
 
 }  // namespace amberedit::ui::extern_util

@@ -23,6 +23,7 @@
 #include "ui/error_log.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
+#include "ui/extern_util.hpp"
 #include "ui/external_dialog.hpp"
 #include "ui/find_dialog.hpp"
 #include "ui/focus.hpp"
@@ -361,16 +362,57 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
 
         // An external utility, which is the shell with the program named in
         // advance: the same frame's wait, the same handover, and the same
-        // silence about what it exited with. Which screen asked is nothing to
-        // this — a slot is one utility however many commands reach it.
+        // silence about what it exited with.
+        //
+        // Which screen asked decides one thing and one only — what `$msg` is,
+        // where the line writes it down. The program is the slot's whatever
+        // screen ran it.
         if (state.externUtilRequested) {
-            const size_t slot = *state.externUtilRequested;
+            const Command command = *state.externUtilRequested;
             state.externUtilRequested.reset();
+            const auto slot = Commands::externUtilOf(command);
+            const std::vector<std::string>& words =
+                state.config.externUtils[*slot].command;
+            const bool onMessage = extern_util::handsOverMessage(state, command);
+
             std::string failed;
-            terminal.handOver([&state, slot, &failed] {
-                const auto ran = app::runProgram(state.config.externUtils[slot].command);
-                if (!ran) failed = ran.error()->message();
-            });
+            // Made before the handover, exactly as the editor's is below: a
+            // `tmpdir` that will not take the file is a failure with nothing to
+            // hand the screen over for, and the box saying so wants the screen
+            // this still has.
+            std::string path;
+            if (onMessage) {
+                auto made = app::externUtilMsgPath(state.config.tempDirPath);
+                if (made) {
+                    path = *made;
+                } else {
+                    failed = made.error()->message();
+                }
+            }
+            app::ExternalEdit left;
+            if (failed.empty()) {
+                terminal.handOver(
+                    [&state, &command, &words, onMessage, &path, &left, &failed] {
+                        if (!onMessage) {
+                            const auto ran =
+                                app::runProgram(app::commandWithMessageFile(words, path));
+                            if (!ran) failed = ran.error()->message();
+                            return;
+                        }
+                        // The terminal's own charset, for the reason the editor
+                        // below is handed it: the utility runs in this terminal,
+                        // and a file it can show is one written the way this
+                        // terminal reads one.
+                        auto ran = app::runUtilOnMessage(
+                            words, path, extern_util::messageFor(state, command),
+                            ensureUtf8Locale());
+                        if (!ran) {
+                            failed = ran.error()->message();
+                        } else {
+                            left = std::move(*ran);
+                        }
+                    });
+            }
             if (!failed.empty()) {
                 state.errorMessage = failed;
                 // Whichever screen asked is still standing behind the box, and
@@ -381,6 +423,14 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 // is a program that had the base to itself.
                 takeSize();
                 after_handover::refresh(state);
+                // What the utility made of the message, where it was handed
+                // one in the editor: the file is the message from here on,
+                // changed or not. The reader is handed nothing back — the
+                // message there is one the base holds, and a utility run over
+                // it was run to look at it.
+                if (onMessage && Commands::of(command).screen == CommandScreen::Compose) {
+                    screens::compose::externUtilReturned(state, std::move(left.lines));
+                }
             }
             // Whatever was typed while the utility had the terminal was aimed
             // at it and not at the screen coming back.

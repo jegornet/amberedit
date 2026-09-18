@@ -10,6 +10,7 @@
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
+#include "ui/extern_util.hpp"
 #include "ui/keys.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
@@ -30,6 +31,7 @@ using amberedit::test::uidAt;
 using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
+namespace extern_util = amberedit::ui::extern_util;
 namespace message_list = amberedit::ui::screens::message_list;
 namespace menu_dialog = amberedit::ui::menu_dialog;
 namespace message_read = amberedit::ui::screens::message_read;
@@ -1815,7 +1817,8 @@ TEST_CASE(
     CHECK_FALSE(fixture.state.externUtilRequested);
     REQUIRE(message_read::handleEvent(fixture.state,
                                       Event::Named(Event::Name::F1, false, true)));
-    CHECK(fixture.state.externUtilRequested == 0);
+    CHECK(fixture.state.externUtilRequested ==
+          amberedit::config::Command::ReaderExternUtil0);
     // Nothing else moved: the screen is where it was, with no box over it.
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
     CHECK(fixture.state.errorMessage.empty());
@@ -1824,7 +1827,8 @@ TEST_CASE(
     fixture.state.externUtilRequested.reset();
     message_read::runMenuCommand(fixture.state,
                                  amberedit::config::Command::ReaderExternUtil0);
-    CHECK(fixture.state.externUtilRequested == 0);
+    CHECK(fixture.state.externUtilRequested ==
+          amberedit::config::Command::ReaderExternUtil0);
 
     // A slot the config never set is not run: the config and `main()` between
     // them refuse one being named, and nothing happens where one slips through.
@@ -1832,6 +1836,33 @@ TEST_CASE(
     message_read::runMenuCommand(fixture.state,
                                  amberedit::config::Command::ReaderExternUtil7);
     CHECK_FALSE(fixture.state.externUtilRequested);
+}
+
+TEST_CASE("A utility is handed the message the reader shows [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    fixture.config.externUtils[0] = {"Pager", {"less", "$msg"}};
+
+    amberedit::domain::MessageBody body;
+    body.lines = {{"\001MSGID: 2:382/736 1a2b3c4d", true, false},
+                  {"Hello, Michiel", false, false},
+                  {"--- AmberEdit", false, true},
+                  {"SEEN-BY: 382/736", true, false}};
+    fixture.state.readBody = body;
+
+    // What somebody wrote and not what the network wrote about it: the service
+    // lines are left out, exactly as they are on an export.
+    CHECK(extern_util::handsOverMessage(fixture.state, Command::ReaderExternUtil0));
+    CHECK(extern_util::messageFor(fixture.state, Command::ReaderExternUtil0) ==
+          std::vector<std::string>{"Hello, Michiel", "--- AmberEdit"});
+
+    // The area list is handed nothing, whatever the reader under it was
+    // showing: there is no message on that screen, so $msg stands for one that
+    // is not there.
+    CHECK_FALSE(
+        extern_util::handsOverMessage(fixture.state, Command::AreaListExternUtil0));
+    CHECK(extern_util::messageFor(fixture.state, Command::AreaListExternUtil0).empty());
 }
 
 TEST_CASE("The shell is offered in an empty area [messageread][squish]") {

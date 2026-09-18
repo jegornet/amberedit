@@ -21,6 +21,7 @@
 #include "ui/app_state.hpp"
 #include "ui/attributes_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
+#include "ui/extern_util.hpp"
 #include "ui/keys.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
@@ -39,6 +40,7 @@ using amberedit::domain::FtnAddress;
 using amberedit::ui::term::Event;
 
 namespace compose = amberedit::ui::screens::compose;
+namespace extern_util = amberedit::ui::extern_util;
 namespace confirm_dialog = amberedit::ui::confirm_dialog;
 namespace attributes_dialog = amberedit::ui::attributes_dialog;
 namespace menu_dialog = amberedit::ui::menu_dialog;
@@ -1217,7 +1219,7 @@ TEST_CASE(
     compose::startNew(state);
     REQUIRE(state.composeInHeader);
     REQUIRE(compose::handleEvent(state, chord));
-    CHECK(state.externUtilRequested == 1);
+    CHECK(state.externUtilRequested == Command::ComposeExternUtil1);
 
     // And from the text, which would otherwise swallow the chord: both halves
     // end on every Ctrl and Alt the layout does not name, so a utility has to
@@ -1226,12 +1228,75 @@ TEST_CASE(
     fixture.walkToText();
     REQUIRE_FALSE(state.composeInHeader);
     REQUIRE(compose::handleEvent(state, chord));
-    CHECK(state.externUtilRequested == 1);
+    CHECK(state.externUtilRequested == Command::ComposeExternUtil1);
 
     // The menu button says the same thing the chord does.
     state.externUtilRequested.reset();
     compose::runMenuCommand(state, Command::ComposeExternUtil1);
-    CHECK(state.externUtilRequested == 1);
+    CHECK(state.externUtilRequested == Command::ComposeExternUtil1);
+}
+
+TEST_CASE("A utility is handed the message being written [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    // The line writes $msg down, which is the whole of what asks for one.
+    fixture.config.externUtils[1] = {"Spell", {"hunspell", "$msg"}};
+    fixture.config.externUtils[2] = {"Files", {"mc"}};
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"Helo, Michiel", "", "Bye"};
+
+    CHECK(extern_util::handsOverMessage(state, Command::ComposeExternUtil1));
+    CHECK(extern_util::messageFor(state, Command::ComposeExternUtil1) ==
+          state.edit.lines);
+    // And a utility that only wants the terminal is handed nothing, exactly as
+    // every one of them was before there was a message to hand over.
+    CHECK_FALSE(extern_util::handsOverMessage(state, Command::ComposeExternUtil2));
+}
+
+TEST_CASE("What the utility left in the file becomes the message [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.externUtils[1] = {"Spell", {"hunspell", "$msg"}};
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"Helo, Michiel", "", "Bye"};
+    state.edit.row = 2;
+    state.edit.col = 3;
+
+    compose::externUtilReturned(state, {"Hello, Michiel", "", "Bye"});
+    CHECK(state.edit.lines == std::vector<std::string>{"Hello, Michiel", "", "Bye"});
+    // The cursor is where it was standing: a utility is run over the message
+    // being written rather than in place of writing it.
+    CHECK(state.edit.row == 2);
+    CHECK(state.edit.col == 3);
+    // Nothing is asked and nothing is thrown away — this is not the editor's
+    // question, and a utility that changed nothing has said nothing about
+    // whether the message is wanted.
+    CHECK_FALSE(state.externalReview);
+    CHECK_FALSE(state.externalReviewShown);
+    CHECK(state.navigator.current() == ScreenId::Compose);
+    CHECK_FALSE(state.composeInHeader);
+}
+
+TEST_CASE("A message the utility cut short keeps the cursor in it [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"one", "two", "three"};
+    state.edit.row = 2;
+    state.edit.col = 5;
+
+    compose::externUtilReturned(state, {"one"});
+    CHECK(state.edit.row == 0);
+    CHECK(state.edit.col == 3);
+
+    // And one it emptied altogether is still a message with a line in it.
+    compose::externUtilReturned(state, {});
+    CHECK(state.edit.lines == std::vector<std::string>{""});
+    CHECK(state.edit.row == 0);
+    CHECK(state.edit.col == 0);
 }
 
 TEST_CASE("A name stops at 35 characters and the subject at 71 [compose]") {

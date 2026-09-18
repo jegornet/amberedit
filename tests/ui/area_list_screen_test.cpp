@@ -338,11 +338,13 @@ TEST_CASE("An external utility is asked for from the area list [arealist][keys]"
         amberedit::ui::KeyMap::parse("Alt-F3 arealist.extern_util2\n", "keys"));
 
     // Asked for and not run: a screen has no terminal to hand over, so what the
-    // key leaves behind is the slot for `runApp()` to answer on the next pass.
+    // key leaves behind is the command for `runApp()` to answer on the next
+    // pass.
     REQUIRE(area_list::handleEvent(
         fixture.state, Event::Named(amberedit::ui::term::Event::Name::F3, false, true)));
     REQUIRE(fixture.state.externUtilRequested);
-    CHECK(*fixture.state.externUtilRequested == 2);
+    CHECK(*fixture.state.externUtilRequested ==
+          amberedit::config::Command::AreaListExternUtil2);
 
     // The slot is the digit alone: the screen the key was pressed on decides
     // which command ran and nothing about which program does.
@@ -350,7 +352,8 @@ TEST_CASE("An external utility is asked for from the area list [arealist][keys]"
     fixture.state.keys = amberedit::test::valueOf(
         amberedit::ui::KeyMap::parse("t arealist.extern_util2\n", "keys"));
     REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
-    CHECK(fixture.state.externUtilRequested == 2);
+    CHECK(fixture.state.externUtilRequested ==
+          amberedit::config::Command::AreaListExternUtil2);
     // And a letter bound to one stops being a letter the search can be typed
     // with, as any other command's letter does.
     CHECK(fixture.state.areaSearch.empty());

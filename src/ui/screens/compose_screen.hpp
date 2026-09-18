@@ -176,6 +176,21 @@ void externalEditReturned(AppState& state, bool changed,
 /// header; the shell puts the error box up over it.
 void externalEditFailed(AppState& state);
 
+/// What an external utility whose line writes `$msg` left in the file, once the
+/// shell has taken the terminal back: `lines` become the message, changed or
+/// not.
+///
+/// **It is not the editor's question asked again.** A file that came back
+/// untouched means nothing here — a utility is run *over* a message being
+/// written, to spell-check it or to lay it out, and one that left the text alone
+/// has left it alone rather than said anything about whether the message is
+/// wanted. Nothing is dropped, nothing is asked, and no review box goes up: the
+/// screen comes back exactly as it was, with whatever the utility made of the
+/// text on it.
+///
+/// The cursor stays where it was standing, as far as the text still reaches.
+void externUtilReturned(AppState& state, std::vector<std::string> lines);
+
 /// The message moved `delta` rows under the window, the cursor left where it
 /// is: how the review box scrolls what it is asking about, and what the page
 /// keys do on a screen whose text is shown rather than typed into.

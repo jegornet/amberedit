@@ -701,64 +701,49 @@ reader_underline_links on
 # and a program that opens a window elsewhere is gone before the screen is
 # missed. `xdg-open $url` is the other command worth naming here — it hands the
 # link to whatever the desktop opens links with.
-##urlhandler lynx $url
+#urlhandler lynx $url
 
 # The external utilities: up to ten programs, extern_util0 through extern_util9,
-# each written as a title and then the command to run it by. Optional, and none
-# are set by default.
+# each written as a title and then the command. Optional, none set by default.
 #
 #   extern_util0 "Scan"  /usr/local/bin/hpt scan
-#   extern_util1 "Files" mc
-#   extern_util2 "Browser" lynx
+#   extern_util1 "Read"  less $msg
+#   extern_util2 "Spell Check" hunspell -d ru_RU,en_US $msg
 #
-# The title comes first and is always written: it is the word a menu button and
-# a hint are drawn with, and nothing else in the line could be read as one. What
-# follows it is the program and its arguments — run directly rather than through
-# a shell, so the program is looked for on $PATH the way a name typed at a
-# prompt is, an argument with a space in it is written in double quotes, and
-# nothing goes near a shell to be escaped for one.
+# The title comes first and is always written: it is what a menu button and a
+# hint are drawn with. The rest is the program and its arguments, run directly
+# and not through a shell — looked for on $PATH, an argument with a space in it
+# written in double quotes, nothing to escape. AmberEdit hands the terminal over
+# for as long as the utility runs, as it does for your own shell behind
+# reader.shell, and says nothing about what it exited with.
 #
-# AmberEdit hands the terminal over for as long as the utility runs and takes it
-# back when it ends, exactly as it does for your own shell behind reader.shell.
-# What the utility did while it had the screen is between it and you: one that
-# ran and exited non-zero is not reported.
+# $msg in the command hands the utility the message as well, the way
+# external_editor does: it is written into a file under tmpdir in your
+# terminal's charset, $msg is the path to it, and the file is taken away when
+# the utility ends. Which message, and what becomes of the file, is the screen
+# you ran the utility from:
 #
-# Nothing runs them until something names them. A utility is reached three ways,
-# and every one of them is written down by hand:
+#   * the reader: the message on screen, service lines left out whether or not
+#     "k" shows them. What the utility writes back is ignored;
+#   * the editor: the message being written, and what the utility leaves in the
+#     file becomes its text. Nothing is asked and nothing is dropped — an
+#     untouched file means the utility left the text alone;
+#   * the area list: no message at all, so $msg is passed empty.
 #
-#   * a key, in the "keys" file, on the area list, in the reader or in the
-#     editor — "Alt-F1 reader.extern_util0", "Alt-F2 compose.extern_util1",
-#     "Alt-F3 arealist.extern_util2". The slot is the digit and nothing else, so
-#     those three lines are three keys and three different utilities;
-#   * a button in a context menu — "extern_util0" in reader_menu or in
-#     compose_menu, drawn under the ⚒ glyph every utility carries;
-#   * a hint — "extern_util0" in arealist_hints, reader_hints or compose_hints,
-#     which shows the title under whichever key runs it.
-#
-# A menu or a hint naming a slot no extern_utilN line sets, and a key bound to
-# one, are both refused as AmberEdit starts: a button with nothing behind it is
-# a mistake nobody would ever find on the screen.
+# A utility runs only where something names it by hand: a key in the "keys" file
+# ("Alt-F1 reader.extern_util0", "Alt-F2 compose.extern_util1", "Alt-F3
+# arealist.extern_util2" — the slot is the digit alone, so those three lines are
+# three keys and three utilities), a button in reader_menu, compose_menu or
+# arealist_menu ("extern_util0", drawn under the ⚒ glyph), or a hint in
+# arealist_hints, reader_hints or compose_hints, which shows the title under
+# whichever key runs it. Naming a slot no extern_utilN line sets — in a menu, in
+# a hint list or in a key binding — is refused as AmberEdit starts.
+#extern_util0 "Spell Check" hunspell -d ru_RU,en_US $msg
 
 # Whether coming back from a program that had the terminal — one of the
 # utilities above, or your own shell behind reader.shell — also reads every
 # other area again, the way Ctrl-R does on the area list. Optional; off by
 # default.
-#
-# The area you are reading is re-read either way, and that is not optional: a
-# program with the terminal may have changed the message in front of you,
-# delivered into the area, deleted from it or packed it, and every message base
-# reads its index once when the area is opened. So AmberEdit opens that one area
-# again and puts you back on the message you were reading — found by the
-# identifier that outlives a pack, so a packed area leaves you on the same
-# message and not on whatever took its number. A message that has since been
-# deleted leaves you on the nearest one before it, exactly as a lastread mark on
-# a deleted message does. Where you had scrolled to stays where you left it.
-#
-# What this setting adds is every *other* area's counts, which is what you want
-# after a utility that runs your tosser. It costs one open per area and puts the
-# same modal on the screen that Ctrl-R does, so on a long area list it is a
-# noticeable pause after every utility — which is why it is asked for rather
-# than assumed.
 #
 # The link handler is deliberately not covered by either half: a browser does
 # not write to a message base.

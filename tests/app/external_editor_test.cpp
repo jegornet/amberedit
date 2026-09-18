@@ -12,10 +12,13 @@
 #include "test_programs.hpp"
 #include "test_strings.hpp"
 
-using amberedit::app::externalEditorCommand;
+using amberedit::app::commandWithMessageFile;
 using amberedit::app::externalEditPath;
 using amberedit::app::ExternalEdit;
+using amberedit::app::externUtilMsgPath;
+using amberedit::app::namesMessageFile;
 using amberedit::app::runExternalEditor;
+using amberedit::app::runUtilOnMessage;
 using amberedit::test::contains;
 using amberedit::test::errorOf;
 using amberedit::test::TempDir;
@@ -50,16 +53,35 @@ std::string contentsOf(const std::string& path) {
 }  // namespace
 
 TEST_CASE("The file goes wherever $msg stands [externaleditor]") {
-    CHECK(externalEditorCommand({"mcedit", "$msg"}, "/tmp/m.msg") ==
+    CHECK(commandWithMessageFile({"mcedit", "$msg"}, "/tmp/m.msg") ==
           std::vector<std::string>{"mcedit", "/tmp/m.msg"});
     // Inside an argument as readily as alone in one, and every time it is
     // written.
-    CHECK(externalEditorCommand({"vi", "+1", "--file=$msg", "--also=$msg"}, "/t/x") ==
+    CHECK(commandWithMessageFile({"vi", "+1", "--file=$msg", "--also=$msg"}, "/t/x") ==
           std::vector<std::string>{"vi", "+1", "--file=/t/x", "--also=/t/x"});
     // A path that spells the placeholder itself is left as it is: what is put
     // in its place is not looked at again.
-    CHECK(externalEditorCommand({"vi", "$msg"}, "/tmp/$msg") ==
+    CHECK(commandWithMessageFile({"vi", "$msg"}, "/tmp/$msg") ==
           std::vector<std::string>{"vi", "/tmp/$msg"});
+
+    // Nothing put in its place is what the area list hands a utility: there is
+    // no message on that screen, so the word stands for one that is not there
+    // and the argument is left empty rather than left saying `$msg`.
+    CHECK(commandWithMessageFile({"less", "$msg"}, "") ==
+          std::vector<std::string>{"less", ""});
+    CHECK(commandWithMessageFile({"wc", "-l", "$msg$msg"}, "") ==
+          std::vector<std::string>{"wc", "-l", ""});
+    // And a line that never writes it down is the line itself, filled in or not.
+    CHECK(commandWithMessageFile({"mc"}, "/tmp/m.msg") == std::vector<std::string>{"mc"});
+}
+
+TEST_CASE("A command says for itself whether it wants the message [externaleditor]") {
+    CHECK(namesMessageFile({"hunspell", "$msg"}));
+    CHECK(namesMessageFile({"sh", "-c", "wc -l <$msg"}));
+    // A utility that only wants the terminal — which is what every one of them
+    // was until now.
+    CHECK_FALSE(namesMessageFile({"mc"}));
+    CHECK_FALSE(namesMessageFile({}));
 }
 
 TEST_CASE("The message is handed over as the file holds it [externaleditor]") {
@@ -169,4 +191,39 @@ TEST_CASE("The file is one of ours under the temporary directory [externaleditor
     const auto fallen = externalEditPath("");
     REQUIRE(fallen.has_value());
     CHECK(contains(*fallen, system));
+}
+
+TEST_CASE("A utility writes its copy of the message somewhere else [externaleditor]") {
+    TempDir dir;
+    const auto editors = externalEditPath(dir.path("work"));
+    const auto utilitys = externUtilMsgPath(dir.path("work"));
+    REQUIRE(editors.has_value());
+    REQUIRE(utilitys.has_value());
+    // Two files and not one: a utility is reached from the editor as readily as
+    // from the reader, and the message being written is in the editor's for as
+    // long as it is being written.
+    CHECK(*editors != *utilitys);
+    CHECK(contains(*utilitys, dir.path("work")));
+}
+
+TEST_CASE("What a utility left is read back and the file goes [externaleditor]") {
+    TempDir dir;
+    const std::string file = dir.path("util.msg");
+    const auto left = runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"), file,
+                                       {"Helo, Michiel"}, "UTF-8");
+    REQUIRE(left.has_value());
+    CHECK(left->changed);
+    CHECK(left->lines == std::vector<std::string>{"Hello, Michiel"});
+    // Nothing is kept: there is no later moment to take it away in — the reader
+    // drops what came back and the editor has already made a message of it.
+    CHECK_FALSE(std::filesystem::exists(file));
+}
+
+TEST_CASE("A utility that would not start leaves no file behind [externaleditor]") {
+    TempDir dir;
+    const std::string file = dir.path("util.msg");
+    const std::string error = errorOf(runUtilOnMessage(
+        {"amberedit-no-such-utility", "$msg"}, file, {"Hello"}, "UTF-8"));
+    CHECK_MESSAGE(contains(error, "amberedit-no-such-utility"), error);
+    CHECK_FALSE(std::filesystem::exists(file));
 }

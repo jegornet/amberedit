@@ -286,16 +286,19 @@ struct AppState {
     /// away is the terminal's own, as `Terminal::handOver()` says.
     bool shellRequested{false};
 
-    /// The `extern_utilN` slot whose program has been asked for, and nothing
-    /// where none has. Set by whichever screen ran the command and cleared by
-    /// the shell, having handed the terminal over and taken it back — the same
-    /// way `shellRequested` above works and for the same reason.
+    /// The `extern_utilN` command that has been asked for, and nothing where
+    /// none has. Set by whichever screen ran it and cleared by the shell, having
+    /// handed the terminal over and taken it back — the same way
+    /// `shellRequested` above works and for the same reason.
     ///
-    /// A slot rather than a command, because a slot is what a utility is: the
-    /// screen a key was pressed on decides which command ran and nothing about
-    /// what runs. It is not the reader's, either — the area list and the editor
-    /// ask for one the same way.
-    std::optional<size_t> externUtilRequested;
+    /// The whole command and not the slot alone, though the slot is what says
+    /// which program runs: the screen in front of the name is what says whether
+    /// the program is handed the message as well, and what becomes of the file
+    /// when it ends. `arealist.extern_util3`, `reader.extern_util3` and
+    /// `compose.extern_util3` are one utility written three ways and three
+    /// different answers to `$msg` — nothing on the area list, a message to look
+    /// at in the reader, a message to make something of in the editor.
+    std::optional<config::Command> externUtilRequested;
 
     // --- the external editor ------------------------------------------------
     /// Whether the program `external_editor` names has been asked for. The
