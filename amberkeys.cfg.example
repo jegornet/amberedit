@@ -117,6 +117,7 @@ Ctrl-O          compose.import
 F3              compose.import
 Alt-H           compose.header_back
 Ctrl-Y          compose.delete_line
+Alt-D           compose.delete_line
 Ctrl-U          compose.restore_line
 Ctrl-D          compose.delete_quote
 Ctrl-W          compose.delete_word

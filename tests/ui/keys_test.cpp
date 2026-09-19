@@ -62,6 +62,10 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     CHECK(keys.is(alt('b'), Command::ComposeWordLeft));
     CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, false, true),
                   Command::ComposeWordLeft));
+    // Taking the line out answers on two keys: the chord the editors in front
+    // of a terminal have always put it on, and Alt-D beside it.
+    CHECK(keys.is(ctrl('y'), Command::ComposeDeleteLine));
+    CHECK(keys.is(alt('d'), Command::ComposeDeleteLine));
 
     // F2 is two commands, and the two screens never meet.
     CHECK(keys.is(Event::F2, Command::ReaderChange));
@@ -73,7 +77,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bcefhq");
+    CHECK(keys.altLetters() == "bcdefhq");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -263,7 +267,7 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
           std::vector<Event>{Event::Character('l'), Event::F9});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bcefhjq");
+    CHECK(keys.altLetters() == "bcdefhjq");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.

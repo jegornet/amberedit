@@ -76,7 +76,7 @@ left unbound is not in it at all.
 | `Esc` | drop the message (asks first)                                      |
 | `Ctrl-F` | edit message attributes                                         |
 | `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |
-| `Ctrl-Y` | delete the line — or the button beside it, on the right-hand edge   |
+| `Ctrl-Y` / `Alt-D` | delete the line — or the button beside it, on the right-hand edge |
 | `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` | delete the quoted text after the cursor                            |
 | `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
