@@ -1477,6 +1477,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.replyOriginalCharset = *read;
+    } else if (key == "reply_link") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.replyLink = *read;
     } else if (key == "compose_fts1_field_limits") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1814,6 +1818,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "bbs_codes_ansi",
                                                       "areareplydirect",
                                                       "reply_original_charset",
+                                                      "reply_link",
                                                       "reply_to_area",
                                                       "compose_cc_list",
                                                       "compose_xc_list",

@@ -211,6 +211,18 @@ struct MessageDraft {
     /// Only the written stamp: when the message reached the base it is going
     /// into is that base's own business, and it is reaching it now.
     MessageDate written;
+
+    /// The message this one answers, as its number in the area this one is
+    /// being written into — the thread link `MessageThread::replyTo` reads
+    /// back. Zero where it answers nothing there, which is what a new message,
+    /// a forward and a reply moved into another area all leave it: the link is
+    /// one base's own, and a number carried across areas would name whatever
+    /// message happens to sit at it.
+    ///
+    /// A number, as everything above the message-base port is. The UIDs the
+    /// formats keep these links in are the adapter's business, and it is what
+    /// turns the one into the other.
+    uint32_t replyTo{0};
 };
 
 /// Whether the message was written here and has not gone out yet: `MSGLOCAL`

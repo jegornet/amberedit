@@ -344,6 +344,51 @@ TEST_CASE("A reply to a message that declared no charset keeps what it was read 
     CHECK(buildDraft(blank, {"hello back"}).charset == "CP866");
 }
 
+TEST_CASE("A reply is stored linked to the message it answers [builder]") {
+    const AppConfig cfg = config();  // reply_link on, which is how it stands
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    MessageHeader header;
+    header.from = "Ivan Petrov";
+    MessageBody body;
+    body.lines = {{"hello there", false}};
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.reply = true;
+
+    // The number the caller names, which is the answered message's in the area
+    // this one is going into. Nothing here works it out: only the caller knows
+    // whether the two are the same area.
+    BuildRequest request{cfg,   area,    fields,     &header,
+                         &body, nullptr, 0x68A1B2C3, 180};
+    request.replyTo = 33;
+    CHECK(buildDraft(request, {"hello back"}).replyTo == 33);
+
+    // Off, the message is written exactly as before and stands in no thread.
+    AppConfig unlinked = cfg;
+    unlinked.replyLink = false;
+    BuildRequest quiet{unlinked, area,    fields,     &header,
+                       &body,    nullptr, 0x68A1B2C3, 180};
+    quiet.replyTo = 33;
+    CHECK(buildDraft(quiet, {"hello back"}).replyTo == 0);
+
+    // A forward passes a message on rather than answering it, so it links to
+    // nothing — the same pair of questions the REPLY kludge is written by.
+    ComposeFields forwarded = fields;
+    forwarded.forward = true;
+    BuildRequest passing{cfg,   area,    forwarded,  &header,
+                         &body, nullptr, 0x68A1B2C3, 180};
+    passing.replyTo = 33;
+    CHECK(buildDraft(passing, {"look at this"}).replyTo == 0);
+
+    // And a message answering nothing in the area it is going into — a new one,
+    // or a reply the user moved elsewhere — is left where the caller left it.
+    BuildRequest elsewhere = request;
+    elsewhere.replyTo = 0;
+    CHECK(buildDraft(elsewhere, {"hello back"}).replyTo == 0);
+}
+
 TEST_CASE("A netmail carries INTL, FMPT and TOPT [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Netmail);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <ctime>
 #include <string>
 #include <string_view>
@@ -47,6 +48,17 @@ struct BuildRequest {
     /// than by a person. Without their leading ^A, as `MessageDraft::kludges`
     /// wants them.
     std::vector<std::string> extraKludges;
+
+    /// The number of the message being answered, in the area this one is going
+    /// into — what the base stores as the thread link where `reply_link` asks
+    /// for one. Zero where there is nothing in that area to link to: a new
+    /// message, a forward, and a reply written into some other area than the
+    /// one it answers, whether the user moved it or an `AREA:` line did.
+    ///
+    /// Not read off `original`, which is the message as it stands in the area
+    /// it was read in: that number means nothing in the area being written
+    /// into, and only the caller knows whether the two are the same area.
+    uint32_t replyTo{0};
 };
 
 /// The text the editor opens on: the template expanded against this message,

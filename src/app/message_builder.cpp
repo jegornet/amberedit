@@ -644,6 +644,11 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     // Pvt, less whatever was turned off there, plus whatever was turned on.
     draft.attributes = fields.attributes;
     draft.utcOffsetMinutes = request.utcOffsetMinutes;
+    // The thread link the base keeps, where `reply_link` asks for one. A
+    // forward answers nothing, so it links to nothing — the same question the
+    // ^AREPLY line below is written by. The caller has already left this at
+    // zero where the answer goes into an area other than the one it answers.
+    if (request.config.replyLink && !fields.forward) draft.replyTo = request.replyTo;
 
     if (const auto from = domain::FtnAddress::parse(fields.fromAddr))
         draft.origAddr = *from;

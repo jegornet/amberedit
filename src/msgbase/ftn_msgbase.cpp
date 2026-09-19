@@ -432,6 +432,11 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     raw.header.origAddr = draft.origAddr;
     raw.header.destAddr = draft.destAddr;
     raw.header.utcOffsetMinutes = draft.utcOffsetMinutes;
+    // The thread link, turned from the number the draft names into the UID the
+    // formats keep it as — the same conversion `thread()` makes the other way
+    // round. A number naming no message here leaves the link at nothing rather
+    // than at a UID the base never issued.
+    raw.header.replyTo = draft.replyTo != 0 ? driver_->uidOf(draft.replyTo) : 0;
 
     for (const auto& kludge : draft.kludges) {
         // A UCS line the draft carried is about the message it was read out of.

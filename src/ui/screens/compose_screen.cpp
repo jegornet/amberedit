@@ -442,7 +442,7 @@ app::BuildRequest buildRequest(AppState& state) {
     // both carry the message being read, and `compose.forward` is what says
     // which of the two it is being carried for.
     const bool carries = state.compose.reply || state.compose.forward;
-    return app::BuildRequest{
+    app::BuildRequest request{
         // The settings of the area it is going into — the origin, the tearline,
         // the template and the charset it is written in are all that area's.
         // Owned by the state, so the reference this keeps outlives the call.
@@ -468,6 +468,15 @@ app::BuildRequest buildRequest(AppState& state) {
         // carries them: a message is answered the way it was being read.
         state.showKludges,
     };
+    // The thread link the base keeps, and only where there is a base in common
+    // to keep it: a message answered in the area it was read in. A reply the
+    // user moved and one following an `AREA:` line both land in another base,
+    // where the number on screen names some other message entirely — and a
+    // forward answers nothing wherever it goes.
+    if (state.compose.reply && !state.composeGoesElsewhere() && state.readHeader) {
+        request.replyTo = state.readHeader->number;
+    }
+    return request;
 }
 
 /// The text as it is drawn: one entry per row of the screen, a line too wide

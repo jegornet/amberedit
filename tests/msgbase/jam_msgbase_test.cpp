@@ -169,6 +169,34 @@ TEST_CASE("A lone JAM message is in no thread [jam]") {
     CHECK(msgbase.thread(msgbase.count() + 1).empty());
 }
 
+TEST_CASE("A JAM message written with a reply link answers what it names [jam]") {
+    TempJamBase base;
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(jamArea(base.path())).has_value());
+
+    const uint32_t answered = msgbase.count();
+    REQUIRE(answered > 0);
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = "Yegor Gluhov";
+    draft.to = "All";
+    draft.subject = "Re: test";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.attributes = amberedit::domain::attr::kLocal;
+    draft.charset = "CP866";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
+    draft.lines = {"hello back"};
+    // A number on the way in; JAM keeps the link as the absolute message
+    // number, which is its UID, and it is read back as a position again.
+    draft.replyTo = answered;
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    CHECK(msgbase.thread(number).replyTo == answered);
+
+    draft.replyTo = 0;
+    CHECK(msgbase.thread(amberedit::test::valueOf(msgbase.write(draft))).replyTo == 0);
+}
+
 TEST_CASE("FtnMsgBase writes a message into a JAM base and reads it back [jam]") {
     TempJamBase base;
     FtnMsgBase msgbase("CP866");

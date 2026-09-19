@@ -253,6 +253,38 @@ TEST_CASE("A lone *.msg message is in no thread [opus]") {
     CHECK(msgbase.thread(msgbase.count() + 1).empty());
 }
 
+TEST_CASE("A *.msg message written with a reply link answers what it names [opus]") {
+    TempOpusBase base;
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
+
+    const uint32_t answered = msgbase.count();
+    REQUIRE(answered > 0);
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = "Yegor Gluhov";
+    draft.to = "Ivan Petrov";
+    draft.subject = "Re: test";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.destAddr = *amberedit::domain::FtnAddress::parse("192:168/3");
+    draft.netmail = true;
+    draft.attributes =
+        amberedit::domain::attr::kLocal | amberedit::domain::attr::kPrivate;
+    draft.charset = "CP866";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
+    draft.lines = {"hello back"};
+    // A number on the way in; a Fido *.msg keeps the link as the file number of
+    // the message answered, which is its UID here.
+    draft.replyTo = answered;
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    CHECK(msgbase.thread(number).replyTo == answered);
+    CHECK(wordAt(storedHeader(base.dir() / "199.msg"), 184) == 198);
+
+    draft.replyTo = 0;
+    CHECK(msgbase.thread(amberedit::test::valueOf(msgbase.write(draft))).replyTo == 0);
+}
+
 TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [opus]") {
     TempOpusBase base;
     FtnMsgBase msgbase("CP866");

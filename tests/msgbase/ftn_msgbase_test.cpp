@@ -1219,3 +1219,40 @@ TEST_CASE("FtnMsgBase reads the thread links, and nothing where there are none "
     }
     CHECK(threads == "33: +34|34: -33|");
 }
+
+TEST_CASE("A message written with a reply link answers what it names [squish]") {
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    const uint32_t answered = msgbase.count();
+    REQUIRE(answered > 0);
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = "Yegor Gluhov";
+    draft.to = "Ivan Petrov";
+    draft.subject = "Re: test";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("192:168/2");
+    draft.attributes = amberedit::domain::attr::kLocal;
+    draft.charset = "CP866";
+    draft.kludges = {"MSGID: 192:168/2 68a1b2c3", "CHRS: CP866 2"};
+    draft.lines = {"hello back"};
+    // A number on the way in, and a UMSGID once it is stored: the link is kept
+    // as the identifier that outlives a pack, and read back as a position.
+    draft.replyTo = answered;
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    CHECK(msgbase.thread(number).replyTo == answered);
+    // The message answered is left exactly as it was: nothing here writes the
+    // link the other way, so it does not list this one among its own replies.
+    const auto above = msgbase.thread(answered);
+    CHECK(std::find(above.replies.begin(), above.replies.end(), number) ==
+          above.replies.end());
+
+    // A draft naming nothing, and one naming a message the area does not hold,
+    // are both stored in no thread at all rather than pointed anywhere.
+    draft.replyTo = 0;
+    CHECK(msgbase.thread(amberedit::test::valueOf(msgbase.write(draft))).replyTo == 0);
+    draft.replyTo = msgbase.count() + 100;
+    CHECK(msgbase.thread(amberedit::test::valueOf(msgbase.write(draft))).replyTo == 0);
+}

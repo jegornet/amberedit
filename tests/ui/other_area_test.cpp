@@ -562,6 +562,78 @@ TEST_CASE(
     CHECK(fixture.countIn(fixture.target) == thereBefore + 1);
 }
 
+TEST_CASE("A reply is written linked to the message it answers [other_area]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+
+    const uint32_t before = fixture.countIn(fixture.source);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.readHeader);
+    const uint32_t answered = state.readHeader->number;
+
+    compose::startReply(state);
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    // The plain reply, into the area being read: the moved one is the test
+    // below, and it is the moving that decides whether there is a link at all.
+    REQUIRE_FALSE(state.compose.moved);
+    state.compose.subject = "an answer";
+    compose::saveMessage(state);
+
+    REQUIRE(state.base != nullptr);
+    REQUIRE(state.base->count() == before + 1);
+    // The base holds the answer in the thread of the message it answers — the
+    // link a reader climbs with `-`.
+    CHECK(state.base->thread(before + 1).replyTo == answered);
+}
+
+TEST_CASE("reply_link off writes the answer in no thread [other_area]") {
+    TwoAreaFixture fixture;
+    fixture.config.replyLink = false;
+    auto& state = fixture.state;
+
+    const uint32_t before = fixture.countIn(fixture.source);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.readHeader);
+
+    compose::startReply(state);
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    state.compose.subject = "an answer";
+    compose::saveMessage(state);
+
+    REQUIRE(state.base != nullptr);
+    REQUIRE(state.base->count() == before + 1);
+    CHECK(state.base->thread(before + 1).replyTo == 0);
+}
+
+TEST_CASE("A reply moved into another area is linked to nothing [other_area]") {
+    // The link is one base's own. The number on screen names a message of the
+    // area being read, and in the base the answer lands in it names whatever
+    // message happens to sit at it — which is why a moved reply carries none.
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+
+    const uint32_t thereBefore = fixture.countIn(fixture.target);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.readHeader);
+
+    message_read::handleEvent(state, Event::Character('n'));
+    REQUIRE(state.areaPicker);
+    state.areaPicker->cursor = fixture.rowOf("test.other");
+    REQUIRE(area_dialog::handleEvent(state, Event::Return) ==
+            area_dialog::Outcome::Picked);
+    fixture.pickArea();
+    REQUIRE(state.compose.moved);
+    state.compose.subject = "moved answer";
+    compose::saveMessage(state);
+
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
+    REQUIRE(base != nullptr);
+    REQUIRE(base->count() == thereBefore + 1);
+    CHECK(base->thread(thereBefore + 1).replyTo == 0);
+    fixture.manager.closeCurrentArea();
+}
+
 TEST_CASE(
     "A moved reply is written under the settings of the area it goes into "
     "[other_area]") {

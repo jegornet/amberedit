@@ -657,6 +657,15 @@ TEST_CASE("reply_original_charset is off unless it is turned on [app_config]") {
     CHECK_FALSE(loads("reply_original_charset yes\n"));
 }
 
+TEST_CASE("reply_link is on unless it is turned off [app_config]") {
+    // On by default: the link is what a reader climbs to show a message in its
+    // thread, and a base whose answers carry none reads as a heap.
+    CHECK(with("").replyLink);
+    CHECK_FALSE(with("reply_link off\n").replyLink);
+    CHECK(with("reply_link on\n").replyLink);
+    CHECK_FALSE(loads("reply_link maybe\n"));
+}
+
 TEST_CASE("compose_fts1_field_limits is on unless it is turned off [app_config]") {
     // On by default: a message whose fields do not fit a packet is one another
     // reader shows cut in the middle of a character, and that is not a thing to
@@ -2762,6 +2771,23 @@ TEST_CASE("A group decides reply_original_charset for the areas it covers [app_c
     CHECK_FALSE(cfg.replyOriginalCharset);
     CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).replyOriginalCharset);
     CHECK(cfg.effectiveFor(area("fsx.bbs")).replyOriginalCharset);
+}
+
+TEST_CASE("A group decides reply_link for the areas it covers [app_config]") {
+    // The area an answer GOES INTO is the one this is read from, as the charset
+    // it is written in is: that is the base the link is stored in. The formats
+    // do not keep the field the same width — a Fido *.msg keeps two bytes of an
+    // identifier Squish and JAM keep whole — so an area whose numbers have
+    // outgrown it is exactly what a group is for.
+    const auto cfg = with(
+        "group\n"
+        "  member fsx.*\n"
+        "  reply_link off\n"
+        "endgroup\n");
+
+    CHECK(cfg.replyLink);
+    CHECK(cfg.effectiveFor(area("ru.linux")).replyLink);
+    CHECK_FALSE(cfg.effectiveFor(area("fsx.bbs")).replyLink);
 }
 
 TEST_CASE("A group decides quote_unwrap for the areas it covers [app_config]") {

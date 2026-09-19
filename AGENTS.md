@@ -470,6 +470,24 @@ Rules that hold the design together:
   wrong message the first time the base is packed. `indexOfUid()` asks the driver
   for the nearest earlier message, so a mark on a deleted one lands on the
   message before it.
+- **A reply AmberEdit writes carries the link back to what it answers**, where
+  `reply_link` says so — on by default, and groupable. It is a number on the way
+  through: `compose_screen`'s `buildRequest()` names the message being answered,
+  `buildDraft()` puts it on `MessageDraft::replyTo` unless the setting is off or
+  the message is a forward, and `FtnMsgBase::encode()` turns it into the UID the
+  formats store, which is the conversion `thread()` makes the other way round.
+  The setting is read off `BuildRequest::config`, which is the *target* area's
+  `composeConfig()` — the base the link is stored in is the one it is read back
+  out of, and the formats do not keep the field the same width: Squish and JAM
+  store a whole UID, a Fido `*.msg` two bytes of one.
+  The link is one base's own, so it is written only for an answer going into the
+  area the message it answers is in: a reply moved elsewhere by hand, one
+  following an `AREA:` line, a forward and a new message all leave it at zero,
+  and a number carried across areas would name whatever message happened to sit
+  at it. Nothing is added to the answered message — see [Current
+  scope](#current-scope). What says the same thing to the network is the
+  `^AREPLY` line of FTS-0009, which `buildDraft()` writes from the answered
+  message's MSGID whatever `reply_link` says.
 - **The three lastread files have code of their own**, apart from the format
   drivers: `msgbase/lastread_file.*` does the byte-level I/O, one store per
   format sits on top, and `MsgBaseLastReadStore` picks between them by base type.
@@ -4283,11 +4301,13 @@ the area they may have written to read again on the way back.
 
 Deliberately out of scope until asked for:
 
-- **Writing** the thread links: `IMsgBase::thread()` reads what a base holds —
-  Squish's `replies[]`, JAM's Reply1st/ReplyNext chain, the one link FTS-0001
-  gives Fido `*.msg` — and the reader walks them with `-`/`+`, but nothing fills
-  them in for a message AmberEdit writes. That needs `replyto` on the new message
-  and its UID added to the answered one. `IMsgBase::replace()` is the machinery
-  for it, but it deliberately *keeps* those links rather than taking them from a
-  draft, so a caller that wants to write one has to widen it first.
+- **Writing the link down the thread:** a reply AmberEdit writes carries its own
+  `replyto` — see the bullet on it under [Messages, indexes and read
+  marks](#messages-indexes-and-read-marks) — but the message it answers is left
+  as it stands, so it does not list the new answer among its own. That needs the
+  new message's UID added to Squish's `replies[]`, to JAM's Reply1st/ReplyNext
+  chain, or to the one forward link FTS-0001 gives a Fido `*.msg`.
+  `IMsgBase::replace()` is the machinery nearest to it, but it deliberately
+  *keeps* those links rather than taking them from a draft, so a caller that
+  wants to write one has to widen it first.
 - Netmail routing, packing and unpacking bundles, anything involving sockets.

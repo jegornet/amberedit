@@ -730,6 +730,30 @@ struct AppConfig {
     /// buys nothing and `composeCharset` is used after all.
     bool replyOriginalCharset{false};
 
+    /// Whether an answer is stored with the thread link back to the message it
+    /// answers — the `ReplyTo` field every one of the three formats keeps for
+    /// it. On by default: it is what a reader climbs to show a message in its
+    /// thread, and a base whose answers carry it reads as a conversation
+    /// rather than as a heap.
+    ///
+    /// Only an answer written into the area the message it answers is in. A
+    /// reply moved elsewhere, a forward and a new message link to nothing: the
+    /// field holds a message of *this* base, and a number pointing into another
+    /// area would name whatever message happens to sit there.
+    ///
+    /// Read off the area the answer GOES INTO, like the charset it is written
+    /// in — that is the base the link is stored in and read back out of, and an
+    /// area group is how one base's threading is decided without deciding every
+    /// other's. The field is not the same width in all three formats: Squish
+    /// and JAM keep a whole UID, a Fido `*.msg` keeps two bytes of one, so a
+    /// group over the `*.msg` areas is what turns it off where the numbers have
+    /// outgrown it.
+    ///
+    /// Nothing is said to the network either way. The ^AREPLY control line of
+    /// FTS-0009 carries the answered message's MSGID and is written whatever
+    /// this setting says.
+    bool replyLink{true};
+
     /// Whether the From, To and Subject of a message being written are cut to
     /// the room FTS-0001 keeps for them — 35 bytes for a name and 71 for the
     /// subject, once the message is encoded in the charset it is written in.

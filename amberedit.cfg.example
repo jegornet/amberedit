@@ -168,6 +168,9 @@ compose_charset CP866
 # not a reply and is always written in compose_charset.
 reply_original_charset off
 
+# Whether a reply is linked to the original message. Optional; on by default.
+reply_link on
+
 # Whether the From, To and Subject of a message you write are cut to the room
 # FTS-0001 keeps for them: 35 bytes for either name and 71 for the subject.
 # Optional; on by default.
@@ -1459,7 +1462,7 @@ twit_mode blank
 #   template_date_format  template_time_format
 #   import_begin          import_end
 #   reader_stylecodes     areareplydirect       reply_to_area
-#   reply_original_charset
+#   reply_original_charset                      reply_link
 #   bbs_codes_renegade    bbs_codes_ansi
 #   compose_cc_list       compose_xc_list       compose_add_kludge
 #   twit                  twit_subj             twit_to      twit_mode
