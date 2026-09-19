@@ -393,6 +393,13 @@ struct AppState {
     struct UrlLink {
         std::string url;
         term::Box box;
+        /// What a press on it is shown by — `Pressed::UrlLink`'s number, which
+        /// is the place of the **first** piece of the address among these,
+        /// counted from one. An address the window broke across rows stands
+        /// here once per row, and the pieces all carry the first one's number:
+        /// a click on any of them lights the whole address rather than the row
+        /// it landed in.
+        uint32_t press{0};
     };
     std::vector<UrlLink> readUrlLinks;
 
@@ -755,6 +762,26 @@ struct AppState {
         /// several rows and the reader draws only the ones on screen, so a row
         /// scrolled into from the middle has to carry what is to be lit in it.
         std::vector<encoding::TextMatch> found;
+        /// One link in this row: the bytes of `text` it covers, and the whole
+        /// address they are part of.
+        ///
+        /// The two are not the same string once the window has broken an
+        /// address across rows — which is why the address travels with the row
+        /// rather than being read back off it. The bytes are what is colored
+        /// and underlined; the address is what a click opens, and a piece of an
+        /// address is not something anything can open.
+        struct LinkRun {
+            size_t begin{0};
+            size_t end{0};
+            std::string url;
+            /// Whether this is the rest of an address the row above began.
+            bool continued{false};
+        };
+        /// The links in this row, in the order they appear. Worked out where
+        /// the body is wrapped, because that is the only place the line is
+        /// still whole: a row on its own no longer says whether it begins in
+        /// the middle of an address or whether the one it ends with goes on.
+        std::vector<LinkRun> links;
         /// Whether this row is part of an ANSI canvas rather than a line of the
         /// message as it was written. Set only where `bbs_codes_ansi` is on and
         /// the message turned out to hold escape sequences.

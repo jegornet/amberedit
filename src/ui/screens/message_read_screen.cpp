@@ -428,13 +428,14 @@ struct RunStyle {
 /// and end wherever they like, and only the bytes know which of them they are
 /// under.
 ///
-/// `links` are the byte ranges of the links in this very line, worked out by
-/// the caller so that the frame knows how many of them it is about to draw, and
-/// `firstLink` is the place of the first of them among the frame's own — where
-/// the boxes a click is tested against are written back to.
+/// The links are the row's own, found where the body was wrapped: a row says
+/// which of its bytes an address covers, and a piece of one says so as plainly
+/// as a whole one does. `firstLink` is the place of the first of them among the
+/// frame's own — where the boxes a click is tested against are written back to.
 Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppState& state,
-                 const std::vector<std::pair<size_t, size_t>>& links, size_t firstLink) {
+                 size_t firstLink) {
     const std::string& line = source.text;
+    const auto& links = source.links;
     std::vector<StyleSpan> spans;
     // The area's own answer: markup in one echo is punctuation in another. A
     // canvas row is neither — every character in it was drawn where it stands,
@@ -447,8 +448,8 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
 
     std::vector<RunStyle> styles(line.size());
     for (size_t which = 0; which < links.size(); ++which) {
-        const auto& [begin, end] = links[which];
-        for (size_t i = begin; i < end; ++i) {
+        for (size_t i = links[which].begin; i < links[which].end && i < line.size();
+             ++i) {
             styles[i].link = static_cast<int>(firstLink + which);
         }
     }
@@ -500,10 +501,12 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
         }
 
         // A click on a link is shown on the link itself, in the moment between
-        // the press and the program opening it starting.
+        // the press and the program opening it starting — and on every piece of
+        // the address at once wherever the window broke it, since the pieces
+        // share the number the press was made with.
         const bool pressed =
-            inLink >= 0 && state.isPressed(AppState::Pressed::UrlLink,
-                                           static_cast<uint32_t>(inLink) + 1);
+            following && inLink >= 0 &&
+            state.isPressed(AppState::Pressed::UrlLink, state.readUrlLinks[inLink].press);
         // A link keeps the link color wherever it stands, a message's own color
         // answers for the rest, and the theme answers where the message said
         // nothing — the same order the quote colors are already under.
@@ -1465,6 +1468,42 @@ std::vector<std::vector<encoding::TextMatch>> foundForRows(
     return perRow;
 }
 
+/// The links in one line of the message, cut up between the rows the window
+/// broke it into.
+///
+/// The same walk over the rows `foundForRows()` makes, and the reason for it is
+/// the same: a break the window happened to make must not take the color off
+/// half an address. It is the only place the question can be answered — the
+/// line is whole here and the rows are not, and a row reading `cf5f` says
+/// nothing about the `https://` it hangs off.
+///
+/// Every piece carries the whole address, since that is what a click on any of
+/// them opens, and every piece after the first says so — see `LinkRun`.
+std::vector<std::vector<AppState::DisplayLine::LinkRun>> linksForRows(
+    const std::string& source, const std::vector<std::string>& rows) {
+    std::vector<std::vector<AppState::DisplayLine::LinkRun>> perRow(rows.size());
+    const std::vector<std::pair<size_t, size_t>> links = findLinks(source);
+    if (links.empty()) return perRow;
+
+    size_t at = 0;
+    for (size_t row = 0; row < rows.size(); ++row) {
+        const size_t begin = source.find(rows[row], at);
+        // Cannot happen, as above: a row that is somehow not the line's own
+        // substring is drawn plainly rather than colored from a wrong offset.
+        if (begin == std::string::npos) break;
+        const size_t end = begin + rows[row].size();
+        for (const auto& [from, to] : links) {
+            const size_t covered = std::max(from, begin);
+            const size_t until = std::min(to, end);
+            if (covered >= until) continue;
+            perRow[row].push_back({covered - begin, until - begin,
+                                   source.substr(from, to - from), from < begin});
+        }
+        at = end;
+    }
+    return perRow;
+}
+
 /// Whether this message is to be drawn as an ANSI canvas: the area allows it
 /// and the message actually carries an escape sequence.
 ///
@@ -1518,6 +1557,13 @@ void wrapCanvasBody(AppState& state, const domain::MessageBody& body, int width,
             line.text = std::move(row.text);
             line.colorRuns = std::move(row.runs);
             line.canvas = true;
+            // Per row and not per line, because a canvas row is a line: nothing
+            // here is wrapped — `ansi::render()` cuts what does not fit — so an
+            // address is on one row or it is off the screen.
+            for (const auto& [begin, end] : findLinks(line.text)) {
+                line.links.push_back(
+                    {begin, end, line.text.substr(begin, end - begin), false});
+            }
             if (searched) line.found = search->findAll(line.text);
             state.readLines.push_back(std::move(line));
         }
@@ -1597,11 +1643,16 @@ void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
         if (colored) runs = bbs::runsForRows(coded, rows);
         std::vector<std::vector<encoding::TextMatch>> found;
         if (searched) found = foundForRows(shown, search->findAll(shown), rows);
+        // Nothing in a service line is a link worth pointing at — a MSGID is not
+        // an address anyone follows.
+        std::vector<std::vector<AppState::DisplayLine::LinkRun>> links(rows.size());
+        if (!line.kludge) links = linksForRows(shown, rows);
         for (size_t i = 0; i < rows.size(); ++i) {
             state.readLines.push_back(
                 {std::move(rows[i]), line.kludge, depth, line.trailer,
                  colored ? std::move(runs[i]) : std::vector<bbs::ColorRun>{},
-                 searched ? std::move(found[i]) : std::vector<encoding::TextMatch>{}});
+                 searched ? std::move(found[i]) : std::vector<encoding::TextMatch>{},
+                 std::move(links[i])});
         }
     }
 }
@@ -1840,28 +1891,24 @@ Element render(AppState& state) {
     const int firstLine = std::clamp(state.readScroll, 0, std::max(0, totalLines));
     const int lastLine = std::min(totalLines, firstLine + viewportHeight);
 
-    // The links in the rows about to be drawn, found before any of them is laid
-    // out. Two things want them: the rows themselves, which color and underline
-    // what they cover, and `readUrlLinks`, which is what a click is tested
-    // against — and that one has to be the size it will end at before the
-    // laying out starts, since the boxes are written into while it happens and
-    // a vector that grew under them would leave the earlier ones pointing at
-    // freed memory.
+    // The links in the rows about to be drawn, gathered before any of them is
+    // laid out: `readUrlLinks` is what a click is tested against, and it has to
+    // be the size it will end at before the laying out starts, since the boxes
+    // are written into while it happens and a vector that grew under them would
+    // leave the earlier ones pointing at freed memory.
     //
-    // One entry per row, empty for the rows that carry no link, so that a row
-    // and its links are found under the same index.
-    std::vector<std::vector<std::pair<size_t, size_t>>> rowLinks(
-        static_cast<size_t>(std::max(0, lastLine - firstLine)));
+    // One entry per piece of a link on screen rather than per address: a row is
+    // drawn on its own, so an address the window broke across rows was drawn in
+    // two places and a click has to be tested against both. What holds the two
+    // together is `press` — see `AppState::UrlLink`.
     std::vector<AppState::UrlLink> found;
     for (int i = firstLine; i < lastLine; ++i) {
-        const auto& source = state.readLines[i];
-        // Nothing in a service line is a link worth pointing at — a MSGID is
-        // not an address anyone follows.
-        if (source.kludge) continue;
-        auto& links = rowLinks[static_cast<size_t>(i - firstLine)];
-        links = findLinks(source.text);
-        for (const auto& [begin, end] : links) {
-            found.push_back({source.text.substr(begin, end - begin), {}});
+        for (const auto& run : state.readLines[i].links) {
+            const bool joins = run.continued && i > firstLine && !found.empty();
+            found.push_back(
+                {run.url,
+                 {},
+                 joins ? found.back().press : static_cast<uint32_t>(found.size()) + 1});
         }
     }
     // Kept only where there is a program to open one with: with no `urlhandler`
@@ -1890,9 +1937,8 @@ Element render(AppState& state) {
                                               : theme::palette.quoteEven)
                 : theme::palette.text;
 
-        const auto& links = rowLinks[static_cast<size_t>(i - firstLine)];
-        bodyLines.push_back(bodyLine(source, base, state, links, linkAt));
-        linkAt += links.size();
+        bodyLines.push_back(bodyLine(source, base, state, linkAt));
+        linkAt += source.links.size();
     }
     while (static_cast<int>(bodyLines.size()) < viewportHeight)
         bodyLines.push_back(text(""));
@@ -2115,7 +2161,7 @@ bool handleEvent(AppState& state, const Event& event) {
             // press is shown on is built afresh, over the very vector this is
             // being read from.
             const std::string url = state.readUrlLinks[at].url;
-            state.showClick(AppState::Pressed::UrlLink, static_cast<uint32_t>(at) + 1);
+            state.showClick(AppState::Pressed::UrlLink, state.readUrlLinks[at].press);
             // Run on the next frame rather than here, so that what the user
             // sees while the program has the terminal is the message they
             // clicked in — the same way the shell is asked for.

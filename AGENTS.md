@@ -2517,6 +2517,18 @@ taking a row.
   click on a link does nothing and there is nothing to test it against. The
   vector is built to its final size before the frame is laid out, for the reason
   `readThreadLinks` is.
+- **An address is found on the line, not on the row.** The scanning happens
+  where the body is wrapped — `linksForRows()` beside `foundForRows()`, cutting
+  the line's links up between its rows the same way — and each row carries what
+  it covers in `DisplayLine::links`. A row is drawn on its own, and a row
+  reading `cf5f` says nothing about the `https://` it hangs off: scanned there,
+  the tail of every wrapped address would be plain text. Each piece carries the
+  whole address, since that is what a click on any of them opens, and stands in
+  `readUrlLinks` in its own right, since it was drawn in its own place. The
+  pieces share `UrlLink::press`, the number `Pressed::UrlLink` is shown by, so a
+  click on one lights the whole address rather than the row it landed in. Canvas
+  rows are scanned row by row: nothing there is wrapped, so an address is on one
+  row or off the screen.
 - **The palette is one struct, `ui::theme::palette`.** No screen names a color of
   its own; a role not in `Palette` does not exist. Its fields are entries in the
   terminal's own 256-color palette or truecolor triples — `term::Color` holds

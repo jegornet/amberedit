@@ -1412,6 +1412,40 @@ TEST_CASE("A click on a link asks for the handler to open it "
     CHECK(fixture.state.urlRequested == "http://ftn.example/y");
 }
 
+TEST_CASE("An address broken across rows is one address "
+          "[messageread][urlhandler][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.urlHandler = {"lynx", "$url"};
+    fixture.state.width = 80;
+    // Longer than the window, so the wrapping cuts it where nothing tells an
+    // address from ordinary text: the second row begins with `cf5f`.
+    const std::string url =
+        "https://github.com/evs38/golded-plus/commit/"
+        "aa23b5337243eda1432f5d9f75433c289b7bcf5f";
+    showBody(fixture, {url});
+    drawFrame(fixture);
+
+    // Drawn in two places and so clicked in two places, and every piece of it
+    // answers with the whole address rather than with the row's share of it.
+    REQUIRE(fixture.state.readUrlLinks.size() == 2);
+    CHECK(fixture.state.readUrlLinks[0].url == url);
+    CHECK(fixture.state.readUrlLinks[1].url == url);
+
+    // Between them they cover every character of it: none of the address is
+    // left drawn as plain text.
+    const term::Box head = fixture.state.readUrlLinks[0].box;
+    const term::Box tail = fixture.state.readUrlLinks[1].box;
+    CHECK((head.x_max - head.x_min + 1) + (tail.x_max - tail.x_min + 1) ==
+          static_cast<int>(url.size()));
+    CHECK(tail.y_min == head.y_min + 1);
+
+    // One address and one press: a click on the tail lights the head as well.
+    CHECK(fixture.state.readUrlLinks[0].press == fixture.state.readUrlLinks[1].press);
+    REQUIRE(message_read::handleEvent(fixture.state, pressIn(tail)));
+    CHECK(fixture.state.urlRequested == url);
+}
+
 TEST_CASE("A link found by a search is still one link to click "
           "[messageread][urlhandler][squish]") {
     TempSquishBase base;
