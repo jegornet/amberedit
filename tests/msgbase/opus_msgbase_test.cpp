@@ -23,13 +23,13 @@ namespace fs = std::filesystem;
 
 namespace {
 
-using amberedit::test::TempSdmBase;
+using amberedit::test::TempOpusBase;
 
 AreaConfig netmailArea(const std::string& path) {
     AreaConfig area;
     area.tag = "NETMAIL";
     area.path = path;
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = amberedit::domain::AreaKind::Netmail;
     return area;
 }
@@ -112,12 +112,12 @@ void writeTrailingChrsMsg(const fs::path& file) {
 
 }  // namespace
 
-TEST_CASE("The Fido *.msg test base is present in the repository [sdm]") {
+TEST_CASE("The Fido *.msg test base is present in the repository [opus]") {
     REQUIRE(fs::exists(amberedit::test::projectPath("testdata/msgbase/netmail/198.msg")));
 }
 
-TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
 
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
@@ -129,8 +129,8 @@ TEST_CASE("FtnMsgBase opens a Fido *.msg base and counts messages [sdm]") {
     CHECK(msgbase.count() == 0);
 }
 
-TEST_CASE("FtnMsgBase reads a Fido *.msg header [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase reads a Fido *.msg header [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -155,8 +155,8 @@ TEST_CASE("FtnMsgBase reads a Fido *.msg header [sdm]") {
     CHECK(header.destAddr.toString() == "192:168/1");
 }
 
-TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -169,8 +169,8 @@ TEST_CASE("FtnMsgBase reads a Fido *.msg body as UTF-8 [sdm]") {
     CHECK(body.origin == " * Origin:  (192:168/2)");
 }
 
-TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -198,8 +198,8 @@ TEST_CASE("FtnMsgBase reads the inline Fido *.msg kludges [sdm]") {
           " * Origin:  (192:168/2)|");
 }
 
-TEST_CASE("FtnMsgBase: out-of-range indexes in a *.msg base are safe [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase: out-of-range indexes in a *.msg base are safe [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -211,13 +211,13 @@ TEST_CASE("FtnMsgBase: out-of-range indexes in a *.msg base are safe [sdm]") {
     CHECK(msgbase.body(total + 1000).text().empty());
 }
 
-TEST_CASE("FtnMsgBase::probeType recognises a *.msg directory [sdm]") {
-    TempSdmBase base;
-    CHECK(FtnMsgBase::probeType(base.path()) == MsgBaseType::Sdm);
+TEST_CASE("FtnMsgBase::probeType recognises a *.msg directory [opus]") {
+    TempOpusBase base;
+    CHECK(FtnMsgBase::probeType(base.path()) == MsgBaseType::Opus);
 }
 
-TEST_CASE("FtnMsgBase opens a *.msg base with no stated type [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase opens a *.msg base with no stated type [opus]") {
+    TempOpusBase base;
     AreaConfig area = netmailArea(base.path());
     area.type = MsgBaseType::Unknown;  // a tosser config with no -b option
 
@@ -226,8 +226,8 @@ TEST_CASE("FtnMsgBase opens a *.msg base with no stated type [sdm]") {
     CHECK(msgbase.count() == 1);
 }
 
-TEST_CASE("A *.msg UID is the number in the file name [sdm]") {
-    TempSdmBase base;
+TEST_CASE("A *.msg UID is the number in the file name [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -243,8 +243,8 @@ TEST_CASE("A *.msg UID is the number in the file name [sdm]") {
     CHECK(msgbase.indexOfUid(197) == 0);
 }
 
-TEST_CASE("A lone *.msg message is in no thread [sdm]") {
-    TempSdmBase base;
+TEST_CASE("A lone *.msg message is in no thread [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -253,8 +253,8 @@ TEST_CASE("A lone *.msg message is in no thread [sdm]") {
     CHECK(msgbase.thread(msgbase.count() + 1).empty());
 }
 
-TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -306,8 +306,8 @@ TEST_CASE("FtnMsgBase writes netmail into a *.msg base and reads it back [sdm]")
     CHECK(body.charset == "CP866");
 }
 
-TEST_CASE("A *.msg written here dates itself where the header has the date [sdm]") {
-    TempSdmBase base;
+TEST_CASE("A *.msg written here dates itself where the header has the date [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 
@@ -345,8 +345,8 @@ TEST_CASE("A *.msg written here dates itself where the header has the date [sdm]
     CHECK(stored.minute == written.minute);
 }
 
-TEST_CASE("A *.msg carrying only the ASCII date is read with it [sdm]") {
-    TempSdmBase base;
+TEST_CASE("A *.msg carrying only the ASCII date is read with it [opus]") {
+    TempOpusBase base;
     // Written before the base is opened: the scan at open() is what finds it.
     writeAsciiDatedMsg(base.dir() / "200.msg");
 
@@ -365,8 +365,8 @@ TEST_CASE("A *.msg carrying only the ASCII date is read with it [sdm]") {
     CHECK(header.date.second == 56);
 }
 
-TEST_CASE("A CHRS behind the text does not decide the charset [sdm]") {
-    TempSdmBase base;
+TEST_CASE("A CHRS behind the text does not decide the charset [opus]") {
+    TempOpusBase base;
     writeTrailingChrsMsg(base.dir() / "201.msg");
 
     FtnMsgBase msgbase("CP866");
@@ -389,8 +389,8 @@ TEST_CASE("A CHRS behind the text does not decide the charset [sdm]") {
     CHECK(body.text().find("Ю") == std::string::npos);
 }
 
-TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {
-    TempSdmBase base;
+TEST_CASE("Changing a *.msg keeps its times-read count [opus]") {
+    TempOpusBase base;
     // Read seven times by whatever kept the file before we got to it.
     putWord(base.dir() / "198.msg", 164, 7);
 
@@ -420,8 +420,8 @@ TEST_CASE("Changing a *.msg keeps its times-read count [sdm]") {
     CHECK(msgbase.header(1).subject == "Changed subject");
 }
 
-TEST_CASE("FtnMsgBase deletes a message from a *.msg base [sdm]") {
-    TempSdmBase base;
+TEST_CASE("FtnMsgBase deletes a message from a *.msg base [opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
     REQUIRE(msgbase.open(netmailArea(base.path())).has_value());
 

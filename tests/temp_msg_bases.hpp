@@ -50,12 +50,12 @@ private:
 ///
 /// Unlike the other formats the base is the directory itself: one file per
 /// message, named after its number.
-class TempSdmBase {
+class TempOpusBase {
 public:
-    TempSdmBase() {
+    TempOpusBase() {
         namespace fs = std::filesystem;
         dir_ =
-            fs::temp_directory_path() / ("amberedit-sdm-" + std::to_string(::getpid()) +
+            fs::temp_directory_path() / ("amberedit-opus-" + std::to_string(::getpid()) +
                                          "-" + std::to_string(counter_++));
         fs::create_directories(dir_);
         const fs::path source = projectPath("testdata/msgbase/netmail");
@@ -64,13 +64,13 @@ public:
                 fs::copy_file(entry.path(), dir_ / entry.path().filename());
         }
     }
-    ~TempSdmBase() {
+    ~TempOpusBase() {
         std::error_code ec;
         std::filesystem::remove_all(dir_, ec);
     }
 
-    TempSdmBase(const TempSdmBase&) = delete;
-    TempSdmBase& operator=(const TempSdmBase&) = delete;
+    TempOpusBase(const TempOpusBase&) = delete;
+    TempOpusBase& operator=(const TempOpusBase&) = delete;
 
     /// The base path — for Fido *.msg that is the directory itself.
     [[nodiscard]] std::string path() const { return dir_.string(); }

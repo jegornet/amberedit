@@ -14,7 +14,7 @@
 ///
 /// **A re-read is not enough: the area is reopened.** Every format driver reads
 /// its index into memory when the area is opened and re-reads it only under the
-/// write lock — `SquishBase`'s index, `JamBase`'s active table, `SdmBase`'s
+/// write lock — `SquishBase`'s index, `JamBase`'s active table, `OpusBase`'s
 /// directory listing — so a base another program has written to goes on
 /// answering from the index it was opened with. There is no reindex on
 /// `IMsgBase` to ask for, and opening the area again is the whole of what one

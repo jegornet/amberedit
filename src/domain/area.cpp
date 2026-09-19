@@ -24,7 +24,7 @@ std::string nameOf(MsgBaseType type) {
     switch (type) {
         case MsgBaseType::Squish: return "squish";
         case MsgBaseType::Jam: return "jam";
-        case MsgBaseType::Sdm: return "msg";
+        case MsgBaseType::Opus: return "msg";
         case MsgBaseType::Passthrough: return "passthrough";
         case MsgBaseType::Unknown: break;
     }
@@ -34,10 +34,12 @@ std::string nameOf(MsgBaseType type) {
 std::optional<MsgBaseType> parseMsgBaseType(std::string_view word) {
     if (sameWord(word, "squish")) return MsgBaseType::Squish;
     if (sameWord(word, "jam")) return MsgBaseType::Jam;
-    // Three spellings of one thing: `msg` is what nameOf writes, and a tosser
-    // config is as likely to have been written with either of the other two.
-    if (sameWord(word, "msg") || sameWord(word, "sdm") || sameWord(word, "fido"))
-        return MsgBaseType::Sdm;
+    // Four spellings of one thing: `msg` is what nameOf writes, `opus` is the
+    // format's own name, and a tosser config is as likely to have been written
+    // with either of the other two.
+    if (sameWord(word, "msg") || sameWord(word, "opus") || sameWord(word, "sdm") ||
+        sameWord(word, "fido"))
+        return MsgBaseType::Opus;
     if (sameWord(word, "passthrough")) return MsgBaseType::Passthrough;
     return std::nullopt;
 }

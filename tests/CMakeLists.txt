@@ -25,7 +25,7 @@ add_executable(amberedit_tests
   msgbase/ftn_msgbase_test.cpp
   msgbase/format_drivers_test.cpp
   msgbase/jam_msgbase_test.cpp
-  msgbase/sdm_msgbase_test.cpp
+  msgbase/opus_msgbase_test.cpp
   msgbase/message_info_test.cpp
   msgbase/lastread_store_test.cpp
   msgbase/create_base_test.cpp

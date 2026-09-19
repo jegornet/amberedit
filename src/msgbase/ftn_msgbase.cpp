@@ -9,7 +9,7 @@
 
 #include "config/text_util.hpp"
 #include "msgbase/jam_base.hpp"
-#include "msgbase/sdm_base.hpp"
+#include "msgbase/opus_base.hpp"
 #include "msgbase/squish_base.hpp"
 #include "msgbase/echotoss_log.hpp"
 #include "sys/time.hpp"
@@ -80,7 +80,7 @@ std::unique_ptr<FormatDriver> makeDriver(MsgBaseType type) {
     switch (type) {
         case MsgBaseType::Squish: return std::make_unique<SquishBase>();
         case MsgBaseType::Jam: return std::make_unique<JamBase>();
-        case MsgBaseType::Sdm: return std::make_unique<SdmBase>();
+        case MsgBaseType::Opus: return std::make_unique<OpusBase>();
         case MsgBaseType::Unknown:
         case MsgBaseType::Passthrough: break;
     }
@@ -154,7 +154,7 @@ MsgBaseType FtnMsgBase::probeType(const std::string& path) {
 
     if (std::filesystem::exists(path + ".sqd", ec)) return MsgBaseType::Squish;
     if (std::filesystem::exists(path + ".jhr", ec)) return MsgBaseType::Jam;
-    if (std::filesystem::is_directory(path, ec)) return MsgBaseType::Sdm;
+    if (std::filesystem::is_directory(path, ec)) return MsgBaseType::Opus;
     return MsgBaseType::Unknown;
 }
 

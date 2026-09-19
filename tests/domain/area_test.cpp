@@ -45,7 +45,7 @@ TEST_CASE("An area with no path is passthrough whatever its type [area]") {
 TEST_CASE("Base and area kinds render as their config spellings [area]") {
     CHECK(nameOf(MsgBaseType::Squish) == "squish");
     CHECK(nameOf(MsgBaseType::Jam) == "jam");
-    CHECK(nameOf(MsgBaseType::Sdm) == "msg");
+    CHECK(nameOf(MsgBaseType::Opus) == "msg");
     CHECK(nameOf(MsgBaseType::Passthrough) == "passthrough");
     CHECK(nameOf(MsgBaseType::Unknown) == "unknown");
 

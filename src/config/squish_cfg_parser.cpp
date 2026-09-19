@@ -44,7 +44,7 @@ std::optional<AreaConfig> parseAreaLine(const std::vector<std::string>& tokens,
     area.path = tokens[2];
 
     // Without -$ the base is Fido *.msg; the flag below upgrades it.
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     if (text::iequals(area.path, "passthrough")) {
         area.type = MsgBaseType::Passthrough;
         area.path.clear();

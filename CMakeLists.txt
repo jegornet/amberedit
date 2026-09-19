@@ -486,7 +486,7 @@ add_library(amberedit_core STATIC
   src/msgbase/raw_message.cpp
   src/msgbase/squish_base.cpp
   src/msgbase/jam_base.cpp
-  src/msgbase/sdm_base.cpp
+  src/msgbase/opus_base.cpp
   src/msgbase/ftn_msgbase.cpp
   src/msgbase/echotoss_log.cpp
   src/msgbase/lastread_file.cpp

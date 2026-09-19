@@ -137,7 +137,7 @@ TEST_CASE("Fido marks go to a lastread file in the area directory [lastread]") {
     TempDir temp;
     const std::string dir = (temp.dir() / "netmail").string();
     fs::create_directories(dir);
-    const AreaConfig area = areaAt(dir, MsgBaseType::Sdm);
+    const AreaConfig area = areaAt(dir, MsgBaseType::Opus);
 
     FidoLastReadStore user1(1);
     CHECK(user1.getLastRead(area) == 0);
@@ -156,7 +156,7 @@ TEST_CASE("A Fido mark past 16 bits is dropped rather than wrapped [lastread]") 
     TempDir temp;
     const std::string dir = (temp.dir() / "big").string();
     fs::create_directories(dir);
-    const AreaConfig area = areaAt(dir, MsgBaseType::Sdm);
+    const AreaConfig area = areaAt(dir, MsgBaseType::Opus);
 
     FidoLastReadStore store(0);
     store.setLastRead(area, 1000);
@@ -226,21 +226,21 @@ TEST_CASE("The dispatcher writes each base type to its own file [lastread]") {
 
     const AreaConfig squish = areaAt((temp.dir() / "sq").string(), MsgBaseType::Squish);
     const AreaConfig jam = areaAt((temp.dir() / "jm").string(), MsgBaseType::Jam);
-    const std::string sdmDir = (temp.dir() / "msg").string();
-    fs::create_directories(sdmDir);
-    const AreaConfig sdm = areaAt(sdmDir, MsgBaseType::Sdm);
+    const std::string opusDir = (temp.dir() / "msg").string();
+    fs::create_directories(opusDir);
+    const AreaConfig opus = areaAt(opusDir, MsgBaseType::Opus);
 
     store.setLastRead(squish, 11);
     store.setLastRead(jam, 22);
-    store.setLastRead(sdm, 33);
+    store.setLastRead(opus, 33);
 
     CHECK(fs::exists(temp.dir() / "sq.sql"));
     CHECK(fs::exists(temp.dir() / "jm.jlr"));
-    CHECK(fs::exists(fs::path(sdmDir) / "lastread"));
+    CHECK(fs::exists(fs::path(opusDir) / "lastread"));
 
     CHECK(store.getLastRead(squish) == 11);
     CHECK(store.getLastRead(jam) == 22);
-    CHECK(store.getLastRead(sdm) == 33);
+    CHECK(store.getLastRead(opus) == 33);
 }
 
 TEST_CASE("A passthrough area keeps no marks [lastread]") {

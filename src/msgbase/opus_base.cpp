@@ -1,4 +1,4 @@
-#include "msgbase/sdm_base.hpp"
+#include "msgbase/opus_base.hpp"
 
 #include <algorithm>
 #include <array>
@@ -75,8 +75,8 @@ bool hasKludge(const std::vector<std::string>& kludges, std::string_view name) {
 
 }  // namespace
 
-tl::expected<void, ErrorPtr> SdmBase::open(const std::string& path, bool echo,
-                                           uint16_t defaultZone) {
+tl::expected<void, ErrorPtr> OpusBase::open(const std::string& path, bool echo,
+                                            uint16_t defaultZone) {
     close();
     echo_ = echo;
     defaultZone_ = defaultZone != 0 ? defaultZone : 2;
@@ -94,12 +94,12 @@ tl::expected<void, ErrorPtr> SdmBase::open(const std::string& path, bool echo,
     return {};
 }
 
-void SdmBase::close() {
+void OpusBase::close() {
     directory_.clear();
     numbers_.clear();
 }
 
-tl::expected<void, ErrorPtr> SdmBase::create(const std::string& path) {
+tl::expected<void, ErrorPtr> OpusBase::create(const std::string& path) {
     close();
 
     // The base is the directory, and an empty directory is an empty base:
@@ -118,11 +118,11 @@ tl::expected<void, ErrorPtr> SdmBase::create(const std::string& path) {
     return {};
 }
 
-std::string SdmBase::fileFor(uint32_t number) const {
+std::string OpusBase::fileFor(uint32_t number) const {
     return (fs::path(directory_) / (std::to_string(number) + ".msg")).string();
 }
 
-tl::expected<void, ErrorPtr> SdmBase::scan() {
+tl::expected<void, ErrorPtr> OpusBase::scan() {
     numbers_.clear();
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(directory_, ec)) {
@@ -136,12 +136,12 @@ tl::expected<void, ErrorPtr> SdmBase::scan() {
     return {};
 }
 
-uint32_t SdmBase::uidOf(uint32_t index) const {
+uint32_t OpusBase::uidOf(uint32_t index) const {
     if (index == 0 || index > count()) return 0;
     return numbers_[index - 1];
 }
 
-uint32_t SdmBase::indexOfUid(uint32_t uid, bool exact) const {
+uint32_t OpusBase::indexOfUid(uint32_t uid, bool exact) const {
     if (uid == 0 || numbers_.empty()) return 0;
     const auto past = std::upper_bound(numbers_.begin(), numbers_.end(), uid);
     const auto position = static_cast<uint32_t>(std::distance(numbers_.begin(), past));
@@ -150,8 +150,8 @@ uint32_t SdmBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
-tl::expected<void, ErrorPtr> SdmBase::read(uint32_t index, RawMessage& out,
-                                           bool withText) const {
+tl::expected<void, ErrorPtr> OpusBase::read(uint32_t index, RawMessage& out,
+                                            bool withText) const {
     if (index == 0 || index > count()) {
         return failure("message " + std::to_string(index) + " is not in the area");
     }
@@ -232,7 +232,7 @@ tl::expected<void, ErrorPtr> SdmBase::read(uint32_t index, RawMessage& out,
     return {};
 }
 
-domain::MessageInfo SdmBase::info(uint32_t index) const {
+domain::MessageInfo OpusBase::info(uint32_t index) const {
     domain::MessageInfo out;
     if (index == 0 || index > count()) return out;
     const uint32_t number = numbers_[index - 1];
@@ -310,7 +310,7 @@ domain::MessageInfo SdmBase::info(uint32_t index) const {
     return out;
 }
 
-std::string SdmBase::encodeBody(const RawDraft& draft) const {
+std::string OpusBase::encodeBody(const RawDraft& draft) const {
     // The kludges the two-byte address fields cannot carry, put in front where
     // the draft does not already state them — the same INTL/FMPT/TOPT rules
     // every FTN editor applies, and only for netmail: echomail is broadcast and carries
@@ -347,7 +347,7 @@ std::string SdmBase::encodeBody(const RawDraft& draft) const {
     return body;
 }
 
-void SdmBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
+void OpusBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
     std::memset(raw, 0, kHeaderSize);
     toFixedField(raw, kFromSize, header.from);
     toFixedField(raw + 36, kToSize, header.to);
@@ -374,7 +374,7 @@ void SdmBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
                             : static_cast<uint16_t>(header.replies.front()));
 }
 
-tl::expected<uint32_t, ErrorPtr> SdmBase::write(const RawDraft& draft) {
+tl::expected<uint32_t, ErrorPtr> OpusBase::write(const RawDraft& draft) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -412,7 +412,7 @@ tl::expected<uint32_t, ErrorPtr> SdmBase::write(const RawDraft& draft) {
     return failure("cannot find a free message number in " + directory_);
 }
 
-tl::expected<void, ErrorPtr> SdmBase::replace(uint32_t index, const RawDraft& draft) {
+tl::expected<void, ErrorPtr> OpusBase::replace(uint32_t index, const RawDraft& draft) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -465,7 +465,7 @@ tl::expected<void, ErrorPtr> SdmBase::replace(uint32_t index, const RawDraft& dr
     return {};
 }
 
-tl::expected<void, ErrorPtr> SdmBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> OpusBase::remove(uint32_t index) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -481,7 +481,7 @@ tl::expected<void, ErrorPtr> SdmBase::remove(uint32_t index) {
     return {};
 }
 
-tl::expected<void, ErrorPtr> SdmBase::markSeen(uint32_t index) {
+tl::expected<void, ErrorPtr> OpusBase::markSeen(uint32_t index) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }

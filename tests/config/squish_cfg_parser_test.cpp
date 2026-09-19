@@ -42,7 +42,7 @@ TEST_CASE("SquishCfgParser parses testdata/tossers/squish.cfg [squishcfg]") {
         const auto* area = findArea(areas, "NETMAIL");
         REQUIRE(area != nullptr);
         CHECK(area->kind == AreaKind::Netmail);
-        CHECK(area->type == MsgBaseType::Sdm);
+        CHECK(area->type == MsgBaseType::Opus);
         CHECK(area->path == "/home/ftn/msg/netmail");
     }
 

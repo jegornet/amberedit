@@ -21,7 +21,7 @@ using amberedit::domain::MsgBaseType;
 using amberedit::encoding::isValidUtf8;
 using amberedit::msgbase::FtnMsgBase;
 using amberedit::test::TempJamBase;
-using amberedit::test::TempSdmBase;
+using amberedit::test::TempOpusBase;
 using amberedit::test::TempSquishBase;
 
 namespace {
@@ -181,10 +181,10 @@ TEST_CASE("A JAM message says what its subfields hold [info][jam]") {
     CHECK(text->bytes.size() == std::stoul(valueOf(info, "TxtLen")));
 }
 
-TEST_CASE("A Fido *.msg message says which file it is [info][sdm]") {
-    TempSdmBase base;
+TEST_CASE("A Fido *.msg message says which file it is [info][opus]") {
+    TempOpusBase base;
     FtnMsgBase msgbase("CP866");
-    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Sdm, "netmail")).has_value());
+    REQUIRE(msgbase.open(areaAt(base.path(), MsgBaseType::Opus, "netmail")).has_value());
     REQUIRE(msgbase.count() > 0);
 
     const MessageInfo info = msgbase.info(1);

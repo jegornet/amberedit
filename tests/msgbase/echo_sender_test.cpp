@@ -155,10 +155,10 @@ TEST_CASE("An echo message with no address in the base is read off its text [squ
                 "2:6000/9999");
 }
 
-TEST_CASE("An echo message with no address in the base is read off its text [sdm]") {
-    checkSender(MsgBaseType::Sdm, {"MSGID: 2:6000/9999 5f1a2b3c"}, kSignedLines,
+TEST_CASE("An echo message with no address in the base is read off its text [opus]") {
+    checkSender(MsgBaseType::Opus, {"MSGID: 2:6000/9999 5f1a2b3c"}, kSignedLines,
                 "2:382/736");
-    checkSender(MsgBaseType::Sdm, {"MSGID: 2:6000/9999 5f1a2b3c"}, {"Hello All!"},
+    checkSender(MsgBaseType::Opus, {"MSGID: 2:6000/9999 5f1a2b3c"}, {"Hello All!"},
                 "2:6000/9999");
 }
 

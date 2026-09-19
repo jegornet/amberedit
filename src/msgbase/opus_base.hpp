@@ -8,7 +8,7 @@
 
 namespace amberedit::msgbase {
 
-/// The Fido *.msg base (FTS-0001), one message per file, read and written
+/// The Opus-style Fido *.msg base, one message per file, read and written
 /// directly.
 ///
 /// The base is a directory; a message is `<N>.msg` in it, a 190-byte header
@@ -21,7 +21,7 @@ namespace amberedit::msgbase {
 /// Concurrent writers are kept apart by the files themselves: a new message
 /// is created with O_EXCL, so two editors picking the same number cannot both
 /// have it — the loser rescans and takes the next.
-class SdmBase final : public FormatDriver {
+class OpusBase final : public FormatDriver {
 public:
     [[nodiscard]] tl::expected<void, ErrorPtr> open(const std::string& path, bool echo,
                                                     uint16_t defaultZone) override;

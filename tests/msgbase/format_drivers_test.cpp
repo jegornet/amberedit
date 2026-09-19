@@ -327,12 +327,12 @@ TEST_CASE("A changed JAM message is still marked read [jam]") {
     CHECK(msgbase.header(1).seen);
 }
 
-TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
+TEST_CASE("A Fido *.msg message is marked read in times_read [opus]") {
     TempDir dir;
     AreaConfig area;
     area.tag = "netmail";
     area.path = dir.path().string();
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = AreaKind::Netmail;
     area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
 
@@ -368,12 +368,12 @@ TEST_CASE("A Fido *.msg message is marked read in times_read [sdm]") {
     CHECK_FALSE(msgbase.markSeen(3).has_value());
 }
 
-TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
+TEST_CASE("A Fido *.msg base is written and read back [opus]") {
     TempDir dir;
     AreaConfig area;
     area.tag = "netmail";
     area.path = dir.path().string();
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = AreaKind::Netmail;
     // The area's AKA is what zones are read against.
     area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
@@ -415,12 +415,12 @@ TEST_CASE("A Fido *.msg base is written and read back [sdm]") {
     CHECK_FALSE(fs::exists(dir.path() / "1.msg"));
 }
 
-TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
+TEST_CASE("A changed *.msg message is rewritten in its own file [opus]") {
     TempDir dir;
     AreaConfig area;
     area.tag = "netmail";
     area.path = dir.path().string();
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = AreaKind::Netmail;
     area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
 
@@ -458,14 +458,14 @@ TEST_CASE("A changed *.msg message is rewritten in its own file [sdm]") {
     CHECK(again.body(1).text() == "One line.");
 }
 
-TEST_CASE("An echo *.msg area starts at 2.msg [sdm]") {
+TEST_CASE("An echo *.msg area starts at 2.msg [opus]") {
     // 1.msg in an echo area is the high-water mark, not a message; the first
     // message written must not take its number.
     TempDir dir;
     AreaConfig area;
     area.tag = "test.echo";
     area.path = dir.path().string();
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = AreaKind::Echo;
 
     FtnMsgBase msgbase("CP866");

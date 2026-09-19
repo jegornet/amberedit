@@ -374,7 +374,7 @@ Rules that hold the design together:
   tests link the drawing and measuring code without a terminal.
 - The `I*` ports do not change without reviewing every adapter that implements
   them and every consumer in `app/` and `ui/`.
-- The format drivers (`SquishBase`, `JamBase`, `SdmBase`) speak bytes and never
+- The format drivers (`SquishBase`, `JamBase`, `OpusBase`) speak bytes and never
   escape `FtnMsgBase`: no file descriptor, raw offset or stored charset appears
   above the adapter layer. Every write and delete goes through `FileLock`, which
   takes every file of the base and releases them as one.
@@ -3485,7 +3485,7 @@ tells a file shorter than the record from a read the kernel refused and carries
 the `errno` of the second), `FileLock` (fcntl locks
 over every file of a base), `byte_order`/`raw_message`/`jam_crc32` (the encodings
 the formats share), then one `FormatDriver` per format — `SquishBase`
-(.sqd/.sqi, FSP-1037), `JamBase` (.jhr/.jdx/.jdt, JAM-001), `SdmBase` (N.msg,
+(.sqd/.sqi, FSP-1037), `JamBase` (.jhr/.jdx/.jdt, JAM-001), `OpusBase` (N.msg,
 FTS-0001 with the Opus header) — and `FtnMsgBase` on top, the one `IMsgBase`
 implementation, where charsets are converted and lines are marked.
 
@@ -3559,7 +3559,7 @@ bytes at 176 that are a union** — FTS-0001 puts `destzone`, `origzone`,
 DOS date word then a DOS time word each; then `replyto` at 184 (which is also
 where `1.msg` keeps an echo's high-water mark), `attr` at 186, `reply1st` at 188,
 and the text from 190, NUL-terminated. Those offsets are named constants in
-`sdm_base.cpp` and are worth reading twice before touching: a date written
+`opus_base.cpp` and are worth reading twice before touching: a date written
 thirty-six bytes early lands *inside* the subject field and leaves offset 144
 zeroed, where every other FTN program looks for it.
 
@@ -3571,11 +3571,11 @@ two apart, and a guess there would silently change a netmail
 points from `FMPT`/`TOPT`, and a header written the FTSC way simply has no stamps
 and is dated by its ASCII date.
 
-**A Fido `*.msg` header has both stamps and often fills in neither.** `SdmBase`
+**A Fido `*.msg` header has both stamps and often fills in neither.** `OpusBase`
 reads both halves of the union at 176, but plenty of writers leave them empty and
 state only the ASCII date, and a header written the FTS-0001 way has zone and
 point words there instead. Then the written stamp falls back to that date and the
-arrival stamp to the written one, so an SDM message shows the same time on both
+arrival stamp to the written one, so an Opus message shows the same time on both
 header rows. Squish and JAM keep the two apart. Nothing to fix — just do not read
 equal stamps in a `*.msg` area as a bug.
 
@@ -4104,7 +4104,7 @@ together — `keys_mode` says which.
   **It is a reopen and not a re-read, and that is the driver's doing.** Every
   format driver reads its index into memory when the area is opened and re-reads
   it only under the write lock — `SquishBase`'s index, `JamBase`'s active table,
-  `SdmBase`'s directory listing — so a base another program has written to goes
+  `OpusBase`'s directory listing — so a base another program has written to goes
   on answering from the index it was opened with, and `header(n)` asked a second
   time answers the same stale thing. There is no reindex on `IMsgBase` to ask
   for; `AreaManager::openArea()` is what there is, and it hands back a new

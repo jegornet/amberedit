@@ -18,7 +18,7 @@ ports::ILastReadStore* MsgBaseLastReadStore::storeFor(const domain::AreaConfig& 
     switch (type) {
         case domain::MsgBaseType::Squish: return &squish_;
         case domain::MsgBaseType::Jam: return &jam_;
-        case domain::MsgBaseType::Sdm: return &fido_;
+        case domain::MsgBaseType::Opus: return &fido_;
         case domain::MsgBaseType::Passthrough:
         case domain::MsgBaseType::Unknown: break;
     }

@@ -32,7 +32,7 @@ TEST_CASE("AreasBbsParser parses testdata/tossers/areas.bbs [areasbbs]") {
     SUBCASE("no prefix means Fido *.msg") {
         const auto* area = findArea(areas, "localnet");
         REQUIRE(area != nullptr);
-        CHECK(area->type == MsgBaseType::Sdm);
+        CHECK(area->type == MsgBaseType::Opus);
         CHECK(area->path == "/home/ftn/msg/localnet");
         REQUIRE(area->links.size() == 2);
         CHECK(area->links[0].toString() == "192:168/2");

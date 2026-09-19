@@ -93,9 +93,9 @@ TEST_CASE("A created JAM base opens empty and takes a message [create][jam]") {
 }
 
 TEST_CASE("A created Fido *.msg base opens empty and takes a message "
-          "[create][sdm]") {
+          "[create][opus]") {
     TempDir dir;
-    checkCreatedBaseTakesAMessage(areaAt(dir.path("fresh"), MsgBaseType::Sdm));
+    checkCreatedBaseTakesAMessage(areaAt(dir.path("fresh"), MsgBaseType::Opus));
 }
 
 TEST_CASE("Creating a base makes the files its format is read through "
@@ -122,7 +122,7 @@ TEST_CASE("Creating a base makes the files its format is read through "
     }
     SUBCASE("Fido *.msg") {
         const std::string path = dir.path("fresh");
-        REQUIRE(FtnMsgBase("CP866").create(areaAt(path, MsgBaseType::Sdm)).has_value());
+        REQUIRE(FtnMsgBase("CP866").create(areaAt(path, MsgBaseType::Opus)).has_value());
         CHECK(fs::is_directory(path));
     }
 }
@@ -198,7 +198,7 @@ TEST_CASE("A base that cannot be created says so and leaves nothing behind "
     }
     SUBCASE("Fido *.msg") {
         FtnMsgBase base("CP866");
-        const auto made = base.create(areaAt(path, MsgBaseType::Sdm));
+        const auto made = base.create(areaAt(path, MsgBaseType::Opus));
         CHECK_FALSE(made.has_value());
         CHECK_FALSE(made.error()->message().empty());
         CHECK_FALSE(present(path));

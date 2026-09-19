@@ -365,7 +365,7 @@ TEST_CASE("FtnMsgBase refuses a base that is not there [squish]") {
     AreaConfig area;
     area.tag = "NETMAIL";
     area.path = "/nonexistent/path/netmail";
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = amberedit::domain::AreaKind::Netmail;
 
     FtnMsgBase msgbase("CP866");
@@ -393,10 +393,10 @@ TEST_CASE("FtnMsgBase opens a base on a long path [squish]") {
     AreaConfig area;
     area.tag = "NETMAIL";
     area.path = dir.string();
-    area.type = MsgBaseType::Sdm;
+    area.type = MsgBaseType::Opus;
     area.kind = amberedit::domain::AreaKind::Netmail;
     REQUIRE(area.path.size() > 78);
-    REQUIRE(FtnMsgBase::probeType(area.path) == MsgBaseType::Sdm);
+    REQUIRE(FtnMsgBase::probeType(area.path) == MsgBaseType::Opus);
 
     FtnMsgBase msgbase("CP866");
     CHECK(msgbase.open(area).has_value());

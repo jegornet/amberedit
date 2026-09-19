@@ -38,7 +38,7 @@ TEST_CASE("FidoconfigParser parses testdata/tossers/areas [fidoconfig]") {
         const auto* netmail = findArea(areas, "NETMAIL");
         REQUIRE(netmail != nullptr);
         CHECK(netmail->kind == AreaKind::Netmail);
-        CHECK(netmail->type == MsgBaseType::Sdm);
+        CHECK(netmail->type == MsgBaseType::Opus);
         CHECK(netmail->path == "/Users/egor/ftn/msg/netmail");
         CHECK(netmail->group == "A");
     }

@@ -3425,7 +3425,7 @@ TEST_CASE("An area block's kinds and types are the words the tosser configs use 
         "  kind Bad\n"
         "endarea\n");
 
-    CHECK(cfg.manualAreas[0].area.type == amberedit::domain::MsgBaseType::Sdm);
+    CHECK(cfg.manualAreas[0].area.type == amberedit::domain::MsgBaseType::Opus);
     CHECK(cfg.manualAreas[0].area.kind == amberedit::domain::AreaKind::Netmail);
     // Read without regard to case, as every other word in the config is.
     CHECK(cfg.manualAreas[1].area.type == amberedit::domain::MsgBaseType::Jam);

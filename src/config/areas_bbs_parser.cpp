@@ -22,7 +22,7 @@ std::pair<MsgBaseType, std::string> splitTypePrefix(const std::string& field) {
     switch (field[0]) {
         case '$': return {MsgBaseType::Squish, field.substr(1)};
         case '!': return {MsgBaseType::Jam, field.substr(1)};
-        default: return {MsgBaseType::Sdm, field};
+        default: return {MsgBaseType::Opus, field};
     }
 }
 
