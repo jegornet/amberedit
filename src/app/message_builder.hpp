@@ -76,8 +76,8 @@ struct StartingText {
 [[nodiscard]] StartingText startingText(const BuildRequest& request);
 
 /// The message as it will be stored: the control lines FTS-0009, FTS-4008,
-/// FTS-5003 and FSC-0004 ask for, the text as edited, and the tearline and
-/// origin line closing it.
+/// FTS-5003 and FSC-0004 ask for, the text as edited, and the tagline,
+/// tearline and origin line closing it.
 [[nodiscard]] domain::MessageDraft buildDraft(const BuildRequest& request,
                                               const std::vector<std::string>& text);
 

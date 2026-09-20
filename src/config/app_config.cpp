@@ -824,15 +824,16 @@ tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
 /// What a setting writes in front of the name of the file its values are in.
 constexpr std::string_view kListFileMark = "@file:";
 
-/// The keys that take one: the two lines a message is signed with, which a file
-/// of them turns into a pick, and the two twit lists, which a file of them
+/// The keys that take one: the three lines a message is signed with, which a
+/// file of them turns into a pick, and the two twit lists, which a file of them
 /// simply lengthens.
 ///
-/// A whitelist, so that `@file:` stays a word about these four settings rather
+/// A whitelist, so that `@file:` stays a word about these five settings rather
 /// than a shape every value in the config has to be read past. A `template` or
 /// a `name` beginning with it is that text and nothing else.
 [[nodiscard]] bool takesListFile(const std::string& key) {
-    return key == "origin" || key == "tearline" || key == "twit" || key == "twit_subj";
+    return key == "origin" || key == "tearline" || key == "tagline" || key == "twit" ||
+           key == "twit_subj";
 }
 
 /// The file a line names its values in — `origin @file:origins.txt` names
@@ -1784,6 +1785,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readValues(cfg, entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.origins = std::move(*read);
+    } else if (key == "tagline") {
+        auto read = readValues(cfg, entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.taglines = std::move(*read);
     } else {
         return false;
     }
@@ -1805,6 +1810,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "compose_charset",
                                                       "origin",
                                                       "tearline",
+                                                      "tagline",
                                                       "template",
                                                       "quote_string",
                                                       "quote_margin",
@@ -2497,6 +2503,10 @@ std::string AppConfig::tearlineText() const {
 
 std::string AppConfig::originText() const {
     return pickOne(origins);
+}
+
+std::string AppConfig::taglineText() const {
+    return pickOne(taglines);
 }
 
 bool AppConfig::isTwit(const domain::MessageHeader& header) const {

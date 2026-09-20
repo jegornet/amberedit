@@ -47,7 +47,6 @@ struct ExportRequest {
     ExportWrite write{ExportWrite::Append};
 };
 
-
 /// The message as the file holds it: an `Area` row naming the area it came from,
 /// the header block the reader draws under it, a rule, and then the text.
 ///
@@ -60,8 +59,9 @@ struct ExportRequest {
 ///
 /// Service lines are left out, exactly as the reader leaves them out: MSGID and
 /// SEEN-BY are this network's business and not the message's, and what is being
-/// exported is what somebody wrote. The tearline and the origin stay — they are
-/// lines of the message like any other, and the reader shows them.
+/// exported is what somebody wrote. The lines signing it stay — the tagline,
+/// the tearline and the origin are lines of the message like any other, and the
+/// reader shows them.
 [[nodiscard]] std::vector<std::string> exportedLines(const domain::AreaConfig& area,
                                                      const domain::MessageHeader& header,
                                                      const domain::MessageBody& body,
@@ -111,7 +111,7 @@ struct UueFile {
 /// a decoded one cannot be got back. Every name is looked at before any of them
 /// is written, so a name already taken stops the export rather than leaving the
 /// directory half filled.
-[[nodiscard]] tl::expected<void, ErrorPtr> saveUueFiles(const std::string& directory,
-                                        const std::vector<UueFile>& files);
+[[nodiscard]] tl::expected<void, ErrorPtr> saveUueFiles(
+    const std::string& directory, const std::vector<UueFile>& files);
 
 }  // namespace amberedit::app

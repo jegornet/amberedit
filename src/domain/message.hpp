@@ -14,6 +14,15 @@ namespace amberedit::domain {
 /// a space and the name of the program that wrote the message (FTS-0004).
 [[nodiscard]] bool isTearline(std::string_view line);
 
+/// Whether the line is a tagline: three dots, a space, and whatever the writer
+/// put after them.
+///
+/// Only the shape of the line. Whether a line of that shape *is* this message's
+/// tagline is decided by where it stands — see markTrailer() — since "... " is
+/// how people write an ellipsis at the head of a line and most of those are
+/// text.
+[[nodiscard]] bool isTagline(std::string_view line);
+
 /// Whether the line is an origin line (FTS-0004).
 ///
 /// Only the prefix is checked. What stands in the trailing parentheses is
@@ -274,12 +283,12 @@ struct MessageLine {
     /// True for service lines: ^A kludges, and the SEEN-BY:/PATH: routing lines
     /// that carry no ^A but are service data all the same.
     bool kludge{false};
-    /// True for the tearline and origin line closing the message. See
+    /// True for the tagline, tearline and origin line closing the message. See
     /// markTrailer() for why this is a flag rather than a test on the text.
     bool trailer{false};
 };
 
-/// Flags the tearline and origin line that close a message.
+/// Flags the tagline, tearline and origin line that close a message.
 ///
 /// Only the block at the very end qualifies, which is why this cannot be
 /// decided one line at a time: authors use `---` mid-message as a separator
@@ -287,6 +296,12 @@ struct MessageLine {
 /// at the last line and stops as soon as it meets something that is neither a
 /// tearline nor an origin. Kludges and blank lines are stepped over, since
 /// SEEN-BY and PATH sit after the origin.
+///
+/// The tagline is the exception to the stepping over: it is the message's
+/// tagline only where it stands on the line directly above the tearline, and a
+/// blank line between the two makes the one above it text. Nothing else does
+/// — "... " opens a line of somebody's writing far more often than it signs
+/// one, and the only thing that tells the two apart is where the line stands.
 void markTrailer(std::vector<MessageLine>& lines);
 
 /// Message body, kept as the sequence of lines the base stores. Order matters

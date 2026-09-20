@@ -9,9 +9,10 @@
 # key but "aka", "akamatch", "nodelist", "echolist", "address_macro", "twit" and
 # "twit_subj" is written at most once.
 #
-# Four settings — "origin", "tearline", "twit" and "twit_subj" — may keep their
-# values in a file instead of on the line, written "@file:<name>". See "values
-# kept in a file" below; everywhere else "@file:" is the text it looks like.
+# Five settings — "origin", "tearline", "tagline", "twit" and "twit_subj" — may
+# keep their values in a file instead of on the line, written "@file:<name>". See
+# "values kept in a file" below; everywhere else "@file:" is the text it looks
+# like.
 #
 # Any line here can be said on the command line instead, in this same spelling:
 # amberedit -o "quote_margin 72". It replaces what this file says about that
@@ -1317,9 +1318,10 @@ quote_unwrap off
 import_begin "=== Cut ==="
 import_end "=== Cut ==="
 
-# The two lines every message is signed with. "tearline" is what stands after the
+# The lines every message is signed with. "tearline" is what stands after the
 # "--- " that closes the text; "origin" is what stands between " * Origin: " and
-# the address in brackets under it. Both are single lines with the same
+# the address in brackets under it; "tagline" is the quip on the line directly
+# above the tearline, after "... ". All three are single lines with the same
 # replacement tokens a template uses, so "@longpid @version" — the default
 # tearline — names AmberEdit and its version without the version being written
 # here (@longpid is the name with the system under it, @pid the bare name).
@@ -1328,8 +1330,14 @@ import_end "=== Cut ==="
 # The line itself is written whatever it says — an echomail message without one
 # is one a tosser may refuse — and an empty tearline goes out as "---" alone.
 #
-# Either may name a file of them instead — "origin @file:origins.txt" — and then
-# each message you write is signed with one of its lines, picked at random.
+# A tagline is the one of the three that is NOT written unless you ask for it:
+# with no "tagline" line here your messages carry no such line at all. Write one
+# and every message you write is signed with it, the same way the other two are.
+#
+# Any of the three may name a file of them instead — "origin @file:origins.txt" —
+# and then each message you write is signed with one of its lines, picked at
+# random. That is what a file of taglines is for.
+#tagline @file:taglines.txt
 tearline "@longpid @version"
 origin "Somewhere in the world"
 
@@ -1385,12 +1393,13 @@ twit_mode blank
 
 # --- values kept in a file ------------------------------------------------------
 #
-# Four settings may name a file to take their values from instead of writing
-# them out: "origin", "tearline", "twit" and "twit_subj". Write "@file:" and the
-# file's name after the key, and nothing else on the line.
+# Five settings may name a file to take their values from instead of writing
+# them out: "origin", "tearline", "tagline", "twit" and "twit_subj". Write
+# "@file:" and the file's name after the key, and nothing else on the line.
 #
 #   origin    @file:origins.txt         a different origin on each message
 #   tearline  @file:tearlines.txt       and a different tearline
+#   tagline   @file:taglines.txt        and a different tagline
 #   twit      @file:/etc/ftn/twit.list  everyone in the file, ignored
 #   twit_subj @file:twit_subj.list      every subject in it, ignored
 #
@@ -1403,9 +1412,10 @@ twit_mode blank
 # Blank lines are skipped, and so are lines a "#" opens — that being the only
 # comment such a file has.
 #
-# The two lines a message is signed with take ONE of the values, picked at random
-# each time you write a message: that is what a file of origins is for. The two
-# twit lists take ALL of them, added to whatever the config wrote out itself.
+# The three lines a message is signed with take ONE of the values, picked at
+# random each time you write a message: that is what a file of origins is for.
+# The two twit lists take ALL of them, added to whatever the config wrote out
+# itself.
 #
 # The files are read once, when AmberEdit starts, so a file you edit while it is
 # running is picked up the next time it starts. One that cannot be read stops
@@ -1456,7 +1466,7 @@ twit_mode blank
 #
 #   name                  address
 #   default_charset       compose_charset
-#   origin                tearline
+#   origin                tearline              tagline
 #   template              quote_string          quote_margin
 #   quote_unwrap
 #   template_date_format  template_time_format
@@ -1520,6 +1530,7 @@ bbs_codes_renegade off
 #
 # Inside such a message reader_stylecodes and bbs_codes_renegade do not apply
 # however they are set: a marker in a picture is a glyph somebody drew with. The
-# tearline and the origin line stay out of the picture and keep the theme's
-# trailer color, wherever the drawing left off.
+# lines signing the message — the tearline, the origin, and a tagline over them —
+# stay out of the picture and keep the theme's trailer color, wherever the
+# drawing left off.
 bbs_codes_ansi off

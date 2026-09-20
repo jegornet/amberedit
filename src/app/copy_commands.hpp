@@ -195,9 +195,9 @@ MaskResult addCrossposts(const CopyToken& mask,
     const std::vector<size_t>& keep, const std::vector<std::string>& carbon,
     const std::vector<std::string>& crossposts);
 
-/// The text without the tearline and origin closing it, which is what a copy of
-/// the message is built from: every area it is written into closes it with a
-/// pair of its own.
+/// The text without the tagline, tearline and origin closing it, which is what a
+/// copy of the message is built from: every area it is written into closes it
+/// with a block of its own.
 [[nodiscard]] std::vector<std::string> withoutTrailer(std::vector<std::string> lines);
 
 }  // namespace amberedit::app

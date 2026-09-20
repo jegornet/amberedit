@@ -65,8 +65,9 @@ std::string fileWith(const amberedit::test::TempDir& dir, const std::string& nam
 
 }  // namespace
 
-TEST_CASE("A command is the word the line begins with, whatever its case "
-          "[copy][commands]") {
+TEST_CASE(
+    "A command is the word the line begins with, whatever its case "
+    "[copy][commands]") {
     const std::vector<std::string> lines{
         "CC: Ivan Ivanov", "cc: Vasya Pupkin",      "Xc: ru.linux", "XP: ru.unix",
         " CC: indented",   "see CC: in the middle", "CCX: not it",
@@ -155,8 +156,9 @@ TEST_CASE("A @file that cannot be read is said so, not passed over [copy][comman
     CHECK_FALSE(commands.front().error.empty());
 }
 
-TEST_CASE("A command is disarmed by its prefix, not by the whole line "
-          "[copy][commands]") {
+TEST_CASE(
+    "A command is disarmed by its prefix, not by the whole line "
+    "[copy][commands]") {
     // The defect this is written against: a line carrying recipients has to be
     // disarmed exactly as a bare one is.
     CHECK(app::disarmCopyCommand("CC: Ivan Ivanov") == "!CC: Ivan Ivanov");
@@ -174,8 +176,9 @@ TEST_CASE("A command is disarmed by its prefix, not by the whole line "
     CHECK(lines[0] == "!CC: Ivan");
 }
 
-TEST_CASE("An address written in part is finished from the area's own "
-          "[copy][address]") {
+TEST_CASE(
+    "An address written in part is finished from the area's own "
+    "[copy][address]") {
     const FtnAddress area = *FtnAddress::parse("2:5020/9999.7");
 
     CHECK(app::completeAddress("2:5020/1234", area)->toString() == "2:5020/1234");
@@ -239,8 +242,9 @@ TEST_CASE("A mask covers every echo it matches, once [copy][crosspost]") {
     CHECK(app::addCrossposts({"*", false}, areas, current, every).added == 3);
 }
 
-TEST_CASE("A mask covering the area being written in adds nothing and says so "
-          "[copy][crosspost]") {
+TEST_CASE(
+    "A mask covering the area being written in adds nothing and says so "
+    "[copy][crosspost]") {
     const std::vector<AreaConfig> areas{echoAt("ru.linux"), echoAt("ru.talk")};
     const AreaConfig current = echoAt("ru.talk");
 
@@ -276,8 +280,9 @@ TEST_CASE("The five shapes of a carbon copy list [copy][list]") {
                                    "CC: Vasya Pupkin 2:5020/2345"});
 }
 
-TEST_CASE("A list of names too long for the line is wrapped under itself "
-          "[copy][list]") {
+TEST_CASE(
+    "A list of names too long for the line is wrapped under itself "
+    "[copy][list]") {
     const std::vector<CarbonCopy> copies{copyTo("Ivan Ivanov", "2:5020/1"),
                                          copyTo("Vasya Pupkin", "2:5020/2"),
                                          copyTo("Anna Karenina", "2:5020/3")};
@@ -313,8 +318,9 @@ TEST_CASE("The four shapes of a crosspost list [copy][list]") {
           std::vector<std::string>{"* Crossposted in ru.linux, ru.unix"});
 }
 
-TEST_CASE("The lists stand where the first command line of their kind stood "
-          "[copy][list]") {
+TEST_CASE(
+    "The lists stand where the first command line of their kind stood "
+    "[copy][list]") {
     const std::vector<std::string> lines{
         "CC: Ivan Ivanov", "Hello there.", "XC: ru.linux", "CC: Vasya Pupkin", "Bye.",
     };
@@ -348,4 +354,18 @@ TEST_CASE("The pair closing the message comes off a copy of it [copy][list]") {
     CHECK(app::withoutTrailer(lines) == std::vector<std::string>{"Hello.", ""});
     // A message whose author deleted them keeps every line it has.
     CHECK(app::withoutTrailer({"Hello."}) == std::vector<std::string>{"Hello."});
+
+    // The tagline over them is one line of the same block, and the area the
+    // copy lands in signs it with its own.
+    const std::vector<std::string> signed_{"Hello.", "... a good one",
+                                           "--- AmberEdit/darwin 0.1",
+                                           " * Origin: here (2:5020/1)"};
+    CHECK(app::withoutTrailer(signed_) == std::vector<std::string>{"Hello."});
+
+    // One standing anywhere else is a line somebody wrote.
+    const std::vector<std::string> ellipsis{"... and then she left", "Hello.",
+                                            "--- AmberEdit/darwin 0.1",
+                                            " * Origin: here (2:5020/1)"};
+    CHECK(app::withoutTrailer(ellipsis) ==
+          std::vector<std::string>{"... and then she left", "Hello."});
 }

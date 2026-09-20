@@ -740,9 +740,10 @@ struct AppState {
         /// Carried onto wrapped continuations so a long quote keeps one color
         /// even though only its first piece shows the markers.
         int quoteDepth{0};
-        /// Part of the tearline/origin block closing the message. Only the block
-        /// at the very end counts: `---` in the middle of a message is the
-        /// author's own separator and stays ordinary text.
+        /// Part of the tagline/tearline/origin block closing the message. Only
+        /// the block at the very end counts: `---` in the middle of a message is
+        /// the author's own separator and stays ordinary text, and so is a line
+        /// opening with `... ` anywhere but directly over the tearline.
         bool trailer{false};
         /// Where the BBS color codes change the color within this row, in bytes
         /// of `text` — the codes themselves having been taken out of it, since
@@ -1991,7 +1992,9 @@ struct AppState {
     /// The context menu does not ask: its buttons are framed whatever this
     /// says. Neither does the setup wizard, which is on the screen before there
     /// is a config to read.
-    [[nodiscard]] bool dialogTallButtons() const { return shown(config.dialogTallButtons); }
+    [[nodiscard]] bool dialogTallButtons() const {
+        return shown(config.dialogTallButtons);
+    }
 
     /// Whether the message is written in a program of the user's own rather
     /// than in AmberEdit — `external_editor` naming one.
@@ -1999,9 +2002,7 @@ struct AppState {
     /// It is the whole of the question everywhere it is asked: a config that
     /// names an editor takes the internal one away entirely, so the compose
     /// screen shows the text and never lets a key into it.
-    [[nodiscard]] bool externalEditing() const {
-        return !config.externalEditor.empty();
-    }
+    [[nodiscard]] bool externalEditing() const { return !config.externalEditor.empty(); }
 
     /// Rows the header block stands on whatever the config says, in the reader
     /// and in the editor alike: From, To, Subj and the Date row under them.

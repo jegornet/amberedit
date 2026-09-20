@@ -6,12 +6,13 @@
 
 using amberedit::domain::applyUcsFields;
 using amberedit::domain::isOriginLine;
+using amberedit::domain::isTagline;
 using amberedit::domain::isTearline;
 using amberedit::domain::isUcsFieldLine;
 using amberedit::domain::isUtf8Charset;
+using amberedit::domain::messageAttributes;
 using amberedit::domain::MessageBody;
 using amberedit::domain::MessageDate;
-using amberedit::domain::messageAttributes;
 using amberedit::domain::MessageHeader;
 
 namespace {
@@ -31,8 +32,9 @@ std::vector<std::string> attributesOf(uint32_t attributes) {
 
 }  // namespace
 
-TEST_CASE("messageAttributes shows nothing for a message with no attributes "
-          "[message]") {
+TEST_CASE(
+    "messageAttributes shows nothing for a message with no attributes "
+    "[message]") {
     // Not an empty pair of brackets: a message that carries no attributes has
     // nothing to say about itself.
     CHECK(attributesOf(0).empty());
@@ -151,6 +153,20 @@ TEST_CASE("isTearline rejects lines that merely start with hyphens [message]") {
     CHECK_FALSE(isTearline(""));
 }
 
+TEST_CASE("isTagline recognises the line a message is signed with [message]") {
+    CHECK(isTagline("... This is a tagline"));
+    CHECK(isTagline("... "));
+}
+
+TEST_CASE("isTagline rejects lines that merely start with dots [message]") {
+    CHECK_FALSE(isTagline("..."));  // the space is part of the marker
+    CHECK_FALSE(isTagline("...."));
+    CHECK_FALSE(isTagline(".."));
+    CHECK_FALSE(isTagline("...text"));
+    CHECK_FALSE(isTagline(" ... "));  // the tagline starts at column one
+    CHECK_FALSE(isTagline(""));
+}
+
 TEST_CASE("isOriginLine accepts whatever stands in the parentheses [message]") {
     // The address may be plain 4D, carry a domain, or name the network. None of
     // that is parsed, so all of it must be accepted.
@@ -216,6 +232,41 @@ TEST_CASE("markTrailer leaves a mid-message separator alone [message]") {
 
     CHECK(trailerFlags({{"---"}, {"body follows the separator"}}) ==
           std::vector<bool>{false, false});
+}
+
+TEST_CASE("markTrailer flags the tagline over the tearline [message]") {
+    CHECK(trailerFlags({{"Hello All!"},
+                        {"... This is a tagline"},
+                        {"--- AmberEdit/0.8.8"},
+                        {" * Origin:  (2:382/736)"}}) ==
+          std::vector<bool>{false, true, true, true});
+
+    // And with no origin under it, which is what netmail and local areas carry.
+    CHECK(trailerFlags({{"Hello All!"}, {"... A tagline"}, {"---"}}) ==
+          std::vector<bool>{false, true, true});
+}
+
+TEST_CASE("markTrailer takes a tagline only directly over the tearline [message]") {
+    // A blank line between the two is enough: what makes the line a tagline is
+    // that it stands against the tearline, and nothing is stepped over there.
+    CHECK(trailerFlags({{"Hello All!"},
+                        {"... This is NOT a tagline"},
+                        {""},
+                        {"--- AmberEdit/0.8.8"},
+                        {" * Origin:  (2:382/736)"}}) ==
+          std::vector<bool>{false, false, false, true, true});
+
+    // Nor is one that closes a message carrying no tearline at all.
+    CHECK(trailerFlags({{"Hello All!"}, {"... Not a tagline either"}}) ==
+          std::vector<bool>{false, false});
+
+    // Nor one standing anywhere else: "... " opens an ordinary line far more
+    // often than it signs a message.
+    CHECK(trailerFlags({{"... and then she left"},
+                        {"Hello All!"},
+                        {"--- AmberEdit/0.8.8"},
+                        {" * Origin:  (2:382/736)"}}) ==
+          std::vector<bool>{false, false, true, true});
 }
 
 TEST_CASE("markTrailer flags nothing when a message has no trailer [message]") {

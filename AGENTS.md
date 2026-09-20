@@ -278,13 +278,14 @@ only in `CMakeLists.txt`. The three packaging files state it again — `Version:
 CMake file. Nothing generates those from it, so they are checked instead: the
 release workflow compares all four against the tag before it builds anything, a
 deb being the one that would otherwise fail in silence and ship the old number. The tests build their expected tearline from the same
-constants. The tearline and origin *texts* are the user's: `tearline` and
-`origin` are expanded as template lines (`expandTokens` in `app/msg_template`)
-and closed round by `message_builder` — `"--- " + tearline` and
-`" * Origin: " + origin + " (addr)"`. Both settings hold a *list*
-(`AppConfig::tearlines`/`origins`), because either may be written `@file:<name>`;
-the builder asks `tearlineText()`/`originText()`, which pick one at random, so
-neither is read as a field. See "values kept in a file" under
+constants. The tearline, tagline and origin *texts* are the user's: `tearline`,
+`tagline` and `origin` are expanded as template lines (`expandTokens` in
+`app/msg_template`) and closed round by `message_builder` — `"--- " + tearline`,
+`"... " + tagline` and `" * Origin: " + origin + " (addr)"`. All three settings
+hold a *list* (`AppConfig::tearlines`/`taglines`/`origins`), because any may be
+written `@file:<name>`; the builder asks
+`tearlineText()`/`taglineText()`/`originText()`, which pick one at random, so
+none of them is read as a field. See "values kept in a file" under
 [Config and area groups](#config-and-area-groups).
 
 ### Bumping the version
@@ -599,10 +600,10 @@ Rules that hold the design together:
   hides again on `k`, and that is right: it is service data wherever it stands.
   The tearline and origin are left out whether the kludges are on or off; the
   message being written closes with a pair of its own.
-- **Tearline and origin.** `domain::markTrailer()` flags the pair closing a
-  message, walking back from the last line and stopping at the first thing that
-  is neither; kludges and blanks are stepped over, since SEEN-BY and PATH sit
-  after the origin. It has to be decided over the whole body, because `---` is
+- **Tearline, tagline and origin.** `domain::markTrailer()` flags the block
+  closing a message, walking back from the last line and stopping at the first
+  thing that is none of them; kludges and blanks are stepped over, since SEEN-BY
+  and PATH sit after the origin. It has to be decided over the whole body, because `---` is
   also used mid-message as a separator and only the closing one is a tearline.
   The flag travels on `MessageLine`, set by the adapter, so the reader only
   renders it. `isOriginLine()` checks the prefix and nothing else, because
@@ -610,6 +611,20 @@ Rules that hold the design together:
   wrote it: the parentheses may hold a 4D address, a 5D one, or the network name
   too. The tearline is the same shape — three dashes and an optional banner
   after them.
+  - **A tagline is one only directly above the tearline.** `isTagline()` is the
+    shape — `"... "` and what follows — and `markTrailer()` looks at exactly one
+    line, the one before the tearline, stepping over nothing at all: a blank line
+    between the two makes the line above it text. `"... "` opens a line of
+    somebody's writing far more often than it signs one, and where it stands is
+    the whole of what tells them apart. So a tagline is flagged, colored, kept
+    out of a quote and taken off a copy with the pair it belongs to, while
+    `closeMessage()` spoils a stray tearline or origin and never touches a line
+    that merely looks like a tagline.
+  - **A tagline is written only where the config asks for one.** `tagline` is
+    empty by default and then no such line is added, which is where it parts
+    company with the other two: FTS-0004 wants the tearline and the origin
+    whatever they say, and a tagline is only ever the text somebody chose to
+    sign with.
 - **A message body has two line terminators, 0DH and 0AH. Every other byte is
   text.** `splitBody` looks for those two and for nothing else, and nothing may
   be added that looks for anything else. FTS-0001 (§ Message Text) also gives
@@ -1811,8 +1826,8 @@ decides what an occurrence is.
   them, `AppConfig::skipsFooter()` answers for the To name the same way
   `skipsTemplate()` does, and `closesWithFooter()` in `message_builder.cpp` is
   what both `startingText()` and `buildDraft()` ask before `closeMessage()`
-  writes the pair — so the editor opens on a message with no tearline and no
-  origin, and that is what is stored. A robot stops reading at the tearline, and
+  writes the block — so the editor opens on a message with no tagline, no
+  tearline and no origin, and that is what is stored. A robot stops reading at the tearline, and
   a message whose commands stand under one is a message whose commands never
   arrive. **Netmail and every netmail to the name**: a new one, a reply and a
   forward alike, since what decides it is who is being written to. Nothing in
@@ -2082,8 +2097,8 @@ decides what an occurrence is.
 - **The message is stored before its copies.** A base refusing the message is a
   message nothing was copied on account of. Each copy is built by `copyDraft()`
   against the settings of the area it goes into — its AKA, its charset, its
-  tearline and origin — over the text with the editor's own closing pair taken
-  off (`withoutTrailer()`), and each is written a second on from the last so that
+  tearline, tagline and origin — over the text with the editor's own closing
+  block taken off (`withoutTrailer()`), and each is written a second on from the last so that
   their MSGIDs cannot collide. One base is open at a time, so `writeCopies()`
   swaps as `storeElsewhere()` does and opens the reader's own again at the end.
 - **Nothing is dropped on behalf of something that did not happen.** A recipient
@@ -2759,10 +2774,10 @@ taking a row.
     goes, so a glyph standing right after the stump is still the message's own,
     and `containsCodes()` still asks for a whole sequence, half of one being no
     evidence that anybody drew here at all.
-  - **The tearline and the origin line never go through the canvas.** They are
-    not the author's drawing but the network's signature at the foot of it, they
-    say where a message came from, and they are read off the trailer color the
-    theme gives every other message's. Left in the stream they would be drawn
+  - **The lines signing the message never go through the canvas** — the
+    tearline, the origin, and the tagline where one stands over them. They are
+    not the author's drawing but the signature at the foot of it, and they are
+    read off the trailer color the theme gives every other message's. Left in the stream they would be drawn
     wherever the art happened to leave the cursor — over the picture as often as
     under it — in whatever colors it was last using. `wrapCanvasBody()` breaks
     the stream at them exactly as it does at a kludge.
@@ -3147,9 +3162,9 @@ taking a row.
     and a line would stand.
   - **`--setup` takes neither `-c` nor `-o`.** It writes a config rather than
     reading one, and an override of a config it is not reading means nothing.
-- **A setting may keep its values in a file, and four of them may**: `origin`,
-  `tearline`, `twit` and `twit_subj`, written `@file:<name>` (`takesListFile()`
-  is the whitelist, so `@file:` is inert in every other value). The name is the
+- **A setting may keep its values in a file, and five of them may**: `origin`,
+  `tearline`, `tagline`, `twit` and `twit_subj`, written `@file:<name>`
+  (`takesListFile()` is the whitelist, so `@file:` is inert in every other value). The name is the
   whole of the value after the mark — a leading `~/` is expanded
   (`text::expandTilde`, which every path setting goes through) and a bare one is
   resolved against `cfg.configDir`; the list is keyed by the name as written, so
@@ -3175,10 +3190,10 @@ taking a row.
     directory for anything read off a disk and empty for a string parsed under
     `<string>`, which then means "relative to wherever AmberEdit was started" —
     the same rule a `CC:`/`XC:` `@file` follows.
-  - **The two signature settings pick, the two twit lists concatenate.**
-    `originText()`/`tearlineText()` answer one entry at random per call and are
-    asked once per message built, so two messages under one config need not carry
-    the same origin; a list of one skips the generator, so a config that writes
+  - **The three signature settings pick, the two twit lists concatenate.**
+    `originText()`/`tearlineText()`/`taglineText()` answer one entry at random
+    per call and are asked once per message built, so two messages under one
+    config need not carry the same origin; a list of one skips the generator, so a config that writes
     its origin out on the line is as deterministic as it always was. `twit` and
     `twit_subj` are repeatable keys and a `@file:` line adds every entry to what
     the config wrote out, a group's lines adding to the file's as ever.

@@ -25,8 +25,8 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for moder
   the areas manually using `area … endarea` blocks.
 - **Reading and writing**: reply, reply into another area, forward, move or copy 
   a message elsewhere, modify or delete. Carbon copies and crossposts
-  (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates, and an origin or
-  tearline picked at random from a file of them. And `twit` keywords
+  (`CC`/`XC`/`XP` lines like in GoldED). GoldED-style templates, and an origin,
+  tearline or tagline picked at random from a file of them. And `twit` keywords
   to ignore those names or subjects you won't read.
 - **Text and UUE import/export**: import a text file into a message, insert a uuencoded 
   binary file, write a message out to a text file, or extract uuencoded files from a message.

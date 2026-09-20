@@ -1056,8 +1056,9 @@ TEST_CASE("AppConfig reads how tall a dialog's buttons stand [app_config]") {
     CHECK_FALSE(loads("dialog_tall_buttons on\ndialog_tall_buttons off\n"));
 }
 
-TEST_CASE("AppConfig reads whether the header block carries the Recd row "
-          "[app_config]") {
+TEST_CASE(
+    "AppConfig reads whether the header block carries the Recd row "
+    "[app_config]") {
     using amberedit::config::Visibility;
 
     // Off unless it is asked for — the one `Visibility` whose default is not
@@ -1109,7 +1110,7 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
     // puts them there.
     CHECK(with("reader_menu change info export\n").readerMenu ==
           std::vector<Command>{Command::ReaderChange, Command::ReaderInfo,
-                                   Command::ReaderExport});
+                               Command::ReaderExport});
 
     // And so is answering the recipient rather than the sender: Alt-Q does it
     // without a button, and the button is there for whoever wants one.
@@ -1159,9 +1160,9 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
           std::vector<Command>{Command::ReaderReply, Command::ReaderReplyElsewhere,
                                Command::ReaderNew, Command::ReaderList,
                                Command::ReaderExport, Command::ReaderNodelist});
-    CHECK(defaults.composeHints ==
-          std::vector<Command>{Command::ComposeSave, Command::ComposeDeleteLine,
-                               Command::ComposeImport});
+    CHECK(defaults.composeHints == std::vector<Command>{Command::ComposeSave,
+                                                        Command::ComposeDeleteLine,
+                                                        Command::ComposeImport});
 
     // The hints stand in the order they are written, and a row may name
     // anything the screen answers: a hint is a key with its name beside it, so
@@ -1342,8 +1343,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
                               {AreaFieldKind::Unread, 4},
                               {AreaFieldKind::UnreadFlag, 1}}});
     CHECK(formatOf("\"me c u\\n d n\"") == with("").areaListFormatNarrow);
-    CHECK(wideFormatOf("\"me c u\\n d n\" \"me d c un\"") ==
-          with("").areaListFormatWide);
+    CHECK(wideFormatOf("\"me c u\\n d n\" \"me d c un\"") == with("").areaListFormatWide);
 
     // One format is every window's: a config written before the second value
     // existed says the same thing it always did.
@@ -1648,8 +1648,8 @@ TEST_CASE("AppConfig reads what the reader's sidebar holds [app_config]") {
     // after the letter, the Date column's own format in brackets, `\n` for the
     // next line of the row.
     CHECK(formatOf("\"a4 s\"") == MsgListFormat{Line{{MsgFieldKind::Number, 4},
-                                                    {MsgFieldKind::Space, 1},
-                                                    {MsgFieldKind::Subject, 0}}});
+                                                     {MsgFieldKind::Space, 1},
+                                                     {MsgFieldKind::Subject, 0}}});
 
     // One format and not two: the panel is only ever on the screen in a window
     // wide enough for it, so there is no narrow window to write a second for.
@@ -2046,6 +2046,19 @@ TEST_CASE("AppConfig reads the tearline and the origin [app_config]") {
     CHECK(with("tearline \"\"\n").tearlines.size() == 1);
 }
 
+TEST_CASE("AppConfig reads the tagline, and writes none unless asked [app_config]") {
+    // The one of the three that is not written by default: an FTN message
+    // carries a tearline and an origin whatever they say, and a tagline only
+    // where somebody chose one.
+    CHECK(with("").taglines.empty());
+    CHECK(with("").taglineText().empty());
+
+    CHECK(with("tagline \"A day without sunshine is like night\"\n").taglineText() ==
+          "A day without sunshine is like night");
+    // A template line like the other two.
+    CHECK(with("tagline \"written with @pid\"\n").taglineText() == "written with @pid");
+}
+
 TEST_CASE("AppConfig reads the import cut lines [app_config]") {
     // What FTN mail has always fenced an enclosed file off with, and the same
     // line at both ends unless the config says otherwise.
@@ -2089,8 +2102,9 @@ TEST_CASE("AppConfig expands ~ in the template path [app_config]") {
     CHECK(cfg.templatePath == std::string(home) + "/msg.tpl");
 }
 
-TEST_CASE("AppConfig reads the nodelist lines in the order they were written "
-          "[app_config]") {
+TEST_CASE(
+    "AppConfig reads the nodelist lines in the order they were written "
+    "[app_config]") {
     // The order is the precedence: the first nodelist to name an address is the
     // one that keeps it, so the list must come back as the file wrote it.
     const auto cfg = with(
@@ -2202,8 +2216,9 @@ TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_confi
     CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
-TEST_CASE("AppConfig reads the echolist lines in the order they were written "
-          "[app_config]") {
+TEST_CASE(
+    "AppConfig reads the echolist lines in the order they were written "
+    "[app_config]") {
     // The order is the precedence here too: the first echolist to name an echo
     // is the one that describes it.
     const auto cfg = with(
@@ -2253,8 +2268,9 @@ TEST_CASE("AppConfig refuses an echolist with nowhere to compile it to [app_conf
     CHECK_MESSAGE(contains(error5, "set twice"), error5);
 }
 
-TEST_CASE("AppConfig reads which description an area with two is shown by "
-          "[app_config]") {
+TEST_CASE(
+    "AppConfig reads which description an area with two is shown by "
+    "[app_config]") {
     using amberedit::config::DescriptionPriority;
 
     CHECK(with("arealist_description_priority echolist\n").areaDescriptionPriority ==
@@ -2276,8 +2292,7 @@ TEST_CASE("AppConfig reads what stands in for a missing description [app_config]
     CHECK(with("arealist_description_default \"\"\n").areaDescriptionDefault.empty());
     // `@area` is kept as written: what it means is the area list's, settled
     // where the row is laid out rather than here.
-    CHECK(with("arealist_description_default @area\n").areaDescriptionDefault ==
-          "@area");
+    CHECK(with("arealist_description_default @area\n").areaDescriptionDefault == "@area");
     // A line with no value at all is the one shape that is refused: the blank
     // column is worth saying out loud.
     const std::string error = errorWith("arealist_description_default\n");
@@ -2594,8 +2609,9 @@ TEST_CASE("AppConfig refuses a malformed address_macro line [app_config]") {
     CHECK_MESSAGE(contains(error9, "not for one area"), error9);
 }
 
-TEST_CASE("The example config's address_macro lines parse once uncommented "
-          "[app_config]") {
+TEST_CASE(
+    "The example config's address_macro lines parse once uncommented "
+    "[app_config]") {
     // They ship commented out, as the AKA lines do and for the same reason —
     // they name addresses belonging to nobody who copies the file — so nothing
     // in the example itself reads them. Written out here as the example has
@@ -2923,8 +2939,9 @@ TEST_CASE("A group may say where an echo's answers and copies belong [app_config
     CHECK(cfg.effectiveFor(area("de.talk")).replyToArea.empty());
 }
 
-TEST_CASE("A value a group cannot be read from stops AmberEdit at startup "
-          "[app_config]") {
+TEST_CASE(
+    "A value a group cannot be read from stops AmberEdit at startup "
+    "[app_config]") {
     // Read once while the config is, over a copy that is thrown away, so that a
     // mistake in a group is found at startup and not at the area it covers.
     const std::string error =
@@ -3060,8 +3077,9 @@ TEST_CASE("A twit name is matched whole and with wildcards [app_config]") {
     CHECK(cfg.isTwit(letter("A Spammer Of Note", "All", "x")));
 }
 
-TEST_CASE("A twit line covers both ends of a message, unless twit_to is off "
-          "[app_config]") {
+TEST_CASE(
+    "A twit line covers both ends of a message, unless twit_to is off "
+    "[app_config]") {
     const auto both = with("twit \"Ivan Ivanov\"\n");
     CHECK(both.isTwit(letter("Petr Petrov", "Ivan Ivanov", "x")));
     CHECK(both.isTwit(letter("Ivan Ivanov", "All", "x")));
@@ -3265,6 +3283,21 @@ TEST_CASE("A tearline is picked from a file the same way [app_config]") {
     CHECK(cfg.tearlines[1] == "sent from a shell");
 }
 
+TEST_CASE("A tagline is picked from a file the same way [app_config]") {
+    listFile("taglines.txt",
+             "# the ones worth signing with\n"
+             "Bread is the staff of life\n"
+             "... and then she left\n");
+    const auto cfg = withLists("tagline @file:taglines.txt\n");
+
+    // A line of the file is the tagline's text and not the line a message
+    // carries: the "... " is the builder's to write, so a file whose lines are
+    // written with one of their own says so twice.
+    REQUIRE(cfg.taglines.size() == 2);
+    CHECK(cfg.taglines[0] == "Bread is the staff of life");
+    CHECK(cfg.taglines[1] == "... and then she left");
+}
+
 TEST_CASE("The twit lists may be kept in a file [app_config]") {
     listFile("twit.list",
              "# whom this system does not read\n"
@@ -3326,6 +3359,18 @@ TEST_CASE("A list file may be named under ~ [app_config]") {
     CHECK(cfg.twits[0].name == "Ivan Ivanov");
 }
 
+TEST_CASE("A group states its own tagline [app_config]") {
+    const auto cfg = with(
+        "tagline \"the house one\"\n"
+        "group\n"
+        "  member esp.*\n"
+        "  tagline \"Desde algún lugar\"\n"
+        "endgroup\n");
+
+    CHECK(cfg.effectiveFor(area("esp.argentina")).taglineText() == "Desde algún lugar");
+    CHECK(cfg.effectiveFor(area("ru.linux")).taglineText() == "the house one");
+}
+
 TEST_CASE("A group may keep its origins in a file too [app_config]") {
     listFile("esp.txt", "Desde algún lugar\n");
     const auto cfg = withLists(
@@ -3368,9 +3413,9 @@ TEST_CASE("A @file: list is read in the config's charset [app_config]") {
     CHECK(cfg.origins[1] == "Шапка");
 }
 
-TEST_CASE("Only the four settings that take one read a @file: [app_config]") {
+TEST_CASE("Only the five settings that take one read a @file: [app_config]") {
     // Everywhere else it is the text it looks like. The mark is a word about
-    // these four keys and not a shape every value in the config is read past.
+    // these five keys and not a shape every value in the config is read past.
     CHECK(with("import_begin @file:x\n").importBegin == "@file:x");
     CHECK(with("reply_to_area @file:x\n").replyToArea == "@file:x");
     CHECK(withOwnName("name @file:x\n").userName == "@file:x");
@@ -3437,8 +3482,9 @@ TEST_CASE("What an area block leaves out [app_config]") {
     CHECK(passthrough.isPassthrough());
 }
 
-TEST_CASE("An area block's kinds and types are the words the tosser configs use "
-          "[app_config]") {
+TEST_CASE(
+    "An area block's kinds and types are the words the tosser configs use "
+    "[app_config]") {
     const auto cfg = with(
         "area NETMAIL\n"
         "  path /ftn/msg/netmail\n"
@@ -3528,8 +3574,9 @@ TEST_CASE("An area block is refused for what it gets wrong [app_config]") {
     CHECK_MESSAGE(contains(error19, "is declared twice"), error19);
 }
 
-TEST_CASE("The area list comes from the tosser config, from blocks, or from both "
-          "[app_config]") {
+TEST_CASE(
+    "The area list comes from the tosser config, from blocks, or from both "
+    "[app_config]") {
     const std::string charsets =
         "default_charset CP866\ncompose_charset CP866\n" + std::string(kName) + kAddress;
 
@@ -3572,13 +3619,14 @@ TEST_CASE("A group covers an area declared by hand like any other [app_config]")
     CHECK(cfg.effectiveFor(cfg.manualAreas.front().area).composeCharset == "UTF-8");
 }
 
-TEST_CASE("netmail_skip_template names the robots a new netmail skips the "
-          "template for [app_config]") {
+TEST_CASE(
+    "netmail_skip_template names the robots a new netmail skips the "
+    "template for [app_config]") {
     // The six the FTN world runs on, unless the config says otherwise.
     const auto stock = with("");
-    CHECK(stock.netmailSkipTemplate ==
-          std::vector<std::string>{"AreaFix", "AreaMgr", "AllFix", "FileFix", "T-Fix",
-                                   "FaqServer"});
+    CHECK(stock.netmailSkipTemplate == std::vector<std::string>{"AreaFix", "AreaMgr",
+                                                                "AllFix", "FileFix",
+                                                                "T-Fix", "FaqServer"});
     CHECK(stock.skipsTemplate("AreaFix"));
     // The name however it is spelled, and whatever is around it: case is folded
     // and the field is trimmed.

@@ -444,7 +444,8 @@ app::BuildRequest buildRequest(AppState& state) {
     const bool carries = state.compose.reply || state.compose.forward;
     app::BuildRequest request{
         // The settings of the area it is going into — the origin, the tearline,
-        // the template and the charset it is written in are all that area's.
+        // the tagline, the template and the charset it is written in are all that
+        // area's.
         // Owned by the state, so the reference this keeps outlives the call.
         state.composeConfig(),
         // Where the message goes, which is the area picked in the dialog where
@@ -1087,7 +1088,8 @@ void resolveCopies(AppState& state) {
 }
 
 /// The message as a copy of it goes into `target`: the text as it now reads,
-/// closed with that area's own tearline and origin, written from its own AKA
+/// closed with that area's own tagline, tearline and origin, written from its
+/// own AKA
 /// and in its own charset, and carrying a MSGID of its own.
 ///
 /// `at` is which copy this is, and is what keeps the MSGIDs apart: the serial
@@ -1532,8 +1534,9 @@ void startChange(AppState& state, bool notice) {
     state.changeKept = app::preservedLines(*state.readBody);
 
     // The message itself, as it is read: the service lines are the ones taken
-    // off above, and the tearline and the origin stay — they are lines of the
-    // message like any other here, and whoever is changing it may want them.
+    // off above, and the lines signing it stay — the tagline, the tearline and
+    // the origin are lines of the message like any other here, and whoever is
+    // changing it may want them.
     std::vector<std::string> lines;
     if (notice) {
         // "*** Changed by ..." at the head of the message, from the template.
@@ -2148,8 +2151,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // header block binds neither of them, so nothing is taken away from it; what
     // is added is the one way of reading a long message on a screen that has no
     // cursor in the text to move.
-    if (state.externalEditing() &&
-        (event == Event::PageUp || event == Event::PageDown)) {
+    if (state.externalEditing() && (event == Event::PageUp || event == Event::PageDown)) {
         const int rows = std::max(1, editorRows(state));
         scrollBy(state, event == Event::PageDown ? rows : -rows);
         return true;
@@ -2357,8 +2359,7 @@ void requestExternalEditor(AppState& state) {
     askExternalEditor(state);
 }
 
-void externalEditReturned(AppState& state, bool changed,
-                          std::vector<std::string> lines) {
+void externalEditReturned(AppState& state, bool changed, std::vector<std::string> lines) {
     if (!changed) {
         // The file came back exactly as it was handed over, and what that says
         // depends on whether the review box has stood over this message yet.

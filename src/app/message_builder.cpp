@@ -41,6 +41,17 @@ std::string tearlineFrom(const std::string& text) {
     return text.empty() ? "---" : "--- " + text;
 }
 
+/// The tagline built from what the config puts after the "... ", and nothing at
+/// all where it puts nothing there.
+///
+/// Where it parts company with the tearline: an empty tearline is still a
+/// tearline, because FTS-0004 wants the line and not what is written on it,
+/// while a tagline is only ever the text somebody chose to sign with. No text,
+/// no line — which is what a config that never mentions `tagline` means.
+std::string taglineFrom(const std::string& text) {
+    return text.empty() ? "" : "... " + text;
+}
+
 /// The address as INTL writes it: three dimensions, the point left off. FSC-0004
 /// addresses zone:net/node there, and the points travel in FMPT and TOPT.
 std::string threeDimensional(const domain::FtnAddress& address) {
@@ -63,22 +74,30 @@ bool isBlank(std::string_view line) {
 }
 
 /// The message closed off the way FTS-0004 asks for: a tearline naming what
-/// wrote it, then the origin line carrying the address it was written from.
+/// wrote it, then the origin line carrying the address it was written from —
+/// and the tagline over the two where the config states one.
 ///
-/// The editor opens with both already there, so most of the time they are the
-/// last two lines and this leaves them alone. A user who deleted them gets
-/// them back. One left in the middle of the message is not this message's
-/// closing pair — it is text that happens to look like one, or a pair the
-/// typing moved — and is invalidated rather than left to be read as ours: a
-/// tosser stops at the first tearline it finds, and would cut the message
-/// there.
+/// The editor opens with all of them already there, so most of the time they
+/// are the last lines and this leaves them alone. A user who deleted them gets
+/// them back. A tearline or an origin left in the middle of the message is not
+/// this message's closing pair — it is text that happens to look like one, or a
+/// pair the typing moved — and is invalidated rather than left to be read as
+/// ours: a tosser stops at the first tearline it finds, and would cut the
+/// message there.
+///
+/// **Only those two are ever spoiled.** A tagline is a line of text to
+/// everything that carries a message, and "... " opens a line of somebody's
+/// writing far more often than it signs one; what makes the one directly over
+/// the tearline a tagline is where it stands, and breaking every other one
+/// would be editing the message.
 ///
 /// `footer` is false for the recipients `netmail_skip_footer` names, and then
-/// none of that happens: no pair is written, and a line of the message that
-/// reads like one is left exactly as it was typed. There is no closing pair of
-/// ours for it to be confused with, and what the robot has to read is every
-/// line.
+/// none of that happens: nothing is written, and a line of the message that
+/// reads like one of ours is left exactly as it was typed. There is no closing
+/// block of ours for it to be confused with, and what the robot has to read is
+/// every line.
 std::vector<std::string> closeMessage(std::vector<std::string> lines,
+                                      const std::string& tagline,
                                       const std::string& tearline,
                                       const std::string& origin, bool footer) {
     // Blank lines at the end are padding. Dropping them first is also what
@@ -90,6 +109,15 @@ std::vector<std::string> closeMessage(std::vector<std::string> lines,
     const size_t count = lines.size();
     if (count >= 2 && domain::isTearline(lines[count - 2]) &&
         domain::isOriginLine(lines[count - 1])) {
+        // The pair is the message's own and stands. The tagline is asked about
+        // separately because it is a line of its own that the typing may have
+        // taken away while leaving the pair: the shape is what is looked at and
+        // not the text, since the text standing there was picked for this
+        // message already and a second pick would put another tagline over the
+        // same message.
+        if (!tagline.empty() && !(count >= 3 && domain::isTagline(lines[count - 3]))) {
+            lines.insert(lines.begin() + static_cast<std::ptrdiff_t>(count - 2), tagline);
+        }
         return lines;
     }
 
@@ -103,9 +131,26 @@ std::vector<std::string> closeMessage(std::vector<std::string> lines,
             line = " + Origin:" + line.substr(std::string_view(" * Origin:").size());
         }
     }
+    if (!tagline.empty()) lines.push_back(tagline);
     lines.push_back(tearline);
     lines.push_back(origin);
     return lines;
+}
+
+/// How many lines at the end of a message closed off by closeMessage() are the
+/// block closing it — two, or three where a tagline stands over the pair, and
+/// none at all for a message closed with nothing.
+///
+/// Counted off the lines rather than off the setting, because the tagline that
+/// is there is the one the message already carried as often as it is the one
+/// just written.
+size_t closingLines(const std::vector<std::string>& lines, bool footer) {
+    if (!footer || lines.size() < 2) return 0;
+    const size_t pair = 2;
+    if (lines.size() > pair && domain::isTagline(lines[lines.size() - pair - 1])) {
+        return pair + 1;
+    }
+    return pair;
 }
 
 /// What of the message being answered is carried into the answer: its text, and
@@ -264,9 +309,9 @@ TemplateContext contextFor(const BuildRequest& request) {
             context.message = carried;
             disarmCopyCommands(context.message);
         } else {
-            context.quote = quoteLines(carried, context.oname, request.config.quoteString,
-                                       request.config.quoteMargin,
-                                       request.config.quoteUnwrap);
+            context.quote =
+                quoteLines(carried, context.oname, request.config.quoteString,
+                           request.config.quoteMargin, request.config.quoteUnwrap);
         }
     }
     if (!request.config.templatePath.empty()) {
@@ -275,12 +320,13 @@ TemplateContext contextFor(const BuildRequest& request) {
     }
     context.includeCharset = request.config.configCharset;
 
-    // Last, because these two are themselves written with tokens in them: they
-    // are expanded against the context as it stands here, in which @tearline
-    // and @origin are still empty — which is what keeps a tearline that names
-    // itself from asking for itself.
-    // Asked of the config rather than read off it: either setting may name a
-    // file of them, and then the text is picked afresh for this message.
+    // Last, because these three are themselves written with tokens in them: each
+    // is expanded against the context as it stands here, in which @tagline,
+    // @tearline and @origin are still empty — which is what keeps a tearline
+    // that names itself from asking for itself.
+    // Asked of the config rather than read off it: any of them may name a file
+    // of them, and then the text is picked afresh for this message.
+    context.tagline = taglineFrom(expandTokens(request.config.taglineText(), context));
     context.tearline = tearlineFrom(expandTokens(request.config.tearlineText(), context));
     context.origin = expandTokens(request.config.originText(), context);
     return context;
@@ -478,13 +524,14 @@ StartingText startingText(const BuildRequest& request) {
     // the editor opens on a message that has none either — what is being
     // written is what will be stored.
     const bool footer = closesWithFooter(request);
-    out.lines = closeMessage(std::move(out.lines), context.tearline,
+    out.lines = closeMessage(std::move(out.lines), context.tagline, context.tearline,
                              originLine(context.origin, request.fields.fromAddr), footer);
 
     // The cursor belongs in the message, not on the lines closing it — so a
     // template that names no @position, or one that produced no text at all,
     // gets a line to start typing on.
-    const int closing = static_cast<int>(out.lines.size()) - (footer ? 2 : 0);
+    const int closing =
+        static_cast<int>(out.lines.size() - closingLines(out.lines, footer));
     if (out.cursorLine >= closing) {
         out.lines.insert(out.lines.begin() + closing, std::string{});
         out.cursorLine = closing;
@@ -661,7 +708,7 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     // The same pair the editor opened on, so that saving leaves standing what
     // the user has been looking at all along.
     const TemplateContext context = contextFor(request);
-    draft.lines = closeMessage(text, context.tearline,
+    draft.lines = closeMessage(text, context.tagline, context.tearline,
                                originLine(context.origin, addressText(draft.origAddr)),
                                closesWithFooter(request));
 

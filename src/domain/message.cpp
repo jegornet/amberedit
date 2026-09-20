@@ -67,6 +67,10 @@ bool isTearline(std::string_view line) {
     return line == "---" || startsWith(line, "--- ");
 }
 
+bool isTagline(std::string_view line) {
+    return startsWith(line, "... ");
+}
+
 bool isOriginLine(std::string_view line) {
     return startsWith(line, " * Origin:");
 }
@@ -91,7 +95,15 @@ void markTrailer(std::vector<MessageLine>& lines) {
     }
     // A message may carry a tearline with no origin — netmail and local areas
     // routinely do — so this is checked whether or not an origin was found.
-    if (index >= 0 && isTearline(at(index).text)) at(index).trailer = true;
+    if (index >= 0 && isTearline(at(index).text)) {
+        at(index).trailer = true;
+        // And the tagline over it, on the line directly above and nowhere else:
+        // nothing is stepped over here, a blank line included. A line opening
+        // with "... " is an ellipsis far more often than it is a signature, and
+        // standing against the tearline is the whole of what makes it one.
+        --index;
+        if (index >= 0 && isTagline(at(index).text)) at(index).trailer = true;
+    }
 }
 
 std::string MessageBody::text() const {
@@ -309,7 +321,9 @@ bool isUnsent(uint32_t attributes) {
     return (attributes & attr::kLocal) != 0 && (attributes & attr::kSent) == 0;
 }
 
-bool isUnsent(const MessageHeader& header) { return isUnsent(header.attributes); }
+bool isUnsent(const MessageHeader& header) {
+    return isUnsent(header.attributes);
+}
 
 std::vector<std::string> messageAttributes(uint32_t attributes) {
     std::vector<std::string> names;

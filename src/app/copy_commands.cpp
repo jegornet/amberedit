@@ -506,7 +506,10 @@ std::vector<std::string> withoutTrailer(std::vector<std::string> lines) {
     const size_t count = lines.size();
     if (count >= 2 && domain::isTearline(lines[count - 2]) &&
         domain::isOriginLine(lines[count - 1])) {
-        lines.resize(count - 2);
+        // The tagline over them goes with them: it is one line of the block
+        // signing this message, and the copy is signed by the area it lands in.
+        const bool tagged = count >= 3 && domain::isTagline(lines[count - 3]);
+        lines.resize(count - (tagged ? 3 : 2));
     }
     return lines;
 }

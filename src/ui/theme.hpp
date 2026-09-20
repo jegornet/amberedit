@@ -319,11 +319,11 @@ struct Palette {
     Color screenButtons = builtin_theme::kDialogHint;
     Color dimmed = builtin_theme::kDialogHint;
     Color scrollThumb = builtin_theme::kFocusedField;
-    /// Quiet but a step brighter: the tearline and origin closing a message,
-    /// and the line at the top of every screen — the lists' column headings and
-    /// the title over a message being read are one role, so that the top of the
-    /// interface reads the same wherever the user is. A box's own top line is
-    /// `dialog_title`.
+    /// Quiet but a step brighter: the tagline, tearline and origin closing a
+    /// message, and the line at the top of every screen — the lists' column
+    /// headings and the title over a message being read are one role, so that
+    /// the top of the interface reads the same wherever the user is. A box's own top line
+    /// is `dialog_title`.
     ///
     /// `menu_button` is the buttons of the context menu, which stand inside a
     /// box and so take the box's fill: it has to be legible on

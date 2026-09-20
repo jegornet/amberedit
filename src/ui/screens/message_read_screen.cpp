@@ -1532,8 +1532,9 @@ bool ansiCanvas(const AppState& state, const domain::MessageBody& body) {
 /// done to its text. In practice they stand at the top and the bottom and there
 /// is one canvas between them.
 ///
-/// **The tearline and the origin line are never part of the picture.** They are
-/// not the author's drawing but the network's own signature at the foot of it,
+/// **The lines signing the message are never part of the picture** — the
+/// tearline, the origin line, and a tagline standing over them. They are
+/// not the author's drawing but the signature at the foot of it,
 /// and they say where a message came from — which is worth reading, and is read
 /// off the color the theme gives every other message's trailer. Left in the
 /// stream they would be drawn wherever the art happened to leave the cursor,

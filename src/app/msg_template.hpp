@@ -56,8 +56,16 @@ struct TemplateContext {
     std::string d3daddr;
 
     std::string subject;
+    /// What the config's `origin` says, without the " * Origin: " and the
+    /// address the line is closed with: the builder writes those round it, the
+    /// address being the one the message goes out from.
     std::string origin;
+    /// The whole tearline, markers and all — `"--- "` and what `tearline` says
+    /// after it, or `"---"` alone where it says nothing.
     std::string tearline;
+    /// The whole tagline the same way — `"... "` and what `tagline` says after
+    /// it — and empty where the config states no tagline, which is where the
+    /// message carries no such line at all.
     std::string tagline;
     std::string version;
     std::string pid;

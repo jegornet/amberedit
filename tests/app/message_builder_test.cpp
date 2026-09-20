@@ -178,11 +178,10 @@ TEST_CASE("A message copied into another area is the same message [builder]") {
     CHECK(kludgesOf(draft) == "MSGID: 2:5020/1042 5f3ac2e1|CHRS: KOI8-R 2|");
     // The text with the pair closing it, and the routing lines after that —
     // where the formats keep them, and where they were read from.
-    CHECK(draft.lines == std::vector<std::string>{"a line of the message",
-                                                  "--- AmberEdit",
-                                                  " * Origin: somewhere (2:5020/1042)",
-                                                  "SEEN-BY: 5020/1042",
-                                                  "\x01PATH: 5020/1042"});
+    CHECK(draft.lines ==
+          std::vector<std::string>{"a line of the message", "--- AmberEdit",
+                                   " * Origin: somewhere (2:5020/1042)",
+                                   "SEEN-BY: 5020/1042", "\x01PATH: 5020/1042"});
 }
 
 TEST_CASE("CHRS names the charset and its level [builder]") {
@@ -225,7 +224,7 @@ TEST_CASE("A reply may be written in the charset of the message it answers [buil
     fields.toName = "Ivan Petrov";
     fields.toAddr.clear();
 
-    const BuildRequest request{cfg,   area,  fields,     &header,
+    const BuildRequest request{cfg,   area,    fields,     &header,
                                &body, nullptr, 0x68A1B2C3, 180};
     const auto draft = buildDraft(request, {"hello back"});
 
@@ -312,7 +311,8 @@ TEST_CASE("A forward and a new message are written in compose_charset [builder]"
     CHECK(buildDraft(fresh, {"hello"}).charset == "CP866");
 }
 
-TEST_CASE("A reply to a message that declared no charset keeps what it was read in [builder]") {
+TEST_CASE(
+    "A reply to a message that declared no charset keeps what it was read in [builder]") {
     // `default_charset` of the area it was read in is what such a message was
     // decoded from, and the base has written that into the body: it is the
     // charset the text actually came out of, whether the message named it or
@@ -360,16 +360,14 @@ TEST_CASE("A reply is stored linked to the message it answers [builder]") {
     // The number the caller names, which is the answered message's in the area
     // this one is going into. Nothing here works it out: only the caller knows
     // whether the two are the same area.
-    BuildRequest request{cfg,   area,    fields,     &header,
-                         &body, nullptr, 0x68A1B2C3, 180};
+    BuildRequest request{cfg, area, fields, &header, &body, nullptr, 0x68A1B2C3, 180};
     request.replyTo = 33;
     CHECK(buildDraft(request, {"hello back"}).replyTo == 33);
 
     // Off, the message is written exactly as before and stands in no thread.
     AppConfig unlinked = cfg;
     unlinked.replyLink = false;
-    BuildRequest quiet{unlinked, area,    fields,     &header,
-                       &body,    nullptr, 0x68A1B2C3, 180};
+    BuildRequest quiet{unlinked, area, fields, &header, &body, nullptr, 0x68A1B2C3, 180};
     quiet.replyTo = 33;
     CHECK(buildDraft(quiet, {"hello back"}).replyTo == 0);
 
@@ -377,8 +375,7 @@ TEST_CASE("A reply is stored linked to the message it answers [builder]") {
     // nothing — the same pair of questions the REPLY kludge is written by.
     ComposeFields forwarded = fields;
     forwarded.forward = true;
-    BuildRequest passing{cfg,   area,    forwarded,  &header,
-                         &body, nullptr, 0x68A1B2C3, 180};
+    BuildRequest passing{cfg, area, forwarded, &header, &body, nullptr, 0x68A1B2C3, 180};
     passing.replyTo = 33;
     CHECK(buildDraft(passing, {"look at this"}).replyTo == 0);
 
@@ -755,6 +752,107 @@ TEST_CASE("The editor opens with the message already closed [builder]") {
     CHECK(text.cursorLine == 0);
 }
 
+TEST_CASE("A tagline is written only where the config asks for one [builder]") {
+    AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+
+    // Nothing configured — the default — and the message closes the way every
+    // FTN message has always closed: a tearline and an origin, and no line
+    // above them.
+    CHECK(textOf(buildDraft(request, {"hi"})) == "hi|" + kClosing);
+
+    // Configured, and it stands on the line directly over the tearline. A
+    // template line like the other two, so @areaname says what it says there.
+    cfg.taglines = {"signed in @areaname"};
+    CHECK(textOf(buildDraft(request, {"hi"})) ==
+          "hi|... signed in test.echo|" + kClosing);
+
+    // A tagline of nothing is no tagline: where the other two are written
+    // whatever they say, this one is the text or it is not a line at all.
+    cfg.taglines = {""};
+    CHECK(textOf(buildDraft(request, {"hi"})) == "hi|" + kClosing);
+}
+
+TEST_CASE("The tagline the editor already carries is not written twice [builder]") {
+    AppConfig cfg = config();
+    cfg.taglines = {"a fresh one"};
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    const BuildRequest request = echoRequest(cfg, area, fields);
+
+    // The one the editor opened on stands, text and all: it was picked for this
+    // message already, and picking again would sign it twice over.
+    const std::vector<std::string> closed{"hello", "... the one it opened on", kTearline,
+                                          kOrigin};
+    CHECK(textOf(buildDraft(request, closed)) ==
+          "hello|... the one it opened on|" + kClosing);
+
+    // Deleted, it comes back — the same as deleting the tearline or the origin.
+    CHECK(textOf(buildDraft(request, {"hello", kTearline, kOrigin})) ==
+          "hello|... a fresh one|" + kClosing);
+}
+
+TEST_CASE("A line that looks like a tagline is never spoiled [builder]") {
+    AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    const BuildRequest request = echoRequest(cfg, area, fields);
+
+    // Nothing downstream reads "... " as anything, so there is nothing to break
+    // — and "... " opens an ordinary line of writing often enough that breaking
+    // it would be editing the message.
+    CHECK(textOf(buildDraft(request, {"... and then she left", "hello"})) ==
+          "... and then she left|hello|" + kClosing);
+
+    // Including the one carried in under somebody else's tearline, which this
+    // message's own pair is written under.
+    CHECK(textOf(buildDraft(
+              request, {"as they wrote:", "... their tagline", "--- GoldED+/LNX 1.1.5",
+                        " * Origin: somewhere (2:5015/46)", "quite so"})) ==
+          "as they wrote:|... their tagline|-+- GoldED+/LNX 1.1.5|"
+          " + Origin: somewhere (2:5015/46)|quite so|" +
+              kClosing);
+}
+
+TEST_CASE("The editor opens on a message its tagline already closes [builder]") {
+    AppConfig cfg = config();
+    cfg.taglines = {"a good one"};
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+
+    // No template: a line to type on, and the three lines closing the message
+    // under it — with the cursor on the message and not on them.
+    const auto text = startingText(request);
+    REQUIRE(text.lines.size() == 4);
+    CHECK(text.lines[0].empty());
+    CHECK(text.lines[1] == "... a good one");
+    CHECK(text.lines[2] == kTearline);
+    CHECK(text.lines[3] == kOrigin);
+    CHECK(text.cursorLine == 0);
+}
+
+TEST_CASE("A netmail to a robot carries no tagline either [builder]") {
+    AppConfig cfg = config();
+    cfg.taglines = {"a good one"};
+    const AreaConfig net = areaOf(AreaKind::Netmail);
+
+    ComposeFields fields = netmailFields();
+    fields.toName = "AreaFix";
+    fields.toAddr = "2:382/736";
+    const BuildRequest request{cfg,     net,     fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+
+    // A robot reads commands, and the whole of what it is sent is commands.
+    CHECK(buildDraft(request, {"%LIST"}).lines == std::vector<std::string>{"%LIST"});
+}
+
 TEST_CASE("The editor opens on the template, quote and all [builder]") {
     const TempFile tpl(
         "; a comment\n"
@@ -797,8 +895,9 @@ TEST_CASE("The editor opens on the template, quote and all [builder]") {
 }
 
 TEST_CASE("The template's stamps carry the zone %z asks for [builder]") {
-    const TempFile tpl("@quoted@odate @otime, @oname wrote:\n"
-                       "@newWritten @cdate @ctime.\n");
+    const TempFile tpl(
+        "@quoted@odate @otime, @oname wrote:\n"
+        "@newWritten @cdate @ctime.\n");
 
     AppConfig cfg = config();
     cfg.templatePath = tpl.path();
@@ -847,10 +946,12 @@ TEST_CASE("The template's stamps carry the zone %z asks for [builder]") {
     CHECK(quiet.lines[0] == "10 Aug 26 21:19, Vasya Pupkin wrote:");
 }
 
-TEST_CASE("@ctzoffset and @otzoffset name the two clocks a reply is between "
-          "[builder]") {
-    const TempFile tpl("@quoted@oname wrote on UTC@otzoffset, we read it on "
-                       "UTC@ctzoffset.\n");
+TEST_CASE(
+    "@ctzoffset and @otzoffset name the two clocks a reply is between "
+    "[builder]") {
+    const TempFile tpl(
+        "@quoted@oname wrote on UTC@otzoffset, we read it on "
+        "UTC@ctzoffset.\n");
 
     AppConfig cfg = config();
     cfg.templatePath = tpl.path();
@@ -870,8 +971,7 @@ TEST_CASE("@ctzoffset and @otzoffset name the two clocks a reply is between "
                              &body, nullptr, 0x68A1B2C3, 180};
     const auto answered = startingText(reply);
     REQUIRE(answered.lines.size() >= 1);
-    CHECK(answered.lines[0] ==
-          "Vasya Pupkin wrote on UTC-0330, we read it on UTC+0300.");
+    CHECK(answered.lines[0] == "Vasya Pupkin wrote on UTC-0330, we read it on UTC+0300.");
 
     // A message stating no zone: @otzoffset writes nothing rather than this
     // machine's idea of one, the same as the `%z` in a stamp.
@@ -884,8 +984,9 @@ TEST_CASE("@ctzoffset and @otzoffset name the two clocks a reply is between "
     CHECK(quiet.lines[0] == "Vasya Pupkin wrote on UTC, we read it on UTC+0300.");
 }
 
-TEST_CASE("A reply moved into another area opens on the template's @moved lines "
-          "[builder]") {
+TEST_CASE(
+    "A reply moved into another area opens on the template's @moved lines "
+    "[builder]") {
     const TempFile tpl(
         "@moved*** Answering a msg posted in area @OEcho.\n"
         "@moved\n"
@@ -1007,8 +1108,9 @@ TEST_CASE("A forward carries a CC: line as text and not as a command [builder]")
     CHECK(text.lines[2] == "hello there");
 }
 
-TEST_CASE("A message read with its kludges showing is quoted and forwarded with them "
-          "[builder]") {
+TEST_CASE(
+    "A message read with its kludges showing is quoted and forwarded with them "
+    "[builder]") {
     const TempFile tpl(
         "@forward* Forwarded by @CName\n"
         "@message\n"
@@ -1036,8 +1138,7 @@ TEST_CASE("A message read with its kludges showing is quoted and forwarded with 
                   {" * Origin: somewhere (192:168/3.1)", false, true},
                   {"SEEN-BY: 382/736", true, false}};
 
-    BuildRequest request{cfg,   area,    fields,     &original,
-                         &body, nullptr, 0x68A1B2C3, 180};
+    BuildRequest request{cfg, area, fields, &original, &body, nullptr, 0x68A1B2C3, 180};
     request.kludgesShown = true;
 
     // A reply quotes them along with the text: somebody who turned the kludges
@@ -1074,8 +1175,9 @@ TEST_CASE("A message read with its kludges showing is quoted and forwarded with 
     CHECK(plain.lines[1] == "hello there");
 }
 
-TEST_CASE("A forward starts on the bare @position, above the signature "
-          "[builder]") {
+TEST_CASE(
+    "A forward starts on the bare @position, above the signature "
+    "[builder]") {
     // The shipped template's shape: a `@position` every message honours, a
     // `@quoted@position` only a reply reaches, and a signature under both.
     const TempFile tpl(
@@ -1204,8 +1306,9 @@ TEST_CASE("A template that cannot be read still leaves a message to write [build
     CHECK(text.lines[1] == kTearline);
 }
 
-TEST_CASE("A message carries the settings of the area group it is written in "
-          "[builder]") {
+TEST_CASE(
+    "A message carries the settings of the area group it is written in "
+    "[builder]") {
     // The builder reads everything off the config it is handed, so a per-area
     // setting reaches it by the config being resolved for that area first. This
     // is that resolution and what comes out the other end of it.
@@ -1286,8 +1389,9 @@ TEST_CASE("A new netmail to a robot is begun with no template [builder]") {
     CHECK(text.cursorLine == 0);
 }
 
-TEST_CASE("Everything but a new netmail to the name keeps its template "
-          "[builder]") {
+TEST_CASE(
+    "Everything but a new netmail to the name keeps its template "
+    "[builder]") {
     const TempFile tpl(
         "@quoted@oname wrote:\n"
         "@quote\n"

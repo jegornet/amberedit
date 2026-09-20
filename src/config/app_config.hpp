@@ -1804,23 +1804,31 @@ struct AppConfig {
     std::string importBegin{"=== Cut ==="};
     std::string importEnd{"=== Cut ==="};
 
-    /// What the tearline says after "--- ", from `tearline`, and what the
-    /// origin line says between " * Origin: " and the address in brackets, from
-    /// `origin`. Both are expanded as a template line, which is how the default
+    /// What the tearline says after "--- ", from `tearline`; what the origin
+    /// line says between " * Origin: " and the address in brackets, from
+    /// `origin`; and what the tagline says after "... ", from `tagline`. All
+    /// three are expanded as a template line, which is how the default tearline
     /// names the program without repeating its version here.
     ///
-    /// A list because either setting may be written `@file:<name>`, and then it
+    /// A list because any of them may be written `@file:<name>`, and then it
     /// holds every line of that file: one of them is picked at random for each
-    /// message — `tearlineText()` and `originText()`, which are what a message
-    /// is built from. A setting written out on the line is a list of one, and
-    /// picks the same text every time.
+    /// message — `tearlineText()`, `originText()` and `taglineText()`, which are
+    /// what a message is built from. A setting written out on the line is a list
+    /// of one, and picks the same text every time.
     ///
     /// The origin text is empty by default: it is the writer's own words about
     /// their system, and there is nothing for us to invent. The line itself is
     /// written either way — an echomail message without one is a message a
     /// tosser may refuse.
+    ///
+    /// The taglines are empty by default and that is the whole of the setting's
+    /// default behaviour: where there is no text there is no line, since a
+    /// tagline is a joke somebody chose to sign with and a message carrying none
+    /// is a message signed with a tearline and an origin, which is what every
+    /// FTN message is. This is where it parts company with the two above.
     std::vector<std::string> tearlines{"@longpid @version"};
     std::vector<std::string> origins;
+    std::vector<std::string> taglines;
 
     /// The text one message closes with: one of the lines above, picked at
     /// random where the setting named a file holding several, and empty where
@@ -1832,6 +1840,7 @@ struct AppConfig {
     /// two messages in a row do not carry the same one.
     [[nodiscard]] std::string tearlineText() const;
     [[nodiscard]] std::string originText() const;
+    [[nodiscard]] std::string taglineText() const;
 
     /// The file a new message starts from, from `template`. Required:
     /// a template is a file we cannot invent a default for.
@@ -1850,9 +1859,9 @@ struct AppConfig {
     /// AreaFix and its like read the message as commands, and a template's
     /// greeting and sign-off are lines the robot answers with complaints about
     /// commands it does not know. So the editor opens on nothing: the text is
-    /// the user's to type, and the tearline and origin closing every message
-    /// stand under it as they always do — a robot stops reading at the tearline,
-    /// which is exactly what it is for.
+    /// the user's to type, and the lines closing every message stand under it as
+    /// they always do — a robot stops reading at the tearline, which is exactly
+    /// what it is for.
     ///
     /// A *new* message only. A reply to a robot's answer is answering somebody
     /// who wrote, quote and all: `@quote` is the one thing the message cannot be
@@ -1863,8 +1872,8 @@ struct AppConfig {
     std::vector<std::string> netmailSkipTemplate{"AreaFix", "AreaMgr", "AllFix",
                                                  "FileFix", "T-Fix",   "FaqServer"};
 
-    /// The recipients a netmail is closed off to with no tearline and no origin
-    /// line under it, from `netmail_skip_footer`: the robots again. Written the
+    /// The recipients a netmail is closed off to with no tearline, no origin line
+    /// and no tagline under it, from `netmail_skip_footer`: the robots again. Written the
     /// same way `netmail_skip_template` is — names, one per word, a name with a
     /// space in it in quotes, compared case-insensitively whole against the To
     /// name — and asked about by `skipsFooter()`.
@@ -1873,7 +1882,7 @@ struct AppConfig {
     /// one that has commands in it and nothing else. But a robot answered in a
     /// message the commands stand *under* — a reply, a second request typed
     /// below the last answer — is a robot that reads as far as the tearline and
-    /// no further, and the commands never reach it. So for these names the pair
+    /// no further, and the commands never reach it. So for these names the block
     /// is not written at all, and every line of the message is the robot's to
     /// read.
     ///
