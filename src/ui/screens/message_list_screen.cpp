@@ -602,9 +602,15 @@ bool handleEvent(AppState& state, const Event& event) {
     // about are fixed everywhere, and this is the one screen where Space is
     // worth more than a second PgDn — a list is where a run of messages is
     // picked out, and the marking hand is on the space bar.
+    //
+    // Under `mark_moves_down` the cursor then steps to the message below, a run
+    // being what marks are made in and the key that marks and steps being the
+    // whole of what picking one out needs. The last message is where the
+    // stepping stops: the mark is made and the cursor stays on it.
     if (state.messageCount > 0 && (state.keys.is(event, Command::MessageListMarkToggle) ||
                                    event == Event::Character(' '))) {
         marks::toggle(state, static_cast<uint32_t>(state.messageCursor + 1));
+        if (state.config.markMovesDown) moveBy(state, 1);
         return true;
     }
 

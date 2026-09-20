@@ -624,6 +624,10 @@ msglist_goto_field_opens on
 # made either way; this only says whether the list paints them.
 highlight_unread on
 
+# Whether marking a row moves the cursor down to the next one. Optional; on by
+# default.
+mark_moves_down on
+
 # --- message reader -----------------------------------------------------------
 
 # Whether the message reader starts with the scrollbar beside the text shown.

@@ -266,6 +266,50 @@ TEST_CASE("The message list marks the row under the cursor [marks][squish]") {
     CHECK(markedNumbers(fixture) == std::vector<uint32_t>{2});
 }
 
+TEST_CASE("Marking a message steps the cursor down under mark_moves_down "
+          "[marks][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    enter(fixture);
+    REQUIRE(fixture.state.messageCount > 3);
+
+    // Marking a run is one key held down: the mark is made and the cursor is
+    // already on the next message.
+    REQUIRE(message_list::handleEvent(fixture.state, ctrl('t')));
+    CHECK(fixture.state.messageCursor == 1);
+    REQUIRE(message_list::handleEvent(fixture.state, Event::Character(' ')));
+    CHECK(fixture.state.messageCursor == 2);
+    CHECK(markedNumbers(fixture) == std::vector<uint32_t>{1, 2});
+
+    // Taking a mark off steps too: the key is one key, and the hand that is
+    // unmarking a run wants the same stepping the marking one had.
+    fixture.state.messageCursor = 0;
+    REQUIRE(message_list::handleEvent(fixture.state, ctrl('t')));
+    CHECK(fixture.state.messageCursor == 1);
+    CHECK(markedNumbers(fixture) == std::vector<uint32_t>{2});
+
+    // The last message is where the stepping stops. The mark is still made:
+    // marking is what the key is for, and there is nowhere below to go.
+    fixture.state.messageCursor = static_cast<int>(fixture.state.messageCount) - 1;
+    REQUIRE(message_list::handleEvent(fixture.state, ctrl('t')));
+    CHECK(fixture.state.messageCursor ==
+          static_cast<int>(fixture.state.messageCount) - 1);
+    CHECK(marks::isMarked(fixture.state, fixture.state.messageCount));
+}
+
+TEST_CASE("mark_moves_down off leaves the cursor on the message it marked "
+          "[marks][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.markMovesDown = false;
+    enter(fixture);
+    fixture.state.messageCursor = 1;
+
+    REQUIRE(message_list::handleEvent(fixture.state, ctrl('t')));
+    CHECK(fixture.state.messageCursor == 1);
+    CHECK(markedNumbers(fixture) == std::vector<uint32_t>{2});
+}
+
 TEST_CASE("The reader marks the message it is showing [marks][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());

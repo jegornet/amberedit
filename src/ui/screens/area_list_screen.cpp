@@ -538,12 +538,19 @@ void toggleUnreadOnly(AppState& state) {
 /// is left standing, unlike every other command here: marking picks rows out of
 /// what was searched for, and ending the query would put the rest of the list
 /// back under a cursor that has not moved.
+///
+/// The cursor then steps to the row below under `mark_moves_down`, so that a
+/// run of areas is marked by holding the one key. The step is `moveBy()` and so
+/// is the search's step: what stands below is the next row of the list as it is
+/// shown, filtered and searched. On the bottom row there is nowhere to step and
+/// the cursor stays, the mark having been made either way.
 void toggleMark(AppState& state) {
     const auto& areas = state.manager.areas();
     if (state.areaCursor < 0 || state.areaCursor >= static_cast<int>(areas.size())) {
         return;
     }
     state.toggleAreaMark(areas[static_cast<size_t>(state.areaCursor)].config.tag);
+    if (state.config.markMovesDown) moveBy(state, 1);
 }
 
 /// Puts the cursor on the next area with something unread in it — what `/`

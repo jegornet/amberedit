@@ -1322,6 +1322,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.messageListGotoFieldOpens = *read;
+    } else if (key == "mark_moves_down") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.markMovesDown = *read;
     } else if (key == "highlight_unread") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

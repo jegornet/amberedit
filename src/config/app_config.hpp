@@ -1024,6 +1024,22 @@ struct AppConfig {
     /// into it can only mean open that one.
     bool messageListGotoFieldOpens{true};
 
+    /// Whether marking a row in the area list or the message list puts the
+    /// cursor on the row below it, from `mark_moves_down`.
+    ///
+    /// On by default: marks are made in runs, and a key that both marks and
+    /// steps is the whole of what picking a run out of a list needs. The
+    /// bottom row is where the stepping stops — the cursor stays on it and the
+    /// mark is still made, marking being what the key is for and wrapping
+    /// round to the top being somewhere the hand did not ask to go. Off, the
+    /// cursor stays where it was and the row has to be left by hand.
+    ///
+    /// It is the two lists and no more. The reader's `reader.mark_toggle`
+    /// marks the message on the screen, and there is no row under it to step
+    /// to: moving there would be opening another message, which is a different
+    /// key.
+    bool markMovesDown{true};
+
     /// The width, in columns, at which the reader puts the list of messages up
     /// its left-hand side, from `reader_sidebar_threshold`.
     ///

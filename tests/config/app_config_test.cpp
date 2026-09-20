@@ -610,6 +610,14 @@ TEST_CASE("AppConfig reads the message size setting [app_config]") {
     CHECK_FALSE(loads("reader_show_message_size 1\n"));
 }
 
+TEST_CASE("AppConfig reads whether a mark moves the cursor down [app_config]") {
+    CHECK(with("").markMovesDown);  // marks are made in runs unless told not to
+    CHECK(with("mark_moves_down on\n").markMovesDown);
+    CHECK_FALSE(with("mark_moves_down off\n").markMovesDown);
+    CHECK_FALSE(loads("mark_moves_down yes\n"));
+    CHECK_FALSE(loads("mark_moves_down\n"));
+}
+
 TEST_CASE("AppConfig reads the unread highlight setting [app_config]") {
     CHECK(with("").highlightUnread);  // unread rows stand out unless told not to
     CHECK(with("highlight_unread on\n").highlightUnread);

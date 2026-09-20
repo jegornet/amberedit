@@ -522,6 +522,45 @@ TEST_CASE("The area list marks the area under the cursor [arealist][marks]") {
     CHECK(drawnRow(3) == "  two               ");
 }
 
+TEST_CASE("Marking an area steps the cursor down under mark_moves_down "
+          "[arealist][marks]") {
+    Fixture fixture({passthroughArea("one"), passthroughArea("two"),
+                     passthroughArea("three")});
+    const auto mark = [&fixture] {
+        return area_list::handleEvent(fixture.state,
+                                      Event::Character("t", true, false, false));
+    };
+
+    // Mark, step, mark, step: a run of areas is picked out with the one key.
+    REQUIRE(mark());
+    CHECK(fixture.state.areaCursor == 1);
+    REQUIRE(mark());
+    CHECK(fixture.state.areaCursor == 2);
+    CHECK(fixture.state.areaMarks == std::set<std::string>{"one", "two"});
+
+    // The bottom row is where the stepping stops, and the mark is still made.
+    REQUIRE(mark());
+    CHECK(fixture.state.areaCursor == 2);
+    CHECK(fixture.state.areaMarked("three"));
+
+    // Taking a mark off steps as well, the key being one key.
+    fixture.state.areaCursor = 0;
+    REQUIRE(mark());
+    CHECK(fixture.state.areaCursor == 1);
+    CHECK_FALSE(fixture.state.areaMarked("one"));
+}
+
+TEST_CASE("mark_moves_down off leaves the cursor on the area it marked "
+          "[arealist][marks]") {
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.markMovesDown = false;
+
+    REQUIRE(area_list::handleEvent(fixture.state,
+                                   Event::Character("t", true, false, false)));
+    CHECK(fixture.state.areaCursor == 0);
+    CHECK(fixture.state.areaMarks == std::set<std::string>{"one"});
+}
+
 TEST_CASE("Marking an area is by tag, so the list may move under it "
           "[arealist][marks]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two"),

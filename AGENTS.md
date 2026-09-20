@@ -819,7 +819,10 @@ Rules that hold the design together:
   command here that leaves the quick search standing: marking picks rows out of
   what was searched for, and ending the query would put the rest of the list back
   under a cursor that has not moved. **Nothing acts on a marked area**: the mark
-  is shown and that is all it is for.
+  is shown and that is all it is for. Under `mark_moves_down` the cursor then
+  steps to the row below, through the same `moveBy()` the arrow keys use, so
+  that what it steps onto is the next row of the list as it is shown — filtered
+  and searched — and the bottom row is where it stops rather than wrapping.
 - **The mark is the `m` column of `arealist_format`**, a `>` where the area is
   marked and a blank where it is not, drawn in the theme's `mark` exactly as
   `msglist_format`'s `m` is — `area_format::Ink::Mark`, which the screen answers
@@ -1162,7 +1165,10 @@ Rules that hold the design together:
   the keys that move about — it is answered in `handleEvent()` beside the
   command, and it is the one place in AmberEdit where Space means something
   other than a page. `PgDn` still pages, so nothing was taken away. Both stand
-  ahead of the goto field's digits, exactly as the reader's commands do.
+  ahead of the goto field's digits, exactly as the reader's commands do. Both
+  step the cursor down afterwards under `mark_moves_down`, as the area list's
+  key does; the reader's `reader.mark_toggle` is not in it, having no row below
+  to step to.
 - **Which columns a narrow window goes without is `msglist_format`'s to say**,
   and no longer the screen's: the two formats are the setting, and
   `adaptive_ui_threshold` is the line between them. Only the table is concerned
