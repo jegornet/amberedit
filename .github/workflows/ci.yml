@@ -290,14 +290,22 @@ jobs:
       # wide-character mode this build asks for accepts only a header under
       # `ncursesw/` — and FreeBSD's base ncurses is wide and installs it as
       # plain `<curses.h>`, so the fallback fails on a system that has
-      # everything. Nothing else is installed: clang, ncursesw, zlib and the
-      # iconv in libc all come from the base system.
+      # everything. Otherwise the base system is what supplies clang, ncursesw
+      # and zlib.
+      #
+      # `libiconv` is the one package here that AmberEdit does not need and the
+      # job installs on purpose. It is on most FreeBSD machines, pulled in by
+      # half the ports tree, and it is the configuration that catches a wrong
+      # answer about iconv: its header renames every entry point, so a build
+      # that decided iconv was in libc and linked nothing fails at link rather
+      # than at configure. Covered deliberately and not left to whatever the
+      # runner image happens to carry.
       - name: Build and test in a FreeBSD VM
         uses: vmactions/freebsd-vm@v1
         with:
           release: ${{ matrix.release }}
           usesh: true
-          prepare: pkg install -y cmake gettext doctest expected pkgconf
+          prepare: pkg install -y cmake gettext doctest expected pkgconf libiconv
           run: |
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
             cmake --build build -j"$(sysctl -n hw.ncpu)"

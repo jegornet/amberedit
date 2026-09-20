@@ -210,22 +210,48 @@ endif()
 cmake_pop_check_state()
 
 # --- iconv -------------------------------------------------------------------
-# On glibc iconv lives in libc; on macOS/BSD it is a separate libiconv.
-include(CheckCXXSourceCompiles)
+# On glibc iconv lives in libc; on macOS and the BSDs it is a separate libiconv.
+# Two things settle which: where the header is, and whether libc alone links
+# what that header declares. The order they are asked in is the whole of it.
+#
+# Backwards — probe first, find the header afterwards — is how a hand-written
+# check and CMake's own FindIconv both get FreeBSD wrong, and wrong in the
+# direction that configures cleanly and fails at link. `converters/libiconv` is
+# on most FreeBSD machines, the ports tree wanting it for half of everything,
+# and its header stands in /usr/local/include renaming every entry point:
+# `#define iconv_open libiconv_open`. A probe compiling `<iconv.h>` with no
+# include path of its own reads the base system's header instead, says iconv is
+# in libc and links nothing — and the build then compiles the same source with
+# /usr/local/include ahead of it, because tl::expected and doctest live there,
+# takes the renaming header, and ends in undefined `libiconv_*` symbols on a
+# system carrying iconv twice over. FindIconv runs its own probe before its
+# find_path and answers "built in to C library" there, which is why the question
+# is asked here rather than handed to it.
+#
+# So: find_path first, which answers with the header the compiler will reach —
+# /usr/local stands ahead of /usr in CMAKE_SYSTEM_PREFIX_PATH exactly as it does
+# in the include path — and the probe is handed that directory, so what is
+# included and what is linked are one pair. The directory goes on the target
+# either way to keep them that way; CMake drops it from the command line again
+# where it is a directory the compiler searches of its own accord.
+find_path(ICONV_INCLUDE_DIR NAMES iconv.h REQUIRED)
+
+cmake_push_check_state()
+set(CMAKE_REQUIRED_INCLUDES ${ICONV_INCLUDE_DIR})
 check_cxx_source_compiles("
   #include <iconv.h>
   int main() { iconv_t c = iconv_open(\"UTF-8\", \"CP866\"); iconv_close(c); }
 " ICONV_IN_LIBC)
+cmake_pop_check_state()
 
 if(NOT ICONV_IN_LIBC)
   find_library(ICONV_LIBRARY NAMES iconv libiconv REQUIRED)
-  find_path(ICONV_INCLUDE_DIR NAMES iconv.h REQUIRED)
 endif()
 
 add_library(amberedit_iconv INTERFACE)
+target_include_directories(amberedit_iconv INTERFACE ${ICONV_INCLUDE_DIR})
 if(NOT ICONV_IN_LIBC)
   target_link_libraries(amberedit_iconv INTERFACE ${ICONV_LIBRARY})
-  target_include_directories(amberedit_iconv INTERFACE ${ICONV_INCLUDE_DIR})
 endif()
 
 # --- libintl -----------------------------------------------------------------
