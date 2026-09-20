@@ -88,10 +88,12 @@ private:
 /// name and takes the first character iconv refuses as the answer. False for a
 /// charset iconv does not know, there being nothing to promise about one.
 ///
-/// What "refuses" covers is the platform's iconv to decide: glibc will not put
-/// an em dash into CP866 and the libiconv macOS ships writes a hyphen for it
-/// without being asked. Neither writes a '?' for a character it can do nothing
-/// with, and that is the one this is asked about.
+/// What "refuses" covers is partly the platform's iconv to decide: glibc will
+/// not put an em dash into CP866 and the libiconv macOS ships writes a hyphen
+/// for it without being asked. What is not left to it is a character the charset
+/// can do nothing with — the descriptor is opened asking for those to be
+/// refused, since FreeBSD's iconv otherwise writes a replacement, answers with
+/// how many it wrote, and would have this say a Cyrillic message fits CP437.
 [[nodiscard]] bool fitsCharset(std::string_view utf8Text, const std::string& charset);
 
 /// True if the string is well-formed UTF-8. Used both to avoid recoding text

@@ -22,6 +22,33 @@ iconv_t asIconv(void* p) {
 
 constexpr const char kReplacement[] = "\xEF\xBF\xBD";  // U+FFFD
 
+/// Makes a descriptor answer EILSEQ for a character the target has no room for,
+/// which is what every conversion below is built on.
+///
+/// glibc does that on its own, and so does the libiconv macOS ships. FreeBSD's
+/// does not: it writes a replacement instead — a '?' for US-ASCII, and for CP437
+/// nothing whatever — swallows the character and answers with the number of
+/// characters it stood in for. A conversion that quietly lost text is then
+/// indistinguishable from one that succeeded: fitsCharset() says a Cyrillic
+/// message fits CP437, and intoCharset() hands back an empty body where the row
+/// of question marks should be.
+///
+/// ICONV_SET_ILSEQ_INVALID is the switch for exactly that. glibc has no
+/// iconvctl at all, so there the call is compiled out along with every other
+/// system whose header does not declare it; macOS declares it and answers
+/// EILSEQ with it or without, so this asks and changes nothing there.
+///
+/// It does not turn transliteration off: an em dash still comes out of a
+/// `//TRANSLIT` descriptor as a hyphen with this set.
+void refuseCharactersWithNoRoom(iconv_t cd) {
+#ifdef ICONV_SET_ILSEQ_INVALID
+    int refuse = 1;
+    iconvctl(cd, ICONV_SET_ILSEQ_INVALID, &refuse);
+#else
+    (void)cd;
+#endif
+}
+
 }  // namespace
 
 tl::expected<void, ErrorPtr> checkCharset(const std::string& charset) {
@@ -51,6 +78,7 @@ bool fitsCharset(std::string_view utf8Text, const std::string& charset) {
 
     const iconv_t cd = iconv_open(charset.c_str(), "UTF-8");
     if (cd == invalidDescriptor()) return false;
+    refuseCharactersWithNoRoom(cd);
 
     std::vector<char> buffer(4096);
     char* inPtr = const_cast<char*>(utf8Text.data());
@@ -158,6 +186,7 @@ tl::expected<void, ErrorPtr> IconvRecoder::ensureDescriptor(
     if (cd == invalidDescriptor()) {
         return failure("iconv does not know the charset '" + fromCharset + "'");
     }
+    refuseCharactersWithNoRoom(cd);
     descriptor_ = reinterpret_cast<void*>(cd);
     currentFrom_ = fromCharset;
     return {};
@@ -183,6 +212,7 @@ tl::expected<void, ErrorPtr> IconvRecoder::ensureOutDescriptor(
     if (cd == invalidDescriptor()) {
         return failure("iconv does not know the charset '" + toCharset + "'");
     }
+    refuseCharactersWithNoRoom(cd);
     outDescriptor_ = reinterpret_cast<void*>(cd);
     currentTo_ = toCharset;
     return {};

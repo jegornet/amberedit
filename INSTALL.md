@@ -19,7 +19,8 @@ There are no other dependencies.
 tl::expected and doctest are header-only and wanted only while building; the
 packages are `expected-devel` and `doctest-devel` on RHEL and Fedora,
 `libexpected-dev` and `doctest-dev` on Debian and Ubuntu, `tl-expected` and
-`doctest` in Arch's extra and in Homebrew.
+`doctest` in Arch's extra and in Homebrew, `expected` and `doctest` in FreeBSD's
+ports.
 
 gettext is two things here. Its `msgfmt` compiles `po/*.po` into the catalogs the
 interface is drawn from, and that half is wanted only while building — without it
@@ -96,6 +97,19 @@ sudo pacman -S --needed base-devel cmake git ncurses zlib tl-expected doctest \
                         gettext
 ```
 
+**FreeBSD** — as root:
+
+```bash
+pkg install cmake gettext doctest expected pkgconf git
+```
+
+`pkgconf` is not optional there. Without it CMake falls back on its own 
+`FindCurses`, which in the wide-character mode this build  asks for looks for 
+the header under `ncursesw/` — and FreeBSD's base ncurses is the wide one and
+installs it as plain `<curses.h>`, so the fallback fails on a system that has
+everything. With `pkgconf` there, the `ncursesw.pc` the base system ships
+answers and nothing has to be told where anything is.
+
 Then, on any of them:
 
 ```bash
@@ -113,8 +127,9 @@ Add `-DCMAKE_INSTALL_PREFIX=~/.local` to install without root.
 in the base glibc on RHEL 9 and later or on Fedora — the gconv modules for them
 were split into that package. Without it `iconv_open("CP866")` fails, every
 legacy-encoded message reads as mojibake, and three of the tests fail. The RPM
-depends on it; a build from source has no way to ask. Debian, Ubuntu, Arch and
-macOS all carry the full set.
+depends on it; a build from source has no way to ask. Debian, Ubuntu, Arch,
+macOS and FreeBSD all carry the full set — on FreeBSD the locales too, so
+`LANG=ru_RU.UTF-8 amberedit` is Russian there with nothing generated first.
 
 **Without doctest**, build with `-DAMBEREDIT_BUILD_TESTS=OFF`; nothing but the
 tests needs it, and on a small VPS they are by a wide margin the heaviest thing

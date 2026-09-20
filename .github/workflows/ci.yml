@@ -261,3 +261,44 @@ jobs:
       # is a binary nothing on the build host can run.
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  # FreeBSD, which GitHub has no runner for: this is an ubuntu runner with
+  # FreeBSD in a VM on it, and everything under `run:` below executes inside
+  # that VM, against the checkout the action syncs into it.
+  #
+  # Both branches FreeBSD supports at a time, because what this job is mostly
+  # asking is that the packages named below exist and carry what CMake looks
+  # for, and that is a question per branch.
+  #
+  # One architecture, which is the one exclusion here that is not a choice:
+  # there is no FreeBSD host anywhere on Actions, so the guest is emulated on a
+  # Linux one, and an aarch64 guest has no KVM under it — it runs on TCG, which
+  # is slower than this build is worth. What a second architecture would answer,
+  # plain `char` being unsigned there, the Linux and Windows arm64 jobs answer.
+  freebsd:
+    name: FreeBSD ${{ matrix.release }} (x86_64)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ["15.1", "14.5"]
+    steps:
+      - uses: actions/checkout@v4
+
+      # `pkgconf` is not optional here, unlike pkg-config on the Linux jobs:
+      # without it CMake falls back on its own FindCurses, which in the
+      # wide-character mode this build asks for accepts only a header under
+      # `ncursesw/` — and FreeBSD's base ncurses is wide and installs it as
+      # plain `<curses.h>`, so the fallback fails on a system that has
+      # everything. Nothing else is installed: clang, ncursesw, zlib and the
+      # iconv in libc all come from the base system.
+      - name: Build and test in a FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: ${{ matrix.release }}
+          usesh: true
+          prepare: pkg install -y cmake gettext doctest expected pkgconf
+          run: |
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build -j"$(sysctl -n hw.ncpu)"
+            ctest --test-dir build --output-on-failure
