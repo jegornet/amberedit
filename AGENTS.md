@@ -620,6 +620,12 @@ Rules that hold the design together:
     out of a quote and taken off a copy with the pair it belongs to, while
     `closeMessage()` spoils a stray tearline or origin and never touches a line
     that merely looks like a tagline.
+  - **A blank line under the text is padding only while nothing stands under
+    it.** `closeMessage()` takes the trailing blanks off to decide whether the
+    message is closed already — a tearline and an origin with blank rows below
+    them still close it — and puts them back when it writes a block of its own.
+    The empty line a template leaves after its sign-off is that gap, and
+    dropping it would stand the writer's name against the tearline.
   - **A tagline is written only where the config asks for one.** `tagline` is
     empty by default and then no such line is added, which is where it parts
     company with the other two: FTS-0004 wants the tearline and the origin

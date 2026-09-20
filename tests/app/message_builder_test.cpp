@@ -752,6 +752,49 @@ TEST_CASE("The editor opens with the message already closed [builder]") {
     CHECK(text.cursorLine == 0);
 }
 
+TEST_CASE("The blank line a template signs off with stands [builder]") {
+    // The shape default.tpl ends in: a sign-off, then an empty line. A name
+    // standing against the tearline is not what the template asked for, so the
+    // gap is not read as padding — the block goes under it.
+    const TempFile tpl("Hello @tname.\n@position\n@cfname\n\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+
+    const auto text = startingText(request);
+    REQUIRE(text.lines.size() == 6);
+    CHECK(text.lines[0] == "Hello Vasya Pupkin.");
+    CHECK(text.lines[1].empty());  // @position, which is where the typing starts
+    CHECK(text.lines[2] == "Yegor");
+    CHECK(text.lines[3].empty());
+    CHECK(text.lines[4] == kTearline);
+    CHECK(text.lines[5] == kOrigin);
+    CHECK(text.cursorLine == 1);
+
+    // And it is still there when the message is stored: what was on the screen
+    // is what goes into the base.
+    CHECK(textOf(buildDraft(request, text.lines)) ==
+          "Hello Vasya Pupkin.||Yegor||" + kClosing);
+}
+
+TEST_CASE("Blank lines under the closing block are padding [builder]") {
+    const AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    const BuildRequest request = echoRequest(cfg, area, fields);
+
+    // Nothing stands under them, so there is nothing for them to be a gap
+    // between: a message is stored without the blank rows left under the
+    // signature.
+    CHECK(textOf(buildDraft(request, {"hello", kTearline, kOrigin, "", "   "})) ==
+          "hello|" + kClosing);
+}
+
 TEST_CASE("A tagline is written only where the config asks for one [builder]") {
     AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);

@@ -100,10 +100,16 @@ std::vector<std::string> closeMessage(std::vector<std::string> lines,
                                       const std::string& tagline,
                                       const std::string& tearline,
                                       const std::string& origin, bool footer) {
-    // Blank lines at the end are padding. Dropping them first is also what
-    // lets a tearline and origin followed by nothing but blanks still count as
-    // closing the message.
-    while (!lines.empty() && isBlank(lines.back())) lines.pop_back();
+    // A blank line at the end of the message is padding, and taking it off is
+    // also what lets a tearline and origin followed by nothing but blanks still
+    // count as closing the message. It is held rather than dropped, because
+    // whether it is padding at all is settled below: once a block is written
+    // under it, it is no longer the end of anything.
+    std::vector<std::string> gap;
+    while (!lines.empty() && isBlank(lines.back())) {
+        gap.push_back(std::move(lines.back()));
+        lines.pop_back();
+    }
     if (!footer) return lines;
 
     const size_t count = lines.size();
@@ -130,6 +136,13 @@ std::vector<std::string> closeMessage(std::vector<std::string> lines,
         } else if (domain::isOriginLine(line)) {
             line = " + Origin:" + line.substr(std::string_view(" * Origin:").size());
         }
+    }
+    // And the blank lines go back, in the order they stood in: with the block
+    // written under them they are not padding but the gap between the message
+    // and the signature — the empty line a template leaves after its sign-off,
+    // which is what keeps a name from standing against the tearline.
+    for (auto it = gap.rbegin(); it != gap.rend(); ++it) {
+        lines.push_back(std::move(*it));
     }
     if (!tagline.empty()) lines.push_back(tagline);
     lines.push_back(tearline);
