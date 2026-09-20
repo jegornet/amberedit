@@ -36,6 +36,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Catch up"), N_("Mark the area read"), "✓", "Alt-C", true},
     {Command::MessageListMarkToggle, "msglist.mark_toggle", CommandScreen::MessageList,
      N_("Mark"), N_("Mark the message, or take the mark off"), "", "Ctrl-T", false},
+    {Command::MessageListDelete, "msglist.delete", CommandScreen::MessageList,
+     N_("Delete"), N_("Delete the message"), "", "d Del", false},
     {Command::ReaderReply, "reader.reply", CommandScreen::Reader, N_("Reply"),
      N_("Reply in this area"), "↩", "q F4", true},
     {Command::ReaderReplyElsewhere, "reader.reply_elsewhere", CommandScreen::Reader,

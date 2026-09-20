@@ -668,3 +668,60 @@ TEST_CASE("The export scope answered Current writes the one message [marks]") {
     CHECK_MESSAGE(contains(written, sixth), written);
     CHECK_FALSE_MESSAGE(contains(written, fifth), written);
 }
+
+TEST_CASE("The list asks which messages once anything is marked [marks][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    enter(fixture);
+    REQUIRE(fixture.state.messageCount > 4);
+    fixture.state.messageCursor = 3;
+
+    SUBCASE("with nothing marked it is the ordinary yes or no") {
+        REQUIRE(message_list::handleEvent(fixture.state, Event::Character('d')));
+        CHECK_FALSE(fixture.state.scopePicker);
+        CHECK(fixture.state.confirm == amberedit::ui::AppState::Confirm::DeleteMessage);
+    }
+    SUBCASE("with a set standing it is the same box the reader puts up") {
+        marks::toggle(fixture.state, 1);
+        marks::toggle(fixture.state, 2);
+        REQUIRE(message_list::handleEvent(fixture.state, Event::Character('d')));
+        REQUIRE(fixture.state.scopePicker);
+        CHECK(fixture.state.confirm == amberedit::ui::AppState::Confirm::None);
+        CHECK(fixture.state.scopePicker->purpose ==
+              amberedit::ui::AppState::ScopePicker::For::Delete);
+        CHECK(fixture.state.scopePicker->of ==
+              amberedit::ui::AppState::ScopePicker::Of::Messages);
+        CHECK(fixture.state.scopePicker->marked == 2);
+    }
+}
+
+TEST_CASE("Deleting a marked run from the list moves both screens [marks][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    enter(fixture);
+    const auto total = fixture.state.messageCount;
+    REQUIRE(total > 7);
+
+    // The reader is on the first message, the cursor is inside the run about to
+    // go, and the message in front of the run is what the cursor comes back on.
+    const std::string reading = fixture.state.base->header(1).subject;
+    const std::string before = fixture.state.base->header(3).subject;
+    message_read::goToMessage(fixture.state, 1);
+    fixture.state.messageCursor = 4;
+    marks::toggle(fixture.state, 4);
+    marks::toggle(fixture.state, 5);
+    marks::toggle(fixture.state, 6);
+
+    message_list::deleteMarked(fixture.state);
+
+    CHECK(fixture.state.messageCount == total - 3);
+    // Nothing at or before the cursor's own message survived the run, so it
+    // comes back on the message in front of it.
+    CHECK(fixture.state.messageCursor == 2);
+    CHECK(fixture.state.base->header(3).subject == before);
+    // And the reader is still on its own message, which stood above the run.
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 1);
+    CHECK(fixture.state.readHeader->subject == reading);
+    CHECK(fixture.state.marks.empty());
+}

@@ -82,7 +82,11 @@ const char* question(For purpose) {
 }
 
 void open(AppState& state, For purpose) {
-    if (state.base == nullptr || !state.readHeader) return;
+    // An area with nothing in it is the one case with nothing to ask about:
+    // neither Marked nor Current names a message there. What Current *does* name
+    // is the screen behind the box — the message in the reader, or the row under
+    // the message list's cursor — and the shell is where that is told apart.
+    if (state.base == nullptr || state.messageCount == 0) return;
     state.scopePicker =
         pickerFor(purpose, AppState::ScopePicker::Of::Messages, state.marks.size());
 }

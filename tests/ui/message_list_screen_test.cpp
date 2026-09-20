@@ -9,6 +9,7 @@
 #include "msgbase/ftn_msgbase.hpp"
 #include "temp_squish_base.hpp"
 #include "ui/area_fixture.hpp"
+#include "ui/mark_dialog.hpp"
 #include "ui/screens/message_list_screen.hpp"
 #include "ui/screens/message_read_screen.hpp"
 #include "ui/term/element.hpp"
@@ -21,6 +22,7 @@ using amberedit::test::TempSquishBase;
 using amberedit::test::uidAt;
 using amberedit::ui::term::Event;
 
+namespace mark_dialog = amberedit::ui::mark_dialog;
 namespace message_list = amberedit::ui::screens::message_list;
 namespace message_read = amberedit::ui::screens::message_read;
 namespace term = amberedit::ui::term;
@@ -1104,4 +1106,127 @@ TEST_CASE("Leaving an area counts what it holds now [messagelist][squish]") {
     // of the area — the delivered message included — stands unread.
     CHECK(fixture.total() == startedWith + 1);
     CHECK(fixture.manager.areas()[0].unread == startedWith);
+}
+
+TEST_CASE("d and Del in the list ask before deleting [messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    fixture.state.width = 100;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const uint32_t total = fixture.state.messageCount;
+
+    // The same two keys the reader deletes with, and the same question: the
+    // base has no way back from it, and both keys sit among ones that only
+    // move about.
+    SUBCASE("d") {
+        REQUIRE(message_list::handleEvent(fixture.state, Event::Character('d')));
+    }
+    SUBCASE("Del") {
+        REQUIRE(message_list::handleEvent(fixture.state, Event::Delete));
+    }
+    CHECK(fixture.state.confirm == amberedit::ui::AppState::Confirm::DeleteMessage);
+    CHECK(fixture.state.confirmChoice == amberedit::ui::AppState::ConfirmChoice::Yes);
+    // Asked, and nothing done: the answer is what deletes.
+    CHECK(fixture.state.messageCount == total);
+}
+
+TEST_CASE("Deleting from the list takes the row under the cursor "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    fixture.state.width = 100;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const uint32_t total = fixture.state.messageCount;
+    REQUIRE(total > 5);
+
+    // The reader is on the first message and the cursor is three rows down it,
+    // which is the case the list exists for: the row deleted is not the message
+    // waiting underneath.
+    message_read::goToMessage(fixture.state, 1);
+    fixture.state.messageCursor = 3;
+    const std::string deleted = fixture.state.base->header(4).subject;
+    const std::string after = fixture.state.base->header(5).subject;
+    const std::string reading = fixture.state.readHeader->subject;
+
+    message_list::deleteCurrent(fixture.state);
+
+    CHECK(fixture.state.messageCount == total - 1);
+    // The cursor stayed where it was, which is now what followed the deleted
+    // message.
+    CHECK(fixture.state.messageCursor == 3);
+    CHECK(fixture.state.base->header(4).subject == after);
+    CHECK(fixture.state.base->header(4).subject != deleted);
+    // And the reader is still on its own message, untouched by any of it.
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 1);
+    CHECK(fixture.state.readHeader->subject == reading);
+}
+
+TEST_CASE("A row deleted above the reader renumbers it under it "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    fixture.state.width = 100;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCount > 6);
+
+    message_read::goToMessage(fixture.state, 5);
+    const std::string reading = fixture.state.readHeader->subject;
+    fixture.state.messageCursor = 1;
+
+    message_list::deleteCurrent(fixture.state);
+
+    // The same message, one number lower: everything after the deleted row
+    // moved up, and a header left standing would name somebody else's message.
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 4);
+    CHECK(fixture.state.readHeader->subject == reading);
+}
+
+TEST_CASE("Deleting the last row of the list steps the cursor back "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    fixture.state.width = 100;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const uint32_t total = fixture.state.messageCount;
+    REQUIRE(total > 2);
+
+    fixture.state.messageCursor = static_cast<int>(total) - 1;
+    const std::string before = fixture.state.base->header(total - 1).subject;
+
+    message_list::deleteCurrent(fixture.state);
+
+    // Nothing followed it, so the one in front of it is where the cursor lands.
+    CHECK(fixture.state.messageCount == total - 1);
+    CHECK(fixture.state.messageCursor == static_cast<int>(total) - 2);
+    CHECK(fixture.state.base->header(fixture.state.messageCount).subject == before);
+}
+
+TEST_CASE("Deleting from the list scrolls it back onto the area "
+          "[messagelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.state.height = 24;
+    fixture.state.width = 100;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    const uint32_t total = fixture.state.messageCount;
+    REQUIRE(total > 2);
+
+    // Every message in the area, taken out at once: what is left is nothing to
+    // scroll to, and a window left where it was would draw rows of nothing.
+    fixture.state.messageCursor = static_cast<int>(total) - 1;
+    message_list::centerCursor(fixture.state);
+    mark_dialog::apply(fixture.state, amberedit::ui::AppState::MarkPicker::Action::All);
+
+    message_list::deleteMarked(fixture.state);
+
+    CHECK(fixture.state.messageCount == 0);
+    CHECK(fixture.state.messageCursor == 0);
+    CHECK(fixture.state.messageOffset == 0);
+    CHECK(fixture.state.marks.empty());
 }

@@ -1159,16 +1159,35 @@ Rules that hold the design together:
   painting such a row unread would leave nothing saying it is still sitting
   there. `highlight_unread` turns the unread rule off and nothing else.
 - **`Ctrl-T` and Space mark the message under the cursor**, through
-  `marks::toggle()`, and they are the whole of what this screen answers besides
-  moving about in the area. `msglist.mark_toggle` is the command and the only
-  one the message list has; **Space is not bound and cannot be**, being one of
-  the keys that move about — it is answered in `handleEvent()` beside the
-  command, and it is the one place in AmberEdit where Space means something
+  `marks::toggle()`. `msglist.mark_toggle` is the command; **Space is not bound
+  and cannot be**, being one of the keys that move about — it is answered in
+  `handleEvent()` beside the command, and it is the one place in AmberEdit where Space means something
   other than a page. `PgDn` still pages, so nothing was taken away. Both stand
   ahead of the goto field's digits, exactly as the reader's commands do. Both
   step the cursor down afterwards under `mark_moves_down`, as the area list's
   key does; the reader's `reader.mark_toggle` is not in it, having no row below
   to step to.
+- **`d` and `Del` delete the row under the cursor**, on the keys `reader.delete`
+  is on and asking exactly what it asks: `msglist.delete` is the command,
+  the yes/no confirmation stands in front of it with nothing marked, and
+  `ui/scope_dialog.*` asks which messages are meant once anything is. Those two
+  commands are the whole of what this screen answers besides moving about in the
+  area. The key stands ahead of the goto field's digits like the marking one, so
+  a layout that binds a digit to either keeps the digit.
+- **Which message a `d` means is the screen it was pressed on.** The list sits on
+  top of the reader and the two are usually not on the same message, so the
+  shell's `deleteCurrentMessage()` asks the navigator which screen is still up —
+  a box pushes no screen of its own — and `message_list::deleteCurrent()` or
+  `message_read::deleteMessage()` answers. **Both screens are put back where they
+  were** whichever deleted: `message_read::deleteMessageAt()` holds the UID the
+  reader stood on and the UID the cursor stood on, and after the sweep each is
+  looked up again — the one standing on the deleted message carries on from what
+  followed it, and one standing anywhere else stays on its own message under
+  whatever number that message has now. The reader is loaded again either way,
+  a header left standing over a renumbered area naming somebody else's message.
+  The list's own two entry points are thin: they delegate and then `clampCursor()`
+  and `ensureHeaders()`, the area being shorter than the scrolling position was
+  worked out against.
 - **Which columns a narrow window goes without is `msglist_format`'s to say**,
   and no longer the screen's: the two formats are the setting, and
   `adaptive_ui_threshold` is the line between them. Only the table is concerned
@@ -1552,12 +1571,16 @@ screens showing an area draw what the set holds.
   question — Marked, Current, Cancel, with the count under it because what
   follows an answer is not undoable and the marks are spread down a list that
   does not fit on the screen — and three keys raise it in the reader, a fourth
-  in the area list. **`ScopePicker::of` says which set the box is about**:
-  `Messages` counts `AppState::marks` and the reader stands behind it,
-  `Areas` counts `AppState::areaMarks` and the area list does — one box, two
+  in the message list and a fifth in the area list. **`ScopePicker::of` says
+  which set the box is about**: `Messages` counts `AppState::marks` and the
+  reader or the message list stands behind it, `Areas` counts
+  `AppState::areaMarks` and the area list does — one box, two
   sets, and the count line is the only line that differs.
-  `scope_dialog::openForAreas()` is the area list's way in, and it asks for no
-  message on screen the way `open()` does. With nothing marked none
+  `scope_dialog::openForAreas()` is the area list's way in, and it counts areas
+  rather than messages; `open()` is both the reader's and the message list's, and
+  asks only that the area hold something — **which message `Current` names is the
+  screen behind the box**, the one in the reader or the row under the list's
+  cursor, and the shell is where the two are told apart. With nothing marked none
   of them is ambiguous and the box is never opened: `d` asks its yes/no
   confirmation, and `m` and `w` put their own boxes up as they always have.
   `Cancel` carries no letter for the same reason `Marked` and `Current` do carry
@@ -1608,10 +1631,12 @@ screens showing an area draw what the set holds.
   originals that are still marked.
 - **`removeUids()` sweeps backwards**, exactly as `killTwits()` does and for the
   same reason: taking a message out moves the number of every message after it.
-  Where the reader lands is worked out from the UID it stood on, taken *before*
-  the sweep — `indexOfUid()` answers with the nearest earlier survivor, so a
-  reader standing inside the run comes back on the message in front of it, and a
-  run off the top of the area leaves it on the first message left. Both
+  Where each screen lands is worked out from the UID it stood on, taken *before*
+  the sweep — the reader's and the message list cursor's, which are two
+  messages and not one whenever the list is the screen that asked. `survivorOf()`
+  answers with the nearest earlier survivor, so a screen standing inside the run
+  comes back on the message in front of it, and a run off the top of the area
+  leaves it on the first message left. Both
   `deleteMarked()` and a Move answered for a set end here, which is what keeps
   the two agreeing on where reading carries on from. `deleteMarked()` empties the
   set before the sweep and whether or not the base takes the deletions: what it
@@ -1620,11 +1645,12 @@ screens showing an area draw what the set holds.
 - Neither mark command is in the default menu or the default hint row — marking
   is a key one presses while reading and not a button one goes looking for — but
   both may be written into `reader_menu` and any of the hint lists, so both carry
-  a glyph and `inMenu`. `msglist.mark_toggle` is the message list's first and
-  only command, and the screen has no menu button to offer it in. A name after
-  the dot may stand on two screens — `mark_toggle` is the area list's, the
-  message list's and the reader's — and which command it names is decided by the
-  list it was written in, so `arealist_menu mark_toggle` is
+  a glyph and `inMenu`. `msglist.mark_toggle` and `msglist.delete` are the
+  message list's two commands, neither carries a glyph, and the screen has no
+  menu button to offer either in. A name after the dot may stand on two screens
+  — `mark_toggle` is the area list's, the message list's and the reader's, and
+  `delete` is the message list's and the reader's — and which command it names is
+  decided by the list it was written in, so `arealist_menu mark_toggle` is
   `arealist.mark_toggle` and can be nothing else.
 
 ### Finding a message

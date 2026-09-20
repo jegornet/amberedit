@@ -31,6 +31,7 @@ left unbound is not in it at all.
 | `Home`, `End` | first, last |
 | `Enter`, `→`, click | open the message |
 | `Ctrl-T`, `Space` | mark the message under the cursor, or take the mark off it, and step down to the next one (`mark_moves_down off` disables the latter) |
+| `d`, `Del` | delete the message under the cursor, after asking; with messages marked, asks whether you mean those or this one |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` opens that message — or puts the cursor on its row with `msglist_goto_field_opens off` — `Backspace` edits it, `Esc` closes it |
 | `Esc` `←` `Backspace` | back to the area list |
 

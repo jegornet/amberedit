@@ -107,9 +107,22 @@ bool findMessage(AppState& state, const std::string& query, app::SearchScope sco
 /// last, and blank rows where it was the only one.
 void deleteMessage(AppState& state);
 
+/// The same for a message named by its number rather than by being the one on
+/// screen — what `msglist.delete` takes out, the cursor there standing on a row
+/// the reader underneath is usually not on.
+///
+/// **Both screens are put back where they were**: whichever of them stood on the
+/// deleted message carries on from what followed it, and one standing anywhere
+/// else stays on its own message, under whatever number that message has now.
+/// The reader is loaded again either way — what it is showing has been
+/// renumbered under it, and a header left standing would name somebody else's
+/// message.
+void deleteMessageAt(AppState& state, uint32_t number);
+
 /// Takes every marked message out of the base — the Marked answer to the box
-/// `reader.delete` puts up while anything is marked — and leaves the reader on
-/// the message it was showing, or on the nearest one before it where that was
+/// `reader.delete` and `msglist.delete` put up while anything is marked — and
+/// leaves the reader on the message it was showing and the message list's cursor
+/// on the row it was on, or each on the nearest one before it where that was
 /// among them. The marks go with the messages: there is nothing left for them to
 /// name.
 ///

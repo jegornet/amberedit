@@ -29,6 +29,22 @@ void ensureHeaders(AppState& state);
 /// as it draws.
 void ensureHeaders(AppState& state, int first, int count);
 
+/// Takes the message under the cursor out of the base — the answer to what
+/// `msglist.delete` asks, and the message list's half of what `reader.delete`
+/// does in the reader. The cursor lands on what followed it, the one before it
+/// where it was the last, and the list empties where it was the only one.
+///
+/// The reader underneath is put back on its own message, renumbered: it is
+/// usually not the row that was deleted, and going back to it must not land on
+/// somebody else's message.
+void deleteCurrent(AppState& state);
+
+/// Takes every marked message out — the Marked answer to the box
+/// `msglist.delete` puts up while anything is marked. `message_read::deleteMarked()`
+/// does the deleting, this being where the list is scrolled back to somewhere it
+/// has rows to draw.
+void deleteMarked(AppState& state);
+
 /// Puts the current message about halfway down the list rather than wherever
 /// the previous scrolling position leaves it. For the moments the list is
 /// arrived at rather than moved about in — opening an area, and bringing the

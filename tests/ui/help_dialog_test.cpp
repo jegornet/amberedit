@@ -123,14 +123,17 @@ TEST_CASE("Each screen's box holds that screen's keys [help]") {
     CHECK(rowWith(composeRows, "Save the message").find("Ctrl-S, F2") !=
           std::string::npos);
 
-    // The message list binds one command of its own, and the box opens there
-    // like anywhere else — with that one and the two answered everywhere.
+    // The message list binds two commands of its own, and the box opens there
+    // like anywhere else — with those and the two answered everywhere.
     Fixture list(ScreenId::MessageList);
     help_dialog::open(list.state);
     const std::vector<std::string> listRows = rowsOf(list.state);
     CHECK(anyRowHas(listRows, "Message list keys"));
     CHECK(rowWith(listRows, "Mark the message, or take the mark off").find("t") !=
           std::string::npos);
+    // Deleting is the message list's as well as the reader's, and the box shows
+    // the screen's own: the keys beside it are the ones pressed here.
+    CHECK(rowWith(listRows, "Delete the message").find("d, Del") != std::string::npos);
     CHECK(anyRowHas(listRows, "Leave AmberEdit"));
 }
 

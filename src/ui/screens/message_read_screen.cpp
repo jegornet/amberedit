@@ -1090,37 +1090,98 @@ bool findMessage(AppState& state, const std::string& query, app::SearchScope sco
     return false;
 }
 
-void deleteMessage(AppState& state) {
-    if (state.base == nullptr || !state.readHeader) return;
+namespace {
 
-    const uint32_t number = state.readHeader->number;
-    if (!state.base->remove(number)) return;
+/// Where a screen carries on from once messages have been taken out: the number
+/// the one it stood on has now, or the nearest survivor before it where that one
+/// was among them. Zero — nothing to hold onto — is the top of the area, which
+/// is what is left when the whole run above it went.
+///
+/// The area is known to hold something: an emptied one is answered before
+/// either screen is put anywhere.
+uint32_t survivorOf(const AppState& state, uint32_t uid) {
+    const uint32_t at = uid == 0 ? 0 : state.base->indexOfUid(uid);
+    return at == 0 ? 1 : at;
+}
 
-    // The area is one message shorter, and the area list is counting the old
-    // number until it is told to look again.
+/// The UID of the message the reader is showing, and the UID of the one the
+/// message list's cursor is on — taken **before** anything is removed, those
+/// being the only things that outlive a renumbering.
+///
+/// Two of them and not one because the two screens need not be on the same
+/// message: the list sits on top of the reader, and a row deleted there is
+/// usually not the message waiting underneath. In the reader the two are the
+/// same message and the pair says so.
+uint32_t readerUidOf(const AppState& state) {
+    if (state.base == nullptr || !state.readHeader) return 0;
+    return state.base->uidOf(state.readHeader->number);
+}
+
+uint32_t cursorUidOf(const AppState& state) {
+    const auto number = static_cast<uint32_t>(state.messageCursor + 1);
+    if (state.base == nullptr || state.messageCursor < 0 || number == 0 ||
+        number > state.messageCount) {
+        return 0;
+    }
+    return state.base->uidOf(number);
+}
+
+/// What every deletion leaves behind: the area counted again and the list's
+/// window of headers thrown away, since the numbers it holds are somebody
+/// else's now. true where the area still holds something — an emptied one has
+/// been answered here and there is nowhere left to put either screen.
+bool afterRemoving(AppState& state) {
+    // The area is shorter, and the area list is counting the old number until
+    // it is told to look again.
     state.manager.refreshArea(state.currentArea);
     state.messageCount = state.base->count();
     state.headers.clear();
     state.headersStart = 0;
 
-    if (state.messageCount == 0) {
-        // That was the last of them. The reader stays where it is, on blank
-        // rows — the screen a first message is written from.
-        showEmptyArea(state);
-        return;
-    }
+    if (state.messageCount != 0) return true;
+    // That was the last of them. The reader stays where it is, on blank rows —
+    // the screen a first message is written from.
+    showEmptyArea(state);
+    return false;
+}
+
+}  // namespace
+
+void deleteMessageAt(AppState& state, uint32_t number) {
+    if (state.base == nullptr || number == 0 || number > state.messageCount) return;
+
+    // All three taken before the base is touched: afterwards the number that
+    // named a message names whatever moved up into its place.
+    const uint32_t gone = state.base->uidOf(number);
+    const uint32_t reader = readerUidOf(state);
+    const uint32_t cursor = cursorUidOf(state);
+    if (!state.base->remove(number)) return;
+    if (!afterRemoving(state)) return;
 
     // Everything after it moved up one, so the number that named it now names
-    // what followed it — except at the end of the area, where nothing did.
-    const uint32_t next = std::min(number, state.messageCount);
-    state.messageCursor = static_cast<int>(next) - 1;
-    loadMessage(state, next);
+    // what followed it — except at the end of the area, where nothing did. That
+    // is where a screen standing on the deleted message carries on from; one
+    // standing anywhere else stays on the message it was on, under whatever
+    // number that message has now.
+    const uint32_t after = std::min(number, state.messageCount);
+    const uint32_t nextCursor =
+        cursor == 0 || cursor == gone ? after : survivorOf(state, cursor);
+    const uint32_t nextReader =
+        reader == 0 || reader == gone ? after : survivorOf(state, reader);
+    state.messageCursor = static_cast<int>(nextCursor) - 1;
+    loadMessage(state, nextReader);
+}
+
+void deleteMessage(AppState& state) {
+    if (!state.readHeader) return;
+    deleteMessageAt(state, state.readHeader->number);
 }
 
 namespace {
 
 /// Takes a run of messages, named by UID, out of the base and leaves the reader
-/// on the nearest survivor at or before where it stood.
+/// and the message list's cursor each on the nearest survivor at or before where
+/// it stood.
 ///
 /// Backwards through the area, for the reason `killTwits()` sweeps backwards:
 /// taking a message out moves the number of every message after it, and a sweep
@@ -1132,12 +1193,11 @@ namespace {
 void removeUids(AppState& state, const std::set<uint32_t>& uids) {
     if (state.base == nullptr || uids.empty()) return;
 
-    // Where the reader stands, as the thing that outlives a renumbering. The
-    // message it names may itself be one of the run, and then `indexOfUid()`
-    // answers with the nearest earlier survivor — which is where reading carries
-    // on from.
-    const uint32_t here =
-        state.readHeader ? state.base->uidOf(state.readHeader->number) : 0;
+    // Where each screen stands, as the thing that outlives a renumbering. Either
+    // may itself name one of the run, and then `survivorOf()` answers with the
+    // nearest earlier one — which is where that screen carries on from.
+    const uint32_t reader = readerUidOf(state);
+    const uint32_t cursor = cursorUidOf(state);
 
     bool removed = false;
     for (uint32_t number = state.base->count(); number >= 1; --number) {
@@ -1145,27 +1205,10 @@ void removeUids(AppState& state, const std::set<uint32_t>& uids) {
         removed = state.base->remove(number).has_value() || removed;
     }
     if (!removed) return;
+    if (!afterRemoving(state)) return;
 
-    // The area is shorter, and the area list is counting the old number until
-    // it is told to look again.
-    state.manager.refreshArea(state.currentArea);
-    state.messageCount = state.base->count();
-    state.headers.clear();
-    state.headersStart = 0;
-
-    if (state.messageCount == 0) {
-        // That was the last of them. The reader stays where it is, on blank
-        // rows — the screen a first message is written from.
-        showEmptyArea(state);
-        return;
-    }
-
-    const uint32_t at = here == 0 ? 0 : state.base->indexOfUid(here);
-    // Nothing at or before it survived, which is the whole run from the top
-    // having gone: the area now begins at what used to follow them.
-    const uint32_t next = at == 0 ? 1 : at;
-    state.messageCursor = static_cast<int>(next) - 1;
-    loadMessage(state, next);
+    state.messageCursor = static_cast<int>(survivorOf(state, cursor)) - 1;
+    loadMessage(state, survivorOf(state, reader));
 }
 
 }  // namespace

@@ -19,6 +19,12 @@
 /// else about the box is the same whichever asked, which is what makes it one
 /// box and not three.
 ///
+/// **The message list asks it for `d` as well**, on the same keys, and there
+/// Current is the row under the cursor rather than the message in the reader —
+/// the list sits on top of the reader and the two are usually not on the same
+/// message. The box does not know the difference: the shell asks which screen is
+/// still up and deletes what that one was standing on.
+///
 /// **The area list asks it too**, and there the marked set is areas rather than
 /// messages: `arealist.catch_up` puts it up where anything in the list is
 /// marked, Current is the area under the cursor, and the count line says areas.
@@ -38,8 +44,9 @@ enum class Outcome {
     Dismissed,  ///< the box is gone and nothing is to be done
 };
 
-/// Puts it up over the reader, on the marks as they stand. Does nothing where
-/// there is no message on screen: neither key has anything to ask about then.
+/// Puts it up over the reader or over the message list, on the marks as they
+/// stand. Does nothing where the area holds no message: neither answer names one
+/// then, so there is nothing to ask about.
 void open(AppState& state, AppState::ScopePicker::For purpose);
 
 /// The same box over the area list, counting the areas marked rather than the

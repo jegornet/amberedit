@@ -89,6 +89,32 @@ std::string eventName(const Event& event) {
     return spellingOf(event);
 }
 
+/// Deleting the one message the answer meant — the row under the message list's
+/// cursor where that screen asked, and the message in the reader where it did.
+///
+/// Both questions end here, the yes/no confirmation and the scope box's Current,
+/// so the two cannot disagree about which message a `d` meant. Which screen
+/// asked is the screen that is still up: a box is modal over whatever opened it
+/// and pushes nothing of its own.
+void deleteCurrentMessage(AppState& state) {
+    if (state.navigator.current() == app::ScreenId::MessageList) {
+        screens::message_list::deleteCurrent(state);
+    } else {
+        screens::message_read::deleteMessage(state);
+    }
+}
+
+/// The same for the marked set. The messages are the area's either way and the
+/// deleting is one function; what differs is only the screen left standing after
+/// it, which is why the list has a way in of its own.
+void deleteMarkedMessages(AppState& state) {
+    if (state.navigator.current() == app::ScreenId::MessageList) {
+        screens::message_list::deleteMarked(state);
+    } else {
+        screens::message_read::deleteMarked(state);
+    }
+}
+
 /// The whole interface, as one tree of boxes, for whichever screen is up.
 ///
 /// Rendering touches the message base — loading headers, re-wrapping a body — so
@@ -598,9 +624,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 case AppState::Confirm::DropMessage:
                     screens::compose::dropMessage(state);
                     break;
-                case AppState::Confirm::DeleteMessage:
-                    screens::message_read::deleteMessage(state);
-                    break;
+                case AppState::Confirm::DeleteMessage: deleteCurrentMessage(state); break;
                 // Which of the two was asked is also what the message gets:
                 // the template's notice at the head of it where it is somebody
                 // else's, and nothing at all where it is the user's own.
@@ -640,8 +664,8 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                         break;
                     // The message list carries no menu button, so it cannot be
                     // the screen a menu was opened from: marking the message
-                    // under the cursor is its one command, and one button is no
-                    // menu.
+                    // under the cursor and deleting it are the whole of what it
+                    // does, and neither is something a button stands for.
                     case app::ScreenId::MessageList: break;
                 }
             }
@@ -906,9 +930,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                     switch (purpose) {
                         case AppState::ScopePicker::For::Delete:
                             if (marked) {
-                                screens::message_read::deleteMarked(state);
+                                deleteMarkedMessages(state);
                             } else {
-                                screens::message_read::deleteMessage(state);
+                                deleteCurrentMessage(state);
                             }
                             break;
                         case AppState::ScopePicker::For::Forward:

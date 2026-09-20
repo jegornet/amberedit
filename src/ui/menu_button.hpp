@@ -21,8 +21,9 @@
 /// rather than from each screen's own glyphs, so the hit test cannot drift away
 /// from what is on the screen.
 ///
-/// The message list has no such corner: marking the message under the cursor is
-/// its one command, and one button is no menu.
+/// The message list has no such corner: marking the message under the cursor and
+/// deleting it are the whole of what it does, and two commands are no menu —
+/// neither carries a glyph, and `msglist_hints` is where either is named.
 namespace amberedit::ui::menu_button {
 
 /// The label, with the padding around it inside the box. The three bars rather

@@ -1495,10 +1495,14 @@ struct AppState {
     /// screen underneath.
     enum class Confirm {
         None,
-        Quit,           ///< leaving the area list, and so AmberEdit
-        SaveMessage,    ///< storing what the editor holds
-        DropMessage,    ///< leaving the editor without storing it
-        DeleteMessage,  ///< taking the message in the reader out of the base
+        Quit,         ///< leaving the area list, and so AmberEdit
+        SaveMessage,  ///< storing what the editor holds
+        DropMessage,  ///< leaving the editor without storing it
+        /// Taking one message out of the base — the one the reader is
+        /// showing, or the row under the message list's cursor. Which of
+        /// the two is whichever screen asked, and is settled where the
+        /// answer is acted on rather than here.
+        DeleteMessage,
         /// Changing a message that is not the user's own — the one case where
         /// the notice at the head of it is asked for as well.
         ChangeForeignMessage,

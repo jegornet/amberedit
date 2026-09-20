@@ -68,15 +68,25 @@ TEST_CASE("A command is found by the name it is written under [commands]") {
           nullptr);
 
     // The three screens that carry a menu each hold their own commands in it,
-    // and the message list holds none: marking the message under the cursor is
-    // its one command, and one button is no menu.
+    // and the message list holds none: its two commands are a key each and
+    // neither is something a button stands for.
     CHECK(Commands::namedOn(CommandScreen::AreaList, "rescan", Commands::In::Menu) !=
           nullptr);
-    CHECK(Commands::namedOn(CommandScreen::MessageList, "mark_toggle",
-                            Commands::In::HintBar) != nullptr);
-    CHECK(Commands::namedOn(CommandScreen::MessageList, "mark_toggle",
-                            Commands::In::Menu) == nullptr);
+    for (const char* name : {"mark_toggle", "delete"}) {
+        INFO(name);
+        CHECK(Commands::namedOn(CommandScreen::MessageList, name,
+                                Commands::In::HintBar) != nullptr);
+        CHECK(Commands::namedOn(CommandScreen::MessageList, name, Commands::In::Menu) ==
+              nullptr);
+    }
     CHECK(Commands::offeredOn(CommandScreen::MessageList, Commands::In::Menu).empty());
+    // A name after the dot may stand on two screens, and which command it names
+    // is the list it was written in: `delete` is the reader's and the message
+    // list's, and each screen's own is what that screen's setting reads.
+    CHECK(Commands::namedOn(CommandScreen::MessageList, "delete", Commands::In::HintBar)
+              ->command == Command::MessageListDelete);
+    CHECK(Commands::namedOn(CommandScreen::Reader, "delete", Commands::In::HintBar)
+              ->command == Command::ReaderDelete);
 
     // A hint is a key with its name beside it, so any command of the screen may
     // be one; a menu holds what a button can stand for, which is fewer.

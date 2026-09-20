@@ -12,6 +12,7 @@
 #include "ui/list_page.hpp"
 #include "ui/message_marks.hpp"
 #include "ui/msg_list_format.hpp"
+#include "ui/scope_dialog.hpp"
 #include "ui/screens/message_read_screen.hpp"
 #include "ui/scrollbar.hpp"
 #include "ui/text_layout.hpp"
@@ -216,6 +217,23 @@ void applyGoto(AppState& state) {
 }
 
 }  // namespace
+
+void deleteCurrent(AppState& state) {
+    // A cursor on no message is answered by deleteMessageAt(), which is the one
+    // place a number is measured against the area.
+    message_read::deleteMessageAt(state, static_cast<uint32_t>(state.messageCursor + 1));
+    // The area is shorter than the scrolling position was worked out against,
+    // and the cursor has been put on a survivor without regard to where the
+    // window sits. Both are the same tidying every move here ends with.
+    clampCursor(state);
+    ensureHeaders(state);
+}
+
+void deleteMarked(AppState& state) {
+    message_read::deleteMarked(state);
+    clampCursor(state);
+    ensureHeaders(state);
+}
 
 void centerCursor(AppState& state) {
     const int total = static_cast<int>(state.messageCount);
@@ -614,9 +632,29 @@ bool handleEvent(AppState& state, const Event& event) {
         return true;
     }
 
-    // A digit is how the field opens — after the command above, so a layout that
-    // binds a digit to it keeps the digit: a key made into a command stops being
-    // one the list can be sent anywhere by.
+    // Deleting the row under the cursor, on the keys the reader deletes with:
+    // `d` and `Del` mean the same thing on both screens, and which message they
+    // mean is whichever one that screen is standing on.
+    //
+    // Asked about first, as in the reader: the base has no way back from it, and
+    // the key sits among ones that only move about. **What is asked depends on
+    // whether anything is marked** — with nothing marked the key can only mean
+    // the row under the cursor and the ordinary yes/no confirmation asks about
+    // that one; with a set standing the key means one of two things and
+    // `ui/scope_dialog.*` asks which.
+    if (state.messageCount > 0 && state.keys.is(event, Command::MessageListDelete)) {
+        if (!state.marks.empty()) {
+            scope_dialog::open(state, AppState::ScopePicker::For::Delete);
+            return true;
+        }
+        state.confirm = AppState::Confirm::DeleteMessage;
+        state.confirmChoice = AppState::ConfirmChoice::Yes;
+        return true;
+    }
+
+    // A digit is how the field opens — after the commands above, so a layout
+    // that binds a digit to one of them keeps the digit: a key made into a
+    // command stops being one the list can be sent anywhere by.
     if (state.messageCount > 0) {
         if (const auto digit = goto_field::digitOf(event)) {
             state.listGoto = std::string(1, *digit);
