@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.9 — 2026-09-20
+
+- tagline support
+- reply_link
+- mark_moves_down
+- delete messages from the message list (d, Del)
+- Alt-D to delete a line in the editor
+- highlight the whole URL across a wrap
+- keep the template's trailing blank line
+- fix and document FreeBSD build
+
 ## 0.8.8 — 2026-09-18
 
 - compose_add_pid

@@ -1,3 +1,15 @@
+amberedit (0.8.9-1) unstable; urgency=low
+
+  * tagline support
+  * reply_link
+  * mark_moves_down
+  * delete messages from the message list (d, Del)
+  * Alt-D to delete a line in the editor
+  * highlight the whole URL across a wrap
+  * keep the template's trailing blank line
+
+ -- Yegor Gluhov <git@jegor.net>  Sun, 20 Sep 2026 12:00:00 +0000
+
 amberedit (0.8.8-1) unstable; urgency=low
 
   * compose_add_pid
