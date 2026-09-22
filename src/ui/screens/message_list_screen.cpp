@@ -3,8 +3,10 @@
 #include <algorithm>
 #include <cstdint>
 #include <optional>
+#include <set>
 #include <string>
 
+#include "app/remove_messages.hpp"
 #include "ui/back_button.hpp"
 #include "ui/event_util.hpp"
 #include "ui/goto_field.hpp"
@@ -109,18 +111,23 @@ void openSelected(AppState& state) {
 /// list, the thread markers and the counts all agree, where deleting one message
 /// at a time would renumber the area under whatever was reading it.
 ///
-/// Backwards, for the same reason: deleting a message moves every number after
-/// it, and a sweep that ran forwards would step over the message that moved up
-/// into the place of the one it had just removed.
+/// Through `app::removeMessages()` like every other run over a set, which is
+/// what the twits are: they are gathered first — by UID, the name that survives
+/// the renumbering taking any of them out causes — and taken out a chunk at a
+/// time under it. Nothing counts this one and no key stops it: it happens as the
+/// area is opened, with nothing drawn yet to count it on.
 void killTwits(AppState& state) {
     if (state.areaConfig.twitMode != config::TwitMode::Kill) return;
     if (state.base == nullptr) return;
 
-    bool removed = false;
-    for (uint32_t number = state.base->count(); number >= 1; --number) {
-        if (!state.areaConfig.isTwit(state.base->header(number))) continue;
-        removed = state.base->remove(number).has_value() || removed;
+    std::set<uint32_t> twits;
+    for (uint32_t number = 1; number <= state.base->count(); ++number) {
+        if (state.areaConfig.isTwit(state.base->header(number))) {
+            twits.insert(state.base->uidOf(number));
+        }
     }
+    const app::RemoveReport report = app::removeMessages(*state.base, {twits, nullptr});
+    const bool removed = !report.removed.empty();
     // A base that will not be written is not worth saying anything about: the
     // messages are still there, and `twitHidden` keeps them behind the notice
     // rather than putting them on the screen unasked.

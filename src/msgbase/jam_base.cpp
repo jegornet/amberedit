@@ -1092,27 +1092,8 @@ tl::expected<void, ErrorPtr> JamBase::replace(uint32_t index, const RawDraft& dr
     return {};
 }
 
-tl::expected<void, ErrorPtr> JamBase::remove(uint32_t index) {
-    if (!headers_.isOpen()) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
-    }
-    if (!headers_.writable() || !index_.writable()) {
-        return failure("the base at " + headers_.path() + " is not ours to write");
-    }
-
-    FileLock lock;
-    if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
-                                     locked.error()->message());
-    }
-    auto done = reload();
-    if (!done) return tl::make_unexpected(std::move(done).error());
-
-    if (index == 0 || index > count()) {
-        return failure("message " + std::to_string(index) + " is not there to delete");
-    }
-    const ActiveMessage message = active_[index - 1];
-
+tl::expected<void, ErrorPtr> JamBase::markRemoved(const ActiveMessage& message,
+                                                  uint32_t index) {
     // A JAM delete moves nothing: the header stays where it is, marked
     // deleted with no text, and the index record is blanked. The text is left
     // for a packer — the format keeps no free list to give it to.
@@ -1140,13 +1121,74 @@ tl::expected<void, ErrorPtr> JamBase::remove(uint32_t index) {
         return failure("cannot blank the index record of message " +
                        std::to_string(index) + ": " + io.message());
     }
+    return {};
+}
 
-    if (info_.activeMessages != 0) info_.activeMessages -= 1;
-    info_.modCounter += 1;
-    auto done2 = writeInfo();
-    if (!done2) return tl::make_unexpected(std::move(done2).error());
+tl::expected<void, ErrorPtr> JamBase::removeAll(const std::vector<uint32_t>& indexes) {
+    if (!headers_.isOpen()) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
+    }
+    if (indexes.empty()) return {};
+    if (!headers_.writable() || !index_.writable()) {
+        return failure("the base at " + headers_.path() + " is not ours to write");
+    }
 
-    active_.erase(active_.begin() + static_cast<long>(index) - 1);
+    FileLock lock;
+    if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                     locked.error()->message());
+    }
+    // Once, for the whole set. This is what the call is for: the table of active
+    // messages is built out of the index and every header behind it, and a set
+    // deleted a message at a time builds it again for each of them.
+    auto done = reload();
+    if (!done) return tl::make_unexpected(std::move(done).error());
+
+    auto targets = sortedTargets(indexes, count());
+    if (!targets) return tl::make_unexpected(std::move(targets).error());
+
+    // Each message on its own: nothing a JAM delete writes depends on what
+    // another one wrote, the records being two per message and in places of
+    // their own. A failure stops the run where it is — what is already marked
+    // deleted is deleted — and the table and the info block are settled below
+    // for however many that was.
+    ErrorPtr failed;
+    size_t removed = 0;
+    for (const uint32_t index : *targets) {
+        auto marked = markRemoved(active_[index - 1], index);
+        if (!marked) {
+            failed = std::move(marked).error();
+            break;
+        }
+        ++removed;
+    }
+
+    if (removed != 0) {
+        const auto gone = static_cast<uint32_t>(removed);
+        info_.activeMessages -= std::min(info_.activeMessages, gone);
+        info_.modCounter += 1;
+        if (auto written = writeInfo(); !written && failed == nullptr) {
+            failed = std::move(written).error();
+        }
+
+        // The table rebuilt rather than erased from: a set taken out of the
+        // middle of it would move the tail once per message, which is the cost
+        // this call was written to stop paying.
+        std::vector<ActiveMessage> kept;
+        kept.reserve(active_.size() - removed);
+        auto target = targets->begin();
+        const auto lastDone = targets->begin() + static_cast<long>(removed);
+        for (uint32_t index = 1; index <= count(); ++index) {
+            if (target != lastDone && *target == index) {
+                ++target;
+                continue;
+            }
+            kept.push_back(active_[index - 1]);
+        }
+        active_ = std::move(kept);
+    }
+
+    if (failed != nullptr) return tl::make_unexpected(std::move(failed));
     return {};
 }
 

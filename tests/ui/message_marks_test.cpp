@@ -5,6 +5,8 @@
 #include <vector>
 
 #include "config/text_util.hpp"
+#include "domain/message.hpp"
+#include "ports/i_msgbase.hpp"
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
@@ -24,6 +26,7 @@
 using amberedit::test::AreaFixture;
 using amberedit::test::contains;
 using amberedit::test::TempSquishBase;
+using amberedit::test::valueOf;
 using amberedit::ui::term::Event;
 
 namespace scope_dialog = amberedit::ui::scope_dialog;
@@ -266,8 +269,9 @@ TEST_CASE("The message list marks the row under the cursor [marks][squish]") {
     CHECK(markedNumbers(fixture) == std::vector<uint32_t>{2});
 }
 
-TEST_CASE("Marking a message steps the cursor down under mark_moves_down "
-          "[marks][squish]") {
+TEST_CASE(
+    "Marking a message steps the cursor down under mark_moves_down "
+    "[marks][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     enter(fixture);
@@ -297,8 +301,9 @@ TEST_CASE("Marking a message steps the cursor down under mark_moves_down "
     CHECK(marks::isMarked(fixture.state, fixture.state.messageCount));
 }
 
-TEST_CASE("mark_moves_down off leaves the cursor on the message it marked "
-          "[marks][squish]") {
+TEST_CASE(
+    "mark_moves_down off leaves the cursor on the message it marked "
+    "[marks][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.markMovesDown = false;
@@ -517,6 +522,59 @@ TEST_CASE("Deleting a run off the top lands on the first message left [marks]") 
     REQUIRE(fixture.state.readHeader);
     CHECK(fixture.state.readHeader->number == 1);
     CHECK(fixture.state.readHeader->subject == third);
+}
+
+/// An area holding exactly `count` messages, each saying which one it is — in
+/// place of the mail the fixture copies, since what this is about is how many.
+void putNumberedMessages(AreaFixture& fixture, uint32_t count) {
+    amberedit::ports::IMsgBase* base = valueOf(fixture.manager.openArea(fixture.area));
+    REQUIRE(base != nullptr);
+    std::vector<uint32_t> all;
+    for (uint32_t number = 1; number <= base->count(); ++number) all.push_back(number);
+    REQUIRE(base->removeAll(all).has_value());
+
+    for (uint32_t number = 1; number <= count; ++number) {
+        amberedit::domain::MessageDraft draft;
+        draft.from = "Yegor Gluhov";
+        draft.to = "All";
+        draft.subject = "message " + std::to_string(number);
+        draft.origAddr = *amberedit::domain::FtnAddress::parse("2:382/736");
+        draft.charset = "CP866";
+        draft.kludges = {"CHRS: CP866 2"};
+        draft.lines = {"Body"};
+        REQUIRE(valueOf(base->write(draft)) == number);
+    }
+    fixture.manager.closeCurrentArea();
+    static_cast<void>(fixture.manager.reload());
+}
+
+TEST_CASE("A marked run longer than one chunk is taken out whole [marks][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    // More messages than the reader hands the base in one call, so that the run
+    // goes round more than once. What the chunking has to get right is that the
+    // numbers it has not reached yet still name the same messages after a chunk
+    // has gone out from above them — which is why the sweep runs backwards.
+    const uint32_t total = 2500;
+    putNumberedMessages(fixture, total);
+    enter(fixture);
+    REQUIRE(fixture.state.messageCount == total);
+
+    // Everything but the first and the last, which is a run of two chunks and a
+    // bit either side of them.
+    for (uint32_t number = 2; number < total; ++number) {
+        marks::toggle(fixture.state, number);
+    }
+    message_read::goToMessage(fixture.state, 1);
+
+    message_read::deleteMarked(fixture.state);
+
+    CHECK(fixture.state.messageCount == 2);
+    CHECK(fixture.state.base->header(1).subject == "message 1");
+    CHECK(fixture.state.base->header(2).subject == "message " + std::to_string(total));
+    CHECK(fixture.state.marks.empty());
+    REQUIRE(fixture.state.readHeader);
+    CHECK(fixture.state.readHeader->number == 1);
 }
 
 TEST_CASE("Deleting every message leaves the reader on an empty area [marks]") {

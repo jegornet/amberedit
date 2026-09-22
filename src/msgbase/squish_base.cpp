@@ -993,10 +993,33 @@ tl::expected<void, ErrorPtr> SquishBase::replace(uint32_t index, const RawDraft&
     return writeBaseHeader();
 }
 
-tl::expected<void, ErrorPtr> SquishBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> SquishBase::writeIndexTail(uint32_t from) {
+    std::vector<unsigned char> tail(static_cast<size_t>(count() - from + 1) *
+                                    kIndexRecordSize);
+    for (uint32_t at = from; at <= count(); ++at) {
+        unsigned char* raw =
+            tail.data() + (static_cast<size_t>(at - from) * kIndexRecordSize);
+        writeU32(raw, index_[at - 1].offset);
+        writeU32(raw + 4, index_[at - 1].uid);
+        writeU32(raw + 8, index_[at - 1].hash);
+    }
+    if (!tail.empty() && index_file_
+                             .writeAt(static_cast<uint64_t>(from - 1) * kIndexRecordSize,
+                                      tail.data(), tail.size())
+                             .failed()) {
+        return failure("cannot rewrite the tail of " + index_file_.path());
+    }
+    if (!index_file_.truncate(static_cast<uint64_t>(count()) * kIndexRecordSize)) {
+        return failure("cannot shorten " + index_file_.path());
+    }
+    return {};
+}
+
+tl::expected<void, ErrorPtr> SquishBase::removeAll(const std::vector<uint32_t>& indexes) {
     if (!data_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
+    if (indexes.empty()) return {};
     if (!data_.writable() || !index_file_.writable()) {
         return failure("the base at " + data_.path() + " is not ours to write");
     }
@@ -1009,59 +1032,107 @@ tl::expected<void, ErrorPtr> SquishBase::remove(uint32_t index) {
     auto done = reload();
     if (!done) return tl::make_unexpected(std::move(done).error());
 
-    if (index == 0 || index > count()) {
-        return failure("message " + std::to_string(index) + " is not there to delete");
-    }
-    const IndexEntry entry = index_[index - 1];
-    Frame frame;
-    if (entry.offset == 0 || !readFrame(entry.offset, frame)) {
-        return failure("message " + std::to_string(index) + " has no frame to free");
+    auto targets = sortedTargets(indexes, count());
+    if (!targets) return tl::make_unexpected(std::move(targets).error());
+
+    // Every frame read before any of them is written: what a message is linked
+    // to is read off the frame it is in, and a frame that will not read is a
+    // set that cannot be taken out as one. Nothing has been written at this
+    // point, so refusing here leaves the base as it was.
+    std::vector<Frame> frames(targets->size());
+    std::vector<uint32_t> offsets(targets->size());
+    for (size_t i = 0; i < targets->size(); ++i) {
+        const uint32_t index = (*targets)[i];
+        const IndexEntry& entry = index_[index - 1];
+        if (entry.offset == 0 || !readFrame(entry.offset, frames[i])) {
+            return failure("message " + std::to_string(index) + " has no frame to free");
+        }
+        offsets[i] = entry.offset;
     }
 
-    // Link the messages either side of it over it, then take its number out of
-    // the index, then give the frame to the free chain. In that order: a reader
-    // that arrives between the steps finds a chain it can walk and an index one
-    // message shorter, never an index pointing at a freed frame.
-    if (frame.prev != 0) {
-        auto done2 = setFrameNext(frame.prev, frame.next);
-        if (!done2) return tl::make_unexpected(std::move(done2).error());
-    }
-    if (frame.next != 0) {
-        auto done3 = setFramePrev(frame.next, frame.prev);
-        if (!done3) return tl::make_unexpected(std::move(done3).error());
-    }
-    if (index == 1) base_.firstFrame = frame.next;
-    if (index == count()) base_.lastFrame = frame.prev;
-
-    index_.erase(index_.begin() + static_cast<long>(index) - 1);
-    // The records after the deleted one, moved up as one write rather than one
-    // per message: the tail of a large area is thousands of them.
-    std::vector<unsigned char> tail((count() - index + 1) * kIndexRecordSize);
-    for (uint32_t at = index; at <= count(); ++at) {
-        unsigned char* raw =
-            tail.data() + (static_cast<size_t>(at - index) * kIndexRecordSize);
-        writeU32(raw, index_[at - 1].offset);
-        writeU32(raw + 4, index_[at - 1].uid);
-        writeU32(raw + 8, index_[at - 1].hash);
-    }
-    if (!tail.empty() && index_file_
-                             .writeAt(static_cast<uint64_t>(index - 1) * kIndexRecordSize,
-                                      tail.data(), tail.size())
-                             .failed()) {
-        return failure("cannot rewrite the tail of " + index_file_.path());
-    }
-    if (!index_file_.truncate(static_cast<uint64_t>(count()) * kIndexRecordSize)) {
-        return failure("cannot shorten " + index_file_.path());
+    // The index as it will stand, built in one pass rather than by taking a
+    // record out of the middle of it for each message.
+    std::vector<IndexEntry> kept;
+    kept.reserve(index_.size() - targets->size());
+    auto target = targets->begin();
+    for (uint32_t index = 1; index <= count(); ++index) {
+        if (target != targets->end() && *target == index) {
+            ++target;
+            continue;
+        }
+        kept.push_back(index_[index - 1]);
     }
 
-    auto done4 = releaseFrame(entry.offset, frame);
-    if (!done4) return tl::make_unexpected(std::move(done4).error());
+    // The index first and the frames after it, which is the order one delete
+    // takes them in as well: a reader arriving between the two finds an index
+    // that is one message shorter and every record in it pointing at a frame
+    // that is still a message, never a record pointing into free space.
+    const uint32_t from = targets->front();
+    index_ = std::move(kept);
+    auto written = writeIndexTail(from);
+    if (!written) return tl::make_unexpected(std::move(written).error());
+
+    // Which frames are going, by offset, so that a neighbour that is itself one
+    // of the set can be told from one that stays. Sorted and searched rather
+    // than hashed: a chunk is thousands of frames, and this is walked once.
+    std::vector<uint32_t> going = offsets;
+    std::sort(going.begin(), going.end());
+
+    // The chain, a run of frames at a time. The set is in message order and so
+    // is the chain, so a run of the set is a run of the chain and is linked over
+    // as one: what stands before the first of the run is linked to what stands
+    // after the last, and the frames between them are nobody's neighbour any
+    // more. The run is followed through the frames themselves and not through
+    // the numbers — an index that has drifted from the chain it indexes is a
+    // base to leave linked correctly, not one to write a guess into.
+    for (size_t i = 0; i < targets->size();) {
+        size_t last = i;
+        while (last + 1 < targets->size() && frames[last].next == offsets[last + 1]) {
+            ++last;
+        }
+        // And where it has drifted, the neighbour either side is walked to
+        // rather than assumed: a frame that is itself going is passed over, or
+        // the chain would be left pointing into the free space below.
+        uint32_t before = frames[i].prev;
+        while (before != 0 && std::binary_search(going.begin(), going.end(), before)) {
+            Frame skipped;
+            if (!readFrame(before, skipped)) break;
+            before = skipped.prev;
+        }
+        uint32_t after = frames[last].next;
+        while (after != 0 && std::binary_search(going.begin(), going.end(), after)) {
+            Frame skipped;
+            if (!readFrame(after, skipped)) break;
+            after = skipped.next;
+        }
+        if (before != 0) {
+            auto linked = setFrameNext(before, after);
+            if (!linked) return tl::make_unexpected(std::move(linked).error());
+        }
+        if (after != 0) {
+            auto linked = setFramePrev(after, before);
+            if (!linked) return tl::make_unexpected(std::move(linked).error());
+        }
+        i = last + 1;
+    }
+    base_.firstFrame = index_.empty() ? 0 : index_.front().offset;
+    base_.lastFrame = index_.empty() ? 0 : index_.back().offset;
+
+    // And the frames themselves, each onto the end of the free chain for the
+    // next message written to grow into.
+    for (size_t i = 0; i < offsets.size(); ++i) {
+        auto freed = releaseFrame(offsets[i], frames[i]);
+        if (!freed) return tl::make_unexpected(std::move(freed).error());
+    }
 
     base_.messageCount = count();
     base_.highMessage = base_.messageCount;
-    // The high-water mark is a message number, so everything after the deleted
-    // message moves under it too.
-    if (base_.highWater >= index && base_.highWater != 0) --base_.highWater;
+    // The high-water mark is a message number, so every message taken out from
+    // under it moves it down by one.
+    const auto under = static_cast<uint32_t>(std::distance(
+        targets->begin(),
+        std::upper_bound(targets->begin(), targets->end(), base_.highWater)));
+    base_.highWater -= std::min(base_.highWater, under);
 
     return writeBaseHeader();
 }

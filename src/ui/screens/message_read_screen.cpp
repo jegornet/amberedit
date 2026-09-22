@@ -13,6 +13,7 @@
 #include "app/message_builder.hpp"
 #include "app/message_search.hpp"
 #include "app/pass_messages.hpp"
+#include "app/remove_messages.hpp"
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
 #include "i18n/i18n.hpp"
@@ -1200,6 +1201,13 @@ namespace {
 ///
 /// `breakable` is false for the half of a move that this is — see
 /// `passOnMarked()`.
+///
+/// **The walk itself is `app::removeMessages()`**, which is where it belongs:
+/// how an area is walked and how much of one is handed to the base at a time are
+/// questions about message bases, and the chunking underneath is neither the
+/// reader's business nor testable through it. What is left here is the screen's
+/// own half — the box counting the run, the marks of what went, and where the
+/// reader and the list's cursor land afterwards.
 bool removeUids(AppState& state, const std::set<uint32_t>& uids, ProgressRun& run,
                 bool breakable) {
     if (state.base == nullptr || uids.empty()) return true;
@@ -1211,27 +1219,20 @@ bool removeUids(AppState& state, const std::set<uint32_t>& uids, ProgressRun& ru
     const uint32_t cursor = cursorUidOf(state);
 
     run.begin(AppState::Progress::Doing::Delete, uids.size(), breakable);
-    bool removed = false;
-    bool whole = true;
-    for (uint32_t number = state.base->count(); number >= 1; --number) {
-        const uint32_t uid = state.base->uidOf(number);
-        if (uids.count(uid) == 0) continue;
-        // Asked before the message is touched, so that the number on the screen
-        // names the one being deleted and a run broken off has left it alone.
-        if (!run.step()) {
-            whole = false;
-            break;
-        }
-        if (!state.base->remove(number)) continue;
-        removed = true;
-        state.marks.erase(uid);
-    }
-    if (!removed) return whole;
-    if (!afterRemoving(state)) return whole;
+    const app::RemoveRequest request{uids, [&run] { return run.step(); }};
+    const app::RemoveReport report = app::removeMessages(*state.base, request);
+
+    // The marks of the messages that went, and only those: what a run broken off
+    // never reached is still here, and the stars are what the user would gather
+    // it by again.
+    for (const uint32_t uid : report.removed) state.marks.erase(uid);
+
+    if (report.removed.empty()) return !report.stopped;
+    if (!afterRemoving(state)) return !report.stopped;
 
     state.messageCursor = static_cast<int>(survivorOf(state, cursor)) - 1;
     loadMessage(state, survivorOf(state, reader));
-    return whole;
+    return !report.stopped;
 }
 
 }  // namespace

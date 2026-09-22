@@ -43,7 +43,8 @@ public:
     [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
                                                        const RawDraft& draft) override;
-    [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
+        const std::vector<uint32_t>& indexes) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
 private:
@@ -123,6 +124,13 @@ private:
     [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexRecord(uint32_t record,
                                                                 const std::string& to,
                                                                 uint32_t headerOffset);
+
+    /// Marks one message's records deleted: the `MSG_DELETED` bit and a zero
+    /// TxtLen in the header where it lies, and `0xffffffff` in both dwords of
+    /// its index record. Nothing moves and nothing is counted — the caller
+    /// settles the info block once for however many it did this to.
+    [[nodiscard]] tl::expected<void, ErrorPtr> markRemoved(const ActiveMessage& message,
+                                                           uint32_t index);
 
     /// The UID of an active-table entry: its index record plus BaseMsgNum.
     [[nodiscard]] uint32_t uidOfEntry(const ActiveMessage& message) const;

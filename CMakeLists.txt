@@ -530,6 +530,7 @@ add_library(amberedit_core STATIC
   src/app/message_builder.cpp
   src/app/message_search.cpp
   src/app/pass_messages.cpp
+  src/app/remove_messages.cpp
   src/app/user_shell.cpp
   src/app/url_handler.cpp
   src/app/external_editor.cpp

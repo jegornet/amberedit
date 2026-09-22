@@ -387,6 +387,10 @@ Rules that hold the design together:
   the rule worth stating: the reader's Copy and Move over a marked set are a
   dialog, a box counting the run and one call, where the chunking and the
   swapping underneath are neither the reader's business nor testable through it.
+  `app/remove_messages.*` is the same rule for the other half of it — a run over
+  a set the user wants gone is a walk down the area handing the base a chunk at a
+  time, and the screen is left with the box, the marks and where the reader
+  lands.
 
 ## Code conventions
 
@@ -1668,8 +1672,30 @@ screens showing an area draw what the set holds.
   marks to name. Copying into the area being read is the case that makes the
   rule worth stating: the copies stand beside the originals and it is the
   originals that are still marked.
-- **`removeUids()` sweeps backwards**, exactly as `killTwits()` does and for the
-  same reason: taking a message out moves the number of every message after it.
+- **A run over a set is `app/remove_messages.*`, not the screen's**, for the
+  reason `passMessages()` is: how an area is walked and how much of one is handed
+  to the base at a time are questions about message bases. `removeMessages()`
+  gathers the numbers backwards and hands them over `kRemoveChunk` at a time
+  through `IMsgBase::removeAll()`, and the report says which UIDs went and
+  whether `onMessage` stopped it. `killTwits()` goes through the same call.
+  - **A chunk is one call and one lock, and what it shares is the preparing.**
+    A delete writes a few bytes and re-reads the whole of what it writes them
+    against first — JAM rebuilds its table of active messages out of the index
+    and every header behind it, Squish reads its index back — so a set taken out
+    a message at a time pays for the area over again for each message in it. Paid
+    once per chunk it stops mattering: a run over an area of twenty thousand goes
+    from seconds to a tenth of one. `kRemoveChunk` is thousands rather than
+    dozens because what is left of that cost shrinks as the chunk grows, and
+    stops there because two thousand messages are a few milliseconds of the base
+    being locked and of `onMessage` going unasked.
+  - **The walk runs backwards and everything else follows from it.** Taking a
+    message out moves the number of every message after it, so every number the
+    walk has yet to reach still names the message it named when the run began,
+    whatever chunks have gone out from above it — which is what lets the numbers
+    be gathered and handed over in bulk at all. `onMessage` is asked before a
+    message is gathered, so a run stopped there has left it standing; what the
+    chunk had already gathered goes out in the call the end of the walk makes.
+- **`removeUids()` is what is left on the screen.**
   Where each screen lands is worked out from the UID it stood on, taken *before*
   the sweep — the reader's and the message list cursor's, which are two
   messages and not one whenever the list is the screen that asked. `survivorOf()`
@@ -1677,12 +1703,12 @@ screens showing an area draw what the set holds.
   comes back on the message in front of it, and a run off the top of the area
   leaves it on the first message left. Both
   `deleteMarked()` and a Move answered for a set end here, which is what keeps
-  the two agreeing on where reading carries on from. **The sweep is what empties
-  the set**, message by message as each is taken out, so that a run broken off
-  leaves the messages it never reached marked — they are still here, and the
-  stars are what the user would gather them by again. A sweep that ran to the end
-  empties what is left of the set with it: a mark that named nothing by then
-  named a message the base has packed away, and it is worth no star either.
+  the two agreeing on where reading carries on from. **What went is what loses
+  its mark**: `RemoveReport::removed` names those and nothing else, so a run
+  broken off leaves the messages it never reached marked — they are still here,
+  and the stars are what the user would gather them by again. A run that went to
+  the end empties what is left of the set with it: a mark that named nothing by
+  then named a message the base has packed away, and it is worth no star either.
 - **A run over a set is counted on the screen and stopped with Escape.** A
   hundred thousand marked messages take minutes, and the loop is blocked inside
   the call the whole time — there is no second thread — so `ui/progress_dialog.*`
@@ -1820,8 +1846,10 @@ decides what an occurrence is.
     these two. `goToMessage()` is deliberately not among them: a thread marker
     names one message and is answered with it, blanked.
   - `kill` deletes, and `message_list::killTwits()` does it **once, as the area is
-    opened**, backwards so the numbers still to be looked at do not move under
-    the sweep. Everything downstream then sees an area with no twits in it — the
+    opened**: the twits are gathered by UID and handed to
+    `app::removeMessages()`, the same call the reader's run over a marked set
+    goes through, so they go out a chunk at a time and the walk is backwards
+    where it has to be. Everything downstream then sees an area with no twits in it — the
     numbers, the list, the counts and the thread markers agree, where deleting
     one at a time would renumber the area under whatever was reading it. It runs
     after `setCurrentArea()`, the twits being that area's settings, and before
@@ -3748,6 +3776,34 @@ creation interrupted half way leaves files no base claims rather than a base
 missing what it is read through. Whatever was made is removed again when a later
 step fails. The driver is not left open on what it made: creating a base and
 reading one are two steps.
+
+**A set of messages is taken out as one call.** `removeAll()` is what every
+driver implements and `remove()` is the set of one; `IMsgBase` carries both, and
+`app::removeMessages()` is what calls the first. The point is not a faster delete
+but a delete that pays for its preparation once: every format re-reads the state
+it writes against under the lock first — JAM rebuilds its table of active
+messages out of the index and every header behind it, Squish reads its index
+back, and both grow with the area — while what a delete actually writes is a few
+bytes. On an area of twenty thousand messages, taking half of them out goes from
+seconds to a tenth of one.
+
+- The numbers are positions as the base stands, in any order and each named
+  once, and nothing renumbers until the call returns. **A number that is not a
+  message refuses the whole set before a byte is written**: the caller worked its
+  numbers out before the lock was taken, and a tosser that packed the area
+  meanwhile is exactly the case that must not delete somebody else's mail.
+- *Squish* reads every frame first, so a set it cannot take out as one is refused
+  with the base untouched. Then the index is rewritten **from the first record
+  that moves, once**, and the frames are unlinked and freed after it — the order
+  one delete takes them in as well, so a reader arriving mid-call finds an index
+  that is shorter and every record in it still naming a message. A run of
+  consecutive numbers is a run of consecutive frames and is linked over as one.
+- *JAM* marks each header deleted and blanks each index record — the records are
+  two per message and in places of their own, so nothing one of them writes
+  depends on another — and settles `ActiveMsgs` and `ModCounter` once at the end.
+- *Fido `*.msg`* unlinks the files. There is no base state for a set to share, so
+  the whole of what it saves is the numbers coming out of the driver's table
+  once.
 
 **`replace()` disturbs the base as little as the format allows.** No other
 message moves and nothing is copied up or down the base — a message changed at

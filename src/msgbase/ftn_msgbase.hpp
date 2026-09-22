@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "encoding/charset_detector.hpp"
 #include "encoding/iconv_recoder.hpp"
@@ -97,6 +98,8 @@ public:
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(
         uint32_t index, const domain::MessageDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
+        const std::vector<uint32_t>& indexes) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
     [[nodiscard]] bool isOpen() const { return driver_ != nullptr; }

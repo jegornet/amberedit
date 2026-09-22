@@ -40,7 +40,8 @@ public:
     [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
                                                        const RawDraft& draft) override;
-    [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
+        const std::vector<uint32_t>& indexes) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
 private:

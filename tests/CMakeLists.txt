@@ -30,6 +30,7 @@ add_executable(amberedit_tests
   msgbase/message_info_test.cpp
   msgbase/lastread_store_test.cpp
   msgbase/create_base_test.cpp
+  msgbase/remove_all_test.cpp
   msgbase/echotoss_log_test.cpp
   msgbase/echo_sender_test.cpp
   echolist/echolist_parser_test.cpp
@@ -55,6 +56,7 @@ add_executable(amberedit_tests
   app/user_shell_test.cpp
   app/navigator_test.cpp
   app/pass_messages_test.cpp
+  app/remove_messages_test.cpp
   ui/app_state_test.cpp
   ui/area_list_screen_test.cpp
   ui/area_list_format_test.cpp

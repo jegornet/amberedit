@@ -42,7 +42,8 @@ public:
     [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
                                                        const RawDraft& draft) override;
-    [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
+        const std::vector<uint32_t>& indexes) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
 private:
@@ -119,6 +120,11 @@ private:
     [[nodiscard]] std::string textTail(uint64_t at, uint32_t length) const;
 
     [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexEntry(uint32_t index);
+    /// Writes the index from record `from` to the end of what is now in memory
+    /// and cuts the file off there — the one write a delete costs the index,
+    /// however many messages it took out. Everything before `from` is where it
+    /// was and is not written again.
+    [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexTail(uint32_t from);
 
     BinaryFile data_;
     BinaryFile index_file_;

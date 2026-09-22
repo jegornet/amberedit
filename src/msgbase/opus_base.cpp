@@ -465,19 +465,47 @@ tl::expected<void, ErrorPtr> OpusBase::replace(uint32_t index, const RawDraft& d
     return {};
 }
 
-tl::expected<void, ErrorPtr> OpusBase::remove(uint32_t index) {
+tl::expected<void, ErrorPtr> OpusBase::removeAll(const std::vector<uint32_t>& indexes) {
     if (directory_.empty()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
-    if (index == 0 || index > count()) {
-        return failure("message " + std::to_string(index) + " is not there to delete");
+    if (indexes.empty()) return {};
+
+    auto targets = sortedTargets(indexes, count());
+    if (!targets) return tl::make_unexpected(std::move(targets).error());
+
+    // A message is a file here, so there is no base state a set shares and
+    // nothing to settle at the end: the whole of what this saves over a call a
+    // message is the numbers being taken out of the table once. A file that
+    // will not go stops the run, and what went before it is gone.
+    std::string trouble;
+    size_t removed = 0;
+    for (const uint32_t index : *targets) {
+        std::error_code ec;
+        const std::string path = fileFor(numbers_[index - 1]);
+        if (!fs::remove(path, ec) || ec) {
+            trouble = "cannot delete " + path;
+            break;
+        }
+        ++removed;
     }
-    const uint32_t number = numbers_[index - 1];
-    std::error_code ec;
-    if (!fs::remove(fileFor(number), ec) || ec) {
-        return failure("cannot delete " + fileFor(number));
+
+    if (removed != 0) {
+        std::vector<uint32_t> kept;
+        kept.reserve(numbers_.size() - removed);
+        auto target = targets->begin();
+        const auto lastDone = targets->begin() + static_cast<long>(removed);
+        for (uint32_t index = 1; index <= count(); ++index) {
+            if (target != lastDone && *target == index) {
+                ++target;
+                continue;
+            }
+            kept.push_back(numbers_[index - 1]);
+        }
+        numbers_ = std::move(kept);
     }
-    numbers_.erase(numbers_.begin() + static_cast<long>(index) - 1);
+
+    if (!trouble.empty()) return failure(std::move(trouble));
     return {};
 }
 

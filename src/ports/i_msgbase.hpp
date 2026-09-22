@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "domain/area.hpp"
 #include "domain/message.hpp"
@@ -99,6 +100,24 @@ public:
     /// what followed it — as in every FTN base, where a message's place is not
     /// its identity.
     [[nodiscard]] virtual tl::expected<void, ErrorPtr> remove(uint32_t index) = 0;
+
+    /// Takes a set of messages out as one call, named by position and in any
+    /// order. The numbering moves once, when it comes back.
+    ///
+    /// **It is the same delete and not a faster one; what it saves is the
+    /// repetition around it.** Every format re-reads the base under the lock
+    /// before it writes — the counters, the index, in JAM the headers behind it —
+    /// and that reading is what a set deleted a message at a time spends its
+    /// time on. A number that names nothing stops the call before anything is
+    /// written; a failure once writing has begun leaves out what had already
+    /// gone, and `count()` answers with what the area holds after it.
+    ///
+    /// The whole set is done under one lock, so the caller hands over as much of
+    /// a run as it is willing to hold the base for — see
+    /// `message_read::removeUids()`, which goes round in chunks and counts them
+    /// on the screen.
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> removeAll(
+        const std::vector<uint32_t>& indexes) = 0;
 
     /// Writes the base's own "this has been read" mark onto message `index` —
     /// JAM's `TimesRead`, Squish's `MSGSEEN`, the `times_read` word of a Fido

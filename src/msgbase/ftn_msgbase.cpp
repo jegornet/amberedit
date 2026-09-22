@@ -515,6 +515,17 @@ tl::expected<void, ErrorPtr> FtnMsgBase::remove(uint32_t index) {
     return {};
 }
 
+tl::expected<void, ErrorPtr> FtnMsgBase::removeAll(const std::vector<uint32_t>& indexes) {
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
+    const auto removed = driver_->removeAll(indexes);
+    if (!removed) {
+        return failure("cannot delete " + std::to_string(indexes.size()) +
+                       " messages: " + removed.error()->message());
+    }
+    return {};
+}
+
 tl::expected<void, ErrorPtr> FtnMsgBase::markSeen(uint32_t index) {
     if (!driver_)
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
