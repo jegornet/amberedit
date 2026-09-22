@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.10 — 2026-09-22
+
+- fix bulk operations hanging the editor
+- add progress reporting for long bulk operations
+
 ## 0.8.9 — 2026-09-20
 
 - tagline support
