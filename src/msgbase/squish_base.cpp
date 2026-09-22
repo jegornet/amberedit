@@ -187,8 +187,7 @@ void SquishBase::close() {
     index_file_.close();
     base_ = BaseHeader{};
     index_.clear();
-    largestFree_ = 0;
-    largestFreeKnown_ = false;
+    forgetFreeChain();
     frameHeaderSize_ = static_cast<uint16_t>(kFrameHeaderSize);
 }
 
@@ -351,11 +350,10 @@ tl::expected<void, ErrorPtr> SquishBase::loadIndex() {
 }
 
 tl::expected<void, ErrorPtr> SquishBase::reload() {
-    // What this driver knew of the free chain it knew of the base as it stood;
-    // a tosser may have deleted a message since and left a frame bigger than
-    // anything that was there.
-    largestFreeKnown_ = false;
-    largestFree_ = 0;
+    // What this driver held of the free chain it held of the base as it stood;
+    // a tosser may have deleted a message since, and the chain on the disk is
+    // the only one that counts.
+    forgetFreeChain();
 
     auto read = readBaseHeader();
     if (!read) return tl::make_unexpected(std::move(read).error());
@@ -692,72 +690,123 @@ uint32_t SquishBase::indexOfUid(uint32_t uid, bool exact) const {
     return position;
 }
 
+void SquishBase::forgetFreeChain() {
+    freeAt_.clear();
+    freeBySize_.clear();
+    freeNext_ = 0;
+    freeScanned_ = 0;
+    freeStarted_ = false;
+    freeComplete_ = false;
+}
+
+tl::expected<void, ErrorPtr> SquishBase::scanFreeChain(uint32_t length) {
+    if (!freeStarted_) {
+        freeNext_ = base_.firstFree;
+        freeScanned_ = 0;
+        freeStarted_ = true;
+    }
+
+    while (freeNext_ != 0) {
+        const uint32_t at = freeNext_;
+        Frame frame;
+        auto done = readFrame(at, frame);
+        if (!done) return tl::make_unexpected(std::move(done).error());
+        if (frame.type != kFrameFree || frame.prev != freeScanned_ ||
+            frame.next == at || freeAt_.count(at) != 0) {
+            forgetFreeChain();
+            return failure("the free chain of " + data_.path() + " is broken at " +
+                           std::to_string(at));
+        }
+
+        freeAt_.emplace(at, FreeFrame{frame.prev, frame.next, frame.frameLength});
+        freeBySize_.emplace(frame.frameLength, at);
+        freeScanned_ = at;
+        freeNext_ = frame.next;
+
+        // Far enough: this one would hold the message, and what lies beyond it
+        // is for the message that needs it.
+        if (frame.frameLength >= length) return {};
+    }
+
+    // The end of it, which is worth knowing: nothing after this asks the disk
+    // about the chain again.
+    if (base_.firstFree != 0 && freeScanned_ != base_.lastFree) {
+        forgetFreeChain();
+        return failure("the free chain of " + data_.path() +
+                       " does not end where its header says");
+    }
+    freeComplete_ = true;
+    return {};
+}
+
 tl::expected<void, ErrorPtr> SquishBase::allocateFrame(uint32_t length, uint32_t* offset,
                                                        uint32_t* frameLength) {
     *offset = 0;
     *frameLength = 0;
 
-    // Nothing in the chain is big enough, and a previous walk down the whole of
-    // it is how that is known. Skipped rather than walked again: the answer
-    // cannot have changed — this driver has taken nothing out and put nothing
-    // in since — and the walk is a read per frame.
-    const bool worthWalking = !largestFreeKnown_ || length <= largestFree_;
-
     // The free chain first: a deleted message leaves a hole, and reusing one is
     // what keeps a base that is written and packed for years from growing
-    // without end. The first one that fits is taken rather than the best fit
-    // the format recommends — that is what smapi does, and a base half of whose
-    // frames are the wrong size is a job for a packer, not for a reader.
-    uint32_t seen = 0;
-    uint32_t biggest = 0;
-    for (uint32_t at = worthWalking ? base_.firstFree : 0; at != 0;) {
-        Frame frame;
-        auto done = readFrame(at, frame);
+    // without end. What has been read of it already is asked first — those are
+    // the frames earlier messages passed over — and the disk only where that
+    // holds nothing big enough.
+    auto pick = freeBySize_.lower_bound(length);
+    if (pick == freeBySize_.end() && !freeComplete_) {
+        auto done = scanFreeChain(length);
         if (!done) return tl::make_unexpected(std::move(done).error());
-        if (frame.type != kFrameFree || frame.prev != seen || frame.next == at) {
-            return failure("the free chain of " + data_.path() + " is broken at " +
-                           std::to_string(at));
-        }
+        pick = freeBySize_.lower_bound(length);
+    }
 
-        if (frame.frameLength >= length) {
-            if ((frame.prev == 0 && at != base_.firstFree) ||
-                (frame.next == 0 && at != base_.lastFree)) {
-                return failure("the free chain of " + data_.path() +
-                               " does not end where its "
-                               "header says");
-            }
+    if (pick != freeBySize_.end()) {
+        const uint32_t at = pick->second;
+        const auto here = freeAt_.find(at);
+        // The two views must agree. They always do — they are built together
+        // and changed together — and this is checked before a byte is written
+        // rather than trusted: what is held here is a copy of something on the
+        // disk, and a copy that has come adrift must not be what an unlink is
+        // written from. Falling through costs a frame at the end of the file and
+        // nothing else.
+        if (here == freeAt_.end()) {
+            forgetFreeChain();
+        } else {
+            const FreeFrame frame = here->second;
+
+            // Out of the chain on the disk, and out of both views of it here.
+            // Only the two frames either side are written, whatever the chain's
+            // length.
+            //
+            // **The frame after this one may not have been read yet** — the walk
+            // stops as soon as it has found what it was looking for — and then
+            // there is nothing here to bring up to date: it will be read with
+            // the links it has on the disk, which is what has just been written.
+            // The one before it is always read, the walk having passed it.
             if (frame.prev != 0) {
-                auto done2 = setFrameNext(frame.prev, frame.next);
-                if (!done2) return tl::make_unexpected(std::move(done2).error());
+                auto done = setFrameNext(frame.prev, frame.next);
+                if (!done) return tl::make_unexpected(std::move(done).error());
+                if (auto it = freeAt_.find(frame.prev); it != freeAt_.end()) {
+                    it->second.next = frame.next;
+                }
             }
             if (frame.next != 0) {
-                auto done3 = setFramePrev(frame.next, frame.prev);
-                if (!done3) return tl::make_unexpected(std::move(done3).error());
+                auto done = setFramePrev(frame.next, frame.prev);
+                if (!done) return tl::make_unexpected(std::move(done).error());
+                if (auto it = freeAt_.find(frame.next); it != freeAt_.end()) {
+                    it->second.prev = frame.prev;
+                }
             }
             if (base_.firstFree == at) base_.firstFree = frame.next;
             if (base_.lastFree == at) base_.lastFree = frame.prev;
+            // The walk is to carry on where it left off, and this was where: the
+            // frame it would check the next one against is gone, so the one
+            // before it stands in its place.
+            if (at == freeScanned_) freeScanned_ = frame.prev;
 
-            // The chain is one frame shorter and this walk never reached its
-            // end, so what is biggest in what is left is not known from here.
-            largestFreeKnown_ = false;
+            freeBySize_.erase(pick);
+            freeAt_.erase(here);
 
             *offset = at;
             *frameLength = frame.frameLength;
             return {};
         }
-
-        biggest = std::max(biggest, frame.frameLength);
-        seen = at;
-        at = frame.next;
-    }
-
-    // The walk reached the end, so every frame there is has been seen and the
-    // biggest of them is known — which is what the next message measures itself
-    // against instead of walking. A chain walked and found wanting is walked
-    // once however many messages follow.
-    if (worthWalking) {
-        largestFree_ = biggest;
-        largestFreeKnown_ = true;
     }
 
     // Nothing to reuse: the frame goes at the end of the file, and the header's
@@ -768,10 +817,7 @@ tl::expected<void, ErrorPtr> SquishBase::allocateFrame(uint32_t length, uint32_t
 }
 
 tl::expected<void, ErrorPtr> SquishBase::releaseFrame(uint32_t offset, Frame frame) {
-    // The chain is about to hold one more, and a frame put into it can only
-    // make the biggest one bigger — one comparison where working it out afresh
-    // would be another walk.
-    if (largestFreeKnown_) largestFree_ = std::max(largestFree_, frame.frameLength);
+    const uint32_t wasLastFree = base_.lastFree;
 
     frame.type = kFrameFree;
     frame.messageLength = 0;
@@ -786,6 +832,7 @@ tl::expected<void, ErrorPtr> SquishBase::releaseFrame(uint32_t offset, Frame fra
         if (!done) return tl::make_unexpected(std::move(done).error());
         base_.firstFree = offset;
         base_.lastFree = offset;
+        rememberFreed(offset, wasLastFree, frame.frameLength);
         return {};
     }
     auto done2 = setFrameNext(base_.lastFree, offset);
@@ -793,7 +840,35 @@ tl::expected<void, ErrorPtr> SquishBase::releaseFrame(uint32_t offset, Frame fra
     auto done3 = writeFrame(offset, frame);
     if (!done3) return tl::make_unexpected(std::move(done3).error());
     base_.lastFree = offset;
+    rememberFreed(offset, wasLastFree, frame.frameLength);
     return {};
+}
+
+void SquishBase::rememberFreed(uint32_t offset, uint32_t after, uint32_t frameLength) {
+    if (!freeStarted_) return;  // nothing is being held; the disk is the answer
+    if (!freeComplete_) {
+        // The frame goes on the end of a chain this has not walked to the end
+        // of, so the walk would meet it again and hold it twice. There is
+        // nothing to gain by keeping a part-read chain across a delete — the
+        // next allocation reads what it needs — so it goes.
+        forgetFreeChain();
+        return;
+    }
+
+    // The frame goes on the end of the chain, which is where `releaseFrame()`
+    // has just put it on the disk. A chain this cannot be kept in step with is
+    // one to forget rather than one to half remember: the next allocation reads
+    // it back off the disk and is right again.
+    if (after != 0) {
+        const auto tail = freeAt_.find(after);
+        if (tail == freeAt_.end()) {
+            forgetFreeChain();
+            return;
+        }
+        tail->second.next = offset;
+    }
+    freeAt_.emplace(offset, FreeFrame{after, 0, frameLength});
+    freeBySize_.emplace(frameLength, offset);
 }
 
 std::string SquishBase::messageBytes(const RawHeader& header, uint32_t uid,
@@ -966,6 +1041,19 @@ WriteReport SquishBase::writeAll(const std::vector<RawDraft>& drafts) {
     // Where the set begins, so that the index records it adds are the ones
     // written below — and only those: everything before is where it was.
     const uint32_t from = count() + 1;
+
+    // The whole free chain, where there is a set to place in it. One message
+    // reads as little of it as it can — see `scanFreeChain()` — but a set is
+    // going to meet every hole anyway, and meeting them all at once is what
+    // lets each message have the hole that suits it rather than the first that
+    // will do. On the area this was measured in, that is the difference between
+    // a file that grew by half a megabyte and one that grew by twelve.
+    if (drafts.size() > 1) {
+        if (auto done = scanFreeChain(kWholeChain); !done) {
+            report.failed = std::move(done).error();
+            return report;
+        }
+    }
 
     for (const RawDraft& draft : drafts) {
         uint32_t uid = 0;

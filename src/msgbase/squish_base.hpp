@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "msgbase/binary_file.hpp"
@@ -74,6 +76,14 @@ private:
         uint16_t type{0};
     };
 
+    /// One frame of the free chain as this driver holds it: how much room it
+    /// owns, and which frames stand either side of it.
+    struct FreeFrame {
+        uint32_t prev{0};
+        uint32_t next{0};
+        uint32_t frameLength{0};
+    };
+
     struct IndexEntry {
         uint32_t offset{0};  ///< where the frame is, 0 for an invalid entry
         uint32_t uid{0};     ///< UMSGID, which the index is sorted by
@@ -99,23 +109,71 @@ private:
     [[nodiscard]] tl::expected<void, ErrorPtr> setFramePrev(uint32_t offset,
                                                             uint32_t value);
 
+    /// Reads more of the free chain into `freeAt_` and `freeBySize_`, stopping
+    /// at the first frame that could hold `length` bytes — or at the end of the
+    /// chain, which is then known and never walked again.
+    ///
+    /// **As much of it as is needed and no more.** Reading the whole chain would
+    /// cost a message written by hand what a whole set of them costs: an area
+    /// with ninety thousand holes in it is ninety thousand reads, and a reader
+    /// that spent a tenth of a second on every message somebody sent would have
+    /// paid the price of a bulk copy for none of its good. So the walk carries on
+    /// from where it left off — `freeNext_` — and a message whose frame is the
+    /// first in the chain reads one frame, exactly as it did when the chain was
+    /// walked from its head every time.
+    ///
+    /// Checked as it goes, as the walk always was: each frame free, each
+    /// pointing back at the one before it. A chain that does not answer for
+    /// itself is forgotten and the failure said.
+    [[nodiscard]] tl::expected<void, ErrorPtr> scanFreeChain(uint32_t length);
+
+    /// `scanFreeChain()` asked for a frame no base could hold, which is how the
+    /// whole chain is read: nothing satisfies it, so the walk runs to the end.
+    ///
+    /// **What a set of messages asks for and one message does not.** Reading it
+    /// all costs a read per frame, which is too much for a message somebody
+    /// typed and nothing at all beside writing thousands — and it is what lets
+    /// every message of the set be matched against every hole rather than
+    /// against the first one that happens to fit, so an area with a hole for
+    /// every message takes the set back into the holes instead of growing.
+    static constexpr uint32_t kWholeChain = 0xffffffffu;
+    /// Puts the chain back to being a thing on the disk that has not been read.
+    void forgetFreeChain();
+
     /// Takes a frame off the free chain that can hold `length` bytes of
     /// message, or allocates one at the end of the file. `frameLength` comes
     /// back holding what the reused frame owns, which stays as it was.
     ///
-    /// **A walk that can only fail is not walked twice.** The chain is on the
-    /// disk and a step down it is a read, so a base with twenty thousand holes
-    /// in it costs twenty thousand reads to find out that none of them fits —
-    /// and a set of messages carried into that base used to pay that for every
-    /// message, which is what made a copy into a long-lived area slower the
-    /// longer it had lived. A walk that reaches the end has seen every frame
-    /// there is, so `largestFree_` below remembers the biggest of them and the
-    /// next message too big for it skips the chain outright.
+    /// **What has been read of the chain is searched in memory, not on the
+    /// disk.** It used to be walked frame by frame from its head for every
+    /// message, each step a read, and the first frame big enough taken — which
+    /// costs nothing while the chain is short and everything once it is not. An
+    /// area whose messages have all been deleted has a hole for every one of
+    /// them, and the holes too small for the message in hand gather at the head
+    /// of the chain as the others are used up, so every message walks past more
+    /// of them than the last: ninety thousand messages carried into such an area
+    /// is a walk that grows without bound. What has been walked is kept in
+    /// `freeBySize_` instead, so no frame is passed over twice.
+    ///
+    /// The walk itself is still as short as it can be — see `scanFreeChain()`:
+    /// what is read is what is needed, and a message that fits the first frame
+    /// in the chain costs one read whatever the chain's length.
+    ///
+    /// And it is the **smallest** frame that fits rather than the first, which
+    /// is what the format recommends and what a map ordered by size answers
+    /// anyway: the slack left in a frame too big for its message is slack until
+    /// a packer comes, so leaving the roomy frames for the messages that need
+    /// them wastes less than taking whichever came first.
     [[nodiscard]] tl::expected<void, ErrorPtr> allocateFrame(uint32_t length,
                                                              uint32_t* offset,
                                                              uint32_t* frameLength);
     /// Puts a frame on the free chain, for the next message to grow into.
     [[nodiscard]] tl::expected<void, ErrorPtr> releaseFrame(uint32_t offset, Frame frame);
+    /// Notes a frame `releaseFrame()` has just put on the end of the chain, so
+    /// that what is held here still answers for what is on the disk. Does
+    /// nothing where the chain is not being held; forgets it where it cannot be
+    /// kept in step.
+    void rememberFreed(uint32_t offset, uint32_t after, uint32_t frameLength);
 
     /// The message's own bytes as a frame holds them: the XMSG header, then the
     /// control block and its closing NUL, then the text. One block because that
@@ -187,17 +245,28 @@ private:
     /// than a constant: a base whose frame header is not 28 bytes long is not
     /// version one and is left alone.
     uint16_t frameHeaderSize_{28};
-    /// The biggest frame the free chain holds, where a walk has reached the end
-    /// of it and so knows. A message longer than this fits nothing in the chain
-    /// and goes to the end of the file without reading a single frame.
+    /// The free chain as this driver holds it while it is writing: the frames by
+    /// where they are, and the same frames by how much they hold.
     ///
-    /// Known only as far as this driver's own writing goes: `reload()` puts the
-    /// question back, since another task may have freed a frame meanwhile, and
-    /// so does taking the biggest one out of the chain — what is biggest after
-    /// that is a question only another walk answers. Freeing a frame can only
-    /// make it bigger, which is one comparison rather than a walk.
-    uint32_t largestFree_{0};
-    bool largestFreeKnown_{false};
+    /// Two views of one thing. `freeBySize_` is what a message is matched
+    /// against — `lower_bound` on its length is the smallest frame that fits, or
+    /// nothing at all — and `freeAt_` is what says which frames to relink when
+    /// one is taken out of the middle.
+    ///
+    /// Held only as far as this driver's own writing goes: `reload()` forgets
+    /// it, since a tosser may have deleted a message meanwhile and the chain on
+    /// the disk is the only one that counts.
+    std::unordered_map<uint32_t, FreeFrame> freeAt_;
+    std::multimap<uint32_t, uint32_t> freeBySize_;
+    /// Where the walk left off, and the frame before it — which is what the
+    /// next one is checked against, and which moves back when the frame it
+    /// names is the one taken out of the chain.
+    uint32_t freeNext_{0};
+    uint32_t freeScanned_{0};
+    bool freeStarted_{false};
+    /// Whether the walk has reached the end, in which case what is held here is
+    /// every free frame there is and nothing more is on the disk to read.
+    bool freeComplete_{false};
 
     /// Whether this is an echo area, which is the one thing about a Squish
     /// base the driver is told rather than reads: nothing in the files says it,

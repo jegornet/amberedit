@@ -306,6 +306,150 @@ TEST_CASE("A chain too small for one message still fits the next [write][squish]
     CHECK(again.header(1).subject == "message 1");
 }
 
+TEST_CASE("Squish passes no free frame over twice [write][squish]") {
+    // The free chain is on the disk, so walking it is a read per frame, and it
+    // is walked only as far as the message in hand needs — a message written by
+    // hand must not pay for the whole of a chain it will never look at. What it
+    // *did* read is kept, so a later message meets those frames in memory
+    // instead of walking past them again: that is the whole of what makes a
+    // carried set cheap, and it is what this pins.
+    TempDir dir;
+    const AreaConfig area = areaAt(dir.path("area"), MsgBaseType::Squish);
+    FtnMsgBase msgbase("CP866");
+    makeArea(msgbase, area);
+
+    // A snug frame first in the chain and a roomy one behind it.
+    REQUIRE(msgbase.writeAll({ofLines(1, 60), ofLines(2, 400)}).written == 2);
+    REQUIRE(msgbase.removeAll({1, 2}).has_value());
+    REQUIRE(msgbase.count() == 0);
+    const int64_t was = dataSize(area);
+
+    // The big one first: it walks past the snug frame, which will not hold it,
+    // and takes the roomy one. The small one after it must then find the snug
+    // frame **already read** rather than walk to it again — and either way the
+    // file must not grow, both of them having landed in frames that were there.
+    REQUIRE(msgbase.writeAll({ofLines(3, 380), ofLines(4, 50)}).written == 2);
+    CHECK(dataSize(area) == was);
+
+    CHECK(msgbase.count() == 2);
+    CHECK(msgbase.header(1).subject == "message 3");
+    CHECK(msgbase.header(2).subject == "message 4");
+    msgbase.close();
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(area).has_value());
+    CHECK(again.count() == 2);
+    CHECK(again.body(1).text().find("A line of an ordinary message") !=
+          std::string::npos);
+    CHECK(again.body(2).text().find("A line of an ordinary message") !=
+          std::string::npos);
+}
+
+TEST_CASE("A set is matched against every hole, not the first that will do "
+          "[write][squish]") {
+    // One message reads as little of the chain as it can and takes the first
+    // frame that will hold it. A set cannot afford that: the roomy frame a small
+    // message happens to land in is the frame the big message behind it needed,
+    // and the big one then goes on the end of the file for want of it. So a set
+    // reads the whole chain first and each message has the hole that suits it.
+    //
+    // The order is what makes the two tell apart: the roomy frame comes first
+    // in the chain and the small message comes first in the set.
+    TempDir dir;
+    const AreaConfig area = areaAt(dir.path("area"), MsgBaseType::Squish);
+    FtnMsgBase msgbase("CP866");
+    makeArea(msgbase, area);
+
+    REQUIRE(msgbase.writeAll({ofLines(1, 400), ofLines(2, 60)}).written == 2);
+    REQUIRE(msgbase.removeAll({1, 2}).has_value());
+    REQUIRE(msgbase.count() == 0);
+    const int64_t was = dataSize(area);
+
+    // Small first, big second — both have a hole waiting, and neither may end
+    // up on the end of the file.
+    REQUIRE(msgbase.writeAll({ofLines(3, 50), ofLines(4, 380)}).written == 2);
+    CHECK(dataSize(area) == was);
+
+    CHECK(msgbase.count() == 2);
+    CHECK(msgbase.header(1).subject == "message 3");
+    CHECK(msgbase.header(2).subject == "message 4");
+    msgbase.close();
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(area).has_value());
+    CHECK(again.count() == 2);
+    CHECK(again.body(2).text().find("A line of an ordinary message") !=
+          std::string::npos);
+}
+
+TEST_CASE("A message reads no more of the free chain than it needs [write][squish]") {
+    // A long chain of frames that would all hold the message: it takes the
+    // first and reads no further, which is what keeps a message written by hand
+    // costing the same in an area with ninety thousand holes as in a fresh one.
+    // Nothing here can count reads, so what is checked is the outcome that goes
+    // with them — the frame taken is the one at the head of the chain.
+    TempDir dir;
+    const AreaConfig area = areaAt(dir.path("area"), MsgBaseType::Squish);
+    FtnMsgBase msgbase("CP866");
+    makeArea(msgbase, area);
+
+    std::vector<MessageDraft> filler;
+    for (uint32_t i = 0; i < 50; ++i) filler.push_back(ofLines(i, 60));
+    REQUIRE(msgbase.writeAll(filler).written == 50);
+    std::vector<uint32_t> all;
+    for (uint32_t n = 1; n <= msgbase.count(); ++n) all.push_back(n);
+    REQUIRE(msgbase.removeAll(all).has_value());
+
+    const int64_t was = dataSize(area);
+    REQUIRE(msgbase.writeAll({ofLines(99, 55)}).written == 1);
+    CHECK(dataSize(area) == was);
+    CHECK(msgbase.count() == 1);
+    CHECK(msgbase.header(1).subject == "message 99");
+}
+
+TEST_CASE("A long free chain is read once, and every frame in it is usable "
+          "[write][squish]") {
+    // What a carried set meets in an area whose messages have all been deleted:
+    // a hole for every one of them. Every message of the set has to find one,
+    // and the file must not grow while there are holes left to find.
+    TempDir dir;
+    const AreaConfig area = areaAt(dir.path("area"), MsgBaseType::Squish);
+    FtnMsgBase msgbase("CP866");
+    makeArea(msgbase, area);
+
+    constexpr size_t kHoles = 400;
+    std::vector<MessageDraft> filler;
+    for (size_t i = 0; i < kHoles; ++i) {
+        // Assorted, and the big ones last, so that the frames left at the head
+        // of the chain are the ones too small for what follows.
+        filler.push_back(ofLines(static_cast<uint32_t>(i), 4 + (i % 40)));
+    }
+    REQUIRE(msgbase.writeAll(filler).written == kHoles);
+    std::vector<uint32_t> all;
+    for (uint32_t n = 1; n <= msgbase.count(); ++n) all.push_back(n);
+    REQUIRE(msgbase.removeAll(all).has_value());
+    REQUIRE(msgbase.count() == 0);
+
+    const int64_t was = dataSize(area);
+    std::vector<MessageDraft> carried;
+    for (size_t i = 0; i < kHoles; ++i) {
+        carried.push_back(ofLines(static_cast<uint32_t>(1000 + i), 4 + (i % 40)));
+    }
+    REQUIRE(msgbase.writeAll(carried).written == kHoles);
+    CHECK(msgbase.count() == kHoles);
+
+    // The same messages back into the same holes: the file has no reason to
+    // grow, and a chain the driver had given up searching would grow it by the
+    // whole set.
+    CHECK(dataSize(area) == was);
+
+    msgbase.close();
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(area).has_value());
+    REQUIRE(again.count() == kHoles);
+    CHECK(again.header(1).subject == "message 1000");
+    CHECK(again.header(kHoles).subject ==
+          "message " + std::to_string(1000 + kHoles - 1));
+}
+
 TEST_CASE("Squish reuses the frames a delete freed for a set [write][squish]") {
     TempDir dir;
     const AreaConfig area = areaAt(dir.path("area"), MsgBaseType::Squish);

@@ -3888,18 +3888,45 @@ one cost that grows with the area nobody is even looking at.
   watching the file saw. The index file is cut to the message count and the area
   header written **once, last**, so the area grows by the whole set or by none as
   far as anything else reading it is concerned.
-- **A free chain that fits nothing is walked once, not once a message.** The
-  chain is on the disk and a step down it is a read, so an area that has had
-  twenty thousand messages deleted costs twenty thousand reads to learn that no
-  hole in it is big enough — and a carried set used to pay that for *every*
-  message, which made a copy into a long-lived area slower the longer it had
-  lived (measured: 0.03 ms a message into a fresh base, 6.8 ms into one with
-  twenty thousand holes). `SquishBase::largestFree_` is what a completed walk
-  leaves behind, and a message longer than it skips the chain outright. Put back
-  by `reload()` — another task may have freed a frame — and by taking the biggest
-  frame out, since what is biggest after that is another walk's answer; freeing
-  one can only raise it, which is a comparison. **A message the chain *can* hold
-  still walks it**, so nothing is reused less than before: see the test.
+- **What has been read of the free chain is kept, so no frame is walked past
+  twice.** The chain is a linked list on the disk, so walking it is a read per
+  frame — and it used to be walked from its head for every message, taking the
+  first frame big enough. That costs nothing while the chain is short and
+  everything once it is not: an area whose messages have all been deleted has a
+  hole for every one of them, and the holes too small for the message in hand
+  gather at the front as the others are used up, so each message walks past more
+  of them than the last. Measured on a real pair of bases — 93 053 messages
+  carried from JAM into a Squish area holding 93 053 deleted ones — that walk was
+  **220 seconds**, and the per-2000 figure grew from 2 s to 8.5 s as it went. The
+  same copy is now **19 seconds**, flat to the end.
+  - `scanFreeChain(length)` reads **as much of the chain as is needed and no
+    more**, carrying on from `freeNext_` where it left off, and stops at the first
+    frame that would hold `length` bytes. This is what keeps one message cheap:
+    reading the whole chain for every write made a single message cost 83 ms in an
+    area with ninety thousand holes where it had cost 0.16 ms, which is the price
+    of a bulk copy paid for none of its good. What it reads goes into `freeAt_`
+    (by offset, for relinking) and `freeBySize_` (by size, for matching), so the
+    frames an earlier message passed over are met in memory by a later one.
+  - **A set reads the whole chain first** (`kWholeChain`, from
+    `writeAll()` where there is more than one draft), and one message never does.
+    A set is going to meet every hole anyway, and meeting them at once lets each
+    message take the hole that suits it rather than the first that will do — the
+    difference on that same area between a file that grew by 0.6 MB and one that
+    grew by 12 MB. Among what has been read, `allocateFrame()` takes the
+    **smallest** frame that fits, which is what the format recommends and what a
+    map ordered by size answers anyway.
+  - The walk checks as it goes, as it always did: each frame free, each pointing
+    back at the one before it; a chain that will not answer for itself is a
+    failure and a base that needs a packer is not one to write into. Only the two
+    frames either side of the one taken are written, whatever the chain's length,
+    and **the frame after it may not have been read yet** — then there is nothing
+    in memory to bring up to date, and it will be read with the links just
+    written to the disk. `freeScanned_` moves back with it, being what the next
+    frame read is checked against.
+  - `releaseFrame()` keeps the two views in step through `rememberFreed()` where
+    the chain is fully read, and **forgets** it where it is not: a frame put on
+    the end of a chain the walk has not reached would be met again and held
+    twice. `reload()` forgets it too — a tosser may have deleted a message since.
 - *JAM* reads its info block and rebuilds its table of active messages once, then
   carries the three files' ends along with it rather than asking the file system
   how long each has grown after every message. `ActiveMsgs` and `ModCounter` are
