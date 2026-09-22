@@ -54,6 +54,7 @@ add_executable(amberedit_tests
   app/external_editor_test.cpp
   app/user_shell_test.cpp
   app/navigator_test.cpp
+  app/pass_messages_test.cpp
   ui/app_state_test.cpp
   ui/area_list_screen_test.cpp
   ui/area_list_format_test.cpp

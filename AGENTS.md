@@ -381,6 +381,12 @@ Rules that hold the design together:
   takes every file of the base and releases them as one.
 - Character-set conversion happens at the adapter boundary. Above `IMsgBase`,
   every string is UTF-8 and single-byte encodings do not exist.
+- **A screen asks and shows; it does not run message bases.** Deciding which
+  base is open, walking an area, and bounding how much of one is held in memory
+  at a time all belong in `app/`. `app/pass_messages.*` is the case that makes
+  the rule worth stating: the reader's Copy and Move over a marked set are a
+  dialog, a box counting the run and one call, where the chunking and the
+  swapping underneath are neither the reader's business nor testable through it.
 
 ## Code conventions
 
@@ -1608,13 +1614,46 @@ screens showing an area draw what the set holds.
     and `moveMarked()`. The undrawn Forward button is left `Box::Nowhere()` — a
     default-constructed `Box` holds the screen's top-left cell, so a button a
     frame did not draw would otherwise take a click in the corner.
-- **A run into another area opens the target's base once.** `passOnMarked()`
-  reads every draft off the base being read *before* the swap — `storeInto()`
-  closes one base to open the other, so a walk that read as it wrote would be
-  reading from a base that is gone — writes them all, opens the source again, and
-  only then takes out what went in. What the other area refused stays here and
-  stays marked: a message that is not somewhere else is not one to take out of
-  anywhere.
+- **A run into another area is `app/pass_messages.*`, not the screen's.**
+  `passMessages()` is the whole of the carrying: which base is open when, how
+  many messages are held at once and where the walk carries on from are questions
+  about message bases, and none of them is about what is drawn. `passOnMarked()`
+  is what is left on the screen — the box counting the run, the base pointer
+  given up for the length of it and taken back after, and what becomes of the
+  reader, the list and the marks once it is over. **The caller must hold no
+  pointer into an open base across the call** and opens its own area again
+  afterwards: the manager keeps one base open at a time and the run swaps between
+  two.
+  - **It goes over a chunk at a time, because a whole set at once is a whole
+    set's worth of memory.** The drafts have to be read off the source before the
+    target can be opened at all, and a draft costs about twice the text it
+    carries — some three kilobytes for ordinary echomail, so a hundred thousand
+    marked messages would be a third of a gigabyte before a single one was
+    written. So the run goes round: `kChunkMessages` messages or `kChunkBytes` of
+    them are read, whichever comes first, the target is opened and that chunk
+    written, the source is opened again, and the walk carries on from the number
+    it left off at. Two hundred swaps over a hundred thousand messages against a
+    peak of a few megabytes instead of hundreds — and a swap is one index read,
+    which is nothing beside writing the messages.
+  - **The walk ends where the area ended when the run began**, never at the count
+    as it stands. Copying a set into the area being read appends to the very base
+    being walked, and a walk that followed the end of it would go on copying its
+    own copies for as long as there was room on the disk. That case is also the
+    one with no swap in it.
+  - **A chunk always holds at least one message.** The byte bound is tested
+    before the message is read rather than after, so a single message larger than
+    `kChunkBytes` is a chunk of its own instead of a chunk of nothing and a run
+    that quietly does nothing at all.
+  - **Only a Move gathers what went over.** `PassRequest::remember` asks for the
+    UIDs, and it is what says afterwards which messages may be taken out of the
+    source; a Copy takes nothing out of anywhere, and gathering the same set
+    would be tens of bytes a message collected in order to be thrown away.
+    `PassRequest::uids` is a **reference** to the caller's own set for the same
+    reason — a set of a hundred thousand marks copied in to say which messages
+    are meant would cost as much as a chunk of the messages.
+  - Only when every chunk has gone over is what went in taken out of here. What
+    the other area refused stays here and stays marked: a message that is not
+    somewhere else is not one to take out of anywhere.
 - **A run into one file is `writeMarked()`**, and the first message carries the
   answer the file-already-there question was given while every one after it is
   appended: each writing afresh would leave the file holding the last message
@@ -1652,14 +1691,14 @@ screens showing an area draw what the set holds.
   works the same way: `AppState::drawFrame` puts a frame on the screen from
   inside the call, and the screen behind the box is whatever was drawn when the
   run began.
-  - **One `ProgressRun` stands for the operation, not for a pass of it.** A copy
-    reads every marked message off this base before it writes any of them into
-    the other area — one base is open at a time — and a move takes them out of
-    this one afterwards, so what was asked for once is two or three walks over
-    the same set. `begin()` opens each, naming what that pass does to each
-    message, and the box says it: *Reading*, then *Copying* or *Moving*, then
-    *Deleting*. The delay before it goes up is the operation's and not the
-    pass's, or it would flicker off between two of them.
+  - **One `ProgressRun` stands for the operation, not for a pass of it.** A move
+    writes the messages into the area picked and then takes them out of this one,
+    so what was asked for once is two walks over the same set: the box says
+    *Moving* and then *Deleting*, `begin()` opening each. The delay before it
+    goes up is the operation's and not the pass's, or it would flicker off
+    between the two. **The reading is no pass of its own** — it happens a chunk
+    at a time between one run of writes and the next, and a label that changed
+    every few hundred messages would flicker where a count does not.
   - **The box goes up only once the run has taken long enough to read** —
     `kProgressDelayMs` — and is drawn again no oftener than `kProgressTickMs`. A
     frame per message would spend a long run drawing rather than working, and a
@@ -1672,11 +1711,10 @@ screens showing an area draw what the set holds.
     on and not oftener, and it takes everything else typed off the queue with it:
     those keys were aimed at a screen nobody was answering for.
   - **What a broken run leaves behind is honest and marked.** A delete stops
-    where it stands and the rest of the set is still marked. A copy stopped while
-    the set is being *read* has written nothing and is dropped whole. A copy or a
-    move stopped while it is being *written* leaves in the other area what
-    already reached it. **The one pass Escape does not stop is the second half of
-    a move**: what it takes out of this area is already written into the other
+    where it stands and the rest of the set is still marked. A copy or a move
+    leaves in the other area what already reached it, and the messages it never
+    got to are still marked here. **The one pass Escape does not stop is the
+    second half of a move**: what it takes out of this area is already written into the other
     one, and stopping between the two halves would leave the same message
     standing in both. The box leaves its `Esc cancel` line out while that pass
     runs rather than offering a key that does nothing.

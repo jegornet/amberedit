@@ -460,8 +460,8 @@ std::vector<std::string> visibleLines(const amberedit::ui::AppState& state) {
 /// describes the pair and drives them over one area.
 ///
 /// `escapeAt` counts frames of the box, and a copy or a move draws one per
-/// message per pass: `run.drafts.size()` of them reading the set off this base,
-/// then one per message written into the other area.
+/// message carried over — the reading is a chunk at a time and counts no frames
+/// of its own.
 struct Watch {
     int frames{0};
     int escapeAt{0};
@@ -1801,13 +1801,13 @@ TEST_CASE(
 }
 
 TEST_CASE(
-    "Escape while the marked set is being read copies nothing "
+    "Escape before the first message is written copies nothing "
     "[other_area][marks][progress]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;
     Watch seen;
     watch(state, seen);
-    // The first message of the read, before anything has been written anywhere.
+    // The frame the first message is counted on, before it has been written.
     seen.escapeAt = 1;
 
     const uint32_t hereBefore = fixture.countIn(fixture.source);
@@ -1842,9 +1842,9 @@ TEST_CASE(
 
     Watch seen;
     watch(state, seen);
-    // Two messages are read and then the second of them is never written: the
-    // run stops on the second frame of the writing pass.
-    seen.escapeAt = 4;
+    // The first of the two is written and the second never is: the run stops on
+    // the frame that counts it.
+    seen.escapeAt = 2;
 
     message_read::moveMarked(state, fixture.target);
 

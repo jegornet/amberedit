@@ -12,6 +12,7 @@
 #include "app/export_file.hpp"
 #include "app/message_builder.hpp"
 #include "app/message_search.hpp"
+#include "app/pass_messages.hpp"
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
 #include "i18n/i18n.hpp"
@@ -1387,45 +1388,16 @@ bool isCurrentArea(const AppState& state, const domain::AreaConfig& target) {
     return target.tag == state.currentArea.tag && target.path == state.currentArea.path;
 }
 
-/// The marked messages as the base holds them, in the order they stand in the
-/// area, with the UID of each beside it.
-///
-/// Read out before anything is written: `storeInto()` closes the base being read
-/// to open the other one, so a walk that read as it wrote would be reading from a
-/// base that is no longer open. `uids` is what says afterwards which of them went
-/// in — the numbers will have moved by then, the UIDs will not.
-struct MarkedRun {
-    std::vector<domain::MessageDraft> drafts;
-    std::vector<uint32_t> uids;
-    /// Whether every marked message was read. A run the user broke off with
-    /// Escape has written nothing anywhere yet, and is dropped whole rather than
-    /// carried out for the part of the set that happened to be read first.
-    bool whole{true};
-};
-
-MarkedRun markedRun(AppState& state, bool addressed, ProgressRun& progress) {
-    MarkedRun run;
-    progress.begin(AppState::Progress::Doing::Read, state.marks.size());
-    for (uint32_t number = 1; number <= state.messageCount; ++number) {
-        if (!marks::isMarked(state, number)) continue;
-        if (!progress.step()) {
-            run.whole = false;
-            return run;
-        }
-        run.drafts.push_back(
-            app::copyOf(state.base->header(number), state.base->body(number), addressed));
-        run.uids.push_back(state.base->uidOf(number));
-    }
-    return run;
-}
-
 /// The marked messages themselves into another area — `takeOut` saying whether
 /// they stay in this one as well, which is the whole difference between Copy and
 /// Move for a set exactly as it is for one message.
 ///
-/// The target's base is opened once for the lot rather than once per message:
-/// there is one base open at a time, so a swap per message would open and close
-/// the same two files as many times as there are marks.
+/// The carrying is `app::passMessages()`: which base is open when, how many
+/// messages are held at once and where the walk carries on from are questions
+/// about message bases and not about the screen. What is left here is the
+/// screen's own half — the box counting the run, the base pointer given up for
+/// the length of it and taken back after, and what becomes of the reader, the
+/// list and the marks once it is over.
 void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOut) {
     if (state.base == nullptr || state.marks.empty()) return;
     // Moving a set into the area it is already in has nothing to do, exactly as
@@ -1433,61 +1405,41 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
     const bool here = isCurrentArea(state, target);
     if (here && takeOut) return;
 
-    // One of these for the whole operation rather than one per pass: reading the
-    // set off this base, writing it into the other one and taking it out of this
-    // one are three walks over the same messages, and the box counting them
-    // stays up across all three. See `ui/progress_run.hpp`.
+    // One of these for the whole operation rather than one per chunk: what the
+    // box counts is the messages the user marked, and the reading is a part of
+    // carrying each of them over rather than a pass of its own. See
+    // `ui/progress_run.hpp`.
     ProgressRun progress(state);
-    const AppState::Progress::Doing writing =
-        takeOut ? AppState::Progress::Doing::Move : AppState::Progress::Doing::Copy;
+    progress.begin(
+        takeOut ? AppState::Progress::Doing::Move : AppState::Progress::Doing::Copy,
+        state.marks.size());
 
-    const MarkedRun run = markedRun(state, target.hasAddressedRecipient(), progress);
-    if (!run.whole) return;
-    if (run.drafts.empty()) return;
-
-    if (here) {
-        // A second copy of each beside the first, which is what copying into the
-        // area being read can only mean. The originals stay marked: they are
-        // still where they were.
-        progress.begin(writing, run.drafts.size());
-        bool written = false;
-        for (const auto& draft : run.drafts) {
-            if (!progress.step()) break;
-            written = state.base->write(draft).has_value() || written;
-        }
-        if (!written) return;
-        state.manager.refreshArea(state.currentArea);
-        state.messageCount = state.base->count();
-        state.headers.clear();
-        state.headersStart = 0;
-        return;
-    }
-
-    // The one swap the whole run costs. What went in is remembered by UID, since
-    // only those may be taken out of here afterwards.
     const domain::AreaConfig source = state.currentArea;
-    std::set<uint32_t> stored;
+    const app::PassRequest request{source, target, state.marks, /*remember=*/takeOut,
+                                   [&progress] { return progress.step(); }};
+
+    // The run swaps between the two areas, so nothing here may be left pointing
+    // at the base it is reading while it does.
     state.base = nullptr;
-    if (const auto into = state.manager.openArea(target)) {
-        progress.begin(writing, run.drafts.size());
-        for (size_t at = 0; at < run.drafts.size(); ++at) {
-            // A run broken off here has written part of the set, and a Move
-            // still takes that part out below: what is in the other area is
-            // there whether or not the rest followed it, and leaving it in both
-            // would be the one outcome nobody asked for.
-            if (!progress.step()) break;
-            if ((*into)->write(run.drafts[at])) stored.insert(run.uids[at]);
-        }
-        // The area list counts them while the base is still open — so many
-        // messages more in an area nobody has read, and so many unread more.
-        if (!stored.empty()) state.manager.refreshArea(target);
-    }
+    const app::PassReport report = app::passMessages(state.manager, request);
 
     state.base = state.manager.openArea(source).value_or(nullptr);
     if (state.base == nullptr) {
         // The area that was open a moment ago will not open again: there is
         // nothing left underneath to come back to, and nothing to delete from.
         message_list::leaveArea(state);
+        return;
+    }
+    if (report.written == 0) return;
+
+    if (here) {
+        // A second copy of each beside the first, which is what copying into the
+        // area being read can only mean — so the area under the screen has just
+        // grown. The originals stay marked: they are still where they were, and
+        // the copies beside them are not marked at all.
+        state.messageCount = state.base->count();
+        state.headers.clear();
+        state.headersStart = 0;
         return;
     }
     if (!takeOut) return;
@@ -1500,9 +1452,9 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
     // **And this pass alone is not broken off**: what it is taking out is
     // already written into the other area, and stopping between the two halves
     // of a move would leave the same message standing in both. Escape has been
-    // answered already — it is what stopped the writing above, and there is no
-    // more of the set to write.
-    static_cast<void>(removeUids(state, stored, progress, /*breakable=*/false));
+    // answered already — it is what stopped the carrying above, and there is no
+    // more of the set to carry.
+    static_cast<void>(removeUids(state, report.stored, progress, /*breakable=*/false));
 }
 
 }  // namespace

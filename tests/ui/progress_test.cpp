@@ -183,10 +183,8 @@ TEST_CASE("The box says what is being done and to which message [progress][squis
     CHECK(saysSomewhere(fixture.state, "message 13423 of 112344"));
     CHECK(saysSomewhere(fixture.state, "Esc cancel"));
 
-    // The word is the pass's own: a copy reads the messages off this base before
-    // it writes any of them into the other area, and says so while it does.
-    fixture.state.progress->doing = Doing::Read;
-    CHECK(saysSomewhere(fixture.state, "Reading messages..."));
+    // The word is the pass's own, and a move says the word the user asked for
+    // rather than the one a copy would have said.
     fixture.state.progress->doing = Doing::Copy;
     CHECK(saysSomewhere(fixture.state, "Copying messages..."));
     fixture.state.progress->doing = Doing::Move;

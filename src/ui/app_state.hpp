@@ -229,13 +229,10 @@ struct AppState {
     /// run started by mistake.
     struct Progress {
         /// What the pass now running does to each message, which is the word the
-        /// box leads with. A copy reads every marked message off this base
-        /// before it writes any of them into the other one — one base is open at
-        /// a time — and a move takes them out of this one afterwards, so one
-        /// operation is two or three passes and each says what it is doing.
+        /// box leads with. A move is two passes — the messages into the area
+        /// picked, and then out of this one — and each says what it is doing.
         enum class Doing {
-            Read,    ///< taking the marked messages off the base being read
-            Copy,    ///< writing them into the area picked
+            Copy,    ///< carrying them over into the area picked
             Move,    ///< the same, for a move
             Delete,  ///< taking them out of the area being read
         };

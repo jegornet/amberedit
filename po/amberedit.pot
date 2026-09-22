@@ -367,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.9\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-22 14:14+0200\n"
+"POT-Creation-Date: 2026-09-22 14:31+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -530,11 +530,11 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:856
+#: src/ui/app_shell.cpp:866
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:679 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:676 src/ui/nodelist_dialog.cpp:275
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -1042,27 +1042,23 @@ msgid " Lookup: {0}▌ "
 msgstr ""
 
 #: src/ui/progress_dialog.cpp:35
-msgid "Reading messages..."
-msgstr ""
-
-#: src/ui/progress_dialog.cpp:36
 msgid "Copying messages..."
 msgstr ""
 
-#: src/ui/progress_dialog.cpp:37
+#: src/ui/progress_dialog.cpp:36
 msgid "Moving messages..."
 msgstr ""
 
-#: src/ui/progress_dialog.cpp:38
+#: src/ui/progress_dialog.cpp:37
 msgid "Deleting messages..."
 msgstr ""
 
-#: src/ui/progress_dialog.cpp:53
+#: src/ui/progress_dialog.cpp:52
 #, c++-format
 msgid "message {0} of {1}"
 msgstr ""
 
-#: src/ui/progress_dialog.cpp:62
+#: src/ui/progress_dialog.cpp:61
 msgid "Esc cancel"
 msgstr ""
 
@@ -1202,36 +1198,36 @@ msgstr ""
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1943
+#: src/ui/screens/message_read_screen.cpp:2005
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1964
+#: src/ui/screens/message_read_screen.cpp:2026
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2541
+#: src/ui/screens/message_read_screen.cpp:2603
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2544
+#: src/ui/screens/message_read_screen.cpp:2606
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2547
+#: src/ui/screens/message_read_screen.cpp:2609
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2550
+#: src/ui/screens/message_read_screen.cpp:2612
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2553
+#: src/ui/screens/message_read_screen.cpp:2615
 msgctxt "header block"
 msgid "Recd"
 msgstr ""

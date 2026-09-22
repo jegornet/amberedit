@@ -27,17 +27,16 @@ constexpr int kLineWidth = 40;
 /// What the pass being counted is doing, as the box says it.
 ///
 /// A `case` rather than a table, so that a pass added without a word for it is a
-/// build that stops here. The two that write say which of copying and moving
-/// they are: the reading in front of them is the same pass either way, and the
-/// user asked for one of the two things and is owed the word they used.
+/// build that stops here. Copying and moving are two words for what is nearly
+/// one pass because the user asked for one of the two and is owed the word they
+/// used.
 const char* headingOf(Doing doing) {
     switch (doing) {
-        case Doing::Read: return _("Reading messages...");
         case Doing::Copy: return _("Copying messages...");
         case Doing::Move: return _("Moving messages...");
         case Doing::Delete: return _("Deleting messages...");
     }
-    return "";  // unreachable; a Doing is one of the four
+    return "";  // unreachable; a Doing is one of the three
 }
 
 }  // namespace
