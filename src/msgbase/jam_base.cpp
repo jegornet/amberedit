@@ -907,24 +907,9 @@ tl::expected<void, ErrorPtr> JamBase::writeIndexRecord(uint32_t record,
     return {};
 }
 
-tl::expected<uint32_t, ErrorPtr> JamBase::write(const RawDraft& draft) {
-    if (!headers_.isOpen()) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
-    }
-    if (!headers_.writable() || !index_.writable() || !text_.writable()) {
-        return failure("the base at " + headers_.path() + " is not ours to write");
-    }
-
-    // All three files, before anything the write depends on is read: the
-    // counters and both files' lengths come off the disk under the lock.
-    FileLock lock;
-    if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
-                                     locked.error()->message());
-    }
-    auto done = reload();
-    if (!done) return tl::make_unexpected(std::move(done).error());
-
+tl::expected<void, ErrorPtr> JamBase::appendOne(const RawDraft& draft,
+                                                int64_t* headerEnd, int64_t* indexEnd,
+                                                int64_t* textEnd) {
     Header header;
     header.attributes = msgToJamAttributes(draft.header.attributes) |
                         (echo_ ? kJamTypeEcho : kJamTypeNet);
@@ -937,50 +922,107 @@ tl::expected<uint32_t, ErrorPtr> JamBase::write(const RawDraft& draft) {
     std::string text;
     encodeDraft(draft, header, subfieldBlock, text);
 
-    const int64_t headerEnd = headers_.size();
-    const int64_t indexEnd = index_.size();
-    const int64_t textEnd = text_.size();
-    if (headerEnd < 0 || indexEnd < 0 || textEnd < 0) {
-        return failure("cannot size the files of " + headers_.path());
-    }
-
     const auto record =
-        static_cast<uint32_t>(static_cast<uint64_t>(indexEnd) / kIndexRecordSize);
+        static_cast<uint32_t>(static_cast<uint64_t>(*indexEnd) / kIndexRecordSize);
     header.number = record + info_.baseMessageNumber;
-    header.textOffset = static_cast<uint32_t>(textEnd);
+    header.textOffset = static_cast<uint32_t>(*textEnd);
     header.textLength = static_cast<uint32_t>(text.size());
 
     if (!text.empty() &&
-        text_.writeAt(static_cast<uint64_t>(textEnd), text.data(), text.size())
+        text_.writeAt(static_cast<uint64_t>(*textEnd), text.data(), text.size())
             .failed()) {
         return failure("cannot write the text of the new message");
     }
-    if (!writeHeaderAt(static_cast<uint32_t>(headerEnd), header, subfieldBlock)) {
-        (void)headers_.truncate(static_cast<uint64_t>(headerEnd));
-        (void)text_.truncate(static_cast<uint64_t>(textEnd));
-        return 0;
+    if (auto done = writeHeaderAt(static_cast<uint32_t>(*headerEnd), header, subfieldBlock);
+        !done) {
+        (void)headers_.truncate(static_cast<uint64_t>(*headerEnd));
+        (void)text_.truncate(static_cast<uint64_t>(*textEnd));
+        return tl::make_unexpected(std::move(done).error());
     }
 
     // The index record last: it is what makes the message visible, so a write
     // that dies before this point leaves a header nothing refers to rather
     // than a message with half a header.
-    if (!writeIndexRecord(record, draft.header.to, static_cast<uint32_t>(headerEnd))) {
-        (void)headers_.truncate(static_cast<uint64_t>(headerEnd));
-        (void)text_.truncate(static_cast<uint64_t>(textEnd));
-        return 0;
+    if (auto done = writeIndexRecord(record, draft.header.to,
+                                     static_cast<uint32_t>(*headerEnd));
+        !done) {
+        (void)headers_.truncate(static_cast<uint64_t>(*headerEnd));
+        (void)text_.truncate(static_cast<uint64_t>(*textEnd));
+        return tl::make_unexpected(std::move(done).error());
     }
-
-    info_.activeMessages += 1;
-    info_.modCounter += 1;
-    auto done2 = writeInfo();
-    if (!done2) return tl::make_unexpected(std::move(done2).error());
 
     ActiveMessage message;
     message.indexRecord = record;
-    message.headerOffset = static_cast<uint32_t>(headerEnd);
+    message.headerOffset = static_cast<uint32_t>(*headerEnd);
     message.header = header;
     active_.push_back(message);
-    return count();
+
+    // Where the next message goes. Worked out here rather than asked of the
+    // three files again: a set written a message at a time would be three
+    // `fstat` calls per message to learn what it has just written itself.
+    *headerEnd += static_cast<int64_t>(kFixedHeaderSize + subfieldBlock.size());
+    *indexEnd += static_cast<int64_t>(kIndexRecordSize);
+    *textEnd += static_cast<int64_t>(text.size());
+    return {};
+}
+
+WriteReport JamBase::writeAll(const std::vector<RawDraft>& drafts) {
+    WriteReport report;
+    if (drafts.empty()) return report;
+    if (!headers_.isOpen()) {
+        report.failed =
+            failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string()).value();
+        return report;
+    }
+    if (!headers_.writable() || !index_.writable() || !text_.writable()) {
+        report.failed =
+            failure("the base at " + headers_.path() + " is not ours to write").value();
+        return report;
+    }
+
+    // All three files, before anything the writes depend on is read: the
+    // counters and every file's length come off the disk under the lock. Once,
+    // for the whole set — rebuilding the table of active messages out of the
+    // index and every header behind it is what this call exists to pay for once.
+    FileLock lock;
+    if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
+        report.failed =
+            failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy, locked.error()->message())
+                .value();
+        return report;
+    }
+    if (auto done = reload(); !done) {
+        report.failed = std::move(done).error();
+        return report;
+    }
+
+    int64_t headerEnd = headers_.size();
+    int64_t indexEnd = index_.size();
+    int64_t textEnd = text_.size();
+    if (headerEnd < 0 || indexEnd < 0 || textEnd < 0) {
+        report.failed = failure("cannot size the files of " + headers_.path()).value();
+        return report;
+    }
+
+    for (const RawDraft& draft : drafts) {
+        auto done = appendOne(draft, &headerEnd, &indexEnd, &textEnd);
+        if (!done) {
+            report.failed = std::move(done).error();
+            break;
+        }
+        ++report.written;
+    }
+
+    // Once, for however many went in: the records are written and the messages
+    // are readable whether or not the rest followed them.
+    if (report.written != 0) {
+        info_.activeMessages += report.written;
+        info_.modCounter += 1;
+        if (auto done = writeInfo(); !done && !report.failed) {
+            report.failed = std::move(done).error();
+        }
+    }
+    return report;
 }
 
 tl::expected<void, ErrorPtr> JamBase::replace(uint32_t index, const RawDraft& draft) {

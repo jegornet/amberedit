@@ -40,7 +40,7 @@ public:
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid, bool exact) const override;
 
-    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
+    [[nodiscard]] WriteReport writeAll(const std::vector<RawDraft>& drafts) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
                                                        const RawDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
@@ -124,6 +124,20 @@ private:
     [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexRecord(uint32_t record,
                                                                 const std::string& to,
                                                                 uint32_t headerOffset);
+
+    /// Puts one draft at the end of the three files: its text at `textEnd`, its
+    /// header at `headerEnd`, and the index record that makes it visible last of
+    /// all. The three come back moved on to where the next message goes, so a
+    /// set is written without asking the file system how long each file is over
+    /// and over.
+    ///
+    /// **The lock, the reload and the info block are the caller's.** `ActiveMsgs`
+    /// and `ModCounter` are what say how much the area holds, and `writeAll()`
+    /// settles them once for the whole set.
+    [[nodiscard]] tl::expected<void, ErrorPtr> appendOne(const RawDraft& draft,
+                                                         int64_t* headerEnd,
+                                                         int64_t* indexEnd,
+                                                         int64_t* textEnd);
 
     /// Marks one message's records deleted: the `MSG_DELETED` bit and a zero
     /// TxtLen in the header where it lies, and `0xffffffff` in both dwords of

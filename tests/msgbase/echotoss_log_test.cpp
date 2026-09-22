@@ -40,6 +40,9 @@ AreaConfig areaAt(const std::string& tag, const std::string& path) {
     return area;
 }
 
+/// A message as the compose screen leaves one: Loc and not Snt, which is what
+/// `app::startingAttributes()` gives everything written here — and what decides
+/// whether the area is named in the log.
 amberedit::domain::MessageDraft helloDraft() {
     amberedit::domain::MessageDraft draft;
     draft.from = "Yegor Gluhov";
@@ -48,6 +51,22 @@ amberedit::domain::MessageDraft helloDraft() {
     draft.origAddr = *amberedit::domain::FtnAddress::parse("2:382/736");
     draft.charset = "CP866";
     draft.lines = {"Hello!"};
+    draft.attributes = amberedit::domain::attr::kLocal;
+    return draft;
+}
+
+/// One that came off the network: neither attribute, which is every message a
+/// tosser put in a base and the user then copied somewhere.
+amberedit::domain::MessageDraft arrivedDraft() {
+    amberedit::domain::MessageDraft draft = helloDraft();
+    draft.attributes = 0;
+    return draft;
+}
+
+/// One of the user's own that has already gone out.
+amberedit::domain::MessageDraft sentDraft() {
+    amberedit::domain::MessageDraft draft = helloDraft();
+    draft.attributes = amberedit::domain::attr::kLocal | amberedit::domain::attr::kSent;
     return draft;
 }
 
@@ -115,6 +134,54 @@ TEST_CASE("A message written into an area names it in the toss log [tosslog][squ
     // named when the message first reached it.
     REQUIRE(msgbase.replace(number, helloDraft()).has_value());
     CHECK(bytesOf(path) == "localnet\n");
+}
+
+TEST_CASE("Only a message that has to go out names its area [tosslog][squish]") {
+    const TempDir dir;
+    const std::string path = dir.path("echotoss.log");
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true, path);
+    REQUIRE(msgbase.open(areaAt("localnet", base.path())).has_value());
+
+    SUBCASE("mail that arrived from the network says nothing") {
+        // A Copy or a Move of somebody else's message: it is in the base, and a
+        // tosser told about it would send out mail this node never wrote.
+        REQUIRE(valueOf(msgbase.write(arrivedDraft())) != 0);
+        CHECK_FALSE(std::ifstream(path).good());
+    }
+    SUBCASE("the user's own that has already gone out says nothing") {
+        REQUIRE(valueOf(msgbase.write(sentDraft())) != 0);
+        CHECK_FALSE(std::ifstream(path).good());
+    }
+    SUBCASE("the user's own, unsent, names the area") {
+        REQUIRE(valueOf(msgbase.write(helloDraft())) != 0);
+        CHECK(bytesOf(path) == "localnet\n");
+    }
+}
+
+TEST_CASE("A set names the area once, and only if something in it goes out "
+          "[tosslog][squish]") {
+    const TempDir dir;
+    const std::string path = dir.path("echotoss.log");
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true, path);
+    REQUIRE(msgbase.open(areaAt("localnet", base.path())).has_value());
+
+    SUBCASE("a set of mail that arrived says nothing") {
+        const std::vector<amberedit::domain::MessageDraft> carried = {
+            arrivedDraft(), sentDraft(), arrivedDraft()};
+        REQUIRE(msgbase.writeAll(carried).written == 3);
+        CHECK_FALSE(std::ifstream(path).good());
+    }
+    SUBCASE("one message of the user's own among them names it, once") {
+        // Three messages, one line: what the line says is that the area has
+        // something new in it, and it says that no better for being written
+        // once a message.
+        const std::vector<amberedit::domain::MessageDraft> carried = {
+            arrivedDraft(), helloDraft(), arrivedDraft()};
+        REQUIRE(msgbase.writeAll(carried).written == 3);
+        CHECK(bytesOf(path) == "localnet\n");
+    }
 }
 
 TEST_CASE("A base with no toss log named writes none [tosslog][squish]") {

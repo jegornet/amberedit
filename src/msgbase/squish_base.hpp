@@ -39,7 +39,7 @@ public:
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid, bool exact) const override;
 
-    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
+    [[nodiscard]] WriteReport writeAll(const std::vector<RawDraft>& drafts) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
                                                        const RawDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
@@ -118,6 +118,22 @@ private:
     /// where an echo area's origin line is. What a header-only read looks in
     /// for a sender the XMSG left at zero.
     [[nodiscard]] std::string textTail(uint64_t at, uint32_t length) const;
+
+    /// Puts one draft at the end of the base: a frame for it, the message in
+    /// the frame, the frame linked onto the chain, and an index entry pushed
+    /// onto the table in memory. `uid` comes back holding the UMSGID it was
+    /// given.
+    ///
+    /// **The lock and the reload are the caller's, and so is the settling.**
+    /// Nothing here writes the area header or cuts the index file: those say how
+    /// many messages the area holds, and a set written one by one would announce
+    /// each of them to every other reader as it went. `writeAll()` does both once
+    /// for the whole set — see `settleAfterWriting()`.
+    [[nodiscard]] tl::expected<void, ErrorPtr> appendOne(const RawDraft& draft,
+                                                         uint32_t* uid);
+    /// The area header and the length of the index file, after a set has gone
+    /// in: the two things that say how many messages there are.
+    [[nodiscard]] tl::expected<void, ErrorPtr> settleAfterWriting();
 
     [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexEntry(uint32_t index);
     /// Writes the index from record `from` to the end of what is now in memory

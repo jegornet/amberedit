@@ -3,12 +3,29 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "msgbase/raw_message.hpp"
 #include "support/error.hpp"
 
 namespace amberedit::msgbase {
+
+/// What a run of appends came to.
+///
+/// **Two answers rather than one because a part of a set can be in the base.**
+/// A write that fails half way through leaves what went before it written — the
+/// messages are in the area and nothing here could take them back out — and the
+/// caller of a move has to know exactly how many, since those are the ones it
+/// may now delete from the other area. The drafts go in in the order they were
+/// given, so a count from the front says which.
+struct WriteReport {
+    /// How many of the drafts, counting from the first, are in the base.
+    uint32_t written{0};
+    /// Why it stopped, where it stopped short. Null when every draft went in.
+    /// A run that wrote nothing at all always carries one.
+    ErrorPtr failed;
+};
 
 /// One message base format, read and written as bytes.
 ///
@@ -89,11 +106,46 @@ public:
 
     /// Appends a message and hands back its number.
     ///
+    /// One message is the set of one: what every driver implements is
+    /// `writeAll()`, and a single write is that call with one draft in it. The
+    /// number is `count()` afterwards, every format appending at the end.
+    ///
     /// **Every write takes the base's lock first and gives it back after**, the
     /// whole of it under `FileLock`: a tosser may be writing the same area
     /// between two keystrokes.
-    [[nodiscard]] virtual tl::expected<uint32_t, ErrorPtr> write(
-        const RawDraft& draft) = 0;
+    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) {
+        WriteReport report = writeAll(std::vector<RawDraft>{draft});
+        if (report.written == 0) {
+            if (report.failed) return tl::make_unexpected(std::move(report.failed));
+            return failure("the base took no message");
+        }
+        return count();
+    }
+
+    /// Appends several messages under one lock, and it is the lock's company
+    /// that this exists for — `removeAll()`'s reason exactly. A write puts a few
+    /// hundred bytes on the disk and re-reads the whole of what it puts them
+    /// against first: JAM rebuilds its table of active messages out of the index
+    /// and every header behind it, Squish reads its index back, Fido `*.msg`
+    /// lists the directory. A set written one call at a time pays for that per
+    /// message, so carrying a marked set into an area costs the target area over
+    /// again for each message in the set. Here it is paid once.
+    ///
+    /// The drafts go in in the order they are given, each at the end of the
+    /// base, and the base's own counters are settled once when they are all in.
+    /// **The area grows by the whole set at once** as far as anything else
+    /// reading it is concerned: the header that says how many messages there are
+    /// is the last thing written, as it is for a single message and for the same
+    /// reason.
+    ///
+    /// The lock is held for the length of the set, so the caller hands over a
+    /// bounded number at a time — see `app::passMessages()`, which goes round in
+    /// chunks and counts them on the screen.
+    ///
+    /// Nothing here knows about the `echotosslog`, as nothing here knows what a
+    /// charset is: that file is `FtnMsgBase`'s, and which calls write a line in
+    /// it is decided there.
+    [[nodiscard]] virtual WriteReport writeAll(const std::vector<RawDraft>& drafts) = 0;
 
     /// Puts `draft` where message `index` is, rather than beside it.
     ///

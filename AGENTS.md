@@ -1652,8 +1652,8 @@ screens showing an area draw what the set holds.
     marked messages would be a third of a gigabyte before a single one was
     written. So the run goes round: `kChunkMessages` messages or `kChunkBytes` of
     them are read, whichever comes first, the target is opened and that chunk
-    written, the source is opened again, and the walk carries on from the number
-    it left off at. A few dozen swaps over a hundred thousand messages against a
+    written **as one `writeAll()` call**, the source is opened again, and the walk
+    carries on from the number it left off at. A few dozen swaps over a hundred thousand messages against a
     peak of some ten megabytes instead of hundreds — and a swap is one index read,
     which is nothing beside writing the messages. The byte bound is what ends a
     chunk of anything but very short messages; the count is there for those, whose
@@ -1667,6 +1667,13 @@ screens showing an area draw what the set holds.
     before the message is read rather than after, so a single message larger than
     `kChunkBytes` is a chunk of its own instead of a chunk of nothing and a run
     that quietly does nothing at all.
+  - **`onMessage` is asked before each message is *read*, not before it is
+    written**, which is what lets the whole chunk go to the target as one call: a
+    run stopped there has left the message ungathered, so the chunk holds nothing
+    the user did not agree to. `removeMessages()` asks at the same point and for
+    the same reason. A chunk the target takes only a part of is a target that
+    would take no more — a full disk, a base another task holds — and ends the
+    run; what went in is in the report, and a Move takes out exactly that much.
   - **Only a Move gathers what went over.** `PassRequest::remember` asks for the
     UIDs, and it is what says afterwards which messages may be taken out of the
     source; a Copy takes nothing out of anywhere, and gathering the same set
@@ -3701,10 +3708,20 @@ lock for a *new* message: a message is a file of its own, created `O_EXCL`, and
 the loser of a race over a number rescans and takes the next. Rewriting one is
 locked all the same — the file is the message.
 
-**A message written into a base names its area in the `echotosslog`** —
-`msgbase/echotoss_log.cpp`, called from `FtnMsgBase::write()` and nowhere else,
-because that is the one place a message reaching a base is a fact and the tag is
-at hand. It is how a tosser learns the area has something to scan out: the tag on
+**A message a tosser has to scan out names its area in the `echotosslog`** —
+`msgbase/echotoss_log.cpp`, called from `FtnMsgBase::write()` and
+`FtnMsgBase::writeAll()` and nowhere else, because those are the places a message
+reaching a base is a fact and the tag is at hand. **Which messages: Loc set and
+Snt clear** (`needsScanningOut()`), and it is the message's own two attributes
+rather than which call wrote it. Everything composed here starts Loc
+(`app::startingAttributes()`) and a change takes Snt back off, so what the user
+sits down and writes always names its area; mail that arrived from the network
+carries neither and never does, however it comes to be written. So a Copy or a
+Move of somebody else's mail from one echo into another writes no line — a tosser
+told otherwise would export the lot a second time — while the user's own message
+carried the same way still has to go out of where it landed, and says so. A bulk
+run writes **one** line for the set where anything in it qualifies, asked of what
+reached the base and not of what was offered. It is how a tosser learns the area has something to scan out: the tag on
 a line of its own, ended with LF (`std::ios::binary`, so the Windows build writes
 no CR), added to the end of the file and never read back — one area written into
 twice is two lines, the file holding what has happened since the tosser last took
@@ -3823,6 +3840,39 @@ seconds to a tenth of one.
 - *Fido `*.msg`* unlinks the files. There is no base state for a set to share, so
   the whole of what it saves is the numbers coming out of the driver's table
   once.
+
+**A set of messages goes in as one call.** `writeAll()` is what every driver
+implements and `write()` is the set of one; `IMsgBase` carries both, and
+`app::passMessages()` is what calls the first. It is `removeAll()`'s rule exactly
+and the larger of the two: a write puts a few hundred bytes on the disk and
+re-reads the whole of what it puts them against first, and on a copy or a move
+that re-reading is of the **target** area, once per message carried. Which is
+what made carrying a set into a busy echo slower the fuller that echo was — the
+one cost that grows with the area nobody is even looking at.
+
+- *Squish* takes the lock and reads its index back once, then walks the free
+  chain and the frame chain message by message as a single write does — a set
+  handed one frame between them would lose all but the last. The index file is
+  cut to the message count and the area header written **once, last**, so the
+  area grows by the whole set or by none as far as anything else reading it is
+  concerned.
+- *JAM* reads its info block and rebuilds its table of active messages once, then
+  carries the three files' ends along with it rather than asking the file system
+  how long each has grown after every message. `ActiveMsgs` and `ModCounter` are
+  settled once at the end.
+- *Fido `*.msg`* lists the directory once. There is no base state a set shares,
+  so that listing is the whole of what it saves — and on a spool of tens of
+  thousands of files it is the whole of what a write costs. A number another
+  writer took first is the one case that lists it again.
+- **A part of a set can be in the base**, which is why `WriteReport` carries a
+  count and not just an error: the drafts go in in the order they were given, so
+  a count from the front says which are there, and a Move takes out exactly that
+  many. What went in stays in whether or not the rest followed it.
+- `FtnMsgBase::writeAll()` encodes every draft before the driver is called:
+  converting out of UTF-8 is not work to be doing while an area is held
+  unwritable. It names the area in the `echotosslog` **once for the set**, and
+  only where something that reached the base is Loc and not Snt — the rule is the
+  message's, not the call's, and it is written out beside the setting above.
 
 **`replace()` disturbs the base as little as the format allows.** No other
 message moves and nothing is copied up or down the base — a message changed at

@@ -1,5 +1,7 @@
 #include "msgbase/ftn_msgbase.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <ctime>
 #include <filesystem>
 #include <string>
@@ -122,6 +124,23 @@ std::string fitField(encoding::IconvRecoder& recoder, const std::string& text,
         encoded = recoder.fromUtf8(text.substr(0, end), charset);
     }
     return encoded;
+}
+
+/// Whether a message reaching a base is one a tosser has to scan out of it:
+/// written here and not yet sent.
+///
+/// **This is what decides the `echotosslog` line**, and it is the message's own
+/// two attributes rather than which call wrote it. A message composed here
+/// starts Loc (`app::startingAttributes()`) and a change takes Snt back off, so
+/// everything the user sits down and writes qualifies; mail that arrived from
+/// the network carries neither and does not, however it comes to be written into
+/// an area. Which is the whole of the rule: carrying somebody else's mail from
+/// one echo to another is not this node writing it, and a tosser told otherwise
+/// would export the lot a second time — while a message of the user's own
+/// carried into another area still has to go out of it.
+bool needsScanningOut(uint32_t attributes) {
+    return (attributes & domain::attr::kLocal) != 0 &&
+           (attributes & domain::attr::kSent) == 0;
 }
 
 domain::MessageDate nowLocal() {
@@ -461,10 +480,7 @@ RawDraft FtnMsgBase::encode(const domain::MessageDraft& draft) const {
     return raw;
 }
 
-tl::expected<uint32_t, ErrorPtr> FtnMsgBase::write(const domain::MessageDraft& draft) {
-    if (!driver_)
-        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
-
+RawDraft FtnMsgBase::encodeForWriting(const domain::MessageDraft& draft) const {
     RawDraft raw = encode(draft);
     // Written now, unless the draft carries a stamp of its own — a message
     // copied or moved out of another area, which was written when it says it
@@ -473,16 +489,72 @@ tl::expected<uint32_t, ErrorPtr> FtnMsgBase::write(const domain::MessageDraft& d
     const domain::MessageDate now = nowLocal();
     raw.header.written = draft.written.isValid() ? draft.written : now;
     raw.header.arrived = now;
+    return raw;
+}
 
-    const auto written = driver_->write(raw);
+tl::expected<uint32_t, ErrorPtr> FtnMsgBase::write(const domain::MessageDraft& draft) {
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
+
+    const auto written = driver_->write(encodeForWriting(draft));
     if (!written)
         return failure("cannot write the message: " + written.error()->message());
     // The area now holds a message nothing outside AmberEdit has been told
     // about. Where the config names an `echotosslog`, this is where the area is
     // named in it — after the base has taken the message and not before, so
-    // that nothing is announced that was never written.
-    appendEchotossLog(echotossLogPath_, areaConfig_.tag);
+    // that nothing is announced that was never written, and only for a message
+    // there is something to announce about: see `needsScanningOut()`.
+    if (needsScanningOut(draft.attributes)) {
+        appendEchotossLog(echotossLogPath_, areaConfig_.tag);
+    }
     return *written;
+}
+
+ports::WriteReport FtnMsgBase::writeAll(const std::vector<domain::MessageDraft>& drafts) {
+    ports::WriteReport report;
+    if (!driver_) {
+        report.failed =
+            failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string()).value();
+        return report;
+    }
+    if (drafts.empty()) return report;
+
+    // Every draft encoded before any of them is written, which is what the
+    // driver takes: the lock goes on down there and converting a message out of
+    // UTF-8 is not work to be doing while an area is held unwritable. It is a
+    // second copy of the set for the length of the call — bounded by what the
+    // caller hands over, and `app::kChunkBytes` is what bounds that.
+    std::vector<RawDraft> raw;
+    raw.reserve(drafts.size());
+    for (const auto& draft : drafts) raw.push_back(encodeForWriting(draft));
+
+    WriteReport done = driver_->writeAll(raw);
+    report.written = done.written;
+    if (done.failed) {
+        // How far it got as well as what stopped it: a set half written is the
+        // answer a caller acts on, and "cannot write 2000 messages" said of a
+        // run that wrote 1999 of them would be the one thing it must not
+        // believe.
+        report.failed = failure("wrote " + std::to_string(report.written) + " of " +
+                                std::to_string(raw.size()) +
+                                " messages: " + done.failed->message())
+                            .value();
+    }
+
+    // One line for the set, and only where something in it has to go out of this
+    // area — the same question `write()` asks of its one message, asked of the
+    // ones that reached the base rather than of the ones that were offered. A
+    // carried set is usually mail that arrived from the network and says nothing
+    // here; a set of the user's own, carried into another area, still has to be
+    // scanned out of it. The line says the area has something new in it, and it
+    // says that no better for being written once a message.
+    const auto arrived = drafts.begin() + static_cast<std::ptrdiff_t>(report.written);
+    if (std::any_of(drafts.begin(), arrived, [](const domain::MessageDraft& one) {
+            return needsScanningOut(one.attributes);
+        })) {
+        appendEchotossLog(echotossLogPath_, areaConfig_.tag);
+    }
+    return report;
 }
 
 tl::expected<void, ErrorPtr> FtnMsgBase::replace(uint32_t index,

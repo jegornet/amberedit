@@ -800,25 +800,8 @@ tl::expected<void, ErrorPtr> SquishBase::writeIndexEntry(uint32_t index) {
     return {};
 }
 
-tl::expected<uint32_t, ErrorPtr> SquishBase::write(const RawDraft& draft) {
-    if (!data_.isOpen()) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
-    }
-    if (!data_.writable() || !index_file_.writable()) {
-        return failure("the base at " + data_.path() + " is not ours to write");
-    }
-
-    // Both files, before anything is read that the write depends on: the
-    // message count, the next UMSGID and the free chain all come off the disk
-    // under the lock and are put back under it.
-    FileLock lock;
-    if (const auto locked = lock.acquire({&data_, &index_file_}); !locked) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
-                                     locked.error()->message());
-    }
-    auto done = reload();
-    if (!done) return tl::make_unexpected(std::move(done).error());
-
+tl::expected<void, ErrorPtr> SquishBase::appendOne(const RawDraft& draft,
+                                                   uint32_t* uid) {
     const std::string control = kludgesToControlBlock(draft.kludges);
     const uint32_t controlLength = controlBlockLength(control);
     const auto total = static_cast<uint32_t>(kMessageHeaderSize) + controlLength +
@@ -846,35 +829,95 @@ tl::expected<uint32_t, ErrorPtr> SquishBase::write(const RawDraft& draft) {
     auto done4 = writeFrame(offset, frame);
     if (!done4) return tl::make_unexpected(std::move(done4).error());
 
-    const uint32_t uid = base_.nextUid;
-    auto done5 = writeMessageAt(offset, draft.header, uid, control, draft.text);
+    *uid = base_.nextUid;
+    auto done5 = writeMessageAt(offset, draft.header, *uid, control, draft.text);
     if (!done5) return tl::make_unexpected(std::move(done5).error());
 
     IndexEntry entry;
     entry.offset = offset;
-    entry.uid = uid;
+    entry.uid = *uid;
     entry.hash = squishHash(draft.header.to) |
                  ((draft.header.attributes & kAttrRead) != 0 ? kHashRead : 0);
     index_.push_back(entry);
     auto done6 = writeIndexEntry(count());
-    if (!done6) return tl::make_unexpected(std::move(done6).error());
+    if (!done6) {
+        index_.pop_back();  // the record is not on the disk; nor is the message
+        return tl::make_unexpected(std::move(done6).error());
+    }
+
+    base_.nextUid = *uid + 1;
+    base_.messageCount = count();
+    base_.highMessage = base_.messageCount;
+    if (base_.firstFrame == 0) base_.firstFrame = offset;
+    base_.lastFrame = offset;
+    return {};
+}
+
+tl::expected<void, ErrorPtr> SquishBase::settleAfterWriting() {
     // Squish leaves the index file long and cuts it back to the message count;
     // doing the same keeps a base that another tool wrote from carrying stale
     // records past its end.
     (void)index_file_.truncate(static_cast<uint64_t>(count()) * kIndexRecordSize);
 
-    base_.nextUid = uid + 1;
-    base_.messageCount = count();
-    base_.highMessage = base_.messageCount;
-    if (base_.firstFrame == 0) base_.firstFrame = offset;
-    base_.lastFrame = offset;
-
     // Last of all, and deliberately: until the header says how many messages
-    // there are, a reader coming in on the base sees the one just written as
-    // the spare index record it was a moment ago and reads the area as it was.
-    auto done7 = writeBaseHeader();
-    if (!done7) return tl::make_unexpected(std::move(done7).error());
-    return count();
+    // there are, a reader coming in on the base sees the ones just written as
+    // the spare index records they were a moment ago and reads the area as it
+    // was. One header write for the whole set, so an area grows by all of them
+    // at once or by none.
+    return writeBaseHeader();
+}
+
+WriteReport SquishBase::writeAll(const std::vector<RawDraft>& drafts) {
+    WriteReport report;
+    if (drafts.empty()) return report;
+    if (!data_.isOpen()) {
+        report.failed = failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen,
+                                              std::string())
+                            .value();
+        return report;
+    }
+    if (!data_.writable() || !index_file_.writable()) {
+        report.failed = failure("the base at " + data_.path() + " is not ours to write")
+                            .value();
+        return report;
+    }
+
+    // Both files, before anything is read that the writes depend on: the
+    // message count, the next UMSGID and the free chain all come off the disk
+    // under the lock and are put back under it. Once, for the whole set — this
+    // reading is what the call exists to pay for once.
+    FileLock lock;
+    if (const auto locked = lock.acquire({&data_, &index_file_}); !locked) {
+        report.failed = failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                              locked.error()->message())
+                            .value();
+        return report;
+    }
+    if (auto done = reload(); !done) {
+        report.failed = std::move(done).error();
+        return report;
+    }
+
+    for (const RawDraft& draft : drafts) {
+        uint32_t uid = 0;
+        auto done = appendOne(draft, &uid);
+        if (!done) {
+            report.failed = std::move(done).error();
+            break;
+        }
+        ++report.written;
+    }
+
+    // What went in is settled whether or not the rest followed it: the messages
+    // are in the frames and in the index, and a header still saying there are
+    // fewer would be a base that disagreed with itself.
+    if (report.written != 0) {
+        if (auto done = settleAfterWriting(); !done) {
+            report.written = 0;  // nothing is visible; nothing may be deleted
+            report.failed = std::move(done).error();
+        }
+    }
+    return report;
 }
 
 tl::expected<void, ErrorPtr> SquishBase::replace(uint32_t index, const RawDraft& draft) {

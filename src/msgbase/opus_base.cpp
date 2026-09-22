@@ -374,11 +374,7 @@ void OpusBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
                             : static_cast<uint16_t>(header.replies.front()));
 }
 
-tl::expected<uint32_t, ErrorPtr> OpusBase::write(const RawDraft& draft) {
-    if (directory_.empty()) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
-    }
-
+tl::expected<void, ErrorPtr> OpusBase::appendOne(const RawDraft& draft) {
     const std::string body = encodeBody(draft);
     std::array<unsigned char, kHeaderSize> raw{};
     encodeHeader(draft.header, raw.data());
@@ -388,8 +384,6 @@ tl::expected<uint32_t, ErrorPtr> OpusBase::write(const RawDraft& draft) {
     // race rescans — a tosser may have filled the number in between — and
     // takes the next.
     for (int attempt = 0; attempt < 8; ++attempt) {
-        auto done = scan();
-        if (!done) return tl::make_unexpected(std::move(done).error());
         uint32_t number = numbers_.empty() ? 0 : numbers_.back();
         ++number;
         // In an echo area 1.msg is the high-water mark, not a message: the
@@ -397,7 +391,14 @@ tl::expected<uint32_t, ErrorPtr> OpusBase::write(const RawDraft& draft) {
         if (echo_ && number == 1) number = 2;
 
         BinaryFile file;
-        if (!file.create(fileFor(number))) continue;
+        if (!file.create(fileFor(number))) {
+            // Somebody else has that number. What the directory holds is no
+            // longer what `numbers_` says, so it is read again — the one case
+            // that costs a listing, and the reason the listing is not made for
+            // every message.
+            if (auto done = scan(); !done) return done;
+            continue;
+        }
         if (file.writeAt(0, raw.data(), raw.size()).failed() ||
             file.writeAt(kHeaderSize, body.data(), body.size()).failed()) {
             auto reason = "cannot write " + fileFor(number);
@@ -407,9 +408,38 @@ tl::expected<uint32_t, ErrorPtr> OpusBase::write(const RawDraft& draft) {
             return failure(std::move(reason));
         }
         numbers_.push_back(number);  // scan() sorted; the new number is highest
-        return count();
+        return {};
     }
     return failure("cannot find a free message number in " + directory_);
+}
+
+WriteReport OpusBase::writeAll(const std::vector<RawDraft>& drafts) {
+    WriteReport report;
+    if (drafts.empty()) return report;
+    if (directory_.empty()) {
+        report.failed =
+            failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string()).value();
+        return report;
+    }
+
+    // The listing, once for the whole set. There is no base state a set of
+    // writes shares here — each message is a file of its own — so this is the
+    // whole of what the call saves, and on a spool directory of tens of
+    // thousands of files it is the whole of what a write costs.
+    if (auto done = scan(); !done) {
+        report.failed = std::move(done).error();
+        return report;
+    }
+
+    for (const RawDraft& draft : drafts) {
+        auto done = appendOne(draft);
+        if (!done) {
+            report.failed = std::move(done).error();
+            break;
+        }
+        ++report.written;
+    }
+    return report;
 }
 
 tl::expected<void, ErrorPtr> OpusBase::replace(uint32_t index, const RawDraft& draft) {

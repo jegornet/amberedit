@@ -666,14 +666,21 @@ struct AppConfig {
     /// file is.
     std::string errorLogPath;
 
-    /// A file the name of an area is added to after a message has been written
-    /// into it, from `echotosslog`. Empty where the config names none, which is
-    /// the ordinary case and means nothing is written down anywhere.
+    /// A file the name of an area is added to after a message that has to go out
+    /// of it has been written into it, from `echotosslog`. Empty where the config
+    /// names none, which is the ordinary case and means nothing is written down
+    /// anywhere.
     ///
     /// It is what a tosser is pointed at to learn which areas have something
     /// new in them: AmberEdit writes into a base and no tosser knows it
     /// happened. Writing it is `msgbase/appendEchotossLog`'s, called by the adapter
     /// that took the message — this layer only holds where the file is.
+    ///
+    /// **Not every message written names its area.** The line is for one a tosser
+    /// has to scan out — Loc set and Snt clear — which is everything composed
+    /// here and nothing that arrived from the network. So a Copy or a Move of
+    /// somebody else's mail from one echo into another writes no line, and a
+    /// message of the user's own carried the same way does.
     std::string echotossLogPath;
 
     /// Character set this config file itself is written in, and with it every

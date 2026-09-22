@@ -37,7 +37,7 @@ public:
     [[nodiscard]] uint32_t uidOf(uint32_t index) const override;
     [[nodiscard]] uint32_t indexOfUid(uint32_t uid, bool exact) const override;
 
-    [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(const RawDraft& draft) override;
+    [[nodiscard]] WriteReport writeAll(const std::vector<RawDraft>& drafts) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(uint32_t index,
                                                        const RawDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
@@ -54,6 +54,12 @@ private:
     /// differ only in which file the two blocks go to.
     void encodeHeader(const RawHeader& header, unsigned char* raw) const;
     [[nodiscard]] std::string encodeBody(const RawDraft& draft) const;
+
+    /// Writes one draft into the next free number, rescanning where another
+    /// writer took the number first. The directory's listing is `numbers_`, kept
+    /// up to date as each file is made rather than read again — a set written
+    /// into an area would otherwise list the directory once per message.
+    [[nodiscard]] tl::expected<void, ErrorPtr> appendOne(const RawDraft& draft);
 
     std::string directory_;
     /// The message numbers on disk, sorted. Position i+1 reads numbers_[i].

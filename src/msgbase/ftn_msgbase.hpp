@@ -95,6 +95,8 @@ public:
 
     [[nodiscard]] tl::expected<uint32_t, ErrorPtr> write(
         const domain::MessageDraft& draft) override;
+    [[nodiscard]] ports::WriteReport writeAll(
+        const std::vector<domain::MessageDraft>& drafts) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> replace(
         uint32_t index, const domain::MessageDraft& draft) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> remove(uint32_t index) override;
@@ -125,6 +127,14 @@ private:
     /// fields overrun their room, and what they are cut to, is known here and
     /// nowhere above.
     [[nodiscard]] RawDraft encode(const domain::MessageDraft& draft) const;
+
+    /// The draft as the drivers take it, with the two stamps a message being
+    /// written carries: the date it was written under, which is the draft's own
+    /// where it has one — a message copied or moved out of another area was
+    /// written when it says it was — and the date it arrived here, which is now
+    /// whatever the message's age. Shared by the two calls that append, so that
+    /// one message and a set of them are stamped by the same rule.
+    [[nodiscard]] RawDraft encodeForWriting(const domain::MessageDraft& draft) const;
 
     std::unique_ptr<FormatDriver> driver_;
     domain::AreaConfig areaConfig_;

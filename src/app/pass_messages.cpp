@@ -1,5 +1,7 @@
 #include "app/pass_messages.hpp"
 
+#include <cstddef>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -34,8 +36,15 @@ struct Chunk {
 /// The messages `uids` names from `from` onward, up to what one chunk holds,
 /// stopping at `last`. `from` comes back as the number to carry on from, so that
 /// the area is walked once however many chunks it takes.
+///
+/// `carryOn` is asked before each message is read rather than before it is
+/// written, which is what lets the whole chunk go to the target as one call: a
+/// run stopped here has left the message it was asked about ungathered, so the
+/// chunk holds nothing the caller did not agree to. `stopped` says that is what
+/// ended it.
 Chunk chunkFrom(ports::IMsgBase& base, const std::set<uint32_t>& uids, bool addressed,
-                uint32_t last, uint32_t& from) {
+                uint32_t last, uint32_t& from, const std::function<bool()>& carryOn,
+                bool& stopped) {
     Chunk chunk;
     size_t bytes = 0;
     for (; from <= last; ++from) {
@@ -46,6 +55,10 @@ Chunk chunkFrom(ports::IMsgBase& base, const std::set<uint32_t>& uids, bool addr
         // chunk of its own, where the other way round it would be a chunk of
         // nothing and a run that quietly did nothing at all.
         if (chunk.drafts.size() >= kChunkMessages || bytes >= kChunkBytes) break;
+        if (!carryOn()) {
+            stopped = true;
+            break;
+        }
         chunk.drafts.push_back(copyOf(base.header(from), base.body(from), addressed));
         chunk.uids.push_back(uid);
         bytes += weightOf(chunk.drafts.back());
@@ -78,55 +91,59 @@ PassReport passMessages(AreaManager& manager, const PassRequest& request) {
     const uint32_t last = source->count();
     uint32_t from = 1;
 
+    // What one chunk came to, once it is in the other area: so many of it, from
+    // the front, and the run over where the target would take no more. The whole
+    // chunk goes in one call — see `IMsgBase::writeAll()`, which is what makes a
+    // run into a full area cost the area once instead of once a message.
+    const auto putIn = [&](ports::IMsgBase& into, const Chunk& chunk) {
+        const ports::WriteReport wrote = into.writeAll(chunk.drafts);
+        report.written += wrote.written;
+        if (request.remember) {
+            report.stored.insert(
+                chunk.uids.begin(),
+                chunk.uids.begin() + static_cast<std::ptrdiff_t>(wrote.written));
+        }
+        // Short of the whole chunk is an area that would not take it — a disk
+        // that is full, a base another task holds — and the next chunk is the
+        // same answer. What did go in is in, and a Move takes exactly that much
+        // out of the source afterwards: what is in the other area is there
+        // whether or not the rest followed it, and leaving it in both would be
+        // the one outcome nobody asked for.
+        return wrote.written == chunk.drafts.size();
+    };
+
     while (!report.stopped) {
-        const Chunk chunk = chunkFrom(*source, request.uids, addressed, last, from);
+        const Chunk chunk =
+            chunkFrom(*source, request.uids, addressed, last, from, carryOn,
+                      report.stopped);
         if (chunk.drafts.empty()) break;
 
         if (here) {
-            for (const auto& draft : chunk.drafts) {
-                if (!carryOn()) {
-                    report.stopped = true;
-                    break;
-                }
-                if (!source->write(draft)) continue;
-                ++report.written;
-            }
+            // The one case with no swap in it: the messages are appended to the
+            // very base they were read from.
+            if (!putIn(*source, chunk)) break;
             continue;
         }
 
         // The swap this chunk costs. Nothing may be left pointing at the source
         // while the target takes its place.
         source = nullptr;
+        bool tookAll = false;
         if (const auto into = manager.openArea(request.target)) {
-            for (size_t at = 0; at < chunk.drafts.size(); ++at) {
-                // A run stopped here has written part of the set, and a move
-                // still takes that part out of the source afterwards: what is in
-                // the other area is there whether or not the rest followed it,
-                // and leaving it in both would be the one outcome nobody asked
-                // for.
-                if (!carryOn()) {
-                    report.stopped = true;
-                    break;
-                }
-                if (!(*into)->write(chunk.drafts[at])) continue;
-                ++report.written;
-                if (request.remember) report.stored.insert(chunk.uids[at]);
-            }
-        } else {
-            // The target will not open. It will not open for the next chunk
-            // either, and every one of them would swap away from the source to
-            // find that out again.
-            report.stopped = true;
+            tookAll = putIn(**into, chunk);
         }
+        // The target will not open, or would not take the whole chunk. Either
+        // way it will answer the same for the next one, and every one of them
+        // would swap away from the source to find that out again.
+        if (!tookAll) break;
 
         source = manager.openArea(request.source).value_or(nullptr);
         if (source == nullptr) {
             // The area the run is reading will not open again. There is nothing
             // left to read and nothing this can do about it; what went over is
-            // in the report, and the caller finds the same thing the moment it
-            // opens that area itself.
-            report.stopped = true;
-            return report;
+            // in the report either way, and the caller finds the same thing the
+            // moment it opens that area itself.
+            break;
         }
     }
 

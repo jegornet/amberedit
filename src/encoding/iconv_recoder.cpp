@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <utility>
-#include <vector>
 
 namespace amberedit::encoding {
 namespace {
@@ -21,6 +20,17 @@ iconv_t asIconv(void* p) {
 }
 
 constexpr const char kReplacement[] = "\xEF\xBF\xBD";  // U+FFFD
+
+/// What one turn of a conversion writes into before it is appended to the
+/// answer. A line of a message is a few dozen bytes and goes round once; the
+/// size is for the rare long one, not for the ordinary case.
+///
+/// **On the stack, and deliberately.** It used to be a `std::vector` built and
+/// thrown away inside each call, and a call is made per line of every message —
+/// reading an area's worth of mail spent the better part of its time allocating
+/// and zeroing four kilobytes it then wrote fifty bytes into. Nothing here needs
+/// the bytes zeroed: what is appended to the answer is what iconv says it wrote.
+constexpr size_t kConversionBuffer = 4096;
 
 /// Makes a descriptor answer EILSEQ for a character the target has no room for,
 /// which is what every conversion below is built on.
@@ -80,14 +90,14 @@ bool fitsCharset(std::string_view utf8Text, const std::string& charset) {
     if (cd == invalidDescriptor()) return false;
     refuseCharactersWithNoRoom(cd);
 
-    std::vector<char> buffer(4096);
+    char buffer[kConversionBuffer];
     char* inPtr = const_cast<char*>(utf8Text.data());
     size_t inLeft = utf8Text.size();
     bool fits = true;
 
     while (inLeft > 0) {
-        char* outPtr = buffer.data();
-        size_t outLeft = buffer.size();
+        char* outPtr = buffer;
+        size_t outLeft = kConversionBuffer;
 
         if (iconv(cd, &inPtr, &inLeft, &outPtr, &outLeft) != static_cast<size_t>(-1)) {
             break;
@@ -231,17 +241,17 @@ tl::expected<std::string, ErrorPtr> IconvRecoder::intoCharset(
     std::string out;
     out.reserve(text.size());
 
-    std::vector<char> buffer(4096);
+    char buffer[kConversionBuffer];
     char* inPtr = const_cast<char*>(text.data());
     size_t inLeft = text.size();
 
     while (inLeft > 0) {
-        char* outPtr = buffer.data();
-        size_t outLeft = buffer.size();
+        char* outPtr = buffer;
+        size_t outLeft = kConversionBuffer;
 
         const size_t result =
             iconv(asIconv(outDescriptor_), &inPtr, &inLeft, &outPtr, &outLeft);
-        out.append(buffer.data(), buffer.size() - outLeft);
+        out.append(buffer, kConversionBuffer - outLeft);
 
         if (result != static_cast<size_t>(-1)) break;
         if (errno == E2BIG) continue;
@@ -287,19 +297,19 @@ tl::expected<std::string, ErrorPtr> IconvRecoder::intoUtf8(
     std::string out;
     out.reserve(text.size() * 2);
 
-    std::vector<char> buffer(4096);
+    char buffer[kConversionBuffer];
     // iconv may write into the input buffer for stateful encodings only; ours
     // are single-byte, but the POSIX signature still forces a const_cast.
     char* inPtr = const_cast<char*>(text.data());
     size_t inLeft = text.size();
 
     while (inLeft > 0) {
-        char* outPtr = buffer.data();
-        size_t outLeft = buffer.size();
+        char* outPtr = buffer;
+        size_t outLeft = kConversionBuffer;
 
         const size_t result =
             iconv(asIconv(descriptor_), &inPtr, &inLeft, &outPtr, &outLeft);
-        out.append(buffer.data(), buffer.size() - outLeft);
+        out.append(buffer, kConversionBuffer - outLeft);
 
         if (result != static_cast<size_t>(-1)) break;
 
