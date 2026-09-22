@@ -323,5 +323,11 @@ TEST_CASE(
 
     // And the frames the five left are there to be written into: a base whose
     // free chain a delete had broken would refuse this.
-    REQUIRE(valueOf(again.write(numbered(1))) == again.count());
+    //
+    // The count is read afterwards and on a line of its own: which side of an
+    // `==` is evaluated first is nobody's to say, and one that read it before
+    // the write would be comparing the number the message got against the count
+    // without it.
+    const uint32_t written = valueOf(again.write(numbered(1)));
+    REQUIRE(written == again.count());
 }
