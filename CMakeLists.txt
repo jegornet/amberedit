@@ -728,6 +728,7 @@ add_executable(amberedit
   src/ui/menu_dialog.cpp
   src/ui/message_marks.cpp
   src/ui/nodelist_dialog.cpp
+  src/ui/progress_dialog.cpp
   src/ui/reader_sidebar.cpp
   src/ui/reply_dialog.cpp
   src/ui/rescan_dialog.cpp

@@ -455,6 +455,30 @@ std::vector<std::string> visibleLines(const amberedit::ui::AppState& state) {
     return out;
 }
 
+/// The shell's clock and its Escape, so that a run over a marked set can be
+/// watched and broken off without a terminal — `tests/ui/progress_test.cpp`
+/// describes the pair and drives them over one area.
+///
+/// `escapeAt` counts frames of the box, and a copy or a move draws one per
+/// message per pass: `run.drafts.size()` of them reading the set off this base,
+/// then one per message written into the other area.
+struct Watch {
+    int frames{0};
+    int escapeAt{0};
+    amberedit::ui::Millis now{0};
+};
+
+void watch(amberedit::ui::AppState& state, Watch& seen) {
+    state.monotonicMs = [&seen] {
+        seen.now += 1000;
+        return seen.now;
+    };
+    state.drawFrame = [&seen] { ++seen.frames; };
+    state.escapePressed = [&seen] {
+        return seen.escapeAt != 0 && seen.frames >= seen.escapeAt;
+    };
+}
+
 }  // namespace
 
 TEST_CASE("n asks which area the reply goes into [other_area]") {
@@ -1774,4 +1798,68 @@ TEST_CASE(
     CHECK(marks::isMarked(state, 2));
     CHECK(marks::isMarked(state, 3));
     CHECK_FALSE(marks::isMarked(state, before + 1));
+}
+
+TEST_CASE(
+    "Escape while the marked set is being read copies nothing "
+    "[other_area][marks][progress]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+    Watch seen;
+    watch(state, seen);
+    // The first message of the read, before anything has been written anywhere.
+    seen.escapeAt = 1;
+
+    const uint32_t hereBefore = fixture.countIn(fixture.source);
+    const uint32_t thereBefore = fixture.countIn(fixture.target);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.messageCount > 4);
+    marks::toggle(state, 2);
+    marks::toggle(state, 4);
+
+    message_read::copyMarked(state, fixture.target);
+
+    // Nothing anywhere, and the set stands: a run broken off before a single
+    // message was written is a run that did not happen.
+    CHECK(fixture.countIn(fixture.source) == hereBefore);
+    CHECK(fixture.countIn(fixture.target) == thereBefore);
+    CHECK(state.marks.size() == 2);
+}
+
+TEST_CASE(
+    "Escape while the marked set is being moved moves what went in "
+    "[other_area][marks][progress]") {
+    TwoAreaFixture fixture;
+    auto& state = fixture.state;
+
+    const uint32_t hereBefore = fixture.countIn(fixture.source);
+    const uint32_t thereBefore = fixture.countIn(fixture.target);
+    REQUIRE(message_list::enterArea(state, fixture.source).has_value());
+    REQUIRE(state.messageCount > 4);
+    marks::toggle(state, 2);
+    marks::toggle(state, 4);
+    const std::string second = state.base->header(2).subject;
+
+    Watch seen;
+    watch(state, seen);
+    // Two messages are read and then the second of them is never written: the
+    // run stops on the second frame of the writing pass.
+    seen.escapeAt = 4;
+
+    message_read::moveMarked(state, fixture.target);
+
+    // What reached the other area is taken out of this one, and only that: a
+    // message written there and left here as well would be the one outcome
+    // nobody asked for.
+    CHECK(fixture.countIn(fixture.source) == hereBefore - 1);
+    CHECK(state.messageCount == hereBefore - 1);
+    // And what never left stays marked.
+    CHECK(state.marks.size() == 1);
+
+    amberedit::ports::IMsgBase* base =
+        amberedit::test::valueOf(fixture.manager.openArea(fixture.target));
+    REQUIRE(base != nullptr);
+    REQUIRE(base->count() == thereBefore + 1);
+    CHECK(base->header(thereBefore + 1).subject == second);
+    fixture.manager.closeCurrentArea();
 }

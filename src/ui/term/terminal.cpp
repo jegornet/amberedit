@@ -682,6 +682,48 @@ void Terminal::handOver(const std::function<void()>& work) {
 
 void Terminal::flushInput() { flushinp(); }
 
+bool Terminal::escapePressed() {
+    // Asked from inside a run that is holding the loop, so nothing here may
+    // wait: `nodelay` makes an empty queue an ERR rather than a pause, and it
+    // is put back the way it was before this returns — every other read in the
+    // program is meant to block.
+    nodelay(stdscr, TRUE);
+    bool pressed = false;
+    while (true) {
+        wint_t code = 0;
+        const int status = wget_wch(stdscr, &code);
+        if (status == ERR) break;  // nothing left waiting
+
+        if (status == KEY_CODE_YES) {
+            const auto key = static_cast<int>(code);
+            // The window was dragged while the run was going on. Taken now
+            // rather than left for the loop: ncurses reports a resize once, and
+            // a frame drawn to the old size from inside the run would be drawn
+            // against a buffer that no longer matches the terminal.
+            if (key == KEY_RESIZE) {
+                syncSize();
+                continue;
+            }
+            // A mouse report has to be taken off ncurses' own queue as well,
+            // or the next one read would be this one.
+            if (key == KEY_MOUSE) {
+                static_cast<void>(mouseEvent());
+                continue;
+            }
+            if (const auto found = customKeys.find(key);
+                found != customKeys.end() && found->second == Event::Escape) {
+                pressed = true;
+            }
+            continue;
+        }
+        // A bare ESC — what Escape is on a terminal that knows no keyboard
+        // protocol, and what `set_escdelay()` has already waited out.
+        if (code == 27) pressed = true;
+    }
+    nodelay(stdscr, FALSE);
+    return pressed;
+}
+
 Event Terminal::poll() {
     while (true) {
         wint_t code = 0;

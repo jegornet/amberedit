@@ -9,6 +9,14 @@ program, for whichever screen is up. That box is the layout as it stands rather
 than this page: a key that has been rebound is the key it shows, and a command
 left unbound is not in it at all.
 
+**Esc breaks off a long run over the marked messages** — deleting, copying or
+moving a whole area's worth — while the box counting them is on the screen.
+What it had already done stands, and every message it never reached is still
+marked, so the set is there to act on again. The one thing it does not stop is
+the end of a move: messages already written into the other area are taken out of
+this one whatever is pressed, since stopping there would leave the same message
+standing in both.
+
 ## Area list
 
 | Key | What it does                                                     |

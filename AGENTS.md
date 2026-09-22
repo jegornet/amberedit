@@ -1638,10 +1638,48 @@ screens showing an area draw what the set holds.
   comes back on the message in front of it, and a run off the top of the area
   leaves it on the first message left. Both
   `deleteMarked()` and a Move answered for a set end here, which is what keeps
-  the two agreeing on where reading carries on from. `deleteMarked()` empties the
-  set before the sweep and whether or not the base takes the deletions: what it
-  named is either gone or in an area that will not be written, and neither is
-  worth leaving stars on the screen for.
+  the two agreeing on where reading carries on from. **The sweep is what empties
+  the set**, message by message as each is taken out, so that a run broken off
+  leaves the messages it never reached marked — they are still here, and the
+  stars are what the user would gather them by again. A sweep that ran to the end
+  empties what is left of the set with it: a mark that named nothing by then
+  named a message the base has packed away, and it is worth no star either.
+- **A run over a set is counted on the screen and stopped with Escape.** A
+  hundred thousand marked messages take minutes, and the loop is blocked inside
+  the call the whole time — there is no second thread — so `ui/progress_dialog.*`
+  is the box saying what is being done and to which message of how many, and
+  `ui/progress_run.hpp` is what keeps it. It is the rescan modal's sibling and
+  works the same way: `AppState::drawFrame` puts a frame on the screen from
+  inside the call, and the screen behind the box is whatever was drawn when the
+  run began.
+  - **One `ProgressRun` stands for the operation, not for a pass of it.** A copy
+    reads every marked message off this base before it writes any of them into
+    the other area — one base is open at a time — and a move takes them out of
+    this one afterwards, so what was asked for once is two or three walks over
+    the same set. `begin()` opens each, naming what that pass does to each
+    message, and the box says it: *Reading*, then *Copying* or *Moving*, then
+    *Deleting*. The delay before it goes up is the operation's and not the
+    pass's, or it would flicker off between two of them.
+  - **The box goes up only once the run has taken long enough to read** —
+    `kProgressDelayMs` — and is drawn again no oftener than `kProgressTickMs`. A
+    frame per message would spend a long run drawing rather than working, and a
+    box flashed up for a run of three messages is one nobody had time to read.
+    Neither is a setting: there is nothing behind either number for a user to
+    prefer.
+  - **Escape is read from inside the run**, `Terminal::escapePressed()` — the one
+    non-blocking read in the program, and the one way in for a key while the loop
+    is not the thing waiting for one. It is asked on the frames the box is drawn
+    on and not oftener, and it takes everything else typed off the queue with it:
+    those keys were aimed at a screen nobody was answering for.
+  - **What a broken run leaves behind is honest and marked.** A delete stops
+    where it stands and the rest of the set is still marked. A copy stopped while
+    the set is being *read* has written nothing and is dropped whole. A copy or a
+    move stopped while it is being *written* leaves in the other area what
+    already reached it. **The one pass Escape does not stop is the second half of
+    a move**: what it takes out of this area is already written into the other
+    one, and stopping between the two halves would leave the same message
+    standing in both. The box leaves its `Esc cancel` line out while that pass
+    runs rather than offering a key that does nothing.
 - Neither mark command is in the default menu or the default hint row — marking
   is a key one presses while reading and not a button one goes looking for — but
   both may be written into `reader_menu` and any of the hint lists, so both carry
@@ -2294,6 +2332,15 @@ acting on the click.
 rule carries the keys, and what went wrong in their place, rather than either
 taking a row.
 
+- **Two boxes answer no key at all.** `ui/rescan_dialog.*` and
+  `ui/progress_dialog.*` are the two that stand over a screen while the loop is
+  blocked inside a call — every base being opened again, and a run over the
+  marked messages — so neither has a `handleEvent()` and neither can be clicked
+  away: nothing is polled until it comes down. Both are drawn from inside that
+  call through `AppState::drawFrame`. The one key that reaches the second does
+  not come through the dialog either — Escape is read off the terminal from
+  inside the run and breaks it off, see
+  [Marked messages](#marked-messages).
 - **`--setup` is the one dialog that runs before there is a config.** It has no
   `AppState` to hang on — that is built out of an `AppConfig` and an
   `AreaManager`, and the whole point of the wizard is that there is neither yet —

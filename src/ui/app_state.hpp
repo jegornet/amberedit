@@ -218,6 +218,50 @@ struct AppState {
     /// nobody could see to unmake.
     std::set<uint32_t> marks;
 
+    /// The run over those marked messages that is going on, and nothing at all
+    /// the rest of the time — what `ui/progress_dialog.*` draws and what
+    /// `ui/progress_run.hpp` keeps.
+    ///
+    /// A whole area's worth of marks is a run that takes minutes rather than an
+    /// instant, and the loop is blocked inside the call making it the whole
+    /// time: the box counting them is the only thing on the screen that says the
+    /// program is working rather than hung, and Escape is the only way out of a
+    /// run started by mistake.
+    struct Progress {
+        /// What the pass now running does to each message, which is the word the
+        /// box leads with. A copy reads every marked message off this base
+        /// before it writes any of them into the other one — one base is open at
+        /// a time — and a move takes them out of this one afterwards, so one
+        /// operation is two or three passes and each says what it is doing.
+        enum class Doing {
+            Read,    ///< taking the marked messages off the base being read
+            Copy,    ///< writing them into the area picked
+            Move,    ///< the same, for a move
+            Delete,  ///< taking them out of the area being read
+        };
+        Doing doing{Doing::Delete};
+        /// Which message of the pass is being worked on, counted from one, and
+        /// how many there are.
+        uint32_t done{0};
+        uint32_t total{0};
+        /// When the operation — not the pass — began, and when the box was last
+        /// drawn. Both are `monotonicMs()`, and both are what keep a run of a
+        /// dozen messages from flashing a box on the screen for a frame.
+        Millis started{0};
+        Millis drawn{0};
+        /// Whether the box is up at all yet. It goes up once the operation has
+        /// been running long enough to be worth saying anything about, and stays
+        /// up for the rest of it, pass after pass.
+        bool shown{false};
+        /// Whether Escape stops this pass, which is what the box says in its
+        /// last line. Every pass but one: the messages a move has already
+        /// written into the other area are taken out of this one whatever is
+        /// pressed, since a move stopped between the two halves would leave the
+        /// same message standing in both areas.
+        bool breakable{true};
+    };
+    std::optional<Progress> progress;
+
     /// Which message stands on the top row of the reader's sidebar, counted
     /// from zero. Its own scrolling position rather than `messageOffset`: the
     /// panel and the list screen are two windows on the same area, of different
@@ -1668,11 +1712,25 @@ struct AppState {
     /// with the terminal rather than in this header.
     std::function<void()> holdFrame;
 
+    /// Whether Escape has been pressed while a long run was going on, which is
+    /// what breaks one off. Filled in by the shell, which owns the terminal and
+    /// is the only thing that can read a key while the loop is blocked inside
+    /// such a run.
+    ///
+    /// Asking takes whatever was typed off the queue, so it is asked once per
+    /// frame of the box and not once per message — see `ui/progress_run.hpp`.
+    std::function<bool()> escapePressed;
+
     /// Draws the interface as it stands, if there is anything to draw it with.
     /// The tests run with neither callback set and simply skip the frame.
     void redraw() const {
         if (drawFrame) drawFrame();
     }
+
+    /// Whether the run now going on is to be broken off. False wherever nothing
+    /// is watching the keyboard, which is every test: a run nobody can interrupt
+    /// is a run that goes through to the end.
+    [[nodiscard]] bool breakRequested() const { return escapePressed && escapePressed(); }
 
     /// Shows a click before acting on it.
     ///

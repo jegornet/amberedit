@@ -68,6 +68,17 @@ public:
     /// terminal over and takes it back, and nothing between the two is looked at.
     void handOver(const std::function<void()>& work);
 
+    /// Whether Escape is among whatever has been typed and not yet read, taking
+    /// the lot off the queue either way.
+    ///
+    /// The one way in for a key while the loop is not the thing waiting for one:
+    /// a run over a whole area's worth of marked messages blocks inside the call
+    /// doing it, and Escape is what breaks such a run off. Everything else that
+    /// was typed meanwhile is dropped, exactly as `flushInput()` drops what was
+    /// typed during a rescan — those keys were aimed at a screen nobody was
+    /// answering for.
+    [[nodiscard]] bool escapePressed();
+
     /// Throws away whatever has been typed but not yet read.
     ///
     /// For the one case where the application was busy rather than waiting: keys

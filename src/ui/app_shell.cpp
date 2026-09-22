@@ -35,6 +35,7 @@
 #include "ui/mark_dialog.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
+#include "ui/progress_dialog.hpp"
 #include "ui/reply_dialog.hpp"
 #include "ui/rescan_dialog.hpp"
 #include "ui/scope_dialog.hpp"
@@ -226,6 +227,13 @@ Element document(AppState& state) {
     if (state.rescanning) {
         body = rescan_dialog::render(state, std::move(body));
     }
+    // And the same for a long run over the marked messages, which blocks the
+    // loop in exactly the same way. Neither can be up while anything else is:
+    // both go up from inside a call nothing was polling during, and the screen
+    // they stand over is whatever was drawn when it began.
+    if (state.progress) {
+        body = progress_dialog::render(state, std::move(body));
+    }
 
     // The hint bar under the lot, dialogs included: it says what the screen
     // behind them does, and it is the one row `runApp()` has already taken off
@@ -281,11 +289,43 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             error_log::write("colors", warning);
     }
 
+    // The window as it stands, which every screen lays itself out against. A
+    // lambda rather than two lines at the top of the loop because the handovers
+    // want it as well: the window may have been resized while another program
+    // had the terminal, and what runs on the way back — the rescan's modal, a
+    // message wrapped afresh — would otherwise be measured against the old one.
+    const auto takeSize = [&state, &terminal] {
+        state.width = terminal.width();
+        state.height = terminal.height();
+        // The hint bar's row comes off the height every screen lays itself out
+        // against, here rather than in each of them: a screen has no business
+        // knowing what stands under it, and the ones that draw no hints are a
+        // row shorter all the same so that moving between them moves nothing.
+        if (state.hintBarShown() && state.height > 1) --state.height;
+    };
+
     // Putting a frame on the screen from inside whatever is running, rather
     // than at the top of the loop. It lives here because the terminal does, and
-    // it is what lets a long call — the rescan naming each area as it opens it —
-    // show its own progress while the loop is blocked in it.
-    state.drawFrame = [&state, &terminal] { terminal.draw(document(state)); };
+    // it is what lets a long call — the rescan naming each area as it opens it,
+    // a run over the marked messages counting them — show its own progress while
+    // the loop is blocked in it.
+    //
+    // The size is taken first, exactly as it is at the top of the loop: a window
+    // dragged while such a call is running is read there and then — by
+    // `Terminal::escapePressed()`, which is the only thing looking at the
+    // terminal meanwhile — and a frame laid out against the size before it would
+    // be a box drawn to a window that is no longer there.
+    state.drawFrame = [&state, &terminal, &takeSize] {
+        takeSize();
+        terminal.draw(document(state));
+    };
+
+    // And how such a call asks whether the user has had enough of it. The same
+    // reason it lives here: the terminal is the shell's, and a run over a whole
+    // area's worth of marked messages is holding the loop that would otherwise
+    // be reading the keyboard. Everything else typed meanwhile is dropped —
+    // those keys were aimed at a screen nobody was answering for.
+    state.escapePressed = [&terminal] { return terminal.escapePressed(); };
 
     // How a click is shown before it is acted on. The screens say when — the
     // button they have just been clicked on, or the row they have just moved
@@ -301,21 +341,6 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
     state.holdFrame = [&state] {
         state.redraw();
         std::this_thread::sleep_for(std::chrono::milliseconds(state.clickAnimationMs));
-    };
-
-    // The window as it stands, which every screen lays itself out against. A
-    // lambda rather than two lines at the top of the loop because the handovers
-    // want it as well: the window may have been resized while another program
-    // had the terminal, and what runs on the way back — the rescan's modal, a
-    // message wrapped afresh — would otherwise be measured against the old one.
-    const auto takeSize = [&state, &terminal] {
-        state.width = terminal.width();
-        state.height = terminal.height();
-        // The hint bar's row comes off the height every screen lays itself out
-        // against, here rather than in each of them: a screen has no business
-        // knowing what stands under it, and the ones that draw no hints are a
-        // row shorter all the same so that moving between them moves nothing.
-        if (state.hintBarShown() && state.height > 1) --state.height;
     };
 
     // What the last frame was drawn from — the screen, the box over it, and the

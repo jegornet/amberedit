@@ -31,6 +31,7 @@
 #include "ui/menu_dialog.hpp"
 #include "ui/message_marks.hpp"
 #include "ui/nodelist_dialog.hpp"
+#include "ui/progress_run.hpp"
 #include "ui/reader_side_tap.hpp"
 #include "ui/reader_sidebar.hpp"
 #include "ui/scope_dialog.hpp"
@@ -1190,8 +1191,17 @@ namespace {
 ///
 /// Both `deleteMarked()` and a Move answered for a marked set end here, which is
 /// what keeps the two agreeing on where reading carries on from.
-void removeUids(AppState& state, const std::set<uint32_t>& uids) {
-    if (state.base == nullptr || uids.empty()) return;
+///
+/// Each message is taken off `AppState::marks` as it goes, so that a run the
+/// user breaks off with Escape leaves the rest of the set standing: those
+/// messages are still here, and the marks are what say so. False is that break,
+/// and `deleteMarked()` is what acts on it.
+///
+/// `breakable` is false for the half of a move that this is — see
+/// `passOnMarked()`.
+bool removeUids(AppState& state, const std::set<uint32_t>& uids, ProgressRun& run,
+                bool breakable) {
+    if (state.base == nullptr || uids.empty()) return true;
 
     // Where each screen stands, as the thing that outlives a renumbering. Either
     // may itself name one of the run, and then `survivorOf()` answers with the
@@ -1199,16 +1209,28 @@ void removeUids(AppState& state, const std::set<uint32_t>& uids) {
     const uint32_t reader = readerUidOf(state);
     const uint32_t cursor = cursorUidOf(state);
 
+    run.begin(AppState::Progress::Doing::Delete, uids.size(), breakable);
     bool removed = false;
+    bool whole = true;
     for (uint32_t number = state.base->count(); number >= 1; --number) {
-        if (uids.count(state.base->uidOf(number)) == 0) continue;
-        removed = state.base->remove(number).has_value() || removed;
+        const uint32_t uid = state.base->uidOf(number);
+        if (uids.count(uid) == 0) continue;
+        // Asked before the message is touched, so that the number on the screen
+        // names the one being deleted and a run broken off has left it alone.
+        if (!run.step()) {
+            whole = false;
+            break;
+        }
+        if (!state.base->remove(number)) continue;
+        removed = true;
+        state.marks.erase(uid);
     }
-    if (!removed) return;
-    if (!afterRemoving(state)) return;
+    if (!removed) return whole;
+    if (!afterRemoving(state)) return whole;
 
     state.messageCursor = static_cast<int>(survivorOf(state, cursor)) - 1;
     loadMessage(state, survivorOf(state, reader));
+    return whole;
 }
 
 }  // namespace
@@ -1216,12 +1238,19 @@ void removeUids(AppState& state, const std::set<uint32_t>& uids) {
 void deleteMarked(AppState& state) {
     if (state.base == nullptr || state.marks.empty()) return;
 
-    // Taken off the set first: what it named is either about to be gone or in an
-    // area that will not be written, and neither is something to leave stars on
-    // the screen for.
-    const std::set<uint32_t> uids = std::move(state.marks);
+    // The set is read rather than taken: the sweep is what empties it, message
+    // by message, so that a run broken off halfway leaves the messages it never
+    // reached marked — they are still here, and the stars are what the user
+    // would gather them by again.
+    ProgressRun run(state);
+    const std::set<uint32_t> uids = state.marks;
+    if (!removeUids(state, uids, run, /*breakable=*/true)) return;
+
+    // The run went through. Whatever is left in the set is a mark on a message
+    // the area no longer holds — one the base packed away underneath — and it is
+    // dropped with the rest: what it named is either gone or in an area that
+    // will not be written, and neither is worth leaving stars on the screen for.
     state.marks.clear();
-    removeUids(state, uids);
 }
 
 /// Asks what is to become of the message on screen before asking where it is to
@@ -1368,12 +1397,21 @@ bool isCurrentArea(const AppState& state, const domain::AreaConfig& target) {
 struct MarkedRun {
     std::vector<domain::MessageDraft> drafts;
     std::vector<uint32_t> uids;
+    /// Whether every marked message was read. A run the user broke off with
+    /// Escape has written nothing anywhere yet, and is dropped whole rather than
+    /// carried out for the part of the set that happened to be read first.
+    bool whole{true};
 };
 
-MarkedRun markedRun(const AppState& state, bool addressed) {
+MarkedRun markedRun(AppState& state, bool addressed, ProgressRun& progress) {
     MarkedRun run;
+    progress.begin(AppState::Progress::Doing::Read, state.marks.size());
     for (uint32_t number = 1; number <= state.messageCount; ++number) {
         if (!marks::isMarked(state, number)) continue;
+        if (!progress.step()) {
+            run.whole = false;
+            return run;
+        }
         run.drafts.push_back(
             app::copyOf(state.base->header(number), state.base->body(number), addressed));
         run.uids.push_back(state.base->uidOf(number));
@@ -1395,15 +1433,26 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
     const bool here = isCurrentArea(state, target);
     if (here && takeOut) return;
 
-    const MarkedRun run = markedRun(state, target.hasAddressedRecipient());
+    // One of these for the whole operation rather than one per pass: reading the
+    // set off this base, writing it into the other one and taking it out of this
+    // one are three walks over the same messages, and the box counting them
+    // stays up across all three. See `ui/progress_run.hpp`.
+    ProgressRun progress(state);
+    const AppState::Progress::Doing writing =
+        takeOut ? AppState::Progress::Doing::Move : AppState::Progress::Doing::Copy;
+
+    const MarkedRun run = markedRun(state, target.hasAddressedRecipient(), progress);
+    if (!run.whole) return;
     if (run.drafts.empty()) return;
 
     if (here) {
         // A second copy of each beside the first, which is what copying into the
         // area being read can only mean. The originals stay marked: they are
         // still where they were.
+        progress.begin(writing, run.drafts.size());
         bool written = false;
         for (const auto& draft : run.drafts) {
+            if (!progress.step()) break;
             written = state.base->write(draft).has_value() || written;
         }
         if (!written) return;
@@ -1420,7 +1469,13 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
     std::set<uint32_t> stored;
     state.base = nullptr;
     if (const auto into = state.manager.openArea(target)) {
+        progress.begin(writing, run.drafts.size());
         for (size_t at = 0; at < run.drafts.size(); ++at) {
+            // A run broken off here has written part of the set, and a Move
+            // still takes that part out below: what is in the other area is
+            // there whether or not the rest followed it, and leaving it in both
+            // would be the one outcome nobody asked for.
+            if (!progress.step()) break;
             if ((*into)->write(run.drafts[at])) stored.insert(run.uids[at]);
         }
         // The area list counts them while the base is still open — so many
@@ -1440,9 +1495,14 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
     // Only what is safely somewhere else, and only once it is: a message taken
     // out of here on the strength of a write that failed would be gone from both
     // areas. What the other area refused stays marked, being still here and
-    // still unmoved.
-    for (const uint32_t uid : stored) state.marks.erase(uid);
-    removeUids(state, stored);
+    // still unmoved — as does what a run broken off never reached.
+    //
+    // **And this pass alone is not broken off**: what it is taking out is
+    // already written into the other area, and stopping between the two halves
+    // of a move would leave the same message standing in both. Escape has been
+    // answered already — it is what stopped the writing above, and there is no
+    // more of the set to write.
+    static_cast<void>(removeUids(state, stored, progress, /*breakable=*/false));
 }
 
 }  // namespace
