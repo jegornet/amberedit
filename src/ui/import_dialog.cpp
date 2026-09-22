@@ -22,7 +22,6 @@
 #include "ui/input_field.hpp"
 #include "ui/list_page.hpp"
 #include "ui/quick_search.hpp"
-#include "ui/term/utf8.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
@@ -211,13 +210,15 @@ Outcome importPath(AppState& state, Picker& picker, const std::string& path) {
     // per-area setting, since what a message written there looks like is what an
     // area group is for.
     const config::AppConfig& config = state.composeConfig();
-    // A text file is decoded out of the charset the locale names. There is no
-    // asking: the terminal is being read in that charset, and a file on the same
-    // machine was written by the same hands — a box for it would be one more
-    // question with one answer.
-    auto imported =
-        app::importFile(app::ImportRequest{path, state.importMode, ensureUtf8Locale(),
-                                           config.importBegin, config.importEnd});
+    // A text file is decoded out of `msg_file_charset`, which is the charset the
+    // config says a message in a file is written in — the same one the export
+    // writes and the same one the external editor is handed. There is no asking:
+    // a box for it would be one more question with one answer, and the config
+    // already holds that answer.
+    auto imported = app::importFile(app::ImportRequest{path, state.importMode,
+                                                       state.config.msgFileCharset,
+                                                       config.importBegin,
+                                                       config.importEnd});
 
     if (!imported) {
         picker.error = imported.error()->message();

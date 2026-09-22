@@ -40,6 +40,16 @@
 # holds is an ASCII word, and their comments never leave the parser.
 config_charset UTF-8
 
+# The character set a message goes into a FILE in, both ways round: the file
+# external_editor is opened on, the "$msg" an external utility is handed, the
+# text file the reader exports to (F7) and the file the editor imports (F3) are
+# written in it and read back as it. Optional; "config_charset" if this line is
+# not here.
+#
+# The message itself is unaffected: it is stored in "compose_charset" whatever
+# the file on the way to it was written in.
+#msg_file_charset CP866
+
 # --- who you are --------------------------------------------------------------
 
 # The name a message you write is from. Required; may be set per area in a group
@@ -726,9 +736,9 @@ reader_underline_links on
 # reader.shell, and says nothing about what it exited with.
 #
 # $msg in the command hands the utility the message as well, the way
-# external_editor does: it is written into a file under tmpdir in your
-# terminal's charset, $msg is the path to it, and the file is taken away when
-# the utility ends. Which message, and what becomes of the file, is the screen
+# external_editor does: it is written into a file under tmpdir in the charset
+# msg_file_charset names, $msg is the path to it, and the file is taken away
+# when the utility ends. Which message, and what becomes of the file, is the screen
 # you ran the utility from:
 #
 #   * the reader: the message on screen, service lines left out whether or not
@@ -1252,9 +1262,9 @@ template_time_format "%H:%M"
 #     to type into is what the editor opens on, template and all;
 #   * a reply, a comment reply, a reply into another area and a message being
 #     changed go straight to the editor: their headers are filled in already;
-#   * the file is written in the character set your terminal uses, under tmpdir,
-#     and is taken away again when the message is stored or dropped. Nothing is
-#     left behind.
+#   * the file is written in the character set msg_file_charset names, under
+#     tmpdir, and is taken away again when the message is stored or dropped.
+#     Nothing is left behind.
 #
 # What happens when the editor ends is decided by the file:
 #
@@ -1318,7 +1328,8 @@ quote_unwrap off
 # The two lines standing either side of a file read into a message as text — ^O
 # in the editor, and "import" in compose_menu. Optional; "=== Cut ===" both. An
 # empty one writes no line at all. Only text is fenced: a file read in as UUE
-# carries its own "begin" and "end".
+# carries its own "begin" and "end". What charset such a file is read in is
+# msg_file_charset, at the top.
 import_begin "=== Cut ==="
 import_end "=== Cut ==="
 

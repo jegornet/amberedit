@@ -704,6 +704,27 @@ struct AppConfig {
     /// the parser before anything sees them.
     std::string configCharset{"UTF-8"};
 
+    /// Character set the file a message is handed over in is written in — the
+    /// file `external_editor` is opened on, the `$msg` an external utility is
+    /// given, the text file the reader exports a message to and the file the
+    /// editor imports one from. Optional; `config_charset` unless a line says
+    /// otherwise.
+    ///
+    /// Both ways round, since the file goes both ways: what is written out is
+    /// encoded in it, and what is read back — the editor's file, what a utility
+    /// left in `$msg`, a file being imported — is taken to be written in it.
+    ///
+    /// Beside `config_charset` rather than under it because the files are not
+    /// the same files. That setting is about files AmberEdit only ever reads and
+    /// somebody else keeps; this is about the one file AmberEdit writes for
+    /// another program on this machine and reads back afterwards. The two answer
+    /// alike on nearly every system, which is why one defaults to the other, and
+    /// they part company on a system whose editor and whose config disagree.
+    ///
+    /// Under the name iconv knows it by, `readCharset()` reading it as it reads
+    /// the other three.
+    std::string msgFileCharset{"UTF-8"};
+
     /// Character set a message being *read* is decoded from when it carries no
     /// CHRS kludge — or one that names no particular encoding, "IBMPC" being
     /// the name that does that. Nothing else can say: no tosser config format

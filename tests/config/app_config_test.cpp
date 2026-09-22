@@ -288,6 +288,43 @@ TEST_CASE("config_charset is not a per-area setting [app_config]") {
     CHECK_MESSAGE(contains(vague, "names no charset in particular"), vague);
 }
 
+TEST_CASE("msg_file_charset is config_charset unless a line says otherwise [app_config]") {
+    // The file a message is handed over in is a file on this machine like the
+    // ones config_charset already answers for, so it is answered the same way
+    // until somebody says otherwise.
+    CHECK(with("").msgFileCharset == "UTF-8");
+    CHECK(with("config_charset CP866\n").msgFileCharset == "CP866");
+
+    // And where the two part company, the line says so and the config itself is
+    // left where it was: a UTF-8 config driving an editor that reads CP866.
+    const auto split = with("msg_file_charset +7_FIDO\n");
+    CHECK(split.msgFileCharset == "CP866");
+    CHECK(split.configCharset == "UTF-8");
+
+    // Either order: the default is laid down before a single setting is
+    // applied, so a line above `config_charset` overrides it as one below does.
+    CHECK(with("msg_file_charset KOI8-R\nconfig_charset CP866\n").msgFileCharset ==
+          "KOI8-R");
+    CHECK(with("config_charset CP866\nmsg_file_charset KOI8-R\n").msgFileCharset ==
+          "KOI8-R");
+}
+
+TEST_CASE("msg_file_charset is not a per-area setting [app_config]") {
+    // One temporary file, written by whichever screen hands a message over, and
+    // read back by a program that knows nothing about areas.
+    const std::string grouped = errorWith(
+        "group\n"
+        "  member ru.*\n"
+        "  msg_file_charset CP866\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(grouped, "is a setting for the whole config"), grouped);
+
+    // Read by the same readCharset() as the other three, so a name that means
+    // no charset in particular is refused where it stands.
+    const std::string vague = errorWith("msg_file_charset IBMPC\n");
+    CHECK_MESSAGE(contains(vague, "names no charset in particular"), vague);
+}
+
 TEST_CASE("AppConfig requires the name and the address [app_config]") {
     // Neither is guessed and neither has a default: an empty address is a
     // message with no From address and an origin line ending in an empty pair

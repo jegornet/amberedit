@@ -1197,6 +1197,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.configCharset = *read;
+    } else if (key == "msg_file_charset") {
+        auto read = readCharset(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.msgFileCharset = *read;
     } else if (key == "default_charset") {
         auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -2298,6 +2302,13 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
     auto charset = statedConfigCharset(entries);
     if (!charset) return tl::make_unexpected(std::move(charset).error());
     cfg.configCharset = *charset;
+
+    // And the charset the file a message is handed over in is written in, which
+    // is that one unless a line says otherwise. Put here rather than filled in
+    // once the file has been read: a `msg_file_charset` line is applied below
+    // like any other setting and writes over it, so nothing has to remember
+    // whether the line was there.
+    cfg.msgFileCharset = cfg.configCharset;
 
     // Before the first setting is applied, because a setting may *be* a file:
     // `origin @file:origins.txt` has no value until that file has been read.

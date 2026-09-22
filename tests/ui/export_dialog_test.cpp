@@ -13,6 +13,7 @@
 #include "config/text_util.hpp"
 #include "domain/area.hpp"
 #include "domain/message.hpp"
+#include "encoding/iconv_recoder.hpp"
 #include "msgbase/null_lastread_store.hpp"
 #include "ports/i_area_source.hpp"
 #include "temp_dir.hpp"
@@ -236,6 +237,31 @@ TEST_CASE("The export dialog writes the message [export_dialog]") {
     CHECK_MESSAGE(contains(written, "Hello, All!"), written);
     // The service lines are left out, as the reader leaves them out.
     CHECK_FALSE_MESSAGE(contains(written, "MSGID"), written);
+}
+
+TEST_CASE("The export dialog writes the message in msg_file_charset [export_dialog]") {
+    ExportFixture fixture;
+    // What the config says a message put into a file is written in, which is
+    // the one question the dialog never asks: the same charset the import reads
+    // back and the same one the external editor is handed.
+    fixture.config.msgFileCharset = "CP866";
+    fixture.state.readBody->lines.push_back(
+        amberedit::domain::MessageLine{"Привет, All!", false, false});
+
+    export_dialog::open(fixture.state);
+    fixture.type("localnet-44.txt");
+    REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Written);
+
+    // The bytes as they stand on disk, decoded back out of CP866 rather than
+    // compared as UTF-8: what is being checked is what iconv would have
+    // written.
+    const std::string written = fixture.fileText("localnet-44.txt");
+    amberedit::encoding::IconvRecoder recoder;
+    const std::string back =
+        amberedit::test::valueOf(recoder.intoUtf8(written, "CP866"));
+    CHECK_MESSAGE(contains(back, "Привет, All!"), back);
+    // And the file is not UTF-8: a CP866 byte is not one.
+    CHECK_FALSE_MESSAGE(contains(written, "Привет, All!"), written);
 }
 
 TEST_CASE("The export dialog writes under the name it is given [export_dialog]") {

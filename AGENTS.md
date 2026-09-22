@@ -2207,9 +2207,9 @@ decides what an occurrence is.
   every other control byte, and `splitLines()` takes the line endings off
   whichever kind the editor wrote. Both are shared with the import, which faces
   the same problem: bytes from a file somebody else's program wrote. The charset
-  either way is the terminal's own (`ensureUtf8Locale()`) — the editor runs in
-  this terminal — and a message the charset cannot carry is a failure rather
-  than a file full of question marks, the export's rule exactly.
+  either way is `msg_file_charset` — written in it and read back as it — and a
+  message the charset cannot carry is a failure rather than a file full of
+  question marks, the export's rule exactly.
 - **The template is never expanded again over it.** `externalEditReturned()`
   clears `composeStartText`, which nothing can equal afterwards: the message is
   the user's from the moment their editor wrote it, and a header changed later
@@ -2537,9 +2537,9 @@ taking a row.
     are opened out to the next eight-column stop and every other control byte is
     dropped. The NUL is the one that matters: FTS-0001 ends a message at the
     first one. The external editor shares that call, facing the same problem.
-  - **The charset is the locale's**, the one `term::ensureUtf8Locale()` settled
-    on. `ImportRequest::charset` is still the caller's to name, since `app/` has
-    no business reaching into the terminal's locale.
+  - **The charset is `msg_file_charset`**, the same one the export writes and
+    the external editor is handed. `ImportRequest::charset` is still the
+    caller's to name, since `app/` has no business reading a config.
   - **Where it lands is where the cursor is, as whole lines**: at the cursor when
     it stands at the start of a line, after that line otherwise, the cursor
     coming to rest under the block. It is answered from the header as well. A
@@ -2601,8 +2601,8 @@ taking a row.
     exactly as the reader leaves it off. The stamp is `reader_datetime_format`,
     so the file says what the screen said, and the rule under each header block
     is what keeps two appended messages apart.
-  - **The charset is the locale's**, as for an import; `ExportRequest::charset`
-    is still the caller's to name.
+  - **The charset is `msg_file_charset`**, as for an import;
+    `ExportRequest::charset` is still the caller's to name.
 - **A message carrying uuencoded files is asked about before it is written.**
   `app::uueFiles()` reads the message when `w` is pressed (`askExport()` is the
   whole of the decision), and where it finds anything `ui/export_mode_dialog.*`
@@ -3054,6 +3054,35 @@ taking a row.
     UTF-8 and its comments are written with the characters UTF-8 has, so an em
     dash comes out of iconv as a hyphen or a `?`; a comment reading a little
     plainer is the cost of the file being what it says it is.
+- **`msg_file_charset` is the fourth, and it is about the one file that goes
+  both ways.** It says what charset a message is written into a file in, and
+  read back out of it in: the file `external_editor` is opened on, the `$msg` an
+  `extern_utilN` line hands a utility, the text file `reader.export` writes, and
+  the file `compose.import` reads. Optional, **`config_charset` where no line
+  states it** — `fromEntries()` assigns it there, before the first setting is
+  applied, so that a `msg_file_charset` line simply writes over it and nothing
+  has to remember whether the line was there. Held under iconv's name by the
+  same `readCharset()`, and not a per-area setting: one temporary file, written
+  by whichever screen hands the message over and read back by a program that
+  knows nothing of areas.
+  - **It is a setting of its own rather than `config_charset` itself** because
+    the files are not the same files. `config_charset` covers files somebody
+    else keeps and AmberEdit only reads; this covers the one file AmberEdit
+    writes for another program on this machine and reads back afterwards. The
+    two answer alike on nearly every system, which is what the default is for,
+    and they part company where an editor reads a charset the config is not
+    written in.
+  - **The four places that name it are the four ways a screen hands a message to
+    a file**, and they read it off `AppConfig` rather than off the terminal:
+    `app_shell.cpp` at `runExternalEditor()` and `runUtilOnMessage()`,
+    `ui/export_dialog.cpp` at both `ExportRequest`s, and `ui/import_dialog.cpp`
+    at `ImportRequest`. `app/external_editor`, `app/export_file` and
+    `app/import_file` take the charset as an argument and reach for no setting
+    and no locale of their own.
+  - **It says nothing about the message.** What a message is stored in is
+    `compose_charset` and what it is read as is its CHRS: a file was a way of
+    carrying the text to another program and back, and the charset it made that
+    trip in is not a charset the message keeps.
 - **Reading and writing have separate settings, both required.**
   `default_charset` is only ever a fallback for a message being read;
   `compose_charset` is what a new message is encoded in and what its CHRS
@@ -4372,7 +4401,7 @@ together — `keys_mode` says which.
   sent the message.
 - **`external_editor` is the fourth of that shape and the only one with a file
   in the middle of it.** `app/external_editor` writes the message into `tmpdir`
-  in the terminal's charset, calls `runProgram()` on the words with `$msg`
+  in `msg_file_charset`, calls `runProgram()` on the words with `$msg`
   filled in, and reads back what is there; the compose screen sets
   `AppState::externalEditRequested` and `runApp()` hands the terminal over on the
   next pass, exactly as the other three are answered. What it adds is an

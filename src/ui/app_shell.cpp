@@ -46,7 +46,6 @@
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/terminal.hpp"
-#include "ui/term/utf8.hpp"
 #include "ui/theme.hpp"
 
 namespace amberedit::ui {
@@ -450,13 +449,13 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                             if (!ran) failed = ran.error()->message();
                             return;
                         }
-                        // The terminal's own charset, for the reason the editor
-                        // below is handed it: the utility runs in this terminal,
-                        // and a file it can show is one written the way this
-                        // terminal reads one.
+                        // `msg_file_charset`, for the reason the editor below
+                        // is handed it: the file is one the config says how to
+                        // write, and a utility on this machine reads one the
+                        // same way an editor on it does.
                         auto ran = app::runUtilOnMessage(
                             words, path, extern_util::messageFor(state, command),
-                            ensureUtf8Locale());
+                            state.config.msgFileCharset);
                         if (!ran) {
                             failed = ran.error()->message();
                         } else {
@@ -518,12 +517,12 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             app::ExternalEdit edited;
             if (failed.empty()) {
                 terminal.handOver([&state, &edited, &failed] {
-                    // The terminal's own charset: the editor runs in this
-                    // terminal, and a file it can show is one written the way
-                    // this terminal reads one.
+                    // `msg_file_charset`: the file is the message as another
+                    // program will read and write it, and what charset that
+                    // program works in is the config's to say.
                     auto ran = app::runExternalEditor(
                         state.config.externalEditor, state.externalEditPath,
-                        state.edit.lines, ensureUtf8Locale());
+                        state.edit.lines, state.config.msgFileCharset);
                     if (!ran) {
                         failed = ran.error()->message();
                     } else {

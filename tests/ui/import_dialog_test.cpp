@@ -25,7 +25,6 @@
 #include "ui/screens/compose_screen.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/screen.hpp"
-#include "ui/term/utf8.hpp"
 
 using amberedit::app::ImportMode;
 using amberedit::config::AppConfig;
@@ -304,15 +303,16 @@ TEST_CASE("The import dialog reads a file as UUE [import_dialog]") {
           std::vector<std::string>{"begin 644 blob.bin", "#86)C", "`", "end", ""});
 }
 
-TEST_CASE("The import dialog reads text in the locale's charset [import_dialog]") {
+TEST_CASE("The import dialog reads text in msg_file_charset [import_dialog]") {
     ImportFixture fixture;
-    // The file as this machine would hold it: whatever the locale is being
-    // written in, which is the charset the dialog reads a text file out of.
-    // There is nothing to choose and nothing to type — the box has no charset
-    // in it.
+    // The charset the config says a message in a file is written in — the same
+    // one the export writes and the same one the external editor is handed.
+    // There is nothing to choose and nothing to type: the box has no charset in
+    // it, and the config already holds the answer.
+    fixture.config.msgFileCharset = "CP866";
     amberedit::encoding::IconvRecoder recoder;
     fixture.write("privet.txt",
-                  recoder.fromUtf8(kPrivet, amberedit::ui::term::ensureUtf8Locale()));
+                  amberedit::test::valueOf(recoder.intoCharset(kPrivet, "CP866")));
     fixture.state.edit.lines = {""};
 
     import_dialog::open(fixture.state);

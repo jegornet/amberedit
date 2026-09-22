@@ -19,7 +19,6 @@
 #include "ui/list_page.hpp"
 #include "ui/message_marks.hpp"
 #include "ui/quick_search.hpp"
-#include "ui/term/utf8.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
@@ -242,9 +241,10 @@ void rememberPath(AppState& state, const std::string& path) {
 /// standing there — which is what the question above this one was asked for.
 Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
                      app::ExportWrite how) {
-    // What the message is written in: the charset the locale names, which is
-    // what a file on this machine is read in. There is nothing to ask.
-    const app::ExportRequest request{path, ensureUtf8Locale(),
+    // What the message is written in: `msg_file_charset`, which is what the
+    // config says a message put into a file is written in. There is nothing to
+    // ask.
+    const app::ExportRequest request{path, state.config.msgFileCharset,
                                      state.config.readerDateTimeFormat, how};
 
     const auto written_ = app::exportMessage(request, state.currentArea,
@@ -284,7 +284,7 @@ Outcome writeMarked(AppState& state, Picker& picker, const std::string& path,
 
     app::ExportWrite next = how;
     for (const uint32_t number : numbers) {
-        const app::ExportRequest request{path, ensureUtf8Locale(),
+        const app::ExportRequest request{path, state.config.msgFileCharset,
                                          state.config.readerDateTimeFormat, next};
         const auto written_ =
             app::exportMessage(request, state.currentArea, state.base->header(number),
