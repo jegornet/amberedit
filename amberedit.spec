@@ -110,6 +110,7 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 * Tue Sep 22 2026 Yegor Gluhov <git@jegor.net> - 0.8.10-1
 - fix bulk operations hanging the editor
 - add progress reporting for long bulk operations
+- add msg_file_charset
 
 * Sun Sep 20 2026 Yegor Gluhov <git@jegor.net> - 0.8.9-1
 - tagline support

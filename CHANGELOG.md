@@ -4,6 +4,7 @@
 
 - fix bulk operations hanging the editor
 - add progress reporting for long bulk operations
+- add msg_file_charset
 
 ## 0.8.9 — 2026-09-20
 

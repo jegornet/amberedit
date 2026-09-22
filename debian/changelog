@@ -2,6 +2,7 @@ amberedit (0.8.10-1) unstable; urgency=low
 
   * fix bulk operations hanging the editor
   * add progress reporting for long bulk operations
+  * add msg_file_charset
 
  -- Yegor Gluhov <git@jegor.net>  Tue, 22 Sep 2026 12:00:00 +0000
 
