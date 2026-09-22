@@ -769,16 +769,18 @@ if(WIN32)
     -Wl,--major-subsystem-version=6 -Wl,--minor-subsystem-version=0)
 endif()
 
-# What a build installs: the binary, the default template and the themes.
-# Nothing looks for the last two beside the executable — a user points the config
-# at one by path, and `amberedit.cfg.example` names them under
-# ${CMAKE_INSTALL_DATADIR}/amberedit. So the install has to put them exactly
+# What a build installs: the binary, the default template, the themes and the
+# man page. Nothing looks for the template or a theme beside the executable — a
+# user points the config at one by path, and `amberedit.cfg.example` names them
+# under ${CMAKE_INSTALL_DATADIR}/amberedit. So the install has to put them exactly
 # there, or the sample config points at nothing. Placing them here rather than in
 # each package's own recipe is what keeps the RPM, the deb and a plain
 # `cmake --install` agreeing on where a theme lives.
 #
-# The sample configs and the four documents stay out: they are documentation,
-# and each package format has its own place for that.
+# The sample configs and the five documents stay out: they are documentation,
+# and each package format has its own place for that. The man page is not one of
+# them — it is an installed file with a path of its own, and no package recipe
+# places it either.
 install(TARGETS amberedit RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)
 # The exclusion is not paranoia: `._blue.cfg` beside `blue.cfg` matches
@@ -788,20 +790,40 @@ install(FILES default.tpl DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit)
 install(DIRECTORY themes/ DESTINATION ${CMAKE_INSTALL_DATADIR}/amberedit/themes
         FILES_MATCHING PATTERN "*.cfg" PATTERN "._*" EXCLUDE)
 
+# --- the man page -------------------------------------------------------------
+# Configured rather than installed as it stands, for the same reason
+# `version.hpp` is: the version belongs to `project(AmberEdit VERSION ...)` and
+# nowhere else, and a page that spelled it out again would be an eighth file for
+# a version bump to touch. The page names the installed paths as well — the
+# themes and the template under ${CMAKE_INSTALL_FULL_DATADIR}, the catalogs under
+# ${CMAKE_INSTALL_FULL_LOCALEDIR} — so a build installed under another prefix
+# documents that prefix and not /usr/share.
+#
+# Not on Windows: the zip is unpacked wherever the user likes, there is nothing
+# there to read a roff page with, and the absolute paths configured into it would
+# name a prefix that does not exist on that machine.
+if(NOT WIN32)
+  configure_file(amberedit.1.in ${CMAKE_BINARY_DIR}/generated/amberedit.1 @ONLY)
+  install(FILES ${CMAKE_BINARY_DIR}/generated/amberedit.1
+          DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
+endif()
+
 # --- message catalogs --------------------------------------------------------
 # The interface's own language. `po/*.po` are the translations and `msgfmt` turns
 # each into the `.mo` libintl reads.
 #
 # **The layout is gettext's own** — `<dir>/<language>/LC_MESSAGES/amberedit.mo` —
 # and not a shape of ours, because `bindtextdomain()` is the only way in and that
-# is the only shape it looks in. The config's `language` line names the whole
-# path of one of those files and `i18n::load()` takes it apart again into the
-# three things libintl wants.
+# is the only shape it looks in. Which of them is read is the environment's to
+# say — `LANGUAGE`, `LC_ALL`, `LC_MESSAGES`, `LANG`, gettext's own order — and
+# there is no config setting for it, so the directory is the whole of what the
+# code hands over and gettext picks the file inside it.
 #
 # Built into the build directory under exactly the name it is installed under, so
-# that a binary that has never been installed can be pointed at one: `language
-# build/locale/ru/LC_MESSAGES/amberedit.mo` works out of a fresh checkout, which
-# is the whole reason the setting takes a path rather than a language name.
+# that a binary that has never been installed is already translated:
+# `AMBEREDIT_BUILD_LOCALEDIR` names this build's `locale/` and is tried ahead of
+# `AMBEREDIT_LOCALEDIR`, which is what makes `LANG=ru_RU.UTF-8
+# ./build/bin/amberedit` Russian out of a fresh checkout.
 #
 # `msgfmt` is not required. A build without it is a build with the English the
 # source is written in, which is every string the program has; the catalogs are

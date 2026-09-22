@@ -123,6 +123,12 @@ sudo cmake --install build      # /usr/local/bin/amberedit
 
 Add `-DCMAKE_INSTALL_PREFIX=~/.local` to install without root.
 
+The install places the binary, `default.tpl` and the themes under
+`<prefix>/share/amberedit`, the message catalogs under `<prefix>/share/locale`
+and the man page at `<prefix>/share/man/man1/amberedit.1`, so `man amberedit`
+works once that prefix is one your `man` looks in — `man -l` reads the file
+directly where it is not.
+
 **`glibc-gconv-extra`** is above for a reason: CP866, CP437 and KOI8-R are not
 in the base glibc on RHEL 9 and later or on Fedora — the gconv modules for them
 were split into that package. Without it `iconv_open("CP866")` fails, every

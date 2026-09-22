@@ -1,0 +1,305 @@
+.\" Man page for AmberEdit. CMake configures it into
+.\" build/generated/amberedit.1, filling in @PROJECT_VERSION@ and the paths this
+.\" build installs to: the version goes on standing only in
+.\" project(AmberEdit VERSION ...), and a page installed under another prefix
+.\" names that prefix rather than /usr/share.
+.\"
+.\" The date in .TH is the page's own and is written by hand. It says when the
+.\" page was last changed, which is not when a release was cut.
+.TH AMBEREDIT 1 2026-09-23 "AmberEdit @PROJECT_VERSION@" "AmberEdit Manual"
+.SH NAME
+amberedit \- FidoNet mail editor for the terminal
+.SH SYNOPSIS
+.B amberedit
+[\fB\-c\fR \fIconfig\fR]
+[\fB\-o\fR \fIline\fR]...
+[\fB\-\-compile\fR]
+.br
+.B amberedit \-\-setup
+.br
+.B amberedit
+\fB\-h\fR | \fB\-V\fR
+.SH DESCRIPTION
+.B amberedit
+reads, writes and changes FidoNet mail in Squish, JAM and Fido
+.I *.msg
+message bases. It is a reader and an editor, not a mailer and not a tosser:
+what it writes goes out when a tosser carries it.
+.PP
+The areas are the ones your system already has. AmberEdit reads them from the
+tosser's own configuration \(em a fidoconfig, an
+.I areas.bbs
+or a
+.I squish.cfg
+\(em rather than keeping a list of its own; areas may also be written into the
+config in
+.B area ... endarea
+blocks.
+.PP
+Four screens stand one behind the other: the area list, the message list, the
+reader and the editor. Messages are read and written both in UTF\-8 and in the
+single\-byte charsets FidoNet runs on \(em CP866, CP437, KOI8\-R, LATIN\-1 \(em
+converted per area where an area group says so. A UTF\-8 terminal locale is
+recommended.
+.PP
+Nodelists, pointlists and echolists the config names are compiled at every
+start, whenever the files on disk have changed; one that is missing or will not
+read is a warning on the way past and never stops the program.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " " \fIpath\fR
+Read this config. Without it one is looked for in the three places under
+.B CONFIGURATION
+below.
+.TP
+.BR \-o ", " \-\-option " " \fIline\fR
+One whole line of the config \(em the same spelling, the same quoting \(em
+standing in place of whatever the file said about that setting for this run.
+May be given as many times as there are settings to change.
+.IP
+A key the config may repeat, like
+.B aka
+or
+.BR nodelist ,
+loses the whole of what the file said rather than being added to, so the option
+states that list entire. The
+.B area ... endarea
+and
+.B group ... endgroup
+blocks are not written this way, a block being several lines; a group goes on
+laying its settings over what
+.B \-o
+left. A value that is not a config line at all is refused before a config has
+been looked for.
+.TP
+.B \-\-setup
+Run the setup wizard: seven steps \(em who you are, which tosser config you
+keep and where, the charset your mail is read in and the one it is written in,
+the charset the config file and everything it names is written in, a nodelist if
+you have one, and where the config goes \(em and it writes the config. It takes
+neither
+.B \-c
+nor
+.BR \-o ,
+writing a config rather than reading one, and it refuses to run where there is
+a config already, naming the one it found.
+.TP
+.B \-\-compile
+Compile the nodelists and echolists even though they look unchanged, then start
+as usual. They are compiled at every start when they have changed, so this is
+for the case where the compiled file is to be built again regardless.
+.TP
+.BR \-h ", " \-\-help
+Print the usage and exit.
+.TP
+.BR \-V ", " \-\-version
+Print the program, the system it was built for and the version, as in
+.BR AmberEdit/@AMBEREDIT_SYSTEM@\ @PROJECT_VERSION@ ,
+and exit. It is the same string the tearline of every message AmberEdit writes
+carries.
+.SH CONFIGURATION
+Without
+.B \-c
+the config is looked for in
+.BR $AMBEREDIT_CONFIG ,
+.IR ./amberedit.cfg ,
+then
+.IR ~/.ambereditrc ,
+and the first that is there is the one read. Where none of the three is,
+AmberEdit says so and stops:
+.B \-\-setup
+writes one, or
+.I amberedit.cfg.example
+is copied and edited.
+.PP
+That sample config is the reference for every setting \(em what it takes, what
+it defaults to, and what it means. It is installed as documentation; see
+.B FILES
+for where your package put it.
+.PP
+The config is UTF\-8 unless
+.B config_charset
+says otherwise, and whatever it says holds for every file the config names as
+well: the tosser config, the message template, the themes, and the files a
+setting may keep its values in.
+.PP
+A
+.B group ... endgroup
+block states settings for the echo areas its
+.B member
+patterns match \(em the charsets, the origin, the template, the twits and the
+rest of what is per\-area rather than per\-config.
+.SH KEYS
+.B F1
+opens the key list of whichever screen is up, each key with what it does beside
+it. It is the layout read back rather than a fixed page, so a rebound key is the
+key the box shows.
+.B Ctrl\-Q
+quits from anywhere.
+.PP
+Every key that runs a command can be moved: the
+.B keys
+setting names a layout of your own and
+.B keys_mode
+says whether it is read on top of the standard one or in place of it.
+.I amberkeys.cfg.example
+is a layout to copy.
+.SH EXIT STATUS
+.TP
+.B 0
+AmberEdit ran, or
+.B \-\-setup
+wrote a config.
+.TP
+.B 1
+It could not start: no config found, a config, keys file or theme that will not
+read, a tosser config or message base that will not open, a key bound to an
+external utility no
+.B extern_util\fIN\fR
+line names \(em or, under
+.BR \-\-setup ,
+a config already there, or the user leaving without writing one.
+.TP
+.B 2
+The command line was wrong: an unknown option, an option whose value is
+missing, an
+.B \-o
+line that is not a config line,
+.B \-\-setup
+written together with
+.B \-c
+or
+.BR \-o ,
+or no terminal for the wizard to ask in.
+.SH ENVIRONMENT
+.TP
+.B AMBEREDIT_CONFIG
+The config to read, looked at before
+.I ./amberedit.cfg
+and
+.IR ~/.ambereditrc ,
+and only where
+.B \-c
+was not given.
+.TP
+.BR LANGUAGE ", " LC_ALL ", " LC_MESSAGES ", " LANG
+The language the interface is drawn in, gettext's own order of preference:
+.B LANGUAGE
+first and as a colon\-separated list, then the first of the other three that is
+set. Nothing goes in the config for this \(em
+.B LANG=ru_RU.UTF\-8 amberedit
+is Russian, as it is for every other program on the system. A language whose
+catalog is installed but whose locale the system has not generated is a warning
+and an English interface, never a failure.
+.TP
+.B TERM
+The terminal, and so what it can draw. Set it to
+.B xterm\-256color
+where colors come out wrong.
+.TP
+.B SHELL
+The shell the user's own shell command opens. Where it is unset, the shell the
+password file gives for the user is opened, and
+.I /bin/sh
+where that says nothing either. An external editor or utility is not run through
+a shell at all: its line is the program and its arguments, and the program is
+looked for on
+.BR $PATH .
+.TP
+.B TMPDIR
+Where the working directory goes when the config's
+.B temp_dir
+names none: an
+.I amberedit
+directory of the user's own is made under it, or under
+.I /tmp
+where it is unset. Unpacking a zipped nodelist or echolist and handing a message
+to an external editor happen there.
+.TP
+.B HOME
+What a
+.RB \(dq ~/ \(dq
+in the config stands for, and where
+.I ~/.ambereditrc
+is looked for.
+.SH FILES
+.TP
+.IR ./amberedit.cfg ", " ~/.ambereditrc
+Where a config is looked for, in that order, after
+.BR $AMBEREDIT_CONFIG .
+.TP
+.I @CMAKE_INSTALL_FULL_DATADIR@/amberedit/default.tpl
+The message template the sample config's
+.B template
+line names: the header lines and the quote of a reply, in GoldED\-style tokens.
+A template of one's own is a copy of this, named by that setting.
+.TP
+.I @CMAKE_INSTALL_FULL_DATADIR@/amberedit/themes/*.cfg
+The themes, named by the config's
+.B theme
+setting.
+.I black.cfg
+is the built\-in palette written out \(em what AmberEdit draws with when the
+config names no theme, and the file to copy and edit.
+.TP
+.I @CMAKE_INSTALL_FULL_LOCALEDIR@/*/LC_MESSAGES/amberedit.mo
+The message catalogs the interface is drawn from.
+.PP
+The rest of what AmberEdit reads and writes is where your config says it is,
+and nowhere by default: the message bases under the tosser config, the compiled
+nodelist and echolist that
+.B nodelist_db
+and
+.B echolist_db
+name, and the log that
+.B error_log
+names \(em which is written to only when something has gone wrong, and is
+neither rotated nor emptied. Read marks are not a file of ours at all: they are
+kept in the message base itself, under the user number
+.B lastread_user
+names.
+.SH EXAMPLES
+A first config, then the reader:
+.PP
+.RS 4
+.EX
+amberedit \-\-setup
+amberedit
+.EE
+.RE
+.PP
+A light theme and a narrower quote margin, for this run only:
+.PP
+.RS 4
+.EX
+amberedit \-o "theme themes/white.cfg" \-o "quote_margin 72"
+.EE
+.RE
+.PP
+Another config, with the nodelists built again on the way in:
+.PP
+.RS 4
+.EX
+amberedit \-c ~/ftn/etc/amberedit.cfg \-\-compile
+.EE
+.RE
+.SH SEE ALSO
+.IR amberedit.cfg.example ,
+the reference for every setting, and
+.IR amberkeys.cfg.example ,
+a keyboard layout to copy \(em both installed as documentation, with
+.IR README.md ,
+.IR KEYS.md ,
+.IR KEYS_REBINDING.md ,
+.I INSTALL.md
+and
+.IR PuTTY-truecolor.md .
+.PP
+AmberEdit is at
+.UR https://github.com/jegornet/amberedit
+GitHub
+.UE .
+.SH AUTHOR
+Yegor Gluhov <git@jegor.net>
+.SH COPYRIGHT
+GPL\-2.0\-or\-later. There is no warranty, to the extent permitted by law.

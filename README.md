@@ -82,7 +82,9 @@ config you keep, where that file is, the charset your mail is read in and the on
 it is written in, the charset the config file and everything it names is written
 in, a nodelist if you have one, and where the config goes.
 
-Run `amberedit --help` for more command line options.
+Run `amberedit --help` for more command line options, and `man amberedit` for
+the whole of the command line, the exit codes and the files — the packages
+install the page, and a build installs it with `cmake --install`.
 
 ### Configuration
 

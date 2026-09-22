@@ -135,13 +135,36 @@ about the file are decisions rather than detail:
 Four formats, and one rule holding them together: **`cmake --install` places
 everything a package ships** — the binary, `default.tpl` and `themes/*.cfg` under
 `${CMAKE_INSTALL_DATADIR}/amberedit`, which is the path `amberedit.cfg.example`
-names, and the message catalogs under `${CMAKE_INSTALL_LOCALEDIR}`, which is
+names, the man page under `${CMAKE_INSTALL_MANDIR}/man1`, and the message
+catalogs under `${CMAKE_INSTALL_LOCALEDIR}`, which is
 where gettext looks and so the only place they can go. No package recipe places a data file of its own,
 because a second copy of those paths is a second thing to keep in step with the
 sample config. Only documentation is each format's own: README.md, KEYS.md,
-KEYS_REBINDING.md, INSTALL.md and the two example configs go through `%doc`,
+KEYS_REBINDING.md, INSTALL.md, PuTTY-truecolor.md and the two example configs go
+through `%doc`,
 `debian/amberedit.docs` or the top of an archive — and a document added to the
 tree is added to all four of those, `release.yml` included, or it ships nowhere.
+
+**The man page is `amberedit.1.in`, configured and not copied.** CMake writes
+`build/generated/amberedit.1` out of it the way it writes `version.hpp` out of
+`src/version.hpp.in`, and for the same reason: `@PROJECT_VERSION@` in the `.TH`
+line keeps the version in `project(AmberEdit VERSION ...)` and nowhere else, so a
+bump goes on touching seven files. The installed paths are configured in as well
+— `@CMAKE_INSTALL_FULL_DATADIR@` and `@CMAKE_INSTALL_FULL_LOCALEDIR@` — so a page
+installed under another prefix documents that prefix. Being installed rather than
+documentation, it is not in `%doc`, `debian/amberedit.docs` or an archive's `cp`
+list: the spec names it in `%files` because rpm packages nothing it was not told
+about, `dh` and `makepkg` take it straight out of the install, and the macOS
+tarball gets it because that job stages with `cmake --install`. **It is not
+installed on Windows** — the zip is unpacked wherever the user likes, so the
+absolute paths configured into it would name a prefix that is not there, and
+nothing on that machine reads roff anyway.
+
+The `.TH` date is the page's own and is written by hand: it says when the page
+last changed, which is not when a release was cut. What the page states about the
+command line — the options, the three exit codes, the environment — is read off
+`src/main.cpp`, and a new option or a new exit code is added there and here in
+the one commit.
 
 - `amberedit.spec` — RPM, built for Rocky 8, 9 and 10 and Fedora. zlib is asked
   for as `pkgconfig(zlib)` rather than by name, because RHEL 10 and current

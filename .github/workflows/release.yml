@@ -315,13 +315,14 @@ jobs:
           cmake --build build -j"$(sysctl -n hw.ncpu)"
           cmake --install build --prefix stage
 
-      # The sample configs and the two documents are not installed by the build — each
+      # The sample configs and the documents are not installed by the build — each
       # package format has its own place for documentation, and an archive's is
-      # the top of it.
+      # the top of it. The man page is not among them: `cmake --install` places it
+      # under share/man/man1 like any other installed file.
       - name: Pack
         run: |
           v='${{ needs.tarball.outputs.version }}'
-          cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
+          cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
           tar -C stage -czf "amberedit-$v-macos-${{ matrix.arch }}.tar.gz" .
 
       - uses: actions/upload-artifact@v4
@@ -413,7 +414,7 @@ jobs:
       - name: Pack
         run: |
           v='${{ needs.tarball.outputs.version }}'
-          cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
+          cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
           (cd stage && zip -qr "../amberedit-$v-windows-${{ matrix.arch }}.zip" .)
 
       - uses: actions/upload-artifact@v4
