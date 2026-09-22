@@ -3852,10 +3852,25 @@ one cost that grows with the area nobody is even looking at.
 
 - *Squish* takes the lock and reads its index back once, then walks the free
   chain and the frame chain message by message as a single write does — a set
-  handed one frame between them would lose all but the last. The index file is
-  cut to the message count and the area header written **once, last**, so the
-  area grows by the whole set or by none as far as anything else reading it is
-  concerned.
+  handed one frame between them would lose all but the last. **The frame and the
+  message in it go down in one write**, not four, and **the index records go down
+  in one write at the end**, not one per message: a set of ten thousand used to
+  be ten thousand twelve-byte writes to the `.sqi`, which is what anybody
+  watching the file saw. The index file is cut to the message count and the area
+  header written **once, last**, so the area grows by the whole set or by none as
+  far as anything else reading it is concerned.
+- **A free chain that fits nothing is walked once, not once a message.** The
+  chain is on the disk and a step down it is a read, so an area that has had
+  twenty thousand messages deleted costs twenty thousand reads to learn that no
+  hole in it is big enough — and a carried set used to pay that for *every*
+  message, which made a copy into a long-lived area slower the longer it had
+  lived (measured: 0.03 ms a message into a fresh base, 6.8 ms into one with
+  twenty thousand holes). `SquishBase::largestFree_` is what a completed walk
+  leaves behind, and a message longer than it skips the chain outright. Put back
+  by `reload()` — another task may have freed a frame — and by taking the biggest
+  frame out, since what is biggest after that is another walk's answer; freeing
+  one can only raise it, which is a comparison. **A message the chain *can* hold
+  still walks it**, so nothing is reused less than before: see the test.
 - *JAM* reads its info block and rebuilds its table of active messages once, then
   carries the three files' ends along with it rather than asking the file system
   how long each has grown after every message. `ActiveMsgs` and `ModCounter` are

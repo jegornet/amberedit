@@ -1,7 +1,9 @@
 #include <doctest/doctest.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "domain/message.hpp"
@@ -39,6 +41,18 @@ MessageDraft numbered(uint32_t number) {
     draft.charset = "CP866";
     draft.kludges = {"CHRS: CP866 2"};
     draft.lines = {"Body of message " + std::to_string(number)};
+    return draft;
+}
+
+/// A message of a given size, for the tests about frames: what a draft costs a
+/// base is its text, and these are about which frame it lands in.
+MessageDraft ofLines(uint32_t number, size_t lines) {
+    MessageDraft draft = numbered(number);
+    draft.lines.clear();
+    for (size_t i = 0; i < lines; ++i) {
+        draft.lines.push_back("A line of an ordinary message, number " +
+                              std::to_string(i));
+    }
     return draft;
 }
 
@@ -214,6 +228,82 @@ TEST_CASE("A base with no area open takes none of the set [write]") {
     checkAClosedBaseRefuses(MsgBaseType::Squish);
     checkAClosedBaseRefuses(MsgBaseType::Jam);
     checkAClosedBaseRefuses(MsgBaseType::Opus);
+}
+
+/// The size of the `.sqd`, which is what says whether a message was put in a
+/// frame that was already there or on the end of the file.
+int64_t dataSize(const AreaConfig& area) {
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(area.path + ".sqd", ec);
+    return ec ? -1 : static_cast<int64_t>(size);
+}
+
+/// A base whose free chain holds `holes` frames of `lines` apiece, and nothing
+/// else. What a long-lived area looks like: messages written and then deleted.
+void withFreeChain(FtnMsgBase& msgbase, const AreaConfig& area, size_t holes,
+                   size_t lines) {
+    makeArea(msgbase, area);
+    std::vector<MessageDraft> filler;
+    for (size_t i = 0; i < holes; ++i) filler.push_back(ofLines(1, lines));
+    REQUIRE(msgbase.writeAll(filler).written == holes);
+    std::vector<uint32_t> all;
+    for (uint32_t n = 1; n <= msgbase.count(); ++n) all.push_back(n);
+    REQUIRE(msgbase.removeAll(all).has_value());
+    REQUIRE(msgbase.count() == 0);
+}
+
+TEST_CASE("A chain too small for one message still fits the next [write][squish]") {
+    // The walk down the free chain is a read per frame, so a message that fits
+    // nothing in it makes the driver remember the biggest frame there is and
+    // skip the walk for anything larger. What must not happen is the chain being
+    // skipped for a message that *would* have fitted — which is the whole of
+    // this: one call carrying a message too big for the chain and two that are
+    // not, and the two have to land in frames that were already there.
+    TempDir dir;
+    const AreaConfig longLived = areaAt(dir.path("lived"), MsgBaseType::Squish);
+    const AreaConfig fresh = areaAt(dir.path("fresh"), MsgBaseType::Squish);
+
+    constexpr size_t kHoleLines = 100;
+    constexpr size_t kFits = 90;    // comfortably inside a hole
+    constexpr size_t kTooBig = 400;  // bigger than any of them
+
+    FtnMsgBase lived("CP866");
+    withFreeChain(lived, longLived, /*holes=*/6, kHoleLines);
+
+    // The same three messages into a base with no chain at all, as the measure
+    // of what they cost when nothing can be reused.
+    FtnMsgBase clean("CP866");
+    makeArea(clean, fresh);
+
+    const std::vector<MessageDraft> carried = {ofLines(1, kTooBig), ofLines(2, kFits),
+                                               ofLines(3, kFits)};
+    const int64_t livedWas = dataSize(longLived);
+    const int64_t cleanWas = dataSize(fresh);
+    REQUIRE(lived.writeAll(carried).written == 3);
+    REQUIRE(clean.writeAll(carried).written == 3);
+
+    const int64_t reused = dataSize(longLived) - livedWas;
+    const int64_t appended = dataSize(fresh) - cleanWas;
+    REQUIRE(reused >= 0);
+    REQUIRE(appended > 0);
+
+    // Two of the three went into frames that were already there, so the file
+    // grew by two messages less than the one that could reuse nothing. The
+    // bound is a floor on what two of them take rather than the exact figure:
+    // what a frame costs around a message is the format's business.
+    const int64_t twoOfThem = 2 * static_cast<int64_t>(kFits * 30);
+    CHECK(appended - reused > twoOfThem);
+
+    // And they are messages, not holes: the base reads back what went in.
+    CHECK(lived.count() == 3);
+    CHECK(lived.header(2).subject == "message 2");
+    CHECK(lived.body(3).text().find("A line of an ordinary message") !=
+          std::string::npos);
+    lived.close();
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(longLived).has_value());
+    CHECK(again.count() == 3);
+    CHECK(again.header(1).subject == "message 1");
 }
 
 TEST_CASE("Squish reuses the frames a delete freed for a set [write][squish]") {

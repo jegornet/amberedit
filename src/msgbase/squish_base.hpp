@@ -89,6 +89,9 @@ private:
 
     [[nodiscard]] tl::expected<void, ErrorPtr> readFrame(uint32_t offset,
                                                          Frame& out) const;
+    /// The frame header's bytes, laid into `raw` — `kFrameHeaderSize` of them,
+    /// whatever room the base keeps for one.
+    void encodeFrame(unsigned char* raw, const Frame& frame) const;
     [[nodiscard]] tl::expected<void, ErrorPtr> writeFrame(uint32_t offset,
                                                           const Frame& frame);
     [[nodiscard]] tl::expected<void, ErrorPtr> setFrameNext(uint32_t offset,
@@ -99,20 +102,47 @@ private:
     /// Takes a frame off the free chain that can hold `length` bytes of
     /// message, or allocates one at the end of the file. `frameLength` comes
     /// back holding what the reused frame owns, which stays as it was.
+    ///
+    /// **A walk that can only fail is not walked twice.** The chain is on the
+    /// disk and a step down it is a read, so a base with twenty thousand holes
+    /// in it costs twenty thousand reads to find out that none of them fits —
+    /// and a set of messages carried into that base used to pay that for every
+    /// message, which is what made a copy into a long-lived area slower the
+    /// longer it had lived. A walk that reaches the end has seen every frame
+    /// there is, so `largestFree_` below remembers the biggest of them and the
+    /// next message too big for it skips the chain outright.
     [[nodiscard]] tl::expected<void, ErrorPtr> allocateFrame(uint32_t length,
                                                              uint32_t* offset,
                                                              uint32_t* frameLength);
     /// Puts a frame on the free chain, for the next message to grow into.
     [[nodiscard]] tl::expected<void, ErrorPtr> releaseFrame(uint32_t offset, Frame frame);
 
+    /// The message's own bytes as a frame holds them: the XMSG header, then the
+    /// control block and its closing NUL, then the text. One block because that
+    /// is how it lies on the disk, and a message put down in one write is a
+    /// message that cost one write.
+    [[nodiscard]] std::string messageBytes(const RawHeader& header, uint32_t uid,
+                                           const std::string& control,
+                                           const std::string& text) const;
+
     /// Writes the message itself into the frame at `offset`: the XMSG header,
     /// then the control block, then the text — the order a frame holds them in.
-    /// The frame header around it is the caller's.
+    /// The frame header around it is the caller's. What `replace()` uses, the
+    /// frame it writes into being already there.
     [[nodiscard]] tl::expected<void, ErrorPtr> writeMessageAt(uint32_t offset,
                                                               const RawHeader& header,
                                                               uint32_t uid,
                                                               const std::string& control,
                                                               const std::string& text);
+
+    /// The frame and the message in it, in **one** write — what appending uses,
+    /// where the frame is new and the two lie next to each other. A message
+    /// costs four writes put down piece by piece and one put down like this,
+    /// which over a carried set is the difference between a file written in
+    /// dribs and a file written.
+    [[nodiscard]] tl::expected<void, ErrorPtr> writeFrameWithMessage(
+        uint32_t offset, const Frame& frame, const RawHeader& header, uint32_t uid,
+        const std::string& control, const std::string& text);
 
     /// The last `kOriginTailBytes` of the text at `at`, `length` bytes long —
     /// where an echo area's origin line is. What a header-only read looks in
@@ -131,9 +161,16 @@ private:
     /// for the whole set — see `settleAfterWriting()`.
     [[nodiscard]] tl::expected<void, ErrorPtr> appendOne(const RawDraft& draft,
                                                          uint32_t* uid);
-    /// The area header and the length of the index file, after a set has gone
-    /// in: the two things that say how many messages there are.
-    [[nodiscard]] tl::expected<void, ErrorPtr> settleAfterWriting();
+    /// What a set of appends leaves to be written once it is all in the .sqd:
+    /// the index records from `from` to the end in **one** write, the index file
+    /// cut to the message count, and the area header last of all.
+    ///
+    /// The records are left to here rather than written as each message goes in
+    /// — a set of ten thousand would otherwise be ten thousand twelve-byte
+    /// writes, which is what anybody watching the file sees — and the header
+    /// after them, so that nothing outside sees a count the records do not yet
+    /// answer for.
+    [[nodiscard]] tl::expected<void, ErrorPtr> settleAfterWriting(uint32_t from);
 
     [[nodiscard]] tl::expected<void, ErrorPtr> writeIndexEntry(uint32_t index);
     /// Writes the index from record `from` to the end of what is now in memory
@@ -150,6 +187,18 @@ private:
     /// than a constant: a base whose frame header is not 28 bytes long is not
     /// version one and is left alone.
     uint16_t frameHeaderSize_{28};
+    /// The biggest frame the free chain holds, where a walk has reached the end
+    /// of it and so knows. A message longer than this fits nothing in the chain
+    /// and goes to the end of the file without reading a single frame.
+    ///
+    /// Known only as far as this driver's own writing goes: `reload()` puts the
+    /// question back, since another task may have freed a frame meanwhile, and
+    /// so does taking the biggest one out of the chain — what is biggest after
+    /// that is a question only another walk answers. Freeing a frame can only
+    /// make it bigger, which is one comparison rather than a walk.
+    uint32_t largestFree_{0};
+    bool largestFreeKnown_{false};
+
     /// Whether this is an echo area, which is the one thing about a Squish
     /// base the driver is told rather than reads: nothing in the files says it,
     /// and it decides whether a message with no address in its header is

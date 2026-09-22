@@ -187,6 +187,8 @@ void SquishBase::close() {
     index_file_.close();
     base_ = BaseHeader{};
     index_.clear();
+    largestFree_ = 0;
+    largestFreeKnown_ = false;
     frameHeaderSize_ = static_cast<uint16_t>(kFrameHeaderSize);
 }
 
@@ -349,6 +351,12 @@ tl::expected<void, ErrorPtr> SquishBase::loadIndex() {
 }
 
 tl::expected<void, ErrorPtr> SquishBase::reload() {
+    // What this driver knew of the free chain it knew of the base as it stood;
+    // a tosser may have deleted a message since and left a frame bigger than
+    // anything that was there.
+    largestFreeKnown_ = false;
+    largestFree_ = 0;
+
     auto read = readBaseHeader();
     if (!read) return tl::make_unexpected(std::move(read).error());
     return loadIndex();
@@ -376,19 +384,23 @@ tl::expected<void, ErrorPtr> SquishBase::readFrame(uint32_t offset, Frame& out) 
     return {};
 }
 
+void SquishBase::encodeFrame(unsigned char* raw, const Frame& frame) const {
+    writeU32(raw, kFrameId);
+    writeU32(raw + 4, frame.next);
+    writeU32(raw + 8, frame.prev);
+    writeU32(raw + 12, frame.frameLength);
+    writeU32(raw + 16, frame.messageLength);
+    writeU32(raw + 20, frame.controlLength);
+    writeU16(raw + 24, frame.type);
+    writeU16(raw + 26, 0);
+}
+
 tl::expected<void, ErrorPtr> SquishBase::writeFrame(uint32_t offset, const Frame& frame) {
     if (offset < kBaseHeaderSize) {
         return failure("refusing to write a frame over the area header");
     }
     std::array<unsigned char, kFrameHeaderSize> raw{};
-    writeU32(raw.data(), kFrameId);
-    writeU32(raw.data() + 4, frame.next);
-    writeU32(raw.data() + 8, frame.prev);
-    writeU32(raw.data() + 12, frame.frameLength);
-    writeU32(raw.data() + 16, frame.messageLength);
-    writeU32(raw.data() + 20, frame.controlLength);
-    writeU16(raw.data() + 24, frame.type);
-    writeU16(raw.data() + 26, 0);
+    encodeFrame(raw.data(), frame);
     if (const auto io = data_.writeAt(offset, raw.data(), raw.size()); io.failed()) {
         return failure("cannot write the frame at " + std::to_string(offset) + ": " +
                        io.message());
@@ -685,13 +697,20 @@ tl::expected<void, ErrorPtr> SquishBase::allocateFrame(uint32_t length, uint32_t
     *offset = 0;
     *frameLength = 0;
 
+    // Nothing in the chain is big enough, and a previous walk down the whole of
+    // it is how that is known. Skipped rather than walked again: the answer
+    // cannot have changed — this driver has taken nothing out and put nothing
+    // in since — and the walk is a read per frame.
+    const bool worthWalking = !largestFreeKnown_ || length <= largestFree_;
+
     // The free chain first: a deleted message leaves a hole, and reusing one is
     // what keeps a base that is written and packed for years from growing
     // without end. The first one that fits is taken rather than the best fit
     // the format recommends — that is what smapi does, and a base half of whose
     // frames are the wrong size is a job for a packer, not for a reader.
     uint32_t seen = 0;
-    for (uint32_t at = base_.firstFree; at != 0;) {
+    uint32_t biggest = 0;
+    for (uint32_t at = worthWalking ? base_.firstFree : 0; at != 0;) {
         Frame frame;
         auto done = readFrame(at, frame);
         if (!done) return tl::make_unexpected(std::move(done).error());
@@ -718,13 +737,27 @@ tl::expected<void, ErrorPtr> SquishBase::allocateFrame(uint32_t length, uint32_t
             if (base_.firstFree == at) base_.firstFree = frame.next;
             if (base_.lastFree == at) base_.lastFree = frame.prev;
 
+            // The chain is one frame shorter and this walk never reached its
+            // end, so what is biggest in what is left is not known from here.
+            largestFreeKnown_ = false;
+
             *offset = at;
             *frameLength = frame.frameLength;
             return {};
         }
 
+        biggest = std::max(biggest, frame.frameLength);
         seen = at;
         at = frame.next;
+    }
+
+    // The walk reached the end, so every frame there is has been seen and the
+    // biggest of them is known — which is what the next message measures itself
+    // against instead of walking. A chain walked and found wanting is walked
+    // once however many messages follow.
+    if (worthWalking) {
+        largestFree_ = biggest;
+        largestFreeKnown_ = true;
     }
 
     // Nothing to reuse: the frame goes at the end of the file, and the header's
@@ -735,6 +768,11 @@ tl::expected<void, ErrorPtr> SquishBase::allocateFrame(uint32_t length, uint32_t
 }
 
 tl::expected<void, ErrorPtr> SquishBase::releaseFrame(uint32_t offset, Frame frame) {
+    // The chain is about to hold one more, and a frame put into it can only
+    // make the biggest one bigger — one comparison where working it out afresh
+    // would be another walk.
+    if (largestFreeKnown_) largestFree_ = std::max(largestFree_, frame.frameLength);
+
     frame.type = kFrameFree;
     frame.messageLength = 0;
     frame.controlLength = 0;
@@ -758,30 +796,58 @@ tl::expected<void, ErrorPtr> SquishBase::releaseFrame(uint32_t offset, Frame fra
     return {};
 }
 
+std::string SquishBase::messageBytes(const RawHeader& header, uint32_t uid,
+                                     const std::string& control,
+                                     const std::string& text) const {
+    const uint32_t controlLength = controlBlockLength(control);
+    // Zeroed, which is what the NUL closing the control block wants: the block
+    // is written into the room it owns and the last byte of that room is left
+    // as it was made.
+    std::string bytes(kMessageHeaderSize + controlLength + text.size(), '\0');
+    auto* raw = reinterpret_cast<unsigned char*>(&bytes[0]);
+    encodeMessageHeader(raw, header, uid);
+    if (!control.empty()) {
+        std::memcpy(raw + kMessageHeaderSize, control.data(), control.size());
+    }
+    if (!text.empty()) {
+        std::memcpy(raw + kMessageHeaderSize + controlLength, text.data(), text.size());
+    }
+    return bytes;
+}
+
 tl::expected<void, ErrorPtr> SquishBase::writeMessageAt(uint32_t offset,
                                                         const RawHeader& header,
                                                         uint32_t uid,
                                                         const std::string& control,
                                                         const std::string& text) {
-    std::array<unsigned char, kMessageHeaderSize> raw{};
-    encodeMessageHeader(raw.data(), header, uid);
-    if (const auto io = data_.writeAt(offset + frameHeaderSize_, raw.data(), raw.size());
+    const std::string bytes = messageBytes(header, uid, control, text);
+    if (const auto io =
+            data_.writeAt(offset + frameHeaderSize_, bytes.data(), bytes.size());
         io.failed()) {
-        return failure("cannot write the header of the message at " +
-                       std::to_string(offset) + ": " + io.message());
+        return failure("cannot write the message at " + std::to_string(offset) + ": " +
+                       io.message());
     }
+    return {};
+}
 
-    const uint64_t bodyAt = offset + frameHeaderSize_ + kMessageHeaderSize;
-    const uint32_t controlLength = controlBlockLength(control);
-    if (controlLength != 0 &&
-        data_.writeAt(bodyAt, control.c_str(), controlLength).failed()) {
-        return failure("cannot write the control block of the message at " +
-                       std::to_string(offset));
+tl::expected<void, ErrorPtr> SquishBase::writeFrameWithMessage(
+    uint32_t offset, const Frame& frame, const RawHeader& header, uint32_t uid,
+    const std::string& control, const std::string& text) {
+    if (offset < kBaseHeaderSize) {
+        return failure("refusing to write a frame over the area header");
     }
-    if (!text.empty() &&
-        data_.writeAt(bodyAt + controlLength, text.data(), text.size()).failed()) {
-        return failure("cannot write the text of the message at " +
-                       std::to_string(offset));
+    const std::string message = messageBytes(header, uid, control, text);
+
+    // The frame header is `frameHeaderSize_` of room and `kFrameHeaderSize` of
+    // fields: a base that keeps more for one has the rest left at zero, exactly
+    // as writing the two separately left it.
+    std::string bytes(frameHeaderSize_ + message.size(), '\0');
+    encodeFrame(reinterpret_cast<unsigned char*>(&bytes[0]), frame);
+    std::memcpy(&bytes[frameHeaderSize_], message.data(), message.size());
+
+    if (const auto io = data_.writeAt(offset, bytes.data(), bytes.size()); io.failed()) {
+        return failure("cannot write the message at " + std::to_string(offset) + ": " +
+                       io.message());
     }
     return {};
 }
@@ -826,24 +892,22 @@ tl::expected<void, ErrorPtr> SquishBase::appendOne(const RawDraft& draft,
         auto done3 = setFrameNext(base_.lastFrame, offset);
         if (!done3) return tl::make_unexpected(std::move(done3).error());
     }
-    auto done4 = writeFrame(offset, frame);
+    // The frame and the message in one write: they lie next to each other and a
+    // new frame has nothing in it to preserve.
+    *uid = base_.nextUid;
+    auto done4 =
+        writeFrameWithMessage(offset, frame, draft.header, *uid, control, draft.text);
     if (!done4) return tl::make_unexpected(std::move(done4).error());
 
-    *uid = base_.nextUid;
-    auto done5 = writeMessageAt(offset, draft.header, *uid, control, draft.text);
-    if (!done5) return tl::make_unexpected(std::move(done5).error());
-
+    // The index record is not written here: `settleAfterWriting()` puts the
+    // whole tail down in one write once the set is in, so that a run of ten
+    // thousand is one write to the .sqi and not ten thousand of twelve bytes.
     IndexEntry entry;
     entry.offset = offset;
     entry.uid = *uid;
     entry.hash = squishHash(draft.header.to) |
                  ((draft.header.attributes & kAttrRead) != 0 ? kHashRead : 0);
     index_.push_back(entry);
-    auto done6 = writeIndexEntry(count());
-    if (!done6) {
-        index_.pop_back();  // the record is not on the disk; nor is the message
-        return tl::make_unexpected(std::move(done6).error());
-    }
 
     base_.nextUid = *uid + 1;
     base_.messageCount = count();
@@ -853,11 +917,12 @@ tl::expected<void, ErrorPtr> SquishBase::appendOne(const RawDraft& draft,
     return {};
 }
 
-tl::expected<void, ErrorPtr> SquishBase::settleAfterWriting() {
-    // Squish leaves the index file long and cuts it back to the message count;
-    // doing the same keeps a base that another tool wrote from carrying stale
-    // records past its end.
-    (void)index_file_.truncate(static_cast<uint64_t>(count()) * kIndexRecordSize);
+tl::expected<void, ErrorPtr> SquishBase::settleAfterWriting(uint32_t from) {
+    // Every record the set added, in one write, and the file cut to the message
+    // count after them: Squish leaves the index long and cuts it back, and doing
+    // the same keeps a base another tool wrote from carrying stale records past
+    // its end.
+    if (auto done = writeIndexTail(from); !done) return done;
 
     // Last of all, and deliberately: until the header says how many messages
     // there are, a reader coming in on the base sees the ones just written as
@@ -898,6 +963,10 @@ WriteReport SquishBase::writeAll(const std::vector<RawDraft>& drafts) {
         return report;
     }
 
+    // Where the set begins, so that the index records it adds are the ones
+    // written below — and only those: everything before is where it was.
+    const uint32_t from = count() + 1;
+
     for (const RawDraft& draft : drafts) {
         uint32_t uid = 0;
         auto done = appendOne(draft, &uid);
@@ -912,7 +981,7 @@ WriteReport SquishBase::writeAll(const std::vector<RawDraft>& drafts) {
     // are in the frames and in the index, and a header still saying there are
     // fewer would be a base that disagreed with itself.
     if (report.written != 0) {
-        if (auto done = settleAfterWriting(); !done) {
+        if (auto done = settleAfterWriting(from); !done) {
             report.written = 0;  // nothing is visible; nothing may be deleted
             report.failed = std::move(done).error();
         }
