@@ -10,6 +10,7 @@
 #include "i18n/i18n.hpp"
 #include "msgbase/null_lastread_store.hpp"
 #include "sys/env.hpp"
+#include "test_locale.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
@@ -19,6 +20,7 @@
 
 using amberedit::test::contains;
 using amberedit::test::errorOf;
+using amberedit::test::WithLocaleEnv;
 
 namespace i18n = amberedit::i18n;
 
@@ -26,7 +28,9 @@ namespace {
 
 /// Russian, for as long as this lives and put down again after — the
 /// interface's language is process-wide, and a test that left one on would be
-/// answering for every test that ran next.
+/// answering for every test that ran next. WithLocaleEnv is what puts it down:
+/// every name this touches, and the locale `start()` settles on, go back as
+/// they were.
 ///
 /// `LANGUAGE` and not `LANG`, because it is the one gettext prefers and the one
 /// that needs no locale of its own name to exist: what has to exist is a locale
@@ -57,10 +61,7 @@ public:
         }
         amberedit::sys::unsetEnvironment("LC_ALL");
     }
-    ~WithRussian() {
-        amberedit::sys::unsetEnvironment("LC_ALL");
-        i18n::clear();
-    }
+    ~WithRussian() { i18n::clear(); }
 
     WithRussian(const WithRussian&) = delete;
     WithRussian& operator=(const WithRussian&) = delete;
@@ -68,6 +69,7 @@ public:
     [[nodiscard]] bool ok() const { return ok_; }
 
 private:
+    const WithLocaleEnv locale_;
     bool ok_{false};
 };
 
@@ -84,6 +86,7 @@ TEST_CASE("With no catalog every message is the literal it was written as [i18n]
 }
 
 TEST_CASE("The environment is what picks the language [i18n]") {
+    const WithLocaleEnv locale;
     i18n::clear();
 
     // No language asked for is English, and carries no complaint. Said with
@@ -115,6 +118,7 @@ TEST_CASE("The environment is what picks the language [i18n]") {
 }
 
 TEST_CASE("A language we have and the system cannot is a warning [i18n]") {
+    const WithLocaleEnv locale;
     i18n::clear();
     amberedit::sys::unsetEnvironment("LC_ALL");
     amberedit::sys::unsetEnvironment("LC_MESSAGES");
@@ -134,7 +138,6 @@ TEST_CASE("A language we have and the system cannot is a warning [i18n]") {
         CHECK(std::string(_("Save the message?")) == "Save the message?");
     }
 
-    amberedit::sys::unsetEnvironment("LC_ALL");
     i18n::clear();
 }
 

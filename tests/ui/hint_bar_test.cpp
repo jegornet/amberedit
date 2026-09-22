@@ -9,6 +9,7 @@
 #include "i18n/i18n.hpp"
 #include "msgbase/null_lastread_store.hpp"
 #include "sys/env.hpp"
+#include "test_locale.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
 #include "ui/keys.hpp"
@@ -128,6 +129,9 @@ TEST_CASE(
     fixture.config.readerHints = {Command::ReaderReply};
     fixture.config.hintBarCapitalize = false;
 
+    // Declared before the loop below, which names its own `locale`: this one
+    // is the put-back and outlives the whole case.
+    const amberedit::test::WithLocaleEnv localeEnv;
     amberedit::sys::setEnvironment("LANGUAGE", "ru");
     for (const char* locale : {"", "C.UTF-8", "C.utf8", "en_US.UTF-8", "UTF-8"}) {
         if (locale[0] == '\0') {
@@ -143,7 +147,6 @@ TEST_CASE(
         CHECK(hint_bar::text(fixture.state) == "q ответ");
     }
 
-    amberedit::sys::unsetEnvironment("LC_ALL");
     amberedit::i18n::clear();
 }
 

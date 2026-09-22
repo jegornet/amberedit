@@ -251,6 +251,23 @@ Four things in the build follow from the same floor:
   `.toString()`, as FtnAddress and AddressPattern have, is not found by ADL and
   is not affected.
 
+- **A test that moves process-wide state puts it back, with an RAII guard and
+  not by hand.** The tests are one process and doctest gives no order to lean
+  on, so whatever a test leaves set answers for every test that runs after it —
+  and the failure lands somewhere else entirely, in a case that never mentioned
+  the thing that broke it. The guards are `WithLocaleEnv` in
+  `tests/test_locale.hpp` for the language and the locale, `WithTempDirEnv` in
+  `tests/temp_dir.hpp` for where the system says to work, and a local one in the
+  test that needs another variable. Declare it before anything it has to
+  outlive; an early `return` or a failed `REQUIRE` is exactly the path a
+  hand-written put-back at the end of the case does not take.
+
+  `WithLocaleEnv` restores the locale as well as the environment, because the
+  two come apart: `setlocale(LC_CTYPE, "")` made while `LC_ALL` said `C` leaves
+  the process in `C` for good, and `wcwidth()` then reports one column for a CJK
+  glyph — so a row of Japanese is measured half the width it will be drawn, in
+  `ui/text_layout` tests that set no variable of their own.
+
 To exercise the app itself against the checked-in base:
 
 ```bash
