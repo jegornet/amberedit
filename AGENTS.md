@@ -1636,9 +1636,11 @@ screens showing an area draw what the set holds.
     written. So the run goes round: `kChunkMessages` messages or `kChunkBytes` of
     them are read, whichever comes first, the target is opened and that chunk
     written, the source is opened again, and the walk carries on from the number
-    it left off at. Two hundred swaps over a hundred thousand messages against a
-    peak of a few megabytes instead of hundreds — and a swap is one index read,
-    which is nothing beside writing the messages.
+    it left off at. A few dozen swaps over a hundred thousand messages against a
+    peak of some ten megabytes instead of hundreds — and a swap is one index read,
+    which is nothing beside writing the messages. The byte bound is what ends a
+    chunk of anything but very short messages; the count is there for those, whose
+    per-message overhead the byte total does not see.
   - **The walk ends where the area ended when the run began**, never at the count
     as it stands. Copying a set into the area being read appends to the very base
     being walked, and a walk that followed the end of it would go on copying its

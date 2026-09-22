@@ -30,14 +30,15 @@ namespace amberedit::app {
 /// **The bytes are the point and the count is the guard.** A draft costs about
 /// twice the text it carries — a line is a `std::string` of its own — so an area
 /// of ordinary echomail comes to some three kilobytes a message, which the byte
-/// bound is what holds down. The count bounds what a chunk of very short
-/// messages costs in per-message overhead, which the byte total does not see.
+/// bound is what holds down: it is what ends a chunk of anything but very short
+/// messages. The count is there for those — what a chunk of one-line messages
+/// costs in per-message overhead is what the byte total does not see.
 ///
 /// Larger chunks cost fewer swaps and more memory. These two are the middle of
-/// it: a run of a hundred thousand ordinary messages swaps a couple of hundred
-/// times — a swap being one index read, which is nothing beside writing the
-/// messages — and never holds more than a few megabytes.
-constexpr size_t kChunkMessages = 512;
+/// it: a run of a hundred thousand ordinary messages swaps a few dozen times — a
+/// swap being one index read, which is nothing beside writing the messages — and
+/// holds a chunk's four megabytes of text, some ten as drafts.
+constexpr size_t kChunkMessages = 8192;
 constexpr size_t kChunkBytes = 4u << 20;
 
 /// What is to be carried where, and what is to happen between one message and
