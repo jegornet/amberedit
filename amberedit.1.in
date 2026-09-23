@@ -123,6 +123,20 @@ says otherwise, and whatever it says holds for every file the config names as
 well: the tosser config, the message template, the themes, and the files a
 setting may keep its values in.
 .PP
+An
+.B include
+line reads another file as part of the config: the same format, read by the same
+parser, whole
+.B area
+and
+.B group
+blocks included. A name written without a directory is looked for beside the
+file that wrote the line. AmberEdit stops at startup where an included file is
+not there, where the includes loop, where one file is included twice, and where
+an
+.B include
+stands inside a block.
+.PP
 A
 .B group ... endgroup
 block states settings for the echo areas its

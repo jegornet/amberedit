@@ -4,6 +4,7 @@
 #include <charconv>
 #include <cstdlib>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <optional>
 #include <random>
@@ -2696,6 +2697,193 @@ std::optional<domain::FtnAddress> AppConfig::akaMatching(
     return std::nullopt;
 }
 
+namespace {
+
+/// Every file the config has read so far, and the ones it is inside of right
+/// now — what an `include` is checked against.
+///
+/// A file is keyed by the path the system resolved it to rather than by the
+/// name that was written, so that `include ../common/site.cfg` and
+/// `include /etc/amberedit/site.cfg` are known to be one file, symlinks and
+/// all. `openChain` is that same list as a stack: what stands in it is what an
+/// include would be a loop back into.
+struct IncludeState {
+    /// A file that has been read: the name it was read under, which is what it
+    /// is talked about by, and where it was read from — `amberedit.cfg line 12`,
+    /// or empty for the config itself, which no line named.
+    struct Read {
+        std::string name;
+        std::string by;
+    };
+    std::map<std::string, Read> readBy;
+    /// The files being read at this moment, outermost first, by resolved path
+    /// and by name. What a loop is spelled out of.
+    std::vector<std::pair<std::string, std::string>> openChain;
+};
+
+/// `A includes B includes C includes A` — the loop as a sentence, out of the
+/// files standing open and the one about to be opened again.
+///
+/// Written with the name each file was read under rather than with the path the
+/// system resolved it to: the second is what tells two spellings of one file
+/// apart, and the first is what somebody can find in a file they wrote.
+[[nodiscard]] std::string loopChain(
+    const std::vector<std::pair<std::string, std::string>>& open,
+    const std::string& again) {
+    const auto from = std::find_if(open.begin(), open.end(), [&again](const auto& file) {
+        return file.first == again;
+    });
+
+    std::string chain;
+    for (auto it = from; it != open.end(); ++it) {
+        chain += (chain.empty() ? "" : " includes ") + it->second;
+    }
+    return chain + " includes " + from->second;
+}
+
+/// The `config_charset` an included file has no business stating, refused where
+/// it stands.
+///
+/// One charset answers for the whole configuration — it is what the config and
+/// every file the config names are written in — and it is read off the file the
+/// start was given, before any include has been opened. A line in an included
+/// file could only be read after that file had been read in some charset
+/// already, so obeying it would mean deciding what a file says in a charset it
+/// does not say it is in. See "Charsets and the locale" in AGENTS.md.
+[[nodiscard]] tl::expected<void, ErrorPtr> refuseCharsetLine(
+    const std::vector<CfgEntry>& entries) {
+    for (const CfgEntry& entry : entries) {
+        if (entry.key != "config_charset") continue;
+        return entry.fail(
+            "config_charset belongs to the config itself and not to a file it "
+            "includes — it says which charset every one of them is read in, and "
+            "this one has been read already");
+    }
+    return {};
+}
+
+/// The lines of one config with every `include` in it replaced by the lines of
+/// the file it names, and so on down.
+///
+/// `origin` is the file these entries were parsed under, and its directory is
+/// what a relative path written in it is resolved against — the including
+/// file's own directory, which is the rule fidoconfig's `include` follows. A
+/// `~/` is expanded as it is in every other path a config writes. The lines
+/// that come back keep the origin and the line number they were read under, so
+/// that a complaint about a setting names the file it was actually written in.
+///
+/// The included file is read in `charset`, the `config_charset` of the config
+/// that started the chain, and is parsed by the same `parseCfg()` as that
+/// config: an included file is a piece of the config, not a format of its own.
+///
+/// What is refused, all of it at startup and naming the line:
+///
+/// - a file that is not there, or will not open, or is not a file;
+/// - an include that is a loop back into a file still being read;
+/// - a file included a second time from anywhere at all, loop or no. A second
+///   copy of it would state every setting in it twice, which the config refuses
+///   a layer further down anyway, and there is no reading of a config that
+///   wanted the same file twice;
+/// - an include written inside an `area` or a `group` block, and a block left
+///   open at the end of an included file. The blocks are read out of the flat
+///   list by `splitBlocks()`, which would pair an `area` in one file with an
+///   `endarea` in another without noticing; there is nothing that could mean,
+///   and a file whose blocks do not balance is a mistake worth naming where it
+///   is rather than one whose message points at another file.
+tl::expected<std::vector<CfgEntry>, ErrorPtr> expandIncludes(
+    std::vector<CfgEntry> entries, const std::string& origin, const std::string& charset,
+    bool blocksMustBalance, IncludeState& state) {
+    const std::filesystem::path baseDir = std::filesystem::path(origin).parent_path();
+
+    std::vector<CfgEntry> out;
+    out.reserve(entries.size());
+    // The block standing open over this line, by what opened it. A copy of the
+    // key and the line rather than a pointer into `entries`, whose elements are
+    // moved out from under it as they go past.
+    std::string openKey;
+    int openLine = 0;
+
+    for (CfgEntry& entry : entries) {
+        if (entry.key != "include") {
+            if (entry.key == "area" || entry.key == "group") {
+                openKey = entry.key;
+                openLine = entry.line;
+            } else if (entry.key == "endarea" || entry.key == "endgroup") {
+                // Whether it closes the block that is open, or one that was
+                // never opened at all, is `splitBlocks()`'s to say. All this
+                // has to know is that no block stands open over the next line.
+                openKey.clear();
+            }
+            out.push_back(std::move(entry));
+            continue;
+        }
+
+        if (!openKey.empty()) {
+            return entry.fail("include inside the " + openKey + " block opened at line " +
+                              std::to_string(openLine) +
+                              " — a block is written whole, in one file");
+        }
+        auto name = entry.one();
+        if (!name) return tl::make_unexpected(std::move(name).error());
+
+        std::filesystem::path path(text::expandTilde(*name));
+        if (path.is_relative() && !baseDir.empty()) path = baseDir / path;
+
+        // The name the file is known by here is what the system made of the
+        // path, so that two spellings of one file are one file; the name it is
+        // talked about by is the one somebody wrote, so that a message is about
+        // a line they can find.
+        std::error_code ec;
+        const std::filesystem::path resolved =
+            std::filesystem::weakly_canonical(path, ec);
+        const std::string key = ec ? path.lexically_normal().string() : resolved.string();
+
+        if (std::find_if(state.openChain.begin(), state.openChain.end(),
+                         [&key](const auto& file) { return file.first == key; }) !=
+            state.openChain.end()) {
+            return entry.fail("include " + *name + " reads a file that is being read: " +
+                              loopChain(state.openChain, key));
+        }
+        if (const auto was = state.readBy.find(key); was != state.readBy.end()) {
+            return entry.fail("include " + *name + ": " + was->second.name +
+                              (was->second.by.empty()
+                                   ? " is the config itself"
+                                   : " is included already by " + was->second.by));
+        }
+
+        auto text = text::readFileIn(path.string(), charset);
+        if (!text) {
+            return entry.fail("include " + *name + ": " + text.error()->message());
+        }
+        auto parsed = parseCfg(*text, path.string());
+        if (!parsed) return tl::make_unexpected(std::move(parsed).error());
+        if (auto stated = refuseCharsetLine(*parsed); !stated) {
+            return tl::make_unexpected(std::move(stated).error());
+        }
+
+        state.readBy.emplace(
+            key, IncludeState::Read{path.string(), entry.origin + " line " +
+                                                       std::to_string(entry.line)});
+        state.openChain.emplace_back(key, path.string());
+        auto included = expandIncludes(std::move(*parsed), path.string(), charset,
+                                       /*blocksMustBalance=*/true, state);
+        state.openChain.pop_back();
+        if (!included) return tl::make_unexpected(std::move(included).error());
+
+        out.insert(out.end(), std::make_move_iterator(included->begin()),
+                   std::make_move_iterator(included->end()));
+    }
+
+    if (blocksMustBalance && !openKey.empty()) {
+        return failure<ConfigError>(origin, openLine,
+                                    openKey + " is never closed by an end" + openKey +
+                                        " — an included file ends outside its blocks");
+    }
+    return out;
+}
+
+}  // namespace
+
 tl::expected<CfgEntry, ErrorPtr> AppConfig::parseOverride(std::string_view text) {
     // The option as it was typed, where a file and a line number would stand:
     // there is no file, and "line 1" of an argument says nothing the argument
@@ -2716,6 +2904,12 @@ tl::expected<CfgEntry, ErrorPtr> AppConfig::parseOverride(std::string_view text)
     }
 
     CfgEntry entry = std::move(entries->front());
+    if (entry.key == "include") {
+        return failure<ConfigError>(
+            origin, 0,
+            "include reads a file beside the config, and there is no config beside a "
+            "command line — write the settings it holds as -o of their own");
+    }
     if (isBlockKey(entry.key)) {
         return failure<ConfigError>(
             origin, 0,
@@ -2734,13 +2928,6 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
     auto entries = parseCfg(text, originName);
     if (!entries) return tl::make_unexpected(std::move(entries).error());
 
-    // Laid over before the charset is asked for, so that `-o "config_charset
-    // CP866"` answers that question too — it is the one setting that says how
-    // the rest of the file is to be read, and a command line that could not
-    // state it could not state a config written in the wrong charset back into
-    // readability.
-    std::vector<CfgEntry> merged = withOverrides(std::move(*entries), overrides);
-
     // Which charset the file was written in is a line of the file, and there is
     // no way round that: the answer has to be read out of the bytes it is about.
     // It can be, because the question is asked of a key and a charset name, and
@@ -2748,7 +2935,14 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
     // first parse finds the line whatever the high bytes around it mean, and
     // then the whole text is decoded and parsed again, this time in UTF-8 like
     // everything above this layer.
-    auto charset = statedConfigCharset(merged);
+    //
+    // The overrides are laid over a copy before the question is asked, so that
+    // `-o "config_charset CP866"` answers it too — it is the one setting that
+    // says how the rest of the file is to be read, and a command line that
+    // could not state it could not state a config written in the wrong charset
+    // back into readability. The copy is thrown away: what is read below is the
+    // file's own lines, and the overrides go over them once, at the end.
+    auto charset = statedConfigCharset(withOverrides(*entries, overrides));
     if (!charset) return tl::make_unexpected(std::move(charset).error());
     if (*charset != "UTF-8") {
         encoding::IconvRecoder recoder;
@@ -2759,11 +2953,32 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromString(
         }
         auto reread = parseCfg(*decoded, originName);
         if (!reread) return tl::make_unexpected(std::move(reread).error());
-        // Again, over the lines the second parse made: the overrides came off a
-        // command line and were never in the file's charset to be decoded out of.
-        return fromEntries(withOverrides(std::move(*reread), overrides), originName);
+        entries = std::move(reread);
     }
-    return fromEntries(merged, originName);
+
+    // And then the files this one includes, read in that same charset and put
+    // where the `include` lines stood. Before the overrides rather than after,
+    // so that `-o` stands in place of a line an included file wrote exactly as
+    // it stands in place of one this file wrote: what the command line replaces
+    // is what the configuration says, and which of its files said it is not the
+    // command line's business.
+    IncludeState included;
+    // The config itself counts as read, so that a file it includes cannot
+    // include it back. Only where it is a file: a config parsed from a string
+    // is named `<string>` and is nowhere on disk to be included.
+    std::error_code ec;
+    if (std::filesystem::is_regular_file(originName, ec)) {
+        const std::filesystem::path self =
+            std::filesystem::weakly_canonical(originName, ec);
+        const std::string key = ec ? originName : self.string();
+        included.readBy.emplace(key, IncludeState::Read{originName, std::string()});
+        included.openChain.emplace_back(key, originName);
+    }
+    auto expanded = expandIncludes(std::move(*entries), originName, *charset,
+                                   /*blocksMustBalance=*/false, included);
+    if (!expanded) return tl::make_unexpected(std::move(expanded).error());
+
+    return fromEntries(withOverrides(std::move(*expanded), overrides), originName);
 }
 
 tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(

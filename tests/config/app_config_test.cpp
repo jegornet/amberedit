@@ -14,6 +14,7 @@
 #include "domain/message.hpp"
 #include "encoding/iconv_recoder.hpp"
 #include "sys/env.hpp"
+#include "temp_dir.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
 
@@ -3851,4 +3852,244 @@ TEST_CASE(
     CHECK(cfg.configCharset == "CP866");
     REQUIRE(cfg.origins.size() == 1);
     CHECK(cfg.origins[0] == "Привет");
+}
+
+namespace {
+
+/// A directory holding a config and the files it includes, gone again with
+/// them: an include is resolved against the directory of the file that wrote
+/// it, so the whole of what these tests say needs files standing beside one
+/// another.
+class IncludeDir {
+public:
+    /// Writes a file into it and hands back the bare name, which is what an
+    /// `include` line names it by.
+    std::string file(const std::string& name, const std::string& text) const {
+        const std::string path = dir_.path(name);
+        std::filesystem::create_directories(std::filesystem::path(path).parent_path());
+        std::ofstream out(path);
+        out << text;
+        return name;
+    }
+
+    /// The path of the main config. The file is written as well as named: a
+    /// config on disk is what an include of it can be a loop back into.
+    std::string config(const std::string& body) const {
+        const std::string text = kRequired + body;
+        file("amberedit.cfg", text);
+        return dir_.path("amberedit.cfg");
+    }
+
+    /// The config that body makes, loaded as a start would load it.
+    AppConfig load(const std::string& body) const {
+        const std::string path = config(body);
+        return amberedit::test::valueOf(
+            AppConfig::loadFromString(kRequired + body, path));
+    }
+
+    /// Why it would not load. Empty means it did.
+    std::string error(const std::string& body) const {
+        const std::string path = config(body);
+        return amberedit::test::errorOf(
+            AppConfig::loadFromString(kRequired + body, path));
+    }
+
+    [[nodiscard]] std::string path(const std::string& name) const {
+        return dir_.path(name);
+    }
+
+private:
+    amberedit::test::TempDir dir_;
+};
+
+}  // namespace
+
+TEST_CASE("include reads another file as part of the config [app_config]") {
+    const IncludeDir dir;
+    dir.file("common.cfg",
+             "quote_margin 60\n"
+             "origin Somewhere in the world\n");
+
+    const auto cfg = dir.load("include common.cfg\n");
+    CHECK(cfg.quoteMargin == 60);
+    REQUIRE(cfg.origins.size() == 1);
+    CHECK(cfg.origins[0] == "Somewhere in the world");
+}
+
+TEST_CASE("An included file is read by the config's own rules [app_config]") {
+    const IncludeDir dir;
+    // The same parser, so the same comments, the same quoting — and the same
+    // refusals, naming the included file and the line in it rather than the
+    // config that reached it.
+    dir.file("common.cfg",
+             "# what everything here shares\n"
+             "\n"
+             "tagline \"  two spaces and a # kept  \"\n");
+    const auto cfg = dir.load("include common.cfg\n");
+    REQUIRE(cfg.taglines.size() == 1);
+    CHECK(cfg.taglines[0] == "  two spaces and a # kept  ");
+
+    dir.file("bad.cfg", "\nquote_margin 500\n");
+    const std::string refused = dir.error("include bad.cfg\n");
+    CHECK_MESSAGE(contains(refused, "bad.cfg:2:"), refused);
+    CHECK_MESSAGE(contains(refused, "must be between 20 and 255"), refused);
+
+    // And an unknown key is as unknown there as it is in the config.
+    dir.file("odd.cfg", "nonsense 1\n");
+    const std::string unknown = dir.error("include odd.cfg\n");
+    CHECK_MESSAGE(contains(unknown, "unknown setting 'nonsense'"), unknown);
+    CHECK_MESSAGE(contains(unknown, "odd.cfg:1:"), unknown);
+}
+
+TEST_CASE("An include is resolved against the file that wrote it [app_config]") {
+    const IncludeDir dir;
+    // A bare name is looked for beside the config, and a name in a file one
+    // directory down is looked for beside *that* file: each include is written
+    // by somebody who knows where their own file stands.
+    dir.file("common/site.cfg", "include taglines.cfg\nquote_margin 55\n");
+    dir.file("common/taglines.cfg", "tagline Beside the file that named it\n");
+    const auto cfg = dir.load("include common/site.cfg\n");
+    CHECK(cfg.quoteMargin == 55);
+    REQUIRE(cfg.taglines.size() == 1);
+    CHECK(cfg.taglines[0] == "Beside the file that named it");
+
+    // An absolute path is itself, wherever it was written.
+    const auto absolute = dir.load("include " + dir.path("common/taglines.cfg") + "\n");
+    REQUIRE(absolute.taglines.size() == 1);
+}
+
+TEST_CASE("An include that names no file stops the start [app_config]") {
+    const IncludeDir dir;
+    const std::string missing = dir.error("include nowhere.cfg\n");
+    CHECK_MESSAGE(contains(missing, "include nowhere.cfg"), missing);
+    CHECK_MESSAGE(contains(missing, "cannot open file"), missing);
+
+    // A path in a config says nothing about a file on disk, and a config that
+    // half loaded would be a setting silently back at its default.
+    CHECK_MESSAGE(contains(missing, "amberedit.cfg:"), missing);
+}
+
+TEST_CASE("An include that loops back is refused at startup [app_config]") {
+    const IncludeDir dir;
+    // A includes B includes C includes A. Nothing is read twice and the message
+    // is the whole loop, because any one of its three lines could be the wrong
+    // one and the file that names it is the answer.
+    dir.file("b.cfg", "include c.cfg\n");
+    dir.file("c.cfg", "include amberedit.cfg\n");
+    const std::string looped = dir.error("include b.cfg\n");
+    CHECK_MESSAGE(contains(looped, "c.cfg:1:"), looped);
+    CHECK_MESSAGE(contains(looped, "is being read"), looped);
+    CHECK_MESSAGE(contains(looped, "amberedit.cfg includes"), looped);
+    CHECK_MESSAGE(contains(looped, "b.cfg includes"), looped);
+
+    // The shortest loop there is: a file that includes itself.
+    dir.file("self.cfg", "include self.cfg\n");
+    const std::string itself = dir.error("include self.cfg\n");
+    CHECK_MESSAGE(contains(itself, "is being read"), itself);
+}
+
+TEST_CASE("A file included twice is refused, loop or no [app_config]") {
+    const IncludeDir dir;
+    // Two files both including a third is not a loop, and it is still a
+    // mistake: what a second copy would do is state every setting in it twice.
+    dir.file("shared.cfg", "quote_margin 55\n");
+    dir.file("b.cfg", "include shared.cfg\n");
+    dir.file("c.cfg", "include shared.cfg\n");
+    const std::string twice = dir.error("include b.cfg\ninclude c.cfg\n");
+    CHECK_MESSAGE(contains(twice, "c.cfg:1:"), twice);
+    CHECK_MESSAGE(contains(twice, "included already"), twice);
+    CHECK_MESSAGE(contains(twice, "b.cfg line 1"), twice);
+
+    // And two spellings of one file are one file: the system's answer for the
+    // path is what it is known by, not the characters somebody typed.
+    const std::string spelled =
+        dir.error("include shared.cfg\ninclude ./sub/../shared.cfg\n");
+    CHECK_MESSAGE(contains(spelled, "included already"), spelled);
+}
+
+TEST_CASE("An include is written at the top level of a file [app_config]") {
+    const IncludeDir dir;
+    // Inside a block it would be a block half-written in another file, and
+    // `splitBlocks()` would pair an `area` in one file with an `endarea` in
+    // another without noticing.
+    dir.file("common.cfg", "quote_margin 55\n");
+    const std::string inside = dir.error(
+        "group\n"
+        "  member ru.*\n"
+        "  include common.cfg\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(inside, "include inside the group block"), inside);
+
+    // And the other way round: a file that opens a block and ends without
+    // closing it is named where it stands, not where it was included.
+    dir.file("half.cfg", "area ru.linux\n  origin Here\n");
+    const std::string half = dir.error("include half.cfg\n");
+    CHECK_MESSAGE(contains(half, "half.cfg:1:"), half);
+    CHECK_MESSAGE(contains(half, "never closed by an endarea"), half);
+}
+
+TEST_CASE("An included file may hold whole blocks [app_config]") {
+    const IncludeDir dir;
+    // Which is most of what an include is for: the areas of a config are the
+    // part most worth keeping in a file of its own.
+    dir.file("areas.cfg",
+             "area ru.linux\n"
+             "  description Linux\n"
+             "  type passthrough\n"
+             "endarea\n"
+             "group\n"
+             "  member ru.*\n"
+             "  quote_margin 50\n"
+             "endgroup\n");
+    const auto cfg = dir.load("include areas.cfg\n");
+    REQUIRE(cfg.manualAreas.size() == 1);
+    CHECK(cfg.manualAreas[0].area.tag == "ru.linux");
+    CHECK(cfg.effectiveFor(area("ru.linux")).quoteMargin == 50);
+}
+
+TEST_CASE("An included file is read in the config's charset [app_config]") {
+    const IncludeDir dir;
+    // config_charset is about files, and an included file is one of them. It
+    // may not say so itself: the line could only be read after the file had
+    // been read in some charset already.
+    dir.file("origins.cfg", cp866("origin Из Москвы с любовью\n"));
+    const auto cfg = dir.load("config_charset CP866\ninclude origins.cfg\n");
+    REQUIRE(cfg.origins.size() == 1);
+    CHECK(cfg.origins[0] == "Из Москвы с любовью");
+
+    dir.file("own.cfg", "config_charset KOI8-R\n");
+    const std::string stated = dir.error("include own.cfg\n");
+    CHECK_MESSAGE(contains(stated, "own.cfg:1:"), stated);
+    CHECK_MESSAGE(contains(stated, "belongs to the config itself"), stated);
+}
+
+TEST_CASE("include takes one file and -o cannot write it [app_config]") {
+    const IncludeDir dir;
+    const std::string none = dir.error("include\n");
+    CHECK_MESSAGE(contains(none, "include takes exactly one value"), none);
+    const std::string two = dir.error("include a.cfg b.cfg\n");
+    CHECK_MESSAGE(contains(two, "include takes exactly one value"), two);
+
+    // And there is no config beside a command line for a relative name to be
+    // resolved against, nor a reading of `-o` that wanted a file read.
+    const std::string option =
+        amberedit::test::errorOf(AppConfig::parseOverride("include common.cfg"));
+    CHECK_MESSAGE(contains(option, "no config beside a command line"), option);
+}
+
+TEST_CASE("-o replaces a line an included file wrote [app_config]") {
+    const IncludeDir dir;
+    // What the command line stands in place of is what the configuration says,
+    // and which of its files said it is not the command line's business.
+    dir.file("common.cfg", "quote_margin 50\n");
+    const std::string path = dir.config("include common.cfg\n");
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(
+        kRequired + "include common.cfg\n", path, options({"quote_margin 60"})));
+    CHECK(cfg.quoteMargin == 60);
+
+    // And a setting the config and an included file both state is the doubled
+    // line it would be in one file.
+    dir.file("margin.cfg", "quote_margin 40\n");
+    const std::string doubled = dir.error("include margin.cfg\nquote_margin 45\n");
+    CHECK_MESSAGE(contains(doubled, "quote_margin is set twice"), doubled);
 }

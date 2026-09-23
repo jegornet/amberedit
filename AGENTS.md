@@ -7,6 +7,17 @@ what values it takes, what it defaults to — is written once, in
 `amberedit.cfg.example`. This file says only what the code has to guarantee
 about it: where it is read, where it is applied, and what breaks if that changes.
 
+**Everything but this file is written short.** README.md, KEYS.md,
+KEYS_REBINDING.md, INSTALL.md and `amberedit.cfg.example` are read by somebody
+who wants an answer, and a page of prose around it is a page they skip — with
+the answer inside it. Say what a thing does, what it takes, what it refuses, and
+stop: one paragraph where a section was written, a list where a paragraph
+enumerates, a line of example instead of four that vary the same one. When a
+setting or a feature is added, the temptation is to write everything now known
+about it; write what somebody has to know to use it and let the rest go. This
+file is the exception — it exists to carry the reasons, and a rule here is worth
+the sentences that keep the next change from undoing it.
+
 **Every document here describes the project as it stands.** README.md, KEYS.md,
 KEYS_REBINDING.md, INSTALL.md, `amberedit.cfg.example`, this file and the
 comments in the code all say what is true now, in the present tense. What was tried and taken out, what a setting used
@@ -3032,10 +3043,10 @@ taking a row.
     Nothing decides anything by it.
 - **`config_charset` is the third charset setting, and it is about files rather
   than about mail.** It says what charset the AmberEdit config itself is written
-  in, and with it every file the config names: the tosser config and whatever
-  that includes, the message template and whatever it `@include`s, the `@file:`
-  lists the four signature and twit settings may keep their values in, and the
-  `@file` a `CC:`/`XC:` line names. Optional, UTF-8 where no line states it,
+  in, and with it every file the config names: the files the config itself
+  `include`s, the tosser config and whatever that includes, the message template
+  and whatever it `@include`s, the `@file:` lists the four signature and twit
+  settings may keep their values in, and the `@file` a `CC:`/`XC:` line names. Optional, UTF-8 where no line states it,
   read by the same `readCharset()` as the other two and so held under iconv's
   name — and **not a per-area setting**: a file has one charset, and a `group`
   block stating it would be a block of a config claiming the file is written
@@ -3391,6 +3402,36 @@ taking a row.
     and a line would stand.
   - **`--setup` takes neither `-c` nor `-o`.** It writes a config rather than
     reading one, and an override of a config it is not reading means nothing.
+- **A config may be written in several files, and `include` is how.**
+  `expandIncludes()` (`config/app_config.cpp`) replaces every `include <file>`
+  line with the lines of the file it names, and the result is the flat list
+  everything below it already read: an included file is a piece of the config,
+  not a format or a scope of its own. It runs after the charset is settled and
+  before `withOverrides()`, so `-o` stands in place of a line whichever file
+  wrote it. `parseOverride()` refuses `include` for the reason it refuses a
+  block: there is no config beside a command line for a relative name to be
+  looked for next to.
+  - **The path is resolved against the including file's own directory**, which
+    is fidoconfig's rule and the one a person writing the file can act on; `~/`
+    is expanded as in every other path a config writes. The lines keep the
+    origin and line number they were parsed under, so a complaint names the file
+    the setting was actually written in.
+  - **Five things stop the start, and all of them at the start**: a file that is
+    not there or will not open; a loop, named as the whole chain; the same file
+    included a second time from anywhere at all, loop or none; an `include`
+    inside an `area` or `group` block, and an included file that ends with a
+    block still open; and `config_charset` in an included file. A file is known
+    by what `weakly_canonical()` made of its path, so two spellings of one file
+    are one file.
+  - **The blocks are why the file has to balance.** `splitBlocks()` reads them
+    out of the flat list and would pair an `area` in one file with an `endarea`
+    in another without noticing, so the pairing is checked per file where the
+    include is expanded. A whole `area ... endarea` or `group ... endgroup` in an
+    included file is the ordinary case and the point of the feature.
+  - **`config_charset` stays in the config that was started with.** One charset
+    answers for the whole configuration, it is read off the raw bytes of that
+    file before anything is included, and a line in an included file could only
+    be read once that file had been read in some charset already.
 - **A setting may keep its values in a file, and five of them may**: `origin`,
   `tearline`, `tagline`, `twit` and `twit_subj`, written `@file:<name>`
   (`takesListFile()` is the whitelist, so `@file:` is inert in every other value). The name is the

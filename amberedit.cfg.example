@@ -19,6 +19,9 @@
 # setting, a repeatable key's whole list included. Not applicable to "area" and
 # "group" blocks.
 #
+# Part of the config may stand in a file of its own — see "the config in several
+# files" below.
+#
 # Each setting below says what it does, what it takes and what it defaults to.
 
 # The character set THIS FILE is written in, and with it every file it names:
@@ -1405,6 +1408,25 @@ twit_to on
 # not marked, not hidden, deleted — and no confirmation is asked for. This
 # setting is the confirmation, given once here.
 twit_mode blank
+
+# --- the config in several files ----------------------------------------------
+#
+# An "include" line reads another file here, in place of itself:
+#
+#   include common.cfg        looked for beside the file that wrote the line
+#   include areas/ru.cfg      "~/name" and absolute paths work as well
+#
+# Same format, same parser, whole "area" and "group" blocks included; an
+# included file may include files of its own. One file per line.
+#
+# AmberEdit stops at startup, naming the line, where the file is not there,
+# where the includes loop, where one file is included twice, where an "include"
+# stands inside a block or a file ends with a block still open, and where an
+# included file states "config_charset" — that one belongs in this file, since
+# it says which charset every one of them is read in.
+#
+# A setting stated twice is refused wherever the two lines stand, and a "-o"
+# option replaces the line whichever file wrote it.
 
 # --- values kept in a file ------------------------------------------------------
 #
