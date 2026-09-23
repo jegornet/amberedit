@@ -31,6 +31,12 @@ public:
     void close() override;
     [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
 
+    /// All three files, and not the .jhr alone: a message is written into every
+    /// one of them, and two out of three would leave the base half written.
+    [[nodiscard]] bool writable() const override {
+        return headers_.writable() && index_.writable() && text_.writable();
+    }
+
     [[nodiscard]] uint32_t count() const override {
         return static_cast<uint32_t>(active_.size());
     }

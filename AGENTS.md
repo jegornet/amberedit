@@ -585,6 +585,28 @@ Rules that hold the design together:
   over an area writes nothing; JAM answers that from its in-core header table. It
   is called from `loadMessage()` whatever `highlight_unread` says, and a failure
   is deliberately silent: a read-only area is the ordinary reason.
+- **An area that cannot be written is asked before the editor opens, not after
+  the message is written.** `IMsgBase::isWritable()` is the driver's own answer
+  — every file of the base opened for writing, or, for Fido `*.msg`, the
+  directory a message would be made in — and it is false for an ordinary,
+  readable area on somebody else's spool. `compose::startNew()`, `replyHere()`
+  and `startChange()` refuse there and say so in the error box, leaving the user
+  on the reader. An editor opened on an area with nowhere to put the message is
+  one the user writes a whole message into before anything is said.
+  **A reply or a forward into another area is not asked**: that base is not
+  open, and opening one for every keystroke that might become a reply is a base
+  held for nothing. `storeElsewhere()` answers for it when the message gets
+  there.
+- **A message the base would not take is said out loud.** Every refusal on the
+  way out — `write()`, `replace()`, the area picked not opening — comes back as
+  the box, over the editor that still holds the message (`errorEndsScreen` left
+  false). The editor keeping the message is not by itself an answer: a keystroke
+  that stored and one that was refused look exactly alike from the chair.
+  **A copy that did not arrive is said too**, in the same box and as a sentence
+  of its own: `reportCopyTrouble()` tells a `CC:` or `XC:` nobody could resolve
+  — the lines for those are still in the message — from one that had somewhere
+  to go and did not get there, and says that the message itself is stored.
+  Nobody goes and looks in an echo to check that a crosspost reached it.
 - **`Uns` is a virtual attribute, derived and never stored.**
   `domain::messageAttributes()` turns the XMSG bits into the short forms readers
   show, and `Uns` stands for no bit: it shows exactly when `Loc` is set and `Snt`

@@ -1,10 +1,15 @@
 #include "msgbase/opus_base.hpp"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <system_error>
 
 #include "config/text_util.hpp"
 #include "msgbase/binary_file.hpp"
@@ -92,6 +97,27 @@ tl::expected<void, ErrorPtr> OpusBase::open(const std::string& path, bool echo,
         return tl::make_unexpected(std::move(reason));
     }
     return {};
+}
+
+bool OpusBase::writable() const {
+    if (directory_.empty()) return false;
+#ifndef _WIN32
+    // Asked of the file system rather than of a descriptor, there being none to
+    // ask: the base is a directory and a message is a file made in it. Which of
+    // the three sets of bits applies — owner, group, other, against every group
+    // this process is in — is the system's to work out, and access() is what
+    // asks it that way round. Both bits: a directory is entered with its
+    // execute bit, and one without it cannot be written into whatever the write
+    // bit says.
+    return ::access(directory_.c_str(), W_OK | X_OK) == 0;
+#else
+    // Windows has no such bits to ask about — a directory's mode reads as
+    // granted to everyone — and a read-only spool there is a share, which shows
+    // up when the file is created and not before.
+    std::error_code ec;
+    const auto status = fs::status(directory_, ec);
+    return !ec && (status.permissions() & fs::perms::owner_write) != fs::perms::none;
+#endif
 }
 
 void OpusBase::close() {

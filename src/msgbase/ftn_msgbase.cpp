@@ -352,6 +352,10 @@ void FtnMsgBase::close() {
     driver_.reset();
 }
 
+bool FtnMsgBase::isWritable() const {
+    return driver_ != nullptr && driver_->writable();
+}
+
 uint32_t FtnMsgBase::count() const {
     if (!driver_) return 0;
     return driver_->count();

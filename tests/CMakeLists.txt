@@ -30,6 +30,7 @@ add_executable(amberedit_tests
   msgbase/message_info_test.cpp
   msgbase/lastread_store_test.cpp
   msgbase/create_base_test.cpp
+  msgbase/read_only_base_test.cpp
   msgbase/remove_all_test.cpp
   msgbase/write_all_test.cpp
   msgbase/echotoss_log_test.cpp
@@ -84,6 +85,7 @@ add_executable(amberedit_tests
   ui/change_message_test.cpp
   ui/other_area_test.cpp
   ui/position_after_save_test.cpp
+  ui/read_only_area_test.cpp
   ui/carbon_copy_test.cpp
   ui/back_button_test.cpp
   ui/delete_line_button_test.cpp

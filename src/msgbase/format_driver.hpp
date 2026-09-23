@@ -76,6 +76,20 @@ public:
     [[nodiscard]] virtual tl::expected<void, ErrorPtr> create(
         const std::string& path) = 0;
 
+    /// Whether the base as it stands open may be written to.
+    ///
+    /// A base whose files opened read-only — the user may read them and not
+    /// write them, which is what somebody else's spool looks like — reads
+    /// perfectly and takes no message. It is asked of the open base and not of
+    /// the path, because what settles it is how the descriptors were opened:
+    /// `BinaryFile::open()` falls back to O_RDONLY rather than failing, which
+    /// is what lets such an area be read at all.
+    ///
+    /// **False is not an error and not a broken base.** It is the answer the
+    /// interface asks before it offers to write, so that a message is refused
+    /// at the door rather than after it has been typed.
+    [[nodiscard]] virtual bool writable() const = 0;
+
     [[nodiscard]] virtual uint32_t count() const = 0;
 
     /// Reads message `index`. `withText` false stops at the header and the

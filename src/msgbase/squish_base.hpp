@@ -32,6 +32,12 @@ public:
     void close() override;
     [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
 
+    /// Both files: a frame goes into the .sqd and the record naming it into the
+    /// .sqi, and one without the other is not a message.
+    [[nodiscard]] bool writable() const override {
+        return data_.writable() && index_file_.writable();
+    }
+
     [[nodiscard]] uint32_t count() const override {
         return static_cast<uint32_t>(index_.size());
     }

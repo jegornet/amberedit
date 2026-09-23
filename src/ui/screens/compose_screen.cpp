@@ -762,6 +762,22 @@ void leaveEditor(AppState& state) {
     state.navigator.pop();
 }
 
+/// Says why the message was not stored, over the editor that still holds it.
+///
+/// The editor keeping the message is what must happen and is not by itself an
+/// answer: a keystroke that saves and a keystroke that is refused look exactly
+/// alike from the chair, and a user pressing Ctrl-S at a base that will not
+/// take the message has no way to tell that anything happened at all. The
+/// refusal is the base's own words — which file, and what the system said about
+/// it — because that is what there is to act on.
+void reportNotStored(AppState& state, const ErrorPtr& why) {
+    state.errorMessage =
+        i18n::format(_("The message was not stored: {0} It is still here, and "
+                       "nothing has been lost."),
+                     {why ? why->message() : std::string{}});
+    state.errorEndsScreen = false;
+}
+
 /// Stores a message written into another area — a reply moved into one, or a
 /// message forwarded there — and puts the reader back where it was.
 ///
@@ -781,13 +797,24 @@ bool storeElsewhere(AppState& state, const domain::MessageDraft& draft) {
     // pointing at it in between.
     state.base = nullptr;
     uint32_t written = 0;
-    if (const auto into = state.manager.openArea(target)) {
-        if (const auto number = (*into)->write(draft)) {
+    // Why it did not go in, kept until the reader's own base is back: the box
+    // stands over the editor, and the editor is not there to stand over while
+    // no area is open. Either the area picked would not open — read-only is one
+    // reason among several, and this is the one place a second area is opened
+    // to find out — or its base refused the message.
+    ErrorPtr refused;
+    // Not const: the failure is moved out of it, an error being move-only.
+    if (auto into = state.manager.openArea(target)) {
+        if (auto number = (*into)->write(draft)) {
             written = *number;
             // The area list counts it while the base is still open — one message
             // more in an area nobody has read, so one unread more as well.
             state.manager.refreshArea(target);
+        } else {
+            refused = std::move(number).error();
         }
+    } else {
+        refused = std::move(into).error();
     }
 
     // Back where the user was, whether or not the message went in.
@@ -800,7 +827,11 @@ bool storeElsewhere(AppState& state, const domain::MessageDraft& draft) {
         message_list::leaveArea(state);
         return true;
     }
-    return written != 0;
+    if (written == 0) {
+        reportNotStored(state, refused);
+        return false;
+    }
+    return true;
 }
 
 // --- the CC: and XC: commands ------------------------------------------------
@@ -1161,20 +1192,43 @@ app::ComposeFields crosspostFields(AppState& state, const config::AppConfig& con
 ///
 /// false is the reader's own area failing to open again, which leaves nothing
 /// underneath to come back to.
-bool writeCopies(AppState& state, const std::vector<std::string>& text) {
+///
+/// `refused` collects the areas a copy did not reach, with what the base or the
+/// area said about it. A copy that fails is not a message lost — the message
+/// itself is already stored — but it is not a copy made either, and the one
+/// thing that must not happen is its going quietly: nobody looks in an echo to
+/// check that a crosspost arrived.
+void writeCopies(AppState& state, const std::vector<std::string>& text,
+                 std::vector<std::string>& refused, bool& cameBack) {
+    cameBack = true;
     const AppState::CopyRun& run = *state.copyRun;
-    if (run.carbons.empty() && run.crossposts.empty()) return true;
+    if (run.carbons.empty() && run.crossposts.empty()) return;
 
     const domain::AreaConfig source = state.currentArea;
     // Every area closes the message with a pair of its own, so the one the
     // editor closed it with comes off first.
     const std::vector<std::string> body = app::withoutTrailer(text);
 
-    const auto writeInto = [&state](const domain::AreaConfig& target,
-                                    const domain::MessageDraft& draft) {
-        const auto into = state.manager.openArea(target);
-        if (!into) return;
-        if ((*into)->write(draft)) state.manager.refreshArea(target);
+    // The tag with the reason beside it: which echo has no copy in it is what
+    // the user acts on, and why is what tells a read-only spool from an area
+    // that has gone away.
+    const auto writeInto = [&state, &refused](const domain::AreaConfig& target,
+                                              const domain::MessageDraft& draft) {
+        const auto note = [&refused, &target](const ErrorPtr& why) {
+            refused.push_back(target.tag + " (" +
+                              (why ? why->message() : std::string{}) + ")");
+        };
+        auto into = state.manager.openArea(target);
+        if (!into) {
+            note(into.error());
+            return;
+        }
+        auto number = (*into)->write(draft);
+        if (!number) {
+            note(number.error());
+            return;
+        }
+        state.manager.refreshArea(target);
     };
 
     // The base of the area being read is closed by opening another, so nothing
@@ -1197,29 +1251,73 @@ bool writeCopies(AppState& state, const std::vector<std::string>& text) {
     }
 
     state.base = state.manager.openArea(source).value_or(nullptr);
-    return state.base != nullptr;
+    cameBack = state.base != nullptr;
 }
 
-/// What the copies could not find, said once the message is stored.
+/// What the copies came to, said once the message is stored.
 ///
-/// The lines naming those recipients and areas are still in the message — a
-/// command nobody could carry out is not a reason to throw away what was
-/// written — so the box says what was not done rather than what was lost. It
-/// leaves the user where they are: the screen underneath is the reader on the
-/// message that has just been written.
-void reportUnresolved(AppState& state, const std::vector<std::string>& unresolved) {
-    if (unresolved.empty()) return;
+/// Two different things go wrong with a `CC:` or an `XC:`, and they are two
+/// sentences because they ask for two different things of the user.
+/// `unresolved` is a command nobody could carry out — no such recipient, no
+/// such area — and the lines naming them are still in the message, so the box
+/// says what was not done rather than what was lost. `refused` is a copy that
+/// had somewhere to go and did not get there: the area would not open, or its
+/// base would not take it.
+///
+/// Neither is the message itself: that is stored by the time this is called,
+/// and saying so is half of what makes the box readable. It leaves the user
+/// where they are — the screen underneath is the reader on the message that has
+/// just been written.
+void reportCopyTrouble(AppState& state, const std::vector<std::string>& unresolved,
+                       const std::vector<std::string>& refused) {
+    const auto listed = [](const std::vector<std::string>& what) {
+        std::string named;
+        for (const auto& one : what) {
+            if (!named.empty()) named += ", ";
+            named += one;
+        }
+        return named;
+    };
 
-    std::string named;
-    for (const auto& what : unresolved) {
-        if (!named.empty()) named += ", ";
-        named += what;
+    std::string said;
+    if (!unresolved.empty()) {
+        said = i18n::format(_("No copy was made for: {0}. The lines naming them are "
+                              "still in the message."),
+                            {listed(unresolved)});
     }
-    state.errorMessage = i18n::format(
-        _("No copy was made for: {0}. The lines naming them are still in the "
-          "message."),
-        {named});
+    if (!refused.empty()) {
+        if (!said.empty()) said += ' ';
+        said += i18n::format(_("The copy did not reach: {0}. The message itself is "
+                               "stored."),
+                             {listed(refused)});
+    }
+    if (said.empty()) return;
+
+    state.errorMessage = std::move(said);
     state.errorEndsScreen = false;
+}
+
+/// Refuses to open the editor on an area that cannot take a message, and says
+/// so — a base open on files the user may read and not write, which is what
+/// somebody else's spool looks like.
+///
+/// **Asked at the door and not at the save.** An editor that opens on an area
+/// with nowhere to put the message is one the user writes a whole message into
+/// before anything is said, and what is said then comes too late to be of use.
+/// The box leaves them on the reader they pressed the key from.
+///
+/// A message going into another area is not asked about here: that base is not
+/// open, and holding a second one open to ask would be a base held for every
+/// keystroke that might become a reply. `storeElsewhere()` answers for it when
+/// the message gets there.
+bool refusedAsReadOnly(AppState& state) {
+    if (state.base == nullptr || state.base->isWritable()) return false;
+    state.errorMessage =
+        i18n::format(_("{0} is open for reading only: its files are not yours to "
+                       "write, so nothing can be written into it or changed in it."),
+                     {state.currentArea.tag});
+    state.errorEndsScreen = false;
+    return true;
 }
 
 /// Asks whether to store the message — what Ctrl-S, F2 and the Save button all
@@ -1326,6 +1424,9 @@ bool clickToCursor(AppState& state, const MouseEvent& click) {
 /// anywhere else at all, so that the decision is made once and not again by the
 /// area it lands in.
 void replyHere(AppState& state, bool comment) {
+    // Only this branch of a reply: replyInto() writes into another area, whose
+    // base is not open to be asked.
+    if (refusedAsReadOnly(state)) return;
     state.compose = comment ? app::commentReply(state.areaConfig, state.currentArea,
                                                 state.currentArea, *state.readHeader)
                             : app::reply(state.areaConfig, state.currentArea,
@@ -1466,6 +1567,7 @@ void runMenuCommand(AppState& state, Command command) {
 }
 
 void startNew(AppState& state) {
+    if (refusedAsReadOnly(state)) return;
     state.compose = app::newMessage(state.areaConfig, state.currentArea);
     // Who the message is for is the one thing a new one cannot be written
     // without, and the only field prefill leaves empty; the name and address
@@ -1525,6 +1627,10 @@ void startForwardTo(AppState& state, const domain::AreaConfig& target) {
 
 void startChange(AppState& state, bool notice) {
     if (!state.readHeader || !state.readBody) return;
+    // A message is changed where it lies, so there is nowhere else this one
+    // could go: an area that cannot be written is an area whose messages cannot
+    // be changed.
+    if (refusedAsReadOnly(state)) return;
 
     state.compose = app::change(state.currentArea, *state.readHeader);
     state.changeNumber = state.readHeader->number;
@@ -2213,7 +2319,11 @@ void saveMessage(AppState& state) {
             app::ownAddress(state.composeConfig(), state.currentArea)};
         const auto draft = app::buildChange(state.compose, state.changeKept,
                                             trimmedLines(state.edit), stamp);
-        if (!state.base->replace(state.changeNumber, draft)) return;
+        if (const auto changed = state.base->replace(state.changeNumber, draft);
+            !changed) {
+            reportNotStored(state, changed.error());
+            return;
+        }
 
         // The counts can have moved with it — a message marked read or unread
         // is one more or one fewer unread in the area list.
@@ -2267,9 +2377,14 @@ void saveMessage(AppState& state) {
         // area on screen failing to open again, which storeElsewhere() has
         // already answered for where it happened there.
         bool left = false;
-        if (copying && state.base != nullptr && !writeCopies(state, text)) {
-            message_list::leaveArea(state);
-            left = true;
+        std::vector<std::string> refused;
+        if (copying && state.base != nullptr) {
+            bool cameBack = true;
+            writeCopies(state, text, refused, cameBack);
+            if (!cameBack) {
+                message_list::leaveArea(state);
+                left = true;
+            }
         }
         leaveEditor(state);
         // The reader is showing the message that was answered or passed on, in
@@ -2280,25 +2395,33 @@ void saveMessage(AppState& state) {
         // would not open again, leaveArea() has reset the navigator — there is
         // no reader left under this screen, and nowhere to put it.
         if (!left) readerAfterSave(state, /*stored=*/0, reading);
-        reportUnresolved(state, unresolved);
+        reportCopyTrouble(state, unresolved, refused);
         return;
     }
 
     // A base that would not take it keeps the editor open on the message, which
     // is the one thing that must not be lost here.
     const auto written = state.base->write(draft);
-    if (!written) return;
+    if (!written) {
+        reportNotStored(state, written.error());
+        return;
+    }
     const uint32_t number = *written;
 
     // And then the copies of it, into whatever areas they are for.
-    if (copying && !writeCopies(state, text)) {
-        // The area the message was written into will not open again. It is
-        // stored all the same; there is simply nothing left underneath to show
-        // it in.
-        message_list::leaveArea(state);
-        leaveEditor(state);
-        reportUnresolved(state, unresolved);
-        return;
+    std::vector<std::string> refused;
+    if (copying) {
+        bool cameBack = true;
+        writeCopies(state, text, refused, cameBack);
+        if (!cameBack) {
+            // The area the message was written into will not open again. It is
+            // stored all the same; there is simply nothing left underneath to
+            // show it in.
+            message_list::leaveArea(state);
+            leaveEditor(state);
+            reportCopyTrouble(state, unresolved, refused);
+            return;
+        }
     }
 
     // The area is one message longer, and where the reader stands over it is
@@ -2312,7 +2435,7 @@ void saveMessage(AppState& state) {
 
     leaveEditor(state);
     readerAfterSave(state, number, reading);
-    reportUnresolved(state, unresolved);
+    reportCopyTrouble(state, unresolved, refused);
 }
 
 void processCopies(AppState& state) {

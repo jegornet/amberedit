@@ -41,6 +41,18 @@ public:
         const domain::AreaConfig& area) = 0;
     virtual void close() = 0;
 
+    /// Whether messages may be written into this area at all.
+    ///
+    /// False where the base is open on files the user may read and not write,
+    /// which is the ordinary state of somebody else's spool. **The interface
+    /// asks before it offers to write**: an editor opened on an area that
+    /// cannot take the message is one the user types a message into and then
+    /// cannot leave, and a refusal after the writing is no answer.
+    ///
+    /// It says nothing about whether any one write will succeed — a base can go
+    /// away, and another process holds it from time to time. Those are answered
+    /// where they happen, by the write itself.
+    [[nodiscard]] virtual bool isWritable() const = 0;
     [[nodiscard]] virtual uint32_t count() const = 0;
     [[nodiscard]] virtual domain::MessageHeader header(uint32_t index) const = 0;
     [[nodiscard]] virtual domain::MessageBody body(uint32_t index) const = 0;

@@ -374,7 +374,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.10\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-23 21:40+0200\n"
+"POT-Creation-Date: 2026-09-23 22:07+0200\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -1230,11 +1230,31 @@ msgstr "ответ"
 msgid "new message"
 msgstr "новое сообщение"
 
-#: src/ui/screens/compose_screen.cpp:1219
+#: src/ui/screens/compose_screen.cpp:775
+#, c++-format
+msgid ""
+"The message was not stored: {0} It is still here, and nothing has been lost."
+msgstr "Сообщение не сохранено: {0} Оно осталось здесь, ничего не потеряно."
+
+#: src/ui/screens/compose_screen.cpp:1284
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr "Копия не сделана для: {0}. Строки с ними остались в сообщении."
+
+#: src/ui/screens/compose_screen.cpp:1290
+#, c++-format
+msgid "The copy did not reach: {0}. The message itself is stored."
+msgstr "Копия не дошла до: {0}. Само сообщение сохранено."
+
+#: src/ui/screens/compose_screen.cpp:1316
+#, c++-format
+msgid ""
+"{0} is open for reading only: its files are not yours to write, so nothing "
+"can be written into it or changed in it."
+msgstr ""
+"{0} открыта только для чтения: её файлы вам не принадлежат, так что писать в "
+"неё и править в ней ничего нельзя."
 
 #: src/ui/screens/message_read_screen.cpp:555
 msgid "This is a twit message. Press Space to view it"

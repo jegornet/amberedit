@@ -84,6 +84,10 @@ public:
     /// nothing about this one.
     [[nodiscard]] static bool isAbsent(const domain::AreaConfig& area);
 
+    /// The driver's answer, and false where no base is open: nothing can be
+    /// written into an area that is not there either.
+    [[nodiscard]] bool isWritable() const override;
+
     [[nodiscard]] uint32_t count() const override;
     [[nodiscard]] domain::MessageHeader header(uint32_t index) const override;
     [[nodiscard]] domain::MessageBody body(uint32_t index) const override;

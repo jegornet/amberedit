@@ -28,6 +28,12 @@ public:
     void close() override;
     [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
 
+    /// The directory, not a file in it: a message here is a file of its own,
+    /// so writing one is making an entry in the directory rather than changing
+    /// anything that is already open. A message that is rewritten is opened
+    /// then, and its own mode is what decides it.
+    [[nodiscard]] bool writable() const override;
+
     [[nodiscard]] uint32_t count() const override {
         return static_cast<uint32_t>(numbers_.size());
     }

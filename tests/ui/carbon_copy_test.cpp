@@ -1,6 +1,11 @@
 #include <doctest/doctest.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <algorithm>
+#include <filesystem>
 #include <cstdint>
 #include <fstream>
 #include <map>
@@ -27,6 +32,7 @@ using amberedit::config::CrosspostList;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
 using amberedit::domain::FtnAddress;
+using amberedit::test::contains;
 using amberedit::ui::AppState;
 
 namespace attr = amberedit::domain::attr;
@@ -664,4 +670,54 @@ TEST_CASE("A quoted command is not a command [copy][compose]") {
 
     REQUIRE(fixture.countIn("netmail") == 1);
     CHECK(holds(fixture.textIn("netmail", 1), " IK> CC: Ivan Ivanov"));
+}
+
+TEST_CASE("A copy the base would not take is said out loud [copy][crosspost][readonly]") {
+    // The message itself is stored, so nothing is lost and there is nothing to
+    // put back — and exactly for that reason the copy that did not arrive would
+    // never be noticed: nobody goes and looks in an echo to check that a
+    // crosspost reached it.
+#ifdef _WIN32
+    MESSAGE("mode bits do not bite on Windows");
+    return;
+#else
+    if (::geteuid() == 0) {
+        MESSAGE("root is refused nothing");
+        return;
+    }
+    namespace fs = std::filesystem;
+
+    CopyFixture fixture;
+    // Opened once so that its base exists to be made read-only: an area whose
+    // base is not there yet is created when the copy reaches it, and creating
+    // is not what is under test here.
+    REQUIRE(fixture.countIn("ru.linux") == 0);
+    const std::string blocked = fixture.areaNamed("ru.linux").path;
+    for (const char* extension : {".sqd", ".sqi"}) {
+        fs::permissions(blocked + extension,
+                        fs::perms::owner_write | fs::perms::group_write |
+                            fs::perms::others_write,
+                        fs::perm_options::remove);
+    }
+
+    fixture.enter("ru.talk");
+    fixture.begin({"XC: ru.linux", "Hello there."});
+    fixture.storeAndProcess();
+
+    // The message is where it was written.
+    CHECK(fixture.countIn("ru.talk") == 1);
+    // The copy is not, and the box says so — naming the echo, and saying that
+    // the message itself is stored, which is the half that keeps the user from
+    // writing it again.
+    CHECK(fixture.countIn("ru.linux") == 0);
+    CHECK_MESSAGE(contains(fixture.state.errorMessage, "ru.linux"),
+                  fixture.state.errorMessage);
+    CHECK_FALSE(fixture.state.errorEndsScreen);
+
+    for (const char* extension : {".sqd", ".sqi"}) {
+        std::error_code ec;
+        fs::permissions(blocked + extension, fs::perms::owner_write,
+                        fs::perm_options::add, ec);
+    }
+#endif
 }
