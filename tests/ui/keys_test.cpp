@@ -75,6 +75,9 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     // Storing the message answers on a third key: a terminal whose line
     // discipline eats Ctrl-S, and a keyboard without an F2, both leave Alt-S.
     CHECK(keys.is(alt('s'), Command::ComposeSave));
+    // Taking the quote out is Ctrl-D and Alt-Z alike, for the same reason.
+    CHECK(keys.is(ctrl('d'), Command::ComposeDeleteQuote));
+    CHECK(keys.is(alt('z'), Command::ComposeDeleteQuote));
 
     // A key that runs nothing, and a mouse report, which is never a binding.
     CHECK_FALSE(keys.is(Event::Character('z'), Command::ReaderList));
@@ -82,7 +85,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bcdefghqs");
+    CHECK(keys.altLetters() == "bcdefghqsz");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -273,7 +276,7 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
           std::vector<Event>{Event::Character('l'), Event::F9});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bcdefghjqs");
+    CHECK(keys.altLetters() == "bcdefghjqsz");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.

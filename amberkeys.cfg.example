@@ -127,6 +127,7 @@ Ctrl-Y          compose.delete_line
 Alt-D           compose.delete_line
 Ctrl-U          compose.restore_line
 Ctrl-D          compose.delete_quote
+Alt-Z           compose.delete_quote
 Ctrl-W          compose.delete_word
 Alt-Backspace   compose.delete_word
 Alt-B           compose.word_left
