@@ -54,6 +54,7 @@ const Event Event::Tab = Event::Named(Event::Name::Tab);
 const Event Event::TabReverse = Event::Named(Event::Name::TabReverse);
 const Event Event::Backspace = Event::Named(Event::Name::Backspace);
 const Event Event::Delete = Event::Named(Event::Name::Delete);
+const Event Event::Insert = Event::Named(Event::Name::Insert);
 const Event Event::ArrowUp = Event::Named(Event::Name::ArrowUp);
 const Event Event::ArrowDown = Event::Named(Event::Name::ArrowDown);
 const Event Event::ArrowLeft = Event::Named(Event::Name::ArrowLeft);

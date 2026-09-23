@@ -25,6 +25,7 @@ constexpr NamedKey kNamedKeys[] = {
     {"F9", Event::Name::F9, false},         {"F10", Event::Name::F10, false},
     {"F11", Event::Name::F11, false},       {"F12", Event::Name::F12, false},
     {"Del", Event::Name::Delete, false},    {"Delete", Event::Name::Delete, false},
+    {"Ins", Event::Name::Insert, false},    {"Insert", Event::Name::Insert, false},
     {"Enter", Event::Name::Return, true},   {"Return", Event::Name::Return, true},
     {"Esc", Event::Name::Escape, true},     {"Escape", Event::Name::Escape, true},
     {"Tab", Event::Name::Tab, true},        {"Backspace", Event::Name::Backspace, true},

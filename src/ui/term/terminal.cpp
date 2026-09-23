@@ -371,6 +371,7 @@ Event namedKey(int code) {
         case KEY_PPAGE: return Event::PageUp;
         case KEY_BACKSPACE: return Event::Backspace;
         case KEY_DC: return Event::Delete;
+        case KEY_IC: return Event::Insert;
         case KEY_BTAB: return Event::TabReverse;
         case KEY_ENTER: return Event::Return;
         default: break;

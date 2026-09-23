@@ -53,6 +53,7 @@ public:
         TabReverse,
         Backspace,
         Delete,
+        Insert,
         ArrowUp,
         ArrowDown,
         ArrowLeft,
@@ -83,6 +84,7 @@ public:
     static const Event TabReverse;
     static const Event Backspace;
     static const Event Delete;
+    static const Event Insert;
     static const Event ArrowUp;
     static const Event ArrowDown;
     static const Event ArrowLeft;

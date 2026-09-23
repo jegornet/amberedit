@@ -91,6 +91,7 @@ F5              reader.reply_elsewhere
 g               reader.comment_reply
 Alt-G           reader.comment_reply
 e               reader.new
+Ins             reader.new
 m               reader.forward
 c               reader.change
 F2              reader.change

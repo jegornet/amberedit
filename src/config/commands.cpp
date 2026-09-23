@@ -46,7 +46,7 @@ constexpr Commands::Info kCommands[] = {
      N_("Comment-reply"), N_("Reply to whoever the message was written to"), "⇄",
      "g Alt-G", true},
     {Command::ReaderNew, "reader.new", CommandScreen::Reader, N_("New"),
-     N_("Write a new message"), "✎", "e", true},
+     N_("Write a new message"), "✎", "e Ins", true},
     {Command::ReaderForward, "reader.forward", CommandScreen::Reader, N_("Fwd / Copy"),
      N_("Forward, move or copy into another area"), "↗", "m", true},
     {Command::ReaderChange, "reader.change", CommandScreen::Reader, N_("Change"),

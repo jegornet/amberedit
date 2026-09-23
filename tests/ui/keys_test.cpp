@@ -48,6 +48,9 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     CHECK(keys.is(alt('g'), Command::ReaderCommentReply));
     CHECK_FALSE(keys.is(Event::Character('q'), Command::ReaderCommentReply));
     CHECK(keys.is(Event::Delete, Command::ReaderDelete));
+    // Writing a new one is `e` and the key the editors of the era put it on.
+    CHECK(keys.is(Event::Character('e'), Command::ReaderNew));
+    CHECK(keys.is(Event::Insert, Command::ReaderNew));
     CHECK(keys.is(ctrl('n'), Command::ReaderNodelist));
     CHECK(keys.is(Event::F10, Command::ReaderNodelist));
     CHECK(keys.is(ctrl('q'), Command::AppQuit));

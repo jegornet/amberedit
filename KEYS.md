@@ -53,7 +53,7 @@ standing in both.
 | `Home`, `End` | top, bottom                                                                  |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |
 | `q` / `F4` / `Alt-Q` | reply                                                              |
-| `e` | write a new message                                                          |
+| `e` / `Ins` | write a new message                                                  |
 | `n` / `F5` | reply into another area                                                      |
 | `g` / `Alt-G` | reply, addressed to whoever the message was written to                 |
 | `m` | forward, move or copy into another area — with messages marked, asks whether you mean those (copy/move) or this one |
