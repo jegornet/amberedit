@@ -1412,7 +1412,7 @@ Rules that hold the design together:
     44/44` — whenever the line names another area, whether or not
     `areareplydirect` is on: it is a fact about the message.
 
-- **`comment_reply` is the same reply addressed to the recipient**: `Alt-Q`,
+- **`comment_reply` is the same reply addressed to the recipient**: `g`/`Alt-G`,
   `reader.comment_reply`, `compose::startCommentReply()`. It differs from a
   reply in `ComposeFields`' To row alone — `app::commentReply()` is
   `app::reply()` with `toName` off `header.to` and, in netmail, `toAddr` off

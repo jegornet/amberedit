@@ -40,10 +40,12 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     CHECK(keys.is(Event::F9, Command::ReaderList));
     CHECK(keys.is(Event::Character('q'), Command::ReaderReply));
     CHECK(keys.is(Event::F4, Command::ReaderReply));
+    CHECK(keys.is(alt('q'), Command::ReaderReply));
     // The comment on the message, which is the reply addressed to whoever it
-    // was written to. A chord of its own: a bare letter is not what a command
-    // wanted now and then should be a slip of the finger away from.
-    CHECK(keys.is(alt('q'), Command::ReaderCommentReply));
+    // was written to: a key of its own, bare and chorded alike, and not one the
+    // plain reply answers.
+    CHECK(keys.is(Event::Character('g'), Command::ReaderCommentReply));
+    CHECK(keys.is(alt('g'), Command::ReaderCommentReply));
     CHECK_FALSE(keys.is(Event::Character('q'), Command::ReaderCommentReply));
     CHECK(keys.is(Event::Delete, Command::ReaderDelete));
     CHECK(keys.is(ctrl('n'), Command::ReaderNodelist));
@@ -77,7 +79,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bcdefhq");
+    CHECK(keys.altLetters() == "bcdefghq");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -267,7 +269,7 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
           std::vector<Event>{Event::Character('l'), Event::F9});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bcdefhjq");
+    CHECK(keys.altLetters() == "bcdefghjq");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.

@@ -1186,7 +1186,7 @@ TEST_CASE("The comment button is offered but not given [messageread][menu][squis
     openMenu(fixture);
     // Not in the default menu and not in the hint bar either: answering
     // somebody the message did not come from is a thing wanted now and then,
-    // and Alt-Q does it without a button.
+    // and `g` does it without a button.
     CHECK(buttonFor(fixture, Command::ReaderCommentReply) == nullptr);
 
     fixture.state.menuView.reset();
@@ -1205,7 +1205,7 @@ TEST_CASE("The comment button is offered but not given [messageread][menu][squis
     CHECK(fixture.state.compose.toName == fixture.state.readHeader->to);
 }
 
-TEST_CASE("Alt-Q answers whoever the message was written to [messageread][squish]") {
+TEST_CASE("`g` answers whoever the message was written to [messageread][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
@@ -1215,10 +1215,34 @@ TEST_CASE("Alt-Q answers whoever the message was written to [messageread][squish
     // Two different people, or the test would pass whichever field was read.
     REQUIRE(sender != recipient);
 
-    REQUIRE(message_read::handleEvent(fixture.state, altKey('q')));
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('g')));
     CHECK(fixture.state.navigator.current() == ScreenId::Compose);
     CHECK(fixture.state.compose.toName == recipient);
     CHECK(fixture.state.compose.subject == fixture.state.readHeader->subject);
+}
+
+TEST_CASE("Alt-G says the same as `g` [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader);
+    const std::string recipient = fixture.state.readHeader->to;
+
+    REQUIRE(message_read::handleEvent(fixture.state, altKey('g')));
+    CHECK(fixture.state.navigator.current() == ScreenId::Compose);
+    CHECK(fixture.state.compose.toName == recipient);
+}
+
+TEST_CASE("Alt-Q is the reply, as `q` and F4 are [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader);
+    const std::string sender = fixture.state.readHeader->from;
+
+    REQUIRE(message_read::handleEvent(fixture.state, altKey('q')));
+    CHECK(fixture.state.navigator.current() == ScreenId::Compose);
+    CHECK(fixture.state.compose.toName == sender);
 }
 
 TEST_CASE("An empty area has nothing to export [messageread][menu][squish]") {

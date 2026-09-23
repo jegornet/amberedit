@@ -85,9 +85,11 @@ Del             msglist.delete
 # --- the reader ---------------------------------------------------------------
 q               reader.reply
 F4              reader.reply
+Alt-Q           reader.reply
 n               reader.reply_elsewhere
 F5              reader.reply_elsewhere
-Alt-Q           reader.comment_reply
+g               reader.comment_reply
+Alt-G           reader.comment_reply
 e               reader.new
 m               reader.forward
 c               reader.change

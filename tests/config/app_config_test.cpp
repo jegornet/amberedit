@@ -1158,7 +1158,7 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
           std::vector<Command>{Command::ReaderChange, Command::ReaderInfo,
                                Command::ReaderExport});
 
-    // And so is answering the recipient rather than the sender: Alt-Q does it
+    // And so is answering the recipient rather than the sender: `g` does it
     // without a button, and the button is there for whoever wants one.
     CHECK(with("reader_menu reply comment_reply\n").readerMenu ==
           std::vector<Command>{Command::ReaderReply, Command::ReaderCommentReply});

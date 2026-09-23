@@ -1048,7 +1048,7 @@ reader_side_tap_width 6
 #                 reply            answer the message, quoting it
 #                 reply_elsewhere  answer it in another area
 #                 comment_reply    answer it addressed to whoever it was
-#                                  written to, as Alt-Q does
+#                                  written to, as `g` does
 #                 new              write a new message
 #                 forward          forward / copy /move the message to another area,
 #                                  as `m` does

@@ -1582,8 +1582,8 @@ struct AppConfig {
     /// rare thing to want and a bad thing to do by accident, what a base holds
     /// about a message is a question most readers never ask, a message is
     /// written out to a file now and then, and answering the recipient rather
-    /// than the sender is a thing wanted now and then and never by accident —
-    /// `c`/F2, `i`, `w` and Alt-Q do all four without a button.
+    /// than the sender is a thing wanted now and then — `c`/F2, `i`, `w` and
+    /// `g`/Alt-G do all four without a button.
     std::vector<Command> readerMenu{Command::ReaderList,           Command::ReaderReply,
                                     Command::ReaderReplyElsewhere, Command::ReaderNew,
                                     Command::ReaderForward,        Command::ReaderFind,
