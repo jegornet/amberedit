@@ -157,7 +157,7 @@ domain::MessageDate nowLocal() {
 }
 
 /// The files a base of this format is read through, in the order a person
-/// would look for them: the one `probeType()` finds the base by first.
+/// would look for them: the one the base is found by first.
 ///
 /// A Fido *.msg area has none — the base is the directory and every file in it
 /// is a message, so there is no file whose absence makes it broken rather than
@@ -180,6 +180,32 @@ std::vector<std::string> missingParts(MsgBaseType type, const std::string& path)
         if (!std::filesystem::exists(file, ec)) missing.push_back(std::move(file));
     }
     return missing;
+}
+
+/// Whether a base of exactly this format stands at the path: the file it is
+/// found by, or, for Fido *.msg, the directory that is the base.
+///
+/// This is the question `probeType()` answers for every format at once, asked
+/// of one. Where the config states a type, that is the only format the area has
+/// anything to do with: a Squish base a tosser keeps under the same name is
+/// another area's files sharing a directory, and it neither opens this area nor
+/// stands between the user and creating it.
+bool standsAs(MsgBaseType type, const std::string& path) {
+    std::error_code ec;
+    switch (type) {
+        case MsgBaseType::Squish: return std::filesystem::exists(path + ".sqd", ec);
+        case MsgBaseType::Jam: return std::filesystem::exists(path + ".jhr", ec);
+        case MsgBaseType::Opus: return std::filesystem::is_directory(path, ec);
+        default: return false;
+    }
+}
+
+/// Whether nothing of this format is at the path — not the file it is found by,
+/// and not one of the others it is read through either. The one state creating
+/// a base answers, and what `isAbsent()` is.
+bool nothingOfItAt(MsgBaseType type, const std::string& path) {
+    return !standsAs(type, path) &&
+           missingParts(type, path).size() == partsOf(type, path).size();
 }
 
 /// The missing ones as the error names them: `a.jdx, a.jdt`. One sentence with
@@ -230,43 +256,38 @@ tl::expected<void, ErrorPtr> FtnMsgBase::open(const AreaConfig& area) {
         areaConfig_.type = type;
     }
 
-    // A base the tosser config names but that was never created is ordinary;
-    // saying which format was looked for is the useful half of the message.
-    //
-    // Nothing there at all is `Absent` and something of another format is
-    // `WrongFormat`: they read the same, and only the first is worth offering to
-    // create. This is the probe `AreaManager` used to run a second time.
-    //
-    // Which of the format's own files are on disk is asked here and not left to
-    // the driver, for the same reason the probe is: the driver would refuse a
-    // base missing its index fine, but only this knows that the file it is
-    // missing is one of a set and that the rest of that set is standing there
-    // holding messages. `Incomplete` is what says so, and it is what keeps
-    // `AreaManager` from offering to create over it.
-    const std::vector<std::string> missing = missingParts(type, area.path);
-
-    if (const MsgBaseType found = probeType(area.path); found != type) {
-        // The file a base is found by is gone and the others are not: a base
-        // that lost a file rather than one nothing ever made. Creating here
-        // would be `create()` walking into its own O_EXCL.
-        if (found == MsgBaseType::Unknown &&
-            missing.size() < partsOf(type, area.path).size()) {
-            return failure<MsgBaseError>(MsgBaseError::Kind::Incomplete, area.path,
-                                         listOf(missing));
-        }
-        return failure<MsgBaseError>(found == MsgBaseType::Unknown
-                                         ? MsgBaseError::Kind::Absent
-                                         : MsgBaseError::Kind::WrongFormat,
-                                     area.path, std::string(domain::nameOf(type)));
-    }
-    if (!missing.empty()) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::Incomplete, area.path,
-                                     listOf(missing));
-    }
-
+    // Nothing states the format and nothing on disk suggested one: there is no
+    // driver to ask and no base to look for. Said before the path is, because
+    // "cannot determine the base type" is the complaint, not a missing base.
     std::unique_ptr<FormatDriver> driver = makeDriver(type);
     if (!driver) {
         return failure<MsgBaseError>(MsgBaseError::Kind::UnknownType, area.path);
+    }
+
+    // Everything below asks about `type` and about nothing else that may be at
+    // the path. An area declared JAM where a Squish base already stands under
+    // the same name is a JAM area: the .sqd belongs to whoever put it there,
+    // and it neither opens this one nor is a reason to refuse to make it. Only
+    // an area whose type nothing states goes by what is on disk, and that was
+    // settled above.
+    //
+    // A base the tosser config names but that was never created is ordinary,
+    // and `Absent` is what `AreaManager` offers to create on; saying which
+    // format was looked for is the useful half of the message.
+    //
+    // Which of the format's own files are on disk is asked here and not left to
+    // the driver: the driver would refuse a base missing its index fine, but
+    // only this knows that the file it is missing is one of a set and that the
+    // rest of that set is standing there holding messages. `Incomplete` is what
+    // says so, and it is what keeps `AreaManager` from creating over it.
+    if (nothingOfItAt(type, area.path)) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::Absent, area.path,
+                                     std::string(domain::nameOf(type)));
+    }
+    if (const std::vector<std::string> missing = missingParts(type, area.path);
+        !missing.empty()) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::Incomplete, area.path,
+                                     listOf(missing));
     }
 
     // Fido *.msg headers carry no zone of their own; the area's AKA is what
@@ -287,13 +308,15 @@ bool FtnMsgBase::isAbsent(const AreaConfig& area) {
     // states is one there is no format to create. Both are answered "not
     // absent": there is nothing missing that making a base would supply.
     if (area.isPassthrough() || area.type == MsgBaseType::Unknown) return false;
-    if (probeType(area.path) != MsgBaseType::Unknown) return false;
-    // Nothing was found at the path, which for these two formats is not yet the
-    // same as nothing being there: a base that lost its .jhr or its .sqd still
-    // has the rest of itself on disk, and that is messages. Absent is all of
-    // the format's files missing and not merely the one it is found by.
-    return missingParts(area.type, area.path).size() ==
-           partsOf(area.type, area.path).size();
+    // Of the area's own format, and of nothing else standing at the path: a
+    // base of another format there belongs to another area, and refusing to
+    // make this one because of it would leave the user with an area that
+    // neither opens nor can be created.
+    //
+    // And *nothing* of it, which is more than the file a base is found by: one
+    // that lost its .jhr or its .sqd still has the rest of itself on disk, and
+    // that is messages. open() calls that `Incomplete`.
+    return nothingOfItAt(area.type, area.path);
 }
 
 tl::expected<void, ErrorPtr> FtnMsgBase::create(const AreaConfig& area) {

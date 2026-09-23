@@ -162,6 +162,54 @@ TEST_CASE("A base that is already there is never created over [create]") {
     CHECK(reader.count() > 0);
 }
 
+TEST_CASE("A base of another format under the same name is another area's "
+          "[create]") {
+    // Two formats share a base name easily — a tosser moving an area from one
+    // to the other leaves both sets of files, and a config may name the same
+    // path for two areas. What stands at the path in somebody else's format
+    // says nothing about this area: it neither opens it nor stands between the
+    // user and creating it.
+    TempDir dir;
+    const std::string path = dir.path("shared");
+    REQUIRE(FtnMsgBase("CP866").create(areaAt(path, MsgBaseType::Squish)).has_value());
+    const AreaConfig jam = areaAt(path, MsgBaseType::Jam);
+
+    // The probe answers for the path and finds the Squish base, which is why it
+    // is not what a stated type is decided by.
+    CHECK(FtnMsgBase::probeType(path) == MsgBaseType::Squish);
+    CHECK(FtnMsgBase::isAbsent(jam));
+
+    FtnMsgBase base("CP866");
+    const auto opened = base.open(jam);
+    CHECK(kindOf(opened) == MsgBaseError::Kind::Absent);
+
+    // And it is made beside the other one, and takes a message. Written out
+    // rather than through checkCreatedBaseTakesAMessage(), whose premise is a
+    // path the probe answers for — which is exactly what this path is not.
+    REQUIRE(FtnMsgBase("CP866").create(jam).has_value());
+    CHECK_FALSE(FtnMsgBase::isAbsent(jam));
+    {
+        FtnMsgBase made("CP866");
+        REQUIRE(made.open(jam).has_value());
+        CHECK(made.count() == 0);
+        REQUIRE(valueOf(made.write(firstMessage())) == 1);
+    }
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(jam).has_value());
+    REQUIRE(again.count() == 1);
+    CHECK(again.header(1).subject == "The first message");
+    again.close();
+
+    // Which left the Squish base where it was.
+    CHECK(present(path + ".sqd"));
+    CHECK(present(path + ".sqi"));
+
+    // The same the other way round: the Squish base opens with a JAM one now
+    // beside it.
+    FtnMsgBase squish("CP866");
+    CHECK(squish.open(areaAt(path, MsgBaseType::Squish)).has_value());
+}
+
 TEST_CASE("A base short of a file of its own is not opened and not created over "
           "[create]") {
     // The half-there base: a lost index, or a tosser stopped between the two

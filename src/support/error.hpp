@@ -98,13 +98,15 @@ private:
 /// that is not there — which it offers to create — from one that is there and
 /// broken, and used to walk the file system a second time to find out.
 ///
-/// `Absent` and `WrongFormat` read the same to a person, and deliberately: what
-/// they say is that the base the config named is not where it said. They are
-/// separate here because only the first is a base that creating one would
-/// supply. `Incomplete` is the third of that family and the reason it is not
-/// folded into either: a base short of one of its files is neither missing nor
-/// of another format, and it is the one of the three that a person has
-/// something to do about.
+/// `Absent` and `Incomplete` are the two ways the base an area names is not
+/// there to open, and they are apart because only the first is one that
+/// creating a base would supply: a base short of a file of its own still holds
+/// messages, and an empty one written over it would take them.
+///
+/// Both are asked of the area's own format and of nothing else at the path.
+/// Another format's base standing under the same name is another area's, so
+/// there is no "wrong format" among these: it is not this area's base, and
+/// what it is instead is not this area's business.
 class MsgBaseError final : public Error {
 public:
     enum class Kind {
@@ -115,8 +117,6 @@ public:
         Passthrough,
         /// Nothing at all is at the path the config named.
         Absent,
-        /// Something is there, but not the format that was asked for.
-        WrongFormat,
         /// The base is there and a file it is read through is not: JAM without
         /// its .jdx or .jdt, Squish without its .sqi — or those left behind by
         /// a base whose .jhr or .sqd went. `detail` names what is missing.

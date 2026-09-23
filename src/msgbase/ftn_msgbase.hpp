@@ -71,15 +71,17 @@ public:
     /// leaves the disk as it was.
     [[nodiscard]] tl::expected<void, ErrorPtr> create(const domain::AreaConfig& area);
 
-    /// Whether the area has a type and nothing at all stands at its path.
+    /// Whether the area has a type and nothing of that type stands at its path.
     ///
     /// This is the one state creating a base answers: a base that is half
     /// there, or there and unreadable, holds something, and an empty one
     /// written over it would take that something with it.
     ///
-    /// *Nothing at all* is every file of the format missing, not merely the one
-    /// probeType() finds a base by: a JAM area left with its .jdx and .jdt after
-    /// the .jhr went is not absent, and open() calls it `Incomplete`.
+    /// *Nothing of that type* is every file of the area's own format missing,
+    /// and it is asked of that format alone. A JAM area left with its .jdx and
+    /// .jdt after the .jhr went is not absent — open() calls that `Incomplete`
+    /// — while a Squish base sharing the path is another area's files and says
+    /// nothing about this one.
     [[nodiscard]] static bool isAbsent(const domain::AreaConfig& area);
 
     [[nodiscard]] uint32_t count() const override;
@@ -111,8 +113,13 @@ public:
     [[nodiscard]] bool isOpen() const { return driver_ != nullptr; }
 
     /// Works out the base type from what is on disk: <path>.sqd means Squish,
-    /// <path>.jhr means JAM, a directory means Fido *.msg. Needed when the
-    /// tosser config states no type (no -b option). Unknown means nothing fit.
+    /// <path>.jhr means JAM, a directory means Fido *.msg. Unknown means
+    /// nothing fit.
+    ///
+    /// **Only for an area the tosser config states no type for** (no -b
+    /// option). Where a type is stated it is the answer, and what else may be
+    /// at the path is not consulted: formats share a base name easily, and an
+    /// area declared JAM beside somebody's .sqd is a JAM area.
     ///
     /// One file per format answers the question, which is what makes it a
     /// probe: whether the rest of that format's files are beside it is open()'s

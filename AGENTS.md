@@ -3774,17 +3774,24 @@ taking a row.
   which is `reader_sidebar_width` plus its rule plus the eighty columns an FTN
   message is written to; the tests that drive the panel state a threshold of
   their own rather than leaning on a default that means "no panel".
-- `FtnMsgBase::open()` confirms the base is on disk with `probeType()` first.
-  That one is for the message: the driver would refuse a missing base fine, but
-  its error would not say which format was expected, and squish.cfg reaches the
-  case easily, `*.msg` being its default. **It then asks whether every file of
-  that format is beside it** — `.jhr`, `.jdx` and `.jdt` for JAM, `.sqd` and
-  `.sqi` for Squish — and a base short of one of them is `Incomplete`: neither
-  `Absent` nor `WrongFormat`, and the one of the three that is never created
-  over, because what is still standing holds messages. A base whose `.jhr` or
-  `.sqd` is the file that went is the same state read from the other end, so
-  `isAbsent()` is **all** of a format's files missing rather than the one
-  `probeType()` finds it by.
+- `FtnMsgBase::open()` confirms the base is on disk before it asks the driver.
+  That is for the message: the driver would refuse a missing base fine, but its
+  error would not say which format was expected, and squish.cfg reaches the case
+  easily, `*.msg` being its default.
+- **The type the config states is the answer, and what else stands at the path
+  is not consulted.** `probeType()` is for an area that states no type. Formats
+  share a base name as a matter of course — a tosser moved an area and left both
+  sets of files, two areas name one path — and an area declared JAM beside
+  somebody's `.sqd` is a JAM area: it opens on its own `.jhr`, and it is created
+  beside the other base rather than refused because of it. So there is no "wrong
+  format" among the errors: another format's base is another area's, and what it
+  is instead is not this one's business.
+- **A base is asked for by every file it is read through** — `.jhr`, `.jdx` and
+  `.jdt` for JAM, `.sqd` and `.sqi` for Squish — and one short of any of them is
+  `Incomplete`, which is never created over because what is still standing holds
+  messages. A base whose `.jhr` or `.sqd` is the file that went is that same
+  state from the other end, so `isAbsent()` — the one state creating answers —
+  is **all** of a format's files missing, not just the one it is found by.
 
 ## The message base drivers
 

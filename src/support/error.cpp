@@ -27,7 +27,6 @@ std::string MsgBaseError::message() const {
             return i18n::format(_("area {0} is passthrough: there is no base on disk"),
                                 {subject_});
         case Kind::Absent:
-        case Kind::WrongFormat:
             return i18n::format(_("no {0} base at {1}"), {detail_, subject_});
         case Kind::Incomplete:
             return i18n::format(_("{0}: the base is incomplete, no {1}"),
