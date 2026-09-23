@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.11 — 2026-09-23
+
+- add config file include support
+- more verbose message base errors
+- add default keys: Ins for new msg, Alt-Q for reply, Alt-Z for delete quote, Alt-S for save
+- comment-reply moved to G / Alt-G
+- add man page
+
 ## 0.8.10 — 2026-09-22
 
 - fix bulk operations hanging the editor

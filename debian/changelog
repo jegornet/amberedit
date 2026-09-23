@@ -1,3 +1,12 @@
+amberedit (0.8.11-1) unstable; urgency=low
+
+  * add config file include support
+  * more verbose message base errors
+  * add/modify some default keys (see CHANGELOG.md)
+  * add man page
+
+ -- Yegor Gluhov <git@jegor.net>  Wed, 23 Sep 2026 12:00:00 +0000
+
 amberedit (0.8.10-1) unstable; urgency=low
 
   * fix bulk operations hanging the editor
