@@ -80,7 +80,7 @@ constexpr Commands::Info kCommands[] = {
     {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"),
      N_("Run the system shell"), "❯", "Ctrl-X", true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"),
-     N_("Save the message"), "✓", "Ctrl-S F2", true},
+     N_("Save the message"), "✓", "Ctrl-S F2 Alt-S", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,
      N_("Attributes"), N_("Change the message attributes"), "", "Ctrl-F", false},
     {Command::ComposeImport, "compose.import", CommandScreen::Compose, N_("Import"),

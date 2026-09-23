@@ -81,7 +81,7 @@ standing in both.
 | `Tab` `Shift-Tab` | the ring: the fields, the subject, the attributes button, the text |
 | `Enter` | the next field, then down into the text                            |
 | `Alt-H` | edit header                                                         |
-| `Ctrl-S` / `F2` | save (asks first)                                                  |
+| `Ctrl-S` / `F2` / `Alt-S` | save (asks first)                                         |
 | `Esc` | drop the message (asks first)                                      |
 | `Ctrl-F` | edit message attributes                                         |
 | `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |

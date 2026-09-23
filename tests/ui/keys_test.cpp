@@ -72,6 +72,9 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     // F2 is two commands, and the two screens never meet.
     CHECK(keys.is(Event::F2, Command::ReaderChange));
     CHECK(keys.is(Event::F2, Command::ComposeSave));
+    // Storing the message answers on a third key: a terminal whose line
+    // discipline eats Ctrl-S, and a keyboard without an F2, both leave Alt-S.
+    CHECK(keys.is(alt('s'), Command::ComposeSave));
 
     // A key that runs nothing, and a mouse report, which is never a binding.
     CHECK_FALSE(keys.is(Event::Character('z'), Command::ReaderList));
@@ -79,7 +82,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bcdefghq");
+    CHECK(keys.altLetters() == "bcdefghqs");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -221,7 +224,8 @@ TEST_CASE("A merged layout keeps what the file did not move [keys]") {
     // A command the file never names is untouched, whichever screen it is on.
     CHECK(keys.is(ctrl('q'), Command::AppQuit));
     CHECK(keys.is(Event::Character('i'), Command::ReaderInfo));
-    CHECK(keys.keysOf(Command::ComposeSave) == std::vector<Event>{ctrl('s'), Event::F2});
+    CHECK(keys.keysOf(Command::ComposeSave) ==
+          std::vector<Event>{ctrl('s'), Event::F2, alt('s')});
 }
 
 TEST_CASE("A merged layout settles a clash in the file's favour [keys]") {
@@ -269,7 +273,7 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
           std::vector<Event>{Event::Character('l'), Event::F9});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bcdefghjq");
+    CHECK(keys.altLetters() == "bcdefghjqs");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.

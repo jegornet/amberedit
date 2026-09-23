@@ -118,6 +118,7 @@ Ctrl-X          reader.shell
 # --- the editor ---------------------------------------------------------------
 Ctrl-S          compose.save
 F2              compose.save
+Alt-S           compose.save
 Ctrl-F          compose.attributes
 Ctrl-O          compose.import
 F3              compose.import
