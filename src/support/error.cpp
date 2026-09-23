@@ -29,6 +29,9 @@ std::string MsgBaseError::message() const {
         case Kind::Absent:
         case Kind::WrongFormat:
             return i18n::format(_("no {0} base at {1}"), {detail_, subject_});
+        case Kind::Incomplete:
+            return i18n::format(_("{0}: the base is incomplete, no {1}"),
+                                {subject_, detail_});
         case Kind::UnknownType:
             return i18n::format(_("cannot determine the base type for {0}"), {subject_});
         case Kind::AlreadyExists:

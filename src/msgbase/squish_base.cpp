@@ -164,13 +164,21 @@ tl::expected<void, ErrorPtr> SquishBase::open(const std::string& path, bool echo
     close();
     echo_ = echo;
 
+    // With the errno the attempt left behind: missing and refused are two
+    // different things to do about, and the path says neither. A base that is
+    // only readable is not a failure — BinaryFile falls back to O_RDONLY — so a
+    // file reaching one of these branches would not open at all.
     if (!data_.open(path + ".sqd", true)) {
-        return failure("cannot open " + path + ".sqd");
+        return failure("cannot open " + path + ".sqd: " + std::strerror(errno));
     }
     // The index is opened the same way round as the data file: a base that can
-    // only be read must not look half writable.
+    // only be read must not look half writable. The sentence is built before
+    // the close, which has an errno of its own to leave behind — and it names
+    // the .sqd that opened, because an index refusing beside a data file that
+    // opens is a base with a piece gone rather than a base that is not there.
     if (!index_file_.open(path + ".sqi", data_.writable())) {
-        auto reason = "cannot open " + path + ".sqi";
+        auto reason = "the base is incomplete: cannot open " + path + ".sqi: " +
+                      std::strerror(errno) + ", while " + path + ".sqd opens";
         close();
         return failure(std::move(reason));
     }

@@ -3777,7 +3777,14 @@ taking a row.
 - `FtnMsgBase::open()` confirms the base is on disk with `probeType()` first.
   That one is for the message: the driver would refuse a missing base fine, but
   its error would not say which format was expected, and squish.cfg reaches the
-  case easily, `*.msg` being its default.
+  case easily, `*.msg` being its default. **It then asks whether every file of
+  that format is beside it** — `.jhr`, `.jdx` and `.jdt` for JAM, `.sqd` and
+  `.sqi` for Squish — and a base short of one of them is `Incomplete`: neither
+  `Absent` nor `WrongFormat`, and the one of the three that is never created
+  over, because what is still standing holds messages. A base whose `.jhr` or
+  `.sqd` is the file that went is the same state read from the other end, so
+  `isAbsent()` is **all** of a format's files missing rather than the one
+  `probeType()` finds it by.
 
 ## The message base drivers
 
@@ -3791,6 +3798,15 @@ the formats share), then one `FormatDriver` per format — `SquishBase`
 (.sqd/.sqi, FSP-1037), `JamBase` (.jhr/.jdx/.jdt, JAM-001), `OpusBase` (N.msg,
 FTS-0001 with the Opus header) — and `FtnMsgBase` on top, the one `IMsgBase`
 implementation, where charsets are converted and lines are marked.
+
+**A driver that cannot open a file of a base names that file and its `errno`,
+and names the files of the same base that did open.** Which of the three it was
+and whether it was missing or refused is the whole of what a person acts on, and
+an index refusing beside a `.jhr` that opens is an area with a piece gone rather
+than an area that is not there. **Creating removes only what that call made** —
+the creates are `O_EXCL`, so the list of files to take back on a failure is the
+list of files that were not there a moment ago; a create that bounced off an
+existing file must leave it exactly where it stands.
 
 **Every write, change and delete locks the base's files first and releases them
 after** — `.sqd` and `.sqi` for Squish, `.jhr`, `.jdx` and `.jdt` for JAM —

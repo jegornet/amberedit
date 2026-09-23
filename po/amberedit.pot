@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:2284
+#: src/config/app_config.cpp:2289
 msgid "no description"
 msgstr ""
 
@@ -251,7 +251,7 @@ msgstr ""
 msgid "Run the system shell"
 msgstr ""
 
-#: src/config/commands.cpp:82 src/ui/export_dialog.cpp:84
+#: src/config/commands.cpp:82 src/ui/export_dialog.cpp:83
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:458
 msgid "Save"
 msgstr ""
@@ -367,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.8.10\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-22 14:31+0200\n"
+"POT-Creation-Date: 2026-09-23 21:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -488,30 +488,35 @@ msgstr ""
 
 #: src/support/error.cpp:33
 #, c++-format
+msgid "{0}: the base is incomplete, no {1}"
+msgstr ""
+
+#: src/support/error.cpp:36
+#, c++-format
 msgid "cannot determine the base type for {0}"
 msgstr ""
 
-#: src/support/error.cpp:35
+#: src/support/error.cpp:38
 #, c++-format
 msgid "there is already a base at {0}"
 msgstr ""
 
-#: src/support/error.cpp:37
+#: src/support/error.cpp:40
 #, c++-format
 msgid "cannot create a base of type {0}"
 msgstr ""
 
-#: src/support/error.cpp:39
+#: src/support/error.cpp:42
 #, c++-format
 msgid "cannot open base {0}: {1}"
 msgstr ""
 
-#: src/support/error.cpp:40
+#: src/support/error.cpp:43
 #, c++-format
 msgid "{0}: the base is busy"
 msgstr ""
 
-#: src/support/error.cpp:42
+#: src/support/error.cpp:45
 #, c++-format
 msgid "{0}: the message is busy"
 msgstr ""
@@ -525,12 +530,12 @@ msgstr ""
 msgid "Cannot open the area: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:145
+#: src/ui/app_shell.cpp:144
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:866
+#: src/ui/app_shell.cpp:865
 msgid "Not found"
 msgstr ""
 
@@ -774,28 +779,28 @@ msgstr ""
 msgid "Enter · Esc"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:69
+#: src/ui/export_dialog.cpp:68
 msgid "Enter write · Tab move · Esc close"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:72
+#: src/ui/export_dialog.cpp:71
 msgid "Enter save · Tab move · Esc close"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:75
+#: src/ui/export_dialog.cpp:74
 msgid " File: "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:78
+#: src/ui/export_dialog.cpp:77
 msgid " Files: "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:88 src/ui/import_dialog.cpp:84
+#: src/ui/export_dialog.cpp:87 src/ui/import_dialog.cpp:83
 #: src/ui/setup/file_picker.cpp:132
 msgid "Path not found"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:92
+#: src/ui/export_dialog.cpp:91
 msgid "No file name"
 msgstr ""
 
@@ -845,8 +850,8 @@ msgstr ""
 msgid "Files"
 msgstr ""
 
-#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:658
-#: src/ui/import_dialog.cpp:661
+#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:659
+#: src/ui/import_dialog.cpp:662
 msgid "Text"
 msgstr ""
 
@@ -954,24 +959,24 @@ msgstr ""
 msgid "Esc closes"
 msgstr ""
 
-#: src/ui/import_dialog.cpp:79
+#: src/ui/import_dialog.cpp:78
 msgid "Enter open · Tab move · Esc close"
 msgstr ""
 
-#: src/ui/import_dialog.cpp:287
+#: src/ui/import_dialog.cpp:288
 msgid " Mode:    "
 msgstr ""
 
-#: src/ui/import_dialog.cpp:584
+#: src/ui/import_dialog.cpp:585
 msgid " Import file "
 msgstr ""
 
-#: src/ui/import_dialog.cpp:589
+#: src/ui/import_dialog.cpp:590
 #, c++-format
 msgid " File: {0}▌ "
 msgstr ""
 
-#: src/ui/import_dialog.cpp:658 src/ui/import_dialog.cpp:664
+#: src/ui/import_dialog.cpp:659 src/ui/import_dialog.cpp:665
 msgid "UUE"
 msgstr ""
 
@@ -1194,40 +1199,40 @@ msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:553
+#: src/ui/screens/message_read_screen.cpp:555
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2005
+#: src/ui/screens/message_read_screen.cpp:1896
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2026
+#: src/ui/screens/message_read_screen.cpp:1917
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2603
+#: src/ui/screens/message_read_screen.cpp:2494
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2606
+#: src/ui/screens/message_read_screen.cpp:2497
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2609
+#: src/ui/screens/message_read_screen.cpp:2500
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2612
+#: src/ui/screens/message_read_screen.cpp:2503
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2615
+#: src/ui/screens/message_read_screen.cpp:2506
 msgctxt "header block"
 msgid "Recd"
 msgstr ""

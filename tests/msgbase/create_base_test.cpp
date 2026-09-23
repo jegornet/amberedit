@@ -7,16 +7,21 @@
 
 #include "domain/message.hpp"
 #include "msgbase/ftn_msgbase.hpp"
+#include "support/error.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 
+using amberedit::ErrorPtr;
+using amberedit::MsgBaseError;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::MessageDraft;
 using amberedit::domain::MsgBaseType;
 using amberedit::msgbase::FtnMsgBase;
 using amberedit::test::TempDir;
 using amberedit::test::TempSquishBase;
+using amberedit::test::contains;
+using amberedit::test::errorOf;
 using amberedit::test::valueOf;
 
 namespace fs = std::filesystem;
@@ -29,6 +34,17 @@ namespace {
 bool present(const std::string& path) {
     std::error_code ec;
     return fs::exists(path, ec);
+}
+
+/// Which kind of failure an answer carries, for the tests that turn on it
+/// rather than on the sentence: whether a base is absent or half there is what
+/// decides whether one is created, and the two say different things to a
+/// person as well.
+MsgBaseError::Kind kindOf(const tl::expected<void, ErrorPtr>& result) {
+    REQUIRE_FALSE(result.has_value());
+    const auto* why = dynamic_cast<const MsgBaseError*>(result.error().get());
+    REQUIRE(why != nullptr);
+    return why->kind();
 }
 
 AreaConfig areaAt(const std::string& path, MsgBaseType type) {
@@ -144,6 +160,79 @@ TEST_CASE("A base that is already there is never created over [create]") {
     FtnMsgBase reader("CP866");
     REQUIRE(reader.open(area).has_value());
     CHECK(reader.count() > 0);
+}
+
+TEST_CASE("A base short of a file of its own is not opened and not created over "
+          "[create]") {
+    // The half-there base: a lost index, or a tosser stopped between the two
+    // files it makes. It is not a base to read, and above all it is not one to
+    // create over — what is still there is messages.
+    TempDir dir;
+
+    SUBCASE("JAM without its index") {
+        const std::string path = dir.path("fresh");
+        const AreaConfig area = areaAt(path, MsgBaseType::Jam);
+        REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+        fs::remove(path + ".jdx");
+
+        FtnMsgBase base("CP866");
+        const auto opened = base.open(area);
+        CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+        // Naming the file, which is the half the user acts on.
+        CHECK_MESSAGE(contains(errorOf(opened), path + ".jdx"), errorOf(opened));
+
+        CHECK_FALSE(FtnMsgBase::isAbsent(area));
+        CHECK_FALSE(FtnMsgBase("CP866").create(area).has_value());
+        CHECK(present(path + ".jhr"));
+        CHECK(present(path + ".jdt"));
+    }
+    SUBCASE("Squish without its index") {
+        const std::string path = dir.path("fresh");
+        const AreaConfig area = areaAt(path, MsgBaseType::Squish);
+        REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+        fs::remove(path + ".sqi");
+
+        FtnMsgBase base("CP866");
+        const auto opened = base.open(area);
+        CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+        CHECK_MESSAGE(contains(errorOf(opened), path + ".sqi"), errorOf(opened));
+
+        CHECK_FALSE(FtnMsgBase::isAbsent(area));
+        CHECK_FALSE(FtnMsgBase("CP866").create(area).has_value());
+        CHECK(present(path + ".sqd"));
+    }
+}
+
+TEST_CASE("What a base that lost the file it is found by leaves is kept "
+          "[create][jam]") {
+    // The other half of the same state, and the one that used to end in an
+    // empty base: nothing is *found* at the path, because a JAM base is found
+    // by its .jhr, while the messages are sitting in the .jdt beside it.
+    TempDir dir;
+    const std::string path = dir.path("fresh");
+    const AreaConfig area = areaAt(path, MsgBaseType::Jam);
+    REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+    {
+        FtnMsgBase base("CP866");
+        REQUIRE(base.open(area).has_value());
+        REQUIRE(valueOf(base.write(firstMessage())) == 1);
+    }
+    const auto textSize = fs::file_size(path + ".jdt");
+    REQUIRE(textSize > 0);
+
+    fs::remove(path + ".jhr");
+    CHECK(FtnMsgBase::probeType(path) == MsgBaseType::Unknown);
+    CHECK_FALSE(FtnMsgBase::isAbsent(area));
+
+    FtnMsgBase base("CP866");
+    const auto opened = base.open(area);
+    CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+    CHECK_MESSAGE(contains(errorOf(opened), path + ".jhr"), errorOf(opened));
+
+    CHECK_FALSE(FtnMsgBase("CP866").create(area).has_value());
+    // The whole point of the refusal: the message is where it was.
+    CHECK(fs::file_size(path + ".jdt") == textSize);
+    CHECK(present(path + ".jdx"));
 }
 
 TEST_CASE("An area with no stated type is not one to create [create]") {

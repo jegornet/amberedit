@@ -101,7 +101,10 @@ private:
 /// `Absent` and `WrongFormat` read the same to a person, and deliberately: what
 /// they say is that the base the config named is not where it said. They are
 /// separate here because only the first is a base that creating one would
-/// supply.
+/// supply. `Incomplete` is the third of that family and the reason it is not
+/// folded into either: a base short of one of its files is neither missing nor
+/// of another format, and it is the one of the three that a person has
+/// something to do about.
 class MsgBaseError final : public Error {
 public:
     enum class Kind {
@@ -114,6 +117,11 @@ public:
         Absent,
         /// Something is there, but not the format that was asked for.
         WrongFormat,
+        /// The base is there and a file it is read through is not: JAM without
+        /// its .jdx or .jdt, Squish without its .sqi — or those left behind by
+        /// a base whose .jhr or .sqd went. `detail` names what is missing.
+        /// Not a base to create over: what is still there holds messages.
+        Incomplete,
         /// Nothing states the format and nothing on disk suggests one.
         UnknownType,
         /// Asked to create a base where one already is.

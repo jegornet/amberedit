@@ -2,14 +2,18 @@
 
 #include <unistd.h>
 
+#include <cerrno>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
 
 #include "config/text_util.hpp"
 #include "msgbase/ftn_msgbase.hpp"
+#include "msgbase/jam_base.hpp"
 #include "msgbase/jam_crc32.hpp"
+#include "msgbase/squish_base.hpp"
 #include "test_strings.hpp"
 
 using amberedit::config::text::startsWith;
@@ -18,6 +22,10 @@ using amberedit::domain::AreaKind;
 using amberedit::domain::MessageDraft;
 using amberedit::domain::MsgBaseType;
 using amberedit::msgbase::FtnMsgBase;
+using amberedit::msgbase::JamBase;
+using amberedit::msgbase::SquishBase;
+using amberedit::test::contains;
+using amberedit::test::errorOf;
 using amberedit::test::valueOf;
 
 namespace fs = std::filesystem;
@@ -84,6 +92,42 @@ MessageDraft netmailDraft() {
 }
 
 }  // namespace
+
+TEST_CASE("A driver that cannot open a file of a base names it and says why "
+          "[jam][squish]") {
+    // What is left when FtnMsgBase is not the one asking — and what a user
+    // reads when a file of a base is there and will not open, which no probe
+    // catches. Both halves have to be in the sentence: which of the files it
+    // was, and whether it was missing or refused.
+    TempDir dir;
+
+    SUBCASE("JAM") {
+        const std::string path = (dir.path() / "netmail").string();
+        createEmptyJamBase(path);
+        fs::remove(path + ".jdx");
+
+        JamBase base;
+        const auto opened = base.open(path, true, 2);
+        REQUIRE_FALSE(opened.has_value());
+        const std::string why = errorOf(opened);
+        CHECK_MESSAGE(contains(why, path + ".jdx"), why);
+        CHECK_MESSAGE(contains(why, std::strerror(ENOENT)), why);
+        // The one that would not open, not the pair it belongs to.
+        CHECK_MESSAGE(!contains(why, path + ".jdt"), why);
+    }
+    SUBCASE("Squish") {
+        const std::string path = (dir.path() / "netmail").string();
+        REQUIRE(SquishBase().create(path).has_value());
+        fs::remove(path + ".sqi");
+
+        SquishBase base;
+        const auto opened = base.open(path, true, 2);
+        REQUIRE_FALSE(opened.has_value());
+        const std::string why = errorOf(opened);
+        CHECK_MESSAGE(contains(why, path + ".sqi"), why);
+        CHECK_MESSAGE(contains(why, std::strerror(ENOENT)), why);
+    }
+}
 
 TEST_CASE("A JAM base is written and read back [jam]") {
     TempDir dir;

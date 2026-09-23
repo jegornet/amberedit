@@ -7,6 +7,7 @@
 #include <ctime>
 #include <filesystem>
 #include <system_error>
+#include <vector>
 
 #include "config/text_util.hpp"
 #include "msgbase/byte_order.hpp"
@@ -218,12 +219,36 @@ tl::expected<void, ErrorPtr> JamBase::open(const std::string& path, bool echo,
     close();
     echo_ = echo;
 
+    // Each file named on its own, and with the errno the attempt left behind:
+    // which of the three would not open and whether it was missing or refused
+    // is the whole of what there is to act on, and neither half can be worked
+    // out from the path. A base that is only readable is not a failure —
+    // BinaryFile falls back to O_RDONLY — so a file reaching one of these
+    // branches is one that would not open at all.
+    //
+    // And the files that *did* open are named beside it, because that is what
+    // tells this apart from a base that is not there: one file of three
+    // refusing is an area standing on disk with a piece of it gone, and a user
+    // reading only "cannot open" goes looking for a base that is where it
+    // always was.
     if (!headers_.open(path + ".jhr", true)) {
-        return failure("cannot open " + path + ".jhr");
+        return failure("cannot open " + path + ".jhr: " + std::strerror(errno));
     }
+    // The index and the text are opened the same way round as the headers: a
+    // base that can only be read must not look half writable.
     const bool writable = headers_.writable();
-    if (!index_.open(path + ".jdx", writable) || !text_.open(path + ".jdt", writable)) {
-        auto reason = "cannot open the index or text file of " + path;
+    // The sentence built before the close, which has an errno of its own to
+    // leave behind.
+    if (!index_.open(path + ".jdx", writable)) {
+        auto reason = "the base is incomplete: cannot open " + path + ".jdx: " +
+                      std::strerror(errno) + ", while " + path + ".jhr opens";
+        close();
+        return failure(std::move(reason));
+    }
+    if (!text_.open(path + ".jdt", writable)) {
+        auto reason = "the base is incomplete: cannot open " + path + ".jdt: " +
+                      std::strerror(errno) + ", while " + path + ".jhr and " + path +
+                      ".jdx open";
         close();
         return failure(std::move(reason));
     }
@@ -250,34 +275,44 @@ tl::expected<void, ErrorPtr> JamBase::create(const std::string& path) {
     const std::string indexPath = path + ".jdx";
     const std::string textPath = path + ".jdt";
 
-    // Whatever has been made when something fails, taken back again: half a
-    // base on disk is worse than none, since probeType() would find it and
-    // every attempt after this one would open it instead of making it.
-    const auto giveBack = [&headerPath, &indexPath, &textPath] {
-        std::error_code ec;
-        std::filesystem::remove(headerPath, ec);
-        std::filesystem::remove(indexPath, ec);
-        std::filesystem::remove(textPath, ec);
+    // Whatever this call has made, taken back again when a later step fails:
+    // half a base on disk is worse than none, since probeType() would find it
+    // and every attempt after this one would open it instead of making it.
+    //
+    // What this call made, and never a path that was already taken. The creates
+    // are O_EXCL, so a file on this list is one that was not there a moment
+    // ago; a file that was there is what the create bounced off, and removing
+    // it would take with it whatever a base that lost its .jhr still holds.
+    std::vector<std::string> made;
+    const auto giveBack = [&made] {
+        for (const std::string& file : made) {
+            std::error_code ec;
+            std::filesystem::remove(file, ec);
+        }
     };
 
     // Both of the empty ones first, and the .jhr — the file probeType() looks
     // for, and the only one carrying anything — last: an interrupted creation
     // then leaves files no base claims rather than a JAM base missing the two
     // it is read through.
+    //
+    // The errno each create left behind goes into the sentence: "permission
+    // denied", "no such directory" and "file exists" are three different things
+    // to do about it, and a bare path says none of them.
     BinaryFile index;
+    if (!index.create(indexPath)) {
+        return failure("cannot create " + indexPath + ": " + std::strerror(errno));
+    }
+    made.push_back(indexPath);
+    index.close();
+
     BinaryFile text;
-    if (!index.create(indexPath) || !text.create(textPath)) {
-        // The errno the create left behind: "permission denied" or "no such
-        // directory" is what the user has to act on, and it is the half of the
-        // message that a bare path cannot say.
-        auto reason = "cannot create the index or text file of " + path + ": " +
-                      std::strerror(errno);
-        index.close();
-        text.close();
+    if (!text.create(textPath)) {
+        auto reason = "cannot create " + textPath + ": " + std::strerror(errno);
         giveBack();
         return failure(std::move(reason));
     }
-    index.close();
+    made.push_back(textPath);
     text.close();
 
     BinaryFile headers;
@@ -286,6 +321,7 @@ tl::expected<void, ErrorPtr> JamBase::create(const std::string& path) {
         giveBack();
         return failure(std::move(reason));
     }
+    made.push_back(headerPath);
 
     std::array<unsigned char, kInfoSize> raw{};
     std::memcpy(raw.data(), kSignature, sizeof(kSignature));
