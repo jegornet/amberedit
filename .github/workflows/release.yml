@@ -322,7 +322,7 @@ jobs:
       - name: Pack
         run: |
           v='${{ needs.tarball.outputs.version }}'
-          cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
+          cp README.md CHANGELOG.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
           tar -C stage -czf "amberedit-$v-macos-${{ matrix.arch }}.tar.gz" .
 
       - uses: actions/upload-artifact@v4
@@ -414,7 +414,7 @@ jobs:
       - name: Pack
         run: |
           v='${{ needs.tarball.outputs.version }}'
-          cp README.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
+          cp README.md CHANGELOG.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md LICENSE amberedit.cfg.example amberkeys.cfg.example stage/
           (cd stage && zip -qr "../amberedit-$v-windows-${{ matrix.arch }}.zip" .)
 
       - uses: actions/upload-artifact@v4

@@ -100,7 +100,7 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %license LICENSE
 # The sample config stays documentation: AmberEdit looks for its config where
 # the user keeps it, and this one is here to be copied.
-%doc README.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md amberedit.cfg.example amberkeys.cfg.example
+%doc README.md CHANGELOG.md KEYS.md KEYS_REBINDING.md INSTALL.md PuTTY-truecolor.md amberedit.cfg.example amberkeys.cfg.example
 %{_bindir}/amberedit
 # The glob is the compression: rpm gzips a man page after %%install, so the file
 # in the buildroot is amberedit.1 and the one in the package is amberedit.1.gz.

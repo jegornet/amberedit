@@ -25,9 +25,9 @@ to be called, which approach lost — none of it is recorded: it is one more thi
 to keep in step with the code, and a reader who has to work out which paragraphs
 are still true has been given work rather than answers. When something changes,
 rewrite the sentence rather than adding "previously…" beside it, and delete what
-has stopped being true. History belongs in a changelog, and there is no such file
-in this repository yet; if one is added, it is the single exception to this rule
-and nothing leaks back into the documents above.
+has stopped being true. History belongs in a changelog, which `CHANGELOG.md` is:
+it is the single exception to this rule, and nothing leaks back into the
+documents above.
 
 The rule is about *narrative*, not about reasons. A rule that keeps the next
 change from undoing a deliberate decision stays — written as what holds now and
@@ -150,11 +150,11 @@ names, the man page under `${CMAKE_INSTALL_MANDIR}/man1`, and the message
 catalogs under `${CMAKE_INSTALL_LOCALEDIR}`, which is
 where gettext looks and so the only place they can go. No package recipe places a data file of its own,
 because a second copy of those paths is a second thing to keep in step with the
-sample config. Only documentation is each format's own: README.md, KEYS.md,
-KEYS_REBINDING.md, INSTALL.md, PuTTY-truecolor.md and the two example configs go
-through `%doc`,
-`debian/amberedit.docs` or the top of an archive — and a document added to the
-tree is added to all four of those, `release.yml` included, or it ships nowhere.
+sample config. Only documentation is each format's own: README.md, CHANGELOG.md,
+KEYS.md, KEYS_REBINDING.md, INSTALL.md, PuTTY-truecolor.md and the two example
+configs go through `%doc`, `debian/amberedit.docs` or the top of an archive — and
+a document added to the tree is added to all four of those, `release.yml`
+included, or it ships nowhere.
 
 **The man page is `amberedit.1.in`, configured and not copied.** CMake writes
 `build/generated/amberedit.1` out of it the way it writes `version.hpp` out of
@@ -339,16 +339,38 @@ written `@file:<name>`; the builder asks
 none of them is read as a field. See "values kept in a file" under
 [Config and area groups](#config-and-area-groups).
 
+### The changelog
+
+**A change a user could notice writes its own line into `CHANGELOG.md`, in the
+commit that makes it, under the `## Unreleased` heading at the top of the list.**
+That heading is always there: the bump renames it to the version and the date and
+puts a fresh one back above.
+
+Written as the work lands rather than when a release is cut, because the file
+ships with the package — `%doc`, `debian/amberedit.docs`, the top of an archive —
+and is the only list of what is new that reaches somebody who did not clone the
+tree. Written on the bump, it describes the release *before* the one a person
+building from `master` has just built, and the setting they are looking for is
+not in it. The packaging changelogs stay on the bump: `%changelog` and
+`debian/changelog` are stanzas under a version, and an unreleased change has no
+version to stand under.
+
+Nothing a user can see is nothing to write. A refactor, a test, a comment, a
+build fix leaves the file alone, and `## Unreleased` stands empty until something
+does — an empty heading is the file saying so, not a line missing from it.
+
 ### Bumping the version
 
 **A version bump is one commit of its own, named `bump version`, touching seven
-files and no source.** Ordinary commits leave every one of them alone — the
-number changes when a release is cut and not while it is being written.
-`14f715767fd2f8e7fd6720932d5dcf77e4e1ec16` is the shape of it.
+files and no source.** Ordinary commits leave six of them alone — the number
+changes when a release is cut and not while it is being written.
+`14f715767fd2f8e7fd6720932d5dcf77e4e1ec16` is the shape of it. The seventh is
+`CHANGELOG.md`, which a change writes itself into as it lands; see below.
 
-Write the release's changes as one short line each — lower case, imperative,
-`fix double ^A breaking kludges parsing` — and put the *same* lines in the three
-places that carry them:
+The changes are one short line each — lower case, imperative, `fix double ^A
+breaking kludges parsing` — and by the time the bump is cut they are already
+written, under the `## Unreleased` heading. The bump carries the *same* lines
+into the two packaging changelogs:
 
 - `CMakeLists.txt` — `project(AmberEdit VERSION ...)`. The number the code sees;
   everything else restates it.
@@ -365,13 +387,10 @@ places that carry them:
   The date is the same day as the spec entry and the time is always `12:00:00
   +0000` — the stanza is what dpkg parses for the version, so its first line is
   the one `release.yml` reads.
-- `CHANGELOG.md` — a `## 0.7.2 — 2026-09-07` heading at the top of the list, one
-  `- ` line per change. It is the same text as the spec entry, written for
-  people who are not holding a package manager. **This file changes only on a
-  bump commit.** A feature or a bugfix adds nothing to it: there is no
-  "unreleased" heading to append to and no entry to write ahead of the release.
-  The lines are written here when the version is cut, out of what went in since
-  the last one.
+- `CHANGELOG.md` — rename the `## Unreleased` heading at the top of the list to
+  `## 0.7.2 — 2026-09-07`, and put a fresh `## Unreleased` above it. The lines
+  under it are already there, and are the text the spec entry and the debian
+  stanza are written out of, for people who are not holding a package manager.
 - `po/amberedit.pot` and `po/ru.po` — the `Project-Id-Version: AmberEdit 0.7.2`
   line, and nothing else in either file. Both numbers come from
   `--package-version=${PROJECT_VERSION}` when the catalogs are regenerated, but

@@ -303,6 +303,7 @@ the reference for every setting, and
 .IR amberkeys.cfg.example ,
 a keyboard layout to copy \(em both installed as documentation, with
 .IR README.md ,
+.IR CHANGELOG.md ,
 .IR KEYS.md ,
 .IR KEYS_REBINDING.md ,
 .I INSTALL.md

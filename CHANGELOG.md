@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+
 ## 0.8.11 — 2026-09-23
 
 - add config file include support
