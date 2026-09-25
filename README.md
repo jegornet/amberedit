@@ -135,12 +135,21 @@ A theme is a file of `role  color` lines. A color can be:
 
 A theme may hold both spellings.
 
-Two of its keys are switches rather than colors, written `on` or `off` like
-every other switch AmberEdit reads: `selection_bold`, whether what wears the
-selection fill — the current row of a list, the selected button of a box — is
-drawn bold along with it, and `input_filler_show`, whether the room a field has
-left is underscored. Unless a theme says otherwise, `selection_bold` is off and
-`input_filler_show` is on.
+Three of its keys are switches rather than colors, written `on` or `off` like
+every other switch AmberEdit reads:
+
+- `selection_bold`, whether what wears the selection fill — the current row of a
+  list, the selected button of a box — is drawn bold along with it. Off unless a
+  theme says otherwise.
+- `input_filler_show`, whether the room a field has left is underscored. On
+  unless a theme says otherwise.
+- `ansi_map_black_to_background`, whether the black an ANSI-graphics message
+  draws with — a foreground or a background — is drawn in the theme's own
+  `background` instead. Off unless a theme says otherwise, and it does nothing
+  where `bbs_codes_ansi` is off: a pipe code naming black keeps it either way.
+  The art was composed against a black terminal, so on a screen that is not
+  black its black reads as a panel laid over the message;
+  `themes/truecolor_bg_night.cfg` is the one shipped theme that turns this on.
 
 ⚠️ **Full color palette support depends on your terminal app's capabilities and
 configuration. If you experience color display issues, make sure the `TERM`

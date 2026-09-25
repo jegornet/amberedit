@@ -1468,6 +1468,89 @@ TEST_CASE("The reader replays the ANSI a message was drawn with "
 
 namespace {
 
+/// Draws a picture's black in the theme's background for as long as it stands —
+/// what a theme with `ansi_map_black_to_background on` in it does.
+struct MapBlackOn {
+    MapBlackOn() { amberedit::ui::theme::palette.ansiMapBlackToBackground = true; }
+    ~MapBlackOn() { amberedit::ui::theme::palette.ansiMapBlackToBackground = was; }
+    bool was{amberedit::ui::theme::palette.ansiMapBlackToBackground};
+};
+
+}  // namespace
+
+TEST_CASE("ansi_map_black_to_background draws a picture's black in the theme's "
+          "background [messageread][ansi][squish]") {
+    namespace theme = amberedit::ui::theme;
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.bbsCodesAnsi = true;
+    // Black on blue, then light grey on black: the two halves the switch
+    // answers for, standing side by side so that one cannot be mapped and the
+    // other missed.
+    showBody(fixture, {"\x1b[30;44mab\x1b[37;40mcd"});
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+    const int row = rowOf(fixture, screen, "abcd");
+    REQUIRE(row >= 0);
+
+    // Off, which is what a theme says nothing about: the picture is drawn as it
+    // was drawn, the terminal's own black and all.
+    REQUIRE_FALSE(theme::palette.ansiMapBlackToBackground);
+    CHECK(screen.at(0, row).fg == term::Color{0});
+    CHECK(screen.at(0, row).bg == term::Color{4});
+    CHECK(screen.at(2, row).fg == term::Color{7});
+    CHECK(screen.at(2, row).bg == term::Color{0});
+
+    // On, both halves become the screen the message is read on, and the colors
+    // the artist did choose are left where they are.
+    const MapBlackOn mapped;
+    term::render(screen, message_read::render(fixture.state));
+    CHECK(screen.at(0, row).fg == theme::palette.background);
+    CHECK(screen.at(0, row).bg == term::Color{4});
+    CHECK(screen.at(2, row).fg == term::Color{7});
+    CHECK(screen.at(2, row).bg == theme::palette.background);
+}
+
+TEST_CASE("ansi_map_black_to_background reaches the pictures and nothing else "
+          "[messageread][ansi][bbs][squish]") {
+    const MapBlackOn mapped;
+
+    // A pipe code naming black in an ordinary message is a color the author
+    // wrote, on a screen the theme is drawing the ground of already: there is no
+    // picture composed against a black terminal here to correct for.
+    {
+        TempSquishBase base;
+        AreaFixture fixture(base.path());
+        fixture.config.bbsCodesRenegade = true;
+        showBody(fixture, {"|00|31black"});
+
+        term::Screen screen(fixture.state.width, fixture.state.height);
+        term::render(screen, message_read::render(fixture.state));
+        const int row = rowOf(fixture, screen, "black");
+        REQUIRE(row >= 0);
+        CHECK_FALSE(fixture.state.readLines.front().canvas);
+        CHECK(screen.at(0, row).fg == term::Color{0});
+        CHECK(screen.at(0, row).bg == term::Color{15});
+    }
+
+    // And with `bbs_codes_ansi` off the switch has nothing to reach at all: the
+    // sequence is never replayed, so the line carries no color of a picture's
+    // for it to answer for and is drawn as the text the reader took it for.
+    {
+        TempSquishBase base;
+        AreaFixture fixture(base.path());
+        REQUIRE_FALSE(fixture.state.areaConfig.bbsCodesAnsi);
+        showBody(fixture, {"\x1b[30mblack"});
+
+        REQUIRE(fixture.state.readLines.size() == 1);
+        CHECK_FALSE(fixture.state.readLines.front().canvas);
+        CHECK(fixture.state.readLines.front().colorRuns.empty());
+    }
+}
+
+namespace {
+
 /// The middle of a box, which is where a click on what was drawn in it lands.
 Event pressIn(const term::Box& box) {
     return pressAt((box.x_min + box.x_max) / 2, (box.y_min + box.y_max) / 2);

@@ -101,7 +101,8 @@ const std::array<Follower, 3> kFollowers{{
 /// is a line here as a color is a line above.
 using Switch = bool Palette::*;
 
-const std::array<std::pair<std::string_view, Switch>, 2> kSwitches{{
+const std::array<std::pair<std::string_view, Switch>, 3> kSwitches{{
+    {"ansi_map_black_to_background", &Palette::ansiMapBlackToBackground},
     {"input_filler_show", &Palette::inputFillerShown},
     {"selection_bold", &Palette::selectionBold},
 }};

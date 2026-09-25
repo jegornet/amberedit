@@ -479,6 +479,23 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
     // a click on a link does nothing and there is nothing to test one against.
     const bool following = !state.readUrlLinks.empty();
 
+    // What the message's own color codes are drawn in. Ordinarily the palette
+    // entry the code names, and the theme is not involved: a code says black and
+    // black is what the terminal draws.
+    //
+    // `ansi_map_black_to_background` is the one switch that answers otherwise,
+    // and only inside a picture. The art was composed on a terminal whose
+    // background was black, so the black in it is the ground the drawing stands
+    // on rather than a color the artist picked, and on a screen that is not
+    // black it reads as a slab laid over the message. A pipe code in an ordinary
+    // message is left alone either way: there the black is one run of one line
+    // and the theme's own ground is around it already.
+    const bool blackIsGround = source.canvas && theme::palette.ansiMapBlackToBackground;
+    const auto codedColor = [blackIsGround](int index) {
+        if (blackIsGround && index == 0) return theme::palette.background;
+        return bbs::paletteColor(index);
+    };
+
     Elements runs;
     // The stretches of one link, gathered into an element of their own before
     // they join the line: a search landing inside an address splits it into
@@ -517,7 +534,7 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
         const theme::Color fg = pressed            ? theme::palette.animatedButtonText
                                 : styles[at].found ? theme::palette.foundText
                                 : inLink >= 0      ? theme::palette.link
-                                : coded.fg >= 0    ? bbs::paletteColor(coded.fg)
+                                : coded.fg >= 0    ? codedColor(coded.fg)
                                                    : base;
 
         Element run = text(line.substr(at, end - at)) | color(fg);
@@ -527,7 +544,7 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
         if (styles[at].found) {
             run = std::move(run) | bold | bgcolor(theme::palette.found);
         } else if (coded.bg >= 0) {
-            run = std::move(run) | bgcolor(bbs::paletteColor(coded.bg));
+            run = std::move(run) | bgcolor(codedColor(coded.bg));
         }
         if (inLink >= 0 && state.underlineLinks) run = std::move(run) | underlined;
         switch (styles[at].marker) {

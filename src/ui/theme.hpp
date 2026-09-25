@@ -118,6 +118,27 @@ struct Palette {
     /// Painted across the whole screen, so a theme holds together whatever the
     /// terminal's own background is.
     Color background = builtin_theme::kBackground;
+    /// Whether the black an ANSI picture draws with is drawn in that background
+    /// instead — `ansi_map_black_to_background`, `on` or `off`. It reaches the
+    /// canvas rows and nothing else: where `bbs_codes_ansi` is off there is no
+    /// canvas, and a pipe code naming black in an ordinary message keeps it.
+    ///
+    /// Off by default, and the picture is then drawn as it was drawn on the
+    /// terminal it was composed on: black is the palette's own black, whatever
+    /// the screen behind it is. That is right where the two are the same thing —
+    /// a theme painted on black, as `themes/black.cfg` and `themes/16_colors.cfg`
+    /// are — and wrong where they are not: the art was laid out against the
+    /// black it printed on, so a theme whose screen is a dark blue gets the
+    /// picture standing in a black box of its own, and one painted on white gets
+    /// a black slab across the middle of the message.
+    ///
+    /// On, the black an artist meant as "nothing here" becomes nothing here.
+    /// Both halves go — a black foreground as well as a black background —
+    /// because the art draws with both: a glyph in black on a colored fill is
+    /// how a picture cuts a shape out of a block, and leaving the foreground
+    /// black would cut it out in the wrong color. Only the black is touched;
+    /// the bright black above it is a grey somebody chose.
+    bool ansiMapBlackToBackground = false;
     /// Behind whatever Enter would act on: the current row of a list, the
     /// selected button of the quit dialog.
     Color selection = builtin_theme::kSelection;

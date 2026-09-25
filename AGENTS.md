@@ -2936,7 +2936,7 @@ taking a row.
   measures itself against the window had to change. It is also the one node that
   paints outside its own box; `Screen::at()` drops what falls off the edge, so a
   box against the right-hand side simply casts less.
-- **A theme is colors and two switches.** Each is `on` or `off` as every other
+- **A theme is colors and three switches.** Each is `on` or `off` as every other
   switch AmberEdit reads is written, a `bool` on `Palette` and a line in
   `kSwitches` — the same table treatment the colors get, so another one is a
   line rather than a special case — and each is stated in every file under
@@ -2960,6 +2960,20 @@ taking a row.
     has left (the import, export and setup pickers, `bold` on `dialog_label`),
     where the weight is the whole of the mark and dropping it would leave the
     row saying nothing at all.
+  - `ansi_map_black_to_background` says whether the black an ANSI picture draws
+    with is drawn in the theme's own `background`. **It reaches a canvas row and
+    nothing else**: `bodyLine()` asks `source.canvas` before it asks the switch,
+    so a theme with it on changes nothing where `bbs_codes_ansi` is off, and
+    nothing about a pipe code either. It is a theme's answer and not the
+    reader's because the art was composed against a black terminal — the black
+    in it is the ground the drawing stands on rather than a color the artist
+    picked, and only the theme knows whether its own screen is that same black.
+    Off in the built-in palette and in every shipped theme but
+    `truecolor_bg_night.cfg`, whose screen is a near-black blue: left as written
+    a picture would stand on it inside a black rectangle of its own. Both halves
+    are mapped — a black foreground as well as a black background — because a
+    glyph in black on a colored fill is how a picture cuts a shape out of a
+    block; index 8, the bright black, is a grey somebody chose and is left alone.
 - **How many colors the terminal has is not known until the screen is open, so
   it is said on the way out.** `start_color()` is what makes the terminal
   answer, and it runs inside `Terminal`'s constructor — by which time `stderr`

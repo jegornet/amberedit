@@ -189,12 +189,24 @@ TEST_CASE("A theme carries settings that are not colors [theme]") {
     CHECK_FALSE(valueOf(parsePalette("selection_bold off")).selectionBold);
     CHECK_FALSE(valueOf(parsePalette("text 33")).selectionBold);
 
+    // `ansi_map_black_to_background` the same way, and off where the file says
+    // nothing: a picture is drawn as it was drawn unless the theme says its own
+    // screen is not the black the art was composed against.
+    CHECK(valueOf(parsePalette("ansi_map_black_to_background on"))
+              .ansiMapBlackToBackground);
+    CHECK_FALSE(valueOf(parsePalette("ansi_map_black_to_background off"))
+                    .ansiMapBlackToBackground);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).ansiMapBlackToBackground);
+
     // A number is not a switch, and neither is the palette complaint: the key
     // is answered as the setting it is.
     const std::string error = errorOf(parsePalette("input_filler_show 1", "theme.cfg"));
     REQUIRE_MESSAGE(contains(error, "on or off"), error);
     const std::string other = errorOf(parsePalette("selection_bold 1", "theme.cfg"));
     REQUIRE_MESSAGE(contains(other, "on or off"), other);
+    const std::string mapped =
+        errorOf(parsePalette("ansi_map_black_to_background 1", "theme.cfg"));
+    REQUIRE_MESSAGE(contains(mapped, "on or off"), mapped);
 }
 
 TEST_CASE("A key that is not a color is refused [theme]") {
@@ -280,6 +292,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.inputFiller, builtIn.inputFiller));
     CHECK(loaded.inputFillerShown == builtIn.inputFillerShown);
     CHECK(loaded.selectionBold == builtIn.selectionBold);
+    CHECK(loaded.ansiMapBlackToBackground == builtIn.ansiMapBlackToBackground);
     CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK(same(loaded.dialogText, builtIn.dialogText));
     CHECK(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -334,12 +347,14 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.focusedField, builtIn.focusedField));
     CHECK_FALSE(same(loaded.focusedText, builtIn.focusedText));
     CHECK_FALSE(same(loaded.inputFiller, builtIn.inputFiller));
-    // The two settings a theme carries that are not colors. Both agree with the
-    // built-in palette here, and both are stated in the file all the same, so
-    // that a theme is the whole palette written out and not the difference from
-    // another one.
+    // The three settings a theme carries that are not colors. All three agree
+    // with the built-in palette here, and all three are stated in the file all
+    // the same, so that a theme is the whole palette written out and not the
+    // difference from another one. The last of them is off because this screen
+    // is the black the art was composed against: there is nothing to map.
     CHECK(loaded.inputFillerShown);
     CHECK_FALSE(loaded.selectionBold);
+    CHECK_FALSE(loaded.ansiMapBlackToBackground);
     CHECK_FALSE(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK_FALSE(same(loaded.dialogText, builtIn.dialogText));
     CHECK_FALSE(same(loaded.dialogTitle, builtIn.dialogTitle));
@@ -390,7 +405,7 @@ TEST_CASE("The truecolor theme is written in colors and states every role [theme
     for (const auto& entry : entries) {
         REQUIRE(entry.values.size() == 1);
         const std::string& value = entry.values.front();
-        // The two switches every theme carries; everything else is a color.
+        // The three switches every theme carries; everything else is a color.
         if (value == "on" || value == "off") continue;
         CAPTURE(entry.key);
         CHECK(value.size() == 6);
@@ -410,6 +425,12 @@ TEST_CASE("The truecolor theme is written in colors and states every role [theme
     CHECK(loaded.found.trueColor);
     CHECK(loaded.foundText.trueColor);
     CHECK_FALSE(numbered.background.trueColor);
+
+    // And it is the one shipped theme that maps a picture's black onto its own
+    // screen: that screen is a near-black blue and not the black the art was
+    // composed against, so the black in a picture would stand on it as a
+    // rectangle of its own.
+    CHECK(loaded.ansiMapBlackToBackground);
 }
 
 TEST_CASE("Every shipped theme states the same keys [theme]") {

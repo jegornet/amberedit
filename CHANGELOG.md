@@ -6,6 +6,7 @@
 - recreate a half-made message base (e.g. .jhr and .jdx without .jdt) when it's empty
 - add theme roles header_background and table_header_background
 - input_field now follows header_background when a theme leaves it out
+- add ansi_map_black_to_background: draw a picture's black in the theme's background
 
 ## 0.8.11 — 2026-09-23
 
