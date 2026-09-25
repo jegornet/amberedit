@@ -1938,7 +1938,7 @@ Element render(AppState& state) {
     // body. Built per frame rather than kept: folding a handful of characters
     // costs less than another field to keep in step with the message on screen.
     const std::optional<encoding::TextSearch> search = highlight(state);
-    const HeaderBlock block = headerBlock(state, header, search ? &*search : nullptr);
+    HeaderBlock block = headerBlock(state, header, search ? &*search : nullptr);
     const std::string location = senderLocation(state);
     const std::string size = messageSize(state);
 
@@ -2142,16 +2142,27 @@ Element render(AppState& state) {
         ruleRow.push_back(menu_button::bottomRow(pressedMenu));
     }
 
+    // The two fills a theme may lay under the top of the screen, and the whole
+    // of what they cost where it lays neither: both are `background` then, and
+    // painting a row the color it already was changes nothing. A row at a time
+    // rather than a `vbox` around each stretch, so that the frame keeps the
+    // shape every height here is counted against — one element per row of the
+    // screen.
+    const auto titleFill = bgcolor(theme::palette.tableHeaderBackground);
+    const auto headerFill = bgcolor(theme::palette.headerBackground);
+
     Elements content;
     if (back || menu) {
-        content.push_back(hbox(std::move(titleRow)));
-        content.push_back(hbox(std::move(ruleRow)));
+        content.push_back(hbox(std::move(titleRow)) | titleFill);
+        // The rule under the title is the header block's top line rather than
+        // the title's underscore: it is what the block is read as starting at.
+        content.push_back(hbox(std::move(ruleRow)) | headerFill);
     } else {
-        content.push_back(std::move(titleRow.front()));
-        content.push_back(rule());
+        content.push_back(std::move(titleRow.front()) | titleFill);
+        content.push_back(rule() | headerFill);
     }
-    content.insert(content.end(), block.rows.begin(), block.rows.end());
-    content.push_back(closingRule(size, location, block.column, paneWidth));
+    for (auto& row : block.rows) content.push_back(std::move(row) | headerFill);
+    content.push_back(closingRule(size, location, block.column, paneWidth) | headerFill);
     content.push_back(viewport);
 
     Element reader = vbox(std::move(content));

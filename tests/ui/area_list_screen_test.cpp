@@ -289,6 +289,36 @@ amberedit::ui::term::Screen drawn(Fixture& fixture) {
 
 }  // namespace
 
+TEST_CASE("The heading row stands on the fill a theme gives it [arealist]") {
+    namespace theme = amberedit::ui::theme;
+
+    const theme::Color titleFill{54};
+    // The palette is a global, so it is put back after: a theme is what writes
+    // to it in the program.
+    const theme::Palette kept = theme::palette;
+    theme::palette.tableHeaderBackground = titleFill;
+
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.arealistMenu.clear();
+    const auto screen = drawn(fixture);
+
+    // The headings are the whole of the top line here — this list has no title
+    // over them — and the fill runs right across the row rather than stopping
+    // where the last column's name does.
+    for (int x = 0; x < fixture.state.width; ++x) {
+        CHECK(screen.at(x, 0).bg == titleFill);
+    }
+    // The rule under them belongs to the list, and so do the rows below it.
+    for (int y = 1; y <= 2; ++y) {
+        CAPTURE(y);
+        for (int x = 0; x < fixture.state.width; ++x) {
+            CHECK(screen.at(x, y).bg != titleFill);
+        }
+    }
+
+    theme::palette = kept;
+}
+
 TEST_CASE(
     "Ctrl-R asks for a rescan rather than typing into the quick search "
     "[arealist]") {

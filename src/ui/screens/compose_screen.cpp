@@ -360,11 +360,16 @@ Element chrome(const AppState& state, Elements body) {
             titleRow.push_back(menu_button::topRow(pressedMenu));
             ruleRow.push_back(menu_button::bottomRow(pressedMenu));
         }
-        content.push_back(hbox(std::move(titleRow)));
-        content.push_back(hbox(std::move(ruleRow)));
+        content.push_back(hbox(std::move(titleRow)) |
+                          bgcolor(theme::palette.tableHeaderBackground));
+        // The rule under the title is the header block's top line, as it is in
+        // the reader, so it takes the block's fill and not the title's.
+        content.push_back(hbox(std::move(ruleRow)) |
+                          bgcolor(theme::palette.headerBackground));
     } else {
-        content.push_back(std::move(title));
-        content.push_back(rule());
+        content.push_back(std::move(title) |
+                          bgcolor(theme::palette.tableHeaderBackground));
+        content.push_back(rule() | bgcolor(theme::palette.headerBackground));
     }
     for (auto& element : body) content.push_back(std::move(element));
 
@@ -2022,6 +2027,14 @@ Element render(AppState& state) {
     // text below starts where the eye expects it to.
     content.push_back(text(horizontalRule(state.width)) |
                       color(theme::palette.separator));
+    // And it stands on the same fill the reader's does, the rule closing it
+    // included — the line over it is `chrome()`'s, which paints it with this.
+    // Where the theme says nothing that fill is `background`, and painting a
+    // row the color it already was changes nothing. A row at a time rather than
+    // a `vbox` round the block, so that `editorRows()` keeps counting one
+    // element per row of the screen.
+    for (auto& row : content)
+        row = std::move(row) | bgcolor(theme::palette.headerBackground);
 
     // The text, drawn as the reader draws a body — quotes in their own colors,
     // so that what is being answered stands apart from the answer, and the

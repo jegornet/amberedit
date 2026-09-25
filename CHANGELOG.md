@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- add theme roles header_background and table_header_background
+- input_field now follows header_background when a theme leaves it out
+
 ## 0.8.11 — 2026-09-23
 
 - add config file include support

@@ -880,8 +880,10 @@ TEST_CASE(
     const term::Box& focused = state.composeFieldSpots[compose::kToName].box;
 
     // The label beside a field is not part of it: it says what the box is for
-    // and is not typed into, so the fill stops where the box starts.
-    CHECK(screen.at(1, focused.y_min).bg.defaulted);
+    // and is not typed into, so the field's fill stops where the box starts.
+    // What is under it is the block's own fill — `header_background`, which is
+    // the screen itself in the built-in palette and in every shipped theme.
+    CHECK(screen.at(1, focused.y_min).bg == theme::palette.headerBackground);
 }
 
 /// Turns the underscores on for as long as it stands: the built-in palette
@@ -938,7 +940,55 @@ TEST_CASE("The room a field has left is underscored [compose]") {
     }
 }
 
-TEST_CASE("The date is shown like the rest of the block, on no fill [compose]") {
+TEST_CASE("The block and the title stand on the fills a theme gives them [compose]") {
+    const theme::Color headerFill{53};
+    const theme::Color titleFill{54};
+    // The palette is a global, so it is put back after: a theme is what writes
+    // to it in the program.
+    const theme::Palette kept = theme::palette;
+    theme::palette.headerBackground = headerFill;
+    theme::palette.tableHeaderBackground = titleFill;
+
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    // No corner buttons: they stand in the title row and the rule under it, and
+    // what is being read here is the two fills those rows carry.
+    fixture.config.backButton = amberedit::config::Visibility::Off;
+    fixture.config.menuButton = amberedit::config::Visibility::Off;
+    compose::startNew(state);
+
+    term::Screen screen(state.width, state.height);
+    term::render(screen, compose::render(state));
+
+    // The title across the whole row, and the block under it from the rule over
+    // it to the rule that closes it off — the fields' own fills standing on the
+    // block's, which is what a field is told from the block by.
+    for (int x = 0; x < state.width; ++x) CHECK(screen.at(x, 0).bg == titleFill);
+
+    // The rule over the block, its rows, and the rule that closes it off —
+    // which is what `editorRows()` counts as three rows of chrome plus the
+    // block's own.
+    const int lastBlockRow = 2 + state.headerRows();
+    for (int y = 1; y <= lastBlockRow; ++y) {
+        CAPTURE(y);
+        bool onBlock = false;
+        for (int x = 0; x < state.width; ++x) {
+            const term::Color bg = screen.at(x, y).bg;
+            onBlock = onBlock || bg == headerFill;
+            CHECK(bg != titleFill);
+        }
+        CHECK(onBlock);
+    }
+    // And the message being written is on neither.
+    for (int x = 0; x < state.width; ++x) {
+        CHECK(screen.at(x, lastBlockRow + 1).bg != headerFill);
+        CHECK(screen.at(x, lastBlockRow + 1).bg != titleFill);
+    }
+
+    theme::palette = kept;
+}
+
+TEST_CASE("The date is shown like the rest of the block, on no field fill [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
     compose::startNew(state);
@@ -969,11 +1019,14 @@ TEST_CASE("The date is shown like the rest of the block, on no fill [compose]") 
 
     // The stamp in the block's own color and on no fill of its own: it is the
     // one value here that is shown rather than typed into, and the fills on the
-    // rows above are what say which of them the typing may go to.
+    // rows above are what say which of them the typing may go to. What it
+    // stands on is the block's fill, `header_background`, which every row of
+    // the block carries and which is the screen itself unless a theme says
+    // otherwise.
     for (size_t i = 0; i < stamp.size(); ++i) {
         const term::Cell& cell = screen.at(static_cast<int>(at + i), row);
         CHECK(cell.fg == theme::palette.header);
-        CHECK(cell.bg.defaulted);
+        CHECK(cell.bg == theme::palette.headerBackground);
     }
 }
 

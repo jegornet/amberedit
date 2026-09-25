@@ -115,6 +115,43 @@ std::string dateCell(AreaFixture& fixture, int width) {
 
 }  // namespace
 
+TEST_CASE("The top line of the list stands on the fill a theme gives it "
+          "[messagelist][squish]") {
+    const theme::Color titleFill{54};
+    // The palette is a global, so it is put back after: a theme is what writes
+    // to it in the program.
+    const theme::Palette kept = theme::palette;
+    theme::palette.tableHeaderBackground = titleFill;
+
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_list::render(fixture.state));
+
+    // Both rows of it: the area's name and the column headings under it are one
+    // line as far as the reader is concerned, and a bar across one of them would
+    // read as the other being something else. Right across each, so that the
+    // fill is the line rather than the words on it.
+    for (int y = 0; y <= 1; ++y) {
+        CAPTURE(y);
+        for (int x = 0; x < fixture.state.width; ++x) {
+            CHECK(screen.at(x, y).bg == titleFill);
+        }
+    }
+    // The rule under them is the table's and not the heading's, and the rows
+    // below it are the messages.
+    for (int y = 2; y <= 3; ++y) {
+        CAPTURE(y);
+        for (int x = 0; x < fixture.state.width; ++x) {
+            CHECK(screen.at(x, y).bg != titleFill);
+        }
+    }
+
+    theme::palette = kept;
+}
+
 TEST_CASE("centerCursor puts the current message halfway down the list "
           "[messagelist]") {
     TempSquishBase base;

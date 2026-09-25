@@ -465,6 +465,64 @@ TEST_CASE("The Recd row is drawn in the color the Date row is "
     }
 }
 
+/// Puts a fill under the header block and another under the top line for as
+/// long as it stands, and gives the palette back afterwards: it is a global,
+/// and a theme is what writes to it in the program.
+struct Fills {
+    Fills(amberedit::ui::theme::Color header, amberedit::ui::theme::Color table) {
+        amberedit::ui::theme::palette.headerBackground = header;
+        amberedit::ui::theme::palette.tableHeaderBackground = table;
+    }
+    ~Fills() { amberedit::ui::theme::palette = kept; }
+    amberedit::ui::theme::Palette kept{amberedit::ui::theme::palette};
+};
+
+TEST_CASE(
+    "The header block and the top line stand on the fills a theme gives them "
+    "[messageread][header][squish]") {
+    namespace theme = amberedit::ui::theme;
+
+    const theme::Color headerFill{53};
+    const theme::Color titleFill{54};
+    const Fills fills(headerFill, titleFill);
+
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = Visibility::Off;
+    fixture.config.menuButton = Visibility::Off;
+    fixture.config.showRecdDate = Visibility::Off;
+    fixture.state.width = 92;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, message_read::render(fixture.state));
+
+    const auto fillOf = [&](int y) {
+        std::vector<term::Color> row;
+        for (int x = 0; x < fixture.state.width; ++x) row.push_back(screen.at(x, y).bg);
+        return row;
+    };
+
+    // The title, right across the row: a bar stopping where the area's name
+    // does would read as the name being lit rather than the line.
+    for (const term::Color& bg : fillOf(0)) CHECK(bg == titleFill);
+
+    // The block, the rule over it and the rule under it included — six rows
+    // here: the rule, From, To, Subj, Date, and the rule that closes it off.
+    // The two lines are what the block is read as starting and stopping at, so
+    // they carry its fill rather than the screen's.
+    for (int y = 1; y <= 6; ++y) {
+        CAPTURE(y);
+        for (const term::Color& bg : fillOf(y)) CHECK(bg == headerFill);
+    }
+
+    // And the message under it is on neither: the fills stop at the block.
+    for (const term::Color& bg : fillOf(7)) {
+        CHECK(bg != headerFill);
+        CHECK(bg != titleFill);
+    }
+}
+
 TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank "
           "[messageread][header][squish]") {
     TempSquishBase base;

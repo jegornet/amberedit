@@ -25,9 +25,18 @@ bool same(Color a, Color b) {
     return a == b;
 }
 
-/// A palette with every color role set to `index`, and how many roles that was.
+/// The roles every shipped theme leaves commented out, which take the theme's
+/// own `background` where it does not name them. Named here because that is
+/// exactly what keeps them out of the keys the file states.
+const char* const kUnstatedRoles[] = {"header_background", "table_header_background"};
+
+/// A palette with every color role set to `index`, and how many that was.
 struct Everywhere {
     Palette palette;
+    /// How many color keys `themes/black.cfg` actually states.
+    int stated{0};
+    /// How many roles the palette then holds at `index`: the stated ones and
+    /// the fills above that the file leaves commented out.
     int roles{0};
 };
 
@@ -36,23 +45,35 @@ struct Everywhere {
 /// without a line being added to them, the same way the shipped themes are held
 /// to the same key set further up. Nothing about the numbers in that file is
 /// read — only which keys are colors, which is the keys whose value is a number.
+///
+/// The fills the file leaves commented out are written in as well: they are
+/// roles like any other and a theme may name them, so a palette meant to be at
+/// `index` everywhere has to say so rather than let them follow `background`
+/// there by accident.
 Everywhere allRolesAt(int index) {
     const std::string text = valueOf(amberedit::config::text::readFile(
         amberedit::test::projectPath("themes/black.cfg")));
     const auto entries = valueOf(amberedit::config::parseCfg(text, "black.cfg"));
 
     std::string written;
-    int roles = 0;
+    int stated = 0;
     for (const auto& entry : entries) {
         // The switches take on/off rather than a number, and are not colors.
         if (entry.values.size() != 1) continue;
         const char first = entry.values.front().front();
         if (first < '0' || first > '9') continue;
         written += entry.key + " " + std::to_string(index) + "\n";
+        ++stated;
+    }
+    REQUIRE(stated > 30);
+
+    int roles = stated;
+    for (const char* role : kUnstatedRoles) {
+        REQUIRE(text.find(std::string("\n") + role + " ") == std::string::npos);
+        written += std::string(role) + " " + std::to_string(index) + "\n";
         ++roles;
     }
-    REQUIRE(roles > 30);
-    return {valueOf(parsePalette(written, "built-here.cfg")), roles};
+    return {valueOf(parsePalette(written, "built-here.cfg")), stated, roles};
 }
 
 }  // namespace
@@ -72,6 +93,61 @@ TEST_CASE("A theme file states only what it changes [theme]") {
     const Palette builtIn;
     CHECK(same(loaded.text, Color{33}));
     CHECK(same(loaded.background, builtIn.background));
+}
+
+TEST_CASE("The fills a theme may leave out follow the role under them [theme]") {
+    // `header_background`, `table_header_background` and `input_field` are the
+    // fills the interface reads perfectly well without: a header block, a
+    // heading row or an idle field left on the screen's own color is what a
+    // theme is free to draw. So a theme that says nothing about them gets
+    // **its own** background there rather than the built-in one, which on a
+    // theme painted on white would put a near-black band across the top of the
+    // screen and a near-black slot in the middle of the header block.
+    //
+    // `input_field` reaches the screen through the block its fields stand in,
+    // which is the whole of what the chain is for: a theme that fills the block
+    // and says nothing about the fields gets fields on the block.
+    const Palette paper = valueOf(parsePalette("background 231\n"));
+    CHECK(same(paper.headerBackground, Color{231}));
+    CHECK(same(paper.tableHeaderBackground, Color{231}));
+    CHECK(same(paper.inputField, Color{231}));
+
+    const Palette block = valueOf(parsePalette("background 231\nheader_background 17\n"));
+    CHECK(same(block.inputField, Color{17}));
+    CHECK(same(block.tableHeaderBackground, Color{231}));
+
+    // And a theme that names the field itself keeps it, block or no block.
+    const Palette field = valueOf(parsePalette("background 231\ninput_field 25\n"));
+    CHECK(same(field.inputField, Color{25}));
+
+    // Whichever order the lines are written in: the file is read whole before
+    // the question is asked, so a fill stated above the background it would
+    // otherwise follow is still the fill the theme asked for.
+    const Palette named = valueOf(parsePalette("header_background 17\nbackground 231\n"));
+    CHECK(same(named.headerBackground, Color{17}));
+    CHECK(same(named.tableHeaderBackground, Color{231}));
+
+    // A theme naming none of them nor a background is the built-in screen,
+    // which is what the fills are declared as — `input_field` included, so the
+    // built-in step of near-black under a field is what `themes/black.cfg`
+    // states rather than what a silent theme falls back to.
+    const Palette builtIn;
+    const Palette quiet = valueOf(parsePalette("text 33\n"));
+    CHECK(same(quiet.headerBackground, builtIn.background));
+    CHECK(same(quiet.tableHeaderBackground, builtIn.background));
+    CHECK(same(quiet.inputField, builtIn.background));
+
+    // And every theme that ships leaves both commented out, so that the block
+    // and the heading row stand on the screen the rest of the theme chose.
+    for (const char* file :
+         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+          "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
+        CAPTURE(file);
+        const Palette theme = valueOf(
+            amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
+        CHECK(same(theme.headerBackground, theme.background));
+        CHECK(same(theme.tableHeaderBackground, theme.background));
+    }
 }
 
 TEST_CASE("Roles the built-in palette shares can be taken apart [theme]") {
@@ -213,6 +289,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.dialogFlash, builtIn.dialogFlash));
     CHECK(same(loaded.dialogBorder, builtIn.dialogBorder));
     CHECK(same(loaded.header, builtIn.header));
+    CHECK(same(loaded.headerBackground, builtIn.headerBackground));
     CHECK(same(loaded.ownName, builtIn.ownName));
     CHECK(same(loaded.msglistUnread, builtIn.msglistUnread));
     CHECK(same(loaded.mark, builtIn.mark));
@@ -227,6 +304,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.scrollThumb, builtIn.scrollThumb));
     CHECK(same(loaded.trailer, builtIn.trailer));
     CHECK(same(loaded.tableHeader, builtIn.tableHeader));
+    CHECK(same(loaded.tableHeaderBackground, builtIn.tableHeaderBackground));
     CHECK(same(loaded.arealistSeparator, builtIn.arealistSeparator));
     CHECK(same(loaded.menuButton, builtIn.menuButton));
     CHECK(same(loaded.separator, builtIn.separator));
@@ -320,7 +398,7 @@ TEST_CASE("The truecolor theme is written in colors and states every role [theme
                           amberedit::config::text::asciiIsHexDigit));
         ++colors;
     }
-    CHECK(colors == allRolesAt(240).roles);
+    CHECK(colors == allRolesAt(240).stated);
 
     // And what was parsed is triples and not entries, role for role. Reading it
     // back through the palette rather than off the file is what proves the

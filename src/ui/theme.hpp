@@ -17,7 +17,7 @@ using Color = term::Color;
 
 /// The palette used when the config names no theme.
 ///
-/// Twenty-six constants for the forty-three roles below. Each is named after
+/// Twenty-six constants for the forty-five roles below. Each is named after
 /// the first role that takes it, so that the roles sharing one — and there are
 /// several — are visible here rather than only in a theme file that repeats the
 /// number.
@@ -159,6 +159,15 @@ struct Palette {
     /// now: the header block of a message being written. A fill rather than a
     /// border, which would cost a column on each side of every field and a row
     /// above and below the block.
+    ///
+    /// **A theme that says nothing about it takes `header_background`**, which
+    /// is the block those fields stand in — and that in turn is `background`
+    /// where the theme names neither, so a theme saying nothing anywhere draws
+    /// its idle fields flat on its own screen. A built-in step of near-black
+    /// there is what a light theme would otherwise be handed: this fill is a
+    /// step off whatever the block is, and only the theme knows which way that
+    /// step goes. What says a field is a field on a theme that leaves it flat
+    /// is `input_filler_show`, the underscores standing in the room it has.
     Color inputField = builtin_theme::kInputField;
     /// Written on that fill: a step under the `header` the block around it is
     /// written in, so that a field standing idle reads as part of the header
@@ -252,6 +261,24 @@ struct Palette {
     /// step under `text`: the block says who wrote what to whom, and the
     /// message itself is what is being read.
     Color header = builtin_theme::kDialogText;
+    /// The fill the header block stands on, the rule over it and the rule under
+    /// it included — the whole stretch between the title row and the message,
+    /// so that the block reads as one thing laid on the screen rather than as
+    /// rows that happen to share a color. The same block on the compose screen
+    /// takes it too: a message being written is the one being read with the
+    /// fields opened up.
+    ///
+    /// **A theme that says nothing about it draws the block on its own
+    /// `background`**, which is what every theme that ships does — the rules
+    /// tell the block from the message already, and a fill of its own is
+    /// something a theme asks for rather than something it has to answer. It is
+    /// the file's `background` and not the built-in one: see `loadPalette()`.
+    ///
+    /// Nothing else moves with it. What is written on the block is `header`,
+    /// `own_name` and, on the compose screen, the fields' own fills, so a theme
+    /// filling the block darker or lighter than the screen is the theme saying
+    /// those are still legible on it.
+    Color headerBackground = builtin_theme::kBackground;
     /// A From or To naming the user themselves.
     Color ownName = builtin_theme::kSelectionText;
     /// A message in the message list that has not been read yet, across the
@@ -331,6 +358,17 @@ struct Palette {
     /// button that cannot be pressed is drawn in.
     Color trailer = builtin_theme::kTrailer;
     Color tableHeader = builtin_theme::kTableHeader;
+    /// The fill under that line — every row `table_header` is written on, which
+    /// is the heading row of either list, the title over a message being read
+    /// and the title of the compose screen. The corner buttons standing in that
+    /// row are drawn on it as well: they are part of the line rather than
+    /// something laid over it.
+    ///
+    /// **A theme that says nothing about it draws the line on its own
+    /// `background`**, exactly as `header_background` above, and for the same
+    /// reason: the heading is told from the rows under it by its color, and a
+    /// bar across the top of the screen is something a theme chooses.
+    Color tableHeaderBackground = builtin_theme::kBackground;
     /// The name in the middle of a rule between two sections of the area list,
     /// where `arealist_separators` draws them. A role of its own rather than the
     /// `dimmed` it would otherwise take: the rule names what is under it the way
@@ -398,6 +436,16 @@ inline Palette palette;
 /// the AmberEdit config is written in — the roles being Palette's fields in
 /// snake_case. Every role is optional and an absent one keeps its built-in
 /// color, so a file may state as little as one line.
+///
+/// **Three fills follow another role instead of a built-in color** where the
+/// file leaves them out: `header_background` and `table_header_background` take
+/// the file's own `background`, and `input_field` takes `header_background` —
+/// so a theme naming none of the three draws the header block, the top line and
+/// its idle fields flat on the screen it chose. A built-in color in any of them
+/// would put the default palette's near-black behind the headings of a theme
+/// painted on white. Naming the role it would otherwise follow comes to the
+/// same thing; the order the lines are written in does not matter, since this
+/// is answered once the whole file has been read.
 ///
 /// **A color is told by its length**: one to three decimal digits is an entry in
 /// the terminal's own 256-color palette, `232`; exactly six hex digits is the

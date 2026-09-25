@@ -23,7 +23,7 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 43> kFields{{
+const std::array<std::pair<std::string_view, Field>, 45> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
@@ -43,6 +43,7 @@ const std::array<std::pair<std::string_view, Field>, 43> kFields{{
     {"dialog_border", &Palette::dialogBorder},
     {"dialog_shadow", &Palette::dialogShadow},
     {"header", &Palette::header},
+    {"header_background", &Palette::headerBackground},
     {"own_name", &Palette::ownName},
     {"msglist_unread", &Palette::msglistUnread},
     {"mark", &Palette::mark},
@@ -57,6 +58,7 @@ const std::array<std::pair<std::string_view, Field>, 43> kFields{{
     {"scroll_thumb", &Palette::scrollThumb},
     {"trailer", &Palette::trailer},
     {"table_header", &Palette::tableHeader},
+    {"table_header_background", &Palette::tableHeaderBackground},
     {"arealist_separator", &Palette::arealistSeparator},
     {"menu_button", &Palette::menuButton},
     {"hint_bar", &Palette::hintBar},
@@ -67,6 +69,31 @@ const std::array<std::pair<std::string_view, Field>, 43> kFields{{
     {"found", &Palette::found},
     {"found_text", &Palette::foundText},
     {"animated_button_text", &Palette::animatedButtonText},
+}};
+
+/// The fills that follow another role where the file says nothing about them,
+/// rather than falling back to a color out of the built-in palette. All three
+/// are fills a theme may want picked out and which the interface reads
+/// perfectly well without — see `Palette::headerBackground` — and a built-in
+/// near-black behind the headings of a theme painted on white is what taking
+/// the usual default would come to.
+struct Follower {
+    std::string_view key;
+    Field field;
+    /// What it takes where the file leaves it out. A role and not a color, so
+    /// that a chain is written as a chain: `input_field` follows the header
+    /// block it stands in, which follows the screen the block stands on.
+    Field follows;
+};
+
+/// **In the order they are answered**, which is what makes the chain come out
+/// right: a role is resolved after the one it follows, so `input_field` reads a
+/// `header_background` that has already taken the screen where the file named
+/// neither.
+const std::array<Follower, 3> kFollowers{{
+    {"header_background", &Palette::headerBackground, &Palette::background},
+    {"table_header_background", &Palette::tableHeaderBackground, &Palette::background},
+    {"input_field", &Palette::inputField, &Palette::headerBackground},
 }};
 
 /// The keys that are not colors, the same way round: the name in the file
@@ -82,6 +109,12 @@ const std::array<std::pair<std::string_view, Switch>, 2> kSwitches{{
 tl::expected<Palette, ErrorPtr> fromEntries(
     const std::vector<config::CfgEntry>& entries) {
     Palette palette;
+    // Which roles the file actually named, for the few below that follow
+    // another where it named neither. Read after the whole file rather than as
+    // each line goes by: a theme is free to write them in any order, and a
+    // `header_background` standing above the `background` it follows would
+    // otherwise follow the built-in one.
+    std::vector<std::string_view> named;
 
     for (const auto& entry : entries) {
         const auto setting = std::find_if(
@@ -114,6 +147,7 @@ tl::expected<Palette, ErrorPtr> fromEntries(
 
         auto value = entry.one();
         if (!value) return tl::make_unexpected(std::move(value).error());
+        named.push_back(field->first);
 
         // Which of the two a color is, is settled by how it is written and by
         // nothing else: exactly six hex digits is the color itself, one to three
@@ -149,6 +183,12 @@ tl::expected<Palette, ErrorPtr> fromEntries(
         auto number = entry.numberIn(0, 255);
         if (!number) return tl::make_unexpected(std::move(number).error());
         palette.*(field->second) = Color{static_cast<uint8_t>(*number)};
+    }
+
+    // What the rest of the theme chose, for the fills that were left out.
+    for (const auto& role : kFollowers) {
+        if (std::find(named.begin(), named.end(), role.key) != named.end()) continue;
+        palette.*(role.field) = palette.*(role.follows);
     }
     return palette;
 }

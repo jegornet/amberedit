@@ -855,6 +855,13 @@ Element render(AppState& state) {
                   menu_button::bottomRow(pressed)});
     }
 
+    // The fill a theme may lay under the top of the screen. The headings are
+    // the whole of that line here — this list has no title over them — and the
+    // rule under them is the first section's own, which belongs to the list.
+    // Where the theme says nothing it is `background`, and painting a row the
+    // color it already was changes nothing.
+    header = std::move(header) | bgcolor(theme::palette.tableHeaderBackground);
+
     // The unread-only filter with nothing left to show. It is said in the middle
     // of the screen and under the list's own heading and rule, because the
     // filter is a way of looking at the list rather than another screen: the key

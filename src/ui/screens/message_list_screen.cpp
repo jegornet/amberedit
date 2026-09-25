@@ -539,6 +539,16 @@ Element render(AppState& state) {
         title = hbox({back_button::topRow(pressedBack), std::move(title)});
     }
 
+    // The fill a theme may lay under the top of the screen, over both rows it
+    // takes here — the area's name and the column headings under it are one
+    // line as far as the reader is concerned, and a bar across one of them
+    // would read as the other being something else. Where the theme says
+    // nothing it is `background`, and painting a row the color it already was
+    // changes nothing.
+    const auto titleFill = bgcolor(theme::palette.tableHeaderBackground);
+    title = std::move(title) | titleFill;
+    header = std::move(header) | titleFill;
+
     Element table = vbox(std::move(lines));
     if (scrollbarShown) {
         // The rows were laid out a column narrower, so the bar fills the

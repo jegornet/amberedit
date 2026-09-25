@@ -2829,6 +2829,26 @@ taking a row.
   light profile it is black on white in the middle of a dark screen.
   `clear_under` is the only thing that produces one, and nothing calls it
   without painting over it in the same breath.
+- **Two stretches of the screen may take a fill of their own, and take
+  `background` where a theme says nothing.** `header_background` is under the
+  message header block — the rule over it, its rows and the rule that closes it
+  off, in the reader and on the compose screen alike — and
+  `table_header_background` is under the top line, meaning every row
+  `table_header` is written on, the corner buttons standing in it included. The
+  fill goes on the rows one at a time rather than on a `vbox` wrapped round
+  them: the screens count their height in elements, and a row that stopped being
+  one would take the blank filling below it with it.
+- **A fill a theme leaves out follows the role under it, not a built-in
+  color.** `header_background` and `table_header_background` follow
+  `background`, and `input_field` follows `header_background` — so a theme that
+  names none of the three draws the block, the top line and its idle fields flat
+  on the screen it chose, and one that fills the block gets fields on the block.
+  A built-in color in any of them is the default palette's near-black turning up
+  in the middle of a theme painted on white. `theme::loadPalette` answers this
+  once the whole file is read and in the order `kFollowers` lists, so the order
+  the lines are written in does not matter and a chain resolves end to end.
+  Every shipped theme leaves the two `*_background` fills commented out and
+  states `input_field`; a test holds them to both.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
   `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash`,
