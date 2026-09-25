@@ -315,9 +315,11 @@ tl::expected<ports::IMsgBase*, ErrorPtr> AreaManager::openArea(const AreaConfig&
         // reload() opens every base there is, and creating them all at startup
         // would write a spool nobody asked for.
         //
-        // A base that is half there or there and unreadable is reported as it
-        // stands. An empty one written over it would take whatever it holds
-        // with it, and that is not a reader's to do.
+        // A base that is half there is open()'s own: it finishes one whose
+        // files hold nothing and refuses one that holds messages, so by the
+        // time a failure reaches here that state has been decided. Nothing is
+        // written over from this end — an empty base over one that holds
+        // something would take it with it, and that is not a reader's to do.
         //
         // The open() that just failed already walked the file system to find
         // this out, and says so in the error: asking it beats probing a second

@@ -157,6 +157,48 @@ uint32_t controlBlockLength(const std::string& control) {
     return static_cast<uint32_t>(control.empty() ? 0 : control.size() + 1);
 }
 
+/// The area header of a base of no messages, as it is written into a new .sqd.
+std::array<unsigned char, kBaseHeaderSize> emptyAreaHeader(const std::string& path) {
+    std::array<unsigned char, kBaseHeaderSize> raw{};
+    writeU16(raw.data(), static_cast<uint16_t>(kBaseHeaderSize));
+    // The first UMSGID handed out. Zero would be no UID at all — the value
+    // `indexOfUid()` answers nothing to — so the numbering starts at one.
+    writeU32(raw.data() + 20, 1);
+    toFixedField(raw.data() + 24, kBaseNameSize, path);
+    // Where the frames would begin, which for a base of no messages is where
+    // the header ends. It is the one field readBaseHeader() refuses a zero in:
+    // a file of zeroes is exactly what a tosser that died mid-creation leaves,
+    // and telling that from an area deliberately made empty is the point of it.
+    writeU32(raw.data() + 120, static_cast<uint32_t>(kBaseHeaderSize));
+    writeU16(raw.data() + 130, static_cast<uint16_t>(kFrameHeaderSize));
+    return raw;
+}
+
+/// Whether the .sqd at `path` is an area header and nothing else: 256 bytes of
+/// file, and a header that reads as a Squish one standing over no frames.
+///
+/// The length is half the answer and the header is the other half. A file of
+/// 256 zeroes is the size of an empty base and is what a tosser that died
+/// between creating the area and filling it in leaves — `readBaseHeader()`
+/// refuses one, and so does this. The counts are read as well as the offsets:
+/// a header claiming messages over a file with no room for a frame is a base
+/// that lost its frames rather than one that never had any, and that is not a
+/// base to write beside.
+bool isEmptyAreaHeader(const std::string& path) {
+    BinaryFile data;
+    if (!data.open(path, /*wantWritable=*/false)) return false;
+    if (data.size() != static_cast<int64_t>(kBaseHeaderSize)) return false;
+
+    std::array<unsigned char, kBaseHeaderSize> raw{};
+    if (const auto io = data.readAt(0, raw.data(), raw.size()); io.failed()) return false;
+
+    return readU16(raw.data()) == kBaseHeaderSize &&        // the header's length
+           readU32(raw.data() + 4) == 0 &&                  // messages
+           readU32(raw.data() + 8) == 0 &&                  // the highest of them
+           readU32(raw.data() + 120) == kBaseHeaderSize &&  // where frames would begin
+           readU16(raw.data() + 130) == kFrameHeaderSize;   // Squish version one
+}
+
 }  // namespace
 
 tl::expected<void, ErrorPtr> SquishBase::open(const std::string& path, bool echo,
@@ -201,52 +243,91 @@ void SquishBase::close() {
 
 tl::expected<void, ErrorPtr> SquishBase::create(const std::string& path) {
     close();
+    return makeFiles(path, /*keepExisting=*/false);
+}
 
+tl::expected<bool, ErrorPtr> SquishBase::completeIfEmpty(const std::string& path) {
     const std::string dataPath = path + ".sqd";
     const std::string indexPath = path + ".sqi";
 
+    std::error_code ec;
+    const bool hasData = std::filesystem::exists(dataPath, ec);
+    ec.clear();
+    const bool hasIndex = std::filesystem::exists(indexPath, ec);
+
+    // Nothing of it at the path is not this call's business — there is no base
+    // to complete and nothing to judge empty by — and neither is one that is
+    // all there.
+    if (!hasData && !hasIndex) return false;
+    if (hasData && hasIndex) return true;
+
+    // The .sqd is the header and the frames behind it, so an area header over
+    // no frames is the whole of an empty base; the .sqi is one record per
+    // message, so an empty one is a file of no bytes. Either standing alone in
+    // that state is a base that was interrupted on its way into being, and the
+    // file that is not there took nothing with it.
+    if (hasData && !isEmptyAreaHeader(dataPath)) return false;
+    if (hasIndex && !isEmptyFile(indexPath)) return false;
+
+    if (auto made = makeFiles(path, /*keepExisting=*/true); !made) {
+        return tl::make_unexpected(std::move(made).error());
+    }
+    return true;
+}
+
+tl::expected<void, ErrorPtr> SquishBase::makeFiles(const std::string& path,
+                                                   bool keepExisting) {
+    const std::string dataPath = path + ".sqd";
+    const std::string indexPath = path + ".sqi";
+
+    // Whatever this call has made, taken back again when a later step fails.
+    // What this call made, and never a path that was already taken: the creates
+    // are O_EXCL, so a file on this list is one that was not there a moment
+    // ago, and the file a half-made base still has is left exactly where it
+    // stands.
+    std::vector<std::string> made;
+    const auto giveBack = [&made] {
+        for (const std::string& file : made) {
+            std::error_code ec;
+            std::filesystem::remove(file, ec);
+        }
+    };
+
+    std::error_code ec;
     // The .sqd is what probeType() looks for, so it is made last of the two: a
     // creation interrupted between them leaves an .sqi nothing claims rather
     // than a Squish base with no index, which is the half that reads as broken.
-    BinaryFile index;
-    if (!index.create(indexPath)) {
-        // The errno the create left behind: "permission denied" or "no such
-        // directory" is what the user has to act on, and it is the half of the
-        // message that a bare path cannot say.
-        return failure("cannot create " + indexPath + ": " + std::strerror(errno));
-    }
-    // Empty, and deliberately: the index holds one record per message, and
-    // there are none.
-    index.close();
-
-    BinaryFile data;
-    if (!data.create(dataPath)) {
-        auto reason = "cannot create " + dataPath + ": " + std::strerror(errno);
-        std::error_code ec;
-        std::filesystem::remove(indexPath, ec);
-        return failure(std::move(reason));
+    if (!keepExisting || !std::filesystem::exists(indexPath, ec)) {
+        BinaryFile index;
+        if (!index.create(indexPath)) {
+            // The errno the create left behind: "permission denied" or "no such
+            // directory" is what the user has to act on, and it is the half of
+            // the message that a bare path cannot say.
+            return failure("cannot create " + indexPath + ": " + std::strerror(errno));
+        }
+        // Empty, and deliberately: the index holds one record per message, and
+        // there are none.
+        made.push_back(indexPath);
+        index.close();
     }
 
-    std::array<unsigned char, kBaseHeaderSize> raw{};
-    writeU16(raw.data(), static_cast<uint16_t>(kBaseHeaderSize));
-    // The first UMSGID handed out. Zero would be no UID at all — the value
-    // `indexOfUid()` answers nothing to — so the numbering starts at one.
-    writeU32(raw.data() + 20, 1);
-    toFixedField(raw.data() + 24, kBaseNameSize, path);
-    // Where the frames would begin, which for a base of no messages is where
-    // the header ends. It is the one field readBaseHeader() refuses a zero in:
-    // a file of zeroes is exactly what a tosser that died mid-creation leaves,
-    // and telling that from an area deliberately made empty is the point of it.
-    writeU32(raw.data() + 120, static_cast<uint32_t>(kBaseHeaderSize));
-    writeU16(raw.data() + 130, static_cast<uint16_t>(kFrameHeaderSize));
+    ec.clear();
+    if (!keepExisting || !std::filesystem::exists(dataPath, ec)) {
+        BinaryFile data;
+        if (!data.create(dataPath)) {
+            auto reason = "cannot create " + dataPath + ": " + std::strerror(errno);
+            giveBack();
+            return failure(std::move(reason));
+        }
+        made.push_back(dataPath);
 
-    if (const auto io = data.writeAt(0, raw.data(), raw.size()); io.failed()) {
-        auto reason = "cannot write the area header of " + dataPath;
-        data.close();
-        std::error_code ec;
-        std::filesystem::remove(dataPath, ec);
-        std::filesystem::remove(indexPath, ec);
-        return failure(std::move(reason) + ": " + io.message());
+        const std::array<unsigned char, kBaseHeaderSize> raw = emptyAreaHeader(path);
+        if (const auto io = data.writeAt(0, raw.data(), raw.size()); io.failed()) {
+            auto reason = "cannot write the area header of " + dataPath;
+            data.close();
+            giveBack();
+            return failure(std::move(reason) + ": " + io.message());
+        }
     }
     return {};
 }

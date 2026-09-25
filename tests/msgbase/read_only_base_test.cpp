@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <string>
+#include <system_error>
 
 #include "domain/area.hpp"
 #include "domain/message.hpp"
@@ -149,6 +150,41 @@ TEST_CASE("A base that cannot be written is read and says it cannot [readonly]")
     SUBCASE("Squish") { checkReadOnlyBaseReadsAndRefuses(MsgBaseType::Squish); }
     SUBCASE("JAM") { checkReadOnlyBaseReadsAndRefuses(MsgBaseType::Jam); }
     SUBCASE("Fido *.msg") { checkReadOnlyBaseReadsAndRefuses(MsgBaseType::Opus); }
+}
+
+TEST_CASE("A half-made base that cannot be completed names the file and why "
+          "[readonly]") {
+    if (!readOnlyBites()) {
+        MESSAGE("mode bits do not bite here: root, or Windows");
+        return;
+    }
+
+    // An empty base short of a file of its own is finished as it opens — but
+    // not on a spool nobody may write into, and what the user has to act on
+    // there is the file and the errno rather than a second sentence about the
+    // base being incomplete. Nothing is left half made behind the refusal.
+    TempDir dir;
+    const std::string spool = dir.path("spool");
+    fs::create_directories(spool);
+    const std::string path = (fs::path(spool) / "area").string();
+    const AreaConfig area = areaAt(path, MsgBaseType::Jam);
+    REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+    fs::remove(path + ".jdx");
+    fs::permissions(spool,
+                    fs::perms::owner_write | fs::perms::group_write |
+                        fs::perms::others_write,
+                    fs::perm_options::remove);
+
+    FtnMsgBase base("CP866");
+    const auto opened = base.open(area);
+    REQUIRE_FALSE(opened.has_value());
+    const std::string said = opened.error()->message();
+    CHECK_MESSAGE(amberedit::test::contains(said, path + ".jdx"), said);
+    CHECK_FALSE(fs::exists(path + ".jdx"));
+
+    // Put back, so that the temporary directory can be cleared away.
+    std::error_code ec;
+    fs::permissions(spool, fs::perms::owner_write, fs::perm_options::add, ec);
 }
 
 TEST_CASE("An area nothing is open on is not one to write into [readonly]") {

@@ -79,8 +79,9 @@ public:
     ///
     /// *Nothing of that type* is every file of the area's own format missing,
     /// and it is asked of that format alone. A JAM area left with its .jdx and
-    /// .jdt after the .jhr went is not absent — open() calls that `Incomplete`
-    /// — while a Squish base sharing the path is another area's files and says
+    /// .jdt after the .jhr went is not absent — open() completes that one where
+    /// what is left holds nothing and calls it `Incomplete` where it does not —
+    /// while a Squish base sharing the path is another area's files and says
     /// nothing about this one.
     [[nodiscard]] static bool isAbsent(const domain::AreaConfig& area);
 
@@ -128,7 +129,7 @@ public:
     /// One file per format answers the question, which is what makes it a
     /// probe: whether the rest of that format's files are beside it is open()'s
     /// to ask, and `MsgBaseError::Kind::Incomplete` is what it says when they
-    /// are not.
+    /// are not and what is standing there holds messages.
     static domain::MsgBaseType probeType(const std::string& path);
 
 private:

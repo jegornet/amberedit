@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -74,6 +76,37 @@ public:
     /// already made, so there is nothing left for the next attempt to trip
     /// over.
     [[nodiscard]] virtual tl::expected<void, ErrorPtr> create(
+        const std::string& path) = 0;
+
+    /// Makes the files of the base at `path` that are not there, where every
+    /// one that *is* there holds nothing — and says whether it did.
+    ///
+    /// A base short of a file of its own is not always one that lost something.
+    /// A tosser stopped between two of the three files it makes, a script that
+    /// took the indexes for rebuildable and swept them, a disk that filled
+    /// between one create and the next: what is standing then is a header and
+    /// no messages behind it, and the file that is gone took nothing with it.
+    /// Putting it back is the whole repair, and the area opens empty, which is
+    /// what it is.
+    ///
+    /// **A base holding anything at all is left exactly where it stands**, and
+    /// `false` is what says so — that is `Incomplete`, and reporting it is the
+    /// caller's. Empty is asked of each of the format's own files, in the state
+    /// creating one leaves it in: a `.sqd` of 256 bytes that reads as a Squish
+    /// header over no frames, a `.jhr` of 1024 carrying the JAM signature and
+    /// no header behind it, an `.sqi`, `.jdx` or `.jdt` of no bytes at all.
+    /// Anything else — a longer file, a header that does not read, a counter
+    /// claiming messages — is a base with something in it as far as this is
+    /// concerned, and so is a file that cannot be read to find out.
+    ///
+    /// A base with nothing of itself on disk is `false` too: there is nothing
+    /// to complete and nothing to go on, and `create()` is that one's call.
+    ///
+    /// An error is one it tried and could not: the file would not be made, and
+    /// the sentence names it and the `errno`. What this call made and could not
+    /// finish it takes back, as `create()` does; what it found it never touches
+    /// and never writes over.
+    [[nodiscard]] virtual tl::expected<bool, ErrorPtr> completeIfEmpty(
         const std::string& path) = 0;
 
     /// Whether the base as it stands open may be written to.
@@ -232,6 +265,19 @@ public:
     [[nodiscard]] virtual tl::expected<void, ErrorPtr> markSeen(uint32_t index) = 0;
 
 protected:
+    /// Whether the file at `path` is there and holds no bytes at all.
+    ///
+    /// Which is what every index of an empty base is — a Squish `.sqi`, a JAM
+    /// `.jdx` and `.jdt` — and what `completeIfEmpty()` asks of the ones it
+    /// finds. A file that cannot be asked about is not one of them: the answer
+    /// is what a base is judged safe to write beside, so what is not known to
+    /// be empty is not.
+    [[nodiscard]] static bool isEmptyFile(const std::string& path) {
+        std::error_code ec;
+        const std::uintmax_t size = std::filesystem::file_size(path, ec);
+        return !ec && size == 0;
+    }
+
     /// The set a `removeAll()` works from: the numbers sorted, each named once,
     /// and every one of them a message of the base as it now stands.
     ///

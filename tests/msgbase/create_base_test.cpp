@@ -2,8 +2,10 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #include "domain/message.hpp"
 #include "msgbase/ftn_msgbase.hpp"
@@ -94,6 +96,51 @@ void checkCreatedBaseTakesAMessage(const AreaConfig& area) {
     CHECK(again.header(1).from == "Yegor Gluhov");
     // A UID of its own, which is what a lastread mark will hold.
     CHECK(again.uidOf(1) != 0);
+}
+
+/// The base made and a message put into it, so that what is left when a file of
+/// it is taken away is a base that holds something.
+void fillBase(const AreaConfig& area) {
+    REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+    FtnMsgBase base("CP866");
+    REQUIRE(base.open(area).has_value());
+    REQUIRE(valueOf(base.write(firstMessage())) == 1);
+}
+
+/// Every byte of a file, for the checks that what a half-made base still had is
+/// left exactly as it stood.
+std::string bytesOf(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in),
+                       std::istreambuf_iterator<char>());
+}
+
+/// The base made, the files in `gone` taken away again, and the area opened on
+/// what is left: a base interrupted on its way into being, which opening is
+/// expected to finish rather than refuse.
+void checkHalfMadeBaseIsCompleted(const AreaConfig& area,
+                                  const std::vector<std::string>& gone) {
+    REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+    for (const std::string& file : gone) {
+        REQUIRE(present(file));
+        fs::remove(file);
+    }
+
+    FtnMsgBase base("CP866");
+    const auto opened = base.open(area);
+    REQUIRE_MESSAGE(opened.has_value(), errorOf(opened));
+    // Empty, which is what it was: nothing was put back that holds anything.
+    CHECK(base.count() == 0);
+    for (const std::string& file : gone) CHECK(present(file));
+
+    // And a base to write into, which is the whole point of completing it.
+    REQUIRE(valueOf(base.write(firstMessage())) == 1);
+    base.close();
+
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(area).has_value());
+    REQUIRE(again.count() == 1);
+    CHECK(again.header(1).subject == "The first message");
 }
 
 }  // namespace
@@ -210,17 +257,18 @@ TEST_CASE("A base of another format under the same name is another area's "
     CHECK(squish.open(areaAt(path, MsgBaseType::Squish)).has_value());
 }
 
-TEST_CASE("A base short of a file of its own is not opened and not created over "
-          "[create]") {
-    // The half-there base: a lost index, or a tosser stopped between the two
-    // files it makes. It is not a base to read, and above all it is not one to
-    // create over — what is still there is messages.
+TEST_CASE("A base short of a file of its own and holding messages is not opened "
+          "and not created over [create]") {
+    // The half-there base that has something in it: an index a script took for
+    // rebuildable and swept, a file lost off a disk. It is not a base to read,
+    // and above all it is not one to create over or to complete — the message
+    // it holds would go with either.
     TempDir dir;
 
     SUBCASE("JAM without its index") {
         const std::string path = dir.path("fresh");
         const AreaConfig area = areaAt(path, MsgBaseType::Jam);
-        REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+        fillBase(area);
         fs::remove(path + ".jdx");
 
         FtnMsgBase base("CP866");
@@ -228,26 +276,151 @@ TEST_CASE("A base short of a file of its own is not opened and not created over 
         CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
         // Naming the file, which is the half the user acts on.
         CHECK_MESSAGE(contains(errorOf(opened), path + ".jdx"), errorOf(opened));
+        // And the file is still not there: a base holding a message is not one
+        // an index is invented for.
+        CHECK_FALSE(present(path + ".jdx"));
 
         CHECK_FALSE(FtnMsgBase::isAbsent(area));
         CHECK_FALSE(FtnMsgBase("CP866").create(area).has_value());
         CHECK(present(path + ".jhr"));
         CHECK(present(path + ".jdt"));
     }
+    SUBCASE("JAM without its text file") {
+        const std::string path = dir.path("fresh");
+        const AreaConfig area = areaAt(path, MsgBaseType::Jam);
+        fillBase(area);
+        fs::remove(path + ".jdt");
+
+        FtnMsgBase base("CP866");
+        const auto opened = base.open(area);
+        CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+        CHECK_MESSAGE(contains(errorOf(opened), path + ".jdt"), errorOf(opened));
+        CHECK_FALSE(present(path + ".jdt"));
+    }
     SUBCASE("Squish without its index") {
         const std::string path = dir.path("fresh");
         const AreaConfig area = areaAt(path, MsgBaseType::Squish);
-        REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+        fillBase(area);
         fs::remove(path + ".sqi");
 
         FtnMsgBase base("CP866");
         const auto opened = base.open(area);
         CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
         CHECK_MESSAGE(contains(errorOf(opened), path + ".sqi"), errorOf(opened));
+        CHECK_FALSE(present(path + ".sqi"));
 
         CHECK_FALSE(FtnMsgBase::isAbsent(area));
         CHECK_FALSE(FtnMsgBase("CP866").create(area).has_value());
         CHECK(present(path + ".sqd"));
+    }
+}
+
+TEST_CASE("A base short of a file of its own and holding nothing is completed "
+          "as it opens [create]") {
+    // The other half-there base, and the ordinary one: a tosser stopped between
+    // two of the files it makes, a disk that filled between one create and the
+    // next. Nothing was lost with the file that is gone — what is standing is a
+    // header and no messages behind it — so the area is finished here and
+    // opened, rather than refused as an area with a piece missing.
+    TempDir dir;
+
+    SUBCASE("Squish without its index") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Squish),
+                                     {path + ".sqi"});
+    }
+    SUBCASE("Squish without the file it is found by") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Squish),
+                                     {path + ".sqd"});
+    }
+    SUBCASE("JAM without its index") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Jam), {path + ".jdx"});
+    }
+    SUBCASE("JAM without its text file") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Jam), {path + ".jdt"});
+    }
+    SUBCASE("JAM with its headers alone") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Jam),
+                                     {path + ".jdx", path + ".jdt"});
+    }
+    SUBCASE("JAM without the file it is found by") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Jam), {path + ".jhr"});
+    }
+    SUBCASE("JAM with its text file alone") {
+        const std::string path = dir.path("fresh");
+        checkHalfMadeBaseIsCompleted(areaAt(path, MsgBaseType::Jam),
+                                     {path + ".jhr", path + ".jdx"});
+    }
+}
+
+TEST_CASE("Completing a half-made base writes over nothing it found [create]") {
+    // The file that is there is the base's own, whatever it holds: the info
+    // block carries the date the area came into being and the number its first
+    // message will take, and completing the base beside it must leave it byte
+    // for byte as it stood.
+    TempDir dir;
+    const std::string path = dir.path("fresh");
+    const AreaConfig area = areaAt(path, MsgBaseType::Jam);
+    REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+    const std::string headers = bytesOf(path + ".jhr");
+    REQUIRE(headers.size() == 1024);
+    fs::remove(path + ".jdx");
+
+    FtnMsgBase base("CP866");
+    REQUIRE(base.open(area).has_value());
+    base.close();
+
+    CHECK(bytesOf(path + ".jhr") == headers);
+    CHECK(fs::file_size(path + ".jdx") == 0);
+}
+
+TEST_CASE("A file of a half-made base that does not read as an empty one is "
+          "left alone [create]") {
+    // Empty is the state creating a base leaves a file in, and nothing else:
+    // the size of a header and a header in it. A file of zeroes is what a
+    // tosser that died in the middle of writing one leaves, and it is the size
+    // of an empty base without being one — completing the area beside it would
+    // make a base out of a file nothing can say anything about.
+    TempDir dir;
+
+    SUBCASE("a .sqd of zeroes") {
+        const std::string path = dir.path("fresh");
+        std::ofstream(path + ".sqd", std::ios::binary) << std::string(256, '\0');
+
+        FtnMsgBase base("CP866");
+        const auto opened = base.open(areaAt(path, MsgBaseType::Squish));
+        CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+        CHECK_FALSE(present(path + ".sqi"));
+    }
+    SUBCASE("a .jhr of zeroes") {
+        const std::string path = dir.path("fresh");
+        std::ofstream(path + ".jhr", std::ios::binary) << std::string(1024, '\0');
+
+        FtnMsgBase base("CP866");
+        const auto opened = base.open(areaAt(path, MsgBaseType::Jam));
+        CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+        CHECK_FALSE(present(path + ".jdx"));
+        CHECK_FALSE(present(path + ".jdt"));
+    }
+    SUBCASE("a .jdt with bytes in it") {
+        // The headers are an empty base's and the text file is not empty: the
+        // messages whose text that is are what the missing .jdx named, and
+        // handing the area a new empty one would lose them for good.
+        const std::string path = dir.path("fresh");
+        const AreaConfig area = areaAt(path, MsgBaseType::Jam);
+        REQUIRE(FtnMsgBase("CP866").create(area).has_value());
+        fs::remove(path + ".jdx");
+        std::ofstream(path + ".jdt", std::ios::binary | std::ios::app) << "text";
+
+        FtnMsgBase base("CP866");
+        const auto opened = base.open(area);
+        CHECK(kindOf(opened) == MsgBaseError::Kind::Incomplete);
+        CHECK_FALSE(present(path + ".jdx"));
     }
 }
 

@@ -212,6 +212,45 @@ constexpr KludgeMapping kKludgeMappings[] = {
     {"PATH: ", kSubPath},   {"SEEN-BY: ", kSubSeenBy},
 };
 
+/// The info block of a base of no messages, as it is written into a new .jhr.
+std::array<unsigned char, kInfoSize> emptyInfoBlock() {
+    std::array<unsigned char, kInfoSize> raw{};
+    std::memcpy(raw.data(), kSignature, sizeof(kSignature));
+    // When the area came into being, which is what the field is for and the one
+    // thing about an empty base worth recording.
+    writeU32(raw.data() + 4, static_cast<uint32_t>(std::time(nullptr)));
+    // JAM-001 spells "no password" as a CRC of all ones rather than as a zero,
+    // which is a legitimate CRC.
+    writeU32(raw.data() + 16, 0xffffffffu);
+    // The number the first message will carry. Packing moves this rather than
+    // renumbering the records, so it is a base number and not a count.
+    writeU32(raw.data() + 20, 1);
+    return raw;
+}
+
+/// Whether the .jhr at `path` is an info block and nothing else: 1024 bytes of
+/// file, the JAM signature at the head of it, and no message counted.
+///
+/// The length is most of the answer — a header takes 76 bytes and its
+/// subfields, so a file of exactly the info block has no room for one — and the
+/// signature is what tells it from 1024 bytes of something else, a file of
+/// zeroes being what a tosser that died mid-creation leaves. ActiveMsgs is read
+/// too: a block counting messages over a file with no header in it is a base
+/// that lost its headers rather than one that never had any, and that is not a
+/// base to write beside.
+bool isEmptyInfoBlock(const std::string& path) {
+    BinaryFile headers;
+    if (!headers.open(path, /*wantWritable=*/false)) return false;
+    if (headers.size() != static_cast<int64_t>(kInfoSize)) return false;
+
+    std::array<unsigned char, kInfoSize> raw{};
+    if (const auto io = headers.readAt(0, raw.data(), raw.size()); io.failed()) {
+        return false;
+    }
+    return std::memcmp(raw.data(), kSignature, sizeof(kSignature)) == 0 &&
+           readU32(raw.data() + 12) == 0;  // ActiveMsgs
+}
+
 }  // namespace
 
 tl::expected<void, ErrorPtr> JamBase::open(const std::string& path, bool echo,
@@ -270,7 +309,45 @@ void JamBase::close() {
 
 tl::expected<void, ErrorPtr> JamBase::create(const std::string& path) {
     close();
+    return makeFiles(path, /*keepExisting=*/false);
+}
 
+tl::expected<bool, ErrorPtr> JamBase::completeIfEmpty(const std::string& path) {
+    const std::string headerPath = path + ".jhr";
+    const std::string indexPath = path + ".jdx";
+    const std::string textPath = path + ".jdt";
+
+    std::error_code ec;
+    const bool hasHeaders = std::filesystem::exists(headerPath, ec);
+    ec.clear();
+    const bool hasIndex = std::filesystem::exists(indexPath, ec);
+    ec.clear();
+    const bool hasText = std::filesystem::exists(textPath, ec);
+
+    // Nothing of it at the path is not this call's business — there is no base
+    // to complete and nothing to judge empty by — and neither is one that is
+    // all there.
+    if (!hasHeaders && !hasIndex && !hasText) return false;
+    if (hasHeaders && hasIndex && hasText) return true;
+
+    // The .jhr is the info block and the headers behind it, so a file with no
+    // room for a header is the whole of an empty base; the .jdx is two dwords
+    // per message and the .jdt the text, so an empty one of either is a file of
+    // no bytes. One or two of the three standing in that state is a base that
+    // was interrupted on its way into being, and what is not there took nothing
+    // with it.
+    if (hasHeaders && !isEmptyInfoBlock(headerPath)) return false;
+    if (hasIndex && !isEmptyFile(indexPath)) return false;
+    if (hasText && !isEmptyFile(textPath)) return false;
+
+    if (auto made = makeFiles(path, /*keepExisting=*/true); !made) {
+        return tl::make_unexpected(std::move(made).error());
+    }
+    return true;
+}
+
+tl::expected<void, ErrorPtr> JamBase::makeFiles(const std::string& path,
+                                                bool keepExisting) {
     const std::string headerPath = path + ".jhr";
     const std::string indexPath = path + ".jdx";
     const std::string textPath = path + ".jdt";
@@ -299,47 +376,45 @@ tl::expected<void, ErrorPtr> JamBase::create(const std::string& path) {
     // The errno each create left behind goes into the sentence: "permission
     // denied", "no such directory" and "file exists" are three different things
     // to do about it, and a bare path says none of them.
-    BinaryFile index;
-    if (!index.create(indexPath)) {
-        return failure("cannot create " + indexPath + ": " + std::strerror(errno));
+    std::error_code ec;
+    if (!keepExisting || !std::filesystem::exists(indexPath, ec)) {
+        BinaryFile index;
+        if (!index.create(indexPath)) {
+            return failure("cannot create " + indexPath + ": " + std::strerror(errno));
+        }
+        made.push_back(indexPath);
+        index.close();
     }
-    made.push_back(indexPath);
-    index.close();
 
-    BinaryFile text;
-    if (!text.create(textPath)) {
-        auto reason = "cannot create " + textPath + ": " + std::strerror(errno);
-        giveBack();
-        return failure(std::move(reason));
+    ec.clear();
+    if (!keepExisting || !std::filesystem::exists(textPath, ec)) {
+        BinaryFile text;
+        if (!text.create(textPath)) {
+            auto reason = "cannot create " + textPath + ": " + std::strerror(errno);
+            giveBack();
+            return failure(std::move(reason));
+        }
+        made.push_back(textPath);
+        text.close();
     }
-    made.push_back(textPath);
-    text.close();
 
-    BinaryFile headers;
-    if (!headers.create(headerPath)) {
-        auto reason = "cannot create " + headerPath + ": " + std::strerror(errno);
-        giveBack();
-        return failure(std::move(reason));
-    }
-    made.push_back(headerPath);
+    ec.clear();
+    if (!keepExisting || !std::filesystem::exists(headerPath, ec)) {
+        BinaryFile headers;
+        if (!headers.create(headerPath)) {
+            auto reason = "cannot create " + headerPath + ": " + std::strerror(errno);
+            giveBack();
+            return failure(std::move(reason));
+        }
+        made.push_back(headerPath);
 
-    std::array<unsigned char, kInfoSize> raw{};
-    std::memcpy(raw.data(), kSignature, sizeof(kSignature));
-    // When the area came into being, which is what the field is for and the one
-    // thing about an empty base worth recording.
-    writeU32(raw.data() + 4, static_cast<uint32_t>(std::time(nullptr)));
-    // JAM-001 spells "no password" as a CRC of all ones rather than as a zero,
-    // which is a legitimate CRC.
-    writeU32(raw.data() + 16, 0xffffffffu);
-    // The number the first message will carry. Packing moves this rather than
-    // renumbering the records, so it is a base number and not a count.
-    writeU32(raw.data() + 20, 1);
-
-    if (const auto io = headers.writeAt(0, raw.data(), raw.size()); io.failed()) {
-        auto reason = "cannot write the info block of " + headerPath;
-        headers.close();
-        giveBack();
-        return failure(std::move(reason) + ": " + io.message());
+        const std::array<unsigned char, kInfoSize> raw = emptyInfoBlock();
+        if (const auto io = headers.writeAt(0, raw.data(), raw.size()); io.failed()) {
+            auto reason = "cannot write the info block of " + headerPath;
+            headers.close();
+            giveBack();
+            return failure(std::move(reason) + ": " + io.message());
+        }
     }
     return {};
 }

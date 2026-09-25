@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- recreate a half-made message base (e.g. .jhr and .jdx without .jdt) when it's empty
 - add theme roles header_background and table_header_background
 - input_field now follows header_background when a theme leaves it out
 

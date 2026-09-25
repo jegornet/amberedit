@@ -30,6 +30,8 @@ public:
                                                     uint16_t defaultZone) override;
     void close() override;
     [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
+    [[nodiscard]] tl::expected<bool, ErrorPtr> completeIfEmpty(
+        const std::string& path) override;
 
     /// All three files, and not the .jhr alone: a message is written into every
     /// one of them, and two out of three would leave the base half written.
@@ -54,6 +56,17 @@ public:
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
 
 private:
+    /// The three files, made where they are not already there: the .jdx and
+    /// .jdt empty and the .jhr carrying the info block of a base of no
+    /// messages.
+    ///
+    /// `keepExisting` is the difference between creating a base and filling in
+    /// the files a half-made one is short of. Either way nothing on disk is
+    /// written over — the creates are O_EXCL — and a failure takes back only
+    /// what this call had already made.
+    [[nodiscard]] static tl::expected<void, ErrorPtr> makeFiles(const std::string& path,
+                                                                bool keepExisting);
+
     /// The info block at offset 0 of the .jhr, in the fields we act on.
     struct Info {
         uint32_t dateCreated{0};

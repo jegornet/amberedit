@@ -101,7 +101,9 @@ private:
 /// `Absent` and `Incomplete` are the two ways the base an area names is not
 /// there to open, and they are apart because only the first is one that
 /// creating a base would supply: a base short of a file of its own still holds
-/// messages, and an empty one written over it would take them.
+/// messages, and an empty one written over it would take them. A base short of
+/// a file and holding *nothing* is neither — opening it puts the file back —
+/// so `Incomplete` is always a base with something in it.
 ///
 /// Both are asked of the area's own format and of nothing else at the path.
 /// Another format's base standing under the same name is another area's, so
@@ -117,10 +119,13 @@ public:
         Passthrough,
         /// Nothing at all is at the path the config named.
         Absent,
-        /// The base is there and a file it is read through is not: JAM without
-        /// its .jdx or .jdt, Squish without its .sqi — or those left behind by
-        /// a base whose .jhr or .sqd went. `detail` names what is missing.
-        /// Not a base to create over: what is still there holds messages.
+        /// The base is there, holds something, and a file it is read through
+        /// is not: JAM without its .jdx or .jdt, Squish without its .sqi — or
+        /// those left behind by a base whose .jhr or .sqd went. `detail` names
+        /// what is missing. Not a base to create over and not one to complete:
+        /// what is still there holds messages. One short of a file and holding
+        /// nothing never reaches here — `FormatDriver::completeIfEmpty()` makes
+        /// the file as the area opens.
         Incomplete,
         /// Nothing states the format and nothing on disk suggests one.
         UnknownType,

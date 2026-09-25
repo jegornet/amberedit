@@ -28,6 +28,15 @@ public:
     void close() override;
     [[nodiscard]] tl::expected<void, ErrorPtr> create(const std::string& path) override;
 
+    /// Never: the base is the directory and every file in it is a message, so
+    /// there is no file of its own whose absence makes it half a base. A
+    /// directory that is not there is absent and a directory that is there is
+    /// whole, however many messages are in it.
+    [[nodiscard]] tl::expected<bool, ErrorPtr> completeIfEmpty(
+        const std::string& /*path*/) override {
+        return false;
+    }
+
     /// The directory, not a file in it: a message here is a file of its own,
     /// so writing one is making an entry in the directory rather than changing
     /// anything that is already open. A message that is rewritten is opened

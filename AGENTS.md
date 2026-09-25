@@ -1013,10 +1013,11 @@ Rules that hold the design together:
   `AreaManager::openArea()` is the only place it happens — `reload()` opens every
   base there is, and creating them all at a rescan would write a spool nobody
   asked for. It acts on `FtnMsgBase::isAbsent()`: the area states a type and
-  **nothing at all** stands at its path. A base that is half there, or there and
-  unreadable, holds something an empty one written over it would take with it; an
-  area whose type nothing states has no format to guess at.
-  `FormatDriver::create()` is the format's half.
+  **nothing at all** stands at its path. A base that is half there is `open()`'s
+  and never this one's — it finishes one whose files hold nothing and refuses one
+  that holds messages — and a base there and unreadable holds something an empty
+  one written over it would take with it; an area whose type nothing states has
+  no format to guess at. `FormatDriver::create()` is the format's half.
 - **An area that will not open says so and stays on the list.** The row is drawn
   dimmed, but Enter on it is tried like any other — the dimming is what was true
   at startup, and the base may have been written since. Only once opening *and*
@@ -3853,6 +3854,19 @@ taking a row.
   messages. A base whose `.jhr` or `.sqd` is the file that went is that same
   state from the other end, so `isAbsent()` — the one state creating answers —
   is **all** of a format's files missing, not just the one it is found by.
+- **Except where what is standing holds nothing, and then the missing file is
+  made and the area opens empty.** The half-made base is as ordinary as the
+  half-lost one — a tosser stopped between two of the files it makes, a script
+  that swept the indexes as rebuildable, a disk that filled between one create
+  and the next — and what tells them apart is the state of the files that *are*
+  there: a `.sqd` of 256 bytes reading as a Squish header over no frames, a
+  `.jhr` of 1024 with the JAM signature and no message counted, an `.sqi`,
+  `.jdx` or `.jdt` of no bytes at all. Every one of them in that state and
+  `open()` finishes the base; anything else — a longer file, a header that does
+  not read, a file that cannot be read to find out — is `Incomplete` as before,
+  because a missing file is never invented beside messages. The judging and the
+  making are the driver's (`FormatDriver::completeIfEmpty()`): what an empty base
+  of a format looks like is the format's business.
 
 ## The message base drivers
 
@@ -3874,7 +3888,11 @@ an index refusing beside a `.jhr` that opens is an area with a piece gone rather
 than an area that is not there. **Creating removes only what that call made** —
 the creates are `O_EXCL`, so the list of files to take back on a failure is the
 list of files that were not there a moment ago; a create that bounced off an
-existing file must leave it exactly where it stands.
+existing file must leave it exactly where it stands. **Making a base and
+finishing a half-made one are the same code** — one `makeFiles()` per driver,
+`keepExisting` the whole of the difference — so a file the area already has is
+skipped rather than written over, and a completion that fails leaves the disk as
+it found it and names the file and the `errno`.
 
 **Every write, change and delete locks the base's files first and releases them
 after** — `.sqd` and `.sqi` for Squish, `.jhr`, `.jdx` and `.jdt` for JAM —

@@ -284,10 +284,29 @@ tl::expected<void, ErrorPtr> FtnMsgBase::open(const AreaConfig& area) {
         return failure<MsgBaseError>(MsgBaseError::Kind::Absent, area.path,
                                      std::string(domain::nameOf(type)));
     }
+
+    // Unless what is standing there holds nothing. A base short of a file is as
+    // often one that was interrupted on its way into being — a tosser stopped
+    // between two of the files it makes, an index swept away by a script that
+    // took it for rebuildable — as one that lost something, and where every
+    // file of it that *is* on disk is empty the two cases are the same case:
+    // nothing was lost, and the file that is gone is put back here and the area
+    // opened empty. `completeIfEmpty()` is the driver's half of that, and it is
+    // the driver's because what an empty base of a format looks like is the
+    // format's business.
     if (const std::vector<std::string> missing = missingParts(type, area.path);
         !missing.empty()) {
-        return failure<MsgBaseError>(MsgBaseError::Kind::Incomplete, area.path,
-                                     listOf(missing));
+        const auto completed = driver->completeIfEmpty(area.path);
+        if (!completed) {
+            // Tried and refused: the sentence names the file and the errno,
+            // which is what a spool nobody may write into says here.
+            return failure<MsgBaseError>(MsgBaseError::Kind::CannotOpen, area.path,
+                                         completed.error()->message());
+        }
+        if (!*completed) {
+            return failure<MsgBaseError>(MsgBaseError::Kind::Incomplete, area.path,
+                                         listOf(missing));
+        }
     }
 
     // Fido *.msg headers carry no zone of their own; the area's AKA is what
