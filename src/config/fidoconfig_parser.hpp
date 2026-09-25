@@ -4,9 +4,25 @@
 #include <vector>
 
 #include "config/path_map.hpp"
+#include "domain/ftn_address.hpp"
 #include "ports/i_area_source.hpp"
 
 namespace amberedit::config {
+
+/// What a fidoconfig says about whose system it is: the `sysop` statement and
+/// the `address` ones. Both are settings AmberEdit's own config states as `name`
+/// and `address`, and a person who has written them once for the tosser should
+/// not have to write them again — see `AppConfig::userName`.
+///
+/// The addresses are in the order the file names them, which is the order that
+/// matters: fidoconfig's first `address` is the main AKA and the rest are the
+/// others. Each comes without its domain — the statement is 5D and a message
+/// base holds nothing below four dimensions, so `2:5020/9999@fidonet` is read
+/// as the node it names.
+struct TosserIdentity {
+    std::string sysop;
+    std::vector<domain::FtnAddress> addresses;
+};
 
 /// Parser for husky/hpt-style tosser configs (fidoconfig):
 ///
@@ -15,9 +31,11 @@ namespace amberedit::config {
 ///
 /// It reads EchoArea / NetmailArea / LocalArea / BadArea / DupeArea lines, the
 /// `echoareadefaults` those inherit from, the `set` definitions that `[name]`
-/// stands for anywhere below them, and the include directive. Everything else
-/// is ignored: AmberEdit only needs the area list and does not aim to
-/// understand the whole tosser config.
+/// stands for anywhere below them, the include directive, and the `sysop` and
+/// `address` statements that say whose system it is — `loadIdentity()` is what
+/// hands those back. Everything else is ignored: AmberEdit needs the area list
+/// and who the mail is from, and does not aim to understand the whole tosser
+/// config.
 ///
 /// Passthrough areas are left out of the list, however the config marks them —
 /// `passthrough` where the base would be, the `-pass` option beside a base
@@ -37,9 +55,19 @@ public:
     [[nodiscard]] tl::expected<std::vector<domain::AreaConfig>, ErrorPtr> loadAreas()
         override;
 
+    /// What the config says about whose system it is, the `include`s walked for
+    /// it as they are for the areas — an HPT config commonly keeps the two in
+    /// different files. A config stating neither statement answers with an empty
+    /// name and no addresses, which is not an error: the tosser's config is
+    /// under no obligation to say who runs it.
+    [[nodiscard]] tl::expected<TosserIdentity, ErrorPtr> loadIdentity();
+
     /// Parsing from a string — the entry point for tests and include files.
     static std::vector<domain::AreaConfig> parseText(const std::string& content,
                                                      const PathMap& paths = {});
+
+    /// The same for the identity, and for the same callers.
+    static TosserIdentity parseIdentityText(const std::string& content);
 
     /// Every `include` the last `loadAreas()` passed over because the file it
     /// named is not there, in the spelling it was looked for under — mapped by

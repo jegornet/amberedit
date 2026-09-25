@@ -532,3 +532,131 @@ TEST_CASE("map_path reaches the file an include names [fidoconfig]") {
     CHECK(areas[0].path == "/mnt/fido/msg/one");
     CHECK(areas[1].path == "/mnt/fido/msg/two");
 }
+
+TEST_CASE("FidoconfigParser reads the sysop and the addresses [fidoconfig]") {
+    const auto identity = FidoconfigParser::parseIdentityText(
+        "Sysop Vasya Pupkin\n"
+        "Address 2:382/736\n"
+        "Address 2:382/736.1\n"
+        "EchoArea a.one /ftn/one -b squish\n");
+
+    // The name is the rest of the line, spaces and all: it is somebody's name
+    // and not a list of options.
+    CHECK(identity.sysop == "Vasya Pupkin");
+    // The statement repeats, the first one naming the main address.
+    REQUIRE(identity.addresses.size() == 2);
+    CHECK(identity.addresses[0].toString() == "2:382/736");
+    CHECK(identity.addresses[1].toString() == "2:382/736.1");
+}
+
+TEST_CASE("FidoconfigParser drops the domain from a 5D address [fidoconfig]") {
+    // fidoconfig's address statement is full 5D and nothing AmberEdit compares
+    // an address against carries a domain.
+    const auto identity =
+        FidoconfigParser::parseIdentityText("address 2:382/736.1@fidonet\n");
+
+    REQUIRE(identity.addresses.size() == 1);
+    CHECK(identity.addresses[0].toString() == "2:382/736.1");
+    CHECK(identity.addresses[0].domain.empty());
+}
+
+TEST_CASE("FidoconfigParser reads the identity a variable spells [fidoconfig]") {
+    // The two statements are lines like any other: the comment goes off them,
+    // `[name]` expands in them, and the keyword is matched without regard to
+    // case. A quoted name arrives without its quotes, which is what husky's
+    // stripRoundingChars() does to it.
+    const auto identity = FidoconfigParser::parseIdentityText(
+        "set node=2:6000/9999\n"
+        "SYSOP \"Vasya Pupkin\"   # the man himself\n"
+        "address [node]\n");
+
+    CHECK(identity.sysop == "Vasya Pupkin");
+    REQUIRE(identity.addresses.size() == 1);
+    CHECK(identity.addresses[0].toString() == "2:6000/9999");
+}
+
+TEST_CASE("FidoconfigParser: the last sysop statement wins [fidoconfig]") {
+    // husky's copyString() frees what the keyword held and writes the new value
+    // over it, so a config that states the name twice means the second one.
+    const auto identity = FidoconfigParser::parseIdentityText(
+        "sysop Vasya Pupkin\n"
+        "sysop Petya Ivanov\n");
+
+    CHECK(identity.sysop == "Petya Ivanov");
+}
+
+TEST_CASE("FidoconfigParser passes over an address it cannot read [fidoconfig]") {
+    // A statement naming no address leaves the list as it was rather than an
+    // entry of zeroes in it, which would be an address of ours that is nobody.
+    const auto identity = FidoconfigParser::parseIdentityText(
+        "address\n"
+        "address not-an-address\n"
+        "address 2:382/736\n");
+
+    REQUIRE(identity.addresses.size() == 1);
+    CHECK(identity.addresses[0].toString() == "2:382/736");
+}
+
+TEST_CASE("FidoconfigParser finds the identity in an include [fidoconfig]") {
+    // An HPT config commonly keeps the addresses in a file of their own and
+    // includes it, so the identity is walked exactly as the areas are.
+    const amberedit::test::TempDir dir;
+    const std::string common = dir.path("common");
+    const std::string config = dir.path("config");
+
+    const auto write = [](const std::string& path, const std::string& text) {
+        std::ofstream out(path);
+        out << text;
+    };
+    write(common,
+          "sysop Vasya Pupkin\n"
+          "address 2:382/736\n"
+          "address 2:6000/9999\n");
+    write(config, "include common\nEchoArea a.one /ftn/one -b squish\n");
+
+    FidoconfigParser parser(config);
+    const auto identity = amberedit::test::valueOf(parser.loadIdentity());
+
+    CHECK(identity.sysop == "Vasya Pupkin");
+    REQUIRE(identity.addresses.size() == 2);
+    CHECK(identity.addresses[0].toString() == "2:382/736");
+    CHECK(identity.addresses[1].toString() == "2:6000/9999");
+}
+
+TEST_CASE("FidoconfigParser: a config saying neither is no failure [fidoconfig]") {
+    // A tosser config is under no obligation to say who runs the system, and a
+    // config of nothing but areas is an ordinary one.
+    const auto identity =
+        FidoconfigParser::parseIdentityText("EchoArea a.one /ftn/one -b squish\n");
+
+    CHECK(identity.sysop.empty());
+    CHECK(identity.addresses.empty());
+}
+
+TEST_CASE("FidoconfigParser reads the identity in the stated charset [fidoconfig]") {
+    // The sysop's name is somebody's words in a file that never says what
+    // charset it is in, the same as an area description — so the AmberEdit
+    // config naming the file says, through `config_charset`.
+    const amberedit::test::TempDir dir;
+    const std::string config = dir.path("config");
+
+    amberedit::encoding::IconvRecoder recoder;
+    const std::string cp866 =
+        amberedit::test::valueOf(recoder.intoCharset("sysop Вася Пупкин\n", "CP866"));
+    std::ofstream out(config, std::ios::binary);
+    out << cp866;
+    out.close();
+
+    FidoconfigParser parser(config, PathMap{}, "CP866");
+    CHECK(amberedit::test::valueOf(parser.loadIdentity()).sysop == "Вася Пупкин");
+}
+
+TEST_CASE("FidoconfigParser: a bare sysop statement keeps the name [fidoconfig]") {
+    // husky reads the value of such a line as a missing parameter and keeps what
+    // the keyword held, so a stray `sysop` does not take the name away.
+    const auto identity = FidoconfigParser::parseIdentityText(
+        "sysop Vasya Pupkin\n"
+        "sysop\n");
+
+    CHECK(identity.sysop == "Vasya Pupkin");
+}

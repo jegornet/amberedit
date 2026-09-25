@@ -4126,3 +4126,167 @@ TEST_CASE("-o replaces a line an included file wrote [app_config]") {
     const std::string doubled = dir.error("include margin.cfg\nquote_margin 45\n");
     CHECK_MESSAGE(contains(doubled, "quote_margin is set twice"), doubled);
 }
+
+namespace {
+
+/// A tosser config on disk and the AmberEdit configs that name it.
+///
+/// The two are written apart: what these tests are about is a setting stated in
+/// one file and left out of the other, and the point of each one is which file
+/// said what.
+class TosserDir {
+public:
+    explicit TosserDir(const std::string& tosser) {
+        std::ofstream out(dir_.path("areas"));
+        out << tosser;
+    }
+
+    /// The AmberEdit config naming it, with the body on top of the settings
+    /// every config needs but the two this is about. The format is a parameter
+    /// because one test names the same file as a format that states no identity.
+    [[nodiscard]] std::string text(const std::string& body,
+                                   const std::string& format = "fidoconfig") const {
+        return "tosser_config " + dir_.path("areas") +
+               "\n"
+               "tosser_config_format " +
+               format + "\ndefault_charset CP866\ncompose_charset CP866\n" + body;
+    }
+
+    [[nodiscard]] AppConfig load(const std::string& body) const {
+        return amberedit::test::valueOf(AppConfig::loadFromString(text(body)));
+    }
+
+    /// Why it would not load. Empty means it did.
+    [[nodiscard]] std::string error(const std::string& body) const {
+        return amberedit::test::errorOf(AppConfig::loadFromString(text(body)));
+    }
+
+private:
+    amberedit::test::TempDir dir_;
+};
+
+/// The AKAs of a config, in order and as text.
+std::vector<std::string> akaList(const AppConfig& cfg) {
+    std::vector<std::string> akas;
+    akas.reserve(cfg.akaMatches.size());
+    for (const auto& entry : cfg.akaMatches) akas.push_back(entry.aka.toString());
+    return akas;
+}
+
+}  // namespace
+
+TEST_CASE("The tosser's fidoconfig says who the mail is from [app_config]") {
+    // Both halves are written once, in the config of the tosser that carries
+    // the mail, and AmberEdit's own config need not repeat them.
+    const TosserDir dir(
+        "sysop Vasya Pupkin\n"
+        "address 2:382/736\n"
+        "address 2:382/736.1\n"
+        "address 2:6000/9999\n"
+        "EchoArea a.one /ftn/one -b squish\n");
+
+    const auto cfg = dir.load("");
+    CHECK(cfg.userName == "Vasya Pupkin");
+    // The first address the tosser states is the main one and the rest are AKAs,
+    // in the order the file names them.
+    REQUIRE(cfg.userAddress);
+    CHECK(cfg.userAddress->toString() == "2:382/736");
+    CHECK(akaList(cfg) == std::vector<std::string>{"2:382/736.1", "2:6000/9999"});
+    // An AKA out of the tosser's config is one of ours wherever a message
+    // carries it, and never picked by destination — it has no patterns.
+    CHECK(cfg.isOwnAddress(*FtnAddress::parse("2:6000/9999")));
+    CHECK(cfg.akaFor(*FtnAddress::parse("2:5020/1"))->toString() == "2:382/736");
+}
+
+TEST_CASE("The AmberEdit config's own name beats the tosser's sysop [app_config]") {
+    const TosserDir dir(
+        "sysop Vasya Pupkin\n"
+        "address 2:382/736\n");
+
+    CHECK(dir.load("name Petya Ivanov\n").userName == "Petya Ivanov");
+    // And the address is still the tosser's: the two halves are asked for
+    // separately, a config stating one of them saying nothing about the other.
+    CHECK(dir.load("name Petya Ivanov\n").userAddress->toString() == "2:382/736");
+}
+
+TEST_CASE("An address here leaves the tosser's addresses alone [app_config]") {
+    // The main address is what the system *is*, and a config stating it has
+    // said so: the tosser's list is not then merged into it, not even as AKAs.
+    const TosserDir dir(
+        "sysop Vasya Pupkin\n"
+        "address 2:382/736\n"
+        "address 2:6000/9999\n");
+
+    const auto cfg = dir.load("address 2:5020/1\n");
+    CHECK(cfg.userAddress->toString() == "2:5020/1");
+    CHECK(cfg.akaMatches.empty());
+}
+
+TEST_CASE("The aka lines are added to the tosser's addresses [app_config]") {
+    // A config that states no main address takes the tosser's, and its own
+    // `aka` lines stand after the AKAs that came with it.
+    const TosserDir dir(
+        "sysop Vasya Pupkin\n"
+        "address 2:382/736\n"
+        "address 2:6000/9999\n");
+
+    const auto cfg = dir.load(
+        "aka 2:6000/9999\n"
+        "aka 255:255/255\n");
+
+    CHECK(cfg.userAddress->toString() == "2:382/736");
+    // An address both files name is one AKA and not two.
+    CHECK(akaList(cfg) == std::vector<std::string>{"2:6000/9999", "255:255/255"});
+}
+
+TEST_CASE("The same address twice in a tosser config is one AKA [app_config]") {
+    const TosserDir dir(
+        "sysop Vasya Pupkin\n"
+        "address 2:382/736\n"
+        "address 2:382/736@fidonet\n"
+        "address 2:6000/9999\n"
+        "address 2:6000/9999\n");
+
+    // The domain is dropped where the address is read, so the main address
+    // written 5D below itself is the same address and not another AKA.
+    CHECK(dir.load("").userAddress->toString() == "2:382/736");
+    CHECK(akaList(dir.load("")) == std::vector<std::string>{"2:6000/9999"});
+}
+
+TEST_CASE("A tosser config that says neither is still refused [app_config]") {
+    // The fallback is the tosser's config, not a guess: a fidoconfig of nothing
+    // but areas leaves both halves unsaid, and the message says where the other
+    // place to write them is.
+    const TosserDir dir("EchoArea a.one /ftn/one -b squish\n");
+
+    const std::string name = dir.error("address 2:382/736\n");
+    CHECK_MESSAGE(contains(name, "name is not set"), name);
+    CHECK_MESSAGE(contains(name, "states no sysop either"), name);
+
+    const std::string address = dir.error("name Vasya Pupkin\n");
+    CHECK_MESSAGE(contains(address, "address is not set"), address);
+    CHECK_MESSAGE(contains(address, "states no address either"), address);
+}
+
+TEST_CASE("A tosser config that will not open is refused here as nothing [app_config]") {
+    // The missing setting is what the start complains about, and the file that
+    // is not there is complained about where the areas are read — which is the
+    // one place that cannot do without it.
+    const std::string missing = amberedit::test::errorOf(AppConfig::loadFromString(
+        "tosser_config /nonexistent/husky/areas\ntosser_config_format fidoconfig\n"
+        "default_charset CP866\ncompose_charset CP866\n"));
+    CHECK_MESSAGE(contains(missing, "name is not set"), missing);
+}
+
+TEST_CASE("Only a fidoconfig is asked who the mail is from [app_config]") {
+    // areas.bbs is a list of areas and states nothing else, and squish.cfg's
+    // own `Address` belongs to a tosser AmberEdit has no other business with —
+    // so neither is opened for it, whatever the file at that path holds.
+    const TosserDir dir(
+        "sysop Vasya Pupkin\n"
+        "address 2:382/736\n");
+    const std::string asBbs =
+        amberedit::test::errorOf(AppConfig::loadFromString(dir.text("", "areas.bbs")));
+    CHECK_MESSAGE(contains(asBbs, "name is not set"), asBbs);
+    CHECK_MESSAGE(!contains(asBbs, "states no sysop either"), asBbs);
+}

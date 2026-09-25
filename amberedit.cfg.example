@@ -55,15 +55,19 @@ config_charset UTF-8
 
 # --- who you are --------------------------------------------------------------
 
-# The name a message you write is from. Required; may be set per area in a group
-# block. It is also the key JAM finds your lastread record by.
+# The sender name of your outgoing messages. It can also be taken from
+# fidoconfig (hpt) tosser config (see below). Required unless that file states
+# one; may be set per area in a group block.
 name Vasya Pupkin
 
-# The address a message you write is from, 3D or 4D. Required; may be set per
-# area in a group block.
+# The address a message you write is from, 3D or 4D. Required unless the tosser's
+# fidoconfig states an "address"; may be set per area in a group block. Left out,
+# the tosser's first address becomes yours and the rest become AKAs; written
+# here, the tosser's list is not used at all.
 address 2:382/9999.1
 
-# Your other addresses. Optional; one line per AKA.
+# Your other addresses. Optional; one line per AKA. Added to the addresses coming
+# from the tosser's config, if any.
 #aka 2:5020/999.1
 #aka 192:168/2
 

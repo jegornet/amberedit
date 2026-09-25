@@ -3732,6 +3732,30 @@ taking a row.
   literal bracket. **A backtick in a value is a backtick**: the format has a
   command substitution there, and running a shell command a tosser config names
   is not something a reader of message bases does.
+- **A fidoconfig also says who the mail is from.** `sysop` is the name and the
+  `address` statements are the addresses, read by
+  `FidoconfigParser::loadIdentity()` — the same parse as the areas, so an
+  `include` that holds them is walked and a `[name]` in them is expanded — and
+  merged in `readIdentityFromTosser()` while the config is read, which is why it
+  has to happen there and not in `AreaManager`: `name` and `address` are
+  required, and the check that refuses a config without them stands a few lines
+  below the merge. Each half is taken only where AmberEdit's own config states
+  none, and a `name` line here beats `sysop` there outright. The addresses turn
+  on the **main** one: with no `address` line the tosser's first address becomes
+  it and the rest become AKAs, the config's own `aka` lines following them
+  through `readAkas()`, which passes over one already in the list; with an
+  `address` line the tosser's list is not used at all, since what the AKAs beside
+  it add to is that address and not somebody else's list. A domain is dropped
+  where such an address is read — the statement is 5D and nothing AmberEdit
+  compares an address against carries one — and the AKAs are compared over the
+  four numbers, so the same node twice in a tosser config is one address.
+  - **The tosser's config is opened for this only where something is missing**,
+    and a file that will not open says nothing rather than failing: the setting
+    still missing is refused right after, and the unreadable file is reported
+    where the areas are read, which is the one place that cannot do without it.
+    The other two formats are never asked — areas.bbs states nothing but areas,
+    and squish.cfg's own `Address` belongs to a tosser AmberEdit has no other
+    business with.
 - **An area's AKA is not a link.** Both fidoconfig's `-a` and squish.cfg's `-p`
   name the address the area is presented under and take exactly one; the bare
   addresses that follow are the links. Reading `-a` as a list of links silently

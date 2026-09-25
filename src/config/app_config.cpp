@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "config/cfg_file.hpp"
+#include "config/fidoconfig_parser.hpp"
 #include "config/text_util.hpp"
 #include "domain/message.hpp"
 #include "encoding/charset_detector.hpp"
@@ -2294,6 +2295,46 @@ tl::expected<void, ErrorPtr> readManualAreas(const std::vector<Block>& blocks,
     return {};
 }
 
+/// Fills in from the tosser's fidoconfig what this config left unsaid about who
+/// the mail is from — `sysop` for the name, the `address` statements for the
+/// addresses.
+///
+/// Each half is taken only where this config states none. `name` here wins over
+/// `sysop` there outright. The addresses are all-or-nothing on the *main* one: a
+/// config stating `address` has said what the system is, and the `aka` lines
+/// beside it are additions to that and not to the tosser's list, so the tosser's
+/// addresses are left where they are. Where it states none, the tosser's first
+/// address becomes the main one and the rest become AKAs, with whatever `aka`
+/// lines this config writes added after them — `readAkas()` runs below this and
+/// passes over an address already in the list.
+///
+/// A tosser config that will not open says nothing and is no failure of its own:
+/// the setting that is still missing is refused right after this, and the
+/// unreadable file is reported where the areas are read, which is the place that
+/// cannot do without it.
+void readIdentityFromTosser(AppConfig& cfg) {
+    FidoconfigParser tosser(cfg.tosserConfigPath, cfg.tosserPaths, cfg.configCharset);
+    auto identity = tosser.loadIdentity();
+    if (!identity) return;
+
+    if (cfg.userName.empty()) cfg.userName = identity->sysop;
+    if (cfg.userAddress || identity->addresses.empty()) return;
+
+    cfg.userAddress = identity->addresses.front();
+    for (size_t i = 1; i < identity->addresses.size(); ++i) {
+        const domain::FtnAddress& aka = identity->addresses[i];
+        // Compared over the four numbers, which is how every address AmberEdit
+        // holds is compared: the domain was dropped where these were read, and
+        // the same node written twice in a tosser config is one address of ours
+        // and not two.
+        if (cfg.userAddress->same4D(aka)) continue;
+        const bool known =
+            std::any_of(cfg.akaMatches.begin(), cfg.akaMatches.end(),
+                        [&aka](const AkaMatch& entry) { return entry.aka.same4D(aka); });
+        if (!known) cfg.akaMatches.push_back(AkaMatch{aka, {}});
+    }
+}
+
 tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entries,
                                               const std::string& originName) {
     AppConfig cfg;
@@ -2424,20 +2465,37 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
                        ": compose_charset is not set — it is the charset a message is "
                        "written in");
     }
-    // Who the messages are from, and neither half is guessed either. Without the
-    // address the origin line ends in an empty pair of parentheses and the
-    // header carries no From address, which is a message the tosser bounces;
-    // without the name JAM has no CRC to key a lastread record by, and that
-    // format silently keeps no marks at all. Both are failures a long way from
-    // the config that caused them, so the config is where they are refused.
+    // Who the messages are from. Where this config says nothing about it, the
+    // tosser's does: a fidoconfig states the sysop's name and the addresses of
+    // the system, and somebody who has written them there is not asked to write
+    // them again here. The other two formats state neither — areas.bbs is a list
+    // of areas and nothing else, and squish.cfg's own `Address` belongs to a
+    // tosser AmberEdit has no other business with.
+    const bool fromTosser = !cfg.tosserConfigPath.empty() &&
+                            cfg.tosserConfigFormat == TosserConfigFormat::Fidoconfig;
+    if (fromTosser && (cfg.userName.empty() || !cfg.userAddress)) {
+        readIdentityFromTosser(cfg);
+    }
+
+    // And neither half is guessed even so. Without the address the origin line
+    // ends in an empty pair of parentheses and the header carries no From
+    // address, which is a message the tosser bounces; without the name JAM has
+    // no CRC to key a lastread record by, and that format silently keeps no
+    // marks at all. Both are failures a long way from the config that caused
+    // them, so the config is where they are refused.
     if (cfg.userName.empty()) {
-        return failure(originName +
-                       ": name is not set — it is the name a message is written under");
+        return failure(
+            originName +
+            ": name is not set — it is the name a message is "
+            "written under" +
+            (fromTosser ? ", and the tosser's config states no sysop either" : ""));
     }
     if (!cfg.userAddress) {
-        return failure(originName +
-                       ": address is not set — it is the address a message is "
-                       "written from");
+        return failure(
+            originName +
+            ": address is not set — it is the address a message is "
+            "written from" +
+            (fromTosser ? ", and the tosser's config states no address either" : ""));
     }
     // A nodelist with nowhere to compile it to is a line that does nothing, and
     // the other way round is not: a config may read a compiled nodelist that

@@ -36,6 +36,17 @@ config in
 .B area ... endarea
 blocks.
 .PP
+A fidoconfig says who the mail is from as well: its
+.B sysop
+and
+.B address
+statements stand in for the
+.B name
+and
+.B address
+lines of AmberEdit's own config where those are left out, and lose to them
+where they are written.
+.PP
 Four screens stand one behind the other: the area list, the message list, the
 reader and the editor. Messages are read and written both in UTF\-8 and in the
 single\-byte charsets FidoNet runs on \(em CP866, CP437, KOI8\-R, LATIN\-1 \(em

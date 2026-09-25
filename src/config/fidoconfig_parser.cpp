@@ -61,6 +61,12 @@ struct ParseState {
     /// where "no areas in this file" and "this file includes one that is not
     /// there" are the same fact and only the second is worth reading.
     std::vector<std::string> missingIncludes;
+
+    /// What the `sysop` and `address` statements said, gathered as the areas
+    /// are: they may stand in an included file as easily as in this one, and a
+    /// second pass over the same text to find them would be the same work done
+    /// twice.
+    TosserIdentity identity;
 };
 
 /// The variables a config can use without setting them.
@@ -175,6 +181,15 @@ std::optional<AreaKind> parseAreaKeyword(std::string_view keyword) {
 /// are all written in — is meant for it.
 bool inheritsDefaults(AreaKind kind) {
     return kind != AreaKind::Netmail;
+}
+
+/// Takes off the pair of double quotes a value may be written in, which is what
+/// husky's `stripRoundingChars()` does to every string keyword's value. A quote
+/// at one end only is text like any other.
+std::string unquote(std::string_view value) {
+    if (value.size() >= 2 && value.front() == '"' && value.back() == '"')
+        value = value.substr(1, value.size() - 2);
+    return std::string(value);
 }
 
 /// Strips a '#' comment and trailing whitespace.
@@ -345,6 +360,35 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
             continue;
         }
 
+        // sysop <name> — the rest of the line, which is how husky reads it
+        // (`fc_copyString(getRestOfLine())` in fidoconf/src/line.c): a name is
+        // several words and none of them is an option. The quotes around a
+        // value are taken off it, and a second statement wins over the first,
+        // both of them husky's own behaviour for a keyword written twice. A
+        // statement naming nobody leaves the name as it was, husky calling that
+        // a missing parameter and keeping what it had.
+        if (text::iequals(tokens[0], "sysop")) {
+            std::string sysop =
+                unquote(text::trim(std::string_view(line).substr(tokens[0].size())));
+            if (!sysop.empty()) state.identity.sysop = std::move(sysop);
+            continue;
+        }
+
+        // address <addr> — the first token after the keyword and nothing after
+        // it, husky looking at one aka per statement. The statement repeats,
+        // the first one naming the main address and the rest the other AKAs,
+        // which is the order they are kept in here.
+        if (text::iequals(tokens[0], "address") && tokens.size() >= 2) {
+            if (auto address = FtnAddress::parse(tokens[1])) {
+                // 5D as written, 4D as kept: fidoconfig's address is full 5D
+                // and nothing AmberEdit compares an address against carries a
+                // domain — a message base holds four numbers and no more.
+                address->domain.clear();
+                state.identity.addresses.push_back(*address);
+            }
+            continue;
+        }
+
         // include <file> — the path is relative to the including config.
         //
         // Mapped before it is resolved, since a `map_path` is what turns an
@@ -382,6 +426,23 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
     return {};
 }
 
+/// One whole config — the file, its includes, and everything the parse left
+/// behind. The areas go into `areas` and the rest is the state handed back, so
+/// that the two things a caller may want out of a fidoconfig are read the same
+/// way and read once each.
+tl::expected<ParseState, ErrorPtr> readConfig(const std::string& path,
+                                              std::vector<AreaConfig>& areas,
+                                              const PathMap& paths,
+                                              const std::string& charset) {
+    auto content = text::readFileIn(path, charset);
+    if (!content) return tl::make_unexpected(std::move(content).error());
+    ParseState state{initialVariables(), AreaConfig{}, {}, {}};
+    auto read = parseInto(*content, areas, std::filesystem::path(path).parent_path(),
+                          /*includeDepth=*/8, state, paths, charset);
+    if (!read) return tl::make_unexpected(std::move(read).error());
+    return state;
+}
+
 }  // namespace
 
 FidoconfigParser::FidoconfigParser(std::string path, PathMap paths, std::string charset)
@@ -389,26 +450,45 @@ FidoconfigParser::FidoconfigParser(std::string path, PathMap paths, std::string 
 
 tl::expected<std::vector<AreaConfig>, ErrorPtr> FidoconfigParser::loadAreas() {
     missingIncludes_.clear();
-    auto content = text::readFileIn(path_, charset_);
-    if (!content) return tl::make_unexpected(std::move(content).error());
     std::vector<AreaConfig> areas;
-    ParseState state{initialVariables(), AreaConfig{}, {}};
-    auto read = parseInto(*content, areas, std::filesystem::path(path_).parent_path(),
-                          /*includeDepth=*/8, state, paths_, charset_);
-    if (!read) return tl::make_unexpected(std::move(read).error());
-    missingIncludes_ = std::move(state.missingIncludes);
+    auto state = readConfig(path_, areas, paths_, charset_);
+    if (!state) return tl::make_unexpected(std::move(state).error());
+    missingIncludes_ = std::move(state->missingIncludes);
     return areas;
+}
+
+tl::expected<TosserIdentity, ErrorPtr> FidoconfigParser::loadIdentity() {
+    // The areas are read and dropped. Walking the file for the two statements
+    // alone would mean a second parser that has to know `include` and `set` and
+    // everything else that decides what a line says — two readings of one format
+    // to be kept in step with each other — and the whole of an HPT config is a
+    // few hundred lines.
+    //
+    // `missingIncludes_` is left alone: it says what the last `loadAreas()` went
+    // past, and an identity read is not that.
+    std::vector<AreaConfig> ignored;
+    auto state = readConfig(path_, ignored, paths_, charset_);
+    if (!state) return tl::make_unexpected(std::move(state).error());
+    return std::move(state->identity);
 }
 
 std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content,
                                                     const PathMap& paths) {
     std::vector<AreaConfig> areas;
-    ParseState state{initialVariables(), AreaConfig{}, {}};
+    ParseState state{initialVariables(), AreaConfig{}, {}, {}};
     // includeDepth 0, so the one thing parseInto can fail at — reading an
     // include — cannot happen and the answer is nothing to check.
     static_cast<void>(parseInto(content, areas, std::filesystem::current_path(),
                                 /*includeDepth=*/0, state, paths, /*charset=*/""));
     return areas;
+}
+
+TosserIdentity FidoconfigParser::parseIdentityText(const std::string& content) {
+    std::vector<AreaConfig> areas;
+    ParseState state{initialVariables(), AreaConfig{}, {}, {}};
+    static_cast<void>(parseInto(content, areas, std::filesystem::current_path(),
+                                /*includeDepth=*/0, state, PathMap{}, /*charset=*/""));
+    return std::move(state.identity);
 }
 
 }  // namespace amberedit::config
