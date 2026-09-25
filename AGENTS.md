@@ -700,8 +700,20 @@ Rules that hold the design together:
   them, `@` for ^A, since what is carried is text *about* a message and not
   control data of the answer's own — a forwarded `SEEN-BY:` is one this reader
   hides again on `k`, and that is right: it is service data wherever it stands.
-  The tearline and origin are left out whether the kludges are on or off; the
-  message being written closes with a pair of its own.
+- **The trailer closing the answered message is `quote_trailer`'s.** Its tagline,
+  tearline and origin are the three lines `markTrailer()` flags, and the setting
+  says whether `quotableLines()` carries them: `with_kludges` unless the config
+  says otherwise, which puts them on the screen of the answer exactly when the
+  rest of what that message states about itself is there — they are a sign-off
+  to a person and a service block to a tosser, and the reader's `k` is where
+  that question is already answered. `on` carries them whatever the reader is
+  showing, `off` never does. It says nothing about the footer the answer is
+  closed with, which `closeMessage()` writes either way: a carried tearline goes in as
+  text, and a quote prefix in front of `--- ` is no longer a marker anything
+  downstream reads. A forward, which carries the message whole, is decided by
+  the same setting — and there the pair is spoiled to `-+-`/` + Origin:` on the
+  way out, being a tearline standing in the middle of a message. It is per area,
+  as `quote_string` and `quote_margin` are.
 - **Tearline, tagline and origin.** `domain::markTrailer()` flags the block
   closing a message, walking back from the last line and stopping at the first
   thing that is none of them; kludges and blanks are stepped over, since SEEN-BY

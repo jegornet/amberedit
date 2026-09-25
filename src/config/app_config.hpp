@@ -143,6 +143,21 @@ enum class TwitMode {
     Kill,    ///< deleted from the base, unasked, as the area is opened
 };
 
+/// Whether the trailer closing the answered message — its tagline, its tearline
+/// and its origin, the lines domain::markTrailer() flags — is carried into the
+/// answer, from `quote_trailer`.
+///
+/// Three answers, because the trailer is two things at once: the signature of
+/// whoever wrote the message, which somebody answering "nice origin" needs on
+/// the screen, and the service block a tosser reads, which is nothing to the
+/// answer. `with_kludges` says it is service data and shows it exactly where
+/// the rest of the service data is showing.
+enum class QuoteTrailer {
+    On,           ///< carried whatever the reader is showing
+    WithKludges,  ///< carried where the reader is showing the kludges
+    Off,          ///< never carried
+};
+
 /// One `twit` line: whom the messages that are not to be read are from — or to,
 /// where `twit_to` is on.
 ///
@@ -1831,6 +1846,23 @@ struct AppConfig {
     /// a wider margin does not leave a quote of two words to the line. What is
     /// joined and what is left alone is app::quoteLines()' business.
     bool quoteUnwrap{false};
+
+    /// Whether the trailer closing the answered message — its tagline, its
+    /// tearline and its origin — is carried into the answer, from
+    /// `quote_trailer`.
+    ///
+    /// `with_kludges` unless the config says otherwise: those three lines are
+    /// the trailer of a message somebody else wrote, and they belong on the
+    /// screen of an answer exactly when the rest of what that message states
+    /// about itself does — which is what the reader's `k` decides. `on` carries
+    /// them whatever the reader is showing, for an echo where the origins are
+    /// half of what is being talked about; `off` never does.
+    ///
+    /// It says nothing about the footer the answer is closed with: that is
+    /// written by closeMessage() either way, and a carried tearline is a quoted
+    /// line of text rather than a second marker — a quote prefix in front of
+    /// "--- " is no longer a tearline to anything that reads one.
+    QuoteTrailer quoteTrailer{QuoteTrailer::WithKludges};
 
     /// The lines standing either side of a file imported into a message as
     /// text, from `import_begin` and `import_end` — "=== Cut ===" both unless

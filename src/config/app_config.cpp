@@ -809,6 +809,17 @@ tl::expected<PositionAfterSave, ErrorPtr> parsePositionAfterSave(const CfgEntry&
                       "' is not one of its values (new | current | next)");
 }
 
+tl::expected<QuoteTrailer, ErrorPtr> parseQuoteTrailer(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "on") return QuoteTrailer::On;
+    if (value == "with_kludges") return QuoteTrailer::WithKludges;
+    if (value == "off") return QuoteTrailer::Off;
+    return entry.fail("quote_trailer: '" + *only +
+                      "' is not one of its values (on | with_kludges | off)");
+}
+
 tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -1772,6 +1783,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.quoteUnwrap = *read;
+    } else if (key == "quote_trailer") {
+        auto read = parseQuoteTrailer(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.quoteTrailer = *read;
     } else if (key == "import_begin") {
         // Empty is a value like any other here: it is how a file goes into a
         // message with no line in front of it, and `entry.text()` of a key
@@ -1824,6 +1839,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "quote_string",
                                                       "quote_margin",
                                                       "quote_unwrap",
+                                                      "quote_trailer",
                                                       "import_begin",
                                                       "import_end",
                                                       "template_date_format",

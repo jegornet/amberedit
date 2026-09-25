@@ -1328,6 +1328,15 @@ quote_margin 78
 # signature or a piece of ASCII art is quoted exactly as it stands either way.
 quote_unwrap off
 
+# Whether the trailer closing the message being answered — its tagline, its
+# tearline and its origin — is quoted along with the text. Optional;
+# with_kludges by default; may be set per area in a group block.
+#
+#   on             quoted whatever the reader is showing
+#   with_kludges   quoted where the reader is showing the kludges ("k")
+#   off            never quoted
+quote_trailer with_kludges
+
 # The two lines standing either side of a file read into a message as text — ^O
 # in the editor, and "import" in compose_menu. Optional; "=== Cut ===" both. An
 # empty one writes no line at all. Only text is fenced: a file read in as UUE
@@ -1505,7 +1514,7 @@ twit_mode blank
 #   default_charset       compose_charset
 #   origin                tearline              tagline
 #   template              quote_string          quote_margin
-#   quote_unwrap
+#   quote_unwrap          quote_trailer
 #   template_date_format  template_time_format
 #   import_begin          import_end
 #   reader_stylecodes     areareplydirect       reply_to_area

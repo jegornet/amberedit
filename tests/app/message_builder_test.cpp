@@ -1185,30 +1185,38 @@ TEST_CASE(
     request.kludgesShown = true;
 
     // A reply quotes them along with the text: somebody who turned the kludges
-    // on to point at one can answer the line they are pointing at.
+    // on to point at one can answer the line they are pointing at. The pair
+    // closing the answered message comes with them, `quote_trailer` standing at
+    // `with_kludges`.
     const auto reply = startingText(request);
-    REQUIRE(reply.lines.size() == 7);
+    REQUIRE(reply.lines.size() == 9);
     CHECK(reply.lines[0] == "Vasya Pupkin wrote:");
     CHECK(reply.lines[1] == " VP> AREA:RU.LINUX");
     CHECK(reply.lines[2] == " VP> @MSGID: 192:168/3.1 5f3a1b2c");
     CHECK(reply.lines[3] == " VP> hello there");
-    CHECK(reply.lines[4] == " VP> SEEN-BY: 382/736");
-    // Its own tearline and origin, never the answered message's.
-    CHECK(reply.lines[5] == kTearline);
-    CHECK(reply.lines[6] == kOrigin);
+    CHECK(reply.lines[4] == " VP> --- GoldED");
+    CHECK(reply.lines[5] == " VP>  * Origin: somewhere (192:168/3.1)");
+    CHECK(reply.lines[6] == " VP> SEEN-BY: 382/736");
+    // Its own tearline and origin, whatever it carries of the other message's.
+    CHECK(reply.lines[7] == kTearline);
+    CHECK(reply.lines[8] == kOrigin);
 
-    // A forward carries the same lines, unquoted, where @message stands.
+    // A forward carries the same lines, unquoted, where @message stands — and
+    // the pair it carries is spoiled on the way out, since a tearline standing
+    // in the middle of a message is where a tosser would cut it.
     fields.forward = true;
     request.fields = fields;
     const auto forwarded = startingText(request);
-    REQUIRE(forwarded.lines.size() == 7);
+    REQUIRE(forwarded.lines.size() == 9);
     CHECK(forwarded.lines[0] == "* Forwarded by Yegor Gluhov");
     CHECK(forwarded.lines[1] == "AREA:RU.LINUX");
     CHECK(forwarded.lines[2] == "@MSGID: 192:168/3.1 5f3a1b2c");
     CHECK(forwarded.lines[3] == "hello there");
-    CHECK(forwarded.lines[4] == "SEEN-BY: 382/736");
-    CHECK(forwarded.lines[5] == kTearline);
-    CHECK(forwarded.lines[6] == kOrigin);
+    CHECK(forwarded.lines[4] == "-+- GoldED");
+    CHECK(forwarded.lines[5] == " + Origin: somewhere (192:168/3.1)");
+    CHECK(forwarded.lines[6] == "SEEN-BY: 382/736");
+    CHECK(forwarded.lines[7] == kTearline);
+    CHECK(forwarded.lines[8] == kOrigin);
 
     // With the kludges off, which is how the reader stands by default, only the
     // text is carried either way.
@@ -1216,6 +1224,89 @@ TEST_CASE(
     const auto plain = startingText(request);
     REQUIRE(plain.lines.size() == 4);
     CHECK(plain.lines[1] == "hello there");
+}
+
+TEST_CASE(
+    "quote_trailer decides whether the answered message's signature is carried "
+    "[builder]") {
+    const TempFile tpl(
+        "@quoted@oname wrote:\n"
+        "@quote\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.toName = "Vasya Pupkin";
+
+    MessageHeader original;
+    original.from = "Vasya Pupkin";
+    // A message closed the way FTS-0004 asks for, the three lines of the
+    // trailer flagged as markTrailer() flags them and a SEEN-BY under them.
+    MessageBody body;
+    body.lines = {{"@MSGID: 192:168/3.1 5f3a1b2c", true, false},
+                  {"hello there", false, false},
+                  {"... a tagline", false, true},
+                  {"--- GoldED", false, true},
+                  {" * Origin: somewhere (192:168/3.1)", false, true},
+                  {"SEEN-BY: 382/736", true, false}};
+
+    BuildRequest request{cfg, area, fields, &original, &body, nullptr, 0x68A1B2C3, 180};
+
+    // `with_kludges` by default: the reader showing nothing of the message's
+    // service data quotes the text alone, as every FTN editor has.
+    request.kludgesShown = false;
+    const auto quiet = startingText(request);
+    REQUIRE(quiet.lines.size() == 4);
+    CHECK(quiet.lines[1] == " VP> hello there");
+    CHECK(quiet.lines[2] == kTearline);
+    CHECK(quiet.lines[3] == kOrigin);
+
+    // The same setting with the kludges on carries the block with them — and
+    // quoted, so that the tearline is a line of text and not a second marker.
+    request.kludgesShown = true;
+    const auto shown = startingText(request);
+    REQUIRE(shown.lines.size() == 9);
+    CHECK(shown.lines[1] == " VP> @MSGID: 192:168/3.1 5f3a1b2c");
+    CHECK(shown.lines[2] == " VP> hello there");
+    CHECK(shown.lines[3] == " VP> ... a tagline");
+    CHECK(shown.lines[4] == " VP> --- GoldED");
+    CHECK(shown.lines[5] == " VP>  * Origin: somewhere (192:168/3.1)");
+    CHECK(shown.lines[6] == " VP> SEEN-BY: 382/736");
+    CHECK(shown.lines[7] == kTearline);
+    CHECK(shown.lines[8] == kOrigin);
+
+    // `on` carries them whatever the reader is showing, and the kludges stay
+    // the reader's own business.
+    AppConfig alwaysCfg = cfg;
+    alwaysCfg.quoteTrailer = amberedit::config::QuoteTrailer::On;
+    BuildRequest alwaysRequest{alwaysCfg, area,    fields,     &original,
+                               &body,     nullptr, 0x68A1B2C3, 180};
+    alwaysRequest.kludgesShown = false;
+    const auto always = startingText(alwaysRequest);
+    REQUIRE(always.lines.size() == 7);
+    CHECK(always.lines[1] == " VP> hello there");
+    CHECK(always.lines[2] == " VP> ... a tagline");
+    CHECK(always.lines[3] == " VP> --- GoldED");
+    CHECK(always.lines[4] == " VP>  * Origin: somewhere (192:168/3.1)");
+    CHECK(always.lines[5] == kTearline);
+    CHECK(always.lines[6] == kOrigin);
+
+    // `off` never does, not even with the kludges on.
+    AppConfig neverCfg = cfg;
+    neverCfg.quoteTrailer = amberedit::config::QuoteTrailer::Off;
+    BuildRequest neverRequest{neverCfg, area,    fields,     &original,
+                              &body,    nullptr, 0x68A1B2C3, 180};
+    neverRequest.kludgesShown = true;
+    const auto never = startingText(neverRequest);
+    REQUIRE(never.lines.size() == 6);
+    CHECK(never.lines[1] == " VP> @MSGID: 192:168/3.1 5f3a1b2c");
+    CHECK(never.lines[2] == " VP> hello there");
+    CHECK(never.lines[3] == " VP> SEEN-BY: 382/736");
+    CHECK(never.lines[4] == kTearline);
+    CHECK(never.lines[5] == kOrigin);
 }
 
 TEST_CASE(

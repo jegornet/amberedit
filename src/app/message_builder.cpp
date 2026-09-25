@@ -170,15 +170,24 @@ size_t closingLines(const std::vector<std::string>& lines, bool footer) {
 /// the control lines too where the reader is showing them — `kludges` is the
 /// reader's `k`, so the quote and the forward carry what was on screen.
 ///
-/// Never the tearline and origin closing it, whether or not the kludges are on:
-/// neither is the author's words, and the message being written closes with a
-/// pair of its own. The control lines are carried exactly as the reader shows
-/// them, ^A standing as '@' — what goes into the answer is text about a message
-/// and not control data of the answer's own.
-std::vector<std::string> quotableLines(const domain::MessageBody& body, bool kludges) {
+/// The trailer closing it — its tagline, its tearline and its origin, the lines
+/// markTrailer() flagged — is `quote_trailer`'s business: it is the block that
+/// signs somebody else's message, carried where the reader is showing the
+/// kludges unless the config says otherwise. The message being written closes
+/// with a footer of its own regardless — a carried tearline goes in as a line
+/// of text, and under a quote prefix it is no longer a marker anything
+/// downstream reads.
+///
+/// The control lines are carried exactly as the reader shows them, ^A standing
+/// as '@' — what goes into the answer is text about a message and not control
+/// data of the answer's own.
+std::vector<std::string> quotableLines(const domain::MessageBody& body, bool kludges,
+                                       config::QuoteTrailer trailer) {
+    const bool keepTrailer = trailer == config::QuoteTrailer::On ||
+                             (trailer == config::QuoteTrailer::WithKludges && kludges);
     std::vector<std::string> out;
     for (const auto& line : body.lines) {
-        if (line.trailer) continue;
+        if (line.trailer && !keepTrailer) continue;
         if (line.kludge && !kludges) continue;
         out.push_back(line.text);
     }
@@ -309,8 +318,8 @@ TemplateContext contextFor(const BuildRequest& request) {
     }
     if (request.originalBody != nullptr) {
         context.omsgid = msgidOf(*request.originalBody);
-        const std::vector<std::string> carried =
-            quotableLines(*request.originalBody, request.kludgesShown);
+        const std::vector<std::string> carried = quotableLines(
+            *request.originalBody, request.kludgesShown, request.config.quoteTrailer);
         // One or the other, never both: a forward puts the message in whole
         // where @message stands, and a reply quotes it where @quote does. Both
         // tokens are unconditional inserts in the template GoldED ships, so

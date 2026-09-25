@@ -2030,6 +2030,23 @@ TEST_CASE("quote_unwrap is off unless it is turned on [app_config]") {
     CHECK_FALSE(loads("quote_unwrap yes\n"));
 }
 
+TEST_CASE("quote_trailer follows the kludges unless it is told otherwise [app_config]") {
+    using amberedit::config::QuoteTrailer;
+
+    // The three lines closing a message are its service block as much as its
+    // signature, so they come along where the rest of the service data does.
+    CHECK(with("").quoteTrailer == QuoteTrailer::WithKludges);
+    CHECK(with("quote_trailer on\n").quoteTrailer == QuoteTrailer::On);
+    CHECK(with("quote_trailer with_kludges\n").quoteTrailer == QuoteTrailer::WithKludges);
+    CHECK(with("quote_trailer off\n").quoteTrailer == QuoteTrailer::Off);
+    // Spelt as the config spells its answers, and in whatever case.
+    CHECK(with("quote_trailer WITH_KLUDGES\n").quoteTrailer == QuoteTrailer::WithKludges);
+
+    const std::string error = errorWith("quote_trailer sometimes\n");
+    CHECK_MESSAGE(contains(error, "on | with_kludges | off"), error);
+    CHECK_FALSE(loads("quote_trailer yes\n"));
+}
+
 TEST_CASE("AppConfig reads the date and time formats [app_config]") {
     // The reader's header shows one string, so its date and time are one
     // setting; a template writes the two through tokens of their own, so they
@@ -2864,6 +2881,22 @@ TEST_CASE("A group decides quote_unwrap for the areas it covers [app_config]") {
     CHECK_FALSE(cfg.quoteUnwrap);
     CHECK_FALSE(cfg.effectiveFor(area("ru.linux")).quoteUnwrap);
     CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteUnwrap);
+}
+
+TEST_CASE("A group decides quote_trailer for the areas it covers [app_config]") {
+    using amberedit::config::QuoteTrailer;
+
+    // An echo where the origins are half of what is being talked about is a
+    // particular echo, and the rest are answered without them.
+    const auto cfg = with(
+        "group\n"
+        "  member fsx.*\n"
+        "  quote_trailer on\n"
+        "endgroup\n");
+
+    CHECK(cfg.quoteTrailer == QuoteTrailer::WithKludges);
+    CHECK(cfg.effectiveFor(area("ru.linux")).quoteTrailer == QuoteTrailer::WithKludges);
+    CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteTrailer == QuoteTrailer::On);
 }
 
 TEST_CASE("A group may turn the BBS color codes on for its areas [app_config]") {
