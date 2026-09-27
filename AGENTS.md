@@ -2860,8 +2860,9 @@ taking a row.
   in the middle of a theme painted on white. `theme::loadPalette` answers this
   once the whole file is read and in the order `kFollowers` lists, so the order
   the lines are written in does not matter and a chain resolves end to end.
-  Every shipped theme leaves the two `*_background` fills commented out and
-  states `input_field`; a test holds them to both.
+  Every shipped theme states `input_field` and leaves the two `*_background`
+  fills commented out, `themes/blue_header.cfg` excepted: it states
+  `header_background` and nothing else besides. A test holds them to both.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
   `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash`,
@@ -2942,9 +2943,11 @@ taking a row.
   line rather than a special case — and each is stated in every file under
   `themes/`, the key-set test above holding them to it.
   - `input_filler_show` says whether a field's free columns are underscored. On
-    in the built-in palette, whose fills are steps of near-black, and in
-    `16_colors.cfg`, where an idle field carries the screen's own black; off in
-    `blue.cfg`, which lights its idle fields plainly enough on its own.
+    in the built-in palette, whose fills are steps of near-black, and in every
+    shipped theme with it — `16_colors.cfg` included, where an idle field carries
+    the screen's own black. Off is for a theme that lights its idle fields
+    plainly enough on its own, and `input_filler` is then a color nothing draws
+    with.
   - `selection_bold` says whether what wears a selection fill is drawn bold
     along with it, and off in the built-in palette and in every shipped theme.
     **It is read in one place**:
@@ -4847,10 +4850,12 @@ together — `keys_mode` says which.
 - `default.tpl` — the template a message is built from, shipped as it stands and
   the whole token set `app/msg_template` implements.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one
-  that has to keep in step with `Palette`'s defaults; `blue.cfg` is a navy
-  screen, `white.cfg` paper for a light terminal, `16_colors.cfg` a sixteen-color
-  DOS one, and `truecolor_bg_night.cfg` ("Belgrade Night") the one written in
-  six hex digits throughout.
+  that has to keep in step with `Palette`'s defaults; `blue_header.cfg` is that
+  same palette with `header_background` filled in navy, and the only shipped
+  theme that states either `*_background` fill; `white.cfg` is paper for a light
+  terminal, `16_colors.cfg` a sixteen-color DOS one, and
+  `truecolor_bg_night.cfg` ("Belgrade Night") the one written in six hex digits
+  throughout.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in

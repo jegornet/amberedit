@@ -220,8 +220,8 @@ struct Palette {
     /// `off`. On by default: the built-in palette's fills are steps of
     /// near-black, and the underscores are what says a field is a field before
     /// anything is typed into it. A theme that lights its idle fields plainly
-    /// enough on its own turns them off, as themes/blue.cfg does, and
-    /// `input_filler` is then a color nothing draws with.
+    /// enough on its own turns them off, and `input_filler` is then a color
+    /// nothing draws with.
     bool inputFillerShown = true;
     /// Behind a modal box, from its frame to the far corner — the fill wiped
     /// over whatever the box stands on. Its own role rather than `background`

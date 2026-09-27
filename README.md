@@ -162,10 +162,12 @@ one quantised to the nearest palette entry; see
 
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
 with when the config names no theme, and the file to copy and edit.
+`themes/blue_header.cfg` is that same black palette with `header_background`
+filled in navy.
 `themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
 customizing the pallete in your terminal app.
 `themes/truecolor_bg_night.cfg` — "Belgrade Night" — is the truecolor one.
-Also, we have `themes/blue.cfg` and `themes/white.cfg`
+`themes/white.cfg` is paper, for a light terminal.
 
 ### Localization
 

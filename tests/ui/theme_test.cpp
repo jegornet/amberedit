@@ -137,17 +137,29 @@ TEST_CASE("The fills a theme may leave out follow the role under them [theme]") 
     CHECK(same(quiet.tableHeaderBackground, builtIn.background));
     CHECK(same(quiet.inputField, builtIn.background));
 
-    // And every theme that ships leaves both commented out, so that the block
-    // and the heading row stand on the screen the rest of the theme chose.
+    // Every theme that ships leaves both commented out, so that the block and
+    // the heading row stand on the screen the rest of the theme chose. The one
+    // exception is `themes/blue_header.cfg`, which fills the header block below.
     for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
-          "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
+         {"themes/16_colors.cfg", "themes/black.cfg", "themes/white.cfg",
+          "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
         CHECK(same(theme.headerBackground, theme.background));
         CHECK(same(theme.tableHeaderBackground, theme.background));
     }
+
+    // And `themes/blue_header.cfg` is the one shipped theme that fills either:
+    // the built-in screen with a band under its header block, and the heading row
+    // left showing that screen through like every other theme's.
+    const Palette filled = valueOf(amberedit::ui::theme::loadPalette(
+        amberedit::test::projectPath("themes/blue_header.cfg")));
+    CHECK_FALSE(same(filled.headerBackground, filled.background));
+    CHECK(same(filled.tableHeaderBackground, filled.background));
+    // And its fields are a fill of their own rather than the block they stand
+    // in, which is the chain above read the other way round.
+    CHECK_FALSE(same(filled.inputField, filled.headerBackground));
 }
 
 TEST_CASE("Roles the built-in palette shares can be taken apart [theme]") {
@@ -451,11 +463,18 @@ TEST_CASE("Every shipped theme states the same keys [theme]") {
 
     const std::set<std::string> written = keysOf("themes/black.cfg");
     REQUIRE(written.size() > 30);
-    for (const char* file : {"themes/blue.cfg", "themes/16_colors.cfg",
-                             "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
+    for (const char* file : {"themes/16_colors.cfg", "themes/white.cfg",
+                             "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         CHECK(keysOf(file) == written);
     }
+
+    // `themes/blue_header.cfg` is the black theme with one of the two fills every
+    // other shipped theme leaves commented out written in, so it states that key
+    // and nothing else besides.
+    std::set<std::string> withFill = written;
+    withFill.insert("header_background");
+    CHECK(keysOf("themes/blue_header.cfg") == withFill);
 }
 
 TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [theme]") {
@@ -464,7 +483,7 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
     // unchecked it is an invisible confirmation rather than an ugly one — the
     // text is there, in the color of what is behind it.
     for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+         {"themes/blue_header.cfg", "themes/16_colors.cfg", "themes/black.cfg",
           "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -503,7 +522,7 @@ TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
     // in are both text on a fill of its own, and text the color of what is
     // behind it is a field that looks empty.
     for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+         {"themes/blue_header.cfg", "themes/16_colors.cfg", "themes/black.cfg",
           "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -533,7 +552,7 @@ TEST_CASE("What a search lights up is legible on the fill lighting it [theme]") 
     // text: an occurrence the reader was told to find is `found_text` on
     // `found`, and the two being one color is a hit that reads as a blank.
     for (const char* file :
-         {"themes/blue.cfg", "themes/16_colors.cfg", "themes/black.cfg",
+         {"themes/blue_header.cfg", "themes/16_colors.cfg", "themes/black.cfg",
           "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(

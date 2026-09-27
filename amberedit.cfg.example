@@ -1252,7 +1252,7 @@ template_time_format "%H:%M"
 # A theme written in truecolor is at your own risk: AmberEdit cannot reliably
 # determine whether your terminal supports 24-bit colors.
 #theme /usr/share/amberedit/themes/black.cfg         # the built-in palette
-#theme /usr/share/amberedit/themes/blue.cfg          # a navy screen
+#theme /usr/share/amberedit/themes/blue_header.cfg   # black, with a navy header
 #theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
 #theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
 #theme /usr/share/amberedit/themes/truecolor_bg_night.cfg   # truecolor, BG Night
