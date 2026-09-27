@@ -8,6 +8,7 @@
 - input_field now follows header_background when a theme leaves it out
 - add ansi_map_black_to_background: draw a picture's black in the theme's background
 - read name and address from fidoconfig (HPT tosser config) if omitted in amberedit.cfg
+- add address_macro_link_areafix and address_macro_link_filefix: a netmail macro per tosser link, with its robot name and password
 
 ## 0.8.11 — 2026-09-23
 

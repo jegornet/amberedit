@@ -1,6 +1,7 @@
 #include "config/app_config.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cstdlib>
 #include <filesystem>
@@ -577,7 +578,7 @@ tl::expected<domain::FtnAddress, ErrorPtr> readAddress(const CfgEntry& entry,
     return *address;
 }
 
-/// The fields of an `address_macro` line: the commas are what separates them,
+/// The fields of a macro line: the commas are what separates them,
 /// and the blanks around each one mean nothing — `af,AreaFix,2:382/736` and
 /// `af, AreaFix, 2:382/736` are the same line.
 ///
@@ -606,7 +607,7 @@ tl::expected<std::vector<std::string>, ErrorPtr> macroFields(const CfgEntry& ent
     return fields;
 }
 
-/// What an `address_macro` says about a word that is not an attribute. Its own
+/// What a macro line says about a word that is not an attribute. Its own
 /// function, as `failUnknownCommand` is and for the same reason: the list of
 /// what was on offer is built where it is returned rather than once per word
 /// read.
@@ -617,7 +618,8 @@ tl::unexpected<ErrorPtr> failUnknownAttribute(const CfgEntry& entry,
     // so beats "not an attribute" about a word every screen in AmberEdit prints.
     if (text::iequals(word, "Uns")) {
         return entry.fail(
-            "address_macro: 'Uns' is not an attribute a message carries — it is shown "
+            entry.key +
+            ": 'Uns' is not an attribute a message carries — it is shown "
             "for Loc set with Snt clear, which is what a message written here "
             "already is");
     }
@@ -627,11 +629,11 @@ tl::unexpected<ErrorPtr> failUnknownAttribute(const CfgEntry& entry,
         if (!offered.empty()) offered += ", ";
         offered += name;
     }
-    return entry.fail("address_macro: '" + word + "' is not a message attribute (" +
+    return entry.fail(entry.key + ": '" + word + "' is not a message attribute (" +
                       offered + ")");
 }
 
-/// The attributes an `address_macro` writes its message with: the short forms
+/// The attributes a macro line writes its message with: the short forms
 /// the screens show, separated by blanks — `k/s`, `pvt k/s`, `Cra Imm`.
 ///
 /// Blanks rather than another punctuation mark, because one of the names is
@@ -684,6 +686,121 @@ tl::expected<AddressMacro, ErrorPtr> readAddressMacro(const CfgEntry& entry) {
         macro.attributes = *attributes;
     }
     return macro;
+}
+
+/// The four words a `$` may introduce in a link macro's word: whether this is
+/// one of them, and what it writes for this link.
+///
+/// Asked twice over the same four names — once where the line is read, so that
+/// `$nod` is a complaint about the config rather than a macro nobody can type,
+/// and once per link where the word is built.
+[[nodiscard]] bool substitutionFor(const std::string& name,
+                                   const domain::FtnAddress& link, std::string& written) {
+    static const char* const kNames[] = {"zone", "net", "node", "point"};
+    const uint16_t values[] = {link.zone, link.net, link.node, link.point};
+    for (size_t i = 0; i < 4; ++i) {
+        if (!text::iequals(name, kNames[i])) continue;
+        written = std::to_string(values[i]);
+        return true;
+    }
+    return false;
+}
+
+/// The word a rule makes for one link: the template with every `$name`
+/// replaced by that part of the link's address. A `$` before anything else —
+/// end of word, punctuation, a digit — is a `$` like any other.
+[[nodiscard]] std::string macroWordFor(const std::string& word,
+                                       const domain::FtnAddress& link) {
+    std::string built;
+    built.reserve(word.size());
+    for (size_t i = 0; i < word.size();) {
+        if (word[i] != '$') {
+            built += word[i++];
+            continue;
+        }
+        size_t end = i + 1;
+        while (end < word.size() && std::isalpha(static_cast<unsigned char>(word[end])))
+            ++end;
+        std::string replacement;
+        if (substitutionFor(word.substr(i + 1, end - i - 1), link, replacement)) {
+            built += replacement;
+            i = end;
+            continue;
+        }
+        built += word[i++];
+    }
+    return built;
+}
+
+/// Refuses a `$name` the macro word could not write. Every other `$` is text.
+tl::expected<void, ErrorPtr> checkSubstitutions(const CfgEntry& entry,
+                                                const std::string& word) {
+    for (size_t i = 0; i < word.size(); ++i) {
+        if (word[i] != '$') continue;
+        size_t end = i + 1;
+        while (end < word.size() && std::isalpha(static_cast<unsigned char>(word[end])))
+            ++end;
+        if (end == i + 1) continue;  // a `$` with no word after it is a `$`
+        std::string written;
+        const std::string name = word.substr(i + 1, end - i - 1);
+        if (substitutionFor(name, domain::FtnAddress{}, written)) continue;
+        return entry.fail(entry.key + ": '$" + name +
+                          "' is not part of an address — the word takes $zone, $net, "
+                          "$node and $point");
+    }
+    return {};
+}
+
+/// One `address_macro_link_areafix` / `address_macro_link_filefix` line.
+tl::expected<LinkMacroRule, ErrorPtr> readLinkMacroRule(const CfgEntry& entry) {
+    auto read = macroFields(entry);
+    if (!read) return tl::make_unexpected(std::move(read).error());
+    const std::vector<std::string>& fields = *read;
+    if (fields.size() < 2 || fields.size() > 3) {
+        return entry.fail(
+            entry.key +
+            " takes the word to type and the links it is for, and may take the "
+            "attributes after them, e.g. " +
+            entry.key + " a$net$node,\"2:*/* 3:*/*\",k/s");
+    }
+
+    LinkMacroRule rule;
+    rule.robot = entry.key == "address_macro_link_filefix"
+                     ? LinkMacroRule::Robot::FileFix
+                     : LinkMacroRule::Robot::AreaFix;
+    rule.line = entry.line;
+    rule.word = fields[0];
+    if (rule.word.empty()) {
+        return entry.fail(entry.key + " needs the word that is typed");
+    }
+    if (auto checked = checkSubstitutions(entry, rule.word); !checked) {
+        return tl::make_unexpected(std::move(checked).error());
+    }
+
+    for (const std::string& value : text::tokenize(fields[1])) {
+        auto pattern = domain::AddressPattern::parse(value);
+        if (!pattern) {
+            return entry.fail(entry.key + ": '" + value +
+                              "' is not an FTN address pattern, as 2:*/* or "
+                              "2:5020/715");
+        }
+        // A pattern that names no point of its own is about nodes: `2:*/*`
+        // covers the nodes of zone 2 and not the points behind them, which is
+        // what a rule for one's uplinks means and what the format's own
+        // trailing `*` would otherwise undo.
+        if (value.find('.') == std::string::npos) pattern->point = 0;
+        rule.links.push_back(*pattern);
+    }
+    if (rule.links.empty()) {
+        return entry.fail(entry.key + " needs the links it is for, as \"2:*/*\"");
+    }
+
+    if (fields.size() > 2 && !fields[2].empty()) {
+        auto attributes = macroAttributes(entry, fields[2]);
+        if (!attributes) return tl::make_unexpected(std::move(attributes).error());
+        rule.attributes = *attributes;
+    }
+    return rule;
 }
 
 /// The control lines a message composed here is given by AmberEdit itself, and
@@ -1174,6 +1291,14 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
             return entry.fail("address_macro '" + macro.macro + "' is defined twice");
         }
         cfg.addressMacros.push_back(std::move(macro));
+    } else if (key == "address_macro_link_areafix" ||
+               key == "address_macro_link_filefix") {
+        // Read here and expanded once the whole config has been: the links it
+        // is about come out of the tosser's config, which is opened after the
+        // last line of this one has been applied.
+        auto read = readLinkMacroRule(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.linkMacroRules.push_back(std::move(*read));
     } else if (key == "nodelist_db") {
         auto read = readPath(entry, "the compiled nodelist");
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1871,7 +1996,8 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
 /// the file itself would be.
 [[nodiscard]] bool isRepeatable(const std::string& key) {
     return key == "aka" || key == "akamatch" || key == "nodelist" || key == "echolist" ||
-           key == "address_macro" || key == "map_path" || key == "twit" ||
+           key == "address_macro" || key == "address_macro_link_areafix" ||
+           key == "address_macro_link_filefix" || key == "map_path" || key == "twit" ||
            key == "twit_subj" || key == "arealist_separator_name" ||
            key == "compose_add_kludge";
 }
@@ -2307,22 +2433,13 @@ tl::expected<void, ErrorPtr> readManualAreas(const std::vector<Block>& blocks,
 /// address becomes the main one and the rest become AKAs, with whatever `aka`
 /// lines this config writes added after them — `readAkas()` runs below this and
 /// passes over an address already in the list.
-///
-/// A tosser config that will not open says nothing and is no failure of its own:
-/// the setting that is still missing is refused right after this, and the
-/// unreadable file is reported where the areas are read, which is the place that
-/// cannot do without it.
-void readIdentityFromTosser(AppConfig& cfg) {
-    FidoconfigParser tosser(cfg.tosserConfigPath, cfg.tosserPaths, cfg.configCharset);
-    auto identity = tosser.loadIdentity();
-    if (!identity) return;
+void readIdentityFrom(const TosserSystem& system, AppConfig& cfg) {
+    if (cfg.userName.empty()) cfg.userName = system.sysop;
+    if (cfg.userAddress || system.addresses.empty()) return;
 
-    if (cfg.userName.empty()) cfg.userName = identity->sysop;
-    if (cfg.userAddress || identity->addresses.empty()) return;
-
-    cfg.userAddress = identity->addresses.front();
-    for (size_t i = 1; i < identity->addresses.size(); ++i) {
-        const domain::FtnAddress& aka = identity->addresses[i];
+    cfg.userAddress = system.addresses.front();
+    for (size_t i = 1; i < system.addresses.size(); ++i) {
+        const domain::FtnAddress& aka = system.addresses[i];
         // Compared over the four numbers, which is how every address AmberEdit
         // holds is compared: the domain was dropped where these were read, and
         // the same node written twice in a tosser config is one address of ours
@@ -2333,6 +2450,125 @@ void readIdentityFromTosser(AppConfig& cfg) {
                         [&aka](const AkaMatch& entry) { return entry.aka.same4D(aka); });
         if (!known) cfg.akaMatches.push_back(AkaMatch{aka, {}});
     }
+}
+
+/// The name of the setting a rule was written as, for the warnings to name.
+[[nodiscard]] const char* settingOf(LinkMacroRule::Robot robot) {
+    return robot == LinkMacroRule::Robot::FileFix ? "address_macro_link_filefix"
+                                                  : "address_macro_link_areafix";
+}
+
+/// Which rule covers this link, or null where none does: the one whose pattern
+/// pins down the most of the link's address.
+///
+/// Two rules that say exactly as much are an ambiguity nobody meant — the
+/// earlier line is used and `tied` comes back holding the other, for the
+/// caller to say so out loud. Two patterns *within* one rule are no such
+/// thing: they make the same word either way.
+[[nodiscard]] const LinkMacroRule* ruleFor(const AppConfig& cfg,
+                                           LinkMacroRule::Robot robot,
+                                           const domain::FtnAddress& link,
+                                           const LinkMacroRule*& tied) {
+    const LinkMacroRule* chosen = nullptr;
+    int closest = -1;
+    tied = nullptr;
+
+    for (const LinkMacroRule& rule : cfg.linkMacroRules) {
+        if (rule.robot != robot) continue;
+        int depth = -1;
+        for (const domain::AddressPattern& pattern : rule.links) {
+            if (pattern.matches(link)) depth = std::max(depth, pattern.depth());
+        }
+        if (depth < 0) continue;  // this rule is not about this link
+
+        if (depth > closest) {
+            closest = depth;
+            chosen = &rule;
+            tied = nullptr;
+        } else if (depth == closest && tied == nullptr) {
+            tied = &rule;
+        }
+    }
+    return chosen;
+}
+
+/// Turns the `address_macro_link_*` rules and the tosser's links into macros.
+///
+/// One macro per link per robot at the most: the rules are a description of
+/// what the word for a link should look like, not a list of macros to make, so
+/// a link two rules both cover gets the word of the rule that was written
+/// about it most particularly. Which is what lets a config say "every node of
+/// zones 1 to 4 by net and node" and then "everybody else by zone" without the
+/// second line taking the first one's links away.
+///
+/// Anything ambiguous is a warning and the first answer, never a refusal: the
+/// links come out of a file this config does not own, and a tosser config
+/// grown a second link at one address should not be a mail editor that will
+/// not start.
+void expandLinkMacros(const TosserSystem& system, AppConfig& cfg) {
+    if (cfg.linkMacroRules.empty()) return;
+
+    for (const TosserLink& link : system.links) {
+        // A `link` block that never named an address is one husky would have
+        // refused; there is nothing here to write a message to.
+        if (!link.aka.isValid()) continue;
+
+        for (const LinkMacroRule::Robot robot :
+             {LinkMacroRule::Robot::AreaFix, LinkMacroRule::Robot::FileFix}) {
+            const LinkMacroRule* tied = nullptr;
+            const LinkMacroRule* rule = ruleFor(cfg, robot, link.aka, tied);
+            if (rule == nullptr) continue;
+            if (tied != nullptr) {
+                cfg.warnings.push_back(std::string(settingOf(robot)) + ": the lines " +
+                                       std::to_string(rule->line) + " and " +
+                                       std::to_string(tied->line) +
+                                       " say as much about " + link.aka.toString() +
+                                       " — the first one is used");
+            }
+
+            AddressMacro macro;
+            macro.macro = macroWordFor(rule->word, link.aka);
+            macro.name = robot == LinkMacroRule::Robot::FileFix ? link.filefixName
+                                                                : link.areafixName;
+            macro.address = link.aka;
+            // An empty password is a message with an empty subject, which is
+            // what husky sends such a link; nullopt so that what the user has
+            // already typed into the field is left alone instead.
+            const std::string& password = robot == LinkMacroRule::Robot::FileFix
+                                              ? link.filefixPwd
+                                              : link.areafixPwd;
+            if (!password.empty()) macro.subject = password;
+            macro.attributes = rule->attributes;
+
+            const auto same = [&macro](const AddressMacro& earlier) {
+                return text::iequals(earlier.macro, macro.macro);
+            };
+            if (std::any_of(cfg.addressMacros.begin(), cfg.addressMacros.end(), same)) {
+                cfg.warnings.push_back(std::string(settingOf(robot)) + " at line " +
+                                       std::to_string(rule->line) + ": '" + macro.macro +
+                                       "' is a macro already, so " + link.aka.toString() +
+                                       " has none");
+                continue;
+            }
+            cfg.addressMacros.push_back(std::move(macro));
+        }
+    }
+}
+
+/// Reads the tosser's fidoconfig for everything AmberEdit takes out of it
+/// besides the areas, and puts it where this config left room for it.
+///
+/// Opened once for both, since both want the same parse. A tosser config that
+/// will not open says nothing and is no failure of its own: a setting still
+/// missing is refused right after this, a macro not made is a macro nobody can
+/// type, and the unreadable file itself is reported where the areas are read,
+/// which is the place that cannot do without it.
+void readFromTosser(AppConfig& cfg) {
+    FidoconfigParser tosser(cfg.tosserConfigPath, cfg.tosserPaths, cfg.configCharset);
+    auto system = tosser.loadSystem();
+    if (!system) return;
+    readIdentityFrom(*system, cfg);
+    expandLinkMacros(*system, cfg);
 }
 
 tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entries,
@@ -2465,16 +2701,22 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
                        ": compose_charset is not set — it is the charset a message is "
                        "written in");
     }
-    // Who the messages are from. Where this config says nothing about it, the
-    // tosser's does: a fidoconfig states the sysop's name and the addresses of
-    // the system, and somebody who has written them there is not asked to write
-    // them again here. The other two formats state neither — areas.bbs is a list
-    // of areas and nothing else, and squish.cfg's own `Address` belongs to a
-    // tosser AmberEdit has no other business with.
+    // What the tosser's fidoconfig can say and this config has left to it: who
+    // the messages are from, where no `name` or `address` line says, and a
+    // macro per link, where an `address_macro_link_*` rule asks for one.
+    // Somebody who has written the sysop, the addresses and the links there
+    // once is not asked to write them again here. The other two formats say
+    // none of it — areas.bbs is a list of areas and nothing else, and
+    // squish.cfg's own `Address` belongs to a tosser AmberEdit has no other
+    // business with.
+    //
+    // Opened only where there is something to take out of it, so that a config
+    // stating everything itself never reads the file at all.
     const bool fromTosser = !cfg.tosserConfigPath.empty() &&
                             cfg.tosserConfigFormat == TosserConfigFormat::Fidoconfig;
-    if (fromTosser && (cfg.userName.empty() || !cfg.userAddress)) {
-        readIdentityFromTosser(cfg);
+    if (fromTosser &&
+        (cfg.userName.empty() || !cfg.userAddress || !cfg.linkMacroRules.empty())) {
+        readFromTosser(cfg);
     }
 
     // And neither half is guessed even so. Without the address the origin line

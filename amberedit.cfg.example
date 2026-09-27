@@ -114,6 +114,32 @@ address 2:382/9999.1
 #address_macro ff,FileFix,2:382/736,"PASSWORD"
 #address_macro boss,Sysop,2:5020/999
 
+# The same macro for every link of your tosser, written once. Optional;
+# repeatable; needs a fidoconfig tosser config, which is the one format that
+# states links.
+#
+#   address_macro_link_areafix <word>,"<link> <link>..."[,attributes]
+#   address_macro_link_filefix <word>,"<link> <link>..."[,attributes]
+#
+# The word takes $zone, $net, $node and $point, which stand for the parts of the
+# link's address. The rest of the macro is the tosser's: the name is that link's
+# "areafixName" ("filefixName"), or AreaFix (FileFix) where it states none, and
+# the subject is its areafix (filefix) password — "password" where the link has
+# one password for everything, and "linkdefaults" where a whole run of links
+# shares it.
+#
+# The links are the FTN address patterns of the previous setting. One that names
+# no point is about nodes: "2:*/*" is every node of zone 2 and none of their
+# points, which is what a rule for your uplinks means; write "2:*/*.*" for the
+# points as well.
+#
+# A link two lines both cover takes the word of the line that says more about
+# its address. Two lines that say as much, and two links that would answer to
+# one word, are warnings at startup and the first one is used; an address_macro
+# you wrote yourself always wins.
+#address_macro_link_areafix a$net$node,"1:*/* 2:*/* 3:*/* 4:*/*",k/s
+#address_macro_link_filefix f$net$node,"1:*/* 2:*/* 3:*/* 4:*/*",k/s
+
 # --- tosser and message bases -------------------------------------------------
 
 # Path to the tosser config. Required unless you declare every area yourself in

@@ -4290,3 +4290,238 @@ TEST_CASE("Only a fidoconfig is asked who the mail is from [app_config]") {
     CHECK_MESSAGE(contains(asBbs, "name is not set"), asBbs);
     CHECK_MESSAGE(!contains(asBbs, "states no sysop either"), asBbs);
 }
+
+namespace {
+
+/// The identity lines a tosser config needs for the macro tests to be about
+/// the macros: without them the config has no name and no address and would
+/// not load at all.
+const std::string kTosserIdentity =
+    "sysop Vasya Pupkin\n"
+    "address 2:382/736\n";
+
+/// A link of the tosser's, in the fewest lines that make one.
+std::string tosserLink(const std::string& aka, const std::string& password,
+                       const std::string& extra = {}) {
+    return "link " + aka + "\naka " + aka + "\npassword " + password + "\n" + extra;
+}
+
+/// One macro of a config, as text: what is typed, who it addresses, where, and
+/// what it puts in the subject.
+std::string macroLine(const amberedit::config::AddressMacro& macro) {
+    return macro.macro + " -> " + macro.name + " " + macro.address.toString() + " '" +
+           macro.subject.value_or("-") + "'";
+}
+
+/// Every macro of a config, in order, as those lines.
+std::vector<std::string> macroLines(const AppConfig& cfg) {
+    std::vector<std::string> lines;
+    lines.reserve(cfg.addressMacros.size());
+    for (const auto& macro : cfg.addressMacros) lines.push_back(macroLine(macro));
+    return lines;
+}
+
+}  // namespace
+
+TEST_CASE("A link macro rule makes one macro per link [app_config]") {
+    // The whole point of the rule: the word is described once and the name, the
+    // address and the password come out of the tosser's own link blocks, so
+    // they are right by construction and stay right.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PA55W0RD") +
+                        tosserLink("2:6000/9999", "OTHERPWD", "areafixName allfix\n"));
+
+    const auto cfg = dir.load("address_macro_link_areafix a$net$node,\"2:*/*\"\n");
+
+    CHECK(macroLines(cfg) ==
+          std::vector<std::string>{"a5020715 -> AreaFix 2:5020/715 'PA55W0RD'",
+                                   "a60009999 -> allfix 2:6000/9999 'OTHERPWD'"});
+    // And it is a macro like any other from here on: nothing above the config
+    // knows which lines were written and which were worked out.
+    const auto* typed = cfg.addressMacroFor("A5020715");
+    REQUIRE(typed != nullptr);
+    CHECK(typed->address.toString() == "2:5020/715");
+}
+
+TEST_CASE("A link macro rule writes every part of the address [app_config]") {
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715.3", "PWD"));
+    const auto cfg = dir.load(
+        "address_macro_link_areafix \"af$zone-$net-$node-$point\",2:5020/715.*\n");
+
+    REQUIRE(cfg.addressMacros.size() == 1);
+    CHECK(cfg.addressMacros[0].macro == "af2-5020-715-3");
+}
+
+TEST_CASE("A link macro rule takes the attributes and the robot [app_config]") {
+    const TosserDir dir(
+        kTosserIdentity +
+        tosserLink("2:5020/715", "PA55W0RD", "filefixPwd FFPWD\nfilefixName hatch\n"));
+
+    const auto cfg = dir.load(
+        "address_macro_link_areafix a$net$node,\"2:*/*\",k/s\n"
+        "address_macro_link_filefix f$net$node,\"2:*/*\"\n");
+
+    REQUIRE(cfg.addressMacros.size() == 2);
+    CHECK(macroLine(cfg.addressMacros[0]) == "a5020715 -> AreaFix 2:5020/715 'PA55W0RD'");
+    CHECK(cfg.addressMacros[0].attributes ==
+          amberedit::domain::messageAttributeBit("k/s").value_or(0));
+    // The filefix rule is the other robot of the same link: its own name, its
+    // own password, and no attributes because the line named none.
+    CHECK(macroLine(cfg.addressMacros[1]) == "f5020715 -> hatch 2:5020/715 'FFPWD'");
+    CHECK_FALSE(cfg.addressMacros[1].attributes.has_value());
+}
+
+TEST_CASE("A link macro rule for nodes leaves the points alone [app_config]") {
+    // A pattern that states no point is about nodes, which is what a rule for
+    // one's uplinks means. The format's own trailing `*` would otherwise cover
+    // the points as well, and every point of every boss would get a macro.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "BOSSPWD") +
+                        tosserLink("2:5020/715.7", "POINTPWD"));
+
+    const auto nodes = dir.load("address_macro_link_areafix a$net$node,\"2:*/*\"\n");
+    CHECK(macroLines(nodes) ==
+          std::vector<std::string>{"a5020715 -> AreaFix 2:5020/715 'BOSSPWD'"});
+
+    // Named with a point, the points are in it.
+    const auto points =
+        dir.load("address_macro_link_areafix \"a$net$node$point\",\"2:*/*.*\"\n");
+    CHECK(macroLines(points) ==
+          std::vector<std::string>{"a50207150 -> AreaFix 2:5020/715 'BOSSPWD'",
+                                   "a50207157 -> AreaFix 2:5020/715.7 'POINTPWD'"});
+}
+
+TEST_CASE("The rule that says the most about a link is the one used [app_config]") {
+    // Two rules covering one link is not an ambiguity where one of them was
+    // written about it more particularly: a config says "zones 1 to 4 by net
+    // and node" and then "everybody else by zone", and the second line does not
+    // take the first one's links away.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "ONE") +
+                        tosserLink("21:100/1", "TWO"));
+
+    const auto cfg = dir.load(
+        "address_macro_link_areafix a$net$node,\"1:*/* 2:*/* 3:*/* 4:*/*\"\n"
+        "address_macro_link_areafix a$zone,\"*:*/*\"\n");
+
+    CHECK(macroLines(cfg) ==
+          std::vector<std::string>{"a5020715 -> AreaFix 2:5020/715 'ONE'",
+                                   "a21 -> AreaFix 21:100/1 'TWO'"});
+    CHECK(cfg.warnings.empty());
+}
+
+TEST_CASE("Two rules with as much to say about a link warn [app_config]") {
+    // Nothing tells them apart, so the first line is used and the other is said
+    // out loud: the config still describes a working system, one macro of it is
+    // simply not the one somebody may have meant.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PWD"));
+
+    const auto cfg = dir.load(
+        "address_macro_link_areafix first$net,\"2:*/*\"\n"
+        "address_macro_link_areafix second$net,\"2:*/*\"\n");
+
+    REQUIRE(cfg.addressMacros.size() == 1);
+    CHECK(cfg.addressMacros[0].macro == "first5020");
+    REQUIRE(cfg.warnings.size() == 1);
+    CHECK_MESSAGE(contains(cfg.warnings[0], "2:5020/715"), cfg.warnings[0]);
+    CHECK_MESSAGE(contains(cfg.warnings[0], "say as much"), cfg.warnings[0]);
+}
+
+TEST_CASE("A macro word two links would share is warned about [app_config]") {
+    // The first link keeps the word. A word the rule builds out of nothing that
+    // tells two links apart is the ordinary way into this.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "ONE") +
+                        tosserLink("2:5020/716", "TWO"));
+
+    const auto cfg = dir.load("address_macro_link_areafix a$net,\"2:*/*\"\n");
+
+    CHECK(macroLines(cfg) ==
+          std::vector<std::string>{"a5020 -> AreaFix 2:5020/715 'ONE'"});
+    REQUIRE(cfg.warnings.size() == 1);
+    CHECK_MESSAGE(contains(cfg.warnings[0], "2:5020/716"), cfg.warnings[0]);
+}
+
+TEST_CASE("A written address_macro beats one a rule would make [app_config]") {
+    // The written lines stand in the list before the worked-out ones, so the
+    // word somebody typed into this config is the word that answers.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PWD"));
+
+    const auto cfg = dir.load(
+        "address_macro a5020715,Somebody,2:382/736\n"
+        "address_macro_link_areafix a$net$node,\"2:*/*\"\n");
+
+    CHECK(macroLines(cfg) ==
+          std::vector<std::string>{"a5020715 -> Somebody 2:382/736 '-'"});
+    REQUIRE(cfg.warnings.size() == 1);
+    CHECK_MESSAGE(contains(cfg.warnings[0], "a5020715"), cfg.warnings[0]);
+}
+
+TEST_CASE("A link with no password gets a macro and no subject [app_config]") {
+    // husky writes such a link an empty subject; nullopt here leaves whatever
+    // is in the field, which for a new netmail is the same nothing.
+    const TosserDir dir(kTosserIdentity + "link Boss\naka 2:5020/715\n");
+
+    const auto cfg = dir.load("address_macro_link_areafix a$net$node,\"2:*/*\"\n");
+
+    REQUIRE(cfg.addressMacros.size() == 1);
+    CHECK(cfg.addressMacros[0].address.toString() == "2:5020/715");
+    CHECK_FALSE(cfg.addressMacros[0].subject.has_value());
+}
+
+TEST_CASE("A rule that matches no link is no error [app_config]") {
+    // The links come out of a file this config does not own: one that has none,
+    // or none in the zones the rule is about, is a config with fewer macros and
+    // not a config that will not start.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PWD"));
+
+    const auto cfg = dir.load("address_macro_link_areafix a$net$node,\"5:*/*\"\n");
+    CHECK(cfg.addressMacros.empty());
+    CHECK(cfg.warnings.empty());
+
+    const TosserDir noLinks{kTosserIdentity};
+    CHECK(noLinks.load("address_macro_link_areafix a$net$node,\"2:*/*\"\n")
+              .addressMacros.empty());
+}
+
+TEST_CASE("A rule over a tosser config of another format is no error [app_config]") {
+    // Only a fidoconfig states links at all. The line is then a line about
+    // nothing, which is what it is over a fidoconfig with no links either.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PWD"));
+    const auto cfg = amberedit::test::valueOf(AppConfig::loadFromString(
+        dir.text("name Vasya Pupkin\naddress 2:382/736\n"
+                 "address_macro_link_areafix a$net$node,\"2:*/*\"\n",
+                 "areas.bbs")));
+
+    CHECK(cfg.addressMacros.empty());
+    CHECK(cfg.warnings.empty());
+    // The line itself is still read, and read the same way.
+    REQUIRE(cfg.linkMacroRules.size() == 1);
+    CHECK(cfg.linkMacroRules[0].word == "a$net$node");
+}
+
+TEST_CASE("A link macro rule is refused where it says nothing usable [app_config]") {
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PWD"));
+
+    const std::string short_ = dir.error("address_macro_link_areafix a$net$node\n");
+    CHECK_MESSAGE(contains(short_, "takes the word to type and the links"), short_);
+
+    const std::string unknown = dir.error("address_macro_link_areafix a$nod,\"2:*/*\"\n");
+    CHECK_MESSAGE(contains(unknown, "'$nod' is not part of an address"), unknown);
+
+    const std::string pattern =
+        dir.error("address_macro_link_areafix a$net,\"2:5020/715@fidonet\"\n");
+    CHECK_MESSAGE(contains(pattern, "is not an FTN address pattern"), pattern);
+
+    const std::string attribute =
+        dir.error("address_macro_link_filefix a$net,\"2:*/*\",nonsense\n");
+    CHECK_MESSAGE(contains(attribute,
+                           "address_macro_link_filefix: 'nonsense' is not a "
+                           "message attribute"),
+                  attribute);
+}
+
+TEST_CASE("A link macro rule is not a per-area setting [app_config]") {
+    // What it makes is a netmail macro, and a macro belongs to the config and
+    // not to whichever echo one happens to be reading.
+    const TosserDir dir(kTosserIdentity + tosserLink("2:5020/715", "PWD"));
+    const std::string inGroup = dir.error(
+        "group\n member r50.*\n address_macro_link_areafix a$net,\"2:*/*\"\nendgroup\n");
+    CHECK_MESSAGE(contains(inGroup, "is a setting for the whole config"), inGroup);
+}

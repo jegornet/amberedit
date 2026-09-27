@@ -62,11 +62,25 @@ struct ParseState {
     /// there" are the same fact and only the second is worth reading.
     std::vector<std::string> missingIncludes;
 
-    /// What the `sysop` and `address` statements said, gathered as the areas
-    /// are: they may stand in an included file as easily as in this one, and a
-    /// second pass over the same text to find them would be the same work done
-    /// twice.
-    TosserIdentity identity;
+    /// What the statements about the system said — the sysop, the addresses and
+    /// the links — gathered as the areas are: they may stand in an included
+    /// file as easily as in this one, and a second pass over the same text to
+    /// find them would be the same work done twice.
+    TosserSystem system;
+
+    /// The `linkdefaults` template, and whether there is one: a `link` below
+    /// such a block starts from a copy of it. husky clones the whole link
+    /// structure and we clone the four fields we read, which comes to the same
+    /// thing for them — a password the template set through `password` reaches
+    /// both robots, and one it set through `areafixPwd` reaches the one.
+    TosserLink linkDefaults;
+    bool hasLinkDefaults{false};
+
+    /// Whether the lines being read belong to that template rather than to a
+    /// link. `linkdefaults` opens it, `linkdefaults end` and `destroy` close
+    /// it, and so does a `link` line — husky stops describing defaults where a
+    /// link begins, so the `end` is needed only before global statements.
+    bool describingLinkDefaults{false};
 };
 
 /// The variables a config can use without setting them.
@@ -190,6 +204,15 @@ std::string unquote(std::string_view value) {
     if (value.size() >= 2 && value.front() == '"' && value.back() == '"')
         value = value.substr(1, value.size() - 2);
     return std::string(value);
+}
+
+/// The link a link-scoped keyword speaks about: the `linkdefaults` template
+/// while one is being described, and otherwise the last `link` opened — which
+/// is husky's `getDescrLink()`. Null where neither is there, a line husky
+/// answers with "you must define a link first" and we pass over.
+TosserLink* describedLink(ParseState& state) {
+    if (state.describingLinkDefaults) return &state.linkDefaults;
+    return state.system.links.empty() ? nullptr : &state.system.links.back();
 }
 
 /// Strips a '#' comment and trailing whitespace.
@@ -360,6 +383,14 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
             continue;
         }
 
+        // Everything after the keyword, which is what husky's `getRestOfLine()`
+        // hands the string statements. Worked out here because six of them
+        // want it and none of them wants the tokens.
+        const auto restOfLine = [&line, &tokens]() {
+            return std::string(
+                text::trim(std::string_view(line).substr(tokens[0].size())));
+        };
+
         // sysop <name> — the rest of the line, which is how husky reads it
         // (`fc_copyString(getRestOfLine())` in fidoconf/src/line.c): a name is
         // several words and none of them is an option. The quotes around a
@@ -368,9 +399,8 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
         // statement naming nobody leaves the name as it was, husky calling that
         // a missing parameter and keeping what it had.
         if (text::iequals(tokens[0], "sysop")) {
-            std::string sysop =
-                unquote(text::trim(std::string_view(line).substr(tokens[0].size())));
-            if (!sysop.empty()) state.identity.sysop = std::move(sysop);
+            std::string sysop = unquote(restOfLine());
+            if (!sysop.empty()) state.system.sysop = std::move(sysop);
             continue;
         }
 
@@ -384,7 +414,82 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
                 // and nothing AmberEdit compares an address against carries a
                 // domain — a message base holds four numbers and no more.
                 address->domain.clear();
-                state.identity.addresses.push_back(*address);
+                state.system.addresses.push_back(*address);
+            }
+            continue;
+        }
+
+        // linkdefaults [begin|end|destroy] — the template a `link` below it
+        // starts from. A bare `linkdefaults` is `begin`; `end` closes the
+        // block and keeps the template, `destroy` throws it away. A word that
+        // is none of the three is husky's error and our silence.
+        if (text::iequals(tokens[0], "linkdefaults")) {
+            const std::string what = tokens.size() >= 2 ? text::toLower(tokens[1]) : "";
+            if (what.empty() || what == "begin") {
+                state.describingLinkDefaults = true;
+                state.hasLinkDefaults = true;
+            } else if (what == "end") {
+                state.describingLinkDefaults = false;
+            } else if (what == "destroy") {
+                state.describingLinkDefaults = false;
+                state.hasLinkDefaults = false;
+                state.linkDefaults = TosserLink{};
+            }
+            continue;
+        }
+
+        // link <name> — a new link, starting from the template where there is
+        // one. The name is the tosser's own label for it and is not kept: what
+        // a netmail to this link's robot is addressed to is the robot's name,
+        // which is a statement of its own.
+        //
+        // Opening a link closes the `linkdefaults` block, as it does in husky,
+        // so the statements below belong to the link and not to the template.
+        if (text::iequals(tokens[0], "link")) {
+            state.describingLinkDefaults = false;
+            state.system.links.push_back(state.hasLinkDefaults ? state.linkDefaults
+                                                               : TosserLink{});
+            continue;
+        }
+
+        // The statements inside a link, which the `linkdefaults` template takes
+        // as readily. All of them are husky's: `aka` is the node the link is,
+        // `password` is the one password of the whole link and reaches both
+        // robots, `areafixPwd`/`filefixPwd` state one robot's on its own, and
+        // `areafixName`/`filefixName` say what that robot is called.
+        //
+        // Order is what tells a `password` after an `areafixPwd` from one
+        // before it, and it is kept: each statement is applied where it stands,
+        // which is how husky reads them and the only reading under which
+        // `password` overwriting what came before it means anything.
+        if (text::iequals(tokens[0], "aka") || text::iequals(tokens[0], "password") ||
+            text::iequals(tokens[0], "areafixpwd") ||
+            text::iequals(tokens[0], "filefixpwd") ||
+            text::iequals(tokens[0], "areafixname") ||
+            text::iequals(tokens[0], "filefixname")) {
+            TosserLink* link = describedLink(state);
+            if (link == nullptr) continue;  // no link and no template to speak of
+            const std::string keyword = text::toLower(tokens[0]);
+
+            if (keyword == "aka") {
+                if (tokens.size() >= 2) {
+                    if (auto address = FtnAddress::parse(tokens[1])) {
+                        address->domain.clear();  // 4D, for the reason above
+                        link->aka = *address;
+                    }
+                }
+            } else if (keyword == "password") {
+                // One password for everything the link does, robots included.
+                link->areafixPwd = restOfLine();
+                link->filefixPwd = link->areafixPwd;
+            } else if (keyword == "areafixpwd") {
+                link->areafixPwd = restOfLine();
+            } else if (keyword == "filefixpwd") {
+                link->filefixPwd = restOfLine();
+            } else if (keyword == "areafixname") {
+                link->areafixName = unquote(restOfLine());
+            } else {
+                link->filefixName = unquote(restOfLine());
             }
             continue;
         }
@@ -430,16 +535,36 @@ tl::expected<void, ErrorPtr> parseInto(const std::string& content,
 /// behind. The areas go into `areas` and the rest is the state handed back, so
 /// that the two things a caller may want out of a fidoconfig are read the same
 /// way and read once each.
+/// The state a parse starts from: the variables a config may use without
+/// setting them, and nothing else said yet.
+ParseState freshState() {
+    ParseState state;
+    state.variables = initialVariables();
+    return state;
+}
+
+/// The name a robot answers to where the link named none. Both are in the list
+/// of names husky's own robots accept — `robotNames` defaults to
+/// `AreaFix AreaMgr hpt` and `FileFix FileMgr AllFix FileScan htick` — so they
+/// are the ordinary spelling to write to a link that says nothing about it.
+void nameUnnamedRobots(std::vector<TosserLink>& links) {
+    for (TosserLink& link : links) {
+        if (link.areafixName.empty()) link.areafixName = "AreaFix";
+        if (link.filefixName.empty()) link.filefixName = "FileFix";
+    }
+}
+
 tl::expected<ParseState, ErrorPtr> readConfig(const std::string& path,
                                               std::vector<AreaConfig>& areas,
                                               const PathMap& paths,
                                               const std::string& charset) {
     auto content = text::readFileIn(path, charset);
     if (!content) return tl::make_unexpected(std::move(content).error());
-    ParseState state{initialVariables(), AreaConfig{}, {}, {}};
+    ParseState state = freshState();
     auto read = parseInto(*content, areas, std::filesystem::path(path).parent_path(),
                           /*includeDepth=*/8, state, paths, charset);
     if (!read) return tl::make_unexpected(std::move(read).error());
+    nameUnnamedRobots(state.system.links);
     return state;
 }
 
@@ -457,25 +582,25 @@ tl::expected<std::vector<AreaConfig>, ErrorPtr> FidoconfigParser::loadAreas() {
     return areas;
 }
 
-tl::expected<TosserIdentity, ErrorPtr> FidoconfigParser::loadIdentity() {
-    // The areas are read and dropped. Walking the file for the two statements
+tl::expected<TosserSystem, ErrorPtr> FidoconfigParser::loadSystem() {
+    // The areas are read and dropped. Walking the file for these statements
     // alone would mean a second parser that has to know `include` and `set` and
     // everything else that decides what a line says — two readings of one format
     // to be kept in step with each other — and the whole of an HPT config is a
     // few hundred lines.
     //
     // `missingIncludes_` is left alone: it says what the last `loadAreas()` went
-    // past, and an identity read is not that.
+    // past, and this read is not that.
     std::vector<AreaConfig> ignored;
     auto state = readConfig(path_, ignored, paths_, charset_);
     if (!state) return tl::make_unexpected(std::move(state).error());
-    return std::move(state->identity);
+    return std::move(state->system);
 }
 
 std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content,
                                                     const PathMap& paths) {
     std::vector<AreaConfig> areas;
-    ParseState state{initialVariables(), AreaConfig{}, {}, {}};
+    ParseState state = freshState();
     // includeDepth 0, so the one thing parseInto can fail at — reading an
     // include — cannot happen and the answer is nothing to check.
     static_cast<void>(parseInto(content, areas, std::filesystem::current_path(),
@@ -483,12 +608,13 @@ std::vector<AreaConfig> FidoconfigParser::parseText(const std::string& content,
     return areas;
 }
 
-TosserIdentity FidoconfigParser::parseIdentityText(const std::string& content) {
+TosserSystem FidoconfigParser::parseSystemText(const std::string& content) {
     std::vector<AreaConfig> areas;
-    ParseState state{initialVariables(), AreaConfig{}, {}, {}};
+    ParseState state = freshState();
     static_cast<void>(parseInto(content, areas, std::filesystem::current_path(),
                                 /*includeDepth=*/0, state, PathMap{}, /*charset=*/""));
-    return std::move(state.identity);
+    nameUnnamedRobots(state.system.links);
+    return std::move(state.system);
 }
 
 }  // namespace amberedit::config

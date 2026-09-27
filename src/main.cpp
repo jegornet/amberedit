@@ -282,6 +282,15 @@ int main(int argc, char* argv[]) {
         }
         const amberedit::config::AppConfig& appConfig = *loaded;
 
+        // What was wrong with the config and did not stop it being read — two
+        // rules making the same netmail macro, and the like. Said here, beside
+        // the nodelist's and the echolist's problems and on the same terms: the
+        // config describes a working system, and one line of it does less than
+        // whoever wrote it thought.
+        for (const auto& problem : appConfig.warnings) {
+            std::cerr << amberedit::i18n::format(_("warning: {0}"), {problem}) << "\n";
+        }
+
         // Into the log as well, where the config names one — a warning printed
         // before the interface came up is a warning that scrolled away with it.
         if (!started.warning.empty()) {

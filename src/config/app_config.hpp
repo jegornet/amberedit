@@ -86,6 +86,43 @@ struct AddressMacro {
     std::optional<uint32_t> attributes;
 };
 
+/// One `address_macro_link_areafix` or `address_macro_link_filefix` line: an
+/// `AddressMacro` per link of the tosser's, written once instead of one line
+/// per link.
+///
+/// A system with forty uplinks and downlinks has forty AreaFixes to write to,
+/// each at its own address, with its own password and very likely the same
+/// robot name — forty `address_macro` lines that say the same thing about
+/// different numbers, and that go stale the moment the tosser's config
+/// changes. This says it once: the word to type, which links it is meant for,
+/// and the attributes to write such a message with. The name, the address and
+/// the password come from the tosser's own `link` blocks, so they are right by
+/// construction and stay right.
+struct LinkMacroRule {
+    /// Which robot of the link the macro writes to, and so which name and
+    /// which password of it are used.
+    enum class Robot { AreaFix, FileFix };
+    Robot robot{Robot::AreaFix};
+
+    /// The word to type, with `$zone`, `$net`, `$node` and `$point` standing
+    /// for the link's address: `a$net$node` is `a5020715` for 2:5020/715.
+    std::string word;
+
+    /// Which links it is meant for. A pattern that states no point covers the
+    /// nodes and not their points — `2:*/*` is every node of zone 2 and none
+    /// of their points — which is what makes the ordinary rule for one's
+    /// uplinks leave the points alone.
+    std::vector<domain::AddressPattern> links;
+
+    /// The attributes such a message is written with, as `address_macro`'s
+    /// last field states them. Nullopt where the line named none.
+    std::optional<uint32_t> attributes;
+
+    /// The line it was written on, which is what the warning about two rules
+    /// covering one link names them by.
+    int line{0};
+};
+
 /// One `compose_add_kludge` line: a control line of the writer's own, and what
 /// it says.
 ///
@@ -2014,10 +2051,33 @@ struct AppConfig {
     /// picks it.
     std::vector<AkaMatch> akaMatches;
 
-    /// The `address_macro` lines, in the order they were written. A netmail
-    /// recipient typed as one of these words is expanded into the whole
-    /// recipient it names; see `addressMacroFor()`.
+    /// The `address_macro` lines, in the order they were written, and after
+    /// them the macros the `address_macro_link_*` rules made out of the tosser's
+    /// links. A netmail recipient typed as one of these words is expanded into
+    /// the whole recipient it names; see `addressMacroFor()`.
+    ///
+    /// One list and not two: a macro is a macro wherever it was written, and
+    /// nothing above this has to ask which kind it was holding. The written
+    /// ones come first, which is what makes an `address_macro` win over a rule
+    /// that would have made the same word.
     std::vector<AddressMacro> addressMacros;
+
+    /// The `address_macro_link_areafix` and `address_macro_link_filefix` lines,
+    /// in the order they were written. Kept after they have been expanded, so
+    /// that what the config said can still be read back — the macros themselves
+    /// are in `addressMacros`.
+    std::vector<LinkMacroRule> linkMacroRules;
+
+    /// What was wrong with the config that was not wrong enough to refuse it:
+    /// two rules covering one link with as much to say about it, a macro word
+    /// two links both answer to. Said out loud at startup and then forgotten —
+    /// see `main()`.
+    ///
+    /// A warning and not a failure, because the alternative is refusing to
+    /// start over an ambiguity in a generated name: the config still describes
+    /// a working system, one macro of it is simply not the one somebody may
+    /// have meant.
+    std::vector<std::string> warnings;
 
     /// The `group ... endgroup` blocks, in the order they were written.
     std::vector<AreaGroup> areaGroups;

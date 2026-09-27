@@ -3734,9 +3734,9 @@ taking a row.
   is not something a reader of message bases does.
 - **A fidoconfig also says who the mail is from.** `sysop` is the name and the
   `address` statements are the addresses, read by
-  `FidoconfigParser::loadIdentity()` — the same parse as the areas, so an
+  `FidoconfigParser::loadSystem()` — the same parse as the areas, so an
   `include` that holds them is walked and a `[name]` in them is expanded — and
-  merged in `readIdentityFromTosser()` while the config is read, which is why it
+  merged in `readIdentityFrom()` while the config is read, which is why it
   has to happen there and not in `AreaManager`: `name` and `address` are
   required, and the check that refuses a config without them stands a few lines
   below the merge. Each half is taken only where AmberEdit's own config states
@@ -3755,7 +3755,57 @@ taking a row.
     where the areas are read, which is the one place that cannot do without it.
     The other two formats are never asked — areas.bbs states nothing but areas,
     and squish.cfg's own `Address` belongs to a tosser AmberEdit has no other
-    business with.
+    business with. `readFromTosser()` is the one call, so the file is parsed
+    once however many of the things below come out of it.
+- **A fidoconfig also says who the links are, and that is where the netmail
+  macros for them come from.** `TosserLink` is the four things a message to a
+  link's robot needs — the `aka`, the robot's name and its password — and
+  nothing else about a link is read: the packet sizes and the flavours are the
+  tosser's own business. The statements are husky's and are applied **where
+  they stand**, which is the whole of what they mean: `password` writes the one
+  password into both robots and over whatever came before it, `areafixPwd` and
+  `filefixPwd` write one apiece, and a config that means both writes the
+  general one first. `areafixName`/`filefixName` name the robot, and a link
+  that names none answers to AreaFix / FileFix — what hpt and htick address
+  their own requests to, filled in by `nameUnnamedRobots()` once the parse is
+  over so that an inherited name is not mistaken for a stated one.
+  - **`linkdefaults` is a template a `link` starts from**, and `link` closes
+    the block as it does in husky — `linkdefaults end` is needed only before
+    global statements, `destroy` throws the template away. Cloned by value,
+    which reproduces husky's pointer game exactly for these four fields: a
+    password the template set through `password` reaches both robots of every
+    link below, and one it set through `areafixPwd` reaches the one.
+  - **A link-scoped statement with no link is passed over.** husky answers it
+    with "you must define a link first"; what matters here is that it belongs
+    to nothing, and in particular not to the link written below it.
+- **`address_macro_link_areafix` and `address_macro_link_filefix` are one line
+  in place of one per link.** A `LinkMacroRule` is a word with `$zone`, `$net`,
+  `$node` and `$point` in it, the address patterns of the links it is for, and
+  the attributes; `expandLinkMacros()` turns it and the tosser's links into
+  ordinary `AddressMacro`s at the end of the config read. They go into
+  `addressMacros` **after** the written ones, and that order is the rule: an
+  `address_macro` somebody typed wins over a word a rule would have made.
+  Nothing above the config knows the difference, which is the point — one list,
+  one `addressMacroFor()`.
+  - **One macro per link per robot, from the rule that says the most about its
+    address.** `ruleFor()` compares `AddressPattern::depth()`, so "zones 1 to 4
+    by net and node" and "everybody else by zone" are two lines that divide the
+    links between them rather than one taking the other's. Two patterns inside
+    one rule are no ambiguity — they make the same word.
+  - **A pattern that states no point is about nodes.** `readLinkMacroRule()`
+    sets `point = 0` where the written pattern holds no `.`, which undoes the
+    format's own rule that a trailing `*` covers every component after it:
+    `2:*/*` is the nodes of zone 2, and the points behind them are written
+    `2:*/*.*`. Without it the ordinary rule for one's uplinks would make a macro
+    for every point of every boss.
+  - **Everything ambiguous is a warning and the first answer, never a
+    refusal.** Two rules with as much to say about one link, a word two links
+    would both answer to — both land in `AppConfig::warnings`, which `main()`
+    prints beside the nodelist's and the echolist's problems. The links come out
+    of a file this config does not own, and a tosser config grown a second link
+    at one address must not be a mail editor that will not start. A rule that
+    matches no link, or that stands over a tosser config of another format, is
+    for the same reason no error at all.
 - **An area's AKA is not a link.** Both fidoconfig's `-a` and squish.cfg's `-p`
   name the address the area is presented under and take exactly one; the bare
   addresses that follow are the links. Reading `-a` as a list of links silently

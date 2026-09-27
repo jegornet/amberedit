@@ -534,7 +534,7 @@ TEST_CASE("map_path reaches the file an include names [fidoconfig]") {
 }
 
 TEST_CASE("FidoconfigParser reads the sysop and the addresses [fidoconfig]") {
-    const auto identity = FidoconfigParser::parseIdentityText(
+    const auto system = FidoconfigParser::parseSystemText(
         "Sysop Vasya Pupkin\n"
         "Address 2:382/736\n"
         "Address 2:382/736.1\n"
@@ -542,22 +542,22 @@ TEST_CASE("FidoconfigParser reads the sysop and the addresses [fidoconfig]") {
 
     // The name is the rest of the line, spaces and all: it is somebody's name
     // and not a list of options.
-    CHECK(identity.sysop == "Vasya Pupkin");
+    CHECK(system.sysop == "Vasya Pupkin");
     // The statement repeats, the first one naming the main address.
-    REQUIRE(identity.addresses.size() == 2);
-    CHECK(identity.addresses[0].toString() == "2:382/736");
-    CHECK(identity.addresses[1].toString() == "2:382/736.1");
+    REQUIRE(system.addresses.size() == 2);
+    CHECK(system.addresses[0].toString() == "2:382/736");
+    CHECK(system.addresses[1].toString() == "2:382/736.1");
 }
 
 TEST_CASE("FidoconfigParser drops the domain from a 5D address [fidoconfig]") {
     // fidoconfig's address statement is full 5D and nothing AmberEdit compares
     // an address against carries a domain.
-    const auto identity =
-        FidoconfigParser::parseIdentityText("address 2:382/736.1@fidonet\n");
+    const auto system =
+        FidoconfigParser::parseSystemText("address 2:382/736.1@fidonet\n");
 
-    REQUIRE(identity.addresses.size() == 1);
-    CHECK(identity.addresses[0].toString() == "2:382/736.1");
-    CHECK(identity.addresses[0].domain.empty());
+    REQUIRE(system.addresses.size() == 1);
+    CHECK(system.addresses[0].toString() == "2:382/736.1");
+    CHECK(system.addresses[0].domain.empty());
 }
 
 TEST_CASE("FidoconfigParser reads the identity a variable spells [fidoconfig]") {
@@ -565,36 +565,36 @@ TEST_CASE("FidoconfigParser reads the identity a variable spells [fidoconfig]") 
     // `[name]` expands in them, and the keyword is matched without regard to
     // case. A quoted name arrives without its quotes, which is what husky's
     // stripRoundingChars() does to it.
-    const auto identity = FidoconfigParser::parseIdentityText(
+    const auto system = FidoconfigParser::parseSystemText(
         "set node=2:6000/9999\n"
         "SYSOP \"Vasya Pupkin\"   # the man himself\n"
         "address [node]\n");
 
-    CHECK(identity.sysop == "Vasya Pupkin");
-    REQUIRE(identity.addresses.size() == 1);
-    CHECK(identity.addresses[0].toString() == "2:6000/9999");
+    CHECK(system.sysop == "Vasya Pupkin");
+    REQUIRE(system.addresses.size() == 1);
+    CHECK(system.addresses[0].toString() == "2:6000/9999");
 }
 
 TEST_CASE("FidoconfigParser: the last sysop statement wins [fidoconfig]") {
     // husky's copyString() frees what the keyword held and writes the new value
     // over it, so a config that states the name twice means the second one.
-    const auto identity = FidoconfigParser::parseIdentityText(
+    const auto system = FidoconfigParser::parseSystemText(
         "sysop Vasya Pupkin\n"
         "sysop Petya Ivanov\n");
 
-    CHECK(identity.sysop == "Petya Ivanov");
+    CHECK(system.sysop == "Petya Ivanov");
 }
 
 TEST_CASE("FidoconfigParser passes over an address it cannot read [fidoconfig]") {
     // A statement naming no address leaves the list as it was rather than an
     // entry of zeroes in it, which would be an address of ours that is nobody.
-    const auto identity = FidoconfigParser::parseIdentityText(
+    const auto system = FidoconfigParser::parseSystemText(
         "address\n"
         "address not-an-address\n"
         "address 2:382/736\n");
 
-    REQUIRE(identity.addresses.size() == 1);
-    CHECK(identity.addresses[0].toString() == "2:382/736");
+    REQUIRE(system.addresses.size() == 1);
+    CHECK(system.addresses[0].toString() == "2:382/736");
 }
 
 TEST_CASE("FidoconfigParser finds the identity in an include [fidoconfig]") {
@@ -615,22 +615,22 @@ TEST_CASE("FidoconfigParser finds the identity in an include [fidoconfig]") {
     write(config, "include common\nEchoArea a.one /ftn/one -b squish\n");
 
     FidoconfigParser parser(config);
-    const auto identity = amberedit::test::valueOf(parser.loadIdentity());
+    const auto system = amberedit::test::valueOf(parser.loadSystem());
 
-    CHECK(identity.sysop == "Vasya Pupkin");
-    REQUIRE(identity.addresses.size() == 2);
-    CHECK(identity.addresses[0].toString() == "2:382/736");
-    CHECK(identity.addresses[1].toString() == "2:6000/9999");
+    CHECK(system.sysop == "Vasya Pupkin");
+    REQUIRE(system.addresses.size() == 2);
+    CHECK(system.addresses[0].toString() == "2:382/736");
+    CHECK(system.addresses[1].toString() == "2:6000/9999");
 }
 
 TEST_CASE("FidoconfigParser: a config saying neither is no failure [fidoconfig]") {
     // A tosser config is under no obligation to say who runs the system, and a
     // config of nothing but areas is an ordinary one.
-    const auto identity =
-        FidoconfigParser::parseIdentityText("EchoArea a.one /ftn/one -b squish\n");
+    const auto system =
+        FidoconfigParser::parseSystemText("EchoArea a.one /ftn/one -b squish\n");
 
-    CHECK(identity.sysop.empty());
-    CHECK(identity.addresses.empty());
+    CHECK(system.sysop.empty());
+    CHECK(system.addresses.empty());
 }
 
 TEST_CASE("FidoconfigParser reads the identity in the stated charset [fidoconfig]") {
@@ -648,15 +648,145 @@ TEST_CASE("FidoconfigParser reads the identity in the stated charset [fidoconfig
     out.close();
 
     FidoconfigParser parser(config, PathMap{}, "CP866");
-    CHECK(amberedit::test::valueOf(parser.loadIdentity()).sysop == "Вася Пупкин");
+    CHECK(amberedit::test::valueOf(parser.loadSystem()).sysop == "Вася Пупкин");
 }
 
 TEST_CASE("FidoconfigParser: a bare sysop statement keeps the name [fidoconfig]") {
     // husky reads the value of such a line as a missing parameter and keeps what
     // the keyword held, so a stray `sysop` does not take the name away.
-    const auto identity = FidoconfigParser::parseIdentityText(
+    const auto system = FidoconfigParser::parseSystemText(
         "sysop Vasya Pupkin\n"
         "sysop\n");
 
-    CHECK(identity.sysop == "Vasya Pupkin");
+    CHECK(system.sysop == "Vasya Pupkin");
+}
+
+TEST_CASE("FidoconfigParser reads a link and its robots [fidoconfig]") {
+    const auto system = FidoconfigParser::parseSystemText(
+        "link Boss\n"
+        "aka 2:5020/715\n"
+        "password PA55W0RD\n"
+        "link Point\n"
+        "aka 2:5020/9999.1@fidonet\n"
+        "areafixPwd AFPWD\n"
+        "filefixPwd FFPWD\n"
+        "areafixName allfix\n"
+        "filefixName \"All Fix\"\n");
+
+    REQUIRE(system.links.size() == 2);
+
+    // `password` is the one password of the whole link and reaches both robots,
+    // and a link that names no robot answers to what hpt and htick write to.
+    CHECK(system.links[0].aka.toString() == "2:5020/715");
+    CHECK(system.links[0].areafixPwd == "PA55W0RD");
+    CHECK(system.links[0].filefixPwd == "PA55W0RD");
+    CHECK(system.links[0].areafixName == "AreaFix");
+    CHECK(system.links[0].filefixName == "FileFix");
+
+    // The domain goes, as it does from our own addresses.
+    CHECK(system.links[1].aka.toString() == "2:5020/9999.1");
+    CHECK(system.links[1].areafixPwd == "AFPWD");
+    CHECK(system.links[1].filefixPwd == "FFPWD");
+    CHECK(system.links[1].areafixName == "allfix");
+    CHECK(system.links[1].filefixName == "All Fix");
+}
+
+TEST_CASE("FidoconfigParser: password overwrites what stands above it [fidoconfig]") {
+    // husky writes `password` into every password the link has, this one
+    // included, so the order of the two lines is the whole of what they mean.
+    const auto after = FidoconfigParser::parseSystemText(
+        "link Boss\naka 2:5020/715\nareafixPwd AFPWD\npassword PA55W0RD\n");
+    REQUIRE(after.links.size() == 1);
+    CHECK(after.links[0].areafixPwd == "PA55W0RD");
+
+    const auto before = FidoconfigParser::parseSystemText(
+        "link Boss\naka 2:5020/715\npassword PA55W0RD\nareafixPwd AFPWD\n");
+    REQUIRE(before.links.size() == 1);
+    CHECK(before.links[0].areafixPwd == "AFPWD");
+    CHECK(before.links[0].filefixPwd == "PA55W0RD");
+}
+
+TEST_CASE("FidoconfigParser: a link starts from linkdefaults [fidoconfig]") {
+    const auto system = FidoconfigParser::parseSystemText(
+        "linkdefaults\n"
+        "password COMMON\n"
+        "areafixName allfix\n"
+        "link One\n"
+        "aka 2:5020/715\n"
+        "link Two\n"
+        "aka 2:5020/716\n"
+        "password OWN\n");
+
+    REQUIRE(system.links.size() == 2);
+    // The template is copied into every link below it...
+    CHECK(system.links[0].areafixPwd == "COMMON");
+    CHECK(system.links[0].areafixName == "allfix");
+    CHECK(system.links[1].areafixName == "allfix");
+    // ...and what the link says for itself stands over what it inherited.
+    CHECK(system.links[1].areafixPwd == "OWN");
+    CHECK(system.links[1].filefixPwd == "OWN");
+}
+
+TEST_CASE("FidoconfigParser: linkdefaults ends where a link begins [fidoconfig]") {
+    // husky stops describing defaults at the first `link`, so a password below
+    // it belongs to that link and not to every link after it.
+    const auto system = FidoconfigParser::parseSystemText(
+        "linkdefaults begin\n"
+        "areafixName allfix\n"
+        "link One\n"
+        "aka 2:5020/715\n"
+        "password ONEONLY\n"
+        "link Two\n"
+        "aka 2:5020/716\n");
+
+    REQUIRE(system.links.size() == 2);
+    CHECK(system.links[0].areafixPwd == "ONEONLY");
+    CHECK(system.links[1].areafixPwd.empty());
+    CHECK(system.links[1].areafixName == "allfix");
+}
+
+TEST_CASE("FidoconfigParser: linkdefaults destroy drops the template [fidoconfig]") {
+    const auto system = FidoconfigParser::parseSystemText(
+        "linkdefaults\n"
+        "password COMMON\n"
+        "linkdefaults destroy\n"
+        "link One\n"
+        "aka 2:5020/715\n");
+
+    REQUIRE(system.links.size() == 1);
+    CHECK(system.links[0].areafixPwd.empty());
+}
+
+TEST_CASE("FidoconfigParser: linkdefaults end keeps it [fidoconfig]") {
+    // `end` closes the block so that the statements after it are the config's
+    // own again, and the template goes on being what a link starts from.
+    const auto system = FidoconfigParser::parseSystemText(
+        "linkdefaults\n"
+        "password COMMON\n"
+        "linkdefaults end\n"
+        "sysop Vasya Pupkin\n"
+        "link One\n"
+        "aka 2:5020/715\n");
+
+    CHECK(system.sysop == "Vasya Pupkin");
+    REQUIRE(system.links.size() == 1);
+    CHECK(system.links[0].areafixPwd == "COMMON");
+}
+
+TEST_CASE("FidoconfigParser: a link line with no link is passed over [fidoconfig]") {
+    // husky answers such a line with "you must define a link first" and we go
+    // on reading: what matters is that it belongs to nothing, and in particular
+    // not to the link below it.
+    const auto system = FidoconfigParser::parseSystemText(
+        "password STRAY\n"
+        "aka 2:5020/1\n"
+        "link One\n"
+        "aka 2:5020/715\n");
+
+    REQUIRE(system.links.size() == 1);
+    CHECK(system.links[0].aka.toString() == "2:5020/715");
+    CHECK(system.links[0].areafixPwd.empty());
+    // And a stray `aka` is not one of our own addresses either: that is what
+    // the `address` statement is for.
+    CHECK(system.addresses.empty());
 }

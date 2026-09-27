@@ -45,7 +45,13 @@ statements stand in for the
 and
 .B address
 lines of AmberEdit's own config where those are left out, and lose to them
-where they are written.
+where they are written. Its
+.B link
+blocks are where
+.B address_macro_link_areafix
+and
+.B address_macro_link_filefix
+take the name, the address and the password of each netmail macro they make.
 .PP
 Four screens stand one behind the other: the area list, the message list, the
 reader and the editor. Messages are read and written both in UTF\-8 and in the
