@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-09-27
 
 - add quote_trailer: whether to include the tagline, tearline and origin in the quoted text
 - recreate a half-made message base (e.g. .jhr and .jdx without .jdt) when it's empty

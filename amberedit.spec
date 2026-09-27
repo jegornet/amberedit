@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.8.11
+Version:        0.9.0
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,17 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Sun Sep 27 2026 Yegor Gluhov <git@jegor.net> - 0.9.0-1
+- add quote_trailer: whether to include the tagline, tearline and origin in the quoted text
+- recreate a half-made message base (e.g. .jhr and .jdx without .jdt) when it's empty
+- add theme roles header_background and table_header_background
+- input_field theme role now follows header_background when a theme leaves it out
+- add ansi_map_black_to_background theme option: draw a picture's black in the theme's background
+- replace the blue.cfg theme with blue_header.cfg: the black palette, with a navy message header
+- minor adjustments to the white.cfg theme
+- read name and address from fidoconfig (HPT tosser config) if omitted in amberedit.cfg
+- add address_macro_link_areafix and address_macro_link_filefix: a netmail macro per tosser link, with its robot name and password
+
 * Wed Sep 23 2026 Yegor Gluhov <git@jegor.net> - 0.8.11-1
 - add config file include support
 - more verbose message base errors

@@ -343,8 +343,8 @@ none of them is read as a field. See "values kept in a file" under
 
 **A change a user could notice writes its own line into `CHANGELOG.md`, in the
 commit that makes it, under the `## Unreleased` heading at the top of the list.**
-That heading is always there: the bump renames it to the version and the date and
-puts a fresh one back above.
+The bump renames that heading to the version and the date and leaves none in its
+place; the next change to land writes a fresh one above the release it follows.
 
 Written as the work lands rather than when a release is cut, because the file
 ships with the package — `%doc`, `debian/amberedit.docs`, the top of an archive —
@@ -356,8 +356,10 @@ not in it. The packaging changelogs stay on the bump: `%changelog` and
 version to stand under.
 
 Nothing a user can see is nothing to write. A refactor, a test, a comment, a
-build fix leaves the file alone, and `## Unreleased` stands empty until something
-does — an empty heading is the file saying so, not a line missing from it.
+build fix leaves the file alone, and between a bump and the first change that
+does have a line the file carries no `## Unreleased` heading at all — the version
+at the top is the whole of what is written, not a line missing from an empty
+heading.
 
 ### Bumping the version
 
@@ -388,8 +390,10 @@ into the two packaging changelogs:
   +0000` — the stanza is what dpkg parses for the version, so its first line is
   the one `release.yml` reads.
 - `CHANGELOG.md` — rename the `## Unreleased` heading at the top of the list to
-  `## 0.7.2 — 2026-09-07`, and put a fresh `## Unreleased` above it. The lines
-  under it are already there, and are the text the spec entry and the debian
+  `## 0.7.2 — 2026-09-07`. **A bump commit leaves no `## Unreleased` section in
+  the file**: the heading it renamed is the release, and a second one above it is
+  either empty or holds lines the tag does not cover. The lines under the new
+  heading are already there, and are the text the spec entry and the debian
   stanza are written out of, for people who are not holding a package manager.
 - `po/amberedit.pot` and `po/ru.po` — the `Project-Id-Version: AmberEdit 0.7.2`
   line, and nothing else in either file. Both numbers come from

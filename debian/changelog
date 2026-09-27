@@ -1,3 +1,17 @@
+amberedit (0.9.0-1) unstable; urgency=low
+
+  * add quote_trailer: whether to include the tagline, tearline and origin in the quoted text
+  * recreate a half-made message base (e.g. .jhr and .jdx without .jdt) when it's empty
+  * add theme roles header_background and table_header_background
+  * input_field theme role now follows header_background when a theme leaves it out
+  * add ansi_map_black_to_background theme option: draw a picture's black in the theme's background
+  * replace the blue.cfg theme with blue_header.cfg: the black palette, with a navy message header
+  * minor adjustments to the white.cfg theme
+  * read name and address from fidoconfig (HPT tosser config) if omitted in amberedit.cfg
+  * add address_macro_link_areafix and address_macro_link_filefix: a netmail macro per tosser link, with its robot name and password
+
+ -- Yegor Gluhov <git@jegor.net>  Sun, 27 Sep 2026 12:00:00 +0000
+
 amberedit (0.8.11-1) unstable; urgency=low
 
   * add config file include support
