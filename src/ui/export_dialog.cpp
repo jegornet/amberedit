@@ -244,8 +244,12 @@ Outcome writeMessage(AppState& state, Picker& picker, const std::string& path,
     // What the message is written in: `msg_file_charset`, which is what the
     // config says a message put into a file is written in. There is nothing to
     // ask.
+    //
+    // The kludges go in where the reader is showing them: the file is what was
+    // on the screen, and nothing here asks a second time.
     const app::ExportRequest request{path, state.config.msgFileCharset,
-                                     state.config.readerDateTimeFormat, how};
+                                     state.config.readerDateTimeFormat, how,
+                                     state.showKludges};
 
     const auto written_ = app::exportMessage(request, state.currentArea,
                                              *state.readHeader, *state.readBody);
@@ -285,7 +289,8 @@ Outcome writeMarked(AppState& state, Picker& picker, const std::string& path,
     app::ExportWrite next = how;
     for (const uint32_t number : numbers) {
         const app::ExportRequest request{path, state.config.msgFileCharset,
-                                         state.config.readerDateTimeFormat, next};
+                                         state.config.readerDateTimeFormat, next,
+                                         state.showKludges};
         const auto written_ =
             app::exportMessage(request, state.currentArea, state.base->header(number),
                                state.base->body(number));

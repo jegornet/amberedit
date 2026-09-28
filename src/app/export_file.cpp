@@ -171,7 +171,7 @@ std::optional<std::string> readUueBlock(const std::vector<std::string>& lines,
 std::vector<std::string> exportedLines(const domain::AreaConfig& area,
                                        const domain::MessageHeader& header,
                                        const domain::MessageBody& body,
-                                       const std::string& dateFormat) {
+                                       const std::string& dateFormat, bool kludges) {
     std::vector<std::string> lines;
     lines.reserve(body.lines.size() + 7);
 
@@ -194,8 +194,12 @@ std::vector<std::string> exportedLines(const domain::AreaConfig& area,
     lines.push_back(labelled("Date", header.date.format(dateFormat, header.utcOffset)));
     lines.emplace_back(72, '-');
 
+    // The service lines exactly as the reader has them: left out, or written
+    // where the Kludges toggle is on. They are stored with the '@' the reader
+    // draws in place of the ^A, so what goes into the file is what was on the
+    // screen and is a line of text besides.
     for (const auto& line : body.lines) {
-        if (!line.kludge) lines.push_back(line.text);
+        if (!line.kludge || kludges) lines.push_back(line.text);
     }
     return lines;
 }
@@ -211,7 +215,8 @@ tl::expected<void, ErrorPtr> exportMessage(const ExportRequest& request,
     // afterwards cannot be told from a message that had them in it. That is why
     // this goes through intoCharset and not the reader's fromUtf8.
     std::string out;
-    for (const auto& line : exportedLines(area, header, body, request.dateFormat)) {
+    for (const auto& line :
+         exportedLines(area, header, body, request.dateFormat, request.kludges)) {
         auto encoded = recoder.intoCharset(line, request.charset);
         if (!encoded) return tl::make_unexpected(std::move(encoded).error());
         out += *encoded;
@@ -252,9 +257,10 @@ std::vector<UueFile> uueFilesIn(const std::vector<std::string>& lines) {
 std::vector<UueFile> uueFiles(const domain::MessageBody& body) {
     std::vector<std::string> lines;
     lines.reserve(body.lines.size());
-    // The message as it was written, the service lines left out exactly as the
-    // text export leaves them out: a kludge is this network's business, and none
-    // of them is part of a file.
+    // The message as it was written, the service lines left out whatever the
+    // reader is showing: a kludge is this network's business, and none of them
+    // is part of a file — a MSGID decoded into one would be bytes the encoder
+    // never wrote.
     for (const auto& line : body.lines) {
         if (!line.kludge) lines.push_back(line.text);
     }

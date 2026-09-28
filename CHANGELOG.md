@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- export a message to a text file with its kludges if the reader is showing them
+
 ## 0.9.0 — 2026-09-27
 
 - add quote_trailer: whether to include the tagline, tearline and origin in the quoted text

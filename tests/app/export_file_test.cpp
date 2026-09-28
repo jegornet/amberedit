@@ -134,6 +134,48 @@ TEST_CASE("exportedLines writes the header the reader draws [export]") {
     CHECK(lines.size() == 9);
 }
 
+TEST_CASE("exportedLines writes the kludges where the reader shows them [export]") {
+    // The reader keeps a control line with the '@' it draws in place of the ^A a
+    // base stores, so what goes into the file is the row that was on the screen.
+    MessageBody text;
+    text.lines.push_back(MessageLine{"@MSGID: 2:5020/1 12345678", true, false});
+    text.lines.push_back(MessageLine{"Hello, All!", false, false});
+    text.lines.push_back(MessageLine{"--- AmberEdit/linux 0.1", false, true});
+    text.lines.push_back(MessageLine{"SEEN-BY: 5020/1", true, false});
+
+    // Kludges off, which is how the reader starts: the message and nothing else.
+    const auto hidden = exportedLines(echoArea(), header(), text, kFormat);
+    REQUIRE(hidden.size() == 8);
+    CHECK(hidden[6] == "Hello, All!");
+    CHECK(hidden[7] == "--- AmberEdit/linux 0.1");
+
+    // On, and the file holds the routing in the order the message has it.
+    const auto shown = exportedLines(echoArea(), header(), text, kFormat, true);
+    REQUIRE(shown.size() == 10);
+    CHECK(shown[6] == "@MSGID: 2:5020/1 12345678");
+    CHECK(shown[7] == "Hello, All!");
+    CHECK(shown[8] == "--- AmberEdit/linux 0.1");
+    CHECK(shown[9] == "SEEN-BY: 5020/1");
+}
+
+TEST_CASE("exportMessage carries the kludge flag into the file [export]") {
+    const TempDir dir;
+    const std::string path = dir.path("out.txt");
+
+    MessageBody text;
+    text.lines.push_back(MessageLine{"@MSGID: 2:5020/1 12345678", true, false});
+    text.lines.push_back(MessageLine{"Hello, All!", false, false});
+
+    REQUIRE(exportMessage(ExportRequest{path, "UTF-8", kFormat,
+                                        amberedit::app::ExportWrite::Overwrite, true},
+                          echoArea(), header(), text)
+                .has_value());
+
+    const std::string written =
+        amberedit::test::valueOf(amberedit::config::text::readFile(path));
+    CHECK_MESSAGE(contains(written, "@MSGID: 2:5020/1 12345678\n"), written);
+}
+
 TEST_CASE("exportedLines writes the recipient's address in netmail alone [export]") {
     MessageHeader head = header();
     head.to = "Petr Petrov";

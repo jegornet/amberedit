@@ -45,6 +45,11 @@ struct ExportRequest {
     /// Only ever read where the file is already there. A file that is not is
     /// written the same way either way.
     ExportWrite write{ExportWrite::Append};
+    /// Whether the control lines go into the file. The reader's own Kludges
+    /// toggle says: what is exported is what was on the screen, and somebody
+    /// who turned the kludges on is looking at a message's routing and wants
+    /// the file to hold it. Off by default, which is how the reader starts.
+    bool kludges{false};
 };
 
 /// The message as the file holds it: an `Area` row naming the area it came from,
@@ -57,15 +62,18 @@ struct ExportRequest {
 /// address: only netmail is addressed to a node, so outside it a destination
 /// address addresses nobody and is left off exactly as the reader leaves it off.
 ///
-/// Service lines are left out, exactly as the reader leaves them out: MSGID and
-/// SEEN-BY are this network's business and not the message's, and what is being
-/// exported is what somebody wrote. The lines signing it stay — the tagline,
-/// the tearline and the origin are lines of the message like any other, and the
-/// reader shows them.
+/// Service lines are left out or written exactly as the reader has them:
+/// MSGID and SEEN-BY are this network's business and not the message's, so
+/// `kludges` is off unless the reader's Kludges toggle is on — and where it is,
+/// the file holds them as the screen did, `@` standing in for the ^A a base
+/// stores. The lines signing it stay either way — the tagline, the tearline and
+/// the origin are lines of the message like any other, and the reader shows
+/// them.
 [[nodiscard]] std::vector<std::string> exportedLines(const domain::AreaConfig& area,
                                                      const domain::MessageHeader& header,
                                                      const domain::MessageBody& body,
-                                                     const std::string& dateFormat);
+                                                     const std::string& dateFormat,
+                                                     bool kludges = false);
 
 /// Writes it, `request.write` saying what becomes of a file already there.
 ///

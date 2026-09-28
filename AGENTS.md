@@ -2684,8 +2684,12 @@ taking a row.
     name`. The name a file *was* written under stays, as does the directory.
   - **What is written is the area, the reader's own header block and then the
     text** — an `Area` row naming the area's tag over From, To, Subj and Date
-    under the same labels, the rule, and the message with its service lines left
-    out exactly as the reader leaves them out. The area is the one thing the
+    under the same labels, the rule, and the message with its service lines
+    exactly as the reader has them: left out, or written where the reader's
+    Kludges toggle is on. `state.showKludges` reaches the writing as
+    `ExportRequest::kludges` and nothing asks a second time — what is exported is
+    what was on the screen, and a kludge goes into the file with the `@` the
+    reader draws in place of the ^A a base stores. The area is the one thing the
     message cannot answer for itself, so `exportedLines()` and `exportMessage()`
     take it: it names itself on the first row, a file having no title bar to say
     where a message was read, and it says whether the To row carries an address —
