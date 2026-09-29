@@ -3,6 +3,7 @@
 ## Unreleased
 
 - export a message to a text file with its kludges if the reader is showing them
+- the word keys (Alt-B/Alt-F, Alt+arrows, Ctrl-W/Alt-Backspace) now work in the header fields too
 
 ## 0.9.0 — 2026-09-27
 

@@ -1817,6 +1817,26 @@ bool headerKey(AppState& state, const Event& event) {
     std::string& value = valueOf(state.compose, state.composeField);
     size_t& cursor = state.composeCursor;
 
+    // The word keys the message text answers, answering the same way in a
+    // field: what is edited up here is a line of text like any other, and a
+    // header the arrows alone can cross is a header nobody corrects twice.
+    // Before the arrows, and for the reason `textKey()` gives — Alt-Left is a
+    // left arrow with a modifier on it. A field holds one line, so a motion
+    // with no word that way stops at the edge of it rather than walking on.
+    if (state.keys.is(event, Command::ComposeWordLeft)) {
+        cursor = wordStartBefore(value, cursor).value_or(0);
+        return true;
+    }
+    if (state.keys.is(event, Command::ComposeWordRight)) {
+        cursor = wordEndAfter(value, cursor).value_or(value.size());
+        return true;
+    }
+    if (state.keys.is(event, Command::ComposeDeleteWord)) {
+        const size_t from = wordStartBefore(value, cursor).value_or(0);
+        value.erase(from, cursor - from);
+        cursor = from;
+        return true;
+    }
     if (event == Event::ArrowLeft) {
         cursor = prevChar(value, cursor);
         return true;

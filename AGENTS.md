@@ -2022,6 +2022,20 @@ decides what an occurrence is.
   `input_filler_show` is off: whether a field wants underscores is the field's
   answer and whether the theme draws them is the theme's, and that is the one
   place the two meet.
+- **A field is edited with the keys the text is edited with.** The arrows,
+  Backspace, Delete, `Home`/`End` and the `compose.line_start`/`line_end` chords
+  are answered in `headerKey()`, and so are `compose.word_left`,
+  `compose.word_right` and `compose.delete_word`: a header the arrows alone can
+  cross is a header nobody corrects twice. What a word is is defined once —
+  `wordStartBefore()` and `wordEndAfter()` in `ui/text_editor.hpp`, which the
+  buffer's own `moveWordLeft()`, `moveWordRight()` and `deleteWordBefore()` are
+  written on — so the two halves of the screen cannot come to disagree about
+  where one begins. **A field is one line**, and that is the only difference: the
+  two answer `std::nullopt` where nothing but separators lies that way, which in
+  the text carries the motion onto the line above or below and in a field is the
+  edge it stops at. These three are live under `external_editor` for the same
+  reason the line ends are — see `ui/command_live.hpp`: they act on a field, and
+  the header block is what is still typed into there.
 - **A long line is broken by the window, never by the editor.**
   `softWrapOffsets()` (`text_layout.cpp`) says where the window breaks a line and
   `layoutRows()` (`ui/edit_layout.cpp`) turns the buffer into the `EditRow`s that

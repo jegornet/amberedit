@@ -1622,6 +1622,63 @@ TEST_CASE("Ctrl-A and Ctrl-E stand for Home and End [compose]") {
     CHECK(state.edit.col == 0);
 }
 
+TEST_CASE("The word keys move and delete in a header field [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+
+    compose::startNew(state);
+    REQUIRE(state.composeInHeader);
+
+    state.composeField = compose::kSubject;
+    state.compose.subject = "the long way round";
+    state.composeCursor = state.compose.subject.size();
+
+    // Back to the front of each word, the space before it stepped over with it.
+    compose::handleEvent(state, alt('b'));
+    CHECK(state.composeCursor == std::string("the long way ").size());
+    compose::handleEvent(state, Event::Named(Event::Name::ArrowLeft, false, true));
+    CHECK(state.composeCursor == std::string("the long ").size());
+
+    // And forward to the end of the next one, the space after it left alone.
+    compose::handleEvent(state, alt('f'));
+    CHECK(state.composeCursor == std::string("the long way").size());
+    compose::handleEvent(state, Event::Named(Event::Name::ArrowRight, false, true));
+    CHECK(state.composeCursor == state.compose.subject.size());
+
+    // Ctrl-W takes the word before the cursor and the space between the two,
+    // exactly as it does in the text.
+    compose::handleEvent(state, ctrl('w'));
+    CHECK(state.compose.subject == "the long way ");
+    CHECK(state.composeCursor == state.compose.subject.size());
+    compose::handleEvent(state, Event::Named(Event::Name::Backspace, false, true));
+    CHECK(state.compose.subject == "the long ");
+
+    // A field is one line, so the motion stops at its ends rather than carrying
+    // on into the message the way it walks from line to line there.
+    state.composeCursor = 0;
+    compose::handleEvent(state, alt('b'));
+    CHECK(state.composeCursor == 0);
+    CHECK(state.composeField == compose::kSubject);
+    CHECK(state.composeInHeader);
+    compose::handleEvent(state, ctrl('w'));
+    CHECK(state.compose.subject == "the long ");
+    state.composeCursor = state.compose.subject.size();
+    compose::handleEvent(state, alt('f'));
+    CHECK(state.composeCursor == state.compose.subject.size());
+
+    // A Cyrillic name moves by whole letters: a word boundary never lands
+    // between the two bytes of one.
+    state.composeField = compose::kToName;
+    state.compose.toName = "Иван Петров";
+    state.composeCursor = state.compose.toName.size();
+    compose::handleEvent(state, alt('b'));
+    CHECK(state.composeCursor == std::string("Иван ").size());
+    compose::handleEvent(state, alt('f'));
+    CHECK(state.composeCursor == state.compose.toName.size());
+    compose::handleEvent(state, ctrl('w'));
+    CHECK(state.compose.toName == "Иван ");
+}
+
 TEST_CASE("A click in the text brings the typing back down to it [compose][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;

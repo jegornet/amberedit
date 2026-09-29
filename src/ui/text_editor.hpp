@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -116,6 +117,17 @@ void moveToLineEnd(TextBuffer& buffer);
 /// carries the cursor on to the next.
 void moveWordRight(TextBuffer& buffer);
 void moveWordLeft(TextBuffer& buffer);
+
+/// The same motion within one string: the start of the word before `at`, and
+/// the end of the word after it. `std::nullopt` where there is no word that
+/// way — nothing but separators to the edge of the string — which is what
+/// tells the message text to carry the motion on to the line above or below.
+///
+/// The header fields are what these are public for: a field holds one line, so
+/// the two of them are the whole of what its word keys need, and a word there
+/// means what it means in the text rather than nearly that.
+[[nodiscard]] std::optional<size_t> wordStartBefore(const std::string& text, size_t at);
+[[nodiscard]] std::optional<size_t> wordEndAfter(const std::string& text, size_t at);
 
 /// The text with the trailing empty lines dropped — what a message is saved
 /// as. A blank line the user left at the end is padding, not content.

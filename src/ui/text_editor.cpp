@@ -228,16 +228,10 @@ void deleteWordBefore(TextBuffer& buffer) {
     // it.
     if (buffer.col == 0) return;
 
-    const std::string& line = buffer.line();
-    const auto before = [&line](size_t at) { return line[prevBoundary(line, at)]; };
-
-    // The separators first and then the word, which is where `moveWordLeft()`
-    // would have left the cursor had it stayed on the line: `foo bar ` back to
-    // `foo `, and never half of the space between two words.
-    size_t at = buffer.col;
-    while (at > 0 && !isWordByte(before(at))) at = prevBoundary(line, at);
-    while (at > 0 && isWordByte(before(at))) at = prevBoundary(line, at);
-
+    // Where `moveWordLeft()` would have left the cursor had it stayed on the
+    // line: `foo bar ` back to `foo `, and never half of the space between two
+    // words. Nothing but separators behind it and the whole of them go.
+    const size_t at = wordStartBefore(buffer.line(), buffer.col).value_or(0);
     buffer.line().erase(at, buffer.col - at);
     buffer.col = at;
 }
@@ -288,51 +282,57 @@ void moveRight(TextBuffer& buffer) {
     buffer.col = 0;
 }
 
+std::optional<size_t> wordStartBefore(const std::string& text, size_t at) {
+    at = std::min(at, text.size());
+    const auto before = [&text](size_t pos) { return text[prevBoundary(text, pos)]; };
+
+    // The separators first and then the word, so the cursor lands on the front
+    // of one and never in the middle of the space before it.
+    while (at > 0 && !isWordByte(before(at))) at = prevBoundary(text, at);
+    if (at == 0) return std::nullopt;
+    while (at > 0 && isWordByte(before(at))) at = prevBoundary(text, at);
+    return at;
+}
+
+std::optional<size_t> wordEndAfter(const std::string& text, size_t at) {
+    at = std::min(at, text.size());
+    while (at < text.size() && !isWordByte(text[at])) at += charLength(text, at);
+    if (at >= text.size()) return std::nullopt;
+    while (at < text.size() && isWordByte(text[at])) at += charLength(text, at);
+    return at;
+}
+
 void moveWordRight(TextBuffer& buffer) {
     while (true) {
-        // Nothing left on this line — the next word is on one of the lines
-        // below, if there is one at all.
-        if (buffer.col >= buffer.line().size()) {
-            if (buffer.row + 1 >= static_cast<int>(buffer.lines.size())) return;
-            ++buffer.row;
-            buffer.col = 0;
-            continue;
+        if (const auto at = wordEndAfter(buffer.line(), buffer.col)) {
+            buffer.col = *at;
+            return;
         }
-
-        const std::string& line = buffer.line();
-        while (buffer.col < line.size() && !isWordByte(line[buffer.col])) {
-            buffer.col += charLength(line, buffer.col);
+        // Nothing but separators to the end of this line — the next word is on
+        // one of the lines below, if there is one at all.
+        if (buffer.row + 1 >= static_cast<int>(buffer.lines.size())) {
+            buffer.col = buffer.line().size();
+            return;
         }
-        if (buffer.col >= line.size()) continue;  // separators to the end of it
-
-        while (buffer.col < line.size() && isWordByte(line[buffer.col])) {
-            buffer.col += charLength(line, buffer.col);
-        }
-        return;
+        ++buffer.row;
+        buffer.col = 0;
     }
 }
 
 void moveWordLeft(TextBuffer& buffer) {
     while (true) {
-        if (buffer.col == 0) {
-            if (buffer.row == 0) return;
-            --buffer.row;
-            buffer.col = buffer.line().size();
-            if (buffer.col == 0) continue;  // an empty line has nothing on it
+        if (const auto at = wordStartBefore(buffer.line(), buffer.col)) {
+            buffer.col = *at;
+            return;
         }
-
-        const std::string& line = buffer.line();
-        const auto before = [&] { return line[prevBoundary(line, buffer.col)]; };
-
-        while (buffer.col > 0 && !isWordByte(before())) {
-            buffer.col = prevBoundary(line, buffer.col);
+        // Separators back to the start of this line, or the cursor already
+        // there — the word to go to is on one of the lines above.
+        if (buffer.row == 0) {
+            buffer.col = 0;
+            return;
         }
-        if (buffer.col == 0) continue;  // separators back to the start of it
-
-        while (buffer.col > 0 && isWordByte(before())) {
-            buffer.col = prevBoundary(line, buffer.col);
-        }
-        return;
+        --buffer.row;
+        buffer.col = buffer.line().size();
     }
 }
 

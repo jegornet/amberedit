@@ -9,8 +9,9 @@ namespace amberedit::ui {
 ///
 /// One case, and it is the editor's: `external_editor` takes the internal
 /// editor away entirely, so every command that edits the text of a message has
-/// nothing left to act on. The ends of a line are not among them — they move
-/// the cursor in a header field, which is where the typing goes there.
+/// nothing left to act on. What edits a line rather than the message is not
+/// among them — the ends of a line and the word keys act on a header field,
+/// which is where the typing goes there.
 ///
 /// Asked by the two places that write a key down for the user to press: the
 /// hint bar, where the row is short and a key that does nothing is not worth a
@@ -23,10 +24,7 @@ namespace amberedit::ui {
         case Command::ComposeImport:
         case Command::ComposeDeleteLine:
         case Command::ComposeRestoreLine:
-        case Command::ComposeDeleteQuote:
-        case Command::ComposeDeleteWord:
-        case Command::ComposeWordLeft:
-        case Command::ComposeWordRight: return false;
+        case Command::ComposeDeleteQuote: return false;
         default: return true;
     }
 }
