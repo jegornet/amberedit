@@ -289,7 +289,8 @@ TEST_CASE("config_charset is not a per-area setting [app_config]") {
     CHECK_MESSAGE(contains(vague, "names no charset in particular"), vague);
 }
 
-TEST_CASE("msg_file_charset is config_charset unless a line says otherwise [app_config]") {
+TEST_CASE(
+    "msg_file_charset is config_charset unless a line says otherwise [app_config]") {
     // The file a message is handed over in is a file on this machine like the
     // ones config_charset already answers for, so it is answered the same way
     // until somebody says otherwise.
@@ -754,9 +755,15 @@ TEST_CASE("compose_add_kludge adds a control line of the writer's own [app_confi
     // everything after it, joined by single spaces as every other setting joins
     // its values.
     CHECK(cfg.composeAddKludges[0].name == "RealName");
-    CHECK(cfg.composeAddKludges[0].value == "Yegor Gluhov");
+    CHECK(cfg.composeAddKludges[0].text() == "Yegor Gluhov");
     CHECK(cfg.composeAddKludges[1].name == "X-Comment");
-    CHECK(cfg.composeAddKludges[1].value == "my own note");
+    CHECK(cfg.composeAddKludges[1].text() == "my own note");
+
+    // The tokens stay as they were written: what they stand for is worked out
+    // where the message is built, as it is for the tearline.
+    const auto tokens = with("compose_add_kludge NOTE \"@longpid @version\"\n");
+    REQUIRE(tokens.composeAddKludges.size() == 1);
+    CHECK(tokens.composeAddKludges[0].text() == "@longpid @version");
 
     // A name and what it says, both of them: a line with only a name is
     // somebody who stopped halfway.
@@ -2814,14 +2821,14 @@ TEST_CASE("A group states the control lines its areas carry [app_config]") {
     const auto spanish = cfg.effectiveFor(area("esp.argentina"));
     REQUIRE(spanish.composeAddKludges.size() == 2);
     CHECK(spanish.composeAddKludges[0].name == "RealName");
-    CHECK(spanish.composeAddKludges[0].value == "Egor Gluhov");
+    CHECK(spanish.composeAddKludges[0].text() == "Egor Gluhov");
     CHECK(spanish.composeAddKludges[1].name == "X-Lang");
-    CHECK(spanish.composeAddKludges[1].value == "es");
+    CHECK(spanish.composeAddKludges[1].text() == "es");
 
     // An area the group does not cover keeps what the file itself said.
     const auto other = cfg.effectiveFor(area("ru.linux"));
     REQUIRE(other.composeAddKludges.size() == 1);
-    CHECK(other.composeAddKludges[0].value == "Yegor Gluhov");
+    CHECK(other.composeAddKludges[0].text() == "Yegor Gluhov");
 }
 
 TEST_CASE("A group may say whether replies follow the AREA: line [app_config]") {
@@ -3375,6 +3382,49 @@ TEST_CASE("A tagline is picked from a file the same way [app_config]") {
     REQUIRE(cfg.taglines.size() == 2);
     CHECK(cfg.taglines[0] == "Bread is the staff of life");
     CHECK(cfg.taglines[1] == "... and then she left");
+}
+
+TEST_CASE("A compose_add_kludge line may keep its texts in a file [app_config]") {
+    listFile("quips.txt",
+             "# what this system has to say for itself\n"
+             "first\n"
+             "second\n");
+    const auto cfg = withLists("compose_add_kludge X-Quip @file:quips.txt\n");
+
+    // The name of the control line stands in front of the mark and is none of
+    // the file's name: what the file holds is what the line may say.
+    REQUIRE(cfg.composeAddKludges.size() == 1);
+    CHECK(cfg.composeAddKludges[0].name == "X-Quip");
+    REQUIRE(cfg.composeAddKludges[0].values.size() == 2);
+    CHECK(cfg.composeAddKludges[0].values[0] == "first");
+    CHECK(cfg.composeAddKludges[0].values[1] == "second");
+    // Picked from rather than written out: a message carries one of each control
+    // line, so one of them is what `text()` answers.
+    const std::string text = cfg.composeAddKludges[0].text();
+    CHECK((text == "first" || text == "second"));
+
+    // A group's line may name one as well, and then it restates for its areas
+    // the control line the file outside it named — resolved through the lists
+    // read at load, since `effectiveFor()` may not open a file per area.
+    const auto grouped = withLists(
+        "compose_add_kludge X-Quip \"the house one\"\n"
+        "group\n"
+        "  member esp.*\n"
+        "  compose_add_kludge X-Quip @file:quips.txt\n"
+        "endgroup\n");
+    const auto esp = grouped.effectiveFor(area("esp.argentina"));
+    REQUIRE(esp.composeAddKludges.size() == 1);
+    CHECK(esp.composeAddKludges[0].values.size() == 2);
+    CHECK(grouped.effectiveFor(area("ru.linux")).composeAddKludges[0].text() ==
+          "the house one");
+
+    // The name of the file is still needed, as it is for every other setting
+    // that may name one.
+    const std::string bare = errorWithLists("compose_add_kludge X-Quip @file:\n");
+    CHECK_MESSAGE(contains(bare, "needs the name of the file"), bare);
+    const std::string missing =
+        errorWithLists("compose_add_kludge X-Quip @file:nowhere.txt\n");
+    CHECK_MESSAGE(contains(missing, "nowhere.txt"), missing);
 }
 
 TEST_CASE("The twit lists may be kept in a file [app_config]") {

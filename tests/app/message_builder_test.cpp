@@ -494,7 +494,8 @@ TEST_CASE("A PID says what wrote the message, where one is asked for [builder]")
 
 TEST_CASE("compose_add_kludge lines are carried behind the standard ones [builder]") {
     AppConfig cfg = config();
-    cfg.composeAddKludges = {{"RealName", "Yegor Gluhov"}, {"X-Comment", "my own note"}};
+    cfg.composeAddKludges = {{"RealName", {"Yegor Gluhov"}},
+                             {"X-Comment", {"my own note"}}};
     const AreaConfig area = areaOf(AreaKind::Echo);
 
     ComposeFields fields = netmailFields();
@@ -523,13 +524,73 @@ TEST_CASE("compose_add_kludge lines are carried behind the standard ones [builde
     CHECK(draft.kludges[draft.kludges.size() - 2] == "X-Comment: my own note");
 }
 
+TEST_CASE("A compose_add_kludge line is expanded as a template line [builder]") {
+    AppConfig cfg = config();
+    // The same tokens the tearline is written with, and the same ones a template
+    // uses: the program and its version, whoever is writing, and the area the
+    // message is going into.
+    cfg.composeAddKludges = {{"NOTE", {"@longpid @version"}},
+                             {"X-Writer", {"@cname of @areaname"}}};
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.toName = "All";
+    fields.toAddr.clear();
+
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const std::string expected = "NOTE: " + std::string(amberedit::kLongProgramName) +
+                                 " " + std::string(amberedit::kVersion) + "|";
+    CHECK(kludgesOf(buildDraft(request, {})) ==
+          "MSGID: 2:382/736.1 68a1b2c3|"
+          "TZUTC: 0300|"
+          "CHRS: CP866 2|" +
+              expected + "X-Writer: Yegor Gluhov of test.echo|");
+
+    // A text that comes out empty writes no line at all: @omsgid on a message
+    // answering none stands for nothing, and a control line saying nothing is
+    // one every reader of the message steps over.
+    AppConfig empty = cfg;
+    empty.composeAddKludges = {{"X-Answers", {"@omsgid"}}, {"NOTE", {"@pid"}}};
+    const BuildRequest nothing{empty,   area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    CHECK(kludgesOf(buildDraft(nothing, {})) ==
+          "MSGID: 2:382/736.1 68a1b2c3|"
+          "TZUTC: 0300|"
+          "CHRS: CP866 2|"
+          "NOTE: " +
+              std::string(amberedit::kProgramName) + "|");
+}
+
+TEST_CASE("A compose_add_kludge line picks one of the texts it holds [builder]") {
+    // What a `@file:` line leaves on the list: a message carries one of each
+    // control line, so the file is picked from rather than written out.
+    AppConfig cfg = config();
+    cfg.composeAddKludges = {{"X-Quip", {"first", "second", "third"}}};
+    const AreaConfig area = areaOf(AreaKind::Echo);
+
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.toName = "All";
+    fields.toAddr.clear();
+
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto draft = buildDraft(request, {});
+    REQUIRE_FALSE(draft.kludges.empty());
+    const std::string line = draft.kludges.back();
+    CHECK(
+        (line == "X-Quip: first" || line == "X-Quip: second" || line == "X-Quip: third"));
+}
+
 TEST_CASE("A compose_add_kludge line counts towards the charset [builder]") {
     // It is text somebody wrote, and the base converts it with the rest of the
     // message: a reply keeping the answered message's charset keeps it only
     // where that charset has room for the config's lines too.
     AppConfig cfg = config();  // compose_charset CP866
     cfg.replyOriginalCharset = true;
-    cfg.composeAddKludges = {{"RealName", "Егор Глухов"}};
+    cfg.composeAddKludges = {{"RealName", {"Егор Глухов"}}};
     const AreaConfig area = areaOf(AreaKind::Echo);
 
     MessageHeader header;
@@ -551,7 +612,7 @@ TEST_CASE("A compose_add_kludge line counts towards the charset [builder]") {
 
     // A line CP437 has room for leaves the answer in the charset it answers.
     AppConfig latin = cfg;
-    latin.composeAddKludges = {{"RealName", "Yegor Gluhov"}};
+    latin.composeAddKludges = {{"RealName", {"Yegor Gluhov"}}};
     const BuildRequest fits{latin, area,    fields,     &header,
                             &body, nullptr, 0x68A1B2C3, 180};
     CHECK(buildDraft(fits, {"hello back"}).charset == "CP437");

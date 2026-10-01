@@ -1,5 +1,6 @@
 #include "app/message_builder.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <iomanip>
@@ -24,11 +25,32 @@ namespace {
 /// The config of the area being written into, which an area group may have had
 /// the last word on: what a message states about itself is the echo's business
 /// where an echo has an opinion.
-std::vector<std::string> customKludges(const config::AppConfig& config) {
+///
+/// What each one says is a template line, expanded against this message exactly
+/// as the tearline and the origin are — `compose_add_kludge NOTE "@longpid
+/// @version"` names the program and its version, and `@cname` the writer — and
+/// one of the texts the line holds where it named a file of them. A line whose
+/// text comes out empty is not written at all: a control line saying nothing is
+/// a line every reader of the message has to step over, and a token that stood
+/// for nothing — `@omsgid` on a message answering none — is the one way a config
+/// that was checked for an empty text can still arrive at one.
+std::vector<std::string> customKludges(const config::AppConfig& config,
+                                       const TemplateContext& context) {
     std::vector<std::string> lines;
     lines.reserve(config.composeAddKludges.size());
     for (const config::CustomKludge& kludge : config.composeAddKludges) {
-        lines.push_back(kludge.name + ": " + kludge.value);
+        std::string value = expandTokens(kludge.text(), context);
+        // The config was read with no control character in it; a token can still
+        // put one there, @omsgid carrying whatever the message being answered
+        // had in its MSGID. They go, because a ^A inside the line would split it
+        // into two control lines in a base that stores them run together.
+        const auto control = [](const char c) {
+            const auto byte = static_cast<unsigned char>(c);
+            return byte < 0x20 || byte == 0x7F;
+        };
+        value.erase(std::remove_if(value.begin(), value.end(), control), value.end());
+        if (value.empty()) continue;
+        lines.push_back(kludge.name + ": " + value);
     }
     return lines;
 }
@@ -745,7 +767,13 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
     // The config's own control lines are text somebody wrote — a real name, a
     // language, whatever an echo asks its writers to state — so the charset has
     // to hold them as surely as it holds the message.
-    const std::vector<std::string> custom = customKludges(request.config);
+    // The context is built only where there is a line wanting one: it quotes the
+    // message being answered, and a config that asks for no control line of its
+    // own has nothing for that to say.
+    const std::vector<std::string> custom =
+        request.config.composeAddKludges.empty()
+            ? std::vector<std::string>{}
+            : customKludges(request.config, contextFor(request));
     encoded.insert(encoded.end(), custom.begin(), custom.end());
     // The charset the area this message is going into is written in — the
     // config's `compose_charset`, or an area group's where one covers the tag,

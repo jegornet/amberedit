@@ -803,74 +803,6 @@ tl::expected<LinkMacroRule, ErrorPtr> readLinkMacroRule(const CfgEntry& entry) {
     return rule;
 }
 
-/// The control lines a message composed here is given by AmberEdit itself, and
-/// that a `compose_add_kludge` line may therefore not name.
-///
-/// Every one of them says something worked out while the message is written or
-/// carried — where it is going, what tells it apart from every other message,
-/// which charset it is in, which systems have already seen it — and a second
-/// one stating something else would be believed by whichever program reads it
-/// first. What a config may add is a line nothing routes by.
-constexpr std::string_view kReservedKludges[] = {
-    "AREA", "MSGID", "REPLY",   "INTL", "TOPT",    "FMPT",  "TID",     "PID",
-    "CHRS", "TZUTC", "SEEN-BY", "PATH", "UCSFROM", "UCSTO", "UCSSUBJ", "Via"};
-
-/// One `compose_add_kludge` line, read onto the control line it describes: the
-/// name first and everything after it the text that goes on the line.
-tl::expected<CustomKludge, ErrorPtr> readCustomKludge(const CfgEntry& entry) {
-    constexpr const char* kNeeds =
-        "compose_add_kludge takes the name of a control line and what it says, "
-        "e.g. compose_add_kludge RealName \"Vasiliy Pupkin\"";
-    if (entry.values.size() < 2) return entry.fail(kNeeds);
-
-    CustomKludge kludge;
-    kludge.name = entry.values.front();
-    // The rest joined by single spaces, as `text()` joins the values of every
-    // other setting: `compose_add_kludge RealName Vasiliy Pupkin` and the same
-    // line with the text in quotes say the same thing.
-    for (size_t i = 1; i < entry.values.size(); ++i) {
-        if (i > 1) kludge.value += ' ';
-        kludge.value += entry.values[i];
-    }
-    if (kludge.name.empty() || kludge.value.empty()) return entry.fail(kNeeds);
-
-    // The name is one word and the colon is none of it: both are written into
-    // the message here, and a config that wrote either itself would be asking
-    // for a line no reader could tell from text.
-    if (kludge.name.find_first_of(" \t") != std::string::npos) {
-        return entry.fail("compose_add_kludge: '" + kludge.name +
-                          "' is not the name of a control line — a name is one word");
-    }
-    if (const size_t colon = kludge.name.find(':'); colon != std::string::npos) {
-        return entry.fail(
-            "compose_add_kludge: write the name without the colon, e.g. "
-            "compose_add_kludge " +
-            kludge.name.substr(0, colon) + " \"Vasiliy Pupkin\"");
-    }
-    // The ^A is written here too, and one inside the line would split it into
-    // two control lines in a base that stores them run together.
-    for (const std::string* part : {&kludge.name, &kludge.value}) {
-        for (const char c : *part) {
-            const auto byte = static_cast<unsigned char>(c);
-            if (byte < 0x20 || byte == 0x7F) {
-                return entry.fail(
-                    "compose_add_kludge: a control line holds no control characters "
-                    "— the ^A in front of it is written for you");
-            }
-        }
-    }
-
-    const auto reserved = [&kludge](std::string_view name) {
-        return text::iequals(name, kludge.name);
-    };
-    if (std::any_of(std::begin(kReservedKludges), std::end(kReservedKludges), reserved)) {
-        return entry.fail("compose_add_kludge: '" + kludge.name +
-                          "' is a control line AmberEdit writes itself, and what it "
-                          "says is worked out for each message");
-    }
-    return kludge;
-}
-
 /// The value of `compose_cc_list`: what a message keeps of the `CC:` lines it
 /// was written with.
 tl::expected<CarbonList, ErrorPtr> parseCarbonList(const CfgEntry& entry) {
@@ -954,34 +886,48 @@ tl::expected<TwitMode, ErrorPtr> parseTwitMode(const CfgEntry& entry) {
 /// What a setting writes in front of the name of the file its values are in.
 constexpr std::string_view kListFileMark = "@file:";
 
-/// The keys that take one: the three lines a message is signed with, which a
-/// file of them turns into a pick, and the two twit lists, which a file of them
-/// simply lengthens.
+/// The keys that take one, and which of a line's values may name the file: the
+/// three lines a message is signed with, which a file of them turns into a pick,
+/// the two twit lists, which a file of them simply lengthens, and
+/// `compose_add_kludge`, which writes the name of its control line first and
+/// takes a file of what that line may say after it.
 ///
-/// A whitelist, so that `@file:` stays a word about these five settings rather
+/// A whitelist, so that `@file:` stays a word about these six settings rather
 /// than a shape every value in the config has to be read past. A `template` or
 /// a `name` beginning with it is that text and nothing else.
-[[nodiscard]] bool takesListFile(const std::string& key) {
-    return key == "origin" || key == "tearline" || key == "tagline" || key == "twit" ||
-           key == "twit_subj";
+[[nodiscard]] std::optional<size_t> listFileValue(const std::string& key) {
+    if (key == "origin" || key == "tearline" || key == "tagline" || key == "twit" ||
+        key == "twit_subj") {
+        return 0;
+    }
+    if (key == "compose_add_kludge") return 1;
+    return std::nullopt;
 }
 
 /// The file a line names its values in — `origin @file:origins.txt` names
 /// "origins.txt" — or nothing where the line writes its value out.
 ///
-/// The whole of the value after the mark, so that a name holding spaces needs
+/// The whole of the line from the mark on, so that a name holding spaces needs
 /// no quotes of its own beyond the ones `origin "@file:my origins.txt"` already
 /// takes. An empty name is a file all the same, and the caller complains about
 /// it: `origin @file:` was somebody meaning to name one.
 [[nodiscard]] std::optional<std::string> listFileRef(const CfgEntry& entry) {
-    if (!takesListFile(entry.key) || entry.values.empty()) return std::nullopt;
-    const std::string_view first = entry.values.front();
+    const auto at = listFileValue(entry.key);
+    if (!at || entry.values.size() <= *at) return std::nullopt;
+    const std::string_view first = entry.values[*at];
     if (first.size() < kListFileMark.size()) return std::nullopt;
     if (!text::iequals(first.substr(0, kListFileMark.size()), kListFileMark)) {
         return std::nullopt;
     }
-    const auto joined = entry.text();  // cannot fail: the values are not empty
-    const std::string_view rest = std::string_view(*joined).substr(kListFileMark.size());
+    // What the values before it say is not part of the name: the kludge name on
+    // a `compose_add_kludge` line stands in front of the mark, and a file of
+    // control lines is named by the rest.
+    std::string joined;
+    for (size_t i = *at; i < entry.values.size(); ++i) {
+        if (i > *at) joined += ' ';
+        joined += entry.values[i];
+    }
+    const std::string_view rest = std::string_view(joined).substr(kListFileMark.size());
     return std::string(text::trim(rest));
 }
 
@@ -1084,6 +1030,93 @@ constexpr std::string_view kListFileMark = "@file:";
     static std::mt19937 generator{std::random_device{}()};
     std::uniform_int_distribution<size_t> over(0, texts.size() - 1);
     return texts[over(generator)];
+}
+
+/// The control lines a message composed here is given by AmberEdit itself, and
+/// that a `compose_add_kludge` line may therefore not name.
+///
+/// Every one of them says something worked out while the message is written or
+/// carried — where it is going, what tells it apart from every other message,
+/// which charset it is in, which systems have already seen it — and a second
+/// one stating something else would be believed by whichever program reads it
+/// first. What a config may add is a line nothing routes by.
+constexpr std::string_view kReservedKludges[] = {
+    "AREA", "MSGID", "REPLY",   "INTL", "TOPT",    "FMPT",  "TID",     "PID",
+    "CHRS", "TZUTC", "SEEN-BY", "PATH", "UCSFROM", "UCSTO", "UCSSUBJ", "Via"};
+
+/// One `compose_add_kludge` line, read onto the control line it describes: the
+/// name first and everything after it the text that goes on the line.
+///
+/// The text may be a file of texts — `compose_add_kludge X-Quip @file:quips.txt`
+/// — and then the line holds every line of that file, one of them picked for
+/// each message, as a file of taglines is picked from. The checks below are made
+/// of each of them: what comes out of a file goes into a control line exactly as
+/// what was written on the line would have.
+tl::expected<CustomKludge, ErrorPtr> readCustomKludge(const AppConfig& cfg,
+                                                      const CfgEntry& entry) {
+    constexpr const char* kNeeds =
+        "compose_add_kludge takes the name of a control line and what it says, "
+        "e.g. compose_add_kludge RealName \"Vasiliy Pupkin\"";
+    if (entry.values.size() < 2) return entry.fail(kNeeds);
+
+    CustomKludge kludge;
+    kludge.name = entry.values.front();
+    if (const auto file = listFileRef(entry)) {
+        // Read once, while the config was loaded. A file this config never read
+        // is no texts at all rather than a failure, for the reason `readValues()`
+        // gives: on a throwaway config nothing has been read.
+        if (const ListFile* list = cfg.listFor(*file)) kludge.values = *list;
+    } else {
+        // The rest joined by single spaces, as `text()` joins the values of every
+        // other setting: `compose_add_kludge RealName Vasiliy Pupkin` and the same
+        // line with the text in quotes say the same thing.
+        std::string value;
+        for (size_t i = 1; i < entry.values.size(); ++i) {
+            if (i > 1) value += ' ';
+            value += entry.values[i];
+        }
+        if (value.empty()) return entry.fail(kNeeds);
+        kludge.values.push_back(std::move(value));
+    }
+    if (kludge.name.empty()) return entry.fail(kNeeds);
+
+    // The name is one word and the colon is none of it: both are written into
+    // the message here, and a config that wrote either itself would be asking
+    // for a line no reader could tell from text.
+    if (kludge.name.find_first_of(" \t") != std::string::npos) {
+        return entry.fail("compose_add_kludge: '" + kludge.name +
+                          "' is not the name of a control line — a name is one word");
+    }
+    if (const size_t colon = kludge.name.find(':'); colon != std::string::npos) {
+        return entry.fail(
+            "compose_add_kludge: write the name without the colon, e.g. "
+            "compose_add_kludge " +
+            kludge.name.substr(0, colon) + " \"Vasiliy Pupkin\"");
+    }
+    // The ^A is written here too, and one inside the line would split it into
+    // two control lines in a base that stores them run together.
+    const auto plain = [](const std::string& part) {
+        return std::none_of(part.begin(), part.end(), [](const char c) {
+            const auto byte = static_cast<unsigned char>(c);
+            return byte < 0x20 || byte == 0x7F;
+        });
+    };
+    if (!plain(kludge.name) ||
+        !std::all_of(kludge.values.begin(), kludge.values.end(), plain)) {
+        return entry.fail(
+            "compose_add_kludge: a control line holds no control characters "
+            "— the ^A in front of it is written for you");
+    }
+
+    const auto reserved = [&kludge](std::string_view name) {
+        return text::iequals(name, kludge.name);
+    };
+    if (std::any_of(std::begin(kReservedKludges), std::end(kReservedKludges), reserved)) {
+        return entry.fail("compose_add_kludge: '" + kludge.name +
+                          "' is a control line AmberEdit writes itself, and what it "
+                          "says is worked out for each message");
+    }
+    return kludge;
 }
 
 /// One `twit` value: an FTN address pattern, or a name to match whole.
@@ -1637,7 +1670,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeAddPid = *read;
     } else if (key == "compose_add_kludge") {
-        auto read = readCustomKludge(entry);
+        auto read = readCustomKludge(cfg, entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         // An area group restates the line its own areas carry, so a group naming
         // a kludge the file already named stands in its place rather than beside
@@ -2827,6 +2860,10 @@ const ListFile* AppConfig::listFor(const std::string& name) const {
     if (!listFiles) return nullptr;
     const auto found = listFiles->find(name);
     return found == listFiles->end() ? nullptr : &found->second;
+}
+
+std::string CustomKludge::text() const {
+    return pickOne(values);
 }
 
 std::string AppConfig::tearlineText() const {

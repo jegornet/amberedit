@@ -135,9 +135,21 @@ struct CustomKludge {
     /// The name as it was written, case and all: it goes into the message the
     /// way the config spells it, and only the comparisons fold case.
     std::string name;
-    /// Everything after it on the line, joined by single spaces, as every other
-    /// setting reads its text.
-    std::string value;
+    /// What the line says, as the three signature lines hold what they say: a
+    /// list, because `compose_add_kludge X-Quip @file:quips.txt` holds every
+    /// line of that file and one of them is picked for each message — `text()`,
+    /// which is what a message is built from. A line that writes its text out
+    /// is a list of one, and picks the same text every time.
+    ///
+    /// Each entry is a template line, expanded where the message is built, so
+    /// `compose_add_kludge NOTE "@longpid @version"` names the program and its
+    /// version without either being written here.
+    std::vector<std::string> values;
+
+    /// One of them, at random, exactly as `tearlineText()` picks a tearline,
+    /// and empty where the file held no lines at all. The tokens are still in
+    /// it: expanding them wants the message, and this is asked of the config.
+    [[nodiscard]] std::string text() const;
 };
 
 /// What is left in the message where its `CC:` lines stood, from

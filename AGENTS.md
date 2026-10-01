@@ -697,6 +697,23 @@ Rules that hold the design together:
   does — they are words somebody wrote, and the base converts them. Only a
   message composed here gets them, for the reason a PID stays with whatever
   created the message.
+  - **What one says is a template line.** `customKludges()` runs it through
+    `expandTokens()` against the message's own `TemplateContext`, the same call
+    the tearline, the tagline and the origin go through, so
+    `compose_add_kludge NOTE "@longpid @version"` writes
+    `@NOTE: AmberEdit/darwin 0.1` and `@cname`, `@areaname`, `@cdate` and the rest
+    say here what they say in a template. The context is built only where a config
+    asks for a line at all — it quotes the message being answered — and a text
+    that comes out empty writes no line, which is how `@omsgid` on a message
+    answering none leaves nothing behind. Control characters are dropped *after*
+    expanding, the config having been checked for them before: a token can carry
+    one in off a message somebody else wrote, and a ^A inside the line would make
+    it two.
+  - **One line may hold a file of texts.** `compose_add_kludge X-Quip
+    @file:quips.txt` holds every line of that file and picks one per message —
+    `CustomKludge::text()` — as a file of taglines is picked from. See "A setting
+    may keep its values in a file" under
+    [Config and area groups](#config-and-area-groups).
 - **What the reader is showing is what an answer carries.** `BuildRequest::kludgesShown`
   is the reader's `k`, and `quotableLines()` keeps the control lines with the text
   when it is set: a reply quotes them under the same initials as everything else,
@@ -3545,10 +3562,13 @@ taking a row.
     answers for the whole configuration, it is read off the raw bytes of that
     file before anything is included, and a line in an included file could only
     be read once that file had been read in some charset already.
-- **A setting may keep its values in a file, and five of them may**: `origin`,
-  `tearline`, `tagline`, `twit` and `twit_subj`, written `@file:<name>`
-  (`takesListFile()` is the whitelist, so `@file:` is inert in every other value). The name is the
-  whole of the value after the mark — a leading `~/` is expanded
+- **A setting may keep its values in a file, and six of them may**: `origin`,
+  `tearline`, `tagline`, `twit`, `twit_subj` and `compose_add_kludge`, written
+  `@file:<name>`
+  (`listFileValue()` is the whitelist, and it also says *which* value may name the
+  file — the first for all of them but `compose_add_kludge`, whose first value is
+  the name of the control line, so `@file:` is inert in every other value). The name is the
+  whole of the line from the mark on — a leading `~/` is expanded
   (`text::expandTilde`, which every path setting goes through) and a bare one is
   resolved against `cfg.configDir`; the list is keyed by the name as written, so
   that `readValues()` finds it — and the file is one value per line, trimmed, blank lines and
@@ -3573,11 +3593,15 @@ taking a row.
     directory for anything read off a disk and empty for a string parsed under
     `<string>`, which then means "relative to wherever AmberEdit was started" —
     the same rule a `CC:`/`XC:` `@file` follows.
-  - **The three signature settings pick, the two twit lists concatenate.**
+  - **The three signature settings and `compose_add_kludge` pick, the two twit
+    lists concatenate.**
     `originText()`/`tearlineText()`/`taglineText()` answer one entry at random
     per call and are asked once per message built, so two messages under one
     config need not carry the same origin; a list of one skips the generator, so a config that writes
-    its origin out on the line is as deterministic as it always was. `twit` and
+    its origin out on the line is as deterministic as it always was.
+    `CustomKludge::text()` is the same `pickOne()` over what one
+    `compose_add_kludge` line holds — a message carries one of each control line,
+    so a file of them is a pick and not a list of lines to write. `twit` and
     `twit_subj` are repeatable keys and a `@file:` line adds every entry to what
     the config wrote out, a group's lines adding to the file's as ever.
   - **A repeated key is refused by what the line states, not by the key.**
