@@ -1336,7 +1336,7 @@ void showBody(AreaFixture& fixture, const std::vector<std::string>& lines) {
         body.lines.push_back(amberedit::domain::MessageLine{line, false, false});
     // As a base hands a body over: the tearline and the origin line are flagged
     // where a message closes with them, and the reader colors them by the flag.
-    amberedit::domain::markTrailer(body.lines);
+    amberedit::domain::markFooter(body.lines);
     fixture.state.readBody = body;
     // The width has not changed, so relayout() would leave the old wrapping
     // standing over the new body.
@@ -1653,7 +1653,7 @@ TEST_CASE("With no handler named a click on a link does nothing "
     CHECK(fixture.state.urlRequested.empty());
 }
 
-TEST_CASE("The trailer is never part of the picture [messageread][ansi][squish]") {
+TEST_CASE("The footer is never part of the picture [messageread][ansi][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.bbsCodesAnsi = true;
@@ -1665,7 +1665,7 @@ TEST_CASE("The trailer is never part of the picture [messageread][ansi][squish]"
     term::Screen screen(fixture.state.width, fixture.state.height);
     term::render(screen, message_read::render(fixture.state));
 
-    // Under the picture and not over it, and in the theme's trailer color
+    // Under the picture and not over it, and in the theme's footer color
     // whatever colors the message was drawing in.
     const int art = rowOf(fixture, screen, "art");
     const int tear = rowOf(fixture, screen, "--- AmberEdit");
@@ -1673,8 +1673,8 @@ TEST_CASE("The trailer is never part of the picture [messageread][ansi][squish]"
     REQUIRE(art >= 0);
     REQUIRE(tear > art);
     REQUIRE(origin > tear);
-    CHECK(screen.at(0, tear).fg == amberedit::ui::theme::palette.trailer);
-    CHECK(screen.at(1, origin).fg == amberedit::ui::theme::palette.trailer);
+    CHECK(screen.at(0, tear).fg == amberedit::ui::theme::palette.footer);
+    CHECK(screen.at(1, origin).fg == amberedit::ui::theme::palette.footer);
     // And they are rows of the message rather than rows of the canvas.
     CHECK_FALSE(fixture.state.readLines[1].canvas);
 }

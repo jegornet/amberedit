@@ -110,7 +110,7 @@ domain::FtnAddress addressWord(std::string_view word) {
 /// line: SEEN-BY, PATH and the Via lines a message may have collected.
 /// Everything a ^A opens is one — that is what the drivers put back there —
 /// and SEEN-BY is the one such line that never had a ^A to begin with.
-bool isTrailerLine(std::string_view line) {
+bool isSeenByPathVia(std::string_view line) {
     if (!line.empty() && line.front() == kSoh) return true;
     return config::text::startsWith(line, "SEEN-BY:") ||
            config::text::startsWith(line, "PATH:");
@@ -263,7 +263,7 @@ domain::FtnAddress senderFromOrigin(std::string_view tail) {
         const size_t lineBreak = tail.find_last_of("\r\n", end - 1);
         const size_t start = lineBreak == std::string_view::npos ? 0 : lineBreak + 1;
         const std::string_view line = tail.substr(start, end - start);
-        if (!isBlankLine(line) && !isTrailerLine(line)) {
+        if (!isBlankLine(line) && !isSeenByPathVia(line)) {
             if (!domain::isOriginLine(line)) return {};
             return addressInBrackets(line);
         }

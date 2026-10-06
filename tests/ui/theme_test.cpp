@@ -260,6 +260,28 @@ TEST_CASE("Six hex digits are the color itself [theme]") {
     CHECK(same(mixed.background, Color{232}));
 }
 
+TEST_CASE("trailer is still read as the footer role [theme]") {
+    // The name the role shipped under. A theme already on somebody's disk goes
+    // on painting the tagline, tearline and origin where it says `trailer`: the
+    // old name is a spelling of the role and not a role of its own, so the color
+    // lands in the same field either way.
+    CHECK(same(valueOf(parsePalette("trailer 23")).footer, Color{23}));
+    CHECK(same(valueOf(parsePalette("trailer 8f8779")).footer, Color::rgb(0x8f8779u)));
+    CHECK(same(valueOf(parsePalette("footer 23")).footer, Color{23}));
+
+    // And it is a color like any other under either name: a line with nothing
+    // after it, or something that is neither spelling of a color, is refused.
+    CHECK_FALSE(parsePalette("trailer").has_value());
+    CHECK_FALSE(parsePalette("trailer 256").has_value());
+
+    // Nothing else moves with it, and the role is counted once: a theme naming
+    // it under the old name holds exactly the roles a theme naming it under the
+    // new one does.
+    const Palette old_ = valueOf(parsePalette("trailer 100\n"));
+    const Palette now = valueOf(parsePalette("footer 100\n"));
+    CHECK(approximatedRoles(old_, 16) == approximatedRoles(now, 16));
+}
+
 TEST_CASE("A color is six hex digits or a number, and nothing between [theme]") {
     // The two lengths are what tells them apart, so anything else is neither.
     // Five hex digits and seven are not colors; four decimal digits are not a
@@ -327,7 +349,7 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.screenButtons, builtIn.screenButtons));
     CHECK(same(loaded.dimmed, builtIn.dimmed));
     CHECK(same(loaded.scrollThumb, builtIn.scrollThumb));
-    CHECK(same(loaded.trailer, builtIn.trailer));
+    CHECK(same(loaded.footer, builtIn.footer));
     CHECK(same(loaded.tableHeader, builtIn.tableHeader));
     CHECK(same(loaded.tableHeaderBackground, builtIn.tableHeaderBackground));
     CHECK(same(loaded.arealistSeparator, builtIn.arealistSeparator));
@@ -386,7 +408,7 @@ TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
     CHECK_FALSE(same(loaded.screenButtons, builtIn.screenButtons));
     CHECK_FALSE(same(loaded.dimmed, builtIn.dimmed));
     CHECK_FALSE(same(loaded.scrollThumb, builtIn.scrollThumb));
-    CHECK_FALSE(same(loaded.trailer, builtIn.trailer));
+    CHECK_FALSE(same(loaded.footer, builtIn.footer));
     CHECK_FALSE(same(loaded.tableHeader, builtIn.tableHeader));
     CHECK_FALSE(same(loaded.menuButton, builtIn.menuButton));
     CHECK_FALSE(same(loaded.separator, builtIn.separator));

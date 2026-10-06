@@ -56,7 +56,7 @@ const std::array<std::pair<std::string_view, Field>, 45> kFields{{
     {"screen_buttons", &Palette::screenButtons},
     {"dimmed", &Palette::dimmed},
     {"scroll_thumb", &Palette::scrollThumb},
-    {"trailer", &Palette::trailer},
+    {"footer", &Palette::footer},
     {"table_header", &Palette::tableHeader},
     {"table_header_background", &Palette::tableHeaderBackground},
     {"arealist_separator", &Palette::arealistSeparator},
@@ -107,6 +107,26 @@ const std::array<std::pair<std::string_view, Switch>, 3> kSwitches{{
     {"selection_bold", &Palette::selectionBold},
 }};
 
+/// The names a role was called by before it was renamed, each standing for the
+/// one it is called by now. A theme already on somebody's disk goes on working:
+/// the key is answered as the new one, and nothing about the file has to be
+/// touched.
+///
+/// Kept apart from `kFields` rather than written in as a second line for the
+/// same role, because that table is also what `approximatedRoles()` counts
+/// over — a role named twice there would be a role reported twice.
+const std::array<std::pair<std::string_view, std::string_view>, 1> kAliases{{
+    {"trailer", "footer"},
+}};
+
+/// The role the line fills, which is the key as written unless that key is one
+/// of the old names above.
+[[nodiscard]] std::string_view roleFor(std::string_view key) {
+    const auto alias = std::find_if(kAliases.begin(), kAliases.end(),
+                                    [key](const auto& old) { return old.first == key; });
+    return alias == kAliases.end() ? key : alias->second;
+}
+
 tl::expected<Palette, ErrorPtr> fromEntries(
     const std::vector<config::CfgEntry>& entries) {
     Palette palette;
@@ -118,9 +138,14 @@ tl::expected<Palette, ErrorPtr> fromEntries(
     std::vector<std::string_view> named;
 
     for (const auto& entry : entries) {
-        const auto setting = std::find_if(
-            kSwitches.begin(), kSwitches.end(),
-            [&entry](const auto& known) { return known.first == entry.key; });
+        // The role rather than the key: the two differ only for a theme written
+        // with a name a role used to have. Every complaint below still names the
+        // key as the file has it — what the user wrote is what they can find.
+        const std::string_view role = roleFor(entry.key);
+
+        const auto setting =
+            std::find_if(kSwitches.begin(), kSwitches.end(),
+                         [role](const auto& known) { return known.first == role; });
         if (setting != kSwitches.end()) {
             auto on = entry.flag();
             if (!on) return tl::make_unexpected(std::move(on).error());
@@ -130,7 +155,7 @@ tl::expected<Palette, ErrorPtr> fromEntries(
 
         const auto field =
             std::find_if(kFields.begin(), kFields.end(),
-                         [&entry](const auto& role) { return role.first == entry.key; });
+                         [role](const auto& known) { return known.first == role; });
         if (field == kFields.end()) {
             return entry.fail("'" + entry.key +
                               "' is not a color or a setting this theme knows");

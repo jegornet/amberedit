@@ -1,6 +1,7 @@
 #include "config/app_config.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
@@ -859,14 +860,14 @@ tl::expected<PositionAfterSave, ErrorPtr> parsePositionAfterSave(const CfgEntry&
                       "' is not one of its values (new | current | next)");
 }
 
-tl::expected<QuoteTrailer, ErrorPtr> parseQuoteTrailer(const CfgEntry& entry) {
+tl::expected<QuoteFooter, ErrorPtr> parseQuoteFooter(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
     const std::string value = text::toLower(*only);
-    if (value == "on") return QuoteTrailer::On;
-    if (value == "with_kludges") return QuoteTrailer::WithKludges;
-    if (value == "off") return QuoteTrailer::Off;
-    return entry.fail("quote_trailer: '" + *only +
+    if (value == "on") return QuoteFooter::On;
+    if (value == "with_kludges") return QuoteFooter::WithKludges;
+    if (value == "off") return QuoteFooter::Off;
+    return entry.fail(entry.key + ": '" + *only +
                       "' is not one of its values (on | with_kludges | off)");
 }
 
@@ -1254,6 +1255,28 @@ tl::expected<std::string, ErrorPtr> readCharset(const CfgEntry& entry) {
     return std::string("UTF-8");
 }
 
+/// The names a setting was called by before it was renamed, each standing for
+/// the one it is called by now. A config already on somebody's disk goes on
+/// working, and nothing in it has to be touched.
+///
+/// Everything that asks what a line states reads the key through here, which is
+/// what keeps the old name a *spelling* of the new one and not a second setting:
+/// the pair is one line as far as "set twice", a group block, an `-o` override
+/// and two groups covering one area are concerned. `amberedit.cfg.example`
+/// states only the name a setting is called by now, which is what a new config
+/// is written with.
+///
+/// Answers with the key itself where it is a name of its own, which is every
+/// key but the few here.
+[[nodiscard]] std::string_view canonicalKey(std::string_view key) {
+    static const std::array<std::pair<std::string_view, std::string_view>, 1> kAliases{
+        {{"quote_trailer", "quote_footer"}}};
+    for (const auto& old : kAliases) {
+        if (old.first == key) return old.second;
+    }
+    return key;
+}
+
 /// One setting, read onto a config. False when the key is not a setting at all,
 /// which is the caller's to complain about: the same line is refused with a
 /// different message at the top level and inside a group.
@@ -1263,7 +1286,10 @@ tl::expected<std::string, ErrorPtr> readCharset(const CfgEntry& entry) {
 /// setting is a branch in fromEntries()" true for groups as well, with no second
 /// table of overrides to be kept in step with this one.
 tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry) {
-    const std::string& key = entry.key;
+    // The setting and not the spelling: a line written with a name the setting
+    // used to have is read as the branch it was renamed to. Complaints below
+    // name `entry.key`, which is what the file has.
+    const std::string key = std::string(canonicalKey(entry.key));
 
     if (key == "name") {
         auto read = entry.text();
@@ -1942,10 +1968,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.quoteUnwrap = *read;
-    } else if (key == "quote_trailer") {
-        auto read = parseQuoteTrailer(entry);
+    } else if (key == "quote_footer") {
+        auto read = parseQuoteFooter(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.quoteTrailer = *read;
+        cfg.quoteFooter = *read;
     } else if (key == "import_begin") {
         // Empty is a value like any other here: it is how a file goes into a
         // message with no line in front of it, and `entry.text()` of a key
@@ -1986,7 +2012,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
 /// applySetting() and not to this table comes out as "not a per-area setting",
 /// which is a message, where the other way round it would come out as a layout
 /// key silently overridable per area.
-[[nodiscard]] bool isGroupSetting(const std::string& key) {
+[[nodiscard]] bool isGroupSetting(const std::string& written) {
     static const std::set<std::string> kGroupSettings{"name",
                                                       "address",
                                                       "default_charset",
@@ -1998,7 +2024,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "quote_string",
                                                       "quote_margin",
                                                       "quote_unwrap",
-                                                      "quote_trailer",
+                                                      "quote_footer",
                                                       "import_begin",
                                                       "import_end",
                                                       "template_date_format",
@@ -2017,7 +2043,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "twit_subj",
                                                       "twit_to",
                                                       "twit_mode"};
-    return kGroupSettings.count(key) != 0;
+    return kGroupSettings.count(std::string(canonicalKey(written))) != 0;
 }
 
 /// The keys a config may write more than once, each line adding to a list
@@ -2043,7 +2069,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
 /// Empty where a second line is no contradiction at all — another `twit` names
 /// another person, and the list is the whole of what the key is for.
 [[nodiscard]] std::string statedOnce(const CfgEntry& entry) {
-    if (!isRepeatable(entry.key)) return entry.key;
+    // The canonical name, so that a config stating a setting once under each of
+    // its two names is the contradiction any other doubled setting is rather
+    // than a silent last-one-wins.
+    if (!isRepeatable(entry.key)) return std::string(canonicalKey(entry.key));
     if (entry.key == "compose_add_kludge" && !entry.values.empty()) {
         return entry.key + ' ' + text::toLower(entry.values.front());
     }
@@ -2083,8 +2112,12 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
     std::vector<CfgEntry> entries, const std::vector<CfgEntry>& overrides) {
     if (overrides.empty()) return entries;
 
+    // By canonical name: `-o "quote_footer off"` is what takes the place of a
+    // file's line whichever of the setting's two names that line is written
+    // with.
     std::set<std::string> stated;
-    for (const CfgEntry& entry : overrides) stated.insert(entry.key);
+    for (const CfgEntry& entry : overrides)
+        stated.insert(std::string(canonicalKey(entry.key)));
 
     std::vector<CfgEntry> merged;
     merged.reserve(entries.size() + overrides.size());
@@ -2094,7 +2127,7 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
             inBlock = true;
         } else if (entry.key == "endarea" || entry.key == "endgroup") {
             inBlock = false;
-        } else if (!inBlock && stated.count(entry.key) != 0) {
+        } else if (!inBlock && stated.count(std::string(canonicalKey(entry.key))) != 0) {
             continue;
         }
         merged.push_back(std::move(entry));
@@ -2892,8 +2925,13 @@ bool AppConfig::isTwit(const domain::MessageHeader& header) const {
 }
 
 bool AreaGroup::states(std::string_view key) const {
-    return std::any_of(settings.begin(), settings.end(),
-                       [key](const CfgEntry& entry) { return entry.key == key; });
+    // Both sides through the aliases: the question is which setting the group
+    // states, and two groups writing one setting under its two names state the
+    // same one.
+    const std::string_view wanted = canonicalKey(key);
+    return std::any_of(settings.begin(), settings.end(), [wanted](const CfgEntry& entry) {
+        return canonicalKey(entry.key) == wanted;
+    });
 }
 
 std::optional<std::tuple<int, int, bool>> AreaGroup::specificityFor(

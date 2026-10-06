@@ -1358,14 +1358,14 @@ quote_margin 78
 # signature or a piece of ASCII art is quoted exactly as it stands either way.
 quote_unwrap off
 
-# Whether the trailer closing the message being answered — its tagline, its
+# Whether the footer closing the message being answered — its tagline, its
 # tearline and its origin — is quoted along with the text. Optional;
 # with_kludges by default; may be set per area in a group block.
 #
 #   on             quoted whatever the reader is showing
 #   with_kludges   quoted where the reader is showing the kludges ("k")
 #   off            never quoted
-quote_trailer with_kludges
+quote_footer with_kludges
 
 # The two lines standing either side of a file read into a message as text — ^O
 # in the editor, and "import" in compose_menu. Optional; "=== Cut ===" both. An
@@ -1544,7 +1544,7 @@ twit_mode blank
 #   default_charset       compose_charset
 #   origin                tearline              tagline
 #   template              quote_string          quote_margin
-#   quote_unwrap          quote_trailer
+#   quote_unwrap          quote_footer
 #   template_date_format  template_time_format
 #   import_begin          import_end
 #   reader_stylecodes     areareplydirect       reply_to_area
@@ -1607,6 +1607,6 @@ bbs_codes_renegade off
 # Inside such a message reader_stylecodes and bbs_codes_renegade do not apply
 # however they are set: a marker in a picture is a glyph somebody drew with. The
 # lines signing the message — the tearline, the origin, and a tagline over them —
-# stay out of the picture and keep the theme's trailer color, wherever the
+# stay out of the picture and keep the theme's footer color, wherever the
 # drawing left off.
 bbs_codes_ansi off

@@ -785,7 +785,7 @@ struct AppState {
         /// the block at the very end counts: `---` in the middle of a message is
         /// the author's own separator and stays ordinary text, and so is a line
         /// opening with `... ` anywhere but directly over the tearline.
-        bool trailer{false};
+        bool footer{false};
         /// Where the BBS color codes change the color within this row, in bytes
         /// of `text` — the codes themselves having been taken out of it, since
         /// they are markup and not text. Empty unless `bbs_codes_renegade` is on

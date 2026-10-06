@@ -501,7 +501,7 @@ std::vector<std::string> rewriteCopyCommands(const std::vector<std::string>& lin
     return out;
 }
 
-std::vector<std::string> withoutTrailer(std::vector<std::string> lines) {
+std::vector<std::string> withoutFooter(std::vector<std::string> lines) {
     while (!lines.empty() && config::text::trim(lines.back()).empty()) lines.pop_back();
     const size_t count = lines.size();
     if (count >= 2 && domain::isTearline(lines[count - 2]) &&

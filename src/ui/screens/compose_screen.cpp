@@ -1212,7 +1212,7 @@ void writeCopies(AppState& state, const std::vector<std::string>& text,
     const domain::AreaConfig source = state.currentArea;
     // Every area closes the message with a pair of its own, so the one the
     // editor closed it with comes off first.
-    const std::vector<std::string> body = app::withoutTrailer(text);
+    const std::vector<std::string> body = app::withoutFooter(text);
 
     // The tag with the reason beside it: which echo has no copy in it is what
     // the user acts on, and why is what tells a read-only spool from an area
@@ -2060,11 +2060,11 @@ Element render(AppState& state) {
     // so that what is being answered stands apart from the answer, and the
     // tearline and origin in theirs. Which lines those are is left to the same
     // function the reader uses, so that a pair the typing has pushed out of
-    // place stops being a trailer here exactly when it stops being one there.
+    // place stops being a footer here exactly when it stops being one there.
     std::vector<domain::MessageLine> marked;
     marked.reserve(state.edit.lines.size());
     for (const auto& line : state.edit.lines) marked.push_back({line, false, false});
-    domain::markTrailer(marked);
+    domain::markFooter(marked);
 
     const int rows = editorRows(state);
     // Where a line breaks depends on how wide the window is, so a window that
@@ -2167,7 +2167,7 @@ Element render(AppState& state) {
         // as it is in the reader.
         const int depth = quoteDepth(line);
         const theme::Color base =
-            marked[static_cast<size_t>(row.line)].trailer ? theme::palette.trailer
+            marked[static_cast<size_t>(row.line)].footer ? theme::palette.footer
             : depth > 0
                 ? (depth % 2 == 1 ? theme::palette.quoteOdd : theme::palette.quoteEven)
                 : theme::palette.text;

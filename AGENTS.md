@@ -721,21 +721,36 @@ Rules that hold the design together:
   them, `@` for ^A, since what is carried is text *about* a message and not
   control data of the answer's own — a forwarded `SEEN-BY:` is one this reader
   hides again on `k`, and that is right: it is service data wherever it stands.
-- **The trailer closing the answered message is `quote_trailer`'s.** Its tagline,
-  tearline and origin are the three lines `markTrailer()` flags, and the setting
+- **The footer closing the answered message is `quote_footer`'s.** Its tagline,
+  tearline and origin are the three lines `markFooter()` flags, and the setting
   says whether `quotableLines()` carries them: `with_kludges` unless the config
   says otherwise, which puts them on the screen of the answer exactly when the
   rest of what that message states about itself is there — they are a sign-off
   to a person and a service block to a tosser, and the reader's `k` is where
   that question is already answered. `on` carries them whatever the reader is
-  showing, `off` never does. It says nothing about the footer the answer is
-  closed with, which `closeMessage()` writes either way: a carried tearline goes in as
+  showing, `off` never does. It says nothing about the answer's own footer, which
+  `closeMessage()` writes either way: a carried tearline goes in as
   text, and a quote prefix in front of `--- ` is no longer a marker anything
   downstream reads. A forward, which carries the message whole, is decided by
   the same setting — and there the pair is spoiled to `-+-`/` + Origin:` on the
   way out, being a tearline standing in the middle of a message. It is per area,
   as `quote_string` and `quote_margin` are.
-- **Tearline, tagline and origin.** `domain::markTrailer()` flags the block
+- **The block closing a message is the footer, and nothing else is.** The
+  tagline, the tearline and the origin are one thing wherever they are met:
+  `markFooter()` flags them, `MessageLine::footer` carries the flag,
+  `quote_footer` decides whether an answer carries them, `closeMessage()` writes
+  them, `withoutFooter()` takes them off a copy, `netmail_skip_footer` leaves
+  them off a robot's netmail, and the theme's `footer` paints them. The footer
+  of a message being read and the footer of the message being written are the
+  same block — the only question anywhere is whose — so neither is given a name
+  of its own. **Nothing in the tree calls it a trailer.** `quote_trailer` in a
+  config and `trailer` in a theme are read as the old spellings they are, and
+  that is the whole of what the word still does; `isSeenByPathVia()` in
+  `msgbase/raw_message.cpp` is named for the SEEN-BY, PATH and Via lines it
+  answers about, which stand *after* the origin and are not the footer at all.
+  `dialog::footerBar()` is the labelled bottom rule of a box, which is the
+  interface rather than a message, and is reached by that name and no other.
+- **Tearline, tagline and origin.** `domain::markFooter()` flags the block
   closing a message, walking back from the last line and stopping at the first
   thing that is none of them; kludges and blanks are stepped over, since SEEN-BY
   and PATH sit after the origin. It has to be decided over the whole body, because `---` is
@@ -747,7 +762,7 @@ Rules that hold the design together:
   too. The tearline is the same shape — three dashes and an optional banner
   after them.
   - **A tagline is one only directly above the tearline.** `isTagline()` is the
-    shape — `"... "` and what follows — and `markTrailer()` looks at exactly one
+    shape — `"... "` and what follows — and `markFooter()` looks at exactly one
     line, the one before the tearline, stepping over nothing at all: a blank line
     between the two makes the line above it text. `"... "` opens a line of
     somebody's writing far more often than it signs one, and where it stands is
@@ -2389,7 +2404,7 @@ decides what an occurrence is.
   message nothing was copied on account of. Each copy is built by `copyDraft()`
   against the settings of the area it goes into — its AKA, its charset, its
   tearline, tagline and origin — over the text with the editor's own closing
-  block taken off (`withoutTrailer()`), and each is written a second on from the last so that
+  block taken off (`withoutFooter()`), and each is written a second on from the last so that
   their MSGIDs cannot collide. One base is open at a time, so `writeCopies()`
   swaps as `storeElsewhere()` does and opens the reader's own again at the end.
 - **Nothing is dropped on behalf of something that did not happen.** A recipient
@@ -2961,6 +2976,14 @@ taking a row.
   makes the mark unnecessary. A role written with a `#` in front of it therefore
   reaches `fromEntries()` with no value at all, and is answered there by name
   rather than by `CfgEntry::one()`'s "takes exactly one value".
+- **A renamed role keeps its old name as a spelling too.** `kAliases` in
+  `ui/theme.cpp` holds the pairs — `trailer` stands for `footer` — and
+  `roleFor()` is what every line is looked up by, so a theme on somebody's disk
+  goes on painting what it always did. Kept out of `kFields` rather than written
+  in as a second line for the one role: that table is also what
+  `approximatedRoles()` counts over, and a role named twice there is a role
+  warned about twice. The files under `themes/` state only the name a role is
+  called by now.
 - **Adding a color role means three edits**: the field in `Palette`, the line in
   `kFields` in `ui/theme.cpp` tying it to its theme-file key (and the array's
   size with it), and an entry in every file under `themes/`. Tests load the shipped themes — `black.cfg`
@@ -3057,7 +3080,7 @@ taking a row.
     doing and must not change what the message looks like, the other is the
     message's own. So `stripRenegade()` reads one line at a time and carries
     nothing between them — every line opens in the theme's colors, which is what
-    keeps the quote colors, the trailer and the kludges the reader's after a
+    keeps the quote colors, the footer and the kludges the reader's after a
     message opens a color and never closes it — while `runsForRows()` cuts a
     line's runs up between the pieces `wrapText` made of it and opens each in the
     color the break fell under. A row carries that opening color in
@@ -3118,7 +3141,7 @@ taking a row.
   - **The lines signing the message never go through the canvas** — the
     tearline, the origin, and the tagline where one stands over them. They are
     not the author's drawing but the signature at the foot of it, and they are
-    read off the trailer color the theme gives every other message's. Left in the stream they would be drawn
+    read off the footer color the theme gives every other message's. Left in the stream they would be drawn
     wherever the art happened to leave the cursor — over the picture as often as
     under it — in whatever colors it was last using. `wrapCanvasBody()` breaks
     the stream at them exactly as it does at a kludge.
@@ -3497,6 +3520,18 @@ taking a row.
   `key = value` — are named for what they are rather than read as odd values.
   `group ... endgroup` is read out of the flat list by `app_config.cpp`, not by
   `cfg_file.cpp`, which the themes share and where a block would mean nothing.
+- **A renamed setting keeps its old name as a spelling, not as a setting.**
+  `canonicalKey()` in `app_config.cpp` holds the pairs — `quote_trailer` stands
+  for `quote_footer` — and everything that asks what a line states reads the key
+  through it: `applySetting()` picks the branch, `statedOnce()` refuses both
+  names in one config as the doubled setting it is, `isGroupSetting()` lets the
+  old name into a block, `withOverrides()` has `-o` stand in place of a file's
+  line written with either, and `AreaGroup::states()` sees two groups covering
+  one area state one setting however each spells it. A complaint names
+  `entry.key`, which is the word the file has. `amberedit.cfg.example` states
+  only the name a setting is called by now: the old one is there so that a config
+  already on somebody's disk goes on loading, and not as a second way to write a
+  new one.
 - **Any setting can be said on the command line, because `-o` is a config line.**
   `amberedit -o "quote_margin 72"` is that line of the file, quoting and all,
   and there is no second grammar and no flag per key: `AppConfig::parseOverride()`

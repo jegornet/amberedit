@@ -23,7 +23,7 @@ namespace amberedit::ui::bbs {
 
 /// The color a code leaves in force: an index into the terminal's first
 /// sixteen palette entries, or -1 for "whatever the line would have been drawn
-/// in" — the theme's message, quote or trailer color, which is what a message
+/// in" — the theme's message, quote or footer color, which is what a message
 /// with no codes in it keeps.
 ///
 /// Foreground and background are separate because the codes are: `|15|17` is
@@ -56,7 +56,7 @@ struct CodedLine {
 /// **A line begins in no color of its own.** A code reaches to the end of the
 /// line it stands on and no further: the line the message ends with a newline
 /// is a line the reader colors from the theme again — its message, quote,
-/// trailer or kludge color, whichever that line is. A terminal would carry the
+/// footer or kludge color, whichever that line is. A terminal would carry the
 /// attribute on, but a terminal has no quoting to keep intact and no wrapping
 /// of its own, and a message that opens a color and never closes it would
 /// otherwise repaint everything under it, the tearline and the origin included.

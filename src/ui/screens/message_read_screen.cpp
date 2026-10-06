@@ -1600,7 +1600,7 @@ bool ansiCanvas(const AppState& state, const domain::MessageBody& body) {
 /// The visible lines go in as **one stream**, line breaks and all, because that
 /// is what they were: the message is a sequence of drawing operations, and
 /// where each of them lands depends on every one before it. The kludges and the
-/// trailer break the stream, and they break it in place rather than being
+/// footer break the stream, and they break it in place rather than being
 /// gathered to one end — a message keeps the order it was stored in whatever is
 /// done to its text. In practice they stand at the top and the bottom and there
 /// is one canvas between them.
@@ -1609,7 +1609,7 @@ bool ansiCanvas(const AppState& state, const domain::MessageBody& body) {
 /// tearline, the origin line, and a tagline standing over them. They are
 /// not the author's drawing but the signature at the foot of it,
 /// and they say where a message came from — which is worth reading, and is read
-/// off the color the theme gives every other message's trailer. Left in the
+/// off the color the theme gives every other message's footer. Left in the
 /// stream they would be drawn wherever the art happened to leave the cursor,
 /// over the picture as often as under it, in whatever colors it was last using.
 ///
@@ -1646,7 +1646,7 @@ void wrapCanvasBody(AppState& state, const domain::MessageBody& body, int width,
     };
 
     for (const auto& line : body.lines) {
-        if (!line.kludge && !line.trailer) {
+        if (!line.kludge && !line.footer) {
             if (started) stream += '\n';
             stream += line.text;
             started = true;
@@ -1659,7 +1659,7 @@ void wrapCanvasBody(AppState& state, const domain::MessageBody& body, int width,
         flush();
         for (auto& row : wrapText(line.text, width)) {
             state.readLines.push_back(
-                {std::move(row), line.kludge, 0, line.trailer, {}, {}});
+                {std::move(row), line.kludge, 0, line.footer, {}, {}});
         }
     }
     flush();
@@ -1687,7 +1687,7 @@ void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
         //
         // One line at a time, and nothing carried between them: a color reaches
         // the end of the line the message wrote and stops there, so the quote
-        // colors, the trailer and the kludges are the reader's own again on
+        // colors, the footer and the kludges are the reader's own again on
         // every new line.
         bbs::CodedLine coded;
         const bool colored = state.areaConfig.bbsCodesRenegade && !line.kludge;
@@ -1703,7 +1703,7 @@ void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
         // message is content and has to survive.
         if (shown.empty()) {
             state.readLines.push_back(
-                {std::string{}, line.kludge, 0, line.trailer, {}, {}});
+                {std::string{}, line.kludge, 0, line.footer, {}, {}});
             continue;
         }
 
@@ -1723,7 +1723,7 @@ void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
         if (!line.kludge) links = linksForRows(shown, rows);
         for (size_t i = 0; i < rows.size(); ++i) {
             state.readLines.push_back(
-                {std::move(rows[i]), line.kludge, depth, line.trailer,
+                {std::move(rows[i]), line.kludge, depth, line.footer,
                  colored ? std::move(runs[i]) : std::vector<bbs::ColorRun>{},
                  searched ? std::move(found[i]) : std::vector<encoding::TextMatch>{},
                  std::move(links[i])});
@@ -2005,7 +2005,7 @@ Element render(AppState& state) {
         // Whatever the line would be without its links: they color the address
         // alone, so a link in a quote leaves the quote around it intact.
         const theme::Color base =
-            source.trailer ? theme::palette.trailer
+            source.footer ? theme::palette.footer
             : source.quoteDepth > 0
                 ? (source.quoteDepth % 2 == 1 ? theme::palette.quoteOdd
                                               : theme::palette.quoteEven)

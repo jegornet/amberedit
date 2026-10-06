@@ -1233,7 +1233,7 @@ TEST_CASE(
     original.from = "Vasya Pupkin";
     // The message as the drivers hand it back and the reader shows it: control
     // lines either side of the text, ^A standing as '@', and the pair closing it
-    // flagged as the trailer it is.
+    // flagged as the footer it is.
     MessageBody body;
     body.lines = {{"AREA:RU.LINUX", true, false},
                   {"@MSGID: 192:168/3.1 5f3a1b2c", true, false},
@@ -1247,7 +1247,7 @@ TEST_CASE(
 
     // A reply quotes them along with the text: somebody who turned the kludges
     // on to point at one can answer the line they are pointing at. The pair
-    // closing the answered message comes with them, `quote_trailer` standing at
+    // closing the answered message comes with them, `quote_footer` standing at
     // `with_kludges`.
     const auto reply = startingText(request);
     REQUIRE(reply.lines.size() == 9);
@@ -1288,7 +1288,7 @@ TEST_CASE(
 }
 
 TEST_CASE(
-    "quote_trailer decides whether the answered message's signature is carried "
+    "quote_footer decides whether the answered message's signature is carried "
     "[builder]") {
     const TempFile tpl(
         "@quoted@oname wrote:\n"
@@ -1305,7 +1305,7 @@ TEST_CASE(
     MessageHeader original;
     original.from = "Vasya Pupkin";
     // A message closed the way FTS-0004 asks for, the three lines of the
-    // trailer flagged as markTrailer() flags them and a SEEN-BY under them.
+    // footer flagged as markFooter() flags them and a SEEN-BY under them.
     MessageBody body;
     body.lines = {{"@MSGID: 192:168/3.1 5f3a1b2c", true, false},
                   {"hello there", false, false},
@@ -1342,7 +1342,7 @@ TEST_CASE(
     // `on` carries them whatever the reader is showing, and the kludges stay
     // the reader's own business.
     AppConfig alwaysCfg = cfg;
-    alwaysCfg.quoteTrailer = amberedit::config::QuoteTrailer::On;
+    alwaysCfg.quoteFooter = amberedit::config::QuoteFooter::On;
     BuildRequest alwaysRequest{alwaysCfg, area,    fields,     &original,
                                &body,     nullptr, 0x68A1B2C3, 180};
     alwaysRequest.kludgesShown = false;
@@ -1357,7 +1357,7 @@ TEST_CASE(
 
     // `off` never does, not even with the kludges on.
     AppConfig neverCfg = cfg;
-    neverCfg.quoteTrailer = amberedit::config::QuoteTrailer::Off;
+    neverCfg.quoteFooter = amberedit::config::QuoteFooter::Off;
     BuildRequest neverRequest{neverCfg, area,    fields,     &original,
                               &body,    nullptr, 0x68A1B2C3, 180};
     neverRequest.kludgesShown = true;

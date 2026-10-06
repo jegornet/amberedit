@@ -18,7 +18,7 @@ namespace amberedit::domain {
 /// put after them.
 ///
 /// Only the shape of the line. Whether a line of that shape *is* this message's
-/// tagline is decided by where it stands — see markTrailer() — since "... " is
+/// tagline is decided by where it stands — see markFooter() — since "... " is
 /// how people write an ellipsis at the head of a line and most of those are
 /// text.
 [[nodiscard]] bool isTagline(std::string_view line);
@@ -284,8 +284,8 @@ struct MessageLine {
     /// that carry no ^A but are service data all the same.
     bool kludge{false};
     /// True for the tagline, tearline and origin line closing the message. See
-    /// markTrailer() for why this is a flag rather than a test on the text.
-    bool trailer{false};
+    /// markFooter() for why this is a flag rather than a test on the text.
+    bool footer{false};
 };
 
 /// Flags the tagline, tearline and origin line that close a message.
@@ -302,7 +302,7 @@ struct MessageLine {
 /// blank line between the two makes the one above it text. Nothing else does
 /// — "... " opens a line of somebody's writing far more often than it signs
 /// one, and the only thing that tells the two apart is where the line stands.
-void markTrailer(std::vector<MessageLine>& lines);
+void markFooter(std::vector<MessageLine>& lines);
 
 /// Message body, kept as the sequence of lines the base stores. Order matters
 /// and is not rearranged: MSGID and friends come before the text, SEEN-BY and

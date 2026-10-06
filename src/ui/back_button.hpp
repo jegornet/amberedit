@@ -20,7 +20,7 @@
 namespace amberedit::ui::back_button {
 
 /// The label, with the padding around it inside the box. The arrow rather than
-/// a word: it is the one the reader's footer already uses, and it needs no
+/// a word: it is the one the reader already uses for this command, and it needs no
 /// translating.
 constexpr const char* kLabel = " ← ";
 /// The label plus a side on either hand — five columns, the arrow being one

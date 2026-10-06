@@ -72,7 +72,7 @@ void splitBody(std::string_view raw, MessageBody& out) {
         out.lines.pop_back();
     }
 
-    domain::markTrailer(out.lines);
+    domain::markFooter(out.lines);
 }
 
 /// The driver for a base type, or nothing where the type names no format we

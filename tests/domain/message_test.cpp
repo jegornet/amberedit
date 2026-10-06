@@ -187,91 +187,91 @@ TEST_CASE("isOriginLine rejects near misses [message]") {
 
 namespace {
 
-std::vector<bool> trailerFlags(std::vector<amberedit::domain::MessageLine> lines) {
-    amberedit::domain::markTrailer(lines);
+std::vector<bool> footerFlags(std::vector<amberedit::domain::MessageLine> lines) {
+    amberedit::domain::markFooter(lines);
     std::vector<bool> flags;
     flags.reserve(lines.size());
-    for (const auto& line : lines) flags.push_back(line.trailer);
+    for (const auto& line : lines) flags.push_back(line.footer);
     return flags;
 }
 
 }  // namespace
 
-TEST_CASE("markTrailer flags the closing tearline and origin [message]") {
+TEST_CASE("markFooter flags the closing tearline and origin [message]") {
     CHECK(
-        trailerFlags({{"Hello All!"}, {""}, {"--- GoldED+"}, {" * Origin: x (2:1/1)"}}) ==
+        footerFlags({{"Hello All!"}, {""}, {"--- GoldED+"}, {" * Origin: x (2:1/1)"}}) ==
         std::vector<bool>{false, false, true, true});
 }
 
-TEST_CASE("markTrailer steps over the kludges that follow the origin [message]") {
+TEST_CASE("markFooter steps over the kludges that follow the origin [message]") {
     // SEEN-BY and PATH are stored after the origin, so the walk back has to
     // ignore them or it would never reach it.
-    CHECK(trailerFlags({{"Hello All!"},
-                        {"---"},
-                        {" * Origin: x (2:1/1)"},
-                        {"SEEN-BY: 1/1", true},
-                        {"@PATH: 1/1", true}}) ==
+    CHECK(footerFlags({{"Hello All!"},
+                       {"---"},
+                       {" * Origin: x (2:1/1)"},
+                       {"SEEN-BY: 1/1", true},
+                       {"@PATH: 1/1", true}}) ==
           std::vector<bool>{false, true, true, false, false});
 }
 
-TEST_CASE("markTrailer accepts a tearline with no origin [message]") {
+TEST_CASE("markFooter accepts a tearline with no origin [message]") {
     // Netmail and local areas routinely carry one without the other.
-    CHECK(trailerFlags({{"Hello All!"}, {"--- GoldED+"}}) ==
+    CHECK(footerFlags({{"Hello All!"}, {"--- GoldED+"}}) ==
           std::vector<bool>{false, true});
 }
 
-TEST_CASE("markTrailer leaves a mid-message separator alone [message]") {
+TEST_CASE("markFooter leaves a mid-message separator alone [message]") {
     // This is the whole point of walking from the end: authors use '---' as a
     // separator, and only the one closing the message is a tearline.
-    CHECK(trailerFlags({{"Hello All!"},
-                        {"---"},
-                        {"still the message body"},
-                        {"--- GoldED+"},
-                        {" * Origin: x (2:1/1)"}}) ==
+    CHECK(footerFlags({{"Hello All!"},
+                       {"---"},
+                       {"still the message body"},
+                       {"--- GoldED+"},
+                       {" * Origin: x (2:1/1)"}}) ==
           std::vector<bool>{false, false, false, true, true});
 
-    CHECK(trailerFlags({{"---"}, {"body follows the separator"}}) ==
+    CHECK(footerFlags({{"---"}, {"body follows the separator"}}) ==
           std::vector<bool>{false, false});
 }
 
-TEST_CASE("markTrailer flags the tagline over the tearline [message]") {
-    CHECK(trailerFlags({{"Hello All!"},
-                        {"... This is a tagline"},
-                        {"--- AmberEdit/0.8.8"},
-                        {" * Origin:  (2:382/736)"}}) ==
+TEST_CASE("markFooter flags the tagline over the tearline [message]") {
+    CHECK(footerFlags({{"Hello All!"},
+                       {"... This is a tagline"},
+                       {"--- AmberEdit/0.8.8"},
+                       {" * Origin:  (2:382/736)"}}) ==
           std::vector<bool>{false, true, true, true});
 
     // And with no origin under it, which is what netmail and local areas carry.
-    CHECK(trailerFlags({{"Hello All!"}, {"... A tagline"}, {"---"}}) ==
+    CHECK(footerFlags({{"Hello All!"}, {"... A tagline"}, {"---"}}) ==
           std::vector<bool>{false, true, true});
 }
 
-TEST_CASE("markTrailer takes a tagline only directly over the tearline [message]") {
+TEST_CASE("markFooter takes a tagline only directly over the tearline [message]") {
     // A blank line between the two is enough: what makes the line a tagline is
     // that it stands against the tearline, and nothing is stepped over there.
-    CHECK(trailerFlags({{"Hello All!"},
-                        {"... This is NOT a tagline"},
-                        {""},
-                        {"--- AmberEdit/0.8.8"},
-                        {" * Origin:  (2:382/736)"}}) ==
+    CHECK(footerFlags({{"Hello All!"},
+                       {"... This is NOT a tagline"},
+                       {""},
+                       {"--- AmberEdit/0.8.8"},
+                       {" * Origin:  (2:382/736)"}}) ==
           std::vector<bool>{false, false, false, true, true});
 
     // Nor is one that closes a message carrying no tearline at all.
-    CHECK(trailerFlags({{"Hello All!"}, {"... Not a tagline either"}}) ==
+    CHECK(footerFlags({{"Hello All!"}, {"... Not a tagline either"}}) ==
           std::vector<bool>{false, false});
 
     // Nor one standing anywhere else: "... " opens an ordinary line far more
     // often than it signs a message.
-    CHECK(trailerFlags({{"... and then she left"},
-                        {"Hello All!"},
-                        {"--- AmberEdit/0.8.8"},
-                        {" * Origin:  (2:382/736)"}}) ==
+    CHECK(footerFlags({{"... and then she left"},
+                       {"Hello All!"},
+                       {"--- AmberEdit/0.8.8"},
+                       {" * Origin:  (2:382/736)"}}) ==
           std::vector<bool>{false, false, true, true});
 }
 
-TEST_CASE("markTrailer flags nothing when a message has no trailer [message]") {
-    CHECK(trailerFlags({{"Hello All!"}, {"Yegor"}}) == std::vector<bool>{false, false});
-    CHECK(trailerFlags({}).empty());
+TEST_CASE("markFooter flags nothing when a message has no footer [message]") {
+    CHECK(footerFlags({{"Hello All!"}, {"Yegor"}}) == std::vector<bool>{false, false});
+    CHECK(footerFlags({}).empty());
 }
 
 TEST_CASE("MessageBody keeps text and kludges apart but in order [message]") {

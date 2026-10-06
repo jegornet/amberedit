@@ -85,7 +85,7 @@ inline constexpr Color kLink{33};        // #0087ff, blue
 inline constexpr Color kQuoteEven{231};  // #ffffff, white
 inline constexpr Color kQuoteOdd{228};   // #ffff87, light yellow
 inline constexpr Color kKludge{242};     // #6c6c6c, dark grey
-inline constexpr Color kTrailer{249};    // #b2b2b2, light grey
+inline constexpr Color kFooter{249};     // #b2b2b2, light grey
 /// The line at the top of every screen. A light blue rather than a grey: the
 /// headings name what is under them instead of being part of it, and a hue
 /// nothing else on the screen carries says so without another step of white.
@@ -377,7 +377,7 @@ struct Palette {
     /// box and so take the box's fill: it has to be legible on
     /// `dialog_background` and stand apart from `dialog_hint`, which is what a
     /// button that cannot be pressed is drawn in.
-    Color trailer = builtin_theme::kTrailer;
+    Color footer = builtin_theme::kFooter;
     Color tableHeader = builtin_theme::kTableHeader;
     /// The fill under that line — every row `table_header` is written on, which
     /// is the heading row of either list, the title over a message being read

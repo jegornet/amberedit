@@ -75,7 +75,7 @@ bool isOriginLine(std::string_view line) {
     return startsWith(line, " * Origin:");
 }
 
-void markTrailer(std::vector<MessageLine>& lines) {
+void markFooter(std::vector<MessageLine>& lines) {
     auto index = static_cast<int>(lines.size()) - 1;
     const auto at = [&lines](int i) -> MessageLine& {
         return lines[static_cast<size_t>(i)];
@@ -89,20 +89,20 @@ void markTrailer(std::vector<MessageLine>& lines) {
 
     skipToVisible();
     if (index >= 0 && isOriginLine(at(index).text)) {
-        at(index).trailer = true;
+        at(index).footer = true;
         --index;
         skipToVisible();
     }
     // A message may carry a tearline with no origin — netmail and local areas
     // routinely do — so this is checked whether or not an origin was found.
     if (index >= 0 && isTearline(at(index).text)) {
-        at(index).trailer = true;
+        at(index).footer = true;
         // And the tagline over it, on the line directly above and nowhere else:
         // nothing is stepped over here, a blank line included. A line opening
         // with "... " is an ellipsis far more often than it is a signature, and
         // standing against the tearline is the whole of what makes it one.
         --index;
-        if (index >= 0 && isTagline(at(index).text)) at(index).trailer = true;
+        if (index >= 0 && isTagline(at(index).text)) at(index).footer = true;
     }
 }
 

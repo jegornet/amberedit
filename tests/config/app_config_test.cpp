@@ -2037,21 +2037,54 @@ TEST_CASE("quote_unwrap is off unless it is turned on [app_config]") {
     CHECK_FALSE(loads("quote_unwrap yes\n"));
 }
 
-TEST_CASE("quote_trailer follows the kludges unless it is told otherwise [app_config]") {
-    using amberedit::config::QuoteTrailer;
+TEST_CASE("quote_footer follows the kludges unless it is told otherwise [app_config]") {
+    using amberedit::config::QuoteFooter;
 
     // The three lines closing a message are its service block as much as its
     // signature, so they come along where the rest of the service data does.
-    CHECK(with("").quoteTrailer == QuoteTrailer::WithKludges);
-    CHECK(with("quote_trailer on\n").quoteTrailer == QuoteTrailer::On);
-    CHECK(with("quote_trailer with_kludges\n").quoteTrailer == QuoteTrailer::WithKludges);
-    CHECK(with("quote_trailer off\n").quoteTrailer == QuoteTrailer::Off);
+    CHECK(with("").quoteFooter == QuoteFooter::WithKludges);
+    CHECK(with("quote_footer on\n").quoteFooter == QuoteFooter::On);
+    CHECK(with("quote_footer with_kludges\n").quoteFooter == QuoteFooter::WithKludges);
+    CHECK(with("quote_footer off\n").quoteFooter == QuoteFooter::Off);
     // Spelt as the config spells its answers, and in whatever case.
-    CHECK(with("quote_trailer WITH_KLUDGES\n").quoteTrailer == QuoteTrailer::WithKludges);
+    CHECK(with("quote_footer WITH_KLUDGES\n").quoteFooter == QuoteFooter::WithKludges);
 
-    const std::string error = errorWith("quote_trailer sometimes\n");
+    const std::string error = errorWith("quote_footer sometimes\n");
     CHECK_MESSAGE(contains(error, "on | with_kludges | off"), error);
-    CHECK_FALSE(loads("quote_trailer yes\n"));
+    CHECK_FALSE(loads("quote_footer yes\n"));
+}
+
+TEST_CASE("quote_trailer is still read as quote_footer [app_config]") {
+    using amberedit::config::QuoteFooter;
+
+    // The name the setting shipped under. A config written while it was called
+    // that goes on working word for word: the old name is a spelling of the
+    // setting and not a setting of its own. The group block is the case below.
+    CHECK(with("quote_trailer on\n").quoteFooter == QuoteFooter::On);
+    CHECK(with("quote_trailer off\n").quoteFooter == QuoteFooter::Off);
+    CHECK(with("quote_trailer with_kludges\n").quoteFooter == QuoteFooter::WithKludges);
+    CHECK_FALSE(loads("quote_trailer sometimes\n"));
+
+    // The complaint names the line as the file has it, since that is the
+    // word the user has to go and find.
+    const std::string error = errorWith("quote_trailer sometimes\n");
+    CHECK_MESSAGE(contains(error, "quote_trailer"), error);
+
+    // Both names at once is the contradiction any other doubled setting is: one
+    // of the two lines would be invisible, and which was meant is not ours to
+    // guess.
+    const std::string twice = errorWith("quote_footer on\nquote_trailer off\n");
+    CHECK_MESSAGE(contains(twice, "set twice"), twice);
+    const std::string other = errorWith("quote_trailer on\nquote_footer off\n");
+    CHECK_MESSAGE(contains(other, "set twice"), other);
+
+    // An `-o` override stands in place of the file's line whichever of the two
+    // names each of them is written with, rather than standing beside it and
+    // being refused as the setting twice over.
+    CHECK(withOptions("quote_trailer on\n", {"quote_footer off"}).quoteFooter ==
+          QuoteFooter::Off);
+    CHECK(withOptions("quote_footer on\n", {"quote_trailer off"}).quoteFooter ==
+          QuoteFooter::Off);
 }
 
 TEST_CASE("AppConfig reads the date and time formats [app_config]") {
@@ -2890,20 +2923,58 @@ TEST_CASE("A group decides quote_unwrap for the areas it covers [app_config]") {
     CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteUnwrap);
 }
 
-TEST_CASE("A group decides quote_trailer for the areas it covers [app_config]") {
-    using amberedit::config::QuoteTrailer;
+TEST_CASE("A group decides quote_footer for the areas it covers [app_config]") {
+    using amberedit::config::QuoteFooter;
 
     // An echo where the origins are half of what is being talked about is a
     // particular echo, and the rest are answered without them.
     const auto cfg = with(
         "group\n"
         "  member fsx.*\n"
+        "  quote_footer on\n"
+        "endgroup\n");
+
+    CHECK(cfg.quoteFooter == QuoteFooter::WithKludges);
+    CHECK(cfg.effectiveFor(area("ru.linux")).quoteFooter == QuoteFooter::WithKludges);
+    CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteFooter == QuoteFooter::On);
+}
+
+TEST_CASE("A group may still say quote_trailer for its areas [app_config]") {
+    using amberedit::config::QuoteFooter;
+
+    // The name the setting shipped under, inside a block: a group written while
+    // it was called that decides the setting exactly as one writing the new
+    // name does.
+    const auto cfg = with(
+        "group\n"
+        "  member fsx.*\n"
         "  quote_trailer on\n"
         "endgroup\n");
 
-    CHECK(cfg.quoteTrailer == QuoteTrailer::WithKludges);
-    CHECK(cfg.effectiveFor(area("ru.linux")).quoteTrailer == QuoteTrailer::WithKludges);
-    CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteTrailer == QuoteTrailer::On);
+    CHECK(cfg.effectiveFor(area("fsx.bbs")).quoteFooter == QuoteFooter::On);
+    CHECK(cfg.effectiveFor(area("ru.linux")).quoteFooter == QuoteFooter::WithKludges);
+
+    // Both names in one group is the contradiction two of any other setting is.
+    const std::string twice = errorWith(
+        "group\n"
+        "  member fsx.*\n"
+        "  quote_footer on\n"
+        "  quote_trailer off\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(twice, "set twice"), twice);
+
+    // And two groups covering one area may not each state it, however they
+    // spell it: there would be no answer to which of them wins.
+    const std::string ambiguous = errorWith(
+        "group\n"
+        "  member fsx.*\n"
+        "  quote_footer on\n"
+        "endgroup\n"
+        "group\n"
+        "  member fsx.*\n"
+        "  quote_trailer off\n"
+        "endgroup\n");
+    CHECK_MESSAGE(contains(ambiguous, "quote_"), ambiguous);
 }
 
 TEST_CASE("A group may turn the BBS color codes on for its areas [app_config]") {

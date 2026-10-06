@@ -449,7 +449,7 @@ void readMessage(TwoAreaFixture& fixture, uint32_t number) {
 std::vector<std::string> visibleLines(const amberedit::ui::AppState& state) {
     std::vector<std::string> out;
     for (const auto& line : state.readBody->lines) {
-        if (line.kludge || line.trailer) continue;
+        if (line.kludge || line.footer) continue;
         out.push_back(line.text);
     }
     return out;
@@ -1055,7 +1055,7 @@ TEST_CASE("A message copied into another area stands in both [other_area]") {
     CHECK(amberedit::app::msgidOf(body) == msgid);
     std::vector<std::string> copiedText;
     for (const auto& line : body.lines) {
-        if (!line.kludge && !line.trailer) copiedText.push_back(line.text);
+        if (!line.kludge && !line.footer) copiedText.push_back(line.text);
     }
     CHECK(copiedText == text);
 }
@@ -1103,7 +1103,7 @@ TEST_CASE("A message moved into another area is gone from this one [other_area]"
     const domain::MessageBody body = base->body(thereBefore + 1);
     std::vector<std::string> movedText;
     for (const auto& line : body.lines) {
-        if (!line.kludge && !line.trailer) movedText.push_back(line.text);
+        if (!line.kludge && !line.footer) movedText.push_back(line.text);
     }
     CHECK(movedText == text);
 }

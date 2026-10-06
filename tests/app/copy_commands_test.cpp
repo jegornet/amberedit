@@ -351,21 +351,21 @@ TEST_CASE("A command line nobody could carry out stays in the message [copy][lis
 TEST_CASE("The pair closing the message comes off a copy of it [copy][list]") {
     const std::vector<std::string> lines{"Hello.", "", "--- AmberEdit/darwin 0.1",
                                          " * Origin: here (2:5020/1)", ""};
-    CHECK(app::withoutTrailer(lines) == std::vector<std::string>{"Hello.", ""});
+    CHECK(app::withoutFooter(lines) == std::vector<std::string>{"Hello.", ""});
     // A message whose author deleted them keeps every line it has.
-    CHECK(app::withoutTrailer({"Hello."}) == std::vector<std::string>{"Hello."});
+    CHECK(app::withoutFooter({"Hello."}) == std::vector<std::string>{"Hello."});
 
     // The tagline over them is one line of the same block, and the area the
     // copy lands in signs it with its own.
     const std::vector<std::string> signed_{"Hello.", "... a good one",
                                            "--- AmberEdit/darwin 0.1",
                                            " * Origin: here (2:5020/1)"};
-    CHECK(app::withoutTrailer(signed_) == std::vector<std::string>{"Hello."});
+    CHECK(app::withoutFooter(signed_) == std::vector<std::string>{"Hello."});
 
     // One standing anywhere else is a line somebody wrote.
     const std::vector<std::string> ellipsis{"... and then she left", "Hello.",
                                             "--- AmberEdit/darwin 0.1",
                                             " * Origin: here (2:5020/1)"};
-    CHECK(app::withoutTrailer(ellipsis) ==
+    CHECK(app::withoutFooter(ellipsis) ==
           std::vector<std::string>{"... and then she left", "Hello."});
 }
