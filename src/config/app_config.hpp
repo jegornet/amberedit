@@ -1993,7 +1993,10 @@ struct AppConfig {
     /// written without, and the robots are the ones who wrote it.
     ///
     /// The six the FTN world runs on unless the config says otherwise. An empty
-    /// `netmail_skip_template` line is how a config says nobody.
+    /// `netmail_skip_template` line is how a config says nobody, and a `*` on
+    /// the line how it says everybody: every new netmail is begun with nothing
+    /// in it, whoever it is to. Netmail only either way — an echo is written
+    /// from the template it always was.
     std::vector<std::string> netmailSkipTemplate{"AreaFix", "AreaMgr", "AllFix",
                                                  "FileFix", "T-Fix",   "FaqServer"};
 
@@ -2017,9 +2020,11 @@ struct AppConfig {
     ///
     /// Nothing where the config states none, and then `netmail_skip_template`'s
     /// names stand in — the same robots, which is what a config naming its own
-    /// AreaFix means by naming it once. An empty `netmail_skip_footer` line is
-    /// how a config says nobody: every message closes the way every other one
-    /// does.
+    /// AreaFix means by naming it once, and a `*` there is carried over as a
+    /// `*`. An empty `netmail_skip_footer` line is how a config says nobody:
+    /// every message closes the way every other one does. A `*` on the line is
+    /// the opposite statement: no netmail is closed off at all, whoever it is
+    /// to, while every echo closes the way it always did.
     std::optional<std::vector<std::string>> netmailSkipFooter;
 
     /// The directory the config was read from, which is where a file named
@@ -2154,7 +2159,8 @@ struct AppConfig {
     /// Whether a new netmail to this recipient is begun with no template —
     /// whether `netmail_skip_template` names them. The whole name, trimmed and
     /// folded for ASCII: a robot is written to by its name and not by a name
-    /// holding it, or an `AreaFixov` would be one.
+    /// holding it, or an `AreaFixov` would be one. A `*` on the line answers
+    /// true for every name, the empty one included.
     [[nodiscard]] bool skipsTemplate(std::string_view toName) const;
 
     /// The names `netmail_skip_footer` stands for: its own where the config
@@ -2166,7 +2172,8 @@ struct AppConfig {
 
     /// Whether a netmail to this recipient closes with no tearline and no
     /// origin line — whether `netmailSkipFooterNames()` names them. Matched as
-    /// `skipsTemplate()` matches: the whole name, trimmed and folded for ASCII.
+    /// `skipsTemplate()` matches: the whole name, trimmed and folded for ASCII,
+    /// and a `*` on the line answering true for every name.
     [[nodiscard]] bool skipsFooter(std::string_view toName) const;
 
     /// Whether the address is one of ours — the `address` line or one of the

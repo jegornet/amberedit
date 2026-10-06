@@ -1322,10 +1322,13 @@ template_time_format "%H:%M"
 template /usr/share/amberedit/default.tpl
 
 # Skip template for the robots (new netmails only)
+# A single "*" stands for every recipient: every new netmail is begun empty.
+# An empty line names nobody.
 # Default: AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
 #netmail_skip_template AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
 
-# Skip tearline and origin line for the robots (new netmails only)
+# Skip tagline, tearline and origin for the robots (any netmail to the name)
+# A single "*" stands for every recipient. An empty line names nobody.
 # Defaults to netmail_skip_template value
 #netmail_skip_footer AreaFix AreaMgr AllFix FileFix T-Fix FaqServer
 

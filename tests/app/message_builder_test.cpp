@@ -1714,3 +1714,65 @@ TEST_CASE("netmail_skip_footer closes a robot's message with nothing [builder]")
                               nullptr, nullptr, 0x68A1B2C3, 180};
     CHECK(buildDraft(always, {"%LIST"}).lines.size() == 3);
 }
+
+TEST_CASE("A `*` stands for every netmail, and for nothing else [builder]") {
+    const TempFile tpl("Hello @tname.\n@position\n");
+
+    AppConfig cfg = config();
+    cfg.templatePath = tpl.path();
+    cfg.netmailSkipTemplate = std::vector<std::string>{"*"};
+    const AreaConfig net = areaOf(AreaKind::Netmail);
+    const AreaConfig echo = areaOf(AreaKind::Echo);
+
+    // Addressed to a person, as netmailFields() is: no robot is named anywhere
+    // in what follows.
+    const ComposeFields fields = netmailFields();
+
+    // A person is written to the way a robot is: the line is not a list of
+    // names any more. The footer line is unwritten, so the `*` stands for it
+    // too and the message closes with nothing.
+    const BuildRequest request{cfg,     net,     fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto text = startingText(request);
+    REQUIRE(text.lines.size() == 1);
+    CHECK(text.lines[0].empty());
+    CHECK(buildDraft(request, {"Hello."}).lines == std::vector<std::string>{"Hello."});
+
+    // The To name not yet typed is a netmail all the same, and the `*` is
+    // answered for before the name is looked at.
+    ComposeFields blank = fields;
+    blank.toName.clear();
+    const BuildRequest unnamed{cfg,     net,     blank,      nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    CHECK(startingText(unnamed).lines.size() == 1);
+
+    // Netmail and nothing but: an echo is written from the template and closed
+    // off as it always was.
+    ComposeFields posted = fields;
+    posted.netmail = false;
+    const BuildRequest inEcho{cfg,     echo,    posted,     nullptr,
+                              nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto broadcast = startingText(inEcho);
+    REQUIRE(broadcast.lines.size() == 4);
+    CHECK(broadcast.lines[0] == "Hello Vasya Pupkin.");
+    CHECK(broadcast.lines[2] == kTearline);
+    CHECK(broadcast.lines[3] == kOrigin);
+
+    // The two lines are read apart here as everywhere: a `*` on the footer line
+    // closes no netmail at all, while a name on the template line is the only
+    // one begun with nothing.
+    cfg.netmailSkipTemplate = std::vector<std::string>{"AreaFix"};
+    cfg.netmailSkipFooter = std::vector<std::string>{"*"};
+    const BuildRequest apart{cfg,     net,     fields,     nullptr,
+                             nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto opened = startingText(apart);
+    REQUIRE(opened.lines.size() == 2);
+    CHECK(opened.lines[0] == "Hello Vasya Pupkin.");
+    CHECK(buildDraft(apart, {"Hello."}).lines == std::vector<std::string>{"Hello."});
+
+    ComposeFields robot = fields;
+    robot.toName = "AreaFix";
+    const BuildRequest toRobot{cfg,     net,     robot,      nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    REQUIRE(startingText(toRobot).lines.size() == 1);
+}

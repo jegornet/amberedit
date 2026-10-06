@@ -1935,13 +1935,15 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         // The line stands in place of the built-in names rather than adding to
         // them: a config that names two robots has two, and there would
         // otherwise be no way to be rid of one. An empty line is that same
-        // statement about all six — the whole list, replaced by nothing.
+        // statement about all six — the whole list, replaced by nothing, and a
+        // `*` is the other end of it: every new netmail, whoever it is to.
         cfg.netmailSkipTemplate = entry.values;
     } else if (key == "netmail_skip_footer") {
         // In place of the built-in names for the same reason, and an empty line
-        // says nobody the same way. The difference is that a config writing no
-        // line at all is not saying nothing: it is saying `netmail_skip_template`
-        // over again, which is what the empty optional stands for.
+        // says nobody and a `*` everybody the same way. The difference is that a
+        // config writing no line at all is not saying nothing: it is saying
+        // `netmail_skip_template` over again, which is what the empty optional
+        // stands for — a `*` there carries over to the footer as well.
         cfg.netmailSkipFooter = entry.values;
     } else if (key == "quote_string") {
         // One '>' and no more: it is what quote levels are counted in, so a
@@ -3004,8 +3006,17 @@ namespace {
 /// Whether the list names that recipient: the whole name, trimmed and read
 /// without regard to case. Matching inside a name would make every robot a word
 /// nobody could write to — an `AreaFixov` would be one.
+///
+/// A `*` on the line stands for every recipient there is, the name not yet
+/// typed included: it is how a config says "in netmail, always", which is the
+/// one statement a list of names cannot make. It answers for the whole line, so
+/// names standing beside it say nothing further.
 [[nodiscard]] bool namesRobot(const std::vector<std::string>& robots,
                               std::string_view toName) {
+    for (const auto& robot : robots) {
+        if (robot == "*") return true;
+    }
+
     const std::string_view name = text::trim(toName);
     if (name.empty()) return false;
 

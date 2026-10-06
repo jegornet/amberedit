@@ -3848,6 +3848,17 @@ TEST_CASE(
     const auto nobody = with("netmail_skip_template\n");
     CHECK(nobody.netmailSkipTemplate.empty());
     CHECK_FALSE(nobody.skipsTemplate("AreaFix"));
+
+    // And a `*` the way to say everybody: the name is not looked at, so a
+    // netmail begun before the To field is filled in is one of them too.
+    const auto everybody = with("netmail_skip_template *\n");
+    CHECK(everybody.netmailSkipTemplate == std::vector<std::string>{"*"});
+    CHECK(everybody.skipsTemplate("AreaFix"));
+    CHECK(everybody.skipsTemplate("Vasya Pupkin"));
+    CHECK(everybody.skipsTemplate(""));
+
+    // It answers for the whole line, whatever stands beside it.
+    CHECK(with("netmail_skip_template AreaFix *\n").skipsTemplate("Olaf"));
 }
 
 TEST_CASE("netmail_skip_footer names the robots that close with nothing [app_config]") {
@@ -3886,6 +3897,20 @@ TEST_CASE("netmail_skip_footer names the robots that close with nothing [app_con
     CHECK(always.netmailSkipFooterNames().empty());
     CHECK_FALSE(always.skipsFooter("AreaFix"));
     CHECK(always.skipsTemplate("AreaFix"));
+
+    // A `*` is the far end of the same line: no netmail is closed off at all,
+    // and the template list is left where it was.
+    const auto never = with("netmail_skip_footer *\n");
+    CHECK(never.skipsFooter("Vasya Pupkin"));
+    CHECK(never.skipsFooter(""));
+    CHECK(never.skipsTemplate("AreaFix"));
+    CHECK_FALSE(never.skipsTemplate("Vasya Pupkin"));
+
+    // A `*` standing on the template line alone is carried over as a `*`, the
+    // footer line being unwritten.
+    const auto both = with("netmail_skip_template *\n");
+    CHECK(both.netmailSkipFooterNames() == std::vector<std::string>{"*"});
+    CHECK(both.skipsFooter("Vasya Pupkin"));
 }
 
 TEST_CASE(

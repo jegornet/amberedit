@@ -2127,7 +2127,10 @@ decides what an occurrence is.
   reply carries the quote, which is what the template puts in. Because
   `refreshTemplate()` expands again when the header changes, typing the name (or
   an `address_macro` that fills it in) into a message already opened on the
-  template empties it on the way down into the text.
+  template empties it on the way down into the text. A `*` on the line stands
+  for every recipient, the name not yet typed included — a config that wants to
+  type its netmail from nothing says so once — and it is still netmail only: an
+  echo is written from the template as it always was.
 - **A netmail to a robot closes with nothing.** `netmail_skip_footer` names
   them, `AppConfig::skipsFooter()` answers for the To name the same way
   `skipsTemplate()` does, and `closesWithFooter()` in `message_builder.cpp` is
@@ -2143,7 +2146,11 @@ decides what an occurrence is.
   `netmail_skip_template`'s names, so the two lines may stand in either order
   and a config naming its own AreaFix once has named it for both. An empty
   `netmail_skip_footer` line is how a config says nobody, and then every message
-  closes the way every other one does.
+  closes the way every other one does; a `*` is the far end of the same line —
+  no netmail closes with the block at all, whoever it is to, and every echo
+  closes as it always did. `namesRobot()` answers for the `*` before it looks at
+  the name, so it holds for the empty one too: a netmail begun before the To
+  field is filled in is already a netmail.
 - **The addresses are checked when the message is stored, not when the header is
   left.** `addressesReady()` wants the sender's always — it is what the MSGID is
   made of — and the recipient's in netmail. Missing and malformed are one case
