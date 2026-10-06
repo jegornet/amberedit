@@ -866,16 +866,15 @@ struct AppConfig {
     bool composeFts1FieldLimits{true};
 
     /// Whether a message written here carries the ^APID control line of
-    /// FSC-0046, which names the program that created it. Off by default, few
-    /// echoes having any use for it, and not a per-area setting: the program is
-    /// the same one in every echo.
+    /// FSC-0046, which names the program that created it. On by default, and
+    /// not a per-area setting: the program is the same one in every echo.
     ///
     /// It is written as the short name FSC-0046 keeps ten characters for and
     /// the version — "PID: AMBEREDITL version" — and only on a message this editor
     /// creates. A message being changed keeps the PID it was created with and a
     /// copy carries the original's: FSC-0046 allows one PID per message and has
     /// it added by whatever wrote the message, not by whatever passes it on.
-    bool composeAddPid{false};
+    bool composeAddPid{true};
 
     /// The `compose_add_kludge` lines: control lines of the writer's own that a
     /// message composed here carries beside the ones the standards ask for, in

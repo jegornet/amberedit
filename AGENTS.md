@@ -665,10 +665,10 @@ Rules that hold the design together:
   leading one back at the head of a message being changed, and `standsFirst()`
   keeps a MSGID from being inserted in front of it.
 - **The PID says what wrote the message.** FSC-0046's `^APID:` line, written by
-  `buildDraft()` behind CHRS, `compose_add_pid` asking and off unless a config
-  asks for one — few echoes read them. It carries the short name and the
-  version, `kProductId` from `version.hpp`. The standard keeps ten characters
-  for that field, the name takes nine of them, and the system gets the tenth —
+  `buildDraft()` behind CHRS and `compose_add_pid`, which is on unless a config
+  turns it off. It carries the short name and the version, `kProductId` from
+  `version.hpp`. The standard keeps ten characters for that field, the name
+  takes nine of them, and the system gets the tenth —
   `L`, `W`, `M`, `B`, and `U` for a Unix none of those name, worked out at 
   configure time beside `AMBEREDIT_SYSTEM` itself. The system is spelled out on
   the tearline, where there is room for it. One per message, added by whatever

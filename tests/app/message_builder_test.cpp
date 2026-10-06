@@ -43,6 +43,9 @@ AppConfig config() {
     // The origin text is empty by default, and most of what follows is about
     // the lines round it rather than about the text itself.
     cfg.origins = {"AmberEdit test"};
+    // The PID is on by default; the tests below are about the other lines, and
+    // the one that is about the PID asks for it itself.
+    cfg.composeAddPid = false;
     return cfg;
 }
 
@@ -459,7 +462,7 @@ TEST_CASE("Echomail is not addressed, so it carries no INTL [builder]") {
           "CHRS: CP866 2|");
 }
 
-TEST_CASE("A PID says what wrote the message, where one is asked for [builder]") {
+TEST_CASE("A PID says what wrote the message unless it is turned off [builder]") {
     AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
 
@@ -468,8 +471,9 @@ TEST_CASE("A PID says what wrote the message, where one is asked for [builder]")
     fields.toName = "All";
     fields.toAddr.clear();
 
-    // Off, which is how it stands: no PID, and the message carries the lines
-    // every message of ours carries and nothing besides.
+    // Turned off: no PID, and the message carries the lines every message of
+    // ours carries and nothing besides.
+    cfg.composeAddPid = false;
     const BuildRequest silent{cfg,     area,    fields,     nullptr,
                               nullptr, nullptr, 0x68A1B2C3, 180};
     CHECK(kludgesOf(buildDraft(silent, {})) ==
@@ -477,8 +481,8 @@ TEST_CASE("A PID says what wrote the message, where one is asked for [builder]")
           "TZUTC: 0300|"
           "CHRS: CP866 2|");
 
-    // Asked for, FSC-0046's line stands last of the ones written here: the
-    // short name of this build, then the version.
+    // On, which is how it stands, FSC-0046's line is last of the ones written
+    // here: the short name of this build, then the version.
     cfg.composeAddPid = true;
     const BuildRequest request{cfg,     area,    fields,     nullptr,
                                nullptr, nullptr, 0x68A1B2C3, 180};
@@ -1515,6 +1519,9 @@ TEST_CASE(
                                   "name Vasya Pupkin\n"
                                   "address 2:5020/9999.1\n"
                                   "origin Somewhere in the world\n"
+                                  // This is about the group resolution, not
+                                  // about the PID that is on by default.
+                                  "compose_add_pid off\n"
                                   "group\n"
                                   "  member esp.*\n"
                                   "  compose_charset LATIN-1\n"

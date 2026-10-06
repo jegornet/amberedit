@@ -728,10 +728,9 @@ TEST_CASE("compose_fts1_field_limits is on unless it is turned off [app_config]"
     CHECK_MESSAGE(contains(error, "not for one area"), error);
 }
 
-TEST_CASE("compose_add_pid is off unless it is asked for [app_config]") {
-    // Off by default: FSC-0046's line is read in few echoes, and a message
-    // carries nothing nobody asked for.
-    CHECK_FALSE(with("").composeAddPid);
+TEST_CASE("compose_add_pid is on unless it is turned off [app_config]") {
+    // On by default: a message says what wrote it.
+    CHECK(with("").composeAddPid);
     CHECK_FALSE(with("compose_add_pid off\n").composeAddPid);
     CHECK(with("compose_add_pid on\n").composeAddPid);
     CHECK_FALSE(loads("compose_add_pid sometimes\n"));
