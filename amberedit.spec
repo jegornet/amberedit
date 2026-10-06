@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.9.0
+Version:        0.9.1
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,15 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Tue Oct 06 2026 Yegor Gluhov <git@jegor.net> - 0.9.1-1
+- netmail_skip_template and netmail_skip_footer now take `*` for every recipient: no template, or no footer, on any netmail
+- compose_add_pid is now on by default
+- rename `quote_trailer` to `quote_footer` and the theme role `trailer` to `footer` for consistency (we refer to the tagline, tearline, and origin lines as the footer rather than the trailer); the old names are kept as aliases
+- export a message to a text file with its kludges if the reader is showing them
+- the word keys (Alt-B/Alt-F, Alt+arrows, Ctrl-W/Alt-Backspace) now work in the header fields too
+- compose_add_kludge now expands the template tokens (@longpid, @version, @cname and the rest) and may name a @file: of texts to pick one from
+- the mouse wheel no longer moves the selection in the corner menu or the Mark messages box
+
 * Sun Sep 27 2026 Yegor Gluhov <git@jegor.net> - 0.9.0-1
 - add quote_trailer: whether to include the tagline, tearline and origin in the quoted text
 - recreate a half-made message base (e.g. .jhr and .jdx without .jdt) when it's empty

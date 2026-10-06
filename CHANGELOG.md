@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.1 — 2026-10-06
 
 - netmail_skip_template and netmail_skip_footer now take `*` for every recipient: no template, or no footer, on any netmail
 - compose_add_pid is now on by default
