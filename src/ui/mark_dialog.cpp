@@ -180,10 +180,6 @@ Outcome handleEvent(AppState& state, const Event& event) {
         picker.action = *typed;
         return Outcome::Picked;
     }
-    if (const int wheel = wheelDelta(event); wheel != 0) {
-        step(picker, wheel);
-        return Outcome::Ignored;
-    }
     if (event == Event::ArrowDown || event == Event::Tab) {
         step(picker, 1);
         return Outcome::Ignored;

@@ -246,6 +246,23 @@ TEST_CASE("The mark box answers its letters and its arrows [marks][squish]") {
               mark_dialog::Outcome::Picked);
         CHECK(fixture.state.markPicker->action == Action::Newer);
     }
+    SUBCASE("the wheel moves nothing") {
+        // Five answers, none of them off the screen: a notch has nowhere to take
+        // the selection. It is swallowed, as every event a modal does not act on
+        // is, and the answer the box opened on stands.
+        for (const bool down : {true, false}) {
+            term::MouseEvent mouse;
+            mouse.x = 1;
+            mouse.y = 1;
+            mouse.button = down ? term::MouseEvent::Button::WheelDown
+                                : term::MouseEvent::Button::WheelUp;
+            mouse.motion = term::MouseEvent::Motion::Pressed;
+            CHECK(mark_dialog::handleEvent(fixture.state, Event::Mouse(mouse)) ==
+                  mark_dialog::Outcome::Ignored);
+            REQUIRE(fixture.state.markPicker);
+            CHECK(fixture.state.markPicker->action == Action::All);
+        }
+    }
     SUBCASE("Esc puts it away and marks nothing") {
         CHECK(mark_dialog::handleEvent(fixture.state, Event::Escape) ==
               mark_dialog::Outcome::Dismissed);

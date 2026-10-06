@@ -204,10 +204,6 @@ Outcome handleEvent(AppState& state, const Event& event) {
         return Outcome::Dismissed;
     }
 
-    if (const int wheel = wheelDelta(event); wheel != 0) {
-        step(view, wheel);
-        return Outcome::Ignored;
-    }
     if (event == Event::ArrowDown || event == Event::Tab) {
         step(view, 1);
         return Outcome::Ignored;

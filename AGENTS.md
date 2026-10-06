@@ -851,6 +851,18 @@ Rules that hold the design together:
   terminfo's decision: an entry with `xm` gets SGR 1006 and works at any width,
   one without falls back to the original mode, whose coordinates stop at column
   223. Apple's terminfo has no `xm`; every current Linux one does.
+- **The wheel moves what scrolls, and a column of buttons does not.** A box with
+  a long thing in it answers the wheel — the lists in `ui/area_dialog.*` and
+  `ui/nodelist_dialog.*` move their cursor, `ui/external_dialog.*` scrolls the
+  message behind the question, the info and help boxes scroll their report. A box
+  whose whole content is a handful of answers does not: the menu behind the
+  corner (`ui/menu_dialog.*`) and the mark box (`ui/mark_dialog.*`) walk with the
+  arrows and Tab and leave `wheelDelta()` alone, as the confirmation, the scope
+  box and every other short column of buttons always have. Nothing is off the
+  screen there, so a notch has nowhere to take the cursor that the user asked it
+  to go — the selection jumping under a hand that meant to scroll the screen
+  underneath reads as a glitch, not as a shortcut. The notch is still swallowed:
+  a modal swallows every event it does not act on.
 - **A wheel notch is a line, and a row of a list may be several.** Where
   `arealist_format` or `msglist_format` holds a `\n`, the two list screens hand
   each notch to `AppState::wheelSteps()` (`ui/app_state.hpp`) with the height of

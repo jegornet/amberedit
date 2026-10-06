@@ -111,6 +111,16 @@ Rendered draw(AppState& state) {
     return drawn;
 }
 
+/// A notch of the wheel, which the menu is to take no notice of.
+Event wheelAt(int x, int y, bool down) {
+    MouseEvent mouse;
+    mouse.x = x;
+    mouse.y = y;
+    mouse.button = down ? MouseEvent::Button::WheelDown : MouseEvent::Button::WheelUp;
+    mouse.motion = MouseEvent::Motion::Pressed;
+    return Event::Mouse(mouse);
+}
+
 /// A left-button press where the pointer landed.
 Event pressAt(int x, int y) {
     MouseEvent mouse;
@@ -429,6 +439,25 @@ TEST_CASE("Esc and a click outside put the menu away [menu]") {
     CHECK(menu_dialog::handleEvent(fixture.state, pressAt(0, 0)) ==
           menu_dialog::Outcome::Dismissed);
     CHECK_FALSE(fixture.state.menuView);
+}
+
+TEST_CASE("the wheel does not move the menu's cursor [menu]") {
+    Fixture fixture;
+    menu_dialog::open(fixture.state,
+                      itemsOf({{Command::ReaderList}, {Command::ReaderNew}}));
+    REQUIRE(fixture.state.menuView);
+    REQUIRE(fixture.state.menuView->cursor == 0);
+    draw(fixture.state);
+
+    // A column of buttons has nothing off the screen, so a notch has nowhere to
+    // take the cursor. It is swallowed all the same — the menu is modal — and
+    // the button that was current stays current.
+    for (const bool down : {true, false}) {
+        CHECK(menu_dialog::handleEvent(fixture.state, wheelAt(1, 1, down)) ==
+              menu_dialog::Outcome::Ignored);
+        CHECK(fixture.state.menuView);
+        CHECK(fixture.state.menuView->cursor == 0);
+    }
 }
 
 TEST_CASE("a menu with no commands in it does not open at all [menu]") {
