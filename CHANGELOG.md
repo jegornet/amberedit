@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Ctrl-Home and Ctrl-End in the reader: the first and the last message of the area
+
 ## 0.9.1 — 2026-10-06
 
 - netmail_skip_template and netmail_skip_footer now take `*` for every recipient: no template, or no footer, on any netmail

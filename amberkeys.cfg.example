@@ -44,11 +44,12 @@
 #
 # Moving about cannot be rebound, and naming one of those keys here is an error
 # rather than a line that is quietly dropped: the arrows, PgUp and PgDn, Home and
-# End, Space, Enter, Esc, Backspace and Tab mean the same thing on every screen
-# and in every dialog, and a layout that had taken Esc away would leave you on a
-# screen with no way out of it. The dialogs answer for themselves entirely — what
-# Enter, Esc and the arrows do in a box is the box's, and so are the attribute
-# chords.
+# End — with Ctrl on them as well as bare, the reader taking Ctrl-Home and
+# Ctrl-End to the first and the last message of the area — Space, Enter, Esc,
+# Backspace and Tab mean the same thing on every screen and in every dialog, and
+# a layout that had taken Esc away would leave you on a screen with no way out
+# of it. The dialogs answer for themselves entirely — what Enter, Esc and the
+# arrows do in a box is the box's, and so are the attribute chords.
 #
 # Two screens may share a key: F2 below is Change in the reader and Save in the
 # editor, and neither screen is ever the other. Two commands of one screen may

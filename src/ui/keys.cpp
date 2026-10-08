@@ -116,9 +116,17 @@ int reachOf(const Event& key) {
 
 bool isReservedKey(std::string_view spelling) {
     const Spelling parsed = withoutModifiers(spelling);
-    // Only bare: Alt-Left is how a word is walked over, and Home with Ctrl on it
-    // is not the Home that moves the cursor.
-    if (parsed.ctrl || parsed.alt) return false;
+    if (parsed.ctrl && !parsed.alt) {
+        // The one chord that moves about: Ctrl with Home or End sends the
+        // reader to the first and the last message of the area, which is the
+        // same two ends the bare pair means one level out.
+        const NamedKey* named = namedKey(parsed.body);
+        return named != nullptr &&
+               (named->name == Event::Name::Home || named->name == Event::Name::End);
+    }
+    // Otherwise bare only: Alt-Left is how a word is walked over, and
+    // Alt-Backspace how one is taken out.
+    if (parsed.alt) return false;
     if (config::text::iequals(parsed.body, "Space")) return true;
     const NamedKey* named = namedKey(parsed.body);
     return named != nullptr && named->reserved;
@@ -133,8 +141,9 @@ std::optional<Event> keyNamed(std::string_view spelling) {
 
     if (const NamedKey* named = namedKey(parsed.body)) {
         // Alt with an arrow, a function key or Backspace is one a terminal can
-        // be asked to report; nothing else carries a modifier here, and a
-        // spelling that asks for one is a key that would never arrive.
+        // be asked to report; nothing else here is bindable under a modifier,
+        // and a spelling that asks for one is either a key that would never
+        // arrive or — Ctrl with Home and End — one reserved above.
         if (parsed.ctrl) return std::nullopt;
         if (parsed.alt && !takesAlt(named->name)) return std::nullopt;
         return Event::Named(named->name, false, parsed.alt);
@@ -230,8 +239,8 @@ tl::expected<KeyMap, ErrorPtr> KeyMap::parse(std::string_view text,
             return failure(
                 where + tokens[0] +
                 " moves about and cannot be bound — the arrows, PgUp and PgDn, Home "
-                "and End, Space, Enter, Esc, Backspace and Tab mean the same thing on "
-                "every screen");
+                "and End with and without Ctrl, Space, Enter, Esc, Backspace and Tab "
+                "mean the same thing on every screen");
         }
         const auto key = keyNamed(tokens[0]);
         if (!key) return failure(where + "no key is called " + tokens[0]);

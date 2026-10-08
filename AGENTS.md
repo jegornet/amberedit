@@ -812,16 +812,21 @@ Rules that hold the design together:
   named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
   naming the arrows and it; by default it is `compose.delete_word` beside
   `Ctrl-W`.
-- **Home and End are claimed in every form, through the same `define_key()`.**
+- **Home and End are claimed in every form, Ctrl and all, through the same
+  `define_key()`.**
   `khome` and `kend` name the one sequence the terminal their entry was written
   for sends, and terminals never agreed on this pair, so a session whose TERM
   describes a different terminal from the one at the other end loses the key
   entirely. `registerNavigationKeys()` in `ui/term/terminal.cpp` registers all
   four forms of each — the xterm pair, the VT220 one the Linux console, screen
   and PuTTY also send, and rxvt's — and none of them is ambiguous, so none waits
-  on the layout the way `ESC`+letter does. Do not narrow it to the forms one
-  terminal happens to need. No other named key needs this: the rest are spelled
-  the same way everywhere.
+  on the layout the way `ESC`+letter does. **Ctrl with the pair goes the same
+  way** and for the same reason, a modified key being in no terminfo entry at
+  all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
+  four of each, which is how the reader is sent to the first and the last
+  message of an area. Do not narrow either set to the forms one terminal happens
+  to need. No other named key needs this: the rest are spelled the same way
+  everywhere.
 - Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`,
   without it ncurses resolves the ambiguity on its own timer
   (`set_escdelay(25)`).
@@ -1358,12 +1363,23 @@ Rules that hold the design together:
 
 ### The reader
 
-- **Only the arrow keys move between messages.** `PgUp`, `PgDn`, `Space` and
-  `Shift+Space` stay inside the current message. Walking off the end of the
+- **Only the arrow keys walk between messages.** `PgUp`, `PgDn`, `Space` and
+  `Shift+Space` stay inside the current message, and so do bare `Home` and
+  `End` — the top and the bottom of its text. Walking off the end of the
   *area* leaves it: → on the last message and ← on the first go back through the
   same `leaveArea()` Esc calls, which `reader_edge stay` turns off. The check
   lives in `switchMessage()`, the one place that has already worked out there is
   no neighbour, and it covers an empty area as well.
+- **`Ctrl-Home` and `Ctrl-End` are the two ends of the area** — the first and
+  the last message, the same two ends the bare pair means one level out. Through
+  `openMessage()` rather than `switchMessage()`: it is a place in the area the
+  way a row picked out of the list is, so `twit_mode` decides what is landed on
+  — the first message it does not hide and the last — and the list's cursor
+  follows the reader there. Neither leaves the area: nothing is walked off, so
+  `reader_edge` has nothing to answer for, and an empty area has no end to go
+  to. Both are keys the screen answers and no layout binds — the chord moves
+  about, so `isReservedKey()` in `ui/keys.cpp` names it along with the bare pair
+  rather than leaving it an unknown key.
 - **`reader_edge next_unread_area` and `next_unread_only` do not stop on the
   list**: → off the last message leaves the area and then calls
   `area_list::openNextArea()`, which moves `areaCursor` and opens the area the
@@ -2644,10 +2660,10 @@ taking a row.
     opens it before the four screens and behind every modal — a dialog answers
     for its own keys, F1 included.
   - **The keys that move about are not in it.** The arrows, the page keys, Home
-    and End, Space, Enter, Esc, Backspace and Tab are bound by no layout and
-    answered by each screen for itself, so a list of them here would be a second
-    copy of a rule stated in four `handleEvent()`s. KEYS.md is where they are
-    written out.
+    and End — with Ctrl on them as well as bare — Space, Enter, Esc, Backspace
+    and Tab are bound by no layout and answered by each screen for itself, so a
+    list of them here would be a second copy of a rule stated in four
+    `handleEvent()`s. KEYS.md is where they are written out.
   - **Whether a command is worth showing is asked once**, `ui/command_live.hpp`,
     which the hint bar asks too: under `external_editor` the commands that edit
     the text of a message do nothing, and neither the row nor the box writes a

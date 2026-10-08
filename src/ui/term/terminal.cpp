@@ -169,7 +169,8 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     registerKey("\x1b[27;2;32~", shiftSpace);
 }
 
-/// Home and End, in the forms `khome` and `kend` do not name.
+/// Home and End, in the forms `khome` and `kend` do not name, and the same
+/// pair with Ctrl held.
 ///
 /// A terminfo entry names one sequence per key — the one the terminal it was
 /// written for sends — and on this pair the terminals never agreed. xterm's
@@ -190,6 +191,23 @@ void registerNavigationKeys() {
     }
     for (const char* form : {"\x1b[4~", "\x1b[8~", "\x1b[F", "\x1bOF"}) {
         registerKey(form, Event::End);
+    }
+
+    // The same pair with Ctrl on it, which the reader sends to the first and
+    // the last message of the area. terminfo names these even less than it
+    // names the bare keys — a modified key is not in it at all — and the
+    // disagreement carries over: a terminal that spells Home one way spells
+    // Ctrl with it the same way, parameterized. So all four forms of each are
+    // claimed as above: xterm's `CSI 1 ; 5 H`, the VT220 and rxvt numbers with
+    // the modifier as a second parameter, and rxvt's own `^` final byte for
+    // Ctrl. None of them means anything else either.
+    const Event ctrlHome = Event::Named(Event::Name::Home, true, false, false);
+    for (const char* form : {"\x1b[1;5H", "\x1b[1;5~", "\x1b[7;5~", "\x1b[7^"}) {
+        registerKey(form, ctrlHome);
+    }
+    const Event ctrlEnd = Event::Named(Event::Name::End, true, false, false);
+    for (const char* form : {"\x1b[1;5F", "\x1b[4;5~", "\x1b[8;5~", "\x1b[8^"}) {
+        registerKey(form, ctrlEnd);
     }
 }
 
@@ -383,10 +401,10 @@ Event namedKey(int code) {
     }
 
 #ifdef _WIN32
-    // The chords that `registerModifiedKeys()` teaches ncurses one sequence at a
-    // time. PDCurses has a code for each of them already, so they are read here
-    // instead — and only the ones that path produces, so that a layout means the
-    // same thing on either system.
+    // The chords that `registerModifiedKeys()` and `registerNavigationKeys()`
+    // teach ncurses one sequence at a time. PDCurses has a code for each of them
+    // already, so they are read here instead — and only the ones those two
+    // produce, so that a layout means the same thing on either system.
     if (code >= ALT_A && code <= ALT_Z) {
         const auto letter = static_cast<char>('a' + (code - ALT_A));
         return Event::Character(std::string(1, letter), false, true, false);
@@ -406,6 +424,8 @@ Event namedKey(int code) {
         case ALT_LEFT: return Event::Named(Event::Name::ArrowLeft, false, true, false);
         case ALT_RIGHT: return Event::Named(Event::Name::ArrowRight, false, true, false);
         case ALT_BKSP: return Event::Named(Event::Name::Backspace, false, true, false);
+        case CTL_HOME: return Event::Named(Event::Name::Home, true, false, false);
+        case CTL_END: return Event::Named(Event::Name::End, true, false, false);
         default: break;
     }
 #endif

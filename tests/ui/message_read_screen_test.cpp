@@ -120,6 +120,14 @@ Event pressOn(const AppState::MenuView::Item& item) {
                    (item.box.y_min + item.box.y_max) / 2);
 }
 
+/// Ctrl with Home and End, which the reader answers with the ends of the area.
+Event ctrlHome() {
+    return Event::Named(Event::Name::Home, /*ctrl=*/true);
+}
+Event ctrlEnd() {
+    return Event::Named(Event::Name::End, /*ctrl=*/true);
+}
+
 }  // namespace
 
 TEST_CASE("→ on the last message leaves the area [messageread][squish]") {
@@ -165,6 +173,48 @@ TEST_CASE("← on the first message leaves the area [messageread][squish]") {
 
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
     CHECK(fixture.state.base == nullptr);
+}
+
+TEST_CASE("Ctrl-End and Ctrl-Home go to the area's ends [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    const uint32_t total = fixture.total();
+    REQUIRE(total >= 3);
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    REQUIRE(message_read::handleEvent(fixture.state, ctrlEnd()));
+    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readHeader->number == total);
+    // The list's cursor follows, as it does on every other way to another
+    // message, and the area is not walked off: neither key leaves it.
+    CHECK(fixture.state.messageCursor == static_cast<int>(total) - 1);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.base != nullptr);
+
+    REQUIRE(message_read::handleEvent(fixture.state, ctrlHome()));
+    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readHeader->number == 1);
+    CHECK(fixture.state.messageCursor == 0);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    // The message it landed on is read from its first line, Home having moved
+    // the reader rather than scrolled it.
+    CHECK(fixture.state.readScroll == 0);
+}
+
+TEST_CASE("An empty area has no end to go to [messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    emptyTheArea(fixture);
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.messageCount == 0);
+
+    // Unlike the arrows, which leave the area: these two ask for a message in
+    // it, and an area holding none has nothing to answer with.
+    CHECK_FALSE(message_read::handleEvent(fixture.state, ctrlEnd()));
+    CHECK_FALSE(message_read::handleEvent(fixture.state, ctrlHome()));
+
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK_FALSE(fixture.state.readHeader.has_value());
 }
 
 TEST_CASE("Walking off the front of an area leaves it unread whole "

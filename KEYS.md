@@ -51,6 +51,7 @@ standing in both.
 | click on the side of the text | the same two, from the pointer: the columns down either side of the message are ← and → (`reader_side_taps`, `reader_side_tap_width`) |
 | `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
 | `Home`, `End` | top, bottom                                                                  |
+| `Ctrl-Home`, `Ctrl-End` | the first, the last message of the area |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |
 | `q` / `F4` / `Alt-Q` | reply                                                              |
 | `e` / `Ins` | write a new message                                                  |

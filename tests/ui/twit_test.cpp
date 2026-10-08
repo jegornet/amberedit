@@ -209,6 +209,26 @@ TEST_CASE("skip walks back past a run of twits [twit][squish]") {
     CHECK(showing(fixture) == 1);
 }
 
+TEST_CASE("skip walks past the twits at either end of the area [twit][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));
+    putMessages(fixture,
+                {{"Ivan Ivanov"}, {"Petr Petrov"}, {"Petr Petrov"}, {"Ivan Ivanov"}});
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    // The ends of the area as reading sees them: the last message that is not
+    // hidden, and the first.
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      Event::Named(Event::Name::End, /*ctrl=*/true)));
+    CHECK(showing(fixture) == 3);
+    CHECK(fixture.state.messageCursor == 2);
+
+    REQUIRE(message_read::handleEvent(fixture.state,
+                                      Event::Named(Event::Name::Home, /*ctrl=*/true)));
+    CHECK(showing(fixture) == 2);
+    CHECK(fixture.state.messageCursor == 1);
+}
+
 TEST_CASE("skip spares a twit written to the user themselves [twit][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path(), twitting(TwitMode::Skip, {"Ivan Ivanov"}));

@@ -2308,9 +2308,10 @@ bool handleEvent(AppState& state, const Event& event) {
         state.readGoto.clear();
     }
 
-    // Moving between messages is the arrow keys' job alone. Everything else on
-    // this screen stays inside the message being read, so paging never carries
-    // the reader off the end of it.
+    // Moving between messages is the arrow keys' job, and the two ends of the
+    // area are Ctrl with Home and End — see below. Everything else on this
+    // screen stays inside the message being read, so paging never carries the
+    // reader off the end of it.
     if (event == Event::ArrowRight) {
         switchMessage(state, 1);
         return true;
@@ -2504,6 +2505,23 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (event == Event::End) {
         state.readScroll = maxScroll(state);
+        return true;
+    }
+    // Ctrl with the same pair is the same two ends one level out: the first and
+    // the last message of the area rather than the top and the bottom of the
+    // one being read. Through `openMessage()`, so a twit at either end is
+    // walked past the way it is from a list — the first message `twit_mode`
+    // does not hide, and the last — and so that the list's cursor follows the
+    // reader there. Neither key leaves the area: walking off an end is what ←
+    // and → are for, and `reader_edge` answers for them.
+    if (event == Event::Named(Event::Name::Home, /*ctrl=*/true) &&
+        state.messageCount > 0) {
+        openMessage(state, 1);
+        return true;
+    }
+    if (event == Event::Named(Event::Name::End, /*ctrl=*/true) &&
+        state.messageCount > 0) {
+        openMessage(state, state.messageCount);
         return true;
     }
     // Going back is Esc/Backspace only: the arrow keys are taken by message

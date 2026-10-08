@@ -175,6 +175,16 @@ TEST_CASE("The keys that move about cannot be bound [keys]") {
     // one is taken out.
     CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Left"));
     CHECK_FALSE(amberedit::ui::isReservedKey("Alt-Backspace"));
+    // With the one exception: Ctrl with Home and End moves about as well — the
+    // reader sends them to the first and the last message of the area.
+    for (const char* spelling : {"Ctrl-Home", "ctrl-end", "Ctrl-PgDn", "Ctrl-Up"}) {
+        INFO(spelling);
+        CHECK_FALSE(keyNamed(spelling));
+    }
+    CHECK(amberedit::ui::isReservedKey("Ctrl-Home"));
+    CHECK(amberedit::ui::isReservedKey("ctrl-end"));
+    CHECK_FALSE(amberedit::ui::isReservedKey("Ctrl-PgDn"));
+    CHECK_FALSE(amberedit::ui::isReservedKey("Ctrl-Up"));
 
     const std::string error = errorOf(KeyMap::parse("Esc reader.list", "keys"));
     CHECK_MESSAGE(contains(error, "cannot be bound"), error);

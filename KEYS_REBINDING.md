@@ -37,10 +37,12 @@ a layout that tries says which line clashes with which.
 
 **Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
-every screen — bare, that is: `Alt-Left` and `Alt-Backspace` are chords of their
-own and may be bound — and the dialogs answer for themselves entirely. `Space` in
-the message list marks the message rather than paging, which is a key the screen
-answers and not a binding; `PgDn` pages there as everywhere.
+every screen — mostly bare: `Alt-Left` and `Alt-Backspace` are chords of their
+own and may be bound, while `Ctrl-Home` and `Ctrl-End` move about as well, to
+the first and the last message of the area — and the dialogs answer for
+themselves entirely. `Space` in the message list marks the message rather than
+paging, which is a key the screen answers and not a binding; `PgDn` pages there
+as everywhere.
 
 A command is written as where it is answered, a dot, and the command itself —
 `reader.list`, `app.quit`. What stands in front of the dot is what lets one key
