@@ -745,6 +745,12 @@ struct AppState {
         /// typed or erased, so that everything after that adds to what is there.
         bool seeded{false};
 
+        /// The address in use where the box was opened — the AKA of the area
+        /// being read, or of the area the message being written goes into. A
+        /// lookup beginning with `/` is a node of its net; an invalid one leaves
+        /// such a lookup an address of nowhere.
+        domain::FtnAddress home;
+
         /// Whether it found anything. The line is drawn in the error color when
         /// it did not, exactly as the area list's quick search is, and the
         /// cursor stays where it was.

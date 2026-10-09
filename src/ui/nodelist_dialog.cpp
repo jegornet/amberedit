@@ -105,15 +105,21 @@ struct Landing {
 /// `next` asks for the one after that rather than the first — what Enter does,
 /// so that a surname several sysops share, or a net with forty nodes in it, is
 /// walked through by pressing it again.
-Landing lookupIn(const nodelist::NodelistDb& db, const std::string& query, int from,
-                 bool next) {
+/// The net a lookup beginning with `/` is a node of, where the box has one.
+std::optional<nodelist::HomeNet> homeNet(const domain::FtnAddress& home) {
+    if (!home.isValid()) return std::nullopt;
+    return nodelist::HomeNet{home.zone, home.net};
+}
+
+Landing lookupIn(const nodelist::NodelistDb& db, const std::string& query,
+                 const domain::FtnAddress& home, int from, bool next) {
     const auto total = static_cast<int>(db.size());
     if (query.empty() || total == 0) return {from, true};
 
     // An address and a name are told apart by the text itself: what reads as
     // the beginning of an address is one, and nothing else can be, no sysop
     // being called `2:240`.
-    if (const auto prefix = nodelist::AddressPrefix::parse(query)) {
+    if (const auto prefix = nodelist::AddressPrefix::parse(query, homeNet(home))) {
         const auto range = db.findRange(*prefix);
         if (range.first == range.second) {
             // Nothing there, so the cursor goes where it would have been: the
@@ -234,8 +240,9 @@ size_t nodeAt(const AppState::NodelistView& view, int row) {
 /// The nodes a lookup finds, in the order the box that filters by it shows
 /// them: an address has no order but its own, and a name is answered closest
 /// first.
-std::vector<size_t> matchesFor(const nodelist::NodelistDb& db, const std::string& query) {
-    if (const auto prefix = nodelist::AddressPrefix::parse(query)) {
+std::vector<size_t> matchesFor(const nodelist::NodelistDb& db, const std::string& query,
+                               const domain::FtnAddress& home) {
+    if (const auto prefix = nodelist::AddressPrefix::parse(query, homeNet(home))) {
         const auto range = db.findRange(*prefix);
         std::vector<size_t> found;
         found.reserve(range.second - range.first);
@@ -255,7 +262,7 @@ std::vector<size_t> matchesFor(const nodelist::NodelistDb& db, const std::string
 void refilter(const AppState& state, AppState::NodelistView& view) {
     view.matches.clear();
     view.listMatches = !view.lookup.empty() && state.nodelistDb;
-    if (view.listMatches) view.matches = matchesFor(*state.nodelistDb, view.lookup);
+    if (view.listMatches) view.matches = matchesFor(*state.nodelistDb, view.lookup, view.home);
     view.found = !view.listMatches || !view.matches.empty();
     view.cursor = 0;
     view.offset = 0;
@@ -290,9 +297,16 @@ std::string sourceLabel(const AppState& state, const AppState::NodelistView& vie
 
 namespace {
 
+/// The address in use in `area`: its AKA, or the config's own address where the
+/// area states none.
+domain::FtnAddress homeIn(const AppState& state, const domain::AreaConfig& area) {
+    if (area.address.isValid()) return area.address;
+    return state.areaConfig.userAddress.value_or(domain::FtnAddress{});
+}
+
 /// Opens the box on `lookup`, for whatever it was opened to do.
 void openWith(AppState& state, AppState::NodelistView::Purpose purpose,
-              const std::string& lookup) {
+              const std::string& lookup, const domain::FtnAddress& home) {
     // Read once and kept, here or wherever asked for it first: a compiled
     // nodelist is a few megabytes, and it is written at startup and does not
     // change while AmberEdit runs.
@@ -305,6 +319,7 @@ void openWith(AppState& state, AppState::NodelistView::Purpose purpose,
     // by whatever opened the box, and is an answer already given rather than
     // the beginning of the next question.
     view.seeded = !lookup.empty();
+    view.home = home;
 
     // The lookup is run here rather than left for the first frame: the box's
     // size is what says how many rows there are to centre the answer in, and it
@@ -314,7 +329,7 @@ void openWith(AppState& state, AppState::NodelistView::Purpose purpose,
         refilter(state, view);
     } else if (state.nodelistDb && !state.nodelistDb->empty()) {
         const auto total = static_cast<int>(state.nodelistDb->size());
-        const Landing landing = lookupIn(*state.nodelistDb, view.lookup, 0, false);
+        const Landing landing = lookupIn(*state.nodelistDb, view.lookup, view.home, 0, false);
         view.found = landing.found;
         centreOn(view, landing.index, total, view.rows);
     }
@@ -343,12 +358,15 @@ void open(AppState& state) {
             }
         }
     }
-    openWith(state, AppState::NodelistView::Purpose::Browse, lookup);
+    openWith(state, AppState::NodelistView::Purpose::Browse, lookup,
+             homeIn(state, state.currentArea));
 }
 
 void openFor(AppState& state, AppState::NodelistView::Purpose purpose,
              const std::string& lookup) {
-    openWith(state, purpose, lookup);
+    // Only the compose screen asks for a pick, so the address in use is that of
+    // the area the message goes into.
+    openWith(state, purpose, lookup, homeIn(state, state.composeArea()));
 }
 
 std::optional<nodelist::NodeEntry> currentNode(const AppState& state) {
@@ -464,7 +482,7 @@ Outcome handleEvent(AppState& state, const Event& event) {
             return;
         }
         if (db == nullptr || total == 0) return;
-        const Landing landing = lookupIn(*db, view.lookup, view.cursor, next);
+        const Landing landing = lookupIn(*db, view.lookup, view.home, view.cursor, next);
         view.found = landing.found;
         if (landing.found || !next) centreOn(view, landing.index, total, view.rows);
     };

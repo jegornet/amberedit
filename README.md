@@ -285,12 +285,10 @@ UTF-8`), which is what a nodelist carrying names and locations outside ASCII
 needs; a line that states none is read in the charset your locale names.
 
 **Ctrl-N (or F10) in the reader** opens the nodelist on whoever wrote the message
-on screen. The Lookup line takes an address, whole or in part — `2`, `2:382`,
+on screen. The Lookup line takes an address, whole or in part — `/736`, `2:382`,
 `2:382/736`, or `382/736` without the zone, found in the first zone that has
-it; `382/7` is already enough to land on `382/736` — or any part of a sysop's
-name, and Enter walks through everything
-it finds. The list is the whole nodelist either way: a node is worth as much
-for its neighbors as for itself.
+it; `382/7` is already enough to land on `382/736`; `/736` is node 736 of the
+net the current area's address is in.
 
 **Writing netmail**, Enter on a half-filled To row asks the nodelist for the
 other half: a name with no address under it lists the nodes of that name,

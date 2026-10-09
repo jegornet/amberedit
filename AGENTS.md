@@ -4617,6 +4617,13 @@ searches decide it:
   700–799 and on that holds something is the answer, since a search field is
   read a keystroke at a time and `7` is how `736` begins. A number followed by a
   separator, or opened by a zero, is the number it is.
+  **A lookup beginning with `/` is a node of the home net** — `/147` is
+  `2:382/147` where the address in use is `2:382/736` or `2:382/736.120`.
+  `AddressPrefix::parse()` takes the zone and net as a `HomeNet` and reads the
+  text with them written in front; the box settles `NodelistView::home` as it
+  opens — the reader's `currentArea` AKA, the compose screen's `composeArea()`
+  one, the config's `address` where the area states none — and a box with no
+  address to read it against takes `/147` for a name, which finds nothing.
 - A sysop's name, whole or in part. The folded names are a pool and the name
   index is a **suffix array** over it — every position of every name, sorted by
   the text that follows. Matching inside a word is what that buys, and it is what

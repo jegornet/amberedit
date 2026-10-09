@@ -212,6 +212,34 @@ TEST_CASE("the number still being typed is the beginning of a longer one "
     CHECK(landing("382/9") == "2:382/147");
 }
 
+TEST_CASE("an address beginning with a slash is a node of the home net "
+          "[nodelist]") {
+    const nodelist::HomeNet home{2, 382};
+    const auto node = nodelist::AddressPrefix::parse("/9999", home);
+    REQUIRE(node);
+    CHECK_FALSE(node->anyZone);
+    CHECK(node->zone == 2);
+    CHECK(node->net == 382);
+    CHECK(node->node == 9999);
+    CHECK(node->depth == 3);
+    CHECK(node->open);
+
+    const auto point = nodelist::AddressPrefix::parse("/736.1", home);
+    REQUIRE(point);
+    CHECK(point->point == 1);
+    CHECK(point->depth == 4);
+
+    const auto net = nodelist::AddressPrefix::parse("/", home);
+    REQUIRE(net);
+    CHECK(net->depth == 2);
+    CHECK(net->net == 382);
+
+    // With nothing to read it against, a slash names no address at all.
+    CHECK_FALSE(nodelist::AddressPrefix::parse("/9999"));
+    CHECK_FALSE(nodelist::AddressPrefix::parse("/9999/1", home));
+    CHECK_FALSE(nodelist::AddressPrefix::parse("/2:382", home));
+}
+
 TEST_CASE("a node is found by the whole of a sysop's name or by part of one "
           "[nodelist]") {
     test::TempDir dir;

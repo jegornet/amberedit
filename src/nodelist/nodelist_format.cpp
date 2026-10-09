@@ -50,9 +50,19 @@ std::string foldName(std::string_view name) {
     return out;
 }
 
-std::optional<AddressPrefix> AddressPrefix::parse(std::string_view text) {
+std::optional<AddressPrefix> AddressPrefix::parse(std::string_view text,
+                                                  std::optional<HomeNet> home) {
     const std::string_view trimmed = config::text::trim(text);
     if (trimmed.empty()) return std::nullopt;
+
+    if (trimmed.front() == '/') {
+        // A node of the home net: the same text with the zone and the net
+        // written in front of it, and read as that.
+        if (!home) return std::nullopt;
+        const std::string whole = std::to_string(home->zone) + ':' +
+                                  std::to_string(home->net) + std::string(trimmed);
+        return parse(whole);
+    }
 
     AddressPrefix prefix;
     const auto first = readNumber(trimmed, 0);

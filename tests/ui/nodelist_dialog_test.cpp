@@ -254,6 +254,26 @@ TEST_CASE("a lookup takes an address whole or in part [nodelist][ui]") {
     CHECK_FALSE(fixture.area.state.nodelistView->found);
 }
 
+TEST_CASE("a lookup beginning with a slash is a node of the area's net "
+          "[nodelist][ui]") {
+    Fixture fixture;
+    const auto lookFrom = [&fixture](const std::string& aka, const std::string& text) {
+        fixture.area.state.currentArea.address = *amberedit::domain::FtnAddress::parse(aka);
+        nodelist_dialog::open(fixture.area.state);
+        fixture.area.state.nodelistView->lookup.clear();
+        fixture.area.state.nodelistView->seeded = false;
+        type(fixture.area, text);
+        return cursorAddress(fixture.area);
+    };
+
+    CHECK(lookFrom("2:240/9999", "/1200") == "2:240/1200");
+    // The point the area is presented under counts for nothing but its net.
+    CHECK(lookFrom("2:240/1120.8", "/2188") == "2:240/2188");
+    CHECK(lookFrom("2:240/9999", "/1120.8") == "2:240/1120.8");
+    CHECK(lookFrom("2:222/9999", "/0") == "2:222/0");
+    CHECK(fixture.area.state.nodelistView->found);
+}
+
 TEST_CASE("a lookup takes any part of a sysop's name [nodelist][ui]") {
     Fixture fixture;
     nodelist_dialog::open(fixture.area.state);

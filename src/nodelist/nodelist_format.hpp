@@ -101,6 +101,12 @@ inline constexpr size_t kMaxSources = 255;
 /// make two different names compare equal.
 [[nodiscard]] std::string foldName(std::string_view name);
 
+/// The zone and net an address beginning with `/` is read against.
+struct HomeNet {
+    uint16_t zone{0};
+    uint16_t net{0};
+};
+
 /// As much of an address as somebody typed: `2`, `2:382`, `2:382/736`,
 /// `2:382/736.1`. What the address search takes, and the reason a partial
 /// address needs no code of its own — it is a key range like any other.
@@ -109,6 +115,10 @@ inline constexpr size_t kMaxSources = 255;
 /// address is said inside one zone. That is a net in no zone in particular, and
 /// `anyZone` says so; `NodelistDb::findRange` settles it on the first zone that
 /// holds it.
+///
+/// It may begin with `/` too — `/147`, `/147.1` — which is a node of the net
+/// the address in use stands in: `/147` is `2:382/147` where that address is
+/// `2:382/736`, and `2:5015/147` where it is `2:5015/46.120`.
 struct AddressPrefix {
     uint16_t zone{0};
     uint16_t net{0};
@@ -130,8 +140,10 @@ struct AddressPrefix {
     /// Parses what was typed. A trailing separator is allowed and says nothing
     /// — `2:` is `2` — so that a search field can be read while it is still
     /// being typed. Nullopt when the text is not the beginning of an address at
-    /// all.
-    [[nodiscard]] static std::optional<AddressPrefix> parse(std::string_view text);
+    /// all, and for one beginning with `/` where there is no `home` to read it
+    /// against.
+    [[nodiscard]] static std::optional<AddressPrefix> parse(
+        std::string_view text, std::optional<HomeNet> home = std::nullopt);
 
     /// The first and the last key the prefix covers, both included. The last is
     /// computed by filling the unwritten parts with their highest value rather
