@@ -892,6 +892,21 @@ TEST_CASE("AppConfig reads where the reader stands after a save [app_config]") {
     CHECK_FALSE(loads("group g\nmember *\nreader_position_after_save new\nendgroup\n"));
 }
 
+TEST_CASE("reply_focus says where a reply opens [app_config]") {
+    using amberedit::config::ReplyFocus;
+    // In the text unless the config says otherwise.
+    CHECK(with("").replyFocus == ReplyFocus::Body);
+    CHECK(with("reply_focus body\n").replyFocus == ReplyFocus::Body);
+    CHECK(with("reply_focus to\n").replyFocus == ReplyFocus::To);
+    CHECK(with("reply_focus TO\n").replyFocus == ReplyFocus::To);
+    CHECK_FALSE(loads("reply_focus on\n"));
+    CHECK_FALSE(loads("reply_focus subject\n"));
+    CHECK_FALSE(loads("reply_focus to body\n"));
+    // Where the cursor goes is the screen's business, not the area's.
+    const std::string error = errorWith("group\nmember *\nreply_focus to\nendgroup\n");
+    CHECK_MESSAGE(contains(error, "not for one area"), error);
+}
+
 TEST_CASE("AppConfig reads the lastread auto next setting [app_config]") {
     CHECK(with("").lastreadAutoNext);  // after the mark unless the config says otherwise
     CHECK(with("reader_lastread_auto_next on\n").lastreadAutoNext);

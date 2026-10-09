@@ -4,6 +4,7 @@
 
 - Ctrl-Home and Ctrl-End in the reader: the first and the last message of the area
 - confirmation receipts (Cfm attribute): asking and handling
+- add reply_focus: a reply may open on the To field instead of the message text
 
 ## 0.9.1 — 2026-10-06
 

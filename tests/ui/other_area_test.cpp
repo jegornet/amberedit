@@ -1562,6 +1562,25 @@ TEST_CASE(
     CHECK(state.compose.fromAddr == "3:633/280");
 }
 
+TEST_CASE("reply_focus to opens a reply into netmail on the To name [other_area]") {
+    TwoAreaFixture fixture({}, "", domain::AreaKind::Netmail);
+    fixture.config.replyFocus = amberedit::config::ReplyFocus::To;
+    auto& state = fixture.state;
+
+    readMessage(fixture, writeInto(fixture, fixture.source, {}));
+    message_read::handleEvent(state, Event::Character('n'));
+    REQUIRE(state.areaPicker);
+    state.areaPicker->cursor = fixture.rowOf("netmail");
+    REQUIRE(area_dialog::handleEvent(state, Event::Return) ==
+            area_dialog::Outcome::Picked);
+    fixture.pickArea();
+
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    REQUIRE(state.compose.netmail);
+    CHECK(state.composeInHeader);
+    CHECK(state.composeField == compose::kToName);
+}
+
 TEST_CASE("A forward is not moved by the AREA: line [other_area]") {
     TwoAreaFixture fixture;
     auto& state = fixture.state;

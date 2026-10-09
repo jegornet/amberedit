@@ -457,6 +457,39 @@ TEST_CASE("A comment answers the recipient and is a reply otherwise [compose]") 
     CHECK(state.composeField == compose::kSubject);
 }
 
+TEST_CASE("reply_focus to opens a reply and a comment on the To name [compose]") {
+    amberedit::domain::MessageHeader answered;
+    answered.number = 1;
+    answered.from = "Vasya Pupkin";
+    answered.to = "Petya Ivanov";
+    answered.subject = "a thread";
+
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    fixture.config.replyFocus = amberedit::config::ReplyFocus::To;
+    auto& state = fixture.state;
+    state.readHeader = answered;
+
+    compose::startReply(state);
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    CHECK(state.composeInHeader);
+    CHECK(state.composeField == compose::kToName);
+    CHECK(state.composeCursor == state.compose.toName.size());
+    // Filled in all the same, and still a reply.
+    CHECK(state.compose.toName == "Vasya Pupkin");
+    CHECK(state.compose.reply);
+    // Enter walks the rest of the header down into the quote.
+    fixture.walkToText();
+    CHECK_FALSE(state.composeInHeader);
+
+    ComposeFixture other(AreaKind::Echo, "2:5020/1");
+    other.config.replyFocus = amberedit::config::ReplyFocus::To;
+    other.state.readHeader = answered;
+    compose::startCommentReply(other.state);
+    CHECK(other.state.composeInHeader);
+    CHECK(other.state.composeField == compose::kToName);
+    CHECK(other.state.compose.toName == "Petya Ivanov");
+}
+
 TEST_CASE("A message is not stored without a sender address [compose]") {
     // Neither the area nor the config names an address, so prefill has nothing
     // to put in the From row.

@@ -2075,7 +2075,11 @@ decides what an occurrence is.
   both, and the block is drawn the same way either way. A **new message and a
   forward open in the header**, on the To name; a **reply opens in the text**,
   its header having come off the message it answers, with `composeField` left on
-  the subject. Esc asks before dropping the message wherever the cursor is.
+  the subject — unless `reply_focus to` (`AppConfig::replyFocus`, global, read in
+  `openReply()`) opens it on the To name the way a new message opens. Every
+  answer goes through `openReply()` — `replyHere()` and `replyInto()`, a comment
+  and a reply into netmail alike — so one that bypasses it ignores the setting.
+  Esc asks before dropping the message wherever the cursor is.
 - **Tab is a ring round the whole of it, the text standing in it where a field
   would.** Forwards: the four fields, the subject, the attributes button, off the
   last into the text, and out of the text onto the **first** stop — not the one

@@ -1420,6 +1420,21 @@ bool clickToCursor(AppState& state, const MouseEvent& click) {
     return false;
 }
 
+/// Opens a reply or a comment whose fields have just been filled in, the
+/// typing where `reply_focus` puts it.
+///
+/// `body` is straight into the text: a reply has every field filled in from the
+/// message it answers, and what the user came here to do is answer it. The
+/// cursor is left on the subject for when Alt-H brings it back up — that is the
+/// field worth a second look, carried over unchanged, and a thread that has
+/// wandered gets renamed there. `to` opens on the recipient's name instead, and
+/// the text is reached the way a new message reaches it.
+void openReply(AppState& state) {
+    const bool onTo = state.config.replyFocus == config::ReplyFocus::To;
+    moveTo(state, onTo ? kToName : kSubject);
+    openCompose(state, /*inHeader=*/onTo);
+}
+
 /// The reply itself, into the area the message is being read in: every field
 /// off the message it answers, and the cursor in the text. `comment` is which
 /// answer it is — the To row off the message's recipient rather than off
@@ -1436,13 +1451,7 @@ void replyHere(AppState& state, bool comment) {
                                                 state.currentArea, *state.readHeader)
                             : app::reply(state.areaConfig, state.currentArea,
                                          state.currentArea, *state.readHeader);
-    // Straight into the text: a reply has every field filled in from the message
-    // it answers, and what the user came here to do is answer it. The cursor is
-    // left on the subject for when Alt-H brings it back up — that is the field
-    // worth a second look, carried over unchanged, and a thread that has
-    // wandered gets renamed there.
-    moveTo(state, kSubject);
-    openCompose(state, /*inHeader=*/false);
+    openReply(state);
 }
 
 /// The reply into an area other than the one it was read in — what both ways of
@@ -1474,8 +1483,7 @@ void replyInto(AppState& state, const domain::AreaConfig& target, bool direct,
                                          *state.readHeader);
     state.compose.moved = true;
     state.compose.direct = direct;
-    moveTo(state, kSubject);
-    openCompose(state, /*inHeader=*/false);
+    openReply(state);
 }
 
 /// The area the message on screen asks its answers to be posted to, or nothing

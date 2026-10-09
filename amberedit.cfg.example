@@ -215,6 +215,13 @@ reply_original_charset off
 # Whether a reply is linked to the original message. Optional; on by default.
 reply_link on
 
+# Where the cursor stands when a reply or a comment is opened, in this area or
+# into netmail alike. Optional; "body" by default.
+#
+#   body  in the message text
+#   to    on the To field of the header
+#reply_focus body
+
 # Whether the From, To and Subject of a message you write are cut to the room
 # FTS-0001 keeps for them: 35 bytes for either name and 71 for the subject.
 # Optional; on by default.

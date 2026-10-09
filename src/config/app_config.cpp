@@ -873,6 +873,15 @@ tl::expected<PositionAfterSave, ErrorPtr> parsePositionAfterSave(const CfgEntry&
                       "' is not one of its values (new | current | next)");
 }
 
+tl::expected<ReplyFocus, ErrorPtr> parseReplyFocus(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "body") return ReplyFocus::Body;
+    if (value == "to") return ReplyFocus::To;
+    return entry.fail("reply_focus: '" + *only + "' is not one of its values (body | to)");
+}
+
 tl::expected<QuoteFooter, ErrorPtr> parseQuoteFooter(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -1684,6 +1693,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parsePositionAfterSave(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.positionAfterSave = *read;
+    } else if (key == "reply_focus") {
+        auto read = parseReplyFocus(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.replyFocus = *read;
     } else if (key == "reader_lastread_auto_next") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

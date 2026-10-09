@@ -426,6 +426,15 @@ enum class EdgeBehavior {
     NextUnreadOnly,
 };
 
+/// Where the typing goes when a reply is opened, from `reply_focus`.
+enum class ReplyFocus {
+    /// `body` — into the text, the header having been filled in from the
+    /// message being answered.
+    Body,
+    /// `to` — onto the recipient's name in the header.
+    To,
+};
+
 /// Where the reader stands once a new message has been written, from
 /// `reader_position_after_save`.
 ///
@@ -1374,6 +1383,13 @@ struct AppConfig {
     /// much as one written here. A message being *changed* is not among them:
     /// there is one message in it either way, and the reader comes back to it.
     PositionAfterSave positionAfterSave{PositionAfterSave::Current};
+
+    /// `reply_focus`: where the typing goes when a reply or a comment is
+    /// opened, into the area being read or into another one alike. `body` by
+    /// default — a reply has every field filled in from what it answers. A
+    /// forward and a new message open on the recipient whatever this says, and
+    /// a message being changed opens in its text.
+    ReplyFocus replyFocus{ReplyFocus::Body};
 
     /// Where entering an area from the area list lands, from
     /// `reader_lastread_auto_next`: on the message after the lastread mark, or

@@ -15,7 +15,8 @@
 /// is being answered, or what the template makes of a new message — and the
 /// header stands over it, filled in field by field. `AppState::composeInHeader`
 /// is which of the two the typing goes into: a new message opens in the header,
-/// where the recipient has to be named, and a reply opens in the text.
+/// where the recipient has to be named, and a reply opens in the text unless
+/// `reply_focus` puts it on the recipient as well.
 /// `Alt-H` goes back up into the header, `Enter` off its last field comes back
 /// down.
 ///
@@ -53,9 +54,9 @@ enum Field {
 /// name before there is anything to say to them.
 void startNew(AppState& state);
 
-/// Starts a reply to the message in the reader, the cursor in the text: the
-/// header is filled in from the message being answered, and the quote is what
-/// the answer is written into. Does nothing where there is no message — an
+/// Starts a reply to the message in the reader, the cursor where `reply_focus`
+/// says — the text by default: the header is filled in from the message being
+/// answered, and the quote is what the answer is written into. Does nothing where there is no message — an
 /// empty area is the only screen with none, and the menu's Reply button is dead
 /// there.
 ///
@@ -67,9 +68,9 @@ void startReply(AppState& state);
 
 /// Starts a comment on the message in the reader: the same reply in every
 /// respect — the quote, the subject carried over, the `AREA:` line followed
-/// where `areareplydirect` says to, the cursor in the text — save that it is
-/// addressed to whoever the message was written *to* rather than to whoever
-/// wrote it. Does nothing where there is no message, as `startReply()` does not.
+/// where `areareplydirect` says to, the cursor where `reply_focus` says — save
+/// that it is addressed to whoever the message was written *to* rather than to
+/// whoever wrote it. Does nothing where there is no message, as `startReply()` does not.
 ///
 /// It has no place in the default menu and none in the hint bar: it answers
 /// somebody the message on screen did not come from, which is a thing wanted
@@ -82,7 +83,7 @@ void startCommentReply(AppState& state);
 /// has been answered with an area.
 ///
 /// Everything else about it is an ordinary reply: the quote, the subject
-/// carried over, the cursor in the text. What the target decides is
+/// carried over, the cursor where `reply_focus` says. What the target decides is
 /// the sender's AKA and whether there is a recipient to address, and what the
 /// move adds is the template's @moved lines. The reader underneath keeps its
 /// own area, and saving or dropping the message comes back to it.
