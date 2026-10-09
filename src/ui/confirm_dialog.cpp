@@ -26,6 +26,8 @@ std::string question(AppState::Confirm confirm) {
         case AppState::Confirm::ChangeSentMessage:
             return _("Change this message? It has already been sent.");
         case AppState::Confirm::ProcessCopies: return _("XC and/or CC commands found.");
+        case AppState::Confirm::SendReceipt:
+            return _("The sender asks to be told this was read. Send a receipt?");
         case AppState::Confirm::Quit:
         case AppState::Confirm::None: break;
     }

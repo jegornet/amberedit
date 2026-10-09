@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Ctrl-Home and Ctrl-End in the reader: the first and the last message of the area
+- confirmation receipts (Cfm attribute): asking and handling
 
 ## 0.9.1 — 2026-10-06
 

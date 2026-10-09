@@ -243,6 +243,42 @@ void setKludge(std::vector<std::string>& kludges, std::string_view prefix,
     kludges.insert(at, std::move(line));
 }
 
+/// The `FLAGS` line a message is to carry: the words it already had with `CFM`
+/// put in or taken out, and empty where that leaves no words at all.
+///
+/// The other words are not ours to decide. `KFS`, `HUB`, `IMM` and the rest are
+/// a mailer's instructions about a message on its way out — a message being
+/// changed carries whatever was written on it — so only the one word this
+/// editor has a checkbox for is edited, and the line goes only where nothing is
+/// left to say. `had` is what the line said, without its name.
+std::string flagsLine(std::string_view had, bool confirm) {
+    std::vector<std::string> words;
+    for (std::string& word : config::text::tokenize(had)) {
+        if (config::text::iequals(word, "CFM")) continue;
+        words.push_back(std::move(word));
+    }
+    if (confirm) words.emplace_back("CFM");
+    if (words.empty()) return {};
+
+    std::string line = "FLAGS";
+    for (const std::string& word : words) line += " " + word;
+    return line;
+}
+
+/// What a message's `FLAGS` line says, without the name: empty where it carries
+/// none, and empty for a line that says nothing.
+std::string flagsOf(const std::vector<std::string>& kludges) {
+    for (const std::string& kludge : kludges) {
+        if (!config::text::startsWith(kludge, "FLAGS")) continue;
+        std::string_view said = std::string_view(kludge).substr(5);
+        // `FLAGS` as FSC-0053 writes it and `FLAGS:` as the Synchronet bases
+        // do: the colon is not one of the words.
+        if (!said.empty() && said.front() == ':') said.remove_prefix(1);
+        return std::string(config::text::trim(said));
+    }
+    return {};
+}
+
 TemplateContext contextFor(const BuildRequest& request) {
     const auto& fields = request.fields;
     const domain::MessageDate now = localStamp(request.now);
@@ -377,13 +413,16 @@ TemplateContext contextFor(const BuildRequest& request) {
 }
 
 /// Whether this message closes with a tearline and an origin line at all —
-/// false for a netmail to one of the robots `netmail_skip_footer` names.
+/// false for a netmail to one of the robots `netmail_skip_footer` names, and
+/// false where the caller has already said so: a confirmation receipt, which is
+/// a line of acknowledgement rather than anything a person signed.
 ///
-/// Asked of the header rather than of the template context because it is true
-/// of every netmail to that recipient: a new one, a reply and a forward alike.
-/// A robot reads commands, and a tearline is where it stops reading — which is
-/// the one thing a message made of commands cannot afford.
+/// The robots are asked of the header rather than of the template context
+/// because it is true of every netmail to that recipient: a new one, a reply and
+/// a forward alike. A robot reads commands, and a tearline is where it stops
+/// reading — which is the one thing a message made of commands cannot afford.
 bool closesWithFooter(const BuildRequest& request) {
+    if (!request.footer) return false;
     return !(request.fields.netmail && request.config.skipsFooter(request.fields.toName));
 }
 
@@ -583,6 +622,16 @@ StartingText startingText(const BuildRequest& request) {
     return out;
 }
 
+std::vector<std::string> receiptText(const BuildRequest& request) {
+    if (request.config.cfmTemplatePath.empty()) {
+        return {std::string(kDefaultReceiptText)};
+    }
+    const auto text = config::text::readFileIn(request.config.cfmTemplatePath,
+                                               request.config.configCharset);
+    if (!text) return {std::string(kDefaultReceiptText)};
+    return expandTemplate(*text, contextFor(request)).lines;
+}
+
 PreservedLines preservedLines(const domain::MessageBody& body) {
     PreservedLines kept;
     kept.charset = body.charset;
@@ -693,6 +742,26 @@ domain::MessageDraft buildChange(const ComposeFields& fields, const PreservedLin
                   "MSGID:", "MSGID: " + origin + " " + serialNumber(stamp.now));
     }
     setKludge(draft.kludges, "TZUTC:", "TZUTC: " + tzutcOffset(stamp.utcOffsetMinutes));
+    // And the `CFM` word of the `FLAGS` line, which the attributes dialog has a
+    // checkbox for: the attribute the editor leaves is what the message is to
+    // carry, so a message that had the request and no longer claims it must not
+    // go on asking for one. Only in netmail, as buildDraft() writes it only
+    // there — an echo's line is left exactly as its author wrote it.
+    if (draft.netmail) {
+        const std::string said =
+            flagsLine(flagsOf(draft.kludges),
+                      (draft.attributes & domain::attr::kConfirmReceipt) != 0);
+        if (said.empty()) {
+            draft.kludges.erase(std::remove_if(draft.kludges.begin(), draft.kludges.end(),
+                                               [](const std::string& kludge) {
+                                                   return config::text::startsWith(
+                                                       kludge, "FLAGS");
+                                               }),
+                                draft.kludges.end());
+        } else {
+            setKludge(draft.kludges, "FLAGS", said);
+        }
+    }
     draft.lines = text;
     draft.lines.insert(draft.lines.end(), kept.trailing.begin(), kept.trailing.end());
     return draft;
@@ -806,6 +875,13 @@ domain::MessageDraft buildDraft(const BuildRequest& request,
         if (const std::string msgid = msgidOf(*request.originalBody); !msgid.empty()) {
             draft.kludges.push_back("REPLY: " + msgid);
         }
+    }
+    // The sender's request to be told the message was read, which is the one
+    // word of FSC-0053's `FLAGS` line AmberEdit writes: netmail only, since it
+    // asks that of the node the message is addressed to and an echo addresses
+    // nobody — which is why the compose screen offers the attribute only there.
+    if (draft.netmail && (draft.attributes & domain::attr::kConfirmReceipt) != 0) {
+        draft.kludges.push_back(flagsLine({}, /*confirm=*/true));
     }
     draft.kludges.push_back("TZUTC: " + tzutcOffset(request.utcOffsetMinutes));
     draft.kludges.push_back("CHRS: " + charsetIdentifier(draft.charset) + " " +

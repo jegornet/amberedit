@@ -159,7 +159,7 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 * Wed Sep 16 2026 Yegor Gluhov <git@jegor.net> - 0.8.7-1
 - skip passthrough areas
 
-* Tue Sep 16 2026 Yegor Gluhov <git@jegor.net> - 0.8.6-1
+* Wed Sep 16 2026 Yegor Gluhov <git@jegor.net> - 0.8.6-1
 - add reader_position_after_save
 - order the arealist sections with arealist_separator_name
 - override any config setting from the command line (-o)
@@ -216,7 +216,7 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 * Fri Sep 04 2026 Yegor Gluhov <git@jegor.net> - 0.6.5-1
 - add reader_side_tap_width
 
-* Thu Sep 04 2026 Yegor Gluhov <git@jegor.net> - 0.6.4-1
+* Fri Sep 04 2026 Yegor Gluhov <git@jegor.net> - 0.6.4-1
 - add reader_side_taps
 
 * Sun Aug 30 2026 Yegor Gluhov <git@jegor.net> - 0.6.3-1

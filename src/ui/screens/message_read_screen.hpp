@@ -102,6 +102,24 @@ void goToMessage(AppState& state, uint32_t number);
 /// locale — see `encoding::TextSearch`.
 bool findMessage(AppState& state, const std::string& query, app::SearchScope scope);
 
+/// Writes a confirmation receipt for the netmail on screen into the area it is
+/// being read in — the Yes answer to the box a `Cfm` netmail puts up as it is
+/// opened.
+///
+/// A reply in every respect but its text: addressed to whoever wrote the
+/// netmail, from the AKA they wrote to, about the same subject, linked to it in
+/// the thread and closed with the usual tearline and origin. The text is
+/// `cfm_template` expanded against the netmail, or one line where the config
+/// names no template — see `app::receiptText()`.
+///
+/// Into the area being read and nowhere else: a receipt answers a netmail, and
+/// the netmail is in the base that is open. The reader stays on the message
+/// that asked for it, which is now one message short of the end of the area.
+///
+/// Nothing is said where the write fails, as nothing is said when a receipt is
+/// not asked about: there is no status line, and the box has been and gone.
+void sendReceipt(AppState& state);
+
 /// Takes the message on screen out of the base and shows what follows it —
 /// the answer to the delete confirmation. The one before it where it was the
 /// last, and blank rows where it was the only one.

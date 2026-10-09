@@ -223,6 +223,21 @@ std::string tzutcOffsetOf(std::string_view control) {
     return {};
 }
 
+bool confirmationRequestedIn(std::string_view control) {
+    const std::string line = kludgeValue(control, "FLAGS");
+    std::string_view flags = line;
+    // `FLAGS` as FSC-0053 writes it and `FLAGS:` as the Synchronet bases do:
+    // one line under two spellings, and the colon is not one of the words.
+    if (!flags.empty() && flags.front() == ':') {
+        flags.remove_prefix(1);
+        flags = config::text::trim(flags);
+    }
+    for (const std::string& word : config::text::tokenize(flags)) {
+        if (config::text::iequals(word, "CFM")) return true;
+    }
+    return false;
+}
+
 void completeAddresses(RawHeader& header, std::string_view control) {
     // INTL is read only where a zone is missing, and read as a pair: FSC-0004
     // writes the destination first and the origin second.

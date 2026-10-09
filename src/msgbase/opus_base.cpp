@@ -51,6 +51,7 @@ constexpr size_t kDateSize = 20;
 /// date below answers for it.
 constexpr size_t kDateOffset = 144;
 constexpr size_t kTimesReadOffset = 164;
+constexpr size_t kAttributesOffset = 186;
 constexpr size_t kWrittenOffset = 176;
 constexpr size_t kArrivedOffset = 180;
 
@@ -209,7 +210,7 @@ tl::expected<void, ErrorPtr> OpusBase::read(uint32_t index, RawMessage& out,
     out.header.arrived = fromDosStamp(readU16(raw.data() + kArrivedOffset),
                                       readU16(raw.data() + kArrivedOffset + 2));
     out.header.replyTo = readU16(raw.data() + 184);
-    out.header.attributes = readU16(raw.data() + 186);
+    out.header.attributes = readU16(raw.data() + kAttributesOffset);
     // The attribute word here is sixteen bits wide, so Squish's MSGSEEN has
     // nowhere to go in it. FTS-0001 gives the header a read count instead, and
     // that is what says it: any count at all is the mark, as in JAM.
@@ -274,7 +275,7 @@ domain::MessageInfo OpusBase::info(uint32_t index) const {
     const int64_t size = file.size();
     const auto headerSize = static_cast<int64_t>(kHeaderSize);
     const auto body = static_cast<uint64_t>(std::max<int64_t>(0, size - headerSize));
-    const uint16_t attributes = readU16(raw.data() + 186);
+    const uint16_t attributes = readU16(raw.data() + kAttributesOffset);
 
     // The eight bytes at 176 are shown as the written and arrived stamps: that
     // is the reading the driver takes and the one all but the oldest writers
@@ -394,7 +395,7 @@ void OpusBase::encodeHeader(const RawHeader& header, unsigned char* raw) const {
     writeU16(raw + kArrivedOffset, date);
     writeU16(raw + kArrivedOffset + 2, time);
     writeU16(raw + 184, static_cast<uint16_t>(header.replyTo));
-    writeU16(raw + 186, static_cast<uint16_t>(header.attributes));
+    writeU16(raw + kAttributesOffset, static_cast<uint16_t>(header.attributes));
     writeU16(raw + 188, header.replies.empty()
                             ? uint16_t{0}
                             : static_cast<uint16_t>(header.replies.front()));
@@ -562,6 +563,46 @@ tl::expected<void, ErrorPtr> OpusBase::removeAll(const std::vector<uint32_t>& in
     }
 
     if (!trouble.empty()) return failure(std::move(trouble));
+    return {};
+}
+
+tl::expected<void, ErrorPtr> OpusBase::markReceived(uint32_t index) {
+    if (directory_.empty()) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
+    }
+    if (index == 0 || index > count()) {
+        return failure("message " + std::to_string(index) + " is not there to mark");
+    }
+    const uint32_t number = numbers_[index - 1];
+
+    BinaryFile file;
+    if (!file.open(fileFor(number), true) || !file.writable()) {
+        return failure("cannot write " + fileFor(number));
+    }
+    // The message file is the base as far as this message is concerned, and
+    // replace() may be rewriting the whole of it — including the word this
+    // patches, which it carries over from what it read.
+    FileLock lock;
+    if (const auto locked = lock.acquire({&file}); !locked) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::MessageBusy,
+                                     locked.error()->message());
+    }
+
+    std::array<unsigned char, 2> raw{};
+    if (const auto io = file.readAt(kAttributesOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot read the header of " + fileFor(number) + ": " +
+                       io.message());
+    }
+    const uint16_t attributes = readU16(raw.data());
+    if ((attributes & domain::attr::kRead) != 0) return {};
+
+    writeU16(raw.data(), static_cast<uint16_t>(attributes | domain::attr::kRead));
+    if (const auto io = file.writeAt(kAttributesOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot mark message " + std::to_string(index) +
+                       " received: " + io.message());
+    }
     return {};
 }
 

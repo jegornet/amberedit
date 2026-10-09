@@ -42,6 +42,15 @@ struct BuildRequest {
     /// who turned the kludges on to point at one can quote it. Off, which is how
     /// the reader stands by default, only the visible text is carried.
     bool kludgesShown{false};
+    /// Whether the message closes with the tagline, tearline and origin line at
+    /// all.
+    ///
+    /// False for a confirmation receipt, which is the one message AmberEdit
+    /// writes rather than somebody writing it: a line saying a netmail was read
+    /// wants no three lines of apparatus signed under it. Every message a person
+    /// writes carries the block, and `netmail_skip_footer` is the other way it
+    /// comes off one — see `closesWithFooter()`.
+    bool footer{true};
     /// Control lines to write beside the ones every message carries — today the
     /// `CC:` kludges `compose_cc_list hidden` asks for, which name the
     /// recipients a copy went to and are meant to be read by a program rather
@@ -74,6 +83,26 @@ struct StartingText {
 };
 
 [[nodiscard]] StartingText startingText(const BuildRequest& request);
+
+/// What a confirmation receipt says where the config names no `cfm_template`.
+///
+/// Not translated, and nothing here is: it is the text of a message somebody
+/// else's reader will show, like the tearline and the `* Origin:` line, and the
+/// language the interface happens to be in says nothing about theirs.
+inline constexpr const char* kDefaultReceiptText = "Confirmation Receipt";
+
+/// The text of a confirmation receipt: `cfm_template` expanded against the
+/// netmail being answered, exactly as a message template is — the same tokens,
+/// the same conditionals, the same `@include`.
+///
+/// One line, `kDefaultReceiptText`, where the config names no template. The
+/// same where it names one that cannot be read after all: the receipt is being
+/// written in answer to a dialog with nowhere in it to report a file, and the
+/// path was read once already when the config was loaded.
+///
+/// The whole of what the receipt says: nothing closes it, `BuildRequest::footer`
+/// being false for one. A template that wants a sign-off writes it itself.
+[[nodiscard]] std::vector<std::string> receiptText(const BuildRequest& request);
 
 /// The message as it will be stored: the control lines FTS-0009, FTS-4008,
 /// FTS-5003 and FSC-0004 ask for, the text as edited, and the tagline,

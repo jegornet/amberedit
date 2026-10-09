@@ -97,6 +97,19 @@ inline constexpr uint32_t kUpdateRequest = 0x8000u;
 inline constexpr uint32_t kScanned = 0x00010000u;
 inline constexpr uint32_t kImmediate = 0x00040000u;
 
+/// `Cfm` — the sender asks to be told the message was read. **Not an FTS-0001
+/// bit**: FSC-0053 states it as the `CFM` word of a message's `FLAGS` control
+/// line, which is where every FTN editor but JAM's keeps it, and JAM has an
+/// attribute of its own that says the same thing. It is carried here, in the
+/// same word as the rest, because it is one of the message's own attributes and
+/// everything above the message-base port reads them in one place.
+///
+/// The value is GoldED+'s own, which no FTS-0001 word uses. It never reaches a
+/// stored FTS-0001 attribute word all the same — `SquishBase` masks it off and
+/// a Fido *.msg has only sixteen bits to write — so a base holds it where the
+/// standard puts it and nowhere else.
+inline constexpr uint32_t kConfirmReceipt = 0x04000000u;
+
 }  // namespace attr
 
 /// Message header. Every text field is already converted to UTF-8.
@@ -154,6 +167,10 @@ struct MessageHeader {
 
     [[nodiscard]] bool isPrivate() const { return (attributes & attr::kPrivate) != 0; }
     [[nodiscard]] bool isRead() const { return (attributes & attr::kRead) != 0; }
+    /// Whether the sender asked to be told the message was read — `Cfm`.
+    [[nodiscard]] bool wantsConfirmation() const {
+        return (attributes & attr::kConfirmReceipt) != 0;
+    }
 };
 
 /// Where a message sits in its thread: what it answers, and what answers it.
@@ -190,6 +207,11 @@ struct MessageDraft {
     /// for. A base stores what it is given rather than deciding for itself:
     /// these are the author's attributes, and the compose screen is where they
     /// are set.
+    ///
+    /// `attr::kConfirmReceipt` is the one of them a base cannot store on its
+    /// own account: `buildDraft()` writes the `FLAGS CFM` line among the kludges
+    /// below for it, which is where FSC-0053 keeps the request, and only JAM has
+    /// an attribute to put it in besides.
     uint32_t attributes{0};
 
     /// The control lines, without their leading ^A and in the order they go
@@ -257,6 +279,12 @@ struct MessageDraft {
 /// the rest, so a message says the same thing about itself wherever it is shown:
 /// the compose screen writes one carrying `[Uns Loc]` and the reader shows it
 /// carrying `[Uns Loc]`.
+///
+/// **`Cfm` belongs to netmail alone.** It asks the node a message is addressed
+/// to to say the message was read, so the attributes dialog offers it only
+/// where the message has such a node and a config may not name it at all. A
+/// netmail carrying one is answered by the reader asking whether to send a
+/// receipt — see `message_read::sendReceipt()`.
 [[nodiscard]] std::vector<std::string> messageAttributes(uint32_t attributes);
 
 /// The same for a message that has been read back out of a base.
@@ -270,11 +298,17 @@ struct MessageDraft {
 /// `Snt` clear, worked out and never stored — so there is nothing here for it to
 /// answer; whoever asks is told what it is not, and the two attributes it is
 /// made of are written instead.
+///
+/// So is `Cfm`, for a reason of its own: it asks the node a message is addressed
+/// to to say it was read, which is a thing only netmail can ask. The compose
+/// screen offers it there and nowhere else, where a config would state it for
+/// every message written under it — including the echomail where it means
+/// nothing.
 [[nodiscard]] std::optional<uint32_t> messageAttributeBit(std::string_view name);
 
 /// Every short form there is, in the order messageAttributes() writes them —
 /// what a config error lists when it has been given a word that is not one of
-/// them. `Uns` is not among them, for the reason above.
+/// them. `Uns` and `Cfm` are not among them, for the reasons above.
 [[nodiscard]] std::vector<std::string> messageAttributeNames();
 
 /// One line of a message body, in UTF-8.

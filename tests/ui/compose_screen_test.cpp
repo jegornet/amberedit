@@ -1236,10 +1236,31 @@ TEST_CASE(
 
     const auto rows = dialogRowsOf(state);
     CHECK(shows(rows, "Message attributes"));
-    CHECK(shows(rows, "[x] Private              Ctrl-P"));
-    CHECK(shows(rows, "[ ] Crash                Ctrl-C"));
-    CHECK(shows(rows, "[x] Local                Ctrl-L"));
+    CHECK(shows(rows, "[x] Private               Ctrl-P"));
+    CHECK(shows(rows, "[ ] Crash                 Ctrl-C"));
+    CHECK(shows(rows, "[x] Local                 Ctrl-L"));
+    // The confirmation request, which only a netmail may ask for.
+    CHECK(shows(rows, "[ ] Confirm Rcpt Request  Ctrl-Y"));
     CHECK(shows(rows, "Done"));
+}
+
+TEST_CASE("Only a netmail may ask for a confirmation receipt [compose]") {
+    // Cfm asks the node a message was addressed to to say it was read, and an
+    // echo addresses nobody — so there is no checkbox to press there, and the
+    // chord that would press it does nothing.
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    compose::startNew(state);
+    compose::handleEvent(state, ctrl('f'));
+    REQUIRE(state.attributePicker);
+
+    const auto rows = dialogRowsOf(state);
+    CHECK(shows(rows, "[ ] Immediate"));
+    CHECK_FALSE(shows(rows, "Confirm Rcpt Request"));
+
+    const uint32_t started = state.compose.attributes;
+    attributes_dialog::handleEvent(state, ctrl('y'));
+    CHECK(state.compose.attributes == started);
 }
 
 TEST_CASE("A Ctrl chord is not typed into the field it was pressed in [compose]") {

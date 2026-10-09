@@ -99,7 +99,6 @@ enum : uint32_t {
     kMsgDirect = 0x0400u,
     kMsgFileRequest = 0x0800u,
     kMsgReceiptRequest = 0x1000u,
-    kMsgConfirmReceipt = 0x2000u,
     kMsgImmediate = 0x00040000u,
     kMsgLockedGed = 0x40000000u,
 };
@@ -122,7 +121,12 @@ constexpr AttrPair kAttrPairs[] = {
     {kJamFileAttach, kMsgFileAttach},
     {kJamInTransit, kMsgInTransit},
     {kJamReceiptRequest, kMsgReceiptRequest},
-    {kJamConfirmRequest, kMsgConfirmReceipt},
+    // JAM is the one format with an attribute for the confirmation request;
+    // everywhere else it is the `CFM` word of a `FLAGS` control line, which is
+    // what `domain::attr::kConfirmReceipt` stands for either way. Not FTS-0001's
+    // 0x2000, which says the message *is* a receipt — a different thing, and one
+    // JAM has no bit for.
+    {kJamConfirmRequest, domain::attr::kConfirmReceipt},
     {kJamOrphan, kMsgOrphan},
     {kJamDirect, kMsgDirect},
     {kJamImmediate, kMsgImmediate},
@@ -1342,6 +1346,58 @@ tl::expected<void, ErrorPtr> JamBase::removeAll(const std::vector<uint32_t>& ind
     }
 
     if (failed != nullptr) return tl::make_unexpected(std::move(failed));
+    return {};
+}
+
+tl::expected<void, ErrorPtr> JamBase::markReceived(uint32_t index) {
+    if (!headers_.isOpen()) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
+    }
+    if (!headers_.writable()) {
+        return failure("the base at " + headers_.path() + " is not ours to write");
+    }
+
+    // Already set, as far as the table read when the area was opened knows, and
+    // that is enough to answer with: nothing here takes the attribute off again.
+    if (index != 0 && index <= count() &&
+        (active_[index - 1].header.attributes & kJamRead) != 0) {
+        return {};
+    }
+
+    FileLock lock;
+    if (const auto locked = lock.acquire({&headers_, &index_, &text_}); !locked) {
+        return failure<MsgBaseError>(MsgBaseError::Kind::BaseBusy,
+                                     locked.error()->message());
+    }
+    auto done = reload();
+    if (!done) return tl::make_unexpected(std::move(done).error());
+
+    if (index == 0 || index > count()) {
+        return failure("message " + std::to_string(index) + " is not there to mark");
+    }
+    const ActiveMessage& message = active_[index - 1];
+
+    // Read back, patched and written whole, as markSeen() and the delete do it:
+    // the dword at +52 is the only one that changes, and the rest of the record
+    // goes back exactly as it came.
+    std::array<unsigned char, kFixedHeaderSize> raw{};
+    if (const auto io = headers_.readAt(message.headerOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot re-read the header of message " + std::to_string(index) +
+                       ": " + io.message());
+    }
+    const uint32_t attributes = readU32(raw.data() + 52);
+    if ((attributes & kJamRead) != 0) {
+        active_[index - 1].header.attributes = attributes;
+        return {};
+    }
+    writeU32(raw.data() + 52, attributes | kJamRead);
+    if (const auto io = headers_.writeAt(message.headerOffset, raw.data(), raw.size());
+        io.failed()) {
+        return failure("cannot mark message " + std::to_string(index) +
+                       " received: " + io.message());
+    }
+    active_[index - 1].header.attributes = attributes | kJamRead;
     return {};
 }
 

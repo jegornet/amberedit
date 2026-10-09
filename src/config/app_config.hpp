@@ -1975,6 +1975,37 @@ struct AppConfig {
     /// parses a config without standing in for the machine one would run on.
     std::string templatePath;
 
+    /// The template a confirmation receipt is written from, from
+    /// `cfm_template` — the answer to a netmail whose sender set `Cfm`.
+    ///
+    /// Optional, and the one thing that parts it from `template` above: a config
+    /// naming none still answers such a netmail, with the one line
+    /// `app::kDefaultReceiptText`. A config that does name a file is held to it
+    /// the same way — `loadFromFile` reads it at startup, so a receipt is never
+    /// found to be unwritable at the moment one is asked for.
+    ///
+    /// A template and not a line of text: what a receipt says is a message, and
+    /// the tokens, the conditionals and the `@include` a template is written
+    /// with are what say it. May be set per area in a group block, as `template`
+    /// may.
+    std::string cfmTemplatePath;
+
+    /// The attributes a confirmation receipt is written with, from
+    /// `cfm_attributes` — the short forms the screens show, read by
+    /// `domain::messageAttributeBit()`.
+    ///
+    /// `Loc` and `Pvt` by default, which is what any netmail written here
+    /// starts out as: written on this system and not yet sent, so a scanner
+    /// picks it up, and private as netmail has always been. The line **states**
+    /// them rather than adding to that, so `cfm_attributes loc` writes a
+    /// receipt that is not private and an empty line one that carries no
+    /// attribute at all.
+    ///
+    /// `Cfm` is not among the words it may use: a receipt asking to be told it
+    /// was read would be answered with a receipt. May be set per area in a
+    /// group block, as `cfm_template` may.
+    uint32_t cfmAttributes{domain::attr::kLocal | domain::attr::kPrivate};
+
     /// The recipients a *new* netmail is written to with no template expanded
     /// into it at all, from `netmail_skip_template`: the robots. Names, one per
     /// word, a name with a space in it in quotes, compared case-insensitively

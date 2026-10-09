@@ -185,6 +185,21 @@ public:
     /// not made — an area opened read-only is the ordinary reason, and it is not
     /// worth telling anybody about: the message is on the screen either way.
     [[nodiscard]] virtual tl::expected<void, ErrorPtr> markSeen(uint32_t index) = 0;
+
+    /// Sets FTS-0001's `MSGREAD` on message `index` — the `Rcv` attribute, which
+    /// says the node the message was addressed to has it.
+    ///
+    /// A different thing from markSeen() above, however alike the two sound: that
+    /// mark is this system's own note that somebody here has looked at the
+    /// message, and this is a statement to the network about a netmail that has
+    /// arrived. It is what AmberEdit writes onto a netmail whose sender asked for
+    /// a confirmation receipt, and it is what keeps the question from being asked
+    /// a second time — see `message_read::sendReceipt()`.
+    ///
+    /// Nothing else about the message is touched, as with the mark above, and a
+    /// message that carries the attribute already is left alone and this
+    /// succeeds. A failure means the attribute was not set.
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> markReceived(uint32_t index) = 0;
 };
 
 }  // namespace amberedit::ports

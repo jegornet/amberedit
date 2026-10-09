@@ -2,23 +2,23 @@
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr ""
 
-#: src/app/export_file.cpp:227 src/app/export_file.cpp:230
-#: src/app/export_file.cpp:286 src/app/export_file.cpp:291
+#: src/app/export_file.cpp:232 src/app/export_file.cpp:235
+#: src/app/export_file.cpp:292 src/app/export_file.cpp:297
 #: src/app/external_editor.cpp:26 src/app/external_editor.cpp:31
 #, c++-format
 msgid "cannot write file: {0}"
 msgstr ""
 
-#: src/app/export_file.cpp:266
+#: src/app/export_file.cpp:272
 msgid "nothing to save"
 msgstr ""
 
-#: src/app/export_file.cpp:276
+#: src/app/export_file.cpp:282
 #, c++-format
 msgid "file exists: {0}"
 msgstr ""
 
-#: src/app/message_builder.cpp:521
+#: src/app/message_builder.cpp:588
 #, c++-format
 msgid "template: {0}"
 msgstr ""
@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:2289
+#: src/config/app_config.cpp:2656
 msgid "no description"
 msgstr ""
 
@@ -367,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-09-23 22:07+0200\n"
+"POT-Creation-Date: 2026-10-09 02:11+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -419,8 +419,8 @@ msgstr[1] ""
 msgid "{0}{1} into {2}"
 msgstr ""
 
-#: src/main.cpp:91 src/main.cpp:121 src/main.cpp:231 src/main.cpp:377
-#: src/ui/setup/setup_run.cpp:47
+#: src/main.cpp:91 src/main.cpp:121 src/main.cpp:231 src/main.cpp:291
+#: src/main.cpp:386 src/ui/setup/setup_run.cpp:47
 #, c++-format
 msgid "warning: {0}"
 msgstr ""
@@ -442,8 +442,8 @@ msgstr ""
 msgid "error: {0} needs a value"
 msgstr ""
 
-#: src/main.cpp:211 src/main.cpp:278 src/main.cpp:299 src/main.cpp:315
-#: src/main.cpp:325 src/main.cpp:349 src/main.cpp:361 src/main.cpp:389
+#: src/main.cpp:211 src/main.cpp:278 src/main.cpp:308 src/main.cpp:324
+#: src/main.cpp:334 src/main.cpp:358 src/main.cpp:370 src/main.cpp:398
 #, c++-format
 msgid "error: {0}"
 msgstr ""
@@ -535,7 +535,7 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:865
+#: src/ui/app_shell.cpp:868
 msgid "Not found"
 msgstr ""
 
@@ -594,83 +594,87 @@ msgctxt "area list column"
 msgid "New"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:47
+#: src/ui/attributes_dialog.cpp:51
 msgid "Private"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:48
+#: src/ui/attributes_dialog.cpp:52
 msgid "Crash"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:49
+#: src/ui/attributes_dialog.cpp:53
 msgid "Received"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:50
+#: src/ui/attributes_dialog.cpp:54
 msgid "Sent"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:51
+#: src/ui/attributes_dialog.cpp:55
 msgid "File Attach"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:52
+#: src/ui/attributes_dialog.cpp:56
 msgid "Transit"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:53
+#: src/ui/attributes_dialog.cpp:57
 msgid "Orphan"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:54
+#: src/ui/attributes_dialog.cpp:58
 msgid "Kill/Sent"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:55
+#: src/ui/attributes_dialog.cpp:59
 msgid "Local"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:56
+#: src/ui/attributes_dialog.cpp:60
 msgid "Hold"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:57
+#: src/ui/attributes_dialog.cpp:61
 msgid "File Request"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:58
+#: src/ui/attributes_dialog.cpp:62
 msgid "Return Rcpt Request"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:59
+#: src/ui/attributes_dialog.cpp:63
 msgid "Return Rcpt"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:60
+#: src/ui/attributes_dialog.cpp:64
 msgid "Audit Request"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:61
+#: src/ui/attributes_dialog.cpp:65
 msgid "File Update Request"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:62
+#: src/ui/attributes_dialog.cpp:66
 msgid "Direct"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:63
+#: src/ui/attributes_dialog.cpp:67
 msgid "Immediate"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:137
+#: src/ui/attributes_dialog.cpp:68
+msgid "Confirm Rcpt Request"
+msgstr ""
+
+#: src/ui/attributes_dialog.cpp:153
 msgid "Done"
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:202
+#: src/ui/attributes_dialog.cpp:219
 msgid " Message attributes "
 msgstr ""
 
-#: src/ui/attributes_dialog.cpp:236
+#: src/ui/attributes_dialog.cpp:253
 msgid "space toggle · ctrl-z clear · enter done · esc cancel"
 msgstr ""
 
@@ -738,31 +742,35 @@ msgstr ""
 msgid "XC and/or CC commands found."
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:32
+#: src/ui/confirm_dialog.cpp:30
+msgid "The sender asks to be told this was read. Send a receipt?"
+msgstr ""
+
+#: src/ui/confirm_dialog.cpp:34
 msgid "Quit AmberEdit?"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:45
+#: src/ui/confirm_dialog.cpp:47
 msgid "Ignore"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:45
+#: src/ui/confirm_dialog.cpp:47
 msgid "Process"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:47
+#: src/ui/confirm_dialog.cpp:49
 msgid "No"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:47
+#: src/ui/confirm_dialog.cpp:49
 msgid "Yes"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:86
+#: src/ui/confirm_dialog.cpp:88
 msgid "←→ choose · Enter confirm · y/n · Esc ignores"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:87
+#: src/ui/confirm_dialog.cpp:89
 msgid "←→ choose · Enter confirm · y/n · Esc cancel"
 msgstr ""
 
@@ -804,40 +812,40 @@ msgstr ""
 msgid "No file name"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:430
+#: src/ui/export_dialog.cpp:435
 msgid "File exists:"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:436
+#: src/ui/export_dialog.cpp:441
 msgid "Overwrite"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:438
+#: src/ui/export_dialog.cpp:443
 msgid "Append"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:441
+#: src/ui/export_dialog.cpp:446
 msgid "←→ choose · Enter confirm · o/a · Esc cancel"
 msgstr ""
 
-#: src/ui/export_dialog.cpp:714
+#: src/ui/export_dialog.cpp:719
 msgid " Export files "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:715
+#: src/ui/export_dialog.cpp:720
 msgid " Export marked "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:716
+#: src/ui/export_dialog.cpp:721
 msgid " Export message "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:721
+#: src/ui/export_dialog.cpp:726
 #, c++-format
 msgid " Dir: {0}▌ "
 msgstr ""
 
-#: src/ui/export_dialog.cpp:788 src/ui/export_mode_dialog.cpp:84
+#: src/ui/export_dialog.cpp:793 src/ui/export_mode_dialog.cpp:84
 #, c++-format
 msgid "… and {0} more"
 msgstr ""
@@ -1169,7 +1177,7 @@ msgstr ""
 msgid " Area: {0}▌"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:868
+#: src/ui/screens/area_list_screen.cpp:875
 msgid "Every area has been read."
 msgstr ""
 
@@ -1193,64 +1201,64 @@ msgstr ""
 msgid "new message"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:775
+#: src/ui/screens/compose_screen.cpp:780
 #, c++-format
 msgid ""
 "The message was not stored: {0} It is still here, and nothing has been lost."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1284
+#: src/ui/screens/compose_screen.cpp:1289
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1290
+#: src/ui/screens/compose_screen.cpp:1295
 #, c++-format
 msgid "The copy did not reach: {0}. The message itself is stored."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1316
+#: src/ui/screens/compose_screen.cpp:1321
 #, c++-format
 msgid ""
 "{0} is open for reading only: its files are not yours to write, so nothing "
 "can be written into it or changed in it."
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:555
+#: src/ui/screens/message_read_screen.cpp:575
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1896
+#: src/ui/screens/message_read_screen.cpp:2008
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:1917
+#: src/ui/screens/message_read_screen.cpp:2029
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2494
+#: src/ui/screens/message_read_screen.cpp:2635
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2497
+#: src/ui/screens/message_read_screen.cpp:2638
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2500
+#: src/ui/screens/message_read_screen.cpp:2641
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2503
+#: src/ui/screens/message_read_screen.cpp:2644
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2506
+#: src/ui/screens/message_read_screen.cpp:2647
 msgctxt "header block"
 msgid "Recd"
 msgstr ""
@@ -1577,14 +1585,14 @@ msgstr ""
 msgid "there is no directory {0}"
 msgstr ""
 
-#: src/ui/theme.cpp:219
+#: src/ui/theme.cpp:285
 msgid ""
 "this terminal reports no color at all, so the interface is drawn in whatever "
 "two colors the terminal itself uses. If it does have color after all, "
 "color_warning off in the config disables this message."
 msgstr ""
 
-#: src/ui/theme.cpp:225
+#: src/ui/theme.cpp:291
 #, c++-format
 msgid ""
 "colors may be distorted: this terminal can show only {0} colors, which is "

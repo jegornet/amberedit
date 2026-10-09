@@ -55,8 +55,26 @@ public:
     [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
         const std::vector<uint32_t>& indexes) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> markReceived(uint32_t index) override;
 
 private:
+    /// Turns bits on in the attributes word of message `index`, where it lies in
+    /// the frame — what the two marks above are, `MSGSEEN` for one and FTS-0001's
+    /// `MSGREAD` for the other.
+    ///
+    /// The word is the first dword of the XMSG, so this is four bytes read and
+    /// four written: the frame is not touched at all, its length and its links
+    /// being exactly what they were. No `kFrameUpdate` for the same reason —
+    /// nothing is half written here, and a reader meeting the frame mid-mark
+    /// finds the message it was already going to find.
+    ///
+    /// A message whose word already holds every bit asked for is left alone and
+    /// this succeeds, so opening one twice writes once. `mirrorInIndex` is for
+    /// `MSGREAD`, which the index record repeats in the high bit of its hash so
+    /// that the question can be answered without reading a frame.
+    [[nodiscard]] tl::expected<void, ErrorPtr> setAttributes(uint32_t index,
+                                                             uint32_t bits,
+                                                             bool mirrorInIndex);
     /// The two files, made where they are not already there: the .sqi empty and
     /// the .sqd carrying the area header of a base of no messages.
     ///

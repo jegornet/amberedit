@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
@@ -552,4 +553,195 @@ TEST_CASE("The JAM index record keys by the recipient's name [jam]") {
         static_cast<uint32_t>(record[2]) << 16 | static_cast<uint32_t>(record[3]) << 24;
     CHECK(crc == amberedit::msgbase::jamCrc32("All"));
     CHECK(crc == 0xc4e78e22u);  // the value every JAM implementation agrees on
+}
+
+TEST_CASE("A netmail is marked received where the format keeps Rcv "
+          "[jam][squish][opus]") {
+    // FTS-0001's MSGREAD, which says the node the netmail was addressed to has
+    // it — and not the read mark beside it, which is this system's note that
+    // somebody here has looked at the message. It is what a Cfm netmail is
+    // answered with, and what keeps it to one answer.
+    TempDir dir;
+    AreaConfig area;
+    area.tag = "netmail";
+    area.kind = AreaKind::Netmail;
+    area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
+
+    SUBCASE("JAM") {
+        area.path = (dir.path() / "netmail").string();
+        area.type = MsgBaseType::Jam;
+        createEmptyJamBase(area.path);
+    }
+    SUBCASE("Squish") {
+        area.path = (dir.path() / "netmail").string();
+        area.type = MsgBaseType::Squish;
+        REQUIRE(SquishBase().create(area.path).has_value());
+    }
+    SUBCASE("Fido *.msg") {
+        area.path = dir.path().string();
+        area.type = MsgBaseType::Opus;
+    }
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 2);
+    CHECK_FALSE(msgbase.header(1).isRead());
+
+    REQUIRE(msgbase.markReceived(1).has_value());
+    CHECK(msgbase.header(1).isRead());
+    // One message and not the area.
+    CHECK_FALSE(msgbase.header(2).isRead());
+    // Nothing else about it moved: the attribute is patched where it lies.
+    CHECK(msgbase.header(1).subject == "Привет");
+    CHECK((msgbase.header(1).attributes & amberedit::domain::attr::kPrivate) != 0);
+    const auto body = msgbase.body(1).lines;
+    CHECK(std::any_of(body.begin(), body.end(), [](const auto& line) {
+        return !line.kludge && line.text == "Привет!";
+    }));
+
+    // A message carrying it already is left as it is and this succeeds, so a
+    // netmail opened twice is written once.
+    REQUIRE(msgbase.markReceived(1).has_value());
+    CHECK(msgbase.header(1).isRead());
+
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(area).has_value());
+    CHECK(again.header(1).isRead());
+    CHECK_FALSE(again.header(2).isRead());
+
+    CHECK_FALSE(msgbase.markReceived(0).has_value());
+    CHECK_FALSE(msgbase.markReceived(3).has_value());
+}
+
+TEST_CASE("Cfm is read off the FLAGS control line [jam][squish][opus]") {
+    // FSC-0053 keeps the confirmation request in the message's own FLAGS line,
+    // there being no FTS-0001 attribute for it, so every format answers for it
+    // the same way: out of the control block the adapter already reads.
+    TempDir dir;
+    AreaConfig area;
+    area.tag = "netmail";
+    area.kind = AreaKind::Netmail;
+    area.address = *amberedit::domain::FtnAddress::parse("192:168/2");
+
+    SUBCASE("JAM") {
+        area.path = (dir.path() / "netmail").string();
+        area.type = MsgBaseType::Jam;
+        createEmptyJamBase(area.path);
+    }
+    SUBCASE("Squish") {
+        area.path = (dir.path() / "netmail").string();
+        area.type = MsgBaseType::Squish;
+        REQUIRE(SquishBase().create(area.path).has_value());
+    }
+    SUBCASE("Fido *.msg") {
+        area.path = dir.path().string();
+        area.type = MsgBaseType::Opus;
+    }
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+
+    MessageDraft asking = netmailDraft();
+    asking.kludges.emplace_back("FLAGS KFS CFM");
+    REQUIRE(valueOf(msgbase.write(asking)) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 2);
+
+    CHECK(msgbase.header(1).wantsConfirmation());
+    // And the reader shows it, which is the whole of what it does with it.
+    const auto names = amberedit::domain::messageAttributes(msgbase.header(1).attributes);
+    CHECK(std::find(names.begin(), names.end(), "Cfm") != names.end());
+    // And a message whose FLAGS line says other things does not ask for one.
+    MessageDraft other = netmailDraft();
+    other.kludges.emplace_back("FLAGS HUB");
+    REQUIRE(valueOf(msgbase.write(other)) == 3);
+    CHECK_FALSE(msgbase.header(2).wantsConfirmation());
+    CHECK_FALSE(msgbase.header(3).wantsConfirmation());
+}
+
+TEST_CASE("The Cfm bit is never stored in a Squish attributes word [squish]") {
+    // It is AmberEdit's own bit in a word every other program reads as
+    // FTS-0001's, so a message written with it set carries it in its FLAGS line
+    // or nowhere — and a word that happens to hold the bit says nothing.
+    TempDir dir;
+    AreaConfig area;
+    area.tag = "netmail";
+    area.kind = AreaKind::Netmail;
+    area.path = (dir.path() / "netmail").string();
+    area.type = MsgBaseType::Squish;
+    REQUIRE(SquishBase().create(area.path).has_value());
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+    MessageDraft draft = netmailDraft();
+    draft.attributes |= amberedit::domain::attr::kConfirmReceipt;
+    REQUIRE(valueOf(msgbase.write(draft)) == 1);
+
+    CHECK_FALSE(msgbase.header(1).wantsConfirmation());
+    CHECK((msgbase.header(1).attributes & amberedit::domain::attr::kPrivate) != 0);
+}
+
+TEST_CASE("JAM stores Cfm in its own attribute [jam]") {
+    // The one format with a bit for it, which its driver translates both ways.
+    TempDir dir;
+    AreaConfig area;
+    area.tag = "netmail";
+    area.kind = AreaKind::Netmail;
+    area.path = (dir.path() / "netmail").string();
+    area.type = MsgBaseType::Jam;
+    createEmptyJamBase(area.path);
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+    MessageDraft draft = netmailDraft();
+    draft.attributes |= amberedit::domain::attr::kConfirmReceipt;
+    REQUIRE(valueOf(msgbase.write(draft)) == 1);
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 2);
+
+    CHECK(msgbase.header(1).wantsConfirmation());
+    CHECK_FALSE(msgbase.header(2).wantsConfirmation());
+    // And not as "this is a receipt", which is a different thing and one JAM
+    // has no bit for at all.
+    CHECK((msgbase.header(1).attributes & amberedit::domain::attr::kIsReceipt) == 0);
+
+    FtnMsgBase again("CP866");
+    REQUIRE(again.open(area).has_value());
+    CHECK(again.header(1).wantsConfirmation());
+}
+
+TEST_CASE("Rcv is mirrored in the Squish index record [squish]") {
+    // The format repeats the READ attribute in the high bit of the record's
+    // hash, so that "has this arrived" can be answered without reading a frame.
+    // A record disagreeing with its frame is what SQFIX would put back the
+    // other way round.
+    TempDir dir;
+    AreaConfig area;
+    area.tag = "netmail";
+    area.kind = AreaKind::Netmail;
+    area.path = (dir.path() / "netmail").string();
+    area.type = MsgBaseType::Squish;
+    REQUIRE(SquishBase().create(area.path).has_value());
+
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+    REQUIRE(valueOf(msgbase.write(netmailDraft())) == 1);
+
+    const auto hashOfRecord = [&area] {
+        std::ifstream sqi(area.path + ".sqi", std::ios::binary);
+        unsigned char record[12] = {0};
+        sqi.read(reinterpret_cast<char*>(record), sizeof(record));
+        REQUIRE(sqi.gcount() == 12);
+        return static_cast<uint32_t>(record[8]) | static_cast<uint32_t>(record[9]) << 8 |
+               static_cast<uint32_t>(record[10]) << 16 |
+               static_cast<uint32_t>(record[11]) << 24;
+    };
+
+    const uint32_t before = hashOfRecord();
+    CHECK((before & 0x80000000u) == 0);
+
+    REQUIRE(msgbase.markReceived(1).has_value());
+    const uint32_t after = hashOfRecord();
+    CHECK((after & 0x80000000u) != 0);
+    // And the hash of the recipient's name under it is untouched.
+    CHECK((after & 0x7fffffffu) == (before & 0x7fffffffu));
 }

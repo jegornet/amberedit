@@ -51,6 +51,13 @@ std::string errorWith(const std::string& body) {
     return amberedit::test::errorOf(AppConfig::loadFromString(kRequired + body));
 }
 
+/// An area with nothing about it but its tag, which is all a group looks at.
+amberedit::domain::AreaConfig area(const std::string& tag) {
+    amberedit::domain::AreaConfig config;
+    config.tag = tag;
+    return config;
+}
+
 /// Whether it loaded at all, for the assertions that only say that much.
 bool loads(const std::string& body) {
     return AppConfig::loadFromString(kRequired + body).has_value();
@@ -1997,6 +2004,77 @@ TEST_CASE("AppConfig reads the message template [app_config]") {
     CHECK_MESSAGE(contains(error, "template"), error);
 }
 
+TEST_CASE("AppConfig reads the receipt template [app_config]") {
+    // Optional, unlike `template`: a config naming none still answers a Cfm
+    // netmail, with the one line app::kDefaultReceiptText.
+    CHECK(with("").cfmTemplatePath.empty());
+    CHECK(with("cfm_template /etc/amberedit/cfm.tpl\n").cfmTemplatePath ==
+          "/etc/amberedit/cfm.tpl");
+    const std::string error = errorWith("cfm_template\n");
+    CHECK_MESSAGE(contains(error, "cfm_template"), error);
+
+    // A path like any other path a config writes.
+    const char* home = std::getenv("HOME");
+    REQUIRE(home != nullptr);
+    CHECK(with("cfm_template ~/cfm.tpl\n").cfmTemplatePath ==
+          std::string(home) + "/cfm.tpl");
+
+    // And per area, as `template` is: what a receipt says in one netmail area
+    // need not be what it says in another.
+    const auto grouped = with(
+        "cfm_template /etc/amberedit/cfm.tpl\n"
+        "group\n"
+        "  member uplink\n"
+        "  cfm_template /etc/amberedit/uplink.tpl\n"
+        "endgroup\n");
+    CHECK(grouped.effectiveFor(area("uplink")).cfmTemplatePath ==
+          "/etc/amberedit/uplink.tpl");
+    CHECK(grouped.effectiveFor(area("netmail")).cfmTemplatePath ==
+          "/etc/amberedit/cfm.tpl");
+}
+
+TEST_CASE("AppConfig reads the receipt's attributes [app_config]") {
+    namespace attr = amberedit::domain::attr;
+
+    // Loc and Pvt by default, which is what any netmail written here starts
+    // out as: unsent and local, so a scanner picks it up, and private.
+    CHECK(with("").cfmAttributes == (attr::kLocal | attr::kPrivate));
+
+    // The line states them rather than adding to that.
+    CHECK(with("cfm_attributes loc\n").cfmAttributes == attr::kLocal);
+    CHECK(with("cfm_attributes \"loc pvt k/s\"\n").cfmAttributes ==
+          (attr::kLocal | attr::kPrivate | attr::kKillSent));
+    // Written out on the line or in quotes, it is one statement either way.
+    CHECK(with("cfm_attributes loc pvt k/s\n").cfmAttributes ==
+          (attr::kLocal | attr::kPrivate | attr::kKillSent));
+    // And an empty line is a receipt carrying no attribute at all.
+    CHECK(with("cfm_attributes \"\"\n").cfmAttributes == 0);
+
+    // A word that names no attribute is refused, and the complaint lists the
+    // ones that do.
+    const std::string error = errorWith("cfm_attributes loc frobnicate\n");
+    CHECK_MESSAGE(contains(error, "frobnicate"), error);
+    CHECK_MESSAGE(contains(error, "Loc"), error);
+
+    // Cfm is not one of them: a receipt asking to be told it was read would be
+    // answered with a receipt. It is the one word a config may not state, and
+    // it is said so rather than listed as unknown.
+    const std::string loop = errorWith("cfm_attributes cfm\n");
+    CHECK_MESSAGE(contains(loop, "Cfm"), loop);
+    CHECK_MESSAGE(contains(loop, "Ctrl-Y"), loop);
+
+    // Per area, as cfm_template is.
+    const auto grouped = with(
+        "cfm_attributes loc\n"
+        "group\n"
+        "  member uplink\n"
+        "  cfm_attributes \"loc pvt\"\n"
+        "endgroup\n");
+    CHECK(grouped.effectiveFor(area("uplink")).cfmAttributes ==
+          (attr::kLocal | attr::kPrivate));
+    CHECK(grouped.effectiveFor(area("netmail")).cfmAttributes == attr::kLocal);
+}
+
 TEST_CASE("AppConfig reads the quote string [app_config]") {
     CHECK(with("").quoteString == " FL> ");  // GoldED's, and ours by default
     CHECK(with("quote_string \"XX> \"\n").quoteString == "XX> ");
@@ -2770,18 +2848,56 @@ TEST_CASE("Startup insists on a template that can be read [app_config]") {
     std::filesystem::remove(templatePath);
 }
 
-// --- area groups -------------------------------------------------------------
+TEST_CASE("Startup insists on a receipt template once one is named [app_config]") {
+    // Optional, and held to the same rule the moment it is written down: the
+    // box a Cfm netmail puts up has nowhere in it to say the file is missing.
+    const auto dir = std::filesystem::temp_directory_path();
+    const auto configPath = dir / "amberedit_cfm_check.cfg";
+    const auto templatePath = dir / "amberedit_cfm_check.tpl";
+    const auto receiptPath = dir / "amberedit_cfm_receipt.tpl";
+    std::filesystem::remove(receiptPath);
 
-namespace {
+    const auto write = [](const std::filesystem::path& path, const std::string& text) {
+        std::ofstream out(path);
+        out << text;
+    };
+    write(templatePath, "@newHello.\n");
+    const std::string base =
+        "tosser_config /etc/husky/areas.bbs\n"
+        "tosser_config_format areas.bbs\n"
+        "default_charset CP866\n"
+        "compose_charset CP866\n"
+        "template \"" +
+        templatePath.string() + "\"\n" + std::string(kName) + kAddress;
 
-/// An area with nothing about it but its tag, which is all a group looks at.
-amberedit::domain::AreaConfig area(const std::string& tag) {
-    amberedit::domain::AreaConfig config;
-    config.tag = tag;
-    return config;
+    write(configPath, base);
+    CHECK(AppConfig::loadFromFile(configPath.string()).has_value());  // none named
+
+    write(configPath, base + "cfm_template \"" + receiptPath.string() + "\"\n");
+    const auto missing = AppConfig::loadFromFile(configPath.string());
+    REQUIRE_FALSE(missing.has_value());
+    const std::string why = amberedit::test::errorOf(missing);
+    CHECK_MESSAGE(contains(why, receiptPath.string()), why);
+
+    write(receiptPath, "Read, and thank you.\n");
+    CHECK(AppConfig::loadFromFile(configPath.string()).has_value());
+
+    // The same for a file an area group names, which is checked where the
+    // group's own template is.
+    const std::string nowhere = (dir / "amberedit_cfm_nowhere.tpl").string();
+    write(configPath,
+          base + "group\n  member uplink\n  cfm_template " + nowhere + "\nendgroup\n");
+    const auto badGroup = AppConfig::loadFromFile(configPath.string());
+    REQUIRE_FALSE(badGroup.has_value());
+    const std::string groupWhy = amberedit::test::errorOf(badGroup);
+    CHECK_MESSAGE(contains(groupWhy, nowhere), groupWhy);
+
+    std::filesystem::remove(configPath);
+    std::filesystem::remove(templatePath);
+    std::filesystem::remove(receiptPath);
 }
 
-}  // namespace
+// --- area groups -------------------------------------------------------------
 
 TEST_CASE("A group gives its areas settings of their own [app_config]") {
     const auto cfg = with(

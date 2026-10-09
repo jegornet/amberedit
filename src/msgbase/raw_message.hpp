@@ -106,6 +106,20 @@ struct RawDraft {
 /// message stating no zone is the ordinary case rather than an error.
 [[nodiscard]] std::string tzutcOffsetOf(std::string_view control);
 
+/// Whether the message asks to be told it was read: the `CFM` word of its
+/// `FLAGS` control line, read out of the block in the same per-line form.
+///
+/// FSC-0053 states the line as a list of three-letter words — `KFS`, `HUB`,
+/// `CFM` — and that is where every FTN editor keeps this one, there being no
+/// FTS-0001 attribute for it. The words are matched whole and without regard to
+/// case; a `FLAGS:` spelling is read as well, which is how the Synchronet bases
+/// write the same line.
+///
+/// What the other words say is left alone. They are a mailer's instructions
+/// about a message on its way out, and this editor neither writes them nor acts
+/// on them.
+[[nodiscard]] bool confirmationRequestedIn(std::string_view control);
+
 /// Fills in what the stored header does not say about the two addresses from
 /// the kludges that do: the zones from INTL, the points from FMPT and TOPT.
 ///

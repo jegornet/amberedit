@@ -37,6 +37,11 @@ bool iequals(std::string_view a, std::string_view b) {
 struct AttributeName {
     uint32_t bit;
     const char* name;
+    /// Whether a config may name it — see messageAttributeBit(). False for
+    /// `Cfm`, which asks something of the node a message is addressed to: the
+    /// compose screen offers it in netmail alone, and a config states its
+    /// attributes for a message whatever area it is written in.
+    bool stated{true};
 };
 
 /// Every attribute AmberEdit has a bit for, in the order a message states them:
@@ -48,15 +53,16 @@ struct AttributeName {
 /// other.
 const std::vector<AttributeName>& attributeNames() {
     static const std::vector<AttributeName> names{
-        {attr::kRead, "Rcv"},          {attr::kSent, "Snt"},
-        {attr::kPrivate, "Pvt"},       {attr::kCrash, "Cra"},
-        {attr::kHold, "Hld"},          {attr::kDirect, "Dir"},
-        {attr::kImmediate, "Imm"},     {attr::kFile, "Att"},
-        {attr::kFileRequest, "Frq"},   {attr::kInTransit, "Trs"},
-        {attr::kOrphan, "Orp"},        {attr::kKillSent, "K/s"},
-        {attr::kLocal, "Loc"},         {attr::kReceiptRequest, "Rrq"},
-        {attr::kIsReceipt, "Cpt"},     {attr::kAuditRequest, "Arq"},
-        {attr::kUpdateRequest, "Urq"}, {attr::kScanned, "Scn"},
+        {attr::kRead, "Rcv"},         {attr::kSent, "Snt"},
+        {attr::kPrivate, "Pvt"},      {attr::kCrash, "Cra"},
+        {attr::kHold, "Hld"},         {attr::kDirect, "Dir"},
+        {attr::kImmediate, "Imm"},    {attr::kFile, "Att"},
+        {attr::kFileRequest, "Frq"},  {attr::kInTransit, "Trs"},
+        {attr::kOrphan, "Orp"},       {attr::kKillSent, "K/s"},
+        {attr::kLocal, "Loc"},        {attr::kReceiptRequest, "Rrq"},
+        {attr::kIsReceipt, "Cpt"},    {attr::kConfirmReceipt, "Cfm", false},
+        {attr::kAuditRequest, "Arq"}, {attr::kUpdateRequest, "Urq"},
+        {attr::kScanned, "Scn"},
     };
     return names;
 }
@@ -340,6 +346,7 @@ std::vector<std::string> messageAttributes(uint32_t attributes) {
 
 std::optional<uint32_t> messageAttributeBit(std::string_view name) {
     for (const AttributeName& entry : attributeNames()) {
+        if (!entry.stated) continue;
         if (iequals(name, entry.name)) return entry.bit;
     }
     return std::nullopt;
@@ -348,7 +355,10 @@ std::optional<uint32_t> messageAttributeBit(std::string_view name) {
 std::vector<std::string> messageAttributeNames() {
     std::vector<std::string> names;
     names.reserve(attributeNames().size());
-    for (const AttributeName& entry : attributeNames()) names.emplace_back(entry.name);
+    for (const AttributeName& entry : attributeNames()) {
+        if (!entry.stated) continue;
+        names.emplace_back(entry.name);
+    }
     return names;
 }
 

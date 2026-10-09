@@ -95,7 +95,11 @@ void encodeAddress(unsigned char* field, const domain::FtnAddress& address) {
 
 void decodeMessageHeader(const unsigned char* raw, RawHeader& out) {
     const uint32_t attributes = readU32(raw);
-    out.attributes = attributes & ~kAttrSeen;
+    // `Cfm` is not in this word in any base: FSC-0053 keeps it in the message's
+    // own `FLAGS` line, which the adapter above reads. So a word that happens to
+    // carry the bit is a word some other program used it for, and it is taken
+    // off here rather than shown as an attribute nothing wrote.
+    out.attributes = attributes & ~kAttrSeen & ~domain::attr::kConfirmReceipt;
     out.seen = (attributes & kAttrSeen) != 0;
     out.from = fromFixedField(raw + 4, kFromSize);
     out.to = fromFixedField(raw + 40, kToSize);
@@ -125,7 +129,13 @@ void encodeMessageHeader(unsigned char* raw, const RawHeader& header, uint32_t u
     // says so goes with it. `seen` is the other bit that is not in the
     // attributes word above: decodeMessageHeader() takes it out of there and
     // this puts it back, so the two are exact opposites of one another.
-    writeU32(raw, header.attributes | kAttrHasUid | (header.seen ? kAttrSeen : 0));
+    //
+    // And `Cfm` goes nowhere near it, for the reason decodeMessageHeader() does
+    // not read it: the `FLAGS` line the message carries is where it stands, and
+    // a bit of our own in a stored word would be a word no other reader agrees
+    // with.
+    writeU32(raw, (header.attributes & ~domain::attr::kConfirmReceipt) | kAttrHasUid |
+                      (header.seen ? kAttrSeen : 0));
     toFixedField(raw + 4, kFromSize, header.from);
     toFixedField(raw + 40, kToSize, header.to);
     toFixedField(raw + 76, kSubjectSize, header.subject);
@@ -1427,6 +1437,15 @@ tl::expected<void, ErrorPtr> SquishBase::removeAll(const std::vector<uint32_t>& 
 }
 
 tl::expected<void, ErrorPtr> SquishBase::markSeen(uint32_t index) {
+    return setAttributes(index, kAttrSeen, /*mirrorInIndex=*/false);
+}
+
+tl::expected<void, ErrorPtr> SquishBase::markReceived(uint32_t index) {
+    return setAttributes(index, kAttrRead, /*mirrorInIndex=*/true);
+}
+
+tl::expected<void, ErrorPtr> SquishBase::setAttributes(uint32_t index, uint32_t bits,
+                                                       bool mirrorInIndex) {
     if (!data_.isOpen()) {
         return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
     }
@@ -1455,11 +1474,6 @@ tl::expected<void, ErrorPtr> SquishBase::markSeen(uint32_t index) {
                        " holds no message");
     }
 
-    // The attributes are the first dword of the XMSG, so the mark is four bytes
-    // read and four bytes written — the frame is not touched at all, its length
-    // and its links being exactly what they were. No `kFrameUpdate` for the same
-    // reason: nothing is half written here, and a reader meeting the frame
-    // mid-mark finds the message it was already going to find.
     const uint64_t at = entry.offset + frameHeaderSize_;
     std::array<unsigned char, 4> raw{};
     if (const auto io = data_.readAt(at, raw.data(), raw.size()); io.failed()) {
@@ -1467,12 +1481,21 @@ tl::expected<void, ErrorPtr> SquishBase::markSeen(uint32_t index) {
                        ": " + io.message());
     }
     const uint32_t attributes = readU32(raw.data());
-    if ((attributes & kAttrSeen) != 0) return {};
+    if ((attributes & bits) == bits) return {};
 
-    writeU32(raw.data(), attributes | kAttrSeen);
+    writeU32(raw.data(), attributes | bits);
     if (const auto io = data_.writeAt(at, raw.data(), raw.size()); io.failed()) {
-        return failure("cannot mark message " + std::to_string(index) +
-                       " read: " + io.message());
+        return failure("cannot mark message " + std::to_string(index) + ": " +
+                       io.message());
+    }
+
+    // The index's own copy of the answer, where there is one: a record whose
+    // hash said the message was unread beside a frame that says it has been
+    // read is a base the husky tools would put back the other way round.
+    if (mirrorInIndex && (index_[index - 1].hash & kHashRead) == 0) {
+        index_[index - 1].hash |= kHashRead;
+        auto written = writeIndexEntry(index);
+        if (!written) return tl::make_unexpected(std::move(written).error());
     }
     return {};
 }

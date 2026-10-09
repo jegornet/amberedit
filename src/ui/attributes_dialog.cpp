@@ -33,8 +33,12 @@ struct Attribute {
 ///
 /// The attributes AmberEdit has no bit for are left out rather than shown dead:
 /// Archive/Sent, Zonegate, Hub/Host-Route, Xmail, Erase and Truncate File/Sent,
-/// Locked, Confirm Rcpt Request and the reserved ones are not in `domain::attr`
-/// and there would be nothing for a keystroke on them to set.
+/// Locked and the reserved ones are not in `domain::attr` and there would be
+/// nothing for a keystroke on them to set.
+///
+/// **Confirm Rcpt Request is last on purpose**: it is the one entry the list
+/// does not always hold — see `shownCount()` — and being last makes that a
+/// count rather than a hole for every loop here to step over.
 ///
 /// Four of the chords are the C0 bytes that Backspace, Tab, Enter and line feed
 /// have sent since ASCII — Hold, Immediate, Return Rcpt Request and Transit —
@@ -61,9 +65,21 @@ constexpr Attribute kAttributes[] = {
     {N_("File Update Request"), 'u', domain::attr::kUpdateRequest},
     {N_("Direct"), 'd', domain::attr::kDirect},
     {N_("Immediate"), 'i', domain::attr::kImmediate},
+    {N_("Confirm Rcpt Request"), 'y', domain::attr::kConfirmReceipt},
 };
 constexpr int kAttributeCount =
     static_cast<int>(sizeof(kAttributes) / sizeof(kAttributes[0]));
+
+/// How many of them this message has: all of them in netmail, and all but the
+/// last in an echo or a local area.
+///
+/// `Cfm` asks the node a message was addressed to to say it was read, and an
+/// echo addresses nobody — so the checkbox is not there to be pressed where
+/// pressing it would write a request to nobody. It is the same question the
+/// reader asks before answering one: see `message_read::sendReceipt()`.
+int shownCount(const AppState& state) {
+    return state.compose.netmail ? kAttributeCount : kAttributeCount - 1;
+}
 
 /// The letter that clears every attribute at once, GoldED's "Zap all attribs".
 constexpr char kZapKey = 'z';
@@ -102,8 +118,8 @@ int columnsFor(int width) {
 }
 
 /// How many rows a column of attributes stands on.
-int linesFor(int columns) {
-    return (kAttributeCount + columns - 1) / columns;
+int linesFor(int columns, int count) {
+    return (count + columns - 1) / columns;
 }
 
 /// One checkbox: whether the attribute is set, what it is called and the chord
@@ -172,7 +188,7 @@ Element centred(const std::string& line, int inner, theme::Color tint) {
 }
 
 void toggle(AppState& state, int index) {
-    if (index < 0 || index >= kAttributeCount) return;
+    if (index < 0 || index >= shownCount(state)) return;
     state.compose.attributes ^= kAttributes[static_cast<size_t>(index)].bit;
 }
 
@@ -181,23 +197,24 @@ void toggle(AppState& state, int index) {
 void open(AppState& state) {
     AppState::AttributePicker picker;
     picker.before = state.compose.attributes;
-    picker.boxes.assign(kAttributeCount, Box::Nowhere());
+    picker.boxes.assign(shownCount(state), Box::Nowhere());
     state.attributePicker = std::move(picker);
 }
 
 Element render(AppState& state, Element background) {
     AppState::AttributePicker& picker = *state.attributePicker;
-    picker.cursor = std::clamp(picker.cursor, 0, kAttributeCount - 1);
+    const int count = shownCount(state);
+    picker.cursor = std::clamp(picker.cursor, 0, count - 1);
 
     const int columns = columnsFor(state.width);
-    const int lines = linesFor(columns);
+    const int lines = linesFor(columns, count);
     const int inner =
         (columns * cellWidth()) + ((columns - 1) * kGap) + (2 * kSideMargin);
 
     // The room is reserved before anything is reflected into it: the boxes are
     // written while the frame is laid out, and a vector that grew under them
     // would leave the earlier rows pointing at freed memory.
-    picker.boxes.assign(kAttributeCount, Box::Nowhere());
+    picker.boxes.assign(count, Box::Nowhere());
 
     Elements rows{titleBar(_(" Message attributes "), inner)};
     for (int line = 0; line < lines; ++line) {
@@ -207,7 +224,7 @@ Element render(AppState& state, Element background) {
             // index counts by whole columns rather than by rows.
             const int index = (column * lines) + line;
             if (column > 0) cells.push_back(text(std::string(kGap, ' ')));
-            if (index >= kAttributeCount) {
+            if (index >= count) {
                 cells.push_back(text(std::string(static_cast<size_t>(cellWidth()), ' ')));
                 continue;
             }
@@ -246,15 +263,16 @@ Element render(AppState& state, Element background) {
 
 void handleEvent(AppState& state, const Event& event) {
     AppState::AttributePicker& picker = *state.attributePicker;
+    const int count = shownCount(state);
     const int columns = columnsFor(state.width);
-    const int lines = linesFor(columns);
+    const int lines = linesFor(columns, count);
 
     // A click turns over the attribute it landed on, without moving the cursor
     // there first: pointing at a checkbox and pressing is one gesture, not two.
     // The cursor follows it all the same, so that Space carries on from where
     // the pointer left off.
     if (const auto click = leftClick(event)) {
-        for (int i = 0; i < kAttributeCount; ++i) {
+        for (int i = 0; i < count; ++i) {
             if (!picker.boxes[static_cast<size_t>(i)].Contain(click->x, click->y)) {
                 continue;
             }
@@ -276,7 +294,7 @@ void handleEvent(AppState& state, const Event& event) {
     // hands it the key ahead of every other binding, so Ctrl-C is Crash here
     // whatever a layout has made of it elsewhere.
     if (event.ctrl()) {
-        for (int i = 0; i < kAttributeCount; ++i) {
+        for (int i = 0; i < count; ++i) {
             if (isCtrl(event, kAttributes[static_cast<size_t>(i)].key)) {
                 picker.cursor = i;
                 toggle(state, i);
@@ -295,7 +313,7 @@ void handleEvent(AppState& state, const Event& event) {
     // the columns — the movement the layout reads as, rather than the order the
     // attributes are numbered in.
     if (event == Event::ArrowDown && (picker.cursor % lines) + 1 < lines &&
-        picker.cursor + 1 < kAttributeCount) {
+        picker.cursor + 1 < count) {
         ++picker.cursor;
         return;
     }
@@ -304,7 +322,7 @@ void handleEvent(AppState& state, const Event& event) {
         return;
     }
     if ((event == Event::ArrowRight || event == Event::Tab) &&
-        picker.cursor + lines < kAttributeCount) {
+        picker.cursor + lines < count) {
         picker.cursor += lines;
         return;
     }

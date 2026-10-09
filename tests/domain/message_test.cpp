@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdint>
 
 #include "domain/message.hpp"
@@ -43,6 +44,27 @@ TEST_CASE(
 TEST_CASE("messageAttributes names the attributes that are set [message]") {
     CHECK(attributesOf(kRead | kPrivate) == std::vector<std::string>{"Rcv", "Pvt"});
     CHECK(attributesOf(kCrash) == std::vector<std::string>{"Cra"});
+}
+
+TEST_CASE("messageAttributes shows Cfm, and no config may ask for it [message]") {
+    // The sender of the message put it there — it is the CFM word of a FLAGS
+    // control line, which AmberEdit reads and never writes — so it is shown
+    // beside the rest and is not one of the names a setting may be written
+    // with: a message built with it would go out without it.
+    CHECK(attributesOf(amberedit::domain::attr::kConfirmReceipt) ==
+          std::vector<std::string>{"Cfm"});
+    CHECK(attributesOf(kRead | amberedit::domain::attr::kConfirmReceipt) ==
+          std::vector<std::string>{"Rcv", "Cfm"});
+
+    CHECK_FALSE(amberedit::domain::messageAttributeBit("cfm").has_value());
+    const auto names = amberedit::domain::messageAttributeNames();
+    CHECK(std::find(names.begin(), names.end(), "Cfm") == names.end());
+    // The ones beside it in the table are still there, so the skip is the
+    // attribute's own and not a hole in the list.
+    CHECK(amberedit::domain::messageAttributeBit("cpt").value_or(0) ==
+          amberedit::domain::attr::kIsReceipt);
+    CHECK(amberedit::domain::messageAttributeBit("arq").value_or(0) ==
+          amberedit::domain::attr::kAuditRequest);
 }
 
 TEST_CASE("isUnsent is local without sent [message]") {

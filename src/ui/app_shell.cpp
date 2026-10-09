@@ -661,6 +661,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 case AppState::Confirm::ProcessCopies:
                     screens::compose::processCopies(state);
                     break;
+                case AppState::Confirm::SendReceipt:
+                    screens::message_read::sendReceipt(state);
+                    break;
                 case AppState::Confirm::None: break;
             }
             continue;

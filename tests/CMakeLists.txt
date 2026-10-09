@@ -67,6 +67,7 @@ add_executable(amberedit_tests
   ui/progress_test.cpp
   ui/message_list_screen_test.cpp
   ui/message_read_screen_test.cpp
+  ui/confirm_receipt_test.cpp
   ui/twit_test.cpp
   ui/charset_dialog_test.cpp
   ui/find_test.cpp

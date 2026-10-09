@@ -3,12 +3,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <optional>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "app/compose_prefill.hpp"
 #include "app/export_file.hpp"
 #include "app/message_builder.hpp"
 #include "app/message_search.hpp"
@@ -17,6 +19,7 @@
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
 #include "i18n/i18n.hpp"
+#include "sys/time.hpp"
 #include "ui/ansi_canvas.hpp"
 #include "ui/back_button.hpp"
 #include "ui/charset_dialog.hpp"
@@ -885,6 +888,52 @@ void runMenuCommand(AppState& state, Command command) {
     }
 }
 
+namespace {
+
+/// Asks whether to answer a netmail whose sender set `Cfm` with a confirmation
+/// receipt — the one confirmation on any screen that nothing the user pressed
+/// put up. It comes with the message, so it is asked as the message is opened.
+///
+/// **`Rcv` is what keeps it to once per message**, and it is set before the
+/// question is answered rather than after: FTS-0001's `MSGREAD` says the node
+/// the netmail was addressed to has it, which is true from the moment it is on
+/// the screen and stays true whether or not a receipt goes back. So the message
+/// is asked about on the one reading that found it unreceived, and reading it
+/// again — or coming back to it after answering No — asks nothing.
+///
+/// Four things have to hold before any of that. The area is **netmail**: `Cfm`
+/// is a request made of the node a message was addressed to, and an echo
+/// addresses nobody. The message is addressed to **this** user, by name or by
+/// one of our addresses — somebody else's netmail passing through is not ours
+/// to answer for. It carries no `Rcv` yet. And the base is **writable**, since
+/// a question whose only answer is a message that cannot be stored is worse
+/// than no question: there is nowhere on this screen to say why either failed.
+void askAboutReceipt(AppState& state, uint32_t msgNumber) {
+    if (state.base == nullptr || !state.readHeader) return;
+    if (!state.readHeader->wantsConfirmation()) return;
+    if (!state.currentArea.hasAddressedRecipient()) return;
+    if (!state.addressedToUser(*state.readHeader)) return;
+    if (state.readHeader->isRead()) return;
+    if (!state.base->isWritable()) return;
+    // A mark that was not made is a question that would come back every time the
+    // message was opened, so the attribute is what the question stands on.
+    if (!state.base->markReceived(msgNumber).has_value()) return;
+
+    state.readHeader->attributes |= domain::attr::kRead;
+    // The list's window is a copy of the headers, as it is for the seen mark
+    // above: the row behind this screen would otherwise go on saying the
+    // netmail had not arrived.
+    const int cached = static_cast<int>(msgNumber) - 1 - state.headersStart;
+    if (cached >= 0 && cached < static_cast<int>(state.headers.size())) {
+        state.headers[static_cast<size_t>(cached)].attributes |= domain::attr::kRead;
+    }
+
+    state.confirm = AppState::Confirm::SendReceipt;
+    state.confirmChoice = AppState::ConfirmChoice::Yes;
+}
+
+}  // namespace
+
 bool loadMessage(AppState& state, uint32_t msgNumber) {
     state.readHeader.reset();
     state.readBody.reset();
@@ -965,6 +1014,8 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
             state.headers[static_cast<size_t>(cached)].seen = true;
         }
     }
+
+    askAboutReceipt(state, msgNumber);
 
     relayout(state);
     return true;
@@ -1476,6 +1527,59 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
 }
 
 }  // namespace
+
+void sendReceipt(AppState& state) {
+    if (state.base == nullptr || !state.readHeader || !state.readBody) return;
+    // Asked about only where the base could take it, and nothing has moved
+    // since; it is cheap to be sure, and a write refused here has nowhere to be
+    // reported.
+    if (!state.base->isWritable()) return;
+
+    const std::time_t now = std::time(nullptr);
+    // A reply to the netmail, in the area it was read in: whoever wrote it, at
+    // the address they wrote from, under the AKA they wrote to and about the
+    // subject they wrote about. Which is what a receipt is — the one thing it
+    // does not take from the message is its text.
+    app::ComposeFields fields = app::reply(state.areaConfig, state.currentArea,
+                                           state.currentArea, *state.readHeader);
+    // And not the attributes a netmail being typed would start with:
+    // `cfm_attributes` states them, `Loc Pvt` by default.
+    fields.attributes = state.areaConfig.cfmAttributes;
+
+    app::BuildRequest request{
+        state.areaConfig,
+        state.currentArea,
+        std::move(fields),
+        &*state.readHeader,
+        &*state.readBody,
+        // The receipt goes into the area the netmail is in, so there is no area
+        // left behind for @oecho to name.
+        nullptr,
+        now,
+        sys::utcOffsetMinutes(now),
+        // What the reader is showing has no say here: the text is the
+        // template's, and nothing of the netmail is quoted into it unless that
+        // template asks for it with @quote.
+        false,
+        // And nothing closes it: a receipt is an acknowledgement rather than
+        // anything a person signed, so the tagline, tearline and origin a
+        // message carries are three lines of apparatus round one of content.
+        false,
+    };
+    request.replyTo = state.readHeader->number;
+
+    const domain::MessageDraft draft =
+        app::buildDraft(request, app::receiptText(request));
+    if (!state.base->write(draft)) return;
+
+    // The area is one message longer, and the reader stays on the netmail that
+    // asked for the receipt — the same bookkeeping a message copied into the
+    // area being read does.
+    state.manager.refreshArea(state.currentArea);
+    state.messageCount = state.base->count();
+    state.headers.clear();
+    state.headersStart = 0;
+}
 
 void copyMessage(AppState& state, const domain::AreaConfig& target) {
     passOn(state, target, /*takeOut=*/false);

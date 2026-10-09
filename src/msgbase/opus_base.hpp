@@ -58,6 +58,7 @@ public:
     [[nodiscard]] tl::expected<void, ErrorPtr> removeAll(
         const std::vector<uint32_t>& indexes) override;
     [[nodiscard]] tl::expected<void, ErrorPtr> markSeen(uint32_t index) override;
+    [[nodiscard]] tl::expected<void, ErrorPtr> markReceived(uint32_t index) override;
 
 private:
     [[nodiscard]] tl::expected<void, ErrorPtr> scan();

@@ -625,6 +625,17 @@ tl::unexpected<ErrorPtr> failUnknownAttribute(const CfgEntry& entry,
             "already is");
     }
 
+    // And Cfm is the other: it is printed beside the rest, and the one place it
+    // can be set is the netmail being written, where the question is about that
+    // message's recipient rather than about every message a config covers.
+    if (text::iequals(word, "Cfm")) {
+        return entry.fail(
+            entry.key +
+            ": 'Cfm' is not an attribute a config may state — it asks the node "
+            "a netmail is addressed to to say it was read, and the attributes "
+            "of a netmail being written are where it is turned on (Ctrl-Y)");
+    }
+
     std::string offered;
     for (const auto& name : domain::messageAttributeNames()) {
         if (!offered.empty()) offered += ", ";
@@ -634,14 +645,16 @@ tl::unexpected<ErrorPtr> failUnknownAttribute(const CfgEntry& entry,
                       offered + ")");
 }
 
-/// The attributes a macro line writes its message with: the short forms
-/// the screens show, separated by blanks — `k/s`, `pvt k/s`, `Cra Imm`.
+/// The attributes a setting states a message is to be written with: the short
+/// forms the screens show, separated by blanks — `k/s`, `pvt k/s`, `Cra Imm`.
+/// What `address_macro`'s last field holds, and the whole of what
+/// `cfm_attributes` says.
 ///
 /// Blanks rather than another punctuation mark, because one of the names is
 /// `K/s` and a slash between attributes could not then be told from the slash
 /// inside one.
-tl::expected<uint32_t, ErrorPtr> macroAttributes(const CfgEntry& entry,
-                                                 const std::string& field) {
+tl::expected<uint32_t, ErrorPtr> statedAttributes(const CfgEntry& entry,
+                                                  const std::string& field) {
     uint32_t attributes = 0;
     for (const std::string& word : text::tokenize(field)) {
         const auto bit = domain::messageAttributeBit(word);
@@ -682,7 +695,7 @@ tl::expected<AddressMacro, ErrorPtr> readAddressMacro(const CfgEntry& entry) {
     // there itself.
     if (fields.size() > 3 && !fields[3].empty()) macro.subject = fields[3];
     if (fields.size() > 4 && !fields[4].empty()) {
-        auto attributes = macroAttributes(entry, fields[4]);
+        auto attributes = statedAttributes(entry, fields[4]);
         if (!attributes) return tl::make_unexpected(std::move(attributes).error());
         macro.attributes = *attributes;
     }
@@ -797,7 +810,7 @@ tl::expected<LinkMacroRule, ErrorPtr> readLinkMacroRule(const CfgEntry& entry) {
     }
 
     if (fields.size() > 2 && !fields[2].empty()) {
-        auto attributes = macroAttributes(entry, fields[2]);
+        auto attributes = statedAttributes(entry, fields[2]);
         if (!attributes) return tl::make_unexpected(std::move(attributes).error());
         rule.attributes = *attributes;
     }
@@ -1042,8 +1055,8 @@ constexpr std::string_view kListFileMark = "@file:";
 /// one stating something else would be believed by whichever program reads it
 /// first. What a config may add is a line nothing routes by.
 constexpr std::string_view kReservedKludges[] = {
-    "AREA", "MSGID", "REPLY",   "INTL", "TOPT",    "FMPT",  "TID",     "PID",
-    "CHRS", "TZUTC", "SEEN-BY", "PATH", "UCSFROM", "UCSTO", "UCSSUBJ", "Via"};
+    "AREA",  "MSGID",   "REPLY", "INTL",    "TOPT",  "FMPT",    "TID", "PID",  "CHRS",
+    "TZUTC", "SEEN-BY", "PATH",  "UCSFROM", "UCSTO", "UCSSUBJ", "Via", "FLAGS"};
 
 /// One `compose_add_kludge` line, read onto the control line it describes: the
 /// name first and everything after it the text that goes on the line.
@@ -1931,6 +1944,21 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.templatePath = text::expandTilde(*read);
+    } else if (key == "cfm_template") {
+        auto read = entry.text();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.cfmTemplatePath = text::expandTilde(*read);
+    } else if (key == "cfm_attributes") {
+        // The whole line is the list, written out on it or in quotes — one
+        // statement either way, so the words are joined and read as one.
+        std::string said;
+        for (const std::string& word : entry.values) {
+            if (!said.empty()) said += ' ';
+            said += word;
+        }
+        auto read = statedAttributes(entry, said);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.cfmAttributes = *read;
     } else if (key == "netmail_skip_template") {
         // The line stands in place of the built-in names rather than adding to
         // them: a config that names two robots has two, and there would
@@ -2023,6 +2051,8 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                                                       "tearline",
                                                       "tagline",
                                                       "template",
+                                                      "cfm_template",
+                                                      "cfm_attributes",
                                                       "quote_string",
                                                       "quote_margin",
                                                       "quote_unwrap",
@@ -3410,20 +3440,46 @@ tl::expected<AppConfig, ErrorPtr> AppConfig::loadFromFile(
         return failure("message template: " + read.error()->message());
     }
 
-    // And the same for a template an area group names, for the same reason: a
-    // config that cannot compose in one of its groups should say so at startup
-    // rather than at the area that group covers.
+    // The receipt's template is optional and is held to the same rule once it
+    // has been named: the netmail asking for a receipt is answered by a dialog
+    // with nowhere in it to say that the file is missing.
+    if (!cfg.cfmTemplatePath.empty()) {
+        if (const auto read = text::readFileIn(cfg.cfmTemplatePath, cfg.configCharset);
+            !read) {
+            return failure("receipt template: " + read.error()->message());
+        }
+    }
+
+    // And the same for either template an area group names, for the same
+    // reason: a config that cannot compose in one of its groups should say so at
+    // startup rather than at the area that group covers.
     for (const auto& group : cfg.areaGroups) {
-        if (!group.states("template")) continue;
+        const bool statesTemplate = group.states("template");
+        const bool statesReceipt = group.states("cfm_template");
+        if (!statesTemplate && !statesReceipt) continue;
         AppConfig probe = cfg;
         for (const auto& setting : group.settings) {
             auto applied = applySetting(probe, setting);
             if (!applied) return tl::make_unexpected(std::move(applied).error());
         }
-        if (const auto read = text::readFileIn(probe.templatePath, cfg.configCharset);
-            !read) {
-            return failure("message template of the group at line " +
-                           std::to_string(group.line) + ": " + read.error()->message());
+        if (statesTemplate) {
+            if (const auto read = text::readFileIn(probe.templatePath, cfg.configCharset);
+                !read) {
+                return failure("message template of the group at line " +
+                               std::to_string(group.line) + ": " +
+                               read.error()->message());
+            }
+        }
+        // An empty line is how a group says the file its areas use is no file at
+        // all, which is a receipt of the built-in line and nothing to read.
+        if (statesReceipt && !probe.cfmTemplatePath.empty()) {
+            if (const auto read =
+                    text::readFileIn(probe.cfmTemplatePath, cfg.configCharset);
+                !read) {
+                return failure("receipt template of the group at line " +
+                               std::to_string(group.line) + ": " +
+                               read.error()->message());
+            }
         }
     }
     return cfg;

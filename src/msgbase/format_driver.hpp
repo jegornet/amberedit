@@ -264,6 +264,16 @@ public:
     /// the mark was not made, which a read-only base is the ordinary reason for.
     [[nodiscard]] virtual tl::expected<void, ErrorPtr> markSeen(uint32_t index) = 0;
 
+    /// Sets FTS-0001's `MSGREAD` — the `Rcv` attribute — on message `index`, in
+    /// the attributes word every one of the three formats keeps it in.
+    ///
+    /// The same patch-it-where-it-lies write markSeen() is, and for the same
+    /// reason: nothing about the message has changed but what the network is
+    /// told about its arrival. A message carrying it already is left as it is
+    /// and this succeeds. See `ports::IMsgBase::markReceived()` for what sets
+    /// it and why the two marks are not one.
+    [[nodiscard]] virtual tl::expected<void, ErrorPtr> markReceived(uint32_t index) = 0;
+
 protected:
     /// Whether the file at `path` is there and holds no bytes at all.
     ///

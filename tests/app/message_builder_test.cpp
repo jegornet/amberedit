@@ -17,6 +17,7 @@ using amberedit::app::BuildRequest;
 using amberedit::app::charsetIdentifier;
 using amberedit::app::charsetLevel;
 using amberedit::app::ComposeFields;
+using amberedit::app::receiptText;
 using amberedit::app::serialNumber;
 using amberedit::app::startingText;
 using amberedit::app::tzutcMinutes;
@@ -1782,4 +1783,159 @@ TEST_CASE("A `*` stands for every netmail, and for nothing else [builder]") {
     const BuildRequest toRobot{cfg,     net,     robot,      nullptr,
                                nullptr, nullptr, 0x68A1B2C3, 180};
     REQUIRE(startingText(toRobot).lines.size() == 1);
+}
+
+TEST_CASE("A receipt says one line where no cfm_template is named [builder]") {
+    AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Netmail);
+    const BuildRequest request{cfg,     area,    netmailFields(), nullptr,
+                               nullptr, nullptr, 0x68A1B2C3,      180};
+
+    CHECK(receiptText(request) == std::vector<std::string>{"Confirmation Receipt"});
+
+    // And the same where the config names a file that is not there: the receipt
+    // is being written in answer to a dialog, and there is nowhere to report it.
+    cfg.cfmTemplatePath = "/nonexistent/receipt.tpl";
+    const BuildRequest missing{cfg,     area,    netmailFields(), nullptr,
+                               nullptr, nullptr, 0x68A1B2C3,      180};
+    CHECK(receiptText(missing) == std::vector<std::string>{"Confirmation Receipt"});
+}
+
+TEST_CASE("cfm_template is expanded as a template, against the netmail [builder]") {
+    // The tokens, the conditionals and the comment rule a message template is
+    // written with, all of them: what a receipt says is a message.
+    const TempFile tpl(
+        "; not a line of the receipt\n"
+        "@Quoted@oname, your message of @odate was read @cdate.\n"
+        "@NewThis line is for a message nobody answered.\n"
+        "-- @cname, @caddr\n");
+
+    AppConfig cfg = config();
+    cfg.cfmTemplatePath = tpl.path();
+    const AreaConfig area = areaOf(AreaKind::Netmail);
+
+    ComposeFields fields = netmailFields();
+    fields.reply = true;
+    fields.toName = "Vasya Pupkin";
+
+    MessageHeader original;
+    original.from = "Vasya Pupkin";
+    original.date = {2026, 8, 10, 21, 19, 36};
+    MessageBody body;
+    body.lines = {{"are you there?", false}};
+
+    const BuildRequest request{cfg,   area,    fields,     &original,
+                               &body, nullptr, 0x68A1B2C3, 180};
+    const std::vector<std::string> text = receiptText(request);
+    REQUIRE(text.size() == 2);
+    CHECK(amberedit::test::contains(text[0], "Vasya Pupkin, your message of 10 Aug 26"));
+    CHECK(text[1] == "-- Yegor Gluhov, 2:382/736.1");
+
+    // And nothing is written round it: `footer` is false for a receipt, so the
+    // tagline, tearline and origin a message carries are left off this one.
+    BuildRequest closing = request;
+    closing.footer = false;
+    CHECK(buildDraft(closing, text).lines == text);
+
+    // The flag is the whole of the difference — the same request with it left
+    // alone closes the message as any other.
+    const auto signed_ = buildDraft(request, text);
+    REQUIRE(signed_.lines.size() == 4);
+    CHECK(signed_.lines[2] == kTearline);
+}
+
+TEST_CASE("A netmail asking for a receipt carries the FLAGS line [builder]") {
+    namespace attr = amberedit::domain::attr;
+
+    const AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Netmail);
+    ComposeFields fields = netmailFields();
+    fields.attributes = attr::kLocal | attr::kPrivate | attr::kConfirmReceipt;
+
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto draft = buildDraft(request, {"hello"});
+    // FSC-0053's line, behind the routing and the MSGID and ahead of what says
+    // how to read the message.
+    CHECK(kludgesOf(draft) ==
+          "INTL 2:5015/46 2:382/736|"
+          "FMPT 1|"
+          "TOPT 120|"
+          "MSGID: 2:382/736.1 68a1b2c3|"
+          "FLAGS CFM|"
+          "TZUTC: 0300|"
+          "CHRS: CP866 2|");
+    // The attribute goes to the base as well: JAM has a bit for it, and the
+    // drivers that have not simply drop it.
+    CHECK((draft.attributes & attr::kConfirmReceipt) != 0);
+}
+
+TEST_CASE("Echomail asks for no receipt, whatever the attribute says [builder]") {
+    namespace attr = amberedit::domain::attr;
+
+    const AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    fields.netmail = false;
+    fields.attributes = attr::kLocal | attr::kConfirmReceipt;
+
+    const BuildRequest request{cfg,     area,    fields,     nullptr,
+                               nullptr, nullptr, 0x68A1B2C3, 180};
+    const auto draft = buildDraft(request, {"hello"});
+    CHECK_MESSAGE(!amberedit::test::contains(kludgesOf(draft), "FLAGS"),
+                  kludgesOf(draft));
+}
+
+TEST_CASE("Changing a netmail rewrites the CFM word and nothing else [builder]") {
+    namespace attr = amberedit::domain::attr;
+
+    // What the message carried: a FLAGS line with a mailer's own words in it
+    // beside the request. Those words are not ours to decide — a message being
+    // changed carries whatever was written on it — so only CFM is edited.
+    MessageBody body;
+    body.charset = "CP866";
+    body.lines = {{"@MSGID: 192:168/3.1 5f3a1b2c", true},
+                  {"@FLAGS KFS CFM HUB", true},
+                  {"@CHRS: CP866 2", true},
+                  {"hello there", false}};
+    const auto kept = amberedit::app::preservedLines(body);
+    const amberedit::app::ChangeStamp stamp{0x68A1B2C3, 180, "2:382/736.1"};
+
+    ComposeFields fields = netmailFields();
+    fields.changing = true;
+
+    // Left on: the line comes back as it was, the word among the others. It
+    // stays where the message had it, which is behind the TZUTC a changed
+    // message is given afresh.
+    fields.attributes = attr::kLocal | attr::kConfirmReceipt;
+    CHECK(kludgesOf(amberedit::app::buildChange(fields, kept, {"text"}, stamp)) ==
+          "MSGID: 2:382/736.1 68a1b2c3|TZUTC: 0300|FLAGS KFS HUB CFM|CHRS: CP866 2|");
+
+    // Turned off in the dialog: the request goes and the mailer's words stay.
+    fields.attributes = attr::kLocal;
+    CHECK(kludgesOf(amberedit::app::buildChange(fields, kept, {"text"}, stamp)) ==
+          "MSGID: 2:382/736.1 68a1b2c3|TZUTC: 0300|FLAGS KFS HUB|CHRS: CP866 2|");
+
+    // And a line left with nothing to say goes with it.
+    MessageBody alone;
+    alone.charset = "CP866";
+    alone.lines = {{"@FLAGS CFM", true}, {"hello there", false}};
+    const auto only = amberedit::app::preservedLines(alone);
+    CHECK(kludgesOf(amberedit::app::buildChange(fields, only, {"text"}, stamp)) ==
+          "MSGID: 2:382/736.1 68a1b2c3|TZUTC: 0300|");
+
+    // Turned on where the message carried no such line at all.
+    fields.attributes = attr::kLocal | attr::kConfirmReceipt;
+    MessageBody none;
+    none.charset = "CP866";
+    none.lines = {{"@CHRS: CP866 2", true}, {"hello there", false}};
+    CHECK(kludgesOf(amberedit::app::buildChange(
+              fields, amberedit::app::preservedLines(none), {"text"}, stamp)) ==
+          "MSGID: 2:382/736.1 68a1b2c3|FLAGS CFM|TZUTC: 0300|CHRS: CP866 2|");
+
+    // An echo's line is left exactly as its author wrote it: nothing asks for a
+    // receipt there, so nothing is edited there either.
+    fields.netmail = false;
+    CHECK(kludgesOf(amberedit::app::buildChange(fields, kept, {"text"}, stamp)) ==
+          "MSGID: 2:382/736.1 68a1b2c3|TZUTC: 0300|FLAGS KFS CFM HUB|CHRS: CP866 2|");
 }

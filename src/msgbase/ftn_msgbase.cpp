@@ -423,7 +423,15 @@ MessageHeader FtnMsgBase::header(uint32_t index, const std::string& asked) const
     out.utcOffset = tzutcOffsetOf(raw.control);
     out.origAddr = raw.header.origAddr;
     out.destAddr = raw.header.destAddr;
+    // `Cfm` out of the same lines as well, that being where FSC-0053 keeps it:
+    // the stored attribute word has no bit for it, and the drivers hand up only
+    // what their format holds. JAM is the one that does hold it, and its driver
+    // has already put it here — so this adds the attribute and never takes it
+    // away.
     out.attributes = raw.header.attributes;
+    if (confirmationRequestedIn(raw.control)) {
+        out.attributes |= domain::attr::kConfirmReceipt;
+    }
     out.seen = raw.header.seen;
     return out;
 }
@@ -726,6 +734,17 @@ tl::expected<void, ErrorPtr> FtnMsgBase::markSeen(uint32_t index) {
     if (!marked) {
         return failure("cannot mark message " + std::to_string(index) +
                        " read: " + marked.error()->message());
+    }
+    return {};
+}
+
+tl::expected<void, ErrorPtr> FtnMsgBase::markReceived(uint32_t index) {
+    if (!driver_)
+        return failure<MsgBaseError>(MsgBaseError::Kind::NoAreaOpen, std::string());
+    const auto marked = driver_->markReceived(index);
+    if (!marked) {
+        return failure("cannot mark message " + std::to_string(index) +
+                       " received: " + marked.error()->message());
     }
     return {};
 }

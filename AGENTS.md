@@ -608,6 +608,40 @@ Rules that hold the design together:
   over an area writes nothing; JAM answers that from its in-core header table. It
   is called from `loadMessage()` whatever `highlight_unread` says, and a failure
   is deliberately silent: a read-only area is the ordinary reason.
+- **`markReceived()` is the same patch for a different thing.** It sets
+  FTS-0001's `MSGREAD` — the `Rcv` attribute — in the attributes word all three
+  formats keep it in, and in Squish also in the high bit of the index record's
+  hash, which is where that format repeats the answer. Not the mark above,
+  however alike the two read: `seen` is this system's note that somebody here
+  has looked at the message, and `Rcv` is what the *network* is told about a
+  netmail's arrival. The one caller is the receipt question — see [Confirmation
+  receipts](#confirmation-receipts) — and it is deliberately the one caller:
+  AmberEdit does not go round marking every netmail it shows.
+- **`Cfm` lives in a control line, not in the attributes word.** The request to
+  be told a message was read is the `CFM` word of its `FLAGS` line (FSC-0053),
+  there being no FTS-0001 bit for it. `confirmationRequestedIn()` reads it off
+  the control block `FtnMsgBase::header()` already has in hand, `buildDraft()`
+  writes the line for a netmail carrying `domain::attr::kConfirmReceipt`, and
+  JAM — the one format with an attribute of its own for it — has its driver
+  translate that bit both ways besides. The value is GoldED+'s own, and
+  `SquishBase` masks it off in both directions so that AmberEdit's bit never
+  stands in a word every other program reads as FTS-0001's; a `*.msg` word is
+  sixteen bits wide and drops it for nothing.
+  - **Netmail only, everywhere it is asked about.** It asks something of the
+    node a message is addressed to, so `attributes_dialog` offers the checkbox
+    only where the message has one (`shownCount()`), `buildDraft()` writes the
+    line only there, `buildChange()` edits the word only there, and the reader
+    answers one only there. `messageAttributeBit()` refuses the name outright:
+    a config states its attributes for every message written under it, echomail
+    included.
+  - **Only that word of the line is ours.** `KFS`, `HUB` and the rest are a
+    mailer's instructions about a message on its way out — AmberEdit is neither
+    a mailer nor a tosser and acts on none of them — so `buildChange()` puts the
+    word in or takes it out of the line the message already carried and leaves
+    the other words alone, dropping the line only when nothing is left to say.
+    `FLAGS` is in `kReservedKludges` for the same reason a MSGID is: the editor
+    works the line out, and a second one from `compose_add_kludge` would be
+    believed by whichever program read it first.
 - **An area that cannot be written is asked before the editor opens, not after
   the message is written.** `IMsgBase::isWritable()` is the driver's own answer
   — every file of the base opened for writing, or, for Fido `*.msg`, the
@@ -2580,6 +2614,66 @@ decides what an occurrence is.
   to the reader on the same message number. `AreaManager::refreshArea()` is
   called for the same reason a delete calls it: the counts move with the
   attributes.
+
+### Confirmation receipts
+
+A netmail whose sender set `Cfm` asks to be told it was read. AmberEdit answers
+that and nothing else of what FSC-0053's `FLAGS` line may say: the other words
+are a mailer's instructions about a message on its way out, and this is neither
+a mailer nor a tosser.
+
+- **The question comes with the message, not with a keystroke.**
+  `askAboutReceipt()` in `message_read_screen.cpp` is called from
+  `loadMessage()`, so the box is up as the netmail appears. It is the only
+  confirmation anywhere that nothing the user pressed put there, which is why
+  `AppState::Confirm::SendReceipt` is worth reading as a case of its own: the
+  shell answers it exactly like the rest — `sendReceipt()` on Yes and nothing at
+  all on No.
+- **Four things have to hold, and each of them is a `return` of its own.** The
+  area is netmail (`hasAddressedRecipient()`), since `Cfm` is a request made of
+  the node a message was addressed to and an echo addresses nobody; the netmail
+  is addressed to **this** user (`AppState::addressedToUser()`), somebody else's
+  passing through not being ours to answer for; it carries no `Rcv` yet; and the
+  base is writable. The last is not pedantry: a question whose only answer is a
+  message that cannot be stored is worse than no question, there being nowhere
+  on the reader to say why either failed.
+- **`Rcv` is what keeps it to one question per netmail, and it is set as the
+  question is put.** `IMsgBase::markReceived()` writes FTS-0001's `MSGREAD`,
+  which says the node the netmail was addressed to has it — true from the moment
+  it is on the screen, and true whether or not a receipt goes back. So No is
+  remembered without anything remembering it, and the attribute outlives the
+  session the way the seen mark does. A mark that could not be made is a question
+  that would come back on every opening, so it is asked for *before* the box and
+  the box is dropped where it failed.
+- **Asking for one is the same attribute from the other end.** The compose
+  screen's attributes dialog offers `Confirm Rcpt Request` (Ctrl-Y) on a
+  netmail, and that is the whole of what setting it does: `buildDraft()` writes
+  the `FLAGS CFM` line, and whoever reads the message is asked the question
+  above by their own editor.
+- **The receipt is a reply in every respect but its text**: `app::reply()` fills
+  the header from the netmail — whoever wrote it, at the address they wrote from,
+  under the AKA they wrote to, about the same subject — and `buildDraft()` gives
+  it the control lines any other message gets. It goes into the area being read,
+  because that is the base that is open and a receipt answers a netmail standing
+  in it.
+  - **What it carries is `cfm_attributes`**, `Loc Pvt` by default — the prefill's
+    own answer for a netmail, stated rather than inherited, so a config may write
+    a receipt that is not private or one carrying `K/s`. Nothing of what the
+    answered netmail carries comes across: `Cfm` above all, which would have the
+    answer answered with a receipt, and that is as much why
+    `messageAttributeBit()` refuses the word as the netmail-only rule is.
+  - **Nothing closes it.** `BuildRequest::footer` is false for a receipt and for
+    nothing else: a line saying a netmail was read wants no tagline, tearline and
+    origin signed under it. `closesWithFooter()` is where the two reasons a
+    message carries no footer meet — this one and `netmail_skip_footer`'s
+    robots.
+- **What it says is `cfm_template`**, expanded by `app::receiptText()` exactly as
+  a message template is: every token, conditional and `@include`, against the
+  netmail being answered. A config naming no template writes the one line
+  `app::kDefaultReceiptText`, and so does a named template that cannot be read
+  after all — the path was checked when the config loaded, and the box has been
+  and gone by the time a receipt is written. The text is not translated: it is a
+  message somebody else's reader will show.
 
 ### Dialogs
 
@@ -5012,7 +5106,9 @@ browser behind `reader.nodelist`; compiling echolists on the same terms, and the
 descriptions they carry over the area list; twits, by name, address or subject, with the five `twit_mode`
 answers to what becomes of one; finding a message in the area behind `reader.find`, folded
 by the charset the message declares; the `CC:` and `XC:`/`XP:` lines a message
-being written may carry, and the copies and crossposts they ask for; a keyboard
+being written may carry, and the copies and crossposts they ask for; the confirmation receipt a `Cfm`
+netmail is answered with — see [Confirmation
+receipts](#confirmation-receipts); a keyboard
 layout of one's own, from `keys`, and the help box behind `app.help` that reads
 it back; the user's own shell behind `reader.shell`;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,

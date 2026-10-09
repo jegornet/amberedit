@@ -1555,6 +1555,12 @@ struct AppState {
         /// is stored either way, and what is being asked is whether the
         /// commands in it are commands or are text.
         ProcessCopies,
+        /// The netmail just opened asks to be told it was read — `Cfm` — and
+        /// the question is whether to answer it with a receipt. The one
+        /// confirmation nothing the user pressed put up: it comes with the
+        /// message, so it is asked once per message and never again — see
+        /// `message_read::sendReceipt()`.
+        SendReceipt,
     };
     Confirm confirm{Confirm::None};
     /// The answers a confirmation offers. Two, whatever is being asked: a
