@@ -246,24 +246,93 @@ std::optional<size_t> NodelistDb::findOrBoss(const domain::FtnAddress& address) 
     return find(boss);
 }
 
-std::pair<size_t, size_t> NodelistDb::findRange(const AddressPrefix& prefix) const {
-    const size_t first = lowerBound(prefix.lowKey());
-    // The high key is the last one the prefix covers rather than the first one
-    // past it, since the first one past 65535:65535/65535.65535 is not a number
-    // — so the run ends where the keys stop being covered.
-    const uint64_t high = prefix.highKey();
-    // A binary search for the end too: the run may be a whole zone long.
-    size_t low = first;
+std::pair<size_t, size_t> NodelistDb::keyRange(uint64_t low, uint64_t high) const {
+    const size_t first = lowerBound(low);
+    // The high key is the last one covered rather than the first one past it,
+    // since the first one past 65535:65535/65535.65535 is not a number — so the
+    // run ends where the keys stop being covered. A binary search for the end
+    // too: the run may be a whole zone long.
+    size_t below = first;
     size_t top = nodeCount_;
-    while (low < top) {
-        const size_t middle = low + ((top - low) / 2);
+    while (below < top) {
+        const size_t middle = below + ((top - below) / 2);
         if (keyAt(middle) <= high) {
-            low = middle + 1;
+            below = middle + 1;
         } else {
             top = middle;
         }
     }
-    return {first, low};
+    return {first, below};
+}
+
+namespace {
+
+/// The last field `prefix` wrote.
+uint16_t& lastField(AddressPrefix& prefix) {
+    switch (prefix.depth) {
+        case 1:
+            return prefix.zone;
+        case 2:
+            return prefix.net;
+        case 3:
+            return prefix.node;
+        default:
+            return prefix.point;
+    }
+}
+
+}  // namespace
+
+std::pair<size_t, size_t> NodelistDb::findInZone(const AddressPrefix& prefix) const {
+    const auto exact = keyRange(prefix.lowKey(), prefix.highKey());
+    if (exact.first != exact.second || !prefix.open) return exact;
+
+    // The number as typed so far is the beginning of a longer one: each digit
+    // more is a run of ten times as many numbers, and the first run holding
+    // anything is the answer. A miss stands where the number as written would.
+    AddressPrefix longer = prefix;
+    const uint32_t typed = lastField(longer);
+    for (uint32_t scale = 10; typed * scale <= 65535; scale *= 10) {
+        const uint32_t low = typed * scale;
+        const uint32_t high = std::min<uint32_t>(low + scale - 1, 65535);
+        lastField(longer) = static_cast<uint16_t>(low);
+        const uint64_t lowKey = longer.lowKey();
+        lastField(longer) = static_cast<uint16_t>(high);
+        const auto range = keyRange(lowKey, longer.highKey());
+        if (range.first != range.second) return range;
+    }
+    return exact;
+}
+
+std::pair<size_t, size_t> NodelistDb::findRange(const AddressPrefix& prefix) const {
+    if (!prefix.anyZone) return findInZone(prefix);
+
+    // The zones are runs of the sorted index, so each is visited by jumping to
+    // where the next one begins: a binary search per zone the nodelist holds,
+    // which is a handful.
+    std::optional<std::pair<size_t, size_t>> firstMiss;
+    std::optional<std::pair<size_t, size_t>> netMiss;
+    size_t at = 0;
+    while (at < nodeCount_) {
+        AddressPrefix inZone = prefix;
+        inZone.anyZone = false;
+        inZone.zone = static_cast<uint16_t>(keyAt(at) >> 48);
+        const auto range = findInZone(inZone);
+        if (range.first != range.second) return range;
+        if (!firstMiss) firstMiss = range;
+        // A miss in a zone that has the net is a miss among the nodes of the
+        // net that was typed, which is where the cursor is wanted.
+        if (!netMiss) {
+            const uint64_t net = format::addressKey(inZone.zone, inZone.net, 0, 0);
+            const auto nodes = keyRange(net, net | 0xffffffffULL);
+            if (nodes.first != nodes.second) netMiss = range;
+        }
+        if (inZone.zone == 65535) break;
+        at = lowerBound(
+            format::addressKey(static_cast<uint16_t>(inZone.zone + 1), 0, 0, 0));
+    }
+    if (netMiss) return *netMiss;
+    return firstMiss.value_or(std::pair<size_t, size_t>{0, 0});
 }
 
 std::vector<size_t> NodelistDb::findBySysop(std::string_view query, size_t limit,

@@ -55,18 +55,33 @@ std::optional<AddressPrefix> AddressPrefix::parse(std::string_view text) {
     if (trimmed.empty()) return std::nullopt;
 
     AddressPrefix prefix;
-    const auto zone = readNumber(trimmed, 0);
-    if (!zone) return std::nullopt;
-    prefix.zone = zone->value;
-    prefix.depth = 1;
-    size_t at = zone->end;
+    const auto first = readNumber(trimmed, 0);
+    if (!first) return std::nullopt;
+    size_t at = first->end;
+    // A number may go on where the text ends on it, unless a zero opens it:
+    // nothing is written `07`, so `07` is 7 and not the beginning of 70.
+    const auto mayGoOn = [&trimmed](const Number& number, size_t start) {
+        return number.end == trimmed.size() && trimmed[start] != '0';
+    };
+    prefix.open = mayGoOn(*first, 0);
+    int level = 0;
+    if (at < trimmed.size() && trimmed[at] == '/') {
+        // A first number followed by `/` is a net: the zone was left off.
+        prefix.anyZone = true;
+        prefix.net = first->value;
+        prefix.depth = 2;
+        level = 1;
+    } else {
+        prefix.zone = first->value;
+        prefix.depth = 1;
+    }
 
     // Each separator moves one field along, and text that runs out on a
     // separator is the prefix that stands before it: `2:` is `2` and `2:382/`
     // is `2:382`, which is what a search field holds halfway through being
     // typed. Anything else after the numbers is not an address.
     const char* separators = ":/.";
-    for (int level = 0; level < 3; ++level) {
+    for (; level < 3; ++level) {
         if (at >= trimmed.size()) return prefix;
         if (trimmed[at] != separators[level]) return std::nullopt;
         ++at;
@@ -74,6 +89,7 @@ std::optional<AddressPrefix> AddressPrefix::parse(std::string_view text) {
 
         const auto number = readNumber(trimmed, at);
         if (!number) return std::nullopt;
+        prefix.open = mayGoOn(*number, at);
         at = number->end;
         ++prefix.depth;
         if (level == 0) {

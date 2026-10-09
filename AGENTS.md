@@ -4604,7 +4604,19 @@ searches decide it:
   reads in, and *every* partial address is a contiguous run of the sorted index —
   `2`, `2:382`, `2:382/736` are the same binary search with a shorter key.
   `AddressPrefix` is what a typed one parses to; a trailing separator is allowed
-  so a search field can be read while it is still being typed.
+  so a search field can be read while it is still being typed. **The zone may be
+  left off** — `382/736`, `382/` — and that is the one address that is not a
+  single run: `AddressPrefix::anyZone` says so, and `findRange()` asks each zone
+  the nodelist holds in turn, lowest first, answering with the first that holds
+  the address. The first and not all of them, so that the answer is still one
+  run and Enter still walks inside it. A miss stands in the first zone that
+  holds the net typed, not in the first zone of the nodelist — `382/9` lands
+  among the nodes of 2:382 rather than on `1:387/0`.
+  **The number still being typed is the beginning of a longer one**
+  (`AddressPrefix::open`): where `2:382/7` holds nothing, the first of 70–79,
+  700–799 and on that holds something is the answer, since a search field is
+  read a keystroke at a time and `7` is how `736` begins. A number followed by a
+  separator, or opened by a zero, is the number it is.
 - A sysop's name, whole or in part. The folded names are a pool and the name
   index is a **suffix array** over it — every position of every name, sorted by
   the text that follows. Matching inside a word is what that buys, and it is what

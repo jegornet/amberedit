@@ -286,7 +286,9 @@ needs; a line that states none is read in the charset your locale names.
 
 **Ctrl-N (or F10) in the reader** opens the nodelist on whoever wrote the message
 on screen. The Lookup line takes an address, whole or in part — `2`, `2:382`,
-`2:382/736` — or any part of a sysop's name, and Enter walks through everything
+`2:382/736`, or `382/736` without the zone, found in the first zone that has
+it; `382/7` is already enough to land on `382/736` — or any part of a sysop's
+name, and Enter walks through everything
 it finds. The list is the whole nodelist either way: a node is worth as much
 for its neighbors as for itself.
 

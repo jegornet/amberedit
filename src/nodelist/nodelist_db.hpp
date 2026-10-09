@@ -90,6 +90,17 @@ public:
     /// range of indexes `[first, last)`. `2` answers with the whole of zone 2,
     /// `2:382` with the net, and a full address with the one node or with
     /// nothing.
+    ///
+    /// The last number of an open prefix is also the beginning of a longer
+    /// one: where `2:382/7` holds nothing, the first of 70–79, 700–799 and on
+    /// that holds something is the answer — `2:382/736` in a net with no node 7
+    /// and nothing in the seventies.
+    ///
+    /// A prefix with no zone is looked for zone by zone, lowest first, and
+    /// answered with the run in the first zone that holds it: `382/736` is
+    /// `2:382/736` in a nodelist with no `1:382/736`. Where no zone holds it
+    /// the range is empty and stands where the address would in the first zone
+    /// holding the net, or in the first zone where none does.
     [[nodiscard]] std::pair<size_t, size_t> findRange(const AddressPrefix& prefix) const;
 
     /// What order `findBySysop` answers in.
@@ -127,6 +138,10 @@ private:
     [[nodiscard]] uint32_t recordOffsetAt(size_t index) const;
     /// The first index whose key is not below `key`.
     [[nodiscard]] size_t lowerBound(uint64_t key) const;
+    /// Every index whose key is in `[low, high]`, as `[first, last)`.
+    [[nodiscard]] std::pair<size_t, size_t> keyRange(uint64_t low, uint64_t high) const;
+    /// `findRange` for a prefix that names its zone.
+    [[nodiscard]] std::pair<size_t, size_t> findInZone(const AddressPrefix& prefix) const;
 
     std::vector<unsigned char> data_;
     std::vector<SourceState> sources_;

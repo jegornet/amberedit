@@ -238,6 +238,12 @@ TEST_CASE("a lookup takes an address whole or in part [nodelist][ui]") {
     CHECK(lookFor("2:240") == "2:240/0");
     CHECK(lookFor("2:222") == "2:222/0");
     CHECK(view.found);
+    // The zone may be left off: the net and node are found in whichever zone
+    // holds them.
+    CHECK(lookFor("240/1120") == "2:240/1120");
+    CHECK(lookFor("240/1120.8") == "2:240/1120.8");
+    CHECK(lookFor("240/21") == "2:240/2188");
+    CHECK(view.found);
 
     // An address nobody has scrolls to where it would stand, so that the
     // neighbours answer the question the address was asking.

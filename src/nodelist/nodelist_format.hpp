@@ -104,14 +104,28 @@ inline constexpr size_t kMaxSources = 255;
 /// As much of an address as somebody typed: `2`, `2:382`, `2:382/736`,
 /// `2:382/736.1`. What the address search takes, and the reason a partial
 /// address needs no code of its own — it is a key range like any other.
+///
+/// The zone may be left off — `382/736`, `382/736.1`, `382/` — the way an
+/// address is said inside one zone. That is a net in no zone in particular, and
+/// `anyZone` says so; `NodelistDb::findRange` settles it on the first zone that
+/// holds it.
 struct AddressPrefix {
     uint16_t zone{0};
     uint16_t net{0};
     uint16_t node{0};
     uint16_t point{0};
     /// How many of the four were written: 1 for `2`, 4 for a full address with
-    /// a point on it.
+    /// a point on it. A zone left off is counted as written, so `382/736` is 3
+    /// as `2:382/736` is.
     int depth{0};
+    /// Whether the zone was left off, `zone` then standing at zero.
+    bool anyZone{false};
+    /// Whether the last number written may still be going on: the text ends on
+    /// it rather than on a separator, and it does not begin with a zero. Then
+    /// `2:382/7` is the beginning of `2:382/736` as much as it is node 7, and
+    /// `NodelistDb::findRange` looks for 70–79, 700–799 and on where there is
+    /// no node 7.
+    bool open{false};
 
     /// Parses what was typed. A trailing separator is allowed and says nothing
     /// — `2:` is `2` — so that a search field can be read while it is still

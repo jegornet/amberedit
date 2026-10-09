@@ -130,6 +130,88 @@ TEST_CASE("a node is found by its whole address and by any part of one [nodelist
     CHECK(range("2:221/") == range("2:221"));
 }
 
+TEST_CASE("an address with the zone left off is found in the first zone that "
+          "holds it [nodelist]") {
+    test::TempDir dir;
+    const std::string path = dir.path("nodelist.db");
+
+    nodelist::DbSource source;
+    source.state.spec = "nodelist";
+    source.entries = {
+        node("1:382/736", "West", "Lee Green"),
+        node("2:382/736", "East", "Ivan Petrov"),
+        node("2:382/736.1", "Point", "Petr Petrov"),
+        node("2:6000/9999", "Other", "Vasiliy Pupkin"),
+        node("3:640/1384", "Another", "Somebody Else"),
+    };
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 0)));
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
+
+    const auto range = [&db](const std::string& text) {
+        const auto prefix = nodelist::AddressPrefix::parse(text);
+        REQUIRE(prefix);
+        return addresses(db, db.findRange(*prefix));
+    };
+
+    CHECK(range("382/736") == std::vector<std::string>{"1:382/736"});
+    CHECK(range("382/736.1") == std::vector<std::string>{"2:382/736.1"});
+    CHECK(range("6000/9999") == std::vector<std::string>{"2:6000/9999"});
+    CHECK(range("640") == std::vector<std::string>{});
+    CHECK(range("640/") == std::vector<std::string>{"3:640/1384"});
+    CHECK(range("640/1385").empty());
+
+    const auto prefix = nodelist::AddressPrefix::parse("382/736");
+    REQUIRE(prefix);
+    CHECK(prefix->anyZone);
+    CHECK(prefix->depth == 3);
+    CHECK_FALSE(nodelist::AddressPrefix::parse("382/736/1"));
+    CHECK_FALSE(nodelist::AddressPrefix::parse("382/736:1"));
+}
+
+TEST_CASE("the number still being typed is the beginning of a longer one "
+          "[nodelist]") {
+    test::TempDir dir;
+    const std::string path = dir.path("nodelist.db");
+
+    nodelist::DbSource source;
+    source.state.spec = "nodelist";
+    source.entries = {
+        node("1:387/0", "Texas", "Marc Lewis"),
+        node("2:382/0", "Serbia", "Ulrich Schroeter"),
+        node("2:382/147", "Vortex", "Strahinja Bojovic"),
+        node("2:382/200", "Pirx", "Artem Nemenchinsky"),
+        node("2:382/736", "Jegornet", "Yegor Gluhov"),
+        node("2:382/736.1", "Point", "Petr Petrov"),
+    };
+    static_cast<void>(amberedit::test::valueOf(nodelist::writeNodelistDb(path, {source}, 0)));
+    const auto db = amberedit::test::valueOf(nodelist::NodelistDb::open(path));
+
+    const auto range = [&db](const std::string& text) {
+        const auto prefix = nodelist::AddressPrefix::parse(text);
+        REQUIRE(prefix);
+        return addresses(db, db.findRange(*prefix));
+    };
+    const auto landing = [&db](const std::string& text) {
+        const auto prefix = nodelist::AddressPrefix::parse(text);
+        REQUIRE(prefix);
+        return db.entry(db.findRange(*prefix).first).address.toString();
+    };
+
+    CHECK(range("382/7") == std::vector<std::string>{"2:382/736", "2:382/736.1"});
+    CHECK(range("382/73") == range("382/7"));
+    CHECK(range("2:382/7") == range("382/7"));
+    CHECK(range("2:382/736.") == range("382/7"));
+    // A number opened by a zero is the number it is, and one followed by a
+    // separator is finished.
+    CHECK(range("2:382/07").empty());
+    CHECK(range("2:382/7.").empty());
+
+    // A miss stands among the nodes of the net that was typed, in the zone
+    // that has it, rather than in the first zone of the nodelist.
+    CHECK(range("382/9").empty());
+    CHECK(landing("382/9") == "2:382/147");
+}
+
 TEST_CASE("a node is found by the whole of a sysop's name or by part of one "
           "[nodelist]") {
     test::TempDir dir;
