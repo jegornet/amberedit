@@ -98,7 +98,7 @@ and it stands in place of whatever the file said about that setting for that run
 Any setting at all, and as many `-o` as there are settings to change:
 
 ```bash
-amberedit -o "quote_margin 72" -o "name Ivan Petrov" -o "address 2:382/736"
+amberedit -o "quote_margin 72" -o "theme /usr/share/amberedit/themes/white.cfg"
 ```
 
 A key the config may repeat, like `aka` or `nodelist`, loses the whole of what
