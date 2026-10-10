@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.9.1
+Version:        0.9.2
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,13 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Sat Oct 10 2026 Yegor Gluhov <git@jegor.net> - 0.9.2-1
+- add reader_edge_confirm: Left and Right off the ends of an area ask before leaving it
+- Ctrl-Home and Ctrl-End in the reader: the first and the last message of the area
+- confirmation receipts (Cfm attribute): asking and handling
+- add reply_focus: a reply may open on the To field instead of the message text
+- the nodelist Lookup line takes 2D address like `382/736` or just node number `/736`
+
 * Tue Oct 06 2026 Yegor Gluhov <git@jegor.net> - 0.9.1-1
 - netmail_skip_template and netmail_skip_footer now take `*` for every recipient: no template, or no footer, on any netmail
 - compose_add_pid is now on by default

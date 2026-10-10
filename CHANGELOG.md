@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.2 — 2026-10-10
 
 - add reader_edge_confirm: ← and → off the ends of an area ask before leaving it
 - Ctrl-Home and Ctrl-End in the reader: the first and the last message of the area
