@@ -1567,8 +1567,22 @@ struct AppState {
         /// message, so it is asked once per message and never again — see
         /// `message_read::sendReceipt()`.
         SendReceipt,
+        /// ← or → walked off an end of the area under `reader_edge_confirm`.
+        /// What a yes does is `edgeLeave` below, settled when it was asked.
+        LeaveArea,
     };
     Confirm confirm{Confirm::None};
+    /// Where `Confirm::LeaveArea` is about to go: which end was walked off, and
+    /// what `reader_edge` does there once the question has been answered.
+    /// Settled as the question is put, so the answer does what the question
+    /// said — the two `next_unread_*` answers with no unread area left
+    /// anywhere are asked and answered as `exit`, the list being where a yes
+    /// then goes.
+    struct EdgeLeave {
+        int delta{0};
+        config::EdgeBehavior behavior{config::EdgeBehavior::Exit};
+    };
+    EdgeLeave edgeLeave;
     /// The answers a confirmation offers. Two, whatever is being asked: a
     /// question with a third way out of it is a question that was not the one
     /// to ask.

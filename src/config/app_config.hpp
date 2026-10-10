@@ -1370,6 +1370,13 @@ struct AppConfig {
     /// it would be this one, and the reader would be sent straight back.
     EdgeBehavior edgeBehavior{EdgeBehavior::Exit};
 
+    /// Whether walking off an end of the area asks first, from
+    /// `reader_edge_confirm`. Off by default. Under `stay` there is nothing to
+    /// ask about; everywhere else the question names what the answer does —
+    /// back to the list, or on to the next unread area where `reader_edge`
+    /// would go there and there is one to go to.
+    bool readerEdgeConfirm{false};
+
     /// Where the reader stands once a new message has been written, from
     /// `reader_position_after_save`.
     ///

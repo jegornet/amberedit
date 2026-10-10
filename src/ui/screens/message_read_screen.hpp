@@ -120,6 +120,12 @@ bool findMessage(AppState& state, const std::string& query, app::SearchScope sco
 /// not asked about: there is no status line, and the box has been and gone.
 void sendReceipt(AppState& state);
 
+/// Walks off the end of the area the way `AppState::edgeLeave` says — what a
+/// yes to `reader_edge_confirm`'s question does. Back to the list, with the
+/// cursor where `exit_set_to_next_unread` puts it, or on into the next unread
+/// area; ← off the front takes the lastread mark off as it always does.
+void leaveAtEdge(AppState& state);
+
 /// Takes the message on screen out of the base and shows what follows it —
 /// the answer to the delete confirmation. The one before it where it was the
 /// last, and blank rows where it was the only one.

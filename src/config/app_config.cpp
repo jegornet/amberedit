@@ -1689,6 +1689,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseEdgeBehavior(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.edgeBehavior = *read;
+    } else if (key == "reader_edge_confirm") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerEdgeConfirm = *read;
     } else if (key == "reader_position_after_save") {
         auto read = parsePositionAfterSave(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());

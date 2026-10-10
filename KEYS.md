@@ -47,8 +47,8 @@ standing in both.
 
 | Key | What it does                                                                 |
 |---|------------------------------------------------------------------------------|
-| `←` `→` | previous, next message — off either end leaves the area, or → goes on to the next unread area (`reader_edge`) |
-| click on the side of the text | the same two, from the pointer: the columns down either side of the message are ← and → (`reader_side_taps`, `reader_side_tap_width`) |
+| `←` `→` | previous, next message — off either end leaves the area, or → goes on to the next unread area (`reader_edge`); with `reader_edge_confirm on` it asks first |
+| click on the side of the text | the same two, from the pointer: the columns down either side of the message are ← and →; see `reader_side_taps`, `reader_side_tap_width`, `adaptive_ui_threshold`  |
 | `↑` `↓` `PgUp` `PgDn` `Space` `Shift+Space` | scroll the message                                                           |
 | `Home`, `End` | top, bottom                                                                  |
 | `Ctrl-Home`, `Ctrl-End` | the first, the last message of the area |

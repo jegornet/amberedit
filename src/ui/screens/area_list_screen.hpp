@@ -27,6 +27,13 @@ term::Element render(AppState& state);
 /// leaves the reader standing on the area list.
 void openNextArea(AppState& state, config::EdgeBehavior behavior);
 
+/// Whether any area other than the one being read has something unread in it —
+/// the star column's test, as `/` asks it. What `reader_edge_confirm` asks
+/// before → walks off the last message under the two `next_unread_*` answers:
+/// it decides between going on and going back to the list. The area being
+/// read is left out because its count is not read again until it is left.
+[[nodiscard]] bool unreadElsewhere(const AppState& state);
+
 /// Puts the cursor on the area the reader should read next, the area just read
 /// having been left already — what `reader_edge exit_set_to_next_unread` asks
 /// for when → walks off the last message of an area.

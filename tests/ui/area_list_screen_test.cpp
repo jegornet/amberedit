@@ -15,6 +15,7 @@
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
+#include "ui/confirm_dialog.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/keys.hpp"
 #include "ui/menu_dialog.hpp"
@@ -34,6 +35,7 @@ using amberedit::ui::AppState;
 using amberedit::ui::term::Event;
 
 namespace area_list = amberedit::ui::screens::area_list;
+namespace confirm_dialog = amberedit::ui::confirm_dialog;
 namespace message_read = amberedit::ui::screens::message_read;
 
 namespace {
@@ -1843,6 +1845,166 @@ TEST_CASE("next_unread_only leaves for the list when nothing is unread "
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
     CHECK(fixture.state.base == nullptr);
     CHECK(fixture.state.errorMessage.empty());
+}
+
+TEST_CASE("reader_edge_confirm asks before → leaves for the list "
+          "[arealist][messageread][confirm][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    fixture.config.readerEdgeConfirm = true;
+    REQUIRE(fixture.config.edgeBehavior == amberedit::config::EdgeBehavior::Exit);
+
+    enter(fixture, 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+
+    // Still reading, with the question up over the last message.
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.confirm == AppState::Confirm::LeaveArea);
+    CHECK(fixture.state.edgeLeave.behavior == amberedit::config::EdgeBehavior::Exit);
+    CHECK(fixture.state.discardTypeahead);
+
+    // The two answers stand one under the other, Yes above No.
+    namespace term = amberedit::ui::term;
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, confirm_dialog::render(fixture.state, term::text("")));
+    int question = -1;
+    int yes = -1;
+    int no = -1;
+    for (int y = 0; y < fixture.state.height; ++y) {
+        const std::string row = rowText(screen, y);
+        if (question < 0 && amberedit::test::contains(row, "Back to the list?")) question = y;
+        if (yes < 0 && amberedit::test::contains(row, "Yes")) yes = y;
+        if (no < 0 && amberedit::test::contains(row, "No")) no = y;
+    }
+    CHECK(question >= 0);
+    CHECK(question < yes);
+    CHECK(yes < no);
+
+    // → is Enter here: the arrow that walked off the end goes on through.
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowRight) ==
+          confirm_dialog::Outcome::Confirmed);
+    fixture.state.confirm = AppState::Confirm::None;
+    message_read::leaveAtEdge(fixture.state);
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.base == nullptr);
+}
+
+TEST_CASE("reader_edge_confirm answered no leaves the reader where it stood "
+          "[arealist][messageread][confirm][squish]") {
+    using amberedit::app::ScreenId;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    fixture.config.readerEdgeConfirm = true;
+
+    enter(fixture, 0);
+    const int last = fixture.state.messageCursor;
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
+
+    // The answers stand one under the other, so ↓ is what moves to No — and
+    // → then answers with it, as Enter would.
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowDown) ==
+          confirm_dialog::Outcome::Ignored);
+    CHECK(fixture.state.confirmChoice == AppState::ConfirmChoice::No);
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowRight) ==
+          confirm_dialog::Outcome::Dismissed);
+    CHECK(fixture.state.confirm == AppState::Confirm::None);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.currentArea.tag == "first");
+    CHECK(fixture.state.messageCursor == last);
+}
+
+TEST_CASE("reader_edge_confirm goes on to the next unread area where there is one "
+          "[arealist][messageread][confirm][squish]") {
+    using amberedit::app::ScreenId;
+    using amberedit::config::EdgeBehavior;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    fixture.config.readerEdgeConfirm = true;
+    fixture.config.edgeBehavior = EdgeBehavior::NextUnreadArea;
+
+    enter(fixture, 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
+    CHECK(fixture.state.edgeLeave.behavior == EdgeBehavior::NextUnreadArea);
+
+    fixture.state.confirm = AppState::Confirm::None;
+    message_read::leaveAtEdge(fixture.state);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    CHECK(fixture.state.currentArea.tag == "second");
+}
+
+TEST_CASE("reader_edge_confirm with nothing unread left asks for the list and goes "
+          "there [arealist][messageread][confirm][squish]") {
+    using amberedit::app::ScreenId;
+    using amberedit::config::EdgeBehavior;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    markToEnd(fixture, "first");
+    markToEnd(fixture, "second");
+    markToEnd(fixture, "third");
+    fixture.config.readerEdgeConfirm = true;
+    // Unasked, this one would walk on into the next area on the list; asked,
+    // the question is "Back to the list?" and a yes does what it says.
+    fixture.config.edgeBehavior = EdgeBehavior::NextUnreadArea;
+
+    enter(fixture, 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
+    CHECK(fixture.state.edgeLeave.behavior == EdgeBehavior::Exit);
+
+    fixture.state.confirm = AppState::Confirm::None;
+    message_read::leaveAtEdge(fixture.state);
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+    CHECK(fixture.state.base == nullptr);
+}
+
+TEST_CASE("reader_edge_confirm asks for the list off the front, and stay asks nothing "
+          "[arealist][messageread][confirm][squish]") {
+    using amberedit::app::ScreenId;
+    using amberedit::config::EdgeBehavior;
+    const TempSquishBase first;
+    const TempSquishBase second;
+    const TempSquishBase third;
+    Fixture fixture(threeAreas(first, second, third));
+    markAllUnread(fixture);
+    fixture.config.readerEdgeConfirm = true;
+    fixture.config.edgeBehavior = EdgeBehavior::NextUnreadOnly;
+
+    // Nothing read, so the area opens on its first message; ← never goes on
+    // into another area, so the question is the list's whatever is unread.
+    enter(fixture, 0);
+    REQUIRE(fixture.state.messageCursor == 0);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
+    REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
+    CHECK(fixture.state.edgeLeave.delta < 0);
+    CHECK(fixture.state.edgeLeave.behavior == EdgeBehavior::Exit);
+    fixture.state.confirm = AppState::Confirm::None;
+    message_read::leaveAtEdge(fixture.state);
+    CHECK(fixture.state.navigator.current() == ScreenId::AreaList);
+
+    // Under stay the keys stop at the ends, and there is nothing to ask about.
+    fixture.config.edgeBehavior = EdgeBehavior::Stay;
+    enter(fixture, 0);
+    message_read::handleEvent(fixture.state, Event::ArrowLeft);
+    CHECK(fixture.state.confirm == AppState::Confirm::None);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
 }
 
 TEST_CASE("exit_set_to_next_unread stops on the list with the cursor on the next "

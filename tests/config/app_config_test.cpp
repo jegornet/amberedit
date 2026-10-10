@@ -694,6 +694,13 @@ TEST_CASE("AppConfig reads what the ends of an area do [app_config]") {
     CHECK_FALSE(loads("reader_edge_exit on\n"));
 }
 
+TEST_CASE("AppConfig reads whether the ends of an area ask first [app_config]") {
+    CHECK_FALSE(with("").readerEdgeConfirm);  // nothing asked unless told to
+    CHECK(with("reader_edge_confirm on\n").readerEdgeConfirm);
+    CHECK_FALSE(with("reader_edge_confirm off\n").readerEdgeConfirm);
+    CHECK_FALSE(loads("reader_edge_confirm exit\n"));
+}
+
 TEST_CASE("AppConfig reads the direct area reply setting [app_config]") {
     CHECK(with("").areaReplyDirect);  // followed unless the config says otherwise
     CHECK(with("areareplydirect on\n").areaReplyDirect);

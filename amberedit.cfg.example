@@ -835,6 +835,12 @@ reader_stylecodes off
 # the message on the screen. An area holding no messages is left by both keys.
 reader_edge exit
 
+# Whether walking off an end of the area by ← or → asks first. Optional; off by
+# default; nothing is asked under "stay". The question is "Go to the next unread
+# area?" where reader_edge would go on into one and there is one, and "Back to
+# the list?" everywhere else — and the answer does what the question says.
+reader_edge_confirm off
+
 # Where the reader stands once a new message has been written. It doesn't apply
 # to changing a message. Optional; "current" by default.
 #

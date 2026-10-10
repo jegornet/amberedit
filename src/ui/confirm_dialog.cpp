@@ -28,10 +28,30 @@ std::string question(AppState::Confirm confirm) {
         case AppState::Confirm::ProcessCopies: return _("XC and/or CC commands found.");
         case AppState::Confirm::SendReceipt:
             return _("The sender asks to be told this was read. Send a receipt?");
+        case AppState::Confirm::LeaveArea: break;
         case AppState::Confirm::Quit:
         case AppState::Confirm::None: break;
     }
     return _("Quit AmberEdit?");
+}
+
+/// What `reader_edge_confirm` asks: the one question whose words depend on
+/// more than which question it is, because a yes may go two places.
+std::string question(const AppState& state) {
+    if (state.confirm != AppState::Confirm::LeaveArea) return question(state.confirm);
+    const config::EdgeBehavior behavior = state.edgeLeave.behavior;
+    if (behavior == config::EdgeBehavior::NextUnreadArea ||
+        behavior == config::EdgeBehavior::NextUnreadOnly) {
+        return _("Go to the next unread area?");
+    }
+    return _("Back to the list?");
+}
+
+/// Whether the answers stand one under the other. Only for walking off an end
+/// of the area: the question is raised by ← or →, which answer it rather than
+/// choosing between two buttons side by side, so the choosing is ↑ and ↓.
+bool vertical(const AppState& state) {
+    return state.confirm == AppState::Confirm::LeaveArea;
 }
 
 /// What the two answers are called. Yes and No for a question that is one —
@@ -62,6 +82,7 @@ void step(AppState& state) {
 Element render(AppState& state, Element background) {
     const Answers answers = answersTo(state.confirm);
     const bool tall = state.dialogTallButtons();
+    const bool upright = vertical(state);
     Elements buttons{
         // reflect() writes back where each button landed once the box has
         // been centred, which is what handleEvent() hit-tests a click on —
@@ -70,23 +91,24 @@ Element render(AppState& state, Element background) {
         dialog::button(answers.yes, state.confirmChoice == AppState::ConfirmChoice::Yes,
                        state.isPressed(AppState::Pressed::ConfirmYes), tall) |
             reflect(state.confirmYesBox),
-        text("   "),
+        upright ? text("") : text("   "),
         dialog::button(answers.no, state.confirmChoice == AppState::ConfirmChoice::No,
                        state.isPressed(AppState::Pressed::ConfirmNo), tall) |
             reflect(state.confirmNoBox),
     };
 
     auto content = vbox({
-        text(question(state.confirm)) | bold | color(theme::palette.dialogText) | center,
+        text(question(state)) | bold | color(theme::palette.dialogText) | center,
         text(""),
-        hbox(std::move(buttons)) | center,
+        (upright ? vbox(std::move(buttons)) : hbox(std::move(buttons))) | center,
         text(""),
         // Esc is the second answer rather than a way out of the question where
         // the question has no way out: the commands are ignored and the message
         // is stored, which is what pressing Ignore does.
         text(state.confirm == AppState::Confirm::ProcessCopies
                  ? _("←→ choose · Enter confirm · y/n · Esc ignores")
-                 : _("←→ choose · Enter confirm · y/n · Esc cancel")) |
+             : upright ? _("↑↓ choose · Enter ←→ confirm · y/n · Esc cancel")
+                       : _("←→ choose · Enter confirm · y/n · Esc cancel")) |
             color(theme::palette.dialogHint),
     });
 
@@ -129,12 +151,21 @@ Outcome handleEvent(AppState& state, const Event& event) {
         state.confirm = AppState::Confirm::None;
         return Outcome::Dismissed;
     }
-    if (event == Event::ArrowRight || event == Event::ArrowLeft || event == Event::Tab ||
-        event == Event::TabReverse) {
+    // Standing one under the other, the answers are chosen between by ↑ and ↓,
+    // and ← and → are Enter: the arrow that walked off the end of the area is
+    // the arrow that goes on through the question.
+    const bool upright = vertical(state);
+    const bool chooses =
+        upright ? event == Event::ArrowUp || event == Event::ArrowDown
+                : event == Event::ArrowRight || event == Event::ArrowLeft;
+    if (chooses || event == Event::Tab || event == Event::TabReverse) {
         step(state);
         return Outcome::Ignored;
     }
-    if (event == Event::Return) {
+    const bool enters =
+        event == Event::Return ||
+        (upright && (event == Event::ArrowRight || event == Event::ArrowLeft));
+    if (enters) {
         if (state.confirmChoice == AppState::ConfirmChoice::Yes) {
             return Outcome::Confirmed;
         }

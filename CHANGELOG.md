@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- add reader_edge_confirm: ← and → off the ends of an area ask before leaving it
 - Ctrl-Home and Ctrl-End in the reader: the first and the last message of the area
 - confirmation receipts (Cfm attribute): asking and handling
 - add reply_focus: a reply may open on the To field instead of the message text

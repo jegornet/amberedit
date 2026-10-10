@@ -1434,6 +1434,29 @@ Rules that hold the design together:
   not, the area it picked being opened on top of the list anyway. ← is excluded
   here for the reason above, and nowhere to go leaves the cursor on the area just
   read.
+- **`reader_edge_confirm` asks before either end is walked off**, and the
+  question says what a yes does. `askToLeave()` settles that as it is put and
+  keeps it in `AppState::edgeLeave`; `leaveAtEdge()` acts on it once the shell
+  has the answer, through the same `walkOffEdge()` an unasked key goes through.
+  "Go to the next unread area?" only for → under the two `next_unread_*`
+  answers where `area_list::unreadElsewhere()` finds an area other than this
+  one with something unread; everywhere else it is "Back to the list?", and
+  **then a yes goes to the list even under `next_unread_area`**, which unasked
+  would walk on into the next area on the list — a question naming the list and
+  an answer opening an area would be a question that lied. The area being read
+  is left out of the test because its count is read again only as it is left.
+  Nothing is worked out about *which* area comes next until it is reached: the
+  search after the yes is the one an unasked key runs.
+  - **The answers stand one under the other, and ← and → are Enter.** The
+    question is raised by an arrow, and the arrow that walked off the end is
+    the one that goes on through it; ↑ and ↓ choose. It is the one
+    confirmation laid out this way, `vertical()` in `ui/confirm_dialog.cpp`
+    answering for it. Raising it sets `discardTypeahead`, so the repeats of a
+    held → already in the terminal do not answer it; a key still held after
+    that does, which is the price of the arrow being Enter.
+  - No and Esc leave the reader on the message it
+    stood on, the mark where reading put it. `stay` asks nothing, there being
+    nothing to leave by.
 - **Walking off the front takes the lastread mark off the area**, through
   `AreaManager::markUnread()`: ← on the first message asks for the message before
   it, which puts the reader before the area rather than on anything in it. Esc on

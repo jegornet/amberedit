@@ -621,6 +621,15 @@ bool commandEnabled(const AppState& state, Command command) {
 
 }  // namespace
 
+bool unreadElsewhere(const AppState& state) {
+    const auto& areas = state.manager.areas();
+    return std::any_of(areas.begin(), areas.end(), [&](const app::AreaEntry& entry) {
+        const bool reading = entry.config.tag == state.currentArea.tag &&
+                             entry.config.path == state.currentArea.path;
+        return !reading && entry.isAvailable() && entry.unread > 0;
+    });
+}
+
 void openNextArea(AppState& state, config::EdgeBehavior behavior) {
     // The area just read is off the reader's screen and its counts have been
     // read again by then, so an area read to its end is no longer one with

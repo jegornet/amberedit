@@ -664,6 +664,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 case AppState::Confirm::SendReceipt:
                     screens::message_read::sendReceipt(state);
                     break;
+                case AppState::Confirm::LeaveArea:
+                    screens::message_read::leaveAtEdge(state);
+                    break;
                 case AppState::Confirm::None: break;
             }
             continue;

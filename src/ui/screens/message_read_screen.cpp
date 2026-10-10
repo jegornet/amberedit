@@ -726,12 +726,75 @@ void askToChange(AppState& state) {
     compose::startChange(state, /*notice=*/false);
 }
 
+/// Leaves the area off one of its ends, the way `behavior` says — what
+/// `switchMessage()` does where there is no neighbour to go to, and what a yes
+/// to `reader_edge_confirm`'s question does. Never called under `stay`.
+void walkOffEdge(AppState& state, int delta, config::EdgeBehavior behavior) {
+    // Which end was walked off says something about the reading, and the
+    // two ends do not say the same thing. Off the front the reader has
+    // asked for the message before the first one: it is standing before the
+    // area rather than in it, so the mark comes off and the area is unread
+    // whole again — the three messages just walked back through are three
+    // unread messages in the area list. Off the back there is nothing to
+    // say; the last message has been read and the mark sits on it already.
+    // Esc leaves from either end without moving anywhere, and leaves the
+    // mark on the message on screen.
+    if (delta < 0 && state.messageCount > 0) state.manager.markUnread();
+    message_list::leaveArea(state);
+    // Whatever else was typed by then goes with it. → is held down to walk
+    // through an area, and on the area list underneath it opens the area
+    // under the cursor — which reopens on the message just left, at the
+    // end, ready to be walked off again. Without this the repeats already
+    // in the terminal would bounce between the two screens after the key
+    // was let go, and under the two `next_unread_*` answers they would run
+    // on through areas nobody had looked at yet.
+    state.discardTypeahead = true;
+
+    // Off the back, and only off the back: the area has been left and its
+    // counts read again, so the next unread area is looked for against the
+    // list as it stands now. Nowhere to go leaves the reader on that list,
+    // which is what `exit` does anyway — and so does
+    // `exit_set_to_next_unread`, which asks for the same area but stops on
+    // the list with the cursor on it rather than opening it.
+    if (delta > 0) {
+        if (behavior == config::EdgeBehavior::NextUnreadArea ||
+            behavior == config::EdgeBehavior::NextUnreadOnly) {
+            area_list::openNextArea(state, behavior);
+        } else if (behavior == config::EdgeBehavior::ExitSetToNextUnread) {
+            area_list::cursorToNextArea(state);
+        }
+    }
+}
+
+/// Puts `reader_edge_confirm`'s question up in place of walking off the end.
+///
+/// What a yes will do is settled now, so that the question can say it: on
+/// into the next unread area only off the back, under the two `next_unread_*`
+/// answers, and only where another area has something unread in it. Anywhere
+/// else a yes is back to the list, and so `next_unread_area` with nothing
+/// unread left is asked and answered as `exit` rather than walking on into an
+/// area the question never named.
+void askToLeave(AppState& state, int delta, config::EdgeBehavior behavior) {
+    const bool onward = behavior == config::EdgeBehavior::NextUnreadArea ||
+                        behavior == config::EdgeBehavior::NextUnreadOnly;
+    if (onward && (delta < 0 || !area_list::unreadElsewhere(state))) {
+        behavior = config::EdgeBehavior::Exit;
+    }
+    state.edgeLeave = {delta, behavior};
+    state.confirm = AppState::Confirm::LeaveArea;
+    state.confirmChoice = AppState::ConfirmChoice::Yes;
+    // The repeats of a held → already in the terminal would otherwise answer
+    // the question the moment it is up.
+    state.discardTypeahead = true;
+}
+
 /// Moves to a neighbouring message without going back to the list. Past the
 /// last message and before the first there is none, and then the area itself is
 /// left where `reader_edge` asks for it: an area read to its end is where the
 /// next area is wanted, and a key that does nothing says nothing about why.
 /// An empty area has no message either way round, so both keys leave it — and
 /// with no first message to stand before, there is no mark to take off it.
+/// Under `reader_edge_confirm` it is asked about first.
 ///
 /// Under the two `next_unread_*` answers → does not stop on the list either: it
 /// goes on into the next area with something unread in it, which is the whole
@@ -756,40 +819,11 @@ void switchMessage(AppState& state, int delta) {
     if (target < 0 || target >= static_cast<int>(state.messageCount)) {
         const config::EdgeBehavior behavior = state.config.edgeBehavior;
         if (behavior == config::EdgeBehavior::Stay) return;
-
-        // Which end was walked off says something about the reading, and the
-        // two ends do not say the same thing. Off the front the reader has
-        // asked for the message before the first one: it is standing before the
-        // area rather than in it, so the mark comes off and the area is unread
-        // whole again — the three messages just walked back through are three
-        // unread messages in the area list. Off the back there is nothing to
-        // say; the last message has been read and the mark sits on it already.
-        // Esc leaves from either end without moving anywhere, and leaves the
-        // mark on the message on screen.
-        if (target < 0 && state.messageCount > 0) state.manager.markUnread();
-        message_list::leaveArea(state);
-        // Whatever else was typed by then goes with it. → is held down to walk
-        // through an area, and on the area list underneath it opens the area
-        // under the cursor — which reopens on the message just left, at the
-        // end, ready to be walked off again. Without this the repeats already
-        // in the terminal would bounce between the two screens after the key
-        // was let go, and under the two `next_unread_*` answers they would run
-        // on through areas nobody had looked at yet.
-        state.discardTypeahead = true;
-
-        // Off the back, and only off the back: the area has been left and its
-        // counts read again, so the next unread area is looked for against the
-        // list as it stands now. Nowhere to go leaves the reader on that list,
-        // which is what `exit` does anyway — and so does
-        // `exit_set_to_next_unread`, which asks for the same area but stops on
-        // the list with the cursor on it rather than opening it.
-        if (delta > 0) {
-            if (behavior == config::EdgeBehavior::NextUnreadArea ||
-                behavior == config::EdgeBehavior::NextUnreadOnly) {
-                area_list::openNextArea(state, behavior);
-            } else if (behavior == config::EdgeBehavior::ExitSetToNextUnread) {
-                area_list::cursorToNextArea(state);
-            }
+        const int end = target < 0 ? -1 : 1;
+        if (state.config.readerEdgeConfirm) {
+            askToLeave(state, end, behavior);
+        } else {
+            walkOffEdge(state, end, behavior);
         }
         return;
     }
@@ -1527,6 +1561,10 @@ void passOnMarked(AppState& state, const domain::AreaConfig& target, bool takeOu
 }
 
 }  // namespace
+
+void leaveAtEdge(AppState& state) {
+    walkOffEdge(state, state.edgeLeave.delta, state.edgeLeave.behavior);
+}
 
 void sendReceipt(AppState& state) {
     if (state.base == nullptr || !state.readHeader || !state.readBody) return;

@@ -18,7 +18,7 @@ msgstr ""
 msgid "file exists: {0}"
 msgstr ""
 
-#: src/app/message_builder.cpp:588
+#: src/app/message_builder.cpp:591
 #, c++-format
 msgid "template: {0}"
 msgstr ""
@@ -34,7 +34,7 @@ msgstr ""
 msgid "cannot wait for {0}: {1}"
 msgstr ""
 
-#: src/config/app_config.cpp:2656
+#: src/config/app_config.cpp:2697
 msgid "no description"
 msgstr ""
 
@@ -367,7 +367,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-10-09 02:11+0200\n"
+"POT-Creation-Date: 2026-10-10 03:07+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -535,11 +535,11 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:868
+#: src/ui/app_shell.cpp:871
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:676 src/ui/nodelist_dialog.cpp:275
+#: src/ui/app_state.hpp:676 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -746,31 +746,43 @@ msgstr ""
 msgid "The sender asks to be told this was read. Send a receipt?"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:34
+#: src/ui/confirm_dialog.cpp:35
 msgid "Quit AmberEdit?"
 msgstr ""
 
+#: src/ui/confirm_dialog.cpp:45
+msgid "Go to the next unread area?"
+msgstr ""
+
 #: src/ui/confirm_dialog.cpp:47
+msgid "Back to the list?"
+msgstr ""
+
+#: src/ui/confirm_dialog.cpp:67
 msgid "Ignore"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:47
+#: src/ui/confirm_dialog.cpp:67
 msgid "Process"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:49
+#: src/ui/confirm_dialog.cpp:69
 msgid "No"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:49
+#: src/ui/confirm_dialog.cpp:69
 msgid "Yes"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:88
+#: src/ui/confirm_dialog.cpp:109
 msgid "←→ choose · Enter confirm · y/n · Esc ignores"
 msgstr ""
 
-#: src/ui/confirm_dialog.cpp:89
+#: src/ui/confirm_dialog.cpp:110
+msgid "↑↓ choose · Enter ←→ confirm · y/n · Esc cancel"
+msgstr ""
+
+#: src/ui/confirm_dialog.cpp:111
 msgid "←→ choose · Enter confirm · y/n · Esc cancel"
 msgstr ""
 
@@ -1049,7 +1061,7 @@ msgctxt "message list column"
 msgid "Date"
 msgstr ""
 
-#: src/ui/nodelist_dialog.cpp:387
+#: src/ui/nodelist_dialog.cpp:405
 #, c++-format
 msgid " Lookup: {0}▌ "
 msgstr ""
@@ -1164,20 +1176,20 @@ msgctxt "area list section"
 msgid "Local"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:759
+#: src/ui/screens/area_list_screen.cpp:768
 msgid " The tosser config declares no areas."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:760
+#: src/ui/screens/area_list_screen.cpp:769
 msgid " Check general.tosser_config in the AmberEdit config."
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:827
+#: src/ui/screens/area_list_screen.cpp:836
 #, c++-format
 msgid " Area: {0}▌"
 msgstr ""
 
-#: src/ui/screens/area_list_screen.cpp:875
+#: src/ui/screens/area_list_screen.cpp:884
 msgid "Every area has been read."
 msgstr ""
 
@@ -1229,36 +1241,36 @@ msgstr ""
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2008
+#: src/ui/screens/message_read_screen.cpp:2055
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2029
+#: src/ui/screens/message_read_screen.cpp:2076
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2635
+#: src/ui/screens/message_read_screen.cpp:2682
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2638
+#: src/ui/screens/message_read_screen.cpp:2685
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2641
+#: src/ui/screens/message_read_screen.cpp:2688
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2644
+#: src/ui/screens/message_read_screen.cpp:2691
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2647
+#: src/ui/screens/message_read_screen.cpp:2694
 msgctxt "header block"
 msgid "Recd"
 msgstr ""
