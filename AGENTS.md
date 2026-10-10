@@ -407,6 +407,63 @@ Then tag `v0.7.2`. The release workflow checks the tag against `CMakeLists.txt`,
 a file missed here is a release that stops rather than one that ships the old
 number.
 
+### The "what's new" announcement
+
+**After a bump, the agent that made it prints two announcements of the release
+in its reply — one in Russian, one in English — and writes them nowhere.** They
+are the text of a message somebody posts into an echo by hand, so they go into
+no file, no commit and no packaging changelog; the person who asked for the bump
+copies them out of the reply.
+
+Both are written out of the lines `CHANGELOG.md` carries under the new version's
+heading, and say nothing those lines do not: a change missing there is a change
+missing from the changelog, which is fixed in the changelog first. A changelog
+line is short because a packager reads it; an announcement line is read by
+somebody deciding whether to upgrade, so it says what changed for them — the
+setting by name, what it now does, how to get the old behaviour back. Being an
+account of what changed, it is the one other text besides `CHANGELOG.md` that
+may say "now", "previously" and "renamed".
+
+The shape, the same in both languages:
+
+```
+Subject: New in AmberEdit 0.9.1
+
+[MOD] `netmail_skip_template` and `netmail_skip_footer` now accept `*` to match
+every recipient (i.e. no template or no footer on any netmail)
+
+[FIX] exporting a message to a text file omitted kludges; they are now included
+when the reader is showing them
+```
+
+- **The subject** is `New in AmberEdit <version>` and `Новое в AmberEdit
+  <version>`, a blank line under it.
+- **One entry per change**, opening with its tag, lower case after it, no full
+  stop at the end, a blank line between entries. Wrapped so that no line is
+  longer than 79 columns, the continuation flush with the tag — a message read
+  on an 80-column terminal.
+- **Setting names, theme roles, tokens and command names stand in backticks** and
+  are never translated; keys are written as KEYS.md writes them (`Alt-B`,
+  `Ctrl-W`). The Russian text uses the words FTN users use — кладж, нетмейл,
+  тирлайн, тэглайн, ориджин — rather than inventing translations of them.
+- **Entries are ordered by tag** in the order of the list below, and within one
+  tag in the changelog's order.
+
+The tags:
+
+- `[ADD]` — something new: a setting, a command, a feature.
+- `[MOD]` — something existing changed or extended.
+- `[BRK]` — a change that breaks a config that worked before. The entry says in
+  so many words that it is a breaking change (`breaking change:` / `ломающее
+  изменение:` right after the tag) and what the config has to be changed to.
+- `[DEL]` — a feature or a setting taken out.
+- `[FIX]` — a bug fixed.
+- `[DOC]` — documentation.
+- `[MSC]` — anything none of the above fits.
+
+A change that is both a `[MOD]` or a `[DEL]` and breaks a config is `[BRK]`: what
+somebody upgrading has to know first is that their config stops loading.
+
 ## Layering
 
 ```
