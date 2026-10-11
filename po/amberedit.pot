@@ -779,7 +779,11 @@ msgid "←→ choose · Enter confirm · y/n · Esc ignores"
 msgstr ""
 
 #: src/ui/confirm_dialog.cpp:110
-msgid "↑↓ choose · Enter ←→ confirm · y/n · Esc cancel"
+msgid "↑↓ choose · Enter ← confirm · Esc → cancel · y/n"
+msgstr ""
+
+#: src/ui/confirm_dialog.cpp
+msgid "↑↓ choose · Enter → confirm · Esc ← cancel · y/n"
 msgstr ""
 
 #: src/ui/confirm_dialog.cpp:111

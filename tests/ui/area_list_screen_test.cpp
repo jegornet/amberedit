@@ -1911,11 +1911,26 @@ TEST_CASE("reader_edge_confirm answered no leaves the reader where it stood "
     REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
 
     // The answers stand one under the other, so ↓ is what moves to No — and
-    // → then answers with it, as Enter would.
+    // Enter then answers with it.
     CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowDown) ==
           confirm_dialog::Outcome::Ignored);
     CHECK(fixture.state.confirmChoice == AppState::ConfirmChoice::No);
-    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowRight) ==
+    // → is yes whatever is chosen: it is the arrow that walked off the end.
+    {
+        AppState::Confirm asked = fixture.state.confirm;
+        CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowRight) ==
+              confirm_dialog::Outcome::Confirmed);
+        fixture.state.confirm = asked;
+    }
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::Return) ==
+          confirm_dialog::Outcome::Dismissed);
+    CHECK(fixture.state.confirm == AppState::Confirm::None);
+
+    // ← turns back into the area, with Yes chosen as much as with No.
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowRight));
+    REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
+    fixture.state.confirmChoice = AppState::ConfirmChoice::Yes;
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowLeft) ==
           confirm_dialog::Outcome::Dismissed);
     CHECK(fixture.state.confirm == AppState::Confirm::None);
     CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
@@ -1995,6 +2010,16 @@ TEST_CASE("reader_edge_confirm asks for the list off the front, and stay asks no
     REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
     CHECK(fixture.state.edgeLeave.delta < 0);
     CHECK(fixture.state.edgeLeave.behavior == EdgeBehavior::Exit);
+    // Off the front the arrows change places: → turns back, ← goes on.
+    fixture.state.confirmChoice = AppState::ConfirmChoice::Yes;
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowRight) ==
+          confirm_dialog::Outcome::Dismissed);
+    CHECK(fixture.state.navigator.current() == ScreenId::MessageRead);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::ArrowLeft));
+    REQUIRE(fixture.state.confirm == AppState::Confirm::LeaveArea);
+    fixture.state.confirmChoice = AppState::ConfirmChoice::No;
+    CHECK(confirm_dialog::handleEvent(fixture.state, Event::ArrowLeft) ==
+          confirm_dialog::Outcome::Confirmed);
     fixture.state.confirm = AppState::Confirm::None;
     message_read::leaveAtEdge(fixture.state);
     CHECK(fixture.state.navigator.current() == ScreenId::AreaList);

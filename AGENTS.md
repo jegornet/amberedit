@@ -1504,13 +1504,17 @@ Rules that hold the design together:
   is left out of the test because its count is read again only as it is left.
   Nothing is worked out about *which* area comes next until it is reached: the
   search after the yes is the one an unasked key runs.
-  - **The answers stand one under the other, and ← and → are Enter.** The
-    question is raised by an arrow, and the arrow that walked off the end is
-    the one that goes on through it; ↑ and ↓ choose. It is the one
+  - **The answers stand one under the other, and ← and → answer outright.**
+    The question is raised by an arrow: the arrow that walked off the end is
+    yes and goes on through it, the other one is no and turns back into the
+    area — → off the last message, ← off the first, `walksOn()` and
+    `walksBack()` reading which off `edgeLeave.delta`. Whatever is chosen
+    makes no difference to either; ↑ and ↓ choose for Enter. It is the one
     confirmation laid out this way, `vertical()` in `ui/confirm_dialog.cpp`
-    answering for it. Raising it sets `discardTypeahead`, so the repeats of a
-    held → already in the terminal do not answer it; a key still held after
-    that does, which is the price of the arrow being Enter.
+    answering for it, and its hint names the two arrows in the order the end
+    puts them. Raising it sets `discardTypeahead`, so the repeats of a held →
+    already in the terminal do not answer it; a key still held after that
+    does, which is the price of the arrow being an answer.
   - No and Esc leave the reader on the message it
     stood on, the mark where reading put it. `stay` asks nothing, there being
     nothing to leave by.

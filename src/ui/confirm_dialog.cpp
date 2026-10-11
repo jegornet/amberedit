@@ -54,6 +54,32 @@ bool vertical(const AppState& state) {
     return state.confirm == AppState::Confirm::LeaveArea;
 }
 
+/// Which arrow says yes to walking off the end: the one that walked off it.
+/// The other one is the way back into the area, and so says no.
+bool walksOn(const AppState& state, const Event& event) {
+    return state.edgeLeave.delta < 0 ? event == Event::ArrowLeft
+                                     : event == Event::ArrowRight;
+}
+bool walksBack(const AppState& state, const Event& event) {
+    return state.edgeLeave.delta < 0 ? event == Event::ArrowRight
+                                     : event == Event::ArrowLeft;
+}
+
+/// The hint under the answers. The edge question names the two arrows by
+/// which end was walked off, since they answer it the other way round there.
+std::string hint(const AppState& state) {
+    // Esc is the second answer rather than a way out of the question where
+    // the question has no way out: the commands are ignored and the message
+    // is stored, which is what pressing Ignore does.
+    if (state.confirm == AppState::Confirm::ProcessCopies) {
+        return _("←→ choose · Enter confirm · y/n · Esc ignores");
+    }
+    if (!vertical(state)) return _("←→ choose · Enter confirm · y/n · Esc cancel");
+    return state.edgeLeave.delta < 0
+               ? _("↑↓ choose · Enter ← confirm · Esc → cancel · y/n")
+               : _("↑↓ choose · Enter → confirm · Esc ← cancel · y/n");
+}
+
 /// What the two answers are called. Yes and No for a question that is one —
 /// and for the one question that is not, the two things that can become of the
 /// commands found in the message. The message is stored whichever is pressed,
@@ -102,14 +128,7 @@ Element render(AppState& state, Element background) {
         text(""),
         (upright ? vbox(std::move(buttons)) : hbox(std::move(buttons))) | center,
         text(""),
-        // Esc is the second answer rather than a way out of the question where
-        // the question has no way out: the commands are ignored and the message
-        // is stored, which is what pressing Ignore does.
-        text(state.confirm == AppState::Confirm::ProcessCopies
-                 ? _("←→ choose · Enter confirm · y/n · Esc ignores")
-             : upright ? _("↑↓ choose · Enter ←→ confirm · y/n · Esc cancel")
-                       : _("←→ choose · Enter confirm · y/n · Esc cancel")) |
-            color(theme::palette.dialogHint),
+        text(hint(state)) | color(theme::palette.dialogHint),
     });
 
     // The frame is drawn round a padded box: without the margins the hint line
@@ -152,9 +171,15 @@ Outcome handleEvent(AppState& state, const Event& event) {
         return Outcome::Dismissed;
     }
     // Standing one under the other, the answers are chosen between by ↑ and ↓,
-    // and ← and → are Enter: the arrow that walked off the end of the area is
-    // the arrow that goes on through the question.
+    // and ← and → answer outright whichever is chosen: the arrow that walked
+    // off the end of the area goes on through the question, and the other one
+    // turns back into it.
     const bool upright = vertical(state);
+    if (upright && walksOn(state, event)) return Outcome::Confirmed;
+    if (upright && walksBack(state, event)) {
+        state.confirm = AppState::Confirm::None;
+        return Outcome::Dismissed;
+    }
     const bool chooses =
         upright ? event == Event::ArrowUp || event == Event::ArrowDown
                 : event == Event::ArrowRight || event == Event::ArrowLeft;
@@ -162,10 +187,7 @@ Outcome handleEvent(AppState& state, const Event& event) {
         step(state);
         return Outcome::Ignored;
     }
-    const bool enters =
-        event == Event::Return ||
-        (upright && (event == Event::ArrowRight || event == Event::ArrowLeft));
-    if (enters) {
+    if (event == Event::Return) {
         if (state.confirmChoice == AppState::ConfirmChoice::Yes) {
             return Outcome::Confirmed;
         }

@@ -814,8 +814,12 @@ msgid "←→ choose · Enter confirm · y/n · Esc ignores"
 msgstr "←→ выбор · Enter подтвердить · y/n · Esc пропустить"
 
 #: src/ui/confirm_dialog.cpp:110
-msgid "↑↓ choose · Enter ←→ confirm · y/n · Esc cancel"
-msgstr "↑↓ выбор · Enter ←→ подтвердить · y/n · Esc отмена"
+msgid "↑↓ choose · Enter ← confirm · Esc → cancel · y/n"
+msgstr "↑↓ выбор · Enter ← подтвердить · Esc → отмена · y/n"
+
+#: src/ui/confirm_dialog.cpp
+msgid "↑↓ choose · Enter → confirm · Esc ← cancel · y/n"
+msgstr "↑↓ выбор · Enter → подтвердить · Esc ← отмена · y/n"
 
 #: src/ui/confirm_dialog.cpp:111
 msgid "←→ choose · Enter confirm · y/n · Esc cancel"
