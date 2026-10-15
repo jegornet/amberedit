@@ -62,6 +62,15 @@ bool takesAlt(Event::Name name) {
     return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace;
 }
 
+/// Whether a named key is one a terminal will report with Ctrl or Shift held,
+/// and nothing here already keeps for moving about. Insert is: Ctrl-Ins and
+/// Shift-Ins are how a clipboard has been copied to and pasted from since the
+/// keyboards that had no Ctrl-C and Ctrl-V for it, and every terminal still
+/// spells both.
+bool takesCtrlOrShift(Event::Name name) {
+    return name == Event::Name::Insert;
+}
+
 bool isAsciiLetter(char c) {
     return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
@@ -71,10 +80,11 @@ struct Spelling {
     std::string_view body;
     bool ctrl{false};
     bool alt{false};
+    bool shift{false};
 };
 
 Spelling withoutModifiers(std::string_view spelling) {
-    Spelling out{spelling, false, false};
+    Spelling out{spelling, false, false, false};
     // In either order and in either case, and greedily: what is left over is
     // the key itself, which may be a `-` and so must not be split on.
     for (bool more = true; more;) {
@@ -88,6 +98,11 @@ Spelling withoutModifiers(std::string_view spelling) {
                    out.body.size() > 4) {
             out.alt = true;
             out.body.remove_prefix(4);
+            more = true;
+        } else if (config::text::iequals(out.body.substr(0, 6), "shift-") &&
+                   out.body.size() > 6) {
+            out.shift = true;
+            out.body.remove_prefix(6);
             more = true;
         }
     }
@@ -116,6 +131,14 @@ int reachOf(const Event& key) {
 
 bool isReservedKey(std::string_view spelling) {
     const Spelling parsed = withoutModifiers(spelling);
+    // Shift with a key that moves about is that key moving about the other
+    // way, or further: Shift-Tab walks the ring backwards and Shift-Space pages
+    // up. Neither is bindable, for the reason the bare key is not.
+    if (parsed.shift) {
+        if (config::text::iequals(parsed.body, "Space")) return true;
+        const NamedKey* named = namedKey(parsed.body);
+        return named != nullptr && named->reserved;
+    }
     if (parsed.ctrl && !parsed.alt) {
         // The one chord that moves about: Ctrl with Home or End sends the
         // reader to the first and the last message of the area, which is the
@@ -141,16 +164,26 @@ std::optional<Event> keyNamed(std::string_view spelling) {
 
     if (const NamedKey* named = namedKey(parsed.body)) {
         // Alt with an arrow, a function key or Backspace is one a terminal can
-        // be asked to report; nothing else here is bindable under a modifier,
-        // and a spelling that asks for one is either a key that would never
-        // arrive or — Ctrl with Home and End — one reserved above.
-        if (parsed.ctrl) return std::nullopt;
+        // be asked to report, and so is Ctrl or Shift with Insert; nothing else
+        // here is bindable under a modifier, and a spelling that asks for one is
+        // either a key that would never arrive or — Ctrl with Home and End —
+        // one reserved above. One modifier at a time: no terminal agrees on
+        // what two of them with Insert are sent as.
+        const int held =
+            (parsed.ctrl ? 1 : 0) + (parsed.alt ? 1 : 0) + (parsed.shift ? 1 : 0);
+        if (held > 1) return std::nullopt;
+        if ((parsed.ctrl || parsed.shift) && !takesCtrlOrShift(named->name)) {
+            return std::nullopt;
+        }
         if (parsed.alt && !takesAlt(named->name)) return std::nullopt;
-        return Event::Named(named->name, false, parsed.alt);
+        return Event::Named(named->name, parsed.ctrl, parsed.alt, parsed.shift);
     }
     // A character, which is one byte: what is bound is what the terminal reports
     // a key as, and every key AmberEdit can be asked about reports as ASCII.
     if (parsed.body.size() != 1) return std::nullopt;
+    // Shift with a character is the other character, which is written as itself:
+    // `G` and not `Shift-g`.
+    if (parsed.shift) return std::nullopt;
     const char c = parsed.body.front();
     if (static_cast<unsigned char>(c) <= ' ' || static_cast<unsigned char>(c) > '~') {
         return std::nullopt;
@@ -170,6 +203,7 @@ std::string spellingOf(const Event& key) {
     if (key.ctrl()) out += "Ctrl-";
     if (key.alt()) out += "Alt-";
     if (key.kind() == Event::Kind::Key) {
+        if (key.shift()) out += "Shift-";
         for (const NamedKey& named : kNamedKeys) {
             if (named.name == key.name()) return out + named.spelling;
         }
@@ -190,7 +224,9 @@ std::string hintSpellingOf(const Event& key, bool capitalize) {
     // A modifier and a named key already carry their own capitals — `Ctrl-R`,
     // `F7`, `Del` — and are written as they stand; a bare letter is the only
     // part with a case of its own to raise.
-    if (key.ctrl() || key.alt() || key.kind() == Event::Kind::Key) return full;
+    if (key.ctrl() || key.alt() || key.shift() || key.kind() == Event::Kind::Key) {
+        return full;
+    }
     return config::text::toUpper(full);
 }
 

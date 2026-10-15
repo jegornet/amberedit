@@ -8,16 +8,19 @@
 #include <utility>
 #include <vector>
 
+#include "app/clipboard.hpp"
 #include "app/external_editor.hpp"
 #include "app/run_program.hpp"
 #include "app/url_handler.hpp"
 #include "app/user_shell.hpp"
+#include "encoding/base64.hpp"
 #include "i18n/i18n.hpp"
 #include "ui/after_handover.hpp"
 #include "ui/app_state.hpp"
 #include "ui/area_dialog.hpp"
 #include "ui/attributes_dialog.hpp"
 #include "ui/charset_dialog.hpp"
+#include "ui/clipboard_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/error_log.hpp"
@@ -65,6 +68,63 @@ AppState::AreaPicker::For purposeOf(AppState::ForwardPicker::Mode mode) {
         case AppState::ForwardPicker::Mode::Forward: break;
     }
     return AppState::AreaPicker::For::Forward;
+}
+
+/// How long a paste waits for the terminal to answer with its clipboard under
+/// `clipboard terminal`. Long, because the answer may be a person's: iTerm2
+/// asks every time unless told not to, and a box read and clicked through takes
+/// seconds. A terminal that will never answer is mostly told apart at once —
+/// see `Terminal::hostClipboard()` — and Escape ends the wait for any other.
+constexpr int kHostClipboardWaitMs = 30000;
+
+/// Puts the text on the clipboard `clipboard` names, AmberEdit's own excepted —
+/// that one the reader fills itself.
+tl::expected<void, ErrorPtr> copyOut(const AppState& state, Terminal& terminal,
+                                     const std::string& text) {
+    switch (state.config.clipboardInEffect()) {
+        case config::ClipboardMode::Windows: return app::copyToSystem(text);
+        case config::ClipboardMode::External:
+            return app::copyThroughProgram(state.config.clipboardExternalCopy, text);
+        case config::ClipboardMode::Terminal:
+            terminal.setHostClipboard(encoding::toBase64(text));
+            return {};
+        case config::ClipboardMode::Internal: break;
+    }
+    return {};
+}
+
+/// What the clipboard `clipboard` names holds, AmberEdit's own excepted.
+tl::expected<std::string, ErrorPtr> pasteIn(AppState& state, Terminal& terminal) {
+    switch (state.config.clipboardInEffect()) {
+        case config::ClipboardMode::Windows: return app::pasteFromSystem();
+        case config::ClipboardMode::External:
+            return app::pasteThroughProgram(state.config.clipboardExternalPaste);
+        case config::ClipboardMode::Terminal: {
+            state.clipboardWaiting = true;
+            state.drawFrame();
+            const Terminal::HostClipboard asked =
+                terminal.hostClipboard(kHostClipboardWaitMs);
+            state.clipboardWaiting = false;
+            switch (asked.outcome) {
+                case Terminal::HostClipboard::Outcome::Answered: break;
+                // Escape is the user's answer, and wants nothing said about it.
+                case Terminal::HostClipboard::Outcome::Cancelled: return std::string();
+                case Terminal::HostClipboard::Outcome::Unsupported:
+                    return failure(
+                        _("this terminal does not hand its clipboard over to programs "
+                          "(OSC 52 reads)"));
+                case Terminal::HostClipboard::Outcome::NoAnswer:
+                    return failure(_("the terminal did not answer with its clipboard"));
+            }
+            auto text = encoding::fromBase64(asked.base64);
+            if (!text) {
+                return failure(_("the terminal answered with a clipboard it garbled"));
+            }
+            return std::move(*text);
+        }
+        case config::ClipboardMode::Internal: break;
+    }
+    return state.clipboard;
 }
 
 /// What the error log calls the screen that was up. The errors it keeps are
@@ -233,6 +293,17 @@ Element document(AppState& state) {
     if (state.progress) {
         body = progress_dialog::render(state, std::move(body));
     }
+    // A copy that reached the clipboard, over the screen it was made from. It
+    // is up for one held frame and answers nothing, so nothing above can be up
+    // with it but what was already standing when the key was pressed.
+    if (state.copiedNotice) {
+        body = clipboard_dialog::renderCopied(state, std::move(body));
+    }
+    // And the wait for the terminal to hand its clipboard over, for as long as
+    // it takes — a person may be answering the terminal's own question.
+    if (state.clipboardWaiting) {
+        body = clipboard_dialog::renderWaiting(state, std::move(body));
+    }
 
     // The hint bar under the lot, dialogs included: it says what the screen
     // behind them does, and it is the one row `runApp()` has already taken off
@@ -359,6 +430,17 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
 
         takeSize();
         terminal.draw(document(state));
+
+        // The box saying a copy went through is the frame just drawn, held for
+        // as long as it is meant to be read and then taken down. A plain sleep,
+        // as a click's animation is: nothing moves meanwhile, and a key pressed
+        // during it waits in the terminal for the screen it was aimed at.
+        if (state.copiedNotice) {
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(clipboard_dialog::kCopiedMs));
+            state.copiedNotice = false;
+            continue;
+        }
 
         // A rescan is asked for on one frame and done on the next. Opening every
         // base again is what takes the time, so the modal saying so has to be on
@@ -568,6 +650,35 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             // Whatever was typed while the program had the terminal was aimed
             // at it and not at the message coming back.
             terminal.flushInput();
+            continue;
+        }
+
+        // A copy or a paste through a clipboard that is not AmberEdit's own —
+        // the Windows one, a program's, the terminal's. Answered here because
+        // the terminal is here, and a program run for it is run from here; the
+        // program is not handed the screen, there being nothing for it to show.
+        // A failure is the error box over the screen that asked, which is still
+        // standing behind it.
+        if (state.clipboardCopyRequested) {
+            const std::string text = std::move(*state.clipboardCopyRequested);
+            state.clipboardCopyRequested.reset();
+            if (auto copied = copyOut(state, terminal, text); !copied) {
+                state.errorMessage = copied.error()->message();
+                state.errorEndsScreen = false;
+            } else {
+                state.copiedNotice = state.config.clipboardCopyIndicate;
+            }
+            continue;
+        }
+        if (state.clipboardPasteRequested) {
+            state.clipboardPasteRequested = false;
+            auto pasted = pasteIn(state, terminal);
+            if (!pasted) {
+                state.errorMessage = pasted.error()->message();
+                state.errorEndsScreen = false;
+            } else if (state.navigator.current() == app::ScreenId::Compose) {
+                screens::compose::pasteText(state, *pasted);
+            }
             continue;
         }
 

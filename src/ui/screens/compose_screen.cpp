@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "app/clipboard.hpp"
 #include "app/copy_commands.hpp"
 #include "app/message_builder.hpp"
 #include "config/text_util.hpp"
@@ -1550,6 +1551,16 @@ bool commandEnabled(const AppState& state, Command command) {
     return true;
 }
 
+/// A paste, from AmberEdit's own clipboard here and now and from any other by
+/// way of the shell, which holds the terminal and runs the programs.
+void paste(AppState& state) {
+    if (state.config.clipboardInEffect() == config::ClipboardMode::Internal) {
+        pasteText(state, state.clipboard);
+    } else {
+        state.clipboardPasteRequested = true;
+    }
+}
+
 }  // namespace
 
 void openMenu(AppState& state) {
@@ -1572,6 +1583,7 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ComposeImport:
             if (commandEnabled(state, command)) import_dialog::open(state);
             break;
+        case Command::ComposePaste: paste(state); break;
         // Everything the editor answers with a chord of its own and the
         // reader's own besides, which `compose_menu` cannot name — and the ten
         // utilities, which are one case rather than ten.
@@ -2289,6 +2301,13 @@ bool handleEvent(AppState& state, const Event& event) {
         import_dialog::open(state);
         return true;
     }
+    // A clipboard into the message, wherever the typing is — a field of the
+    // header takes a paste as readily as the text does. Before the two halves
+    // below, which swallow every chord they do not bind.
+    if (state.keys.is(event, Command::ComposePaste)) {
+        paste(state);
+        return true;
+    }
     // The external utilities, before either half of the editor swallows the
     // chord they are bound with — see `headerKey()` and `textKey()`, which end
     // on every Ctrl and Alt the layout does not name.
@@ -2639,6 +2658,46 @@ void insertImported(AppState& state, const std::vector<std::string>& lines) {
     const auto after = at + lines.size();
     state.edit.row = static_cast<int>(std::min(after, state.edit.lines.size() - 1));
     state.edit.col = after < state.edit.lines.size() ? 0 : state.edit.line().size();
+    scrollToCursor(state);
+}
+
+void pasteText(AppState& state, std::string_view text) {
+    const std::vector<std::string> lines = app::pastedLines(text);
+    if (lines.empty()) return;
+
+    if (state.composeInHeader) {
+        if (state.composeField == kAttributes) return;
+        std::string& value = valueOf(state.compose, state.composeField);
+        const std::string& line = lines.front();
+        // As many characters as the field has room for, counted the way a
+        // keystroke is held to it in `headerKey()`.
+        size_t take = line.size();
+        if (const size_t limit = fieldLimit(state.composeField); limit != 0) {
+            const size_t used = charCount(value);
+            const size_t room = limit > used ? limit - used : 0;
+            take = 0;
+            for (size_t n = 0; take < line.size() && n < room; ++n) {
+                take += charLen(line, take);
+            }
+        }
+        value.insert(state.composeCursor, line, 0, take);
+        state.composeCursor += take;
+        return;
+    }
+    if (state.externalEditing()) return;
+
+    TextBuffer& edit = state.edit;
+    const auto row = static_cast<size_t>(edit.row);
+    std::string tail = edit.lines[row].substr(edit.col);
+    edit.lines[row].erase(edit.col);
+    edit.lines[row] += lines.front();
+    edit.lines.insert(edit.lines.begin() + static_cast<ptrdiff_t>(row) + 1,
+                      lines.begin() + 1, lines.end());
+
+    const size_t last = row + lines.size() - 1;
+    edit.row = static_cast<int>(last);
+    edit.col = edit.lines[last].size();
+    edit.lines[last] += tail;
     scrollToCursor(state);
 }
 

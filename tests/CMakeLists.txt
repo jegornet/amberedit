@@ -19,6 +19,7 @@ add_executable(amberedit_tests
   domain/address_pattern_test.cpp
   domain/area_test.cpp
   domain/message_test.cpp
+  encoding/base64_test.cpp
   encoding/charset_detector_test.cpp
   encoding/iconv_recoder_test.cpp
   encoding/text_search_test.cpp
@@ -53,6 +54,7 @@ add_executable(amberedit_tests
   app/msg_template_test.cpp
   app/message_builder_test.cpp
   app/run_program_test.cpp
+  app/clipboard_test.cpp
   app/url_handler_test.cpp
   app/external_editor_test.cpp
   app/user_shell_test.cpp
@@ -141,6 +143,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/ansi_canvas.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/bbs_codes.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/confirm_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/clipboard_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/scope_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/dialog_frame.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/dir_listing.cpp

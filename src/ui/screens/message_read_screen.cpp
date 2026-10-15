@@ -677,6 +677,34 @@ void askExport(AppState& state) {
     export_dialog::open(state);
 }
 
+/// The message on screen onto the clipboard `clipboard` names, exactly as the
+/// export writes it into a file: the `Area` row, the header block the reader
+/// draws, the rule, and the text — service lines only where the Kludges toggle
+/// shows them. A message pasted somewhere else has no title bar to say where it
+/// was read and who wrote it, which is what the header is there to say.
+///
+/// AmberEdit's own clipboard is filled here and now, and the box saying so is
+/// asked for with it. Any other is the shell's to fill, a program or the
+/// terminal standing behind it, and the shell asks for the box once it has.
+void copyToClipboard(AppState& state) {
+    if (!state.readHeader || !state.readBody) return;
+    std::string text;
+    bool first = true;
+    for (const std::string& line :
+         app::exportedLines(state.currentArea, *state.readHeader, *state.readBody,
+                            state.config.readerDateTimeFormat, state.showKludges)) {
+        if (!first) text += '\n';
+        text += line;
+        first = false;
+    }
+    if (state.config.clipboardInEffect() == config::ClipboardMode::Internal) {
+        state.clipboard = std::move(text);
+        state.copiedNotice = state.config.clipboardCopyIndicate;
+    } else {
+        state.clipboardCopyRequested = std::move(text);
+    }
+}
+
 /// Where the message on screen was written from, as far as it says.
 ///
 /// Not always the header's address: JAM keeps no address subfields in an echo
@@ -872,6 +900,7 @@ bool commandEnabled(const AppState& state, Command command) {
         case Command::ReaderMarkToggle:
         case Command::ReaderMarkMenu:
         case Command::ReaderCharset:
+        case Command::ReaderCopy:
         case Command::ReaderList: return state.messageCount > 0;
         default: return true;
     }
@@ -915,6 +944,7 @@ void runMenuCommand(AppState& state, Command command) {
             break;
         case Command::ReaderMarkMenu: mark_dialog::open(state); break;
         case Command::ReaderShell: state.shellRequested = true; break;
+        case Command::ReaderCopy: copyToClipboard(state); break;
         // Everything the reader answers with a key of its own and nothing a
         // button stands for, which `reader_menu` cannot name — and the ten
         // utilities, which are one case rather than ten.
@@ -2587,6 +2617,12 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (state.keys.is(event, Command::ReaderMarkMenu)) {
         mark_dialog::open(state);
+        return true;
+    }
+    // The text of the message onto the clipboard, the reader's own or the one
+    // `clipboard` names.
+    if (state.keys.is(event, Command::ReaderCopy)) {
+        copyToClipboard(state);
         return true;
     }
     // Asked for here and run by runApp(): handing the terminal over is the

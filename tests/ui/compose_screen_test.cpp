@@ -2565,3 +2565,65 @@ TEST_CASE(
     state.width = fixture.config.adaptiveUiThreshold - 1;
     CHECK(shows(screenRowsOf(state), "\u2613"));
 }
+
+TEST_CASE("A paste goes into the line at the cursor [compose][clipboard]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"Hello world"};
+    state.edit.row = 0;
+    state.edit.col = 6;
+
+    // Ctrl-V from AmberEdit's own clipboard, cutting the line where the cursor
+    // stands rather than going in round it.
+    state.clipboard = "dear\r\nold\tfriend, ";
+    REQUIRE(compose::handleEvent(state, ctrl('v')));
+    REQUIRE(state.edit.lines.size() == 2);
+    CHECK(state.edit.lines[0] == "Hello dear");
+    CHECK(state.edit.lines[1] == "old     friend, world");
+    CHECK(state.edit.row == 1);
+    CHECK(state.edit.col == std::string("old     friend, ").size());
+}
+
+TEST_CASE(
+    "A paste into a field is its first line, as far as it fits [compose][clipboard]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+
+    compose::startNew(state);
+    REQUIRE(state.composeInHeader);
+    REQUIRE(state.composeField == compose::kToName);
+    // A new echomail message is addressed to All; the field is emptied first
+    // so that what fits is the paste's alone.
+    state.compose.toName.clear();
+    state.composeCursor = 0;
+    state.clipboard = std::string(50, 'x') + "\nsecond line";
+    REQUIRE(compose::handleEvent(
+        state, Event::Named(Event::Name::Insert, false, false, /*shift=*/true)));
+    CHECK(state.compose.toName == std::string(35, 'x'));
+    CHECK(state.composeCursor == 35);
+}
+
+TEST_CASE(
+    "A paste from a clipboard that is not AmberEdit's own is the shell's "
+    "[compose][clipboard]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::External;
+
+    compose::startNew(state);
+    fixture.walkToText();
+    const auto before = state.edit.lines;
+    state.clipboard = "not this one";
+    REQUIRE(compose::handleEvent(state, ctrl('v')));
+    CHECK(state.clipboardPasteRequested);
+    CHECK(state.edit.lines == before);
+
+    // And what the shell comes back with goes in where the cursor is.
+    compose::pasteText(state, "pasted");
+    CHECK(textHas(state, "pasted"));
+}

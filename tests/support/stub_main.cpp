@@ -19,6 +19,10 @@
 ///   first <out> <word>   writes `word` to `out` with no newline after it
 ///   write <out> <text>   writes `text` to `out`, which is what an editor that
 ///                        saved something amounts to
+///   stdin <out>          writes what arrived on its standard input to `out` —
+///                        a program a clipboard is copied to
+///   stdout <text>        writes `text` to its standard output — a program a
+///                        clipboard is pasted from
 ///
 /// In `text` the two characters `\n`, `\r` and `\t` stand for those characters
 /// and `\\` for a backslash. Written that way rather than passed as themselves
@@ -26,8 +30,15 @@
 
 #include <cstdio>
 #include <fstream>
+#include <iostream>
+#include <iterator>
 #include <string>
 #include <vector>
+
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
 
 namespace {
 
@@ -88,6 +99,27 @@ int main(int argc, char* argv[]) {
     if (mode == "write") {
         if (words.size() < 3) return 2;
         return writeFile(words[1], unescaped(words[2])) ? 0 : 1;
+    }
+
+    if (mode == "stdin") {
+        if (words.size() < 2) return 2;
+        std::ios::sync_with_stdio(false);
+#ifdef _WIN32
+        _setmode(_fileno(stdin), _O_BINARY);
+#endif
+        const std::string text((std::istreambuf_iterator<char>(std::cin)),
+                               std::istreambuf_iterator<char>());
+        return writeFile(words[1], text) ? 0 : 1;
+    }
+
+    if (mode == "stdout") {
+        if (words.size() < 2) return 2;
+#ifdef _WIN32
+        _setmode(_fileno(stdout), _O_BINARY);
+#endif
+        const std::string text = unescaped(words[1]);
+        std::fwrite(text.data(), 1, text.size(), stdout);
+        return 0;
     }
 
     std::fprintf(stderr, "stub: no such mode: %s\n", mode.c_str());

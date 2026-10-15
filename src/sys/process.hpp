@@ -30,6 +30,31 @@ struct CommandResult {
 /// its arguments is between it and the user.
 [[nodiscard]] CommandResult runCommand(const std::vector<std::string>& command);
 
+/// What `readFromCommand()` comes back with: how far the program got, and what
+/// it wrote to its standard output while it ran.
+struct CommandOutput {
+    CommandStage stage{CommandStage::Started};
+    std::string reason;
+    std::string output;
+};
+
+/// Runs `command` with `input` on its standard input, and waits for it to end.
+///
+/// **The terminal is not handed over and the program is given none of it**:
+/// its standard output and its standard error go nowhere, so a program that
+/// says something cannot write across the screen that is still up. Nothing is
+/// read back either. A program that copies to a clipboard — `xclip` and
+/// `wl-copy` among them — may leave a child behind to serve what it was given,
+/// and a pipe read to its end would wait on that child for as long as the
+/// clipboard holds the text.
+[[nodiscard]] CommandResult feedCommand(const std::vector<std::string>& command,
+                                        const std::string& input);
+
+/// Runs `command` with nothing on its standard input and what it writes to its
+/// standard output gathered, and waits for it to end. Its standard error goes
+/// nowhere, for the reason `feedCommand()` gives.
+[[nodiscard]] CommandOutput readFromCommand(const std::vector<std::string>& command);
+
 /// The user's own interactive shell.
 ///
 /// `$SHELL` first, since that is what the user has arranged for themselves.

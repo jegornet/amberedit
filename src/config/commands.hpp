@@ -47,6 +47,7 @@ enum class Command : uint8_t {
     ReaderMarkToggle,       ///< reader.mark_toggle
     ReaderMarkMenu,         ///< reader.mark_menu
     ReaderShell,            ///< reader.shell
+    ReaderCopy,             ///< reader.copy
     ComposeSave,            ///< compose.save
     ComposeAttributes,      ///< compose.attributes
     ComposeImport,          ///< compose.import
@@ -59,6 +60,7 @@ enum class Command : uint8_t {
     ComposeWordRight,       ///< compose.word_right
     ComposeLineStart,       ///< compose.line_start
     ComposeLineEnd,         ///< compose.line_end
+    ComposePaste,           ///< compose.paste
     // The external utilities, ten to a screen and every one of them the same
     // command with another program behind it. They stand together at the end
     // because that is what lets a slot and a screen be worked out from the

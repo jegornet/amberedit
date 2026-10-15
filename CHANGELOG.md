@@ -3,6 +3,9 @@
 ## Unreleased
 
 - reader_edge_confirm: the arrow that walked off the end confirms, the other one cancels
+- add clipboard, clipboard_external_copy and clipboard_external_paste: copy the message in the reader (Ctrl-C, Ctrl-Ins) and paste in the editor (Ctrl-V, Shift-Ins) through the Windows clipboard, external programs, the terminal (OSC 52) or AmberEdit's own buffer
+- text pasted by the console itself (conhost's Ctrl-V on Windows) no longer gets a blank line after every line
+- add clipboard_copy_indicate: a "Copied" box for half a second after a copy, on by default
 
 ## 0.9.2 — 2026-10-10
 

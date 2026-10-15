@@ -30,6 +30,9 @@ A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for moder
   to ignore those names or subjects you won't read.
 - **Text and UUE import/export**: import a text file into a message, insert a uuencoded 
   binary file, write a message out to a text file, or extract uuencoded files from a message.
+- **Clipboard**: copy a message in the reader and paste in the editor, through the
+  Windows clipboard, `pbcopy`/`wl-copy` and the like, the terminal (OSC 52, over
+  ssh too) or AmberEdit's own buffer — see `clipboard` in `amberedit.cfg.example`.
 - **Nodelists and pointlists**, including ZIP-archived — automatically compiled at startup
    when they change
 - **Echolists**, compiled at startup on the same terms

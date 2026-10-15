@@ -4,12 +4,14 @@
 #include <string>
 #include <vector>
 
+#include "app/export_file.hpp"
 #include "domain/message.hpp"
 #include "nodelist/nodelist_writer.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 #include "ui/area_fixture.hpp"
+#include "ui/clipboard_dialog.hpp"
 #include "ui/extern_util.hpp"
 #include "ui/keys.hpp"
 #include "ui/menu_button.hpp"
@@ -2682,4 +2684,86 @@ TEST_CASE(
     REQUIRE(fixture.state.readHeader.has_value());
     CHECK(fixture.state.readHeader->from == "абвгдеёжзийклмноп");
     CHECK(fixture.state.readHeader->subject == kAlphabet + "аб");
+}
+
+TEST_CASE(
+    "Copying takes the message as the export writes it "
+    "[messageread][clipboard][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader);
+    REQUIRE(fixture.state.readBody);
+
+    const auto exported = [&fixture](bool kludges) {
+        std::string text;
+        bool first = true;
+        for (const std::string& line : amberedit::app::exportedLines(
+                 fixture.state.currentArea, *fixture.state.readHeader,
+                 *fixture.state.readBody, fixture.config.readerDateTimeFormat, kludges)) {
+            if (!first) text += '\n';
+            text += line;
+            first = false;
+        }
+        return text;
+    };
+
+    // Ctrl-C, and the clipboard AmberEdit keeps itself where nothing else is
+    // named — on every system but Windows. The header goes with the text, as
+    // it does into a file, and the box saying so is asked for.
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    REQUIRE(message_read::handleEvent(
+        fixture.state, Event::Character("c", /*ctrl=*/true, false, false)));
+    CHECK(startsWith(fixture.state.clipboard, "Area"));
+    CHECK(fixture.state.clipboard == exported(false));
+    CHECK(fixture.state.copiedNotice);
+    CHECK_FALSE(fixture.state.clipboardCopyRequested);
+
+    // The service lines go with it where the reader shows them.
+    fixture.state.copiedNotice = false;
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('k')));
+    REQUIRE(message_read::handleEvent(
+        fixture.state, Event::Named(Event::Name::Insert, /*ctrl=*/true, false, false)));
+    CHECK(fixture.state.clipboard == exported(true));
+
+    // And clipboard_copy_indicate off copies without saying so.
+    fixture.state.copiedNotice = false;
+    fixture.config.clipboardCopyIndicate = false;
+    REQUIRE(message_read::handleEvent(
+        fixture.state, Event::Character("c", /*ctrl=*/true, false, false)));
+    CHECK_FALSE(fixture.state.copiedNotice);
+}
+
+TEST_CASE(
+    "Copying to a clipboard that is not AmberEdit's own is the shell's "
+    "[messageread][clipboard][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Terminal;
+    REQUIRE(message_read::handleEvent(
+        fixture.state, Event::Character("c", /*ctrl=*/true, false, false)));
+    CHECK(fixture.state.clipboard.empty());
+    // The box is the shell's to ask for, once the copy has gone through.
+    CHECK_FALSE(fixture.state.copiedNotice);
+    REQUIRE(fixture.state.clipboardCopyRequested);
+    CHECK_FALSE(fixture.state.clipboardCopyRequested->empty());
+}
+
+TEST_CASE(
+    "The box after a copy says so and offers nothing [messageread][clipboard][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, amberedit::ui::clipboard_dialog::renderCopied(
+                             fixture.state, message_read::render(fixture.state)));
+    std::string all;
+    for (int y = 0; y < fixture.state.height; ++y) {
+        for (int x = 0; x < fixture.state.width; ++x) all += screen.at(x, y).glyph;
+        all += '\n';
+    }
+    CHECK(amberedit::test::contains(all, "│  Copied  │"));
 }

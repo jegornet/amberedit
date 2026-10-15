@@ -1,8 +1,11 @@
 #pragma once
 
+#include <cwchar>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
@@ -79,6 +82,43 @@ public:
     /// answering for.
     [[nodiscard]] bool escapePressed();
 
+    /// Asks the terminal to put `base64` — the text, already encoded — on the
+    /// clipboard of the machine the terminal runs on: OSC 52, which is what
+    /// lets a copy made over ssh land on the desk the user is sitting at.
+    ///
+    /// **Nothing comes back to say whether it did.** A terminal that does not
+    /// know the sequence, or has been told not to act on it, ignores it, and
+    /// there is no question to ask afterwards — so nothing is asked, as nothing
+    /// is asked about a palette entry a truecolor theme was lent.
+    void setHostClipboard(std::string_view base64);
+
+    /// What asking the terminal for its clipboard came to.
+    struct HostClipboard {
+        enum class Outcome {
+            Answered,     ///< `base64` is what the clipboard holds
+            Unsupported,  ///< the terminal said it will not answer such a question
+            NoAnswer,     ///< nothing came back before the wait ran out
+            Cancelled,    ///< Escape, pressed while the answer was being waited for
+        };
+        Outcome outcome{Outcome::NoAnswer};
+        std::string base64;
+    };
+
+    /// Asks the terminal what that clipboard holds, and waits up to `waitMs`
+    /// for the answer — long enough for a terminal that asks the user first,
+    /// as iTerm2 does every time unless told otherwise. Escape ends the wait.
+    ///
+    /// **The question is followed by a second one, DA1**, which every terminal
+    /// answers at once and in order. One that answers it first, without
+    /// counting clipboard access (`52`) among what it can do, has passed over
+    /// the clipboard question and will never answer it — WezTerm does that —
+    /// and the wait ends there rather than running out. One that does count it
+    /// may still be asking its user, and is waited for.
+    ///
+    /// An answer that arrives after the wait has given up is not typing:
+    /// `poll()` swallows it, and the DA1 answer with it.
+    [[nodiscard]] HostClipboard hostClipboard(int waitMs);
+
     /// Throws away whatever has been typed but not yet read.
     ///
     /// For the one case where the application was busy rather than waiting: keys
@@ -114,7 +154,38 @@ private:
     /// screen wrong until the user happened to press a key.
     void syncSize();
 
+    /// Reads one code from the keyboard, waiting up to `waitMs` — or nothing
+    /// where none came. A resize and a mouse report are dealt with on the way
+    /// and never come back from here; a named key comes back as its code with
+    /// `named` set.
+    [[nodiscard]] std::optional<wint_t> readRaw(int waitMs, bool& named);
+
+    /// The rest of an OSC once its `ESC ]` has been read, up to BEL or ST, or
+    /// nothing where it broke off.
+    [[nodiscard]] std::optional<std::string> readOsc();
+
+    /// The rest of a CSI once its `ESC [` has been read, up to its final byte.
+    [[nodiscard]] std::string readCsi();
+
+    /// Swallows what is left of a reply once its ESC has been read — an OSC to
+    /// its end, a CSI to its final byte — and says whether there was one.
+    /// Anything else read is handed back to ncurses.
+    bool swallowReply();
+
+    /// Takes the other half of a CR LF (or LF CR) pair off the input where it
+    /// is already waiting behind the half just read, so that the pair is one
+    /// line break and not two. It is how text pasted by the console itself
+    /// arrives — conhost types a paste out with the line endings Windows text
+    /// carries — and an Enter pressed by hand is a single code, which this
+    /// leaves alone. Anything else waiting is handed back to ncurses.
+    void swallowLineEndPartner(wint_t first);
+
     Screen screen_;
+    /// Whether a clipboard answer, and the DA1 answer sent after it, may still
+    /// be on their way from a question given up on — which `poll()` then takes
+    /// off the input rather than passing on as Escape and a run of letters.
+    bool oscPending_{false};
+    bool da1Pending_{false};
     bool running_{true};
     bool cursorVisible_{false};
     int cursorX_{0};

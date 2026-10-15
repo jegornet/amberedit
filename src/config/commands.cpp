@@ -79,6 +79,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Mark a run of messages at once"), "☆", "s", true},
     {Command::ReaderShell, "reader.shell", CommandScreen::Reader, N_("Shell"),
      N_("Run the system shell"), "❯", "Ctrl-X", true},
+    {Command::ReaderCopy, "reader.copy", CommandScreen::Reader, N_("Copy"),
+     N_("Copy the message to the clipboard"), "⎘", "Ctrl-C Ctrl-Ins", true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"),
      N_("Save the message"), "✓", "Ctrl-S F2 Alt-S", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,
@@ -106,6 +108,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Line start"), N_("To the start of the line"), "", "Ctrl-A", false},
     {Command::ComposeLineEnd, "compose.line_end", CommandScreen::Compose, N_("Line end"),
      N_("To the end of the line"), "", "Ctrl-E", false},
+    {Command::ComposePaste, "compose.paste", CommandScreen::Compose, N_("Paste"),
+     N_("Paste from the clipboard at the cursor"), "⎀", "Ctrl-V Shift-Ins", true},
 };
 
 /// The screens an external utility can be run from, in the order their commands

@@ -1,5 +1,6 @@
 #include "sys/process.hpp"
 
+#include <algorithm>
 #include <cerrno>
 #include <csignal>
 #include <cstdlib>
@@ -175,6 +176,144 @@ CommandResult runCommand(const std::vector<std::string>& command) {
     return {};
 }
 
+namespace {
+
+/// One handle, closed however the function holding it leaves.
+class Handle {
+public:
+    Handle() = default;
+    explicit Handle(HANDLE handle) : handle_(handle) {}
+    ~Handle() { close(); }
+
+    Handle(const Handle&) = delete;
+    Handle& operator=(const Handle&) = delete;
+    Handle(Handle&&) = delete;
+    Handle& operator=(Handle&&) = delete;
+
+    [[nodiscard]] HANDLE get() const { return handle_; }
+    HANDLE* out() {
+        close();
+        return &handle_;
+    }
+    void close() {
+        if (handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE) ::CloseHandle(handle_);
+        handle_ = nullptr;
+    }
+
+private:
+    HANDLE handle_{nullptr};
+};
+
+/// A pipe whose one end the child inherits and whose other end it does not:
+/// the parent's own end held open in the child would keep it from ever seeing
+/// the end of its input.
+bool openPipe(Handle& read, Handle& write, bool childReads) {
+    SECURITY_ATTRIBUTES inherit{};
+    inherit.nLength = sizeof(inherit);
+    inherit.bInheritHandle = TRUE;
+    if (::CreatePipe(read.out(), write.out(), &inherit, 0) == 0) return false;
+    HANDLE parentEnd = childReads ? write.get() : read.get();
+    return ::SetHandleInformation(parentEnd, HANDLE_FLAG_INHERIT, 0) != 0;
+}
+
+/// The run behind `feedCommand()` and `readFromCommand()`, as on POSIX.
+CommandOutput runPiped(const std::vector<std::string>& command, const std::string* input,
+                       bool gather) {
+    if (command.empty()) return {};
+
+    std::string line;
+    for (const std::string& word : command) {
+        if (!line.empty()) line += ' ';
+        appendQuoted(line, word);
+    }
+    std::wstring mutableLine = widen(line);
+    mutableLine.push_back(L'\0');
+
+    const auto notStarted = [] {
+        return CommandOutput{CommandStage::NotStarted, lastErrorText(), {}};
+    };
+
+    SECURITY_ATTRIBUTES inherit{};
+    inherit.nLength = sizeof(inherit);
+    inherit.bInheritHandle = TRUE;
+    Handle nowhere(::CreateFileW(L"NUL", GENERIC_READ | GENERIC_WRITE,
+                                 FILE_SHARE_READ | FILE_SHARE_WRITE, &inherit,
+                                 OPEN_EXISTING, 0, nullptr));
+    if (nowhere.get() == INVALID_HANDLE_VALUE) return notStarted();
+
+    Handle inRead;
+    Handle inWrite;
+    if (input != nullptr && !openPipe(inRead, inWrite, /*childReads=*/true)) {
+        return notStarted();
+    }
+    Handle outRead;
+    Handle outWrite;
+    if (gather && !openPipe(outRead, outWrite, /*childReads=*/false)) return notStarted();
+
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    startup.dwFlags = STARTF_USESTDHANDLES;
+    startup.hStdInput = input != nullptr ? inRead.get() : nowhere.get();
+    startup.hStdOutput = gather ? outWrite.get() : nowhere.get();
+    startup.hStdError = nowhere.get();
+    PROCESS_INFORMATION process{};
+
+    // No console of its own: the program is not being given the terminal, and
+    // one that opened a window of its own would flash one up over it.
+    if (::CreateProcessW(nullptr, mutableLine.data(), nullptr, nullptr, TRUE,
+                         CREATE_NO_WINDOW, nullptr, nullptr, &startup, &process) == 0) {
+        return notStarted();
+    }
+    Handle processHandle(process.hProcess);
+    Handle threadHandle(process.hThread);
+    inRead.close();
+    outWrite.close();
+    nowhere.close();
+
+    if (input != nullptr) {
+        size_t written = 0;
+        while (written < input->size()) {
+            DWORD put = 0;
+            const auto chunk =
+                static_cast<DWORD>(std::min<size_t>(input->size() - written, 1U << 20U));
+            if (::WriteFile(inWrite.get(), input->data() + written, chunk, &put,
+                            nullptr) == 0) {
+                break;
+            }
+            written += put;
+        }
+        inWrite.close();
+    }
+
+    CommandOutput result;
+    if (gather) {
+        char buffer[4096];
+        DWORD got = 0;
+        while (::ReadFile(outRead.get(), buffer, sizeof(buffer), &got, nullptr) != 0 &&
+               got > 0) {
+            result.output.append(buffer, got);
+        }
+        outRead.close();
+    }
+
+    if (::WaitForSingleObject(processHandle.get(), INFINITE) == WAIT_FAILED) {
+        return CommandOutput{CommandStage::NotWaited, lastErrorText(), {}};
+    }
+    return result;
+}
+
+}  // namespace
+
+CommandResult feedCommand(const std::vector<std::string>& command,
+                          const std::string& input) {
+    CommandOutput ran = runPiped(command, &input, /*gather=*/false);
+    return {ran.stage, std::move(ran.reason)};
+}
+
+CommandOutput readFromCommand(const std::vector<std::string>& command) {
+    return runPiped(command, nullptr, /*gather=*/true);
+}
+
 std::string userShellPath() {
     if (const char* named = std::getenv("SHELL"); named != nullptr && *named != '\0') {
         return named;
@@ -316,6 +455,177 @@ CommandResult runCommand(const std::vector<std::string>& command) {
 
     if (failed != 0) return failedToStart(std::strerror(failed));
     return {};
+}
+
+namespace {
+
+/// One descriptor, closed however the function holding it leaves.
+class Descriptor {
+public:
+    Descriptor() = default;
+    explicit Descriptor(int fd) : fd_(fd) {}
+    ~Descriptor() { close(); }
+
+    Descriptor(const Descriptor&) = delete;
+    Descriptor& operator=(const Descriptor&) = delete;
+    Descriptor(Descriptor&&) = delete;
+    Descriptor& operator=(Descriptor&&) = delete;
+
+    [[nodiscard]] int get() const { return fd_; }
+    void reset(int fd) {
+        close();
+        fd_ = fd;
+    }
+    void close() {
+        if (fd_ >= 0) ::close(fd_);
+        fd_ = -1;
+    }
+
+private:
+    int fd_{-1};
+};
+
+/// A pipe of two descriptors, the ends closed apart as each is done with.
+struct DataPipe {
+    Descriptor read;
+    Descriptor write;
+
+    [[nodiscard]] bool open() {
+        int fd[2]{-1, -1};
+        if (::pipe(fd) != 0) return false;
+        read.reset(fd[0]);
+        write.reset(fd[1]);
+        return true;
+    }
+};
+
+/// SIGPIPE put aside for as long as one is held: a program that exits without
+/// reading what it was handed would otherwise take AmberEdit down with the
+/// write, where an `EPIPE` is what the write should answer.
+class BrokenPipeAside {
+public:
+    BrokenPipeAside() : previous_(std::signal(SIGPIPE, SIG_IGN)) {}
+    ~BrokenPipeAside() {
+        if (previous_ != SIG_ERR) std::signal(SIGPIPE, previous_);
+    }
+
+    BrokenPipeAside(const BrokenPipeAside&) = delete;
+    BrokenPipeAside& operator=(const BrokenPipeAside&) = delete;
+    BrokenPipeAside(BrokenPipeAside&&) = delete;
+    BrokenPipeAside& operator=(BrokenPipeAside&&) = delete;
+
+private:
+    void (*previous_)(int);
+};
+
+/// The run behind `feedCommand()` and `readFromCommand()`: `input` written to
+/// the program where there is one and its standard input empty where there is
+/// not, its standard output gathered where `gather` asks and thrown away where
+/// it does not, and its standard error thrown away always.
+CommandOutput runPiped(const std::vector<std::string>& command, const std::string* input,
+                       bool gather) {
+    if (command.empty()) return {};
+
+    std::vector<std::string> words = command;
+    std::vector<char*> argv;
+    argv.reserve(words.size() + 1);
+    for (std::string& word : words) argv.push_back(word.data());
+    argv.push_back(nullptr);
+
+    const auto notStarted = [](const char* reason) {
+        return CommandOutput{CommandStage::NotStarted, reason, {}};
+    };
+
+    Pipe report;
+    if (!report.open()) return notStarted(std::strerror(errno));
+    Descriptor nowhere(::open("/dev/null", O_RDWR));
+    if (nowhere.get() < 0) return notStarted(std::strerror(errno));
+    DataPipe in;
+    if (input != nullptr && !in.open()) return notStarted(std::strerror(errno));
+    DataPipe out;
+    if (gather && !out.open()) return notStarted(std::strerror(errno));
+
+    const pid_t child = ::fork();
+    if (child < 0) return notStarted(std::strerror(errno));
+
+    if (child == 0) {
+        report.closeRead();
+        ::dup2(input != nullptr ? in.read.get() : nowhere.get(), STDIN_FILENO);
+        ::dup2(gather ? out.write.get() : nowhere.get(), STDOUT_FILENO);
+        ::dup2(nowhere.get(), STDERR_FILENO);
+        // Nothing but the three above and the report pipe goes across the exec:
+        // the parent's own ends held open in the child would keep the program
+        // from ever seeing the end of its input.
+        in.read.close();
+        in.write.close();
+        out.read.close();
+        out.write.close();
+        nowhere.close();
+        ::execvp(argv[0], argv.data());
+        const int failed = errno;
+        const ssize_t said = ::write(report.write(), &failed, sizeof(failed));
+        static_cast<void>(said);
+        ::_exit(127);
+    }
+
+    report.closeWrite();
+    in.read.close();
+    out.write.close();
+    nowhere.close();
+    const int failed = execErrno(report.read());
+
+    if (input != nullptr) {
+        // Written whether or not the program started: one that did not is a
+        // write that answers EPIPE, and the pipe is closed either way so that
+        // the program that did sees the end of what it was given.
+        const BrokenPipeAside aside;
+        size_t written = 0;
+        while (failed == 0 && written < input->size()) {
+            const ssize_t put =
+                ::write(in.write.get(), input->data() + written, input->size() - written);
+            if (put < 0) {
+                if (errno == EINTR) continue;
+                break;
+            }
+            written += static_cast<size_t>(put);
+        }
+        in.write.close();
+    }
+
+    CommandOutput result;
+    if (gather) {
+        char buffer[4096];
+        while (true) {
+            const ssize_t got = ::read(out.read.get(), buffer, sizeof(buffer));
+            if (got == 0) break;
+            if (got < 0) {
+                if (errno == EINTR) continue;
+                break;
+            }
+            result.output.append(buffer, static_cast<size_t>(got));
+        }
+        out.read.close();
+    }
+
+    while (::waitpid(child, nullptr, 0) < 0) {
+        if (errno != EINTR) {
+            return CommandOutput{CommandStage::NotWaited, std::strerror(errno), {}};
+        }
+    }
+    if (failed != 0) return notStarted(std::strerror(failed));
+    return result;
+}
+
+}  // namespace
+
+CommandResult feedCommand(const std::vector<std::string>& command,
+                          const std::string& input) {
+    CommandOutput ran = runPiped(command, &input, /*gather=*/false);
+    return {ran.stage, std::move(ran.reason)};
+}
+
+CommandOutput readFromCommand(const std::vector<std::string>& command) {
+    return runPiped(command, nullptr, /*gather=*/true);
 }
 
 std::string userShellPath() {

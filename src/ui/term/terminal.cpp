@@ -6,6 +6,7 @@
 #endif
 
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cwchar>
@@ -161,6 +162,17 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey("\x1b\x7f", altBack);
         registerKey("\x1b\b", altBack);
     }
+
+    // Ctrl and Shift with Insert, the old pair a clipboard is copied to and
+    // pasted from. xterm writes the modifier as a second parameter, rxvt as a
+    // final byte of its own; neither means anything else. terminfo names
+    // Shift-Insert as `kIC` on some entries, which `namedKey()` reads as well.
+    const Event ctrlInsert = Event::Named(Event::Name::Insert, true, false, false);
+    registerKey("\x1b[2;5~", ctrlInsert);
+    registerKey("\x1b[2^", ctrlInsert);
+    const Event shiftInsert = Event::Named(Event::Name::Insert, false, false, true);
+    registerKey("\x1b[2;2~", shiftInsert);
+    registerKey("\x1b[2$", shiftInsert);
 
     // Shift+Space, which is a key the terminal will not tell anyone about unless
     // asked: kitty spells it one way, xterm's modifyOtherKeys the other.
@@ -390,6 +402,7 @@ Event namedKey(int code) {
         case KEY_BACKSPACE: return Event::Backspace;
         case KEY_DC: return Event::Delete;
         case KEY_IC: return Event::Insert;
+        case KEY_SIC: return Event::Named(Event::Name::Insert, false, false, true);
         case KEY_BTAB: return Event::TabReverse;
         case KEY_ENTER: return Event::Return;
         default: break;
@@ -426,6 +439,7 @@ Event namedKey(int code) {
         case ALT_BKSP: return Event::Named(Event::Name::Backspace, false, true, false);
         case CTL_HOME: return Event::Named(Event::Name::Home, true, false, false);
         case CTL_END: return Event::Named(Event::Name::End, true, false, false);
+        case CTL_INS: return Event::Named(Event::Name::Insert, true, false, false);
         default: break;
     }
 #endif
@@ -745,6 +759,226 @@ bool Terminal::escapePressed() {
     return pressed;
 }
 
+void Terminal::setHostClipboard(std::string_view base64) {
+    // Straight to stdout, as the keyboard modes are: the frame has been drawn
+    // and flushed, and a sequence that moves nothing and draws nothing is not
+    // something ncurses needs to believe it wrote. `c` is the clipboard proper
+    // rather than the primary selection; BEL ends it, which every terminal that
+    // reads OSC 52 at all accepts.
+    std::fputs("\x1b]52;c;", stdout);
+    std::fwrite(base64.data(), 1, base64.size(), stdout);
+    std::fputs("\x07", stdout);
+    std::fflush(stdout);
+}
+
+std::optional<wint_t> Terminal::readRaw(int waitMs, bool& named) {
+    using Clock = std::chrono::steady_clock;
+    const Clock::time_point deadline = Clock::now() + std::chrono::milliseconds(waitMs);
+    named = false;
+    while (true) {
+        const auto left =
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - Clock::now())
+                .count();
+        if (left < 0) return std::nullopt;
+        wtimeout(stdscr, static_cast<int>(left));
+        wint_t code = 0;
+        const int status = wget_wch(stdscr, &code);
+        wtimeout(stdscr, -1);
+        if (status == ERR) return std::nullopt;
+        if (status == KEY_CODE_YES) {
+            const auto key = static_cast<int>(code);
+            if (key == KEY_RESIZE) {
+                syncSize();
+                continue;
+            }
+            if (key == KEY_MOUSE) {
+                static_cast<void>(mouseEvent());
+                continue;
+            }
+            named = true;
+        }
+        return code;
+    }
+}
+
+namespace {
+
+/// How long the bytes of one reply are allowed to stand apart. A terminal
+/// writes a reply in one go; a gap this long inside one is a reply cut off.
+constexpr int kReplyByteMs = 1000;
+
+/// How long an ESC is waited behind for what follows it, to tell a reply from
+/// Escape pressed on its own — by the time the ESC of a reply is read, the rest
+/// of it is already waiting.
+constexpr int kAfterEscapeMs = 50;
+
+/// Whether a DA1 answer — `?62;22;52c`, the parameters between the `?` and the
+/// final `c` — counts clipboard access, `52`, among what the terminal can do.
+bool claimsClipboard(const std::string& csi) {
+    size_t at = 1;
+    while (at < csi.size()) {
+        const size_t end = csi.find_first_of(";c", at);
+        if (end == std::string::npos) break;
+        if (csi.compare(at, end - at, "52") == 0) return true;
+        at = end + 1;
+    }
+    return false;
+}
+
+bool isDa1(const std::string& csi) {
+    return csi.size() >= 2 && csi.front() == '?' && csi.back() == 'c';
+}
+
+}  // namespace
+
+std::optional<std::string> Terminal::readOsc() {
+    std::string body;
+    bool escape = false;
+    bool named = false;
+    while (const auto c = readRaw(kReplyByteMs, named)) {
+        if (named) continue;
+        if (escape) return *c == '\\' ? std::optional<std::string>(body) : std::nullopt;
+        if (*c == 0x07) return body;
+        if (*c == 0x1b) {
+            escape = true;
+            continue;
+        }
+        if (*c > 0x7f) return std::nullopt;
+        body += static_cast<char>(*c);
+    }
+    return std::nullopt;
+}
+
+std::string Terminal::readCsi() {
+    std::string csi;
+    bool named = false;
+    while (const auto c = readRaw(kReplyByteMs, named)) {
+        if (named) continue;
+        if (*c > 0x7f) break;
+        csi += static_cast<char>(*c);
+        if (*c >= 0x40 && *c <= 0x7e) break;
+    }
+    return csi;
+}
+
+bool Terminal::swallowReply() {
+    bool named = false;
+    const auto next = readRaw(kAfterEscapeMs, named);
+    if (!next) return false;
+    if (!named && *next == ']') {
+        static_cast<void>(readOsc());
+        oscPending_ = false;
+        return true;
+    }
+    if (!named && *next == '[') {
+        // Every CSI that reaches here is one ncurses could not name, so nothing
+        // is lost by taking it off: it would have arrived as Escape and a run
+        // of letters.
+        if (isDa1(readCsi())) da1Pending_ = false;
+        return true;
+    }
+    unget_wch(*next);
+    return false;
+}
+
+Terminal::HostClipboard Terminal::hostClipboard(int waitMs) {
+    // The clipboard question, and DA1 behind it — see the header.
+    std::fputs("\x1b]52;c;?\x07\x1b[c", stdout);
+    std::fflush(stdout);
+
+    using Clock = std::chrono::steady_clock;
+    const Clock::time_point deadline = Clock::now() + std::chrono::milliseconds(waitMs);
+    HostClipboard result;
+    bool answered = false;
+    bool sawDa1 = false;
+    bool cancelled = false;
+    bool unsupported = false;
+
+    while (!(answered && sawDa1)) {
+        const auto left =
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - Clock::now())
+                .count();
+        if (left <= 0) break;
+        // With the clipboard answered, the DA1 answer is right behind it and is
+        // not worth the rest of a long wait.
+        bool named = false;
+        const auto code =
+            readRaw(answered ? kReplyByteMs : static_cast<int>(left), named);
+        if (!code) break;
+        if (named) {
+            const auto found = customKeys.find(static_cast<int>(*code));
+            if (!answered && found != customKeys.end() &&
+                found->second == Event::Escape) {
+                cancelled = true;
+                break;
+            }
+            continue;
+        }
+        if (*code != 0x1b) continue;  // typed while waiting, and not a reply
+
+        const auto after = readRaw(kAfterEscapeMs, named);
+        if (!after) {
+            // Escape on its own, on a terminal that knows no keyboard protocol.
+            if (answered) continue;
+            cancelled = true;
+            break;
+        }
+        if (named) continue;
+
+        if (*after == ']') {
+            // `52;<selection>;<base64>`
+            const auto body = readOsc();
+            if (!body || body->compare(0, 3, "52;") != 0) continue;
+            const size_t semicolon = body->find(';', 3);
+            if (semicolon == std::string::npos) continue;
+            result.base64 = body->substr(semicolon + 1);
+            answered = true;
+        } else if (*after == '[') {
+            const std::string csi = readCsi();
+            if (!isDa1(csi)) continue;
+            sawDa1 = true;
+            // Answered DA1 and not the clipboard, and does not claim it can: it
+            // passed the question over and never will answer it.
+            if (!answered && !claimsClipboard(csi)) {
+                unsupported = true;
+                break;
+            }
+        }
+    }
+
+    // What may still be on its way is swallowed by `poll()` when it comes.
+    oscPending_ = !answered && !unsupported;
+    da1Pending_ = !sawDa1;
+
+    if (answered) {
+        result.outcome = HostClipboard::Outcome::Answered;
+    } else if (unsupported) {
+        result.outcome = HostClipboard::Outcome::Unsupported;
+    } else if (cancelled) {
+        result.outcome = HostClipboard::Outcome::Cancelled;
+    } else {
+        result.outcome = HostClipboard::Outcome::NoAnswer;
+    }
+    return result;
+}
+
+void Terminal::swallowLineEndPartner(wint_t first) {
+    // Only what is already waiting: the second half of a pair arrives with the
+    // first, and a key pressed later is a key of its own.
+    nodelay(stdscr, TRUE);
+    wint_t code = 0;
+    const int status = wget_wch(stdscr, &code);
+    nodelay(stdscr, FALSE);
+    if (status == ERR) return;
+    const wint_t partner = first == 13 ? 10 : 13;
+    if (status == OK && code == partner) return;
+    if (status == KEY_CODE_YES) {
+        ungetch(static_cast<int>(code));
+    } else {
+        unget_wch(static_cast<wchar_t>(code));
+    }
+}
+
 Event Terminal::poll() {
     while (true) {
         wint_t code = 0;
@@ -776,11 +1010,15 @@ Event Terminal::poll() {
 
         // An ordinary character, or one of the control bytes a terminal still
         // sends for the keys that predate terminfo.
+        // An answer to a question given up on, arriving late: taken off the
+        // input whole rather than passed on as Escape and a run of letters.
+        if (code == 27 && (oscPending_ || da1Pending_) && swallowReply()) continue;
+
         switch (code) {
             case 27: return Event::Escape;
             case 9: return Event::Tab;
             case 10:
-            case 13: return Event::Return;
+            case 13: swallowLineEndPartner(code); return Event::Return;
             case 8:
             case 127: return Event::Backspace;
             default: break;

@@ -17,6 +17,7 @@ using amberedit::test::contains;
 using amberedit::test::errorOf;
 using amberedit::test::valueOf;
 using amberedit::ui::Command;
+using amberedit::ui::isReservedKey;
 using amberedit::ui::KeyMap;
 using amberedit::ui::keyNamed;
 using amberedit::ui::spellingOf;
@@ -160,6 +161,30 @@ TEST_CASE("A key is read the way it is written [keys]") {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(keyNamed(spellingOf(*key)) == key);
+    }
+}
+
+TEST_CASE("Ctrl and Shift go with Insert and with no other named key [keys]") {
+    CHECK(keyNamed("Ctrl-Ins") == Event::Named(Event::Name::Insert, true, false, false));
+    CHECK(keyNamed("shift-insert") ==
+          Event::Named(Event::Name::Insert, false, false, true));
+    CHECK(keyNamed("Ins") == Event::Insert);
+
+    // A shifted character is the other character, and is written as itself.
+    CHECK_FALSE(keyNamed("Shift-g"));
+    CHECK_FALSE(keyNamed("Shift-F2"));
+    CHECK_FALSE(keyNamed("Ctrl-Del"));
+    // One modifier at a time: no two terminals agree on what two of them with
+    // Insert are sent as.
+    CHECK_FALSE(keyNamed("Ctrl-Shift-Ins"));
+    // Shift with a key that moves about moves about.
+    CHECK(isReservedKey("Shift-Tab"));
+    CHECK(isReservedKey("Shift-Space"));
+
+    for (const char* spelling : {"Ctrl-Ins", "Shift-Ins"}) {
+        const auto key = keyNamed(spelling);
+        REQUIRE(key);
+        CHECK(spellingOf(*key) == spelling);
     }
 }
 

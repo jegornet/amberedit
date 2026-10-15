@@ -477,6 +477,7 @@ add_custom_command(
 add_library(amberedit_core STATIC
   src/support/error.cpp
   src/sys/charset.cpp
+  src/sys/clipboard.cpp
   src/sys/env.cpp
   src/sys/file.cpp
   src/sys/process.cpp
@@ -501,6 +502,7 @@ add_library(amberedit_core STATIC
   src/config/squish_cfg_parser.cpp
   src/config/config_writer.cpp
   ${amberedit_embedded}
+  src/encoding/base64.cpp
   src/encoding/charset_detector.cpp
   src/encoding/iconv_recoder.cpp
   src/encoding/locale_charset.cpp
@@ -535,6 +537,7 @@ add_library(amberedit_core STATIC
   src/app/url_handler.cpp
   src/app/external_editor.cpp
   src/app/run_program.cpp
+  src/app/clipboard.cpp
   src/app/navigator.cpp
 )
 # The version reaches the code through a generated header, so that
@@ -706,6 +709,7 @@ add_executable(amberedit
   src/ui/area_list_format.cpp
   src/ui/msg_list_format.cpp
   src/ui/confirm_dialog.cpp
+  src/ui/clipboard_dialog.cpp
   src/ui/scope_dialog.cpp
   src/ui/dialog_frame.cpp
   src/ui/dir_listing.cpp

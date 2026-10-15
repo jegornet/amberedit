@@ -69,6 +69,7 @@ standing in both.
 | `Ctrl-T` | mark the message, or take the mark off it                               |
 | `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
+| `Ctrl-C` / `Ctrl-Ins` | copy the message to the clipboard (`clipboard`), header and all, as `w` writes it; kludges only where `k` shows them |
 | `i` | technical info from the message base                                         |
 | `w` / `F7` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
@@ -92,3 +93,4 @@ standing in both.
 | `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
+| `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor; many terminals keep `Shift-Ins` for their own paste |

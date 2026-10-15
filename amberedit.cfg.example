@@ -432,6 +432,36 @@ reader_show_message_size off
 #           program unreachable.
 #keys_mode merge
 
+# --- the clipboard ------------------------------------------------------------
+
+# Where reader.copy (Ctrl-C, Ctrl-Ins) puts the message on screen and
+# compose.paste (Ctrl-V, Shift-Ins) takes text from. Optional; defaults to
+# "windows" on Windows, "internal" everywhere else.
+#   windows    the Windows clipboard. On any other system it is "internal".
+#   external   the two programs below: the text goes to the first on its
+#              standard input and comes from the second's standard output.
+#   terminal   OSC 52: the terminal keeps the text on the machine it runs on,
+#              which is the one you sit at even over ssh. Depends on the
+#              terminal's capabilities and configuration.
+#   internal   AmberEdit's own, for as long as it runs.
+#clipboard internal
+
+# The programs "clipboard external" copies through and pastes from, each a
+# command and its arguments, run directly rather than through a shell. Both are
+# required under "clipboard external" and ignored under anything else.
+#
+# macOS:
+#clipboard_external_copy  pbcopy
+#clipboard_external_paste pbpaste
+#
+# Wayland:
+#clipboard_external_copy  wl-copy
+#clipboard_external_paste wl-paste --no-newline
+
+# Whether a copy is followed by a box saying "Copied", up for half a second.
+# Optional; on by default.
+#clipboard_copy_indicate on
+
 # --- area list ----------------------------------------------------------------
 
 # How the area list is sorted. Optional; "te" by default. A set of letters,
@@ -1105,10 +1135,13 @@ reader_side_tap_width 6
 #                 mark_menu        the box that marks a run of messages at once,
 #                                  as `s` does
 #                 shell            hand the terminal to your own shell until you
-#                                  leave it, as `o` does
+#                                  leave it
+#                 copy             the message to the clipboard, as
+#                                  Ctrl-C does
 #
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does
+#                 paste            the clipboard into the message, as Ctrl-V does
 #
 # All three lists may name "extern_util0" through "extern_util9" as well — see
 # extern_utilN above. Such a button is drawn under the ⚒ glyph, with the title

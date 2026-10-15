@@ -2401,6 +2401,51 @@ TEST_CASE("AppConfig reads the keyboard layout and what to do with it [app_confi
     CHECK_MESSAGE(contains(error, "merge | clear"), error);
 }
 
+TEST_CASE("AppConfig reads which clipboard copies and pastes go through [app_config]") {
+    using amberedit::config::ClipboardMode;
+
+    CHECK(with("clipboard terminal\n").clipboard == ClipboardMode::Terminal);
+    CHECK(with("clipboard INTERNAL\n").clipboard == ClipboardMode::Internal);
+    const AppConfig external = with(
+        "clipboard external\nclipboard_external_copy wl-copy\n"
+        "clipboard_external_paste wl-paste --no-newline\n");
+    CHECK(external.clipboardInEffect() == ClipboardMode::External);
+    CHECK(external.clipboardExternalCopy == std::vector<std::string>{"wl-copy"});
+    CHECK(external.clipboardExternalPaste ==
+          std::vector<std::string>{"wl-paste", "--no-newline"});
+
+    // The system's own clipboard where there is one to ask, AmberEdit's own
+    // everywhere else — and `windows` written out comes to the same thing.
+#ifdef _WIN32
+    CHECK(with("").clipboardInEffect() == ClipboardMode::Windows);
+    CHECK(with("clipboard windows\n").clipboardInEffect() == ClipboardMode::Windows);
+#else
+    CHECK(with("").clipboardInEffect() == ClipboardMode::Internal);
+    CHECK(with("clipboard windows\n").clipboardInEffect() == ClipboardMode::Internal);
+#endif
+
+    CHECK(with("").clipboardCopyIndicate);
+    CHECK_FALSE(with("clipboard_copy_indicate off\n").clipboardCopyIndicate);
+
+    const std::string unknown = errorWith("clipboard x11\n");
+    CHECK_MESSAGE(contains(unknown, "unknown clipboard: 'x11'"), unknown);
+}
+
+TEST_CASE("clipboard external wants both programs, and only it does [app_config]") {
+    const std::string noPaste =
+        errorWith("clipboard external\nclipboard_external_copy pbcopy\n");
+    CHECK_MESSAGE(contains(noPaste, "clipboard_external_paste"), noPaste);
+    const std::string noCopy =
+        errorWith("clipboard_external_paste pbpaste\nclipboard external\n");
+    CHECK_MESSAGE(contains(noCopy, "clipboard_external_copy"), noCopy);
+
+    // Under any other answer the two lines are read and left alone.
+    CHECK(with("clipboard internal\nclipboard_external_copy pbcopy\n")
+              .clipboardExternalCopy == std::vector<std::string>{"pbcopy"});
+    const std::string nothing = errorWith("clipboard_external_copy\n");
+    CHECK_MESSAGE(contains(nothing, "names no program"), nothing);
+}
+
 TEST_CASE("AppConfig refuses a nodelist with nowhere to compile it to [app_config]") {
     const std::string error = errorWith("nodelist /ftn/nodelist/nodelist.ndl\n");
     CHECK_MESSAGE(contains(error, "nodelist_db is not set"), error);

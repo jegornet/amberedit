@@ -570,6 +570,19 @@ tl::expected<KeysMode, ErrorPtr> parseKeysMode(const CfgEntry& entry) {
     return entry.fail("unknown keys_mode: '" + value + "' (expected merge | clear)");
 }
 
+/// The `clipboard` word: where a copy goes and a paste comes from.
+tl::expected<ClipboardMode, ErrorPtr> parseClipboardMode(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "windows") return ClipboardMode::Windows;
+    if (value == "external") return ClipboardMode::External;
+    if (value == "terminal") return ClipboardMode::Terminal;
+    if (value == "internal") return ClipboardMode::Internal;
+    return entry.fail("unknown clipboard: '" + value +
+                      "' (expected windows | external | terminal | internal)");
+}
+
 tl::expected<domain::FtnAddress, ErrorPtr> readAddress(const CfgEntry& entry,
                                                        const std::string& value) {
     const auto address = domain::FtnAddress::parse(value);
@@ -1665,6 +1678,24 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
                               " where the program takes the file to edit");
         }
         cfg.externalEditor = entry.values;
+    } else if (key == "clipboard") {
+        auto read = parseClipboardMode(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.clipboard = *read;
+    } else if (key == "clipboard_copy_indicate") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.clipboardCopyIndicate = *read;
+    } else if (key == "clipboard_external_copy") {
+        if (entry.values.empty()) {
+            return entry.fail("clipboard_external_copy names no program");
+        }
+        cfg.clipboardExternalCopy = entry.values;
+    } else if (key == "clipboard_external_paste") {
+        if (entry.values.empty()) {
+            return entry.fail("clipboard_external_paste names no program");
+        }
+        cfg.clipboardExternalPaste = entry.values;
     } else if (const auto slot = externUtilKey(key)) {
         auto read = readExternUtil(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -2888,6 +2919,23 @@ tl::expected<AppConfig, ErrorPtr> fromEntries(const std::vector<CfgEntry>& entri
                        "click in");
     }
 
+    // `clipboard external` with a program missing would be a key that did
+    // nothing every time it was pressed. Asked once the file has been read, the
+    // three lines standing in any order; the two programs are not asked about
+    // under any other `clipboard`, which reads neither.
+    if (cfg.clipboard == ClipboardMode::External) {
+        if (cfg.clipboardExternalCopy.empty()) {
+            return failure(originName +
+                           ": clipboard external needs clipboard_external_copy — the "
+                           "program the text is copied to");
+        }
+        if (cfg.clipboardExternalPaste.empty()) {
+            return failure(originName +
+                           ": clipboard external needs clipboard_external_paste — the "
+                           "program the text is pasted from");
+        }
+    }
+
     // A menu button or a hint naming a utility the config never set would be a
     // button with nothing behind it and no word on it. Asked once the whole file
     // has been read rather than where the list was written, since a
@@ -2942,6 +2990,14 @@ const ListFile* AppConfig::listFor(const std::string& name) const {
     if (!listFiles) return nullptr;
     const auto found = listFiles->find(name);
     return found == listFiles->end() ? nullptr : &found->second;
+}
+
+ClipboardMode AppConfig::clipboardInEffect() const {
+#ifdef _WIN32
+    return clipboard;
+#else
+    return clipboard == ClipboardMode::Windows ? ClipboardMode::Internal : clipboard;
+#endif
 }
 
 std::string CustomKludge::text() const {

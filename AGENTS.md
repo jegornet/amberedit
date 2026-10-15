@@ -918,6 +918,12 @@ Rules that hold the design together:
   message of an area. Do not narrow either set to the forms one terminal happens
   to need. No other named key needs this: the rest are spelled the same way
   everywhere.
+- **A CR and an LF waiting together are one Return.** `poll()` reads either as
+  Return and then takes its partner off the input where it is already there
+  behind it (`swallowLineEndPartner()`), never waiting for one. A console that
+  types a paste out — conhost's own `Ctrl-V` — sends the CR LF Windows text
+  carries, which read as two keys put a blank line under every line pasted;
+  an Enter pressed by hand is one code and is not touched.
 - Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`,
   without it ncurses resolves the ambiguity on its own timer
   (`set_escdelay(25)`).
@@ -5103,6 +5109,65 @@ together — `keys_mode` says which.
   the one check that wants both files at once, which is why it is there and not
   in either of them. A key that ran nothing at all is exactly the shape of a
   mistake nobody finds.
+- **The clipboard is four answers to one setting, and the screens know two of
+  them.** `reader.copy` takes the message as `app::exportedLines()` writes it
+  into a file — the `Area` row, the header block, the rule and the text,
+  service lines only under `k` — since a message pasted elsewhere has no title
+  bar to say where it was read and who wrote it; and
+  `compose.paste` puts text in where the typing is: cut into the line at the
+  cursor in the text, the first line alone and held to `fieldLimit()` in a
+  field. What a screen does with `clipboard` is one question,
+  `AppConfig::clipboardInEffect()`: `internal` is `AppState::clipboard` and is
+  answered on the spot, so the tests drive it; anything else sets
+  `clipboardCopyRequested` or `clipboardPasteRequested` and `runApp()` answers it
+  on the next pass, the terminal and the programs being the shell's. A failure
+  is the error box over the screen that asked.
+  - **A copy that went through says so**, where `clipboard_copy_indicate` asks:
+    `AppState::copiedNotice` is set by whoever made the copy — the reader for
+    `internal`, the shell for the rest, and only once the copy has succeeded —
+    and `runApp()` draws one frame with `clipboard_dialog::renderCopied()` over
+    the screen, sleeps `clipboard_dialog::kCopiedMs` and takes it down, the way a click's
+    animation is held. The box answers no key and carries no button; a key
+    pressed meanwhile waits in the terminal. A copy changes nothing on the
+    screen, and a key that seems to do nothing is a key pressed twice.
+  - **`windows` is `internal` off Windows**, in `clipboardInEffect()` and nowhere
+    else, so a config written there loads anywhere. It is the default on Windows
+    for the reason `internal` is everywhere else: it is the only clipboard there
+    that needs nothing named or set up first.
+  - **`external` runs its programs without the terminal**, through
+    `sys::feedCommand()` and `sys::readFromCommand()` rather than `runProgram()`:
+    the screen stays up, and every standard descriptor the program has is a pipe
+    or the null device, so nothing it says lands on the screen. The copy side
+    never reads the program's output — `xclip` and `wl-copy` leave a child behind
+    holding the clipboard, and a pipe read to its end would wait on that child
+    until something else is copied. Both programs are required under `external`
+    and refused at startup without each other, a key that does nothing every
+    time being the mistake nobody finds.
+  - **`terminal` is OSC 52.** A copy is written and not confirmed, as nothing
+    confirms a palette entry lent to a truecolor theme. A paste is a question
+    whose answer may be a person's — iTerm2 and kitty ask before handing the
+    clipboard over — so it is waited for long (`kHostClipboardWaitMs`), under
+    `clipboard_dialog::renderWaiting()`, and Escape ends the wait.
+    - **The question is followed by DA1**, and that is how a terminal that will
+      never answer is told apart without waiting it out. Terminals answer in
+      order, so DA1 answered first means the clipboard question was passed
+      over; where the DA1 answer does not count `52` among what the terminal
+      can do, that is final — WezTerm reads the question and drops it. One that
+      does count it may be asking its user, and is waited for.
+    - **An answer that comes after the wait has given up is swallowed**, by
+      `Terminal::poll()` through `swallowReply()` while `oscPending_` or
+      `da1Pending_` says one may still be on its way. Passed on, it would arrive
+      as Escape and a run of letters typed into the message.
+    - The text is UTF-8 base64 in both directions, whatever the locale.
+  - **Whatever is pasted goes through `app::pastedLines()`**: broken UTF-8 made
+    whole, any line ending taken off, every line through `messageLine()` — what
+    the import does to a file, since a clipboard is another program's bytes as
+    much as a file is.
+  - `Ctrl-Ins` and `Shift-Ins` are the one place Ctrl and Shift go with a named
+    key in a layout (`takesCtrlOrShift()` in `ui/keys.cpp`), one modifier at a
+    time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
+    and the text then arrives typed — the terminal's clipboard, not
+    `clipboard`'s.
 - **The hint bar reads the layout rather than naming keys of its own**
   (`ui/hint_bar.*`). Which commands each screen offers is the config's —
   `arealist_hints`, `msglist_hints`, `reader_hints`, `compose_hints`, one list
@@ -5218,6 +5283,8 @@ netmail is answered with — see [Confirmation
 receipts](#confirmation-receipts); a keyboard
 layout of one's own, from `keys`, and the help box behind `app.help` that reads
 it back; the user's own shell behind `reader.shell`;
+copying the message on screen and pasting into the one being written, through
+the clipboard `clipboard` names;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
 a menu button or a hint on the area list, in the reader or in the editor, handed
 the message in a file where their line writes `$msg` down, with

@@ -236,6 +236,19 @@ void useCarbonCopy(AppState& state, const nodelist::NodeEntry* node);
 /// it to go.
 void insertImported(AppState& state, const std::vector<std::string>& lines);
 
+/// Puts text off a clipboard into the message where the typing is.
+///
+/// In the text, at the cursor and not round it: what was copied is often half
+/// a sentence, so the line the cursor stands in is cut there, the first pasted
+/// line joins its front, the last its back, and the cursor comes to rest at the
+/// end of what went in. In a field of the header, the first line alone and as
+/// much of it as the field has room for — a field is one line, and the limit
+/// it is typed against holds for a paste as well. On the attributes button,
+/// and in the text where `external_editor` writes it, nothing at all.
+///
+/// The text is held to what a message can carry first, `app::pastedLines()`.
+void pasteText(AppState& state, std::string_view text);
+
 /// Fills in the To row from a node picked out of the nodelist — what Enter on a
 /// row of that box comes to.
 ///

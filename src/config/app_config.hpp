@@ -464,6 +464,32 @@ enum class KeysMode {
     Clear,  ///< `clear` — the file is the layout entire, and nothing is kept
 };
 
+/// Where a copy goes and a paste comes from, from `clipboard`.
+enum class ClipboardMode {
+    /// `windows` — the Windows clipboard, asked for through the system. On any
+    /// other system there is none to ask, and it is `Internal` there.
+    Windows,
+    /// `external` — the programs `clipboard_external_copy` and
+    /// `clipboard_external_paste` name, the text on their standard input and
+    /// output.
+    External,
+    /// `terminal` — OSC 52, the terminal asked to keep the text on the machine
+    /// it runs on. Whether it does is the terminal's to say.
+    Terminal,
+    /// `internal` — a buffer AmberEdit keeps for as long as it runs.
+    Internal,
+};
+
+/// What `clipboard` is where no line states it: the system's clipboard on the
+/// one system that has one a program can ask for, and AmberEdit's own buffer
+/// everywhere else, every other answer being a program or a terminal that has
+/// to be named or set up first.
+#ifdef _WIN32
+inline constexpr ClipboardMode kDefaultClipboard = ClipboardMode::Windows;
+#else
+inline constexpr ClipboardMode kDefaultClipboard = ClipboardMode::Internal;
+#endif
+
 /// One `nodelist` line: the file it names, and the charset that file is written
 /// in.
 struct NodelistSource {
@@ -1293,6 +1319,27 @@ struct AppConfig {
     /// text of a message is shown on the compose screen and never typed into
     /// there — see `ui/screens/compose_screen.hpp`.
     std::vector<std::string> externalEditor;
+
+    /// Where `reader.copy` puts the text and `compose.paste` takes it from,
+    /// from `clipboard`. Read through `clipboardInEffect()`, which is what turns
+    /// `windows` into `internal` on a system with no such clipboard.
+    ClipboardMode clipboard{kDefaultClipboard};
+
+    /// The programs `clipboard external` copies through and pastes from, from
+    /// `clipboard_external_copy` and `clipboard_external_paste`: the command and
+    /// its arguments as written. Both are required where `clipboard external`
+    /// stands, and neither is read where it does not.
+    std::vector<std::string> clipboardExternalCopy;
+    std::vector<std::string> clipboardExternalPaste;
+
+    /// Whether a copy is followed by a box saying so, from
+    /// `clipboard_copy_indicate`. On by default: a copy changes nothing on the
+    /// screen, and a key that seems to do nothing is a key pressed again.
+    bool clipboardCopyIndicate{true};
+
+    /// What `clipboard` comes to on this system: `windows` is `internal` on any
+    /// other, there being no system clipboard there for a program to ask.
+    [[nodiscard]] ClipboardMode clipboardInEffect() const;
 
     /// The ten external utilities, from `extern_util0` through `extern_util9` —
     /// the slot is the digit in the setting's name, so the file's order settles

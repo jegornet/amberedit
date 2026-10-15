@@ -341,6 +341,35 @@ struct AppState {
     /// at in the reader, a message to make something of in the editor.
     std::optional<config::Command> externUtilRequested;
 
+    // --- the clipboard ------------------------------------------------------
+    /// What `clipboard internal` holds: the text `reader.copy` last put there,
+    /// for as long as AmberEdit runs. Empty until something has been copied.
+    std::string clipboard;
+
+    /// Text the reader copied to a clipboard that is not this one, waiting to
+    /// be put there. The reader sets it and the shell clears it, having put it
+    /// where `clipboard` says — the same way `shellRequested` works and for the
+    /// same reason: the terminal and the programs a copy may go through are the
+    /// shell's, and a screen has neither.
+    std::optional<std::string> clipboardCopyRequested;
+
+    /// Whether the editor has asked for a paste from a clipboard that is not
+    /// this one. Set and answered as `clipboardCopyRequested` is; what comes
+    /// back goes in through `compose::pasteText()`.
+    bool clipboardPasteRequested{false};
+
+    /// Whether the box saying a copy reached the clipboard is to go up. Set
+    /// where the copy is made, and only where `clipboard_copy_indicate` asks
+    /// for it — by the reader for AmberEdit's own clipboard, by the shell for
+    /// every other once the copy has gone through. `runApp()` draws the frame
+    /// carrying it, holds it for `clipboard_dialog::kCopiedMs` and clears it.
+    bool copiedNotice{false};
+
+    /// Whether the terminal is being asked for its clipboard, which is what puts
+    /// `clipboard_dialog::renderWaiting()` up. Set and cleared by the shell
+    /// round the one call that waits.
+    bool clipboardWaiting{false};
+
     // --- the external editor ------------------------------------------------
     /// Whether the program `external_editor` names has been asked for. The
     /// compose screen sets it and the shell clears it, having handed the
