@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- drop the quote prefix when joining lines of one quote
+
 ## 0.9.3 — 2026-10-15
 
 - reader_edge_confirm: fix confirmation menu behavior (the arrow that walked off the end confirms, the other one cancels)

@@ -59,11 +59,13 @@ void insertText(TextBuffer& buffer, std::string_view text, const EditOptions& op
 void insertNewline(TextBuffer& buffer);
 
 /// Deletes the character before the cursor, joining the line to the one above
-/// when the cursor stands at its start.
+/// when the cursor stands at its start. A line quoting the same initials at the
+/// same depth as the one above gives up its prefix to the join.
 void deleteBefore(TextBuffer& buffer);
 
 /// Deletes the character under the cursor, joining the line below to this one
-/// when the cursor stands at its end.
+/// when the cursor stands at its end. A line below quoting the same initials at
+/// the same depth gives up its prefix to the join.
 void deleteAt(TextBuffer& buffer);
 
 /// Deletes the whole line the cursor is on, keeping it on `buffer.deleted` for

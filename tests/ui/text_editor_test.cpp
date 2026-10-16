@@ -149,6 +149,50 @@ TEST_CASE("Backspace and Delete join lines at their ends [editor]") {
     CHECK(shown(first) == "^one");
 }
 
+TEST_CASE(
+    "Delete at the end of a quote joins the next line without its prefix [editor]") {
+    TextBuffer buffer = bufferOf({" YG> robot", " YG> Robbie"}, 0, 10);
+    deleteAt(buffer);
+    CHECK(shown(buffer) == " YG> robot^ Robbie");
+
+    // A trailing space already separates the words.
+    TextBuffer spaced = bufferOf({" YG> robot ", " YG> Robbie"}, 0, 11);
+    deleteAt(spaced);
+    CHECK(shown(spaced) == " YG> robot ^Robbie");
+
+    // Another writer's quote, or a deeper one, keeps its prefix.
+    TextBuffer other = bufferOf({" YG> robot", " AB> Robbie"}, 0, 10);
+    deleteAt(other);
+    CHECK(shown(other) == " YG> robot^ AB> Robbie");
+
+    TextBuffer deeper = bufferOf({" YG> robot", " YG>> Robbie"}, 0, 10);
+    deleteAt(deeper);
+    CHECK(shown(deeper) == " YG> robot^ YG>> Robbie");
+
+    // An answer under a quote is not part of it.
+    TextBuffer answer = bufferOf({" YG> robot", "Robbie"}, 0, 10);
+    deleteAt(answer);
+    CHECK(shown(answer) == " YG> robot^Robbie");
+}
+
+TEST_CASE("Backspace at the start of a quote joins it without its prefix [editor]") {
+    TextBuffer buffer = bufferOf({" YG> robot", " YG> Robbie"}, 1, 0);
+    deleteBefore(buffer);
+    CHECK(shown(buffer) == " YG> robot^ Robbie");
+
+    TextBuffer other = bufferOf({" YG> robot", " AB> Robbie"}, 1, 0);
+    deleteBefore(other);
+    CHECK(shown(other) == " YG> robot^ AB> Robbie");
+
+    TextBuffer deeper = bufferOf({" YG> robot", " YG>> Robbie"}, 1, 0);
+    deleteBefore(deeper);
+    CHECK(shown(deeper) == " YG> robot^ YG>> Robbie");
+
+    TextBuffer answer = bufferOf({" YG> robot", "Robbie"}, 1, 0);
+    deleteBefore(answer);
+    CHECK(shown(answer) == " YG> robot^Robbie");
+}
+
 TEST_CASE("Ctrl-Y takes the whole line [editor]") {
     TextBuffer buffer = bufferOf({"one", "two", "three"}, 1, 2);
     deleteLine(buffer);

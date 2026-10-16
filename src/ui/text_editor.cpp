@@ -115,6 +115,24 @@ void wrapCurrentLine(TextBuffer& buffer, const EditOptions& options) {
     clampColumn(buffer);
 }
 
+/// What `lower` adds to `upper` when the two are joined into one line.
+///
+/// Two lines of one quote joined are one line of it: the prefix the lower one
+/// carried would otherwise land in the middle of the sentence. Only the same
+/// initials at the same depth count — another writer's words, or a deeper
+/// quote, are not the continuation of this one.
+std::string joinedTail(const std::string& upper, std::string lower) {
+    const auto above = app::parseQuotePrefix(upper);
+    const auto below = app::parseQuotePrefix(lower);
+    if (above.level > 0 && above.level == below.level &&
+        above.initials == below.initials) {
+        lower.erase(0, below.length);
+        // The prefix's own space was what stood between the two words.
+        if (!lower.empty() && upper.back() != ' ') lower.insert(0, 1, ' ');
+    }
+    return lower;
+}
+
 }  // namespace
 
 void insertText(TextBuffer& buffer, std::string_view text, const EditOptions& options) {
@@ -155,11 +173,11 @@ void deleteBefore(TextBuffer& buffer) {
     }
     if (buffer.row == 0) return;
 
-    const std::string tail = buffer.line();
+    const std::string lower = buffer.line();
     buffer.lines.erase(buffer.lines.begin() + buffer.row);
     --buffer.row;
     buffer.col = buffer.line().size();
-    buffer.line() += tail;
+    buffer.line() += joinedTail(buffer.line(), lower);
 }
 
 void deleteAt(TextBuffer& buffer) {
@@ -169,7 +187,8 @@ void deleteAt(TextBuffer& buffer) {
     }
     if (buffer.row + 1 >= static_cast<int>(buffer.lines.size())) return;
 
-    buffer.line() += buffer.lines[static_cast<size_t>(buffer.row) + 1];
+    buffer.line() +=
+        joinedTail(buffer.line(), buffer.lines[static_cast<size_t>(buffer.row) + 1]);
     buffer.lines.erase(buffer.lines.begin() + buffer.row + 1);
 }
 
