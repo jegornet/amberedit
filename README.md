@@ -12,7 +12,7 @@ $$    $$ $$   $$   $$ `Q$$$$@' `@$$$$Q: $$       `@$$$$@% `Q@$$@@' $$   `@$$0'
 
 A terminal-based (TUI) [FidoNet](https://www.fidonet.org/) mail editor for modern systems.
 
-<img src="amberedit_demo.gif" alt="demo" width="400" />
+<img src="amberedit_demo.webp" alt="demo" width="400" />
 
 ## Features
 
