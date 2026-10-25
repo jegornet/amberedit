@@ -2178,12 +2178,18 @@ decides what an occurrence is.
   stop down into the text, out of the text onto the last. The To address is
   skipped in echomail either way, `fieldAfter()` answering for both. **Enter is
   not the ring**: it walks the fields that are typed into and hands the typing
-  down to the text off the subject, going past the button. Nor are the arrows:
-  `↓` off the subject goes to the button and then into the text because both are
-  drawn below it, and `↑` off the From name stops. `Alt-H` goes back onto the
-  field the cursor was last in — a chord of its own rather than `Ctrl-I`, which
-  is the byte Tab has sent since ASCII and would be the ring on all but a
-  terminal reporting modified keys.
+  down to the text off the subject, going past the button. **Nor are the
+  arrows: they walk the block as it is drawn** (`fieldBelow()`, `fieldAbove()`).
+  `↓` goes down a column — a name onto the name under it, the From address onto
+  the To address — and off the To row onto the subject, the button and the text
+  in that order; `↑` climbs back the same way, the subject onto the To name, and
+  stops on the From row. Up off the very start of the text, row and column zero,
+  is the button. `→` at the end of a name and `←` at the start of an address
+  cross between the two halves of their row, as the arrows cross a line end in
+  the text, and everywhere else they move inside the field. `Alt-H` goes back
+  onto the field the cursor was last in — a chord of its own rather than
+  `Ctrl-I`, which is the byte Tab has sent since ASCII and would be the ring on
+  all but a terminal reporting modified keys.
 - **A click is the way between the two halves as well, and puts the cursor where
   it points.** `clickToCursor()` walks `AppState::composeFieldSpots` (one per
   field, in `compose::Field` order) and then `composeTextRows` (one per drawn

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - drop the quote prefix when joining lines of one quote
+- arrow keys in compose header follow the fields layout
 
 ## 0.9.3 — 2026-10-15
 

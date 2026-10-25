@@ -390,6 +390,33 @@ int fieldAfter(const AppState& state, int step) {
     return std::clamp(next, 0, static_cast<int>(kFieldCount));
 }
 
+/// The stop under the one the cursor is on, as the block is drawn: the names
+/// down the left, the addresses beside them, the subject under both and the
+/// attributes button under that. The From address goes down onto the To
+/// address where there is one; a name steps over it onto the subject.
+int fieldBelow(const AppState& state) {
+    switch (state.composeField) {
+        case kFromName: return kToName;
+        case kFromAddr: return state.compose.netmail ? kToAddr : kSubject;
+        case kToName:
+        case kToAddr: return kSubject;
+        default: return kAttributes;
+    }
+}
+
+/// The stop over the one the cursor is on, or -1 on the From row, which has
+/// nothing above it. The subject goes up onto the To name, the column the
+/// typing comes down from more often than not.
+int fieldAbove(const AppState& state) {
+    switch (state.composeField) {
+        case kToName: return kFromName;
+        case kToAddr: return kFromAddr;
+        case kSubject: return kToName;
+        case kAttributes: return kSubject;
+        default: return -1;
+    }
+}
+
 void moveTo(AppState& state, int field) {
     state.composeField = field;
     // The cursor lands at the end of what is already there, which is where
@@ -1221,8 +1248,8 @@ void writeCopies(AppState& state, const std::vector<std::string>& text,
     const auto writeInto = [&state, &refused](const domain::AreaConfig& target,
                                               const domain::MessageDraft& draft) {
         const auto note = [&refused, &target](const ErrorPtr& why) {
-            refused.push_back(target.tag + " (" +
-                              (why ? why->message() : std::string{}) + ")");
+            refused.push_back(target.tag + " (" + (why ? why->message() : std::string{}) +
+                              ")");
         };
         auto into = state.manager.openArea(target);
         if (!into) {
@@ -1790,13 +1817,34 @@ bool headerKey(AppState& state, const Event& event) {
         return true;
     }
 
-    if (event == Event::Return || event == Event::Tab || event == Event::ArrowDown) {
+    // The arrows walk the block as it is drawn — see `fieldAbove()` and
+    // `fieldBelow()` — rather than the ring Tab walks. Leaving the To address
+    // picks the AKA either way, and only going down holds the cursor on one that
+    // will not parse, the rule Tab and Shift-Tab follow below.
+    if (event == Event::ArrowDown) {
+        if (state.composeField == kToAddr && !leaveToAddr(state)) return true;
+        if (onButton) {
+            leaveHeader(state);
+            return true;
+        }
+        moveTo(state, fieldBelow(state));
+        return true;
+    }
+    if (event == Event::ArrowUp) {
+        const int above = fieldAbove(state);
+        if (above < 0) return true;
+        if (state.composeField == kToAddr) leaveToAddr(state);
+        moveTo(state, above);
+        return true;
+    }
+
+    if (event == Event::Return || event == Event::Tab) {
         if (state.composeField == kToAddr && !leaveToAddr(state)) return true;
 
         // Enter walks the fields that are typed into and no further: off the
         // subject it hands the typing down to the message, which is what the
         // user came to write, rather than stopping at a button on the way. Tab
-        // and ↓ walk the whole ring, the button among the rest.
+        // walks the whole ring, the button among the rest.
         const int last = event == Event::Return ? kAttributes : kFieldCount;
         const int next = fieldAfter(state, 1);
         if (next >= last) {
@@ -1811,18 +1859,15 @@ bool headerKey(AppState& state, const Event& event) {
         moveTo(state, next);
         return true;
     }
-    if (event == Event::TabReverse || event == Event::ArrowUp) {
+    if (event == Event::TabReverse) {
         // Leaving the To address is what picks the AKA to write from, whichever
         // way the cursor is going. Backwards it does not hold the cursor the way
         // forwards does: what is behind the field is already filled in, and an
         // address still half typed is no reason to refuse to look at it.
         if (state.composeField == kToAddr) leaveToAddr(state);
         // Shift-Tab closes the ring Tab walks: off the first field is down into
-        // the text, exactly as off the last field is going the other way. The
-        // arrows are not the ring — ↓ off the last field goes on into the text
-        // because the text is drawn below the block, and there is nothing above
-        // the first field for ↑ to reach.
-        if (event == Event::TabReverse && state.composeField == kFromName) {
+        // the text, exactly as off the last field is going the other way.
+        if (state.composeField == kFromName) {
             leaveHeader(state);
             return true;
         }
@@ -1857,11 +1902,28 @@ bool headerKey(AppState& state, const Event& event) {
         cursor = from;
         return true;
     }
+    // A name and its address stand side by side on one row, so the arrows
+    // cross from one to the other at the edge between them, the way they cross
+    // a line end in the text: → off the end of a name onto the start of its
+    // address, ← off the start of an address onto the end of its name.
     if (event == Event::ArrowLeft) {
+        if (cursor == 0 &&
+            (state.composeField == kFromAddr || state.composeField == kToAddr)) {
+            if (state.composeField == kToAddr) leaveToAddr(state);
+            moveTo(state, state.composeField - 1);
+            return true;
+        }
         cursor = prevChar(value, cursor);
         return true;
     }
     if (event == Event::ArrowRight) {
+        if (cursor == value.size() &&
+            (state.composeField == kFromName ||
+             (state.composeField == kToName && state.compose.netmail))) {
+            state.composeField += 1;
+            state.composeCursor = 0;
+            return true;
+        }
         cursor = std::min(value.size(), cursor + charLen(value, cursor));
         return true;
     }
@@ -1947,6 +2009,10 @@ bool textKey(AppState& state, const Event& event) {
         moveLeft(state.edit);
     } else if (event == Event::ArrowRight) {
         moveRight(state.edit);
+    } else if (event == Event::ArrowUp && state.edit.row == 0 && state.edit.col == 0) {
+        // Up off the very start of the message is the block drawn above it, onto
+        // the stop nearest the text.
+        enterHeader(state, kAttributes);
     } else if (event == Event::ArrowUp) {
         moveRows(state, -1);
     } else if (event == Event::ArrowDown) {

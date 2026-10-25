@@ -393,20 +393,125 @@ TEST_CASE(
     CHECK(state.compose.fromAddr == "3:633/280");
 }
 
-TEST_CASE("The arrows walk the block and stop at its top [compose]") {
+TEST_CASE("↑ and ↓ walk the block as it is drawn [compose]") {
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+
+    compose::startNew(state);
+    state.composeField = compose::kFromName;
+    // There is nothing above the From row for ↑ to reach — the text is below
+    // the block, and Shift-Tab is what wraps round to it.
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeInHeader);
+    CHECK(state.composeField == compose::kFromName);
+
+    // Down the names, stepping over the To address onto the subject.
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kToName);
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kAttributes);
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kToName);
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kFromName);
+
+    // Down the addresses.
+    state.composeField = compose::kFromAddr;
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kFromAddr);
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kFromAddr);
+    for (const char letter : std::string("2:5020/2")) {
+        compose::handleEvent(state, Event::Character(letter));
+    }
+    compose::handleEvent(state, Event::ArrowDown);
+    for (const char letter : std::string("2:5020/9")) {
+        compose::handleEvent(state, Event::Character(letter));
+    }
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kSubject);
+
+    // Off the button is down into the text, and up off its very start is back.
+    state.composeField = compose::kAttributes;
+    compose::handleEvent(state, Event::ArrowDown);
+    REQUIRE_FALSE(state.composeInHeader);
+    state.edit.row = 0;
+    state.edit.col = 0;
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeInHeader);
+    CHECK(state.composeField == compose::kAttributes);
+}
+
+TEST_CASE("The From address goes down onto the subject in an echo [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
     compose::startNew(state);
-    compose::handleEvent(state, Event::ArrowUp);
+    state.composeField = compose::kFromAddr;
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kSubject);
+}
+
+TEST_CASE("← and → cross between a name and its address at the edge [compose]") {
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+
+    compose::startNew(state);
+    state.composeField = compose::kFromName;
+    state.composeCursor = state.compose.fromName.size();
+    compose::handleEvent(state, Event::ArrowRight);
     CHECK(state.composeField == compose::kFromAddr);
-    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeCursor == 0);
+    // Right inside the address is the ordinary motion, and so is the end of it.
+    state.composeCursor = state.compose.fromAddr.size();
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kFromAddr);
+
+    state.composeCursor = 0;
+    compose::handleEvent(state, Event::ArrowLeft);
     CHECK(state.composeField == compose::kFromName);
-    // There is nothing above the first field for ↑ to reach — the text is
-    // below the block, and Shift-Tab is what wraps round to it.
-    compose::handleEvent(state, Event::ArrowUp);
-    CHECK(state.composeInHeader);
+    CHECK(state.composeCursor == state.compose.fromName.size());
+    // Left at the start of a name goes nowhere.
+    state.composeCursor = 0;
+    compose::handleEvent(state, Event::ArrowLeft);
     CHECK(state.composeField == compose::kFromName);
+
+    state.composeField = compose::kToName;
+    state.composeCursor = state.compose.toName.size();
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, Event::ArrowLeft);
+    CHECK(state.composeField == compose::kToName);
+}
+
+TEST_CASE("→ off the To name goes nowhere in an echo [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+
+    compose::startNew(state);
+    REQUIRE(state.composeField == compose::kToName);
+    state.composeCursor = state.compose.toName.size();
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kToName);
+}
+
+TEST_CASE("↑ inside the text stays in the text [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"first", "second"};
+    state.edit.row = 0;
+    state.edit.col = 3;
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK_FALSE(state.composeInHeader);
 }
 
 TEST_CASE("A reply opens on its quote, the header already filled in [compose]") {
