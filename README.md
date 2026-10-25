@@ -173,6 +173,10 @@ customizing the pallete in your terminal app.
 `themes/white.cfg` is paper, for a light terminal.
 `themes/golded_colors.cfg` is colored like on of GoldED+'s themes
 
+You can also create your own custom theme, either 256-color or true color.
+For the former, use the [xterm-256color.svg](xterm-256color.svg) cheat sheet
+to pick a color number.
+
 ### Localization
 
 The language is the environment's, as it is for every other program on the

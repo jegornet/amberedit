@@ -151,8 +151,9 @@ catalogs under `${CMAKE_INSTALL_LOCALEDIR}`, which is
 where gettext looks and so the only place they can go. No package recipe places a data file of its own,
 because a second copy of those paths is a second thing to keep in step with the
 sample config. Only documentation is each format's own: README.md, CHANGELOG.md,
-KEYS.md, KEYS_REBINDING.md, INSTALL.md, PuTTY-truecolor.md and the two example
-configs go through `%doc`, `debian/amberedit.docs` or the top of an archive — and
+KEYS.md, KEYS_REBINDING.md, INSTALL.md, PuTTY-truecolor.md, xterm-256color.svg
+— the palette chart the 256-color themes point at — and the two example configs
+go through `%doc`, `debian/amberedit.docs` or the top of an archive — and
 a document added to the tree is added to all four of those, `release.yml`
 included, or it ships nowhere.
 
