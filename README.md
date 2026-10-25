@@ -171,6 +171,7 @@ filled in navy.
 customizing the pallete in your terminal app.
 `themes/truecolor_bg_night.cfg` — "Belgrade Night" — is the truecolor one.
 `themes/white.cfg` is paper, for a light terminal.
+`themes/golded_colors.cfg` is colored like on of GoldED+'s themes
 
 ### Localization
 

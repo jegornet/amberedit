@@ -1302,6 +1302,7 @@ template_time_format "%H:%M"
 #theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
 #theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
 #theme /usr/share/amberedit/themes/truecolor_bg_night.cfg   # truecolor, BG Night
+#theme /usr/share/amberedit/themes/golded_colors.cfg  # colored like GoldED+
 
 # Whether AmberEdit warns the user when the terminal cannot display the full
 # color palette defined in the current theme. Optional; on by default.

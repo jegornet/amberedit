@@ -4,6 +4,7 @@
 
 - drop the quote prefix when joining lines of one quote
 - arrow keys in compose header follow the fields layout
+- add the golded_colors.cfg theme: colored like GoldED+
 
 ## 0.9.3 — 2026-10-15
 

@@ -3144,8 +3144,9 @@ taking a row.
   once the whole file is read and in the order `kFollowers` lists, so the order
   the lines are written in does not matter and a chain resolves end to end.
   Every shipped theme states `input_field` and leaves the two `*_background`
-  fills commented out, `themes/blue_header.cfg` excepted: it states
-  `header_background` and nothing else besides. A test holds them to both.
+  fills commented out, `themes/blue_header.cfg` and `themes/golded_colors.cfg`
+  excepted: they state `header_background` and nothing else besides. A test
+  holds them to both.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
   `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash`,
@@ -5239,11 +5240,11 @@ together — `keys_mode` says which.
   the whole token set `app/msg_template` implements.
 - `themes/` — `black.cfg` is the built-in palette written out, and the only one
   that has to keep in step with `Palette`'s defaults; `blue_header.cfg` is that
-  same palette with `header_background` filled in navy, and the only shipped
-  theme that states either `*_background` fill; `white.cfg` is paper for a light
-  terminal, `16_colors.cfg` a sixteen-color DOS one, and
-  `truecolor_bg_night.cfg` ("Belgrade Night") the one written in six hex digits
-  throughout.
+  same palette with `header_background` filled in navy; `golded_colors.cfg` is
+  colored like GoldED+, and with `blue_header.cfg` the only shipped themes that
+  state either `*_background` fill; `white.cfg` is paper for a light terminal,
+  `16_colors.cfg` a sixteen-color DOS one, and `truecolor_bg_night.cfg`
+  ("Belgrade Night") the one written in six hex digits throughout.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in
