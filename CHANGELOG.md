@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.4 — 2026-10-26
 
 - drop the quote prefix when joining lines of one quote
 - arrow keys in compose header follow the fields layout

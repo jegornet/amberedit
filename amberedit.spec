@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.9.3
+Version:        0.9.4
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,12 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Mon Oct 26 2026 Yegor Gluhov <git@jegor.net> - 0.9.4-1
+- drop the quote prefix when joining lines of one quote
+- arrow keys in compose header follow the fields layout
+- add the golded_colors.cfg theme: colored like GoldED+
+- show message subject in message list bottom rule
+
 * Thu Oct 15 2026 Yegor Gluhov <git@jegor.net> - 0.9.3-1
 - reader_edge_confirm: fix confirmation menu behavior (the arrow that walked off the end confirms, the other one cancels)
 - add clipboard support

@@ -1,3 +1,12 @@
+amberedit (0.9.4-1) unstable; urgency=low
+
+  * drop the quote prefix when joining lines of one quote
+  * arrow keys in compose header follow the fields layout
+  * add the golded_colors.cfg theme: colored like GoldED+
+  * show message subject in message list bottom rule
+
+ -- Yegor Gluhov <git@jegor.net>  Mon, 26 Oct 2026 12:00:00 +0000
+
 amberedit (0.9.3-1) unstable; urgency=low
 
   * reader_edge_confirm: fix confirmation menu behavior (the arrow that walked off the end confirms, the other one cancels)
