@@ -26,9 +26,10 @@
 /// `msglist_hints`, `reader_hints`, `compose_hints` — and each of them starts as
 /// a reminder of what there is to do rather than as every binding the screen
 /// has, which would be a page rather than a line. The message list starts with
-/// none, every key on it moving the cursor, and its row is the rule alone rather
-/// than given back, so that the screens on either side of it are not a row
-/// taller.
+/// none, every key on it moving the cursor, and its row is not given back, so
+/// that the screens on either side of it are not a row taller: it carries the
+/// subject of the message under the cursor instead, after whatever hints there
+/// are.
 namespace amberedit::ui::hint_bar {
 
 /// The row's text, without the padding it is drawn with: `text(state)` is what
@@ -39,7 +40,9 @@ namespace amberedit::ui::hint_bar {
 /// runs to the edge of the screen in `separator` — the rule closes the bottom of
 /// the interface the way the one under a screen's headings closes its top, and
 /// the hints are a label in it. Which side of them it runs along is
-/// `hint_bar_align`. A screen with nothing to say leaves it whole.
+/// `hint_bar_align`. On the message list the subject of the message under the
+/// cursor follows the hints, in the same color and cut to what they leave. A
+/// screen with nothing to say leaves the rule whole.
 ///
 /// `AppState::hintBarShown()` decides whether it is drawn at all, and `runApp()`
 /// takes the row off the screens' height before they lay themselves out in what

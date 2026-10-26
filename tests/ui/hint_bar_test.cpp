@@ -391,3 +391,40 @@ TEST_CASE("A screen with nothing to say leaves the rule whole [hintbar]") {
     CHECK(row == "────────────");
     CHECK(screen.at(0, 0).fg == amberedit::ui::theme::palette.separator);
 }
+
+TEST_CASE("The message list's row carries the subject under the cursor [hintbar]") {
+    Fixture fixture(ScreenId::MessageList);
+    fixture.state.width = 20;
+    amberedit::domain::MessageHeader first;
+    first.subject = "Hello";
+    amberedit::domain::MessageHeader second;
+    second.subject = "A subject far too long";
+    fixture.state.headers = {first, second};
+    fixture.state.headersStart = 0;
+
+    const auto rowOf = [&fixture](term::Screen& screen) {
+        term::render(screen, hint_bar::render(fixture.state));
+        std::string row;
+        for (int x = 0; x < fixture.state.width; ++x) row += screen.at(x, 0).glyph;
+        return row;
+    };
+
+    // A space either side of it, in the hint bar's own color.
+    fixture.state.messageCursor = 0;
+    term::Screen screen(fixture.state.width, 1);
+    CHECK(rowOf(screen) == "────── Hello ───────");
+    CHECK(screen.at(8, 0).fg == amberedit::ui::theme::palette.hintBar);
+    CHECK(screen.at(0, 0).fg == amberedit::ui::theme::palette.separator);
+    // Clicking it presses nothing: it is not a hint.
+    CHECK(fixture.state.hintSpots.empty());
+
+    // Cut to the row, the two spaces still standing.
+    fixture.state.messageCursor = 1;
+    term::Screen narrow(fixture.state.width, 1);
+    CHECK(rowOf(narrow) == " A subject far too… ");
+
+    // A header the window has not reached yet: the rule alone.
+    fixture.state.messageCursor = 5;
+    term::Screen missing(fixture.state.width, 1);
+    CHECK(rowOf(missing) == "────────────────────");
+}

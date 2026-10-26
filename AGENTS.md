@@ -5199,7 +5199,11 @@ together — `keys_mode` says which.
   went between screens would move everything else on them. What is left of the row beside the
   hints is a rule in `separator` — the same rule that closes a screen's
   headings, closing the interface at the other end — and a screen with no hints
-  leaves it whole. It is drawn after the modals in `document()`, so it says what
+  leaves it whole. **The message list's row carries the subject of the message
+  under the cursor** after its hints, in `hint_bar` and cut to what they leave:
+  the Subj column is what a narrow window cuts first, and the row is there
+  anyway. `subjectOf()` reads it off `AppState::headers`, which the list has
+  filled for the frame by the time the row is drawn. It is drawn after the modals in `document()`, so it says what
   the screen behind them does.
 - **The word beside a key is the one the menu writes on a button**, from
   `AppConfig::labelOf()`: what a command is called is settled in one place, and

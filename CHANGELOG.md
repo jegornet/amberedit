@@ -5,6 +5,7 @@
 - drop the quote prefix when joining lines of one quote
 - arrow keys in compose header follow the fields layout
 - add the golded_colors.cfg theme: colored like GoldED+
+- show message subject in message list bottom rule
 
 ## 0.9.3 — 2026-10-15
 

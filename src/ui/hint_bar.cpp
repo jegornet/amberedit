@@ -97,6 +97,21 @@ theme::Color colorOf(bool pressed) {
     return pressed ? theme::palette.animatedButtonText : theme::palette.hintBar;
 }
 
+/// The subject of the message under the message list's cursor, and nothing on
+/// any other screen. The list's Subj column is the one cut shortest when the
+/// window is narrow, and the row under the list is a rule either way, so the
+/// subject is written out in it whole as far as the window allows.
+///
+/// Read off the window of headers the list has just drawn from: the cursor is
+/// always on a row of the screen, so the header is there unless the window has
+/// not reached it yet, and then the rule stands alone for a frame.
+std::string subjectOf(const AppState& state) {
+    if (state.navigator.current() != app::ScreenId::MessageList) return {};
+    const int index = state.messageCursor - state.headersStart;
+    if (index < 0 || index >= static_cast<int>(state.headers.size())) return {};
+    return state.headers[static_cast<size_t>(index)].subject;
+}
+
 }  // namespace
 
 std::string text(const AppState& state) {
@@ -112,11 +127,6 @@ Element render(AppState& state) {
     const std::vector<Hint> hints = hintsOf(state);
     state.hintSpots.clear();
 
-    // A screen with nothing to say leaves the rule whole, which is what closes
-    // the bottom of the screen either way.
-    if (hints.empty()) {
-        return term::text(horizontalRule(state.width)) | color(theme::palette.separator);
-    }
 
     // As many as the window holds, whole. A row longer than the window is
     // squeezed rather than cut — every hint losing its last letters at once,
@@ -132,9 +142,20 @@ Element render(AppState& state) {
         used += cost;
         ++fits;
     }
-    // Not even the first of them: the rule alone, as on a screen with nothing
-    // to say. A window this narrow has no room to be told anything.
-    if (fits == 0) {
+
+    // The subject after the hints, in what they leave of the row and cut with an
+    // ellipsis where that is not the whole of it.
+    std::string subject = subjectOf(state);
+    if (!subject.empty()) {
+        const int gap = fits == 0 ? 0 : 2;
+        const int room = state.width - used - gap;
+        subject = room > 0 ? truncateToWidth(subject, room) : std::string();
+        if (!subject.empty()) used += gap + displayWidth(subject);
+    }
+
+    // Nothing to say, or not even room for the first hint: the rule alone, which
+    // is what closes the bottom of the screen either way.
+    if (fits == 0 && subject.empty()) {
         return term::text(horizontalRule(state.width)) | color(theme::palette.separator);
     }
 
@@ -169,6 +190,10 @@ Element render(AppState& state) {
             state.isPressed(AppState::Pressed::Hint, static_cast<uint32_t>(i));
         pieces.push_back(term::text(hints[i].text) | color(colorOf(pressed)) |
                          reflect(state.hintSpots.back().box));
+    }
+    if (!subject.empty()) {
+        if (fits != 0) pieces.push_back(term::text("  "));
+        pieces.push_back(term::text(subject) | color(theme::palette.hintBar));
     }
     pieces.push_back(term::text(" "));
     if (after > 0) {
