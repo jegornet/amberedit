@@ -2510,22 +2510,34 @@ decides what an occurrence is.
     `theme::selectionBold()` as every bar is, by `ui::inputField()`'s
     `FieldSelection` on a field and the cursor's row and by `selectedRun()` on
     the rest. The cursor's own cell stays the cursor.
-- **What `Ctrl-Y` deletes is kept, and `Ctrl-U` puts it back.** `TextBuffer`
-  carries the stack (`deleted`), `deleteLine()` pushes onto it and
-  `restoreLine()` pops: four presses out and four presses back leave the text as
-  it was, which is what makes deleting a block of quoting and thinking better of
-  it undoable. The line goes back **above the row the cursor is on** — where
-  `Ctrl-Y` took one out, so the two undo each other, and a cursor moved
-  elsewhere first makes the pair a way of moving a line. The two ends need the
-  row the deletion is remembered with: off the bottom there is nothing left to
-  go back above, and the blank the last line of all is emptied into is written
-  over rather than pushed down. **Nothing else fills the stack** — the block
-  `Ctrl-D` takes out and the word `Ctrl-W` takes out are not lines, and a stack
-  that mixed them in would put back something other than what was last seen to
-  go. **It lives and dies with the message**: `leaveEditor()` clears the whole
-  `TextBuffer`, so what was deleted out of one message is nothing the next may
-  be handed. It is not in the hint bar — the row names what there is to do here,
-  and undoing a deletion is only worth knowing about once the deletion is.
+- **`Ctrl-Z` and `Ctrl-U` undo and `Ctrl-R` redoes, and the history watches rather
+  than being told.** `ui/edit_history.*` is the whole of it and
+  `AppState::composeHistory` the one instance: `compose::handleEvent()` hands it
+  the text, the header fields and where the typing stands once before a key is
+  answered and once after, and whatever differs from what it saw last is a
+  step. So no command that edits the message knows there is a history — a
+  paste the shell answered, a file imported or a utility handing the message
+  back is caught by the look taken before the next key, as a step of its own —
+  and a command added later is undoable the day it lands. A step keeps the run
+  of lines between the first that differs and the last, before and after, and
+  the header fields whole where one of them changed; a keystroke costs a
+  comparison of the message and not a copy of it.
+  - **Typing gathers into a step a word at a time**, and a run of Backspace or
+    Delete into one: a keystroke of the same kind, where the last one left the
+    typing, on the one line or the one field. A blank after a word begins the
+    next step, and anything else between two keys — the cursor moved, the
+    typing gone elsewhere, an undo — ends the run. Over a selection a key is a
+    step of its own.
+  - **An undo puts the typing back where the change was made**, field or text,
+    and drops the selection. Under `external_editor` it stays in the header,
+    the text not being typed into there.
+  - **It goes with the message, and with the template.** `leaveEditor()` clears
+    it, and so does `fillFromTemplate()`: a template expanded afresh rewrites
+    the text under every step held, and a step put back into a text it was
+    never part of would put its lines in the wrong place.
+  - **A line `Ctrl-Y` deletes is a step like any other**, and there is no
+    stack of deleted lines beside the history: two ways of taking a deletion
+    back would disagree about which change came last.
 - **The wheel in the editor scrolls the text and drags the cursor** —
   `wheelScroll()`, a row per notch. The cursor stays where it was written while
   it is on the screen and is carried onto the nearest row still showing when the
@@ -4995,6 +5007,15 @@ together — `keys_mode` says which.
     character into the other. Only the underscore is written — the table, every
     error message and every example file spell a name one way, and the hyphen is
     read and never offered.
+- **A command taken out leaves its name behind, to be warned about.**
+  `kRetired` in `config/commands.cpp` holds the names no command answers to
+  any more — `compose.restore_line` — and `Commands::retired()` and
+  `retiredOn()` are how they are asked about. A `keys` line binding one is
+  passed over (`KeyMap::warnings()`), a menu or hint list naming one is read
+  without it (`AppConfig::warnings`), and `main()` prints both before the
+  screen is taken. Not refused: the file was right when it was written, and an
+  upgrade that stopped AmberEdit starting over it would be breaking a config
+  that asked for nothing new.
 - **The list lives in `config/` rather than in `ui/`** because the config layer
   is what has to name a command — `arealist_menu`, `reader_hints` — and it may
   not include the interface. What is drawn is a word and a glyph, which are data;

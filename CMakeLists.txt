@@ -741,6 +741,7 @@ add_executable(amberedit
   src/ui/text_field.cpp
   src/ui/text_layout.cpp
   src/ui/text_editor.cpp
+  src/ui/edit_history.cpp
   src/ui/edit_layout.cpp
   src/ui/theme.cpp
   src/ui/setup/file_picker.cpp

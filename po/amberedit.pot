@@ -45,7 +45,7 @@ msgstr ""
 msgid "template: {0}"
 msgstr ""
 
-#: src/config/app_config.cpp:2728
+#: src/config/app_config.cpp:2743
 msgid "no description"
 msgstr ""
 
@@ -262,7 +262,7 @@ msgstr ""
 msgid "Run the system shell"
 msgstr ""
 
-#: src/config/commands.cpp:82 src/config/commands.cpp:113
+#: src/config/commands.cpp:82 src/config/commands.cpp:111
 #: src/ui/forward_dialog.cpp:121
 msgid "Copy"
 msgstr ""
@@ -313,86 +313,94 @@ msgid "Delete the line the cursor is on"
 msgstr ""
 
 #: src/config/commands.cpp:96
-msgid "Put the last deleted line back"
-msgstr ""
-
-#: src/config/commands.cpp:96
-msgid "Restore line"
-msgstr ""
-
-#: src/config/commands.cpp:98
 msgid "Delete quote"
 msgstr ""
 
-#: src/config/commands.cpp:98
+#: src/config/commands.cpp:96
 msgid "Delete the quoted text after the cursor"
 msgstr ""
 
-#: src/config/commands.cpp:101
+#: src/config/commands.cpp:99
 msgid "Delete the word before the cursor"
 msgstr ""
 
-#: src/config/commands.cpp:101
+#: src/config/commands.cpp:99
 msgid "Delete word"
 msgstr ""
 
-#: src/config/commands.cpp:104
+#: src/config/commands.cpp:102
 msgid "A word to the left"
 msgstr ""
 
-#: src/config/commands.cpp:104
+#: src/config/commands.cpp:102
 msgid "Word left"
 msgstr ""
 
-#: src/config/commands.cpp:106
+#: src/config/commands.cpp:104
 msgid "A word to the right"
 msgstr ""
 
-#: src/config/commands.cpp:106
+#: src/config/commands.cpp:104
 msgid "Word right"
 msgstr ""
 
-#: src/config/commands.cpp:108
+#: src/config/commands.cpp:106
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:108
+#: src/config/commands.cpp:106
 msgid "To the start of the line"
 msgstr ""
 
-#: src/config/commands.cpp:109
+#: src/config/commands.cpp:107
 msgid "Line end"
 msgstr ""
 
-#: src/config/commands.cpp:110
+#: src/config/commands.cpp:108
 msgid "To the end of the line"
 msgstr ""
 
-#: src/config/commands.cpp:111
+#: src/config/commands.cpp:109
 msgid "Paste"
 msgstr ""
 
-#: src/config/commands.cpp:112
+#: src/config/commands.cpp:110
 msgid "Paste from the clipboard at the cursor"
 msgstr ""
 
-#: src/config/commands.cpp:114
+#: src/config/commands.cpp:112
 msgid "Copy the selected text to the clipboard"
 msgstr ""
 
-#: src/config/commands.cpp:115
+#: src/config/commands.cpp:113
 msgid "Cut"
 msgstr ""
 
-#: src/config/commands.cpp:116
+#: src/config/commands.cpp:114
 msgid "Move the selected text to the clipboard"
 msgstr ""
 
-#: src/config/commands.cpp:183
+#: src/config/commands.cpp:115
+msgid "Undo"
+msgstr ""
+
+#: src/config/commands.cpp:116
+msgid "Take the last change back"
+msgstr ""
+
+#: src/config/commands.cpp:117
+msgid "Redo"
+msgstr ""
+
+#: src/config/commands.cpp:118
+msgid "Make the change undone again"
+msgstr ""
+
+#: src/config/commands.cpp:185
 msgid "Run the program the config names"
 msgstr ""
 
-#: src/config/commands.cpp:183
+#: src/config/commands.cpp:185
 msgid "Utility"
 msgstr ""
 
@@ -407,7 +415,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-10-27 22:26+0100\n"
+"POT-Creation-Date: 2026-10-27 23:50+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -588,11 +596,11 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:982
+#: src/ui/app_shell.cpp:984
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:705 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:711 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -1258,44 +1266,44 @@ msgstr ""
 msgid "Every area has been read."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:318
+#: src/ui/screens/compose_screen.cpp:319
 msgid "change"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:319
+#: src/ui/screens/compose_screen.cpp:320
 msgid "forward"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:320
+#: src/ui/screens/compose_screen.cpp:321
 msgid "moved reply"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:321
+#: src/ui/screens/compose_screen.cpp:322
 msgid "reply"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:322
+#: src/ui/screens/compose_screen.cpp:323
 msgid "new message"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:821
+#: src/ui/screens/compose_screen.cpp:866
 #, c++-format
 msgid ""
 "The message was not stored: {0} It is still here, and nothing has been lost."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1330
+#: src/ui/screens/compose_screen.cpp:1375
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1336
+#: src/ui/screens/compose_screen.cpp:1381
 #, c++-format
 msgid "The copy did not reach: {0}. The message itself is stored."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1362
+#: src/ui/screens/compose_screen.cpp:1407
 #, c++-format
 msgid ""
 "{0} is open for reading only: its files are not yours to write, so nothing "

@@ -30,6 +30,7 @@
 #include "ports/i_msgbase.hpp"
 #include "ui/bbs_codes.hpp"
 #include "ui/dir_listing.hpp"
+#include "ui/edit_history.hpp"
 #include "ui/event_util.hpp"
 #include "ui/keys.hpp"
 #include "ui/text_editor.hpp"
@@ -1577,6 +1578,11 @@ struct AppState {
     /// screen. Filled in from the template when the editor opens.
     TextBuffer edit;
     int editScroll{0};
+    /// What `compose.undo` takes back and `compose.redo` puts back again: the
+    /// text and the header fields together, a step per change. It goes with the
+    /// message — `leaveEditor()` clears it, and so does the template being
+    /// expanded afresh, which rewrites the text under every step it holds.
+    EditHistory composeHistory;
     /// That text exactly as the template produced it, kept so that a header
     /// still being filled in can be answered by expanding the template again.
     ///

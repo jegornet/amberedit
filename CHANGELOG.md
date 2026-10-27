@@ -6,6 +6,8 @@
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
 - a double click on a header field in the editor selects the whole field
+- undo and redo in the editor: Ctrl-Z or Ctrl-U to undo, Ctrl-R to redo
+- remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 
 ## 0.9.4 — 2026-10-26
 

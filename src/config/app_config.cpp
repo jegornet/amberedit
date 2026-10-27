@@ -318,9 +318,9 @@ tl::expected<ExternUtil, ErrorPtr> readExternUtil(const CfgEntry& entry) {
 /// `none`, alone, is the empty list — the row or the menu asked for and left
 /// with nothing in it. It is a value rather than an omitted key so that a list
 /// that is meant to be empty reads as one.
-tl::expected<std::vector<Command>, ErrorPtr> parseCommandList(const CfgEntry& entry,
-                                                              CommandScreen screen,
-                                                              Commands::In where) {
+tl::expected<std::vector<Command>, ErrorPtr> parseCommandList(
+    const CfgEntry& entry, CommandScreen screen, Commands::In where,
+    std::vector<std::string>& warnings) {
     const std::string offered = Commands::offeredNamesOn(screen, where);
 
     if (entry.values.empty()) {
@@ -340,6 +340,19 @@ tl::expected<std::vector<Command>, ErrorPtr> parseCommandList(const CfgEntry& en
             return std::vector<Command>{};
         }
 
+        // A command that is no more is left out and said out loud, the list
+        // standing as it would without it — see `Commands::retired()`.
+        if (Commands::retiredOn(screen, value)) {
+            std::string said =
+                ConfigError(entry.origin, entry.line,
+                            entry.key + ": '" + value +
+                                "' is no longer a command and is ignored")
+                    .message();
+            if (std::find(warnings.begin(), warnings.end(), said) == warnings.end()) {
+                warnings.push_back(std::move(said));
+            }
+            continue;
+        }
         const Commands::Info* found = Commands::namedOn(screen, value, where);
         if (found == nullptr) {
             return entry.fail(entry.key + ": '" + value +
@@ -1907,15 +1920,15 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         }
         cfg.readerSideTapWidth = static_cast<int>(*read);
     } else if (key == "reader_menu") {
-        auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu);
+        auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::Menu, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerMenu = *read;
     } else if (key == "compose_menu") {
-        auto read = parseCommandList(entry, CommandScreen::Compose, Commands::In::Menu);
+        auto read = parseCommandList(entry, CommandScreen::Compose, Commands::In::Menu, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeMenu = *read;
     } else if (key == "arealist_menu") {
-        auto read = parseCommandList(entry, CommandScreen::AreaList, Commands::In::Menu);
+        auto read = parseCommandList(entry, CommandScreen::AreaList, Commands::In::Menu, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.arealistMenu = *read;
     } else if (key == "hint_bar_align") {
@@ -1928,21 +1941,21 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         cfg.hintBarCapitalize = *read;
     } else if (key == "arealist_hints") {
         auto read =
-            parseCommandList(entry, CommandScreen::AreaList, Commands::In::HintBar);
+            parseCommandList(entry, CommandScreen::AreaList, Commands::In::HintBar, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.arealistHints = *read;
     } else if (key == "msglist_hints") {
         auto read =
-            parseCommandList(entry, CommandScreen::MessageList, Commands::In::HintBar);
+            parseCommandList(entry, CommandScreen::MessageList, Commands::In::HintBar, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.msglistHints = *read;
     } else if (key == "reader_hints") {
-        auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::HintBar);
+        auto read = parseCommandList(entry, CommandScreen::Reader, Commands::In::HintBar, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerHints = *read;
     } else if (key == "compose_hints") {
         auto read =
-            parseCommandList(entry, CommandScreen::Compose, Commands::In::HintBar);
+            parseCommandList(entry, CommandScreen::Compose, Commands::In::HintBar, cfg.warnings);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeHints = *read;
     } else if (key == "menu_buttons_width") {

@@ -269,6 +269,13 @@ tl::expected<KeyMap, ErrorPtr> KeyMap::parse(std::string_view text,
                            "— as in `l reader.list`");
         }
 
+        // A command that is no more: the line is passed over and said out loud,
+        // the layout standing as it would without it — see `Commands::retired()`.
+        if (Commands::retired(tokens[1])) {
+            map.warnings_.push_back(where + tokens[1] +
+                                    " is no longer a command and is ignored");
+            continue;
+        }
         const Commands::Info* command = Commands::named(tokens[1]);
         if (command == nullptr) {
             return failure(where + "no command is called " + tokens[1]);

@@ -130,7 +130,6 @@ F3              compose.import
 Alt-H           compose.header_back
 Ctrl-Y          compose.delete_line
 Alt-D           compose.delete_line
-Ctrl-U          compose.restore_line
 Ctrl-D          compose.delete_quote
 Alt-Z           compose.delete_quote
 Ctrl-W          compose.delete_word
@@ -152,6 +151,11 @@ Ctrl-C          compose.copy
 Ctrl-Ins        compose.copy
 Ctrl-X          compose.cut
 Shift-Del       compose.cut
+# Every change to the message — a line Ctrl-Y deleted among them — is taken
+# back by undo and made again by redo.
+Ctrl-Z          compose.undo
+Ctrl-U          compose.undo
+Ctrl-R          compose.redo
 
 # --- the external utilities ---------------------------------------------------
 # The ten programs an "extern_util0".."extern_util9" line in amberedit.cfg names,

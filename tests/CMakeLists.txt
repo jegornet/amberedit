@@ -105,6 +105,7 @@ add_executable(amberedit_tests
   ui/bbs_codes_test.cpp
   ui/ansi_canvas_test.cpp
   ui/text_editor_test.cpp
+  ui/edit_history_test.cpp
   ui/edit_layout_test.cpp
 )
 
@@ -181,6 +182,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/msg_list_format.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/text_layout.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/text_editor.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/edit_history.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/edit_layout.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/theme.cpp
 )

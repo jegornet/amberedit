@@ -313,6 +313,12 @@ int main(int argc, char* argv[]) {
             // `keys_mode` is what the file is read against: on its own it is the
             // layout entire, and merged it is laid over the defaults, where a
             // key it moves is taken off whatever had it and the rest stays.
+            // Lines naming a command that is no more, passed over rather than
+            // refused, and said here for the reason the config's warnings are.
+            for (const auto& problem : read->warnings()) {
+                std::cerr << amberedit::i18n::format(_("warning: {0}"), {problem})
+                          << "\n";
+            }
             keys = appConfig.keysMode == amberedit::config::KeysMode::Merge
                        ? read->mergedOnto(keys)
                        : std::move(*read);

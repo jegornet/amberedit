@@ -1587,9 +1587,8 @@ TEST_CASE("The subject box is no wider than what it will hold [compose]") {
     CHECK(subject.x_max - subject.x_min + 1 == 72);
 }
 
-TEST_CASE(
-    "Ctrl-U puts back the line Ctrl-Y took, and only while the message is "
-    "being written [compose]") {
+TEST_CASE("Ctrl-Z puts back the lines Ctrl-Y took, and only while the message is "
+          "being written [compose][undo]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
@@ -1603,23 +1602,29 @@ TEST_CASE(
     CHECK_FALSE(textHas(state, "line 1"));
     CHECK_FALSE(textHas(state, "line 2"));
 
-    // The stack empties in the order it filled: the line that went last is the
-    // one that comes back first.
-    compose::handleEvent(state, ctrl('u'));
+    // A deleted line is a change like any other: the one that went last is the
+    // one that comes back first, where it stood.
+    compose::handleEvent(state, ctrl('z'));
     CHECK(textHas(state, "line 2"));
     CHECK_FALSE(textHas(state, "line 1"));
-    compose::handleEvent(state, ctrl('u'));
+    compose::handleEvent(state, ctrl('z'));
     const std::vector<std::string> whole{"line 0", "line 1", "line 2", "line 3"};
     CHECK(state.edit.lines == whole);
+    CHECK(state.edit.row == 1);
 
-    // The stack goes with the message: what was deleted out of one is nothing
+    // Ctrl-R deletes it again, and Ctrl-U is undo as much as Ctrl-Z is.
+    compose::handleEvent(state, ctrl('r'));
+    CHECK_FALSE(textHas(state, "line 1"));
+    compose::handleEvent(state, ctrl('u'));
+    CHECK(textHas(state, "line 1"));
+
+    // The history goes with the message: what was deleted out of one is nothing
     // the next message may be handed.
-    compose::handleEvent(state, ctrl('y'));
     compose::dropMessage(state);
     compose::startNew(state);
     fixture.walkToText();
     const auto started = state.edit.lines;
-    compose::handleEvent(state, ctrl('u'));
+    compose::handleEvent(state, ctrl('z'));
     CHECK(state.edit.lines == started);
 }
 
@@ -3233,4 +3238,125 @@ TEST_CASE("A double click on a header field selects the whole of it [compose][se
     compose::handleEvent(state, clickAt(toAddr.x_min, toAddr.y_min));
     REQUIRE(state.composeHasSelection());
     CHECK(state.clipboard == "Re: something");
+}
+
+namespace {
+
+/// The text put in by hand, as `inText()` does, with the history begun on it:
+/// the editor would otherwise see the lines put in as a change of its own, and
+/// the first undo would take them back out.
+void inTextFresh(ComposeFixture& fixture, std::vector<std::string> lines) {
+    inText(fixture, std::move(lines));
+    fixture.state.composeHistory.clear();
+}
+
+void typeInto(amberedit::ui::AppState& state, const std::string& text) {
+    for (const char c : text) compose::handleEvent(state, Event::Character(c));
+}
+
+}  // namespace
+
+TEST_CASE("Ctrl-Z takes typing back a word at a time, Ctrl-R puts it back [compose][undo]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inTextFresh(fixture, {"Hello"});
+    compose::handleEvent(state, Event::End);
+    typeInto(state, " big world");
+    REQUIRE(state.edit.lines.front() == "Hello big world");
+
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines.front() == "Hello big");
+    CHECK(state.edit.col == 9);
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines.front() == "Hello");
+    CHECK(state.edit.col == 5);
+    // Nothing older than the text the editor opened on.
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines.front() == "Hello");
+
+    compose::handleEvent(state, ctrl('r'));
+    CHECK(state.edit.lines.front() == "Hello big");
+    compose::handleEvent(state, ctrl('r'));
+    CHECK(state.edit.lines.front() == "Hello big world");
+    CHECK(state.edit.col == 15);
+
+    // Typing after an undo is a change of its own, and what was undone is gone.
+    compose::handleEvent(state, ctrl('z'));
+    typeInto(state, "!");
+    CHECK(state.edit.lines.front() == "Hello big!");
+    compose::handleEvent(state, ctrl('r'));
+    CHECK(state.edit.lines.front() == "Hello big!");
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines.front() == "Hello big");
+}
+
+TEST_CASE("Every change to the text is a step, the lines it touched put back [compose][undo]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inTextFresh(fixture, {"one", "two", "three"});
+
+    // A run of Backspace is one step.
+    compose::handleEvent(state, Event::ArrowDown);
+    compose::handleEvent(state, Event::End);
+    compose::handleEvent(state, Event::Backspace);
+    compose::handleEvent(state, Event::Backspace);
+    REQUIRE(state.edit.lines[1] == "t");
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines[1] == "two");
+
+    // A line deleted comes back where it stood, the cursor with it.
+    compose::handleEvent(state, ctrl('y'));
+    REQUIRE(state.edit.lines == std::vector<std::string>{"one", "three"});
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines == std::vector<std::string>{"one", "two", "three"});
+    CHECK(state.edit.row == 1);
+
+    // A line split by Enter is joined again.
+    compose::handleEvent(state, Event::Home);
+    compose::handleEvent(state, Event::ArrowRight);
+    compose::handleEvent(state, Event::Return);
+    REQUIRE(state.edit.lines.size() == 4);
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines == std::vector<std::string>{"one", "two", "three"});
+}
+
+TEST_CASE("Undo puts the typing back in the field a change was made in [compose][undo]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inTextFresh(fixture, {"text"});
+
+    compose::handleEvent(state, alt('h'));
+    REQUIRE(state.composeInHeader);
+    state.composeField = compose::kSubject;
+    state.compose.subject = "Topic";
+    state.composeCursor = state.compose.subject.size();
+    typeInto(state, "s");
+    REQUIRE(state.compose.subject == "Topics");
+
+    // Down into the text and a word there: the newest step is the text's.
+    compose::handleEvent(state, Event::Return);
+    REQUIRE_FALSE(state.composeInHeader);
+    compose::handleEvent(state, Event::End);
+    typeInto(state, "!");
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines.front() == "text");
+    CHECK_FALSE(state.composeInHeader);
+
+    // The one before it was the subject's, and the typing goes back up there.
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.compose.subject == "Topic");
+    CHECK(state.composeInHeader);
+    CHECK(state.composeField == compose::kSubject);
+    CHECK(state.composeCursor == 5);
+}
+
+TEST_CASE("A paste the shell answered is undone as one step [compose][undo]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inTextFresh(fixture, {"a"});
+    compose::handleEvent(state, Event::End);
+    compose::pasteText(state, "b\nc");
+    REQUIRE(state.edit.lines == std::vector<std::string>{"ab", "c"});
+    compose::handleEvent(state, ctrl('z'));
+    CHECK(state.edit.lines == std::vector<std::string>{"a"});
 }

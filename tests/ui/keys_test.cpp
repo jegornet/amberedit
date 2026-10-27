@@ -241,6 +241,21 @@ TEST_CASE("A layout that cannot be read says which line is wrong [keys]") {
     CHECK_MESSAGE(contains(error6, "x is already app.quit"), error6);
 }
 
+TEST_CASE("A line binding a command that is no more is passed over and said [keys]") {
+    const KeyMap map = valueOf(
+        KeyMap::parse("Ctrl-U compose.restore_line\nCtrl-S compose.save\n", "keys"));
+    REQUIRE(map.warnings().size() == 1);
+    CHECK_MESSAGE(contains(map.warnings().front(),
+                           "keys:1: compose.restore_line is no longer a command"),
+                  map.warnings().front());
+    // The rest of the file is read as it would be without the line.
+    CHECK(map.is(Event::Character("s", true, false, false), Command::ComposeSave));
+    CHECK_FALSE(map.is(Event::Character("u", true, false, false), Command::ComposeUndo));
+    // Merged over the defaults, the line leaves Ctrl-U on undo.
+    CHECK(map.mergedOnto(KeyMap::defaults())
+              .is(Event::Character("u", true, false, false), Command::ComposeUndo));
+}
+
 TEST_CASE("A layout written with the older names is still read [keys]") {
     // Two-word commands were spelled with a `-` once — `compose.word-left` —
     // and a file that still spells them that way binds the same commands.

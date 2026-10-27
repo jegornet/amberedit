@@ -1804,8 +1804,8 @@ struct AppConfig {
     std::vector<Command> readerHints{Command::ReaderReply,  Command::ReaderReplyElsewhere,
                                      Command::ReaderNew,    Command::ReaderList,
                                      Command::ReaderExport, Command::ReaderNodelist};
-    std::vector<Command> composeHints{Command::ComposeSave, Command::ComposeDeleteLine,
-                                      Command::ComposeImport};
+    std::vector<Command> composeHints{Command::ComposeSave, Command::ComposeUndo,
+                                      Command::ComposeRedo, Command::ComposeImport};
 
     /// How wide one button of a menu stands, in columns, from
     /// `menu_buttons_width` — the frame around the label included, so it is the

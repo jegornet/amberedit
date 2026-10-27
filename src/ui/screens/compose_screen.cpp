@@ -24,6 +24,7 @@
 #include "ui/attributes_dialog.hpp"
 #include "ui/back_button.hpp"
 #include "ui/delete_line_button.hpp"
+#include "ui/edit_history.hpp"
 #include "ui/edit_layout.hpp"
 #include "ui/event_util.hpp"
 #include "ui/extern_util.hpp"
@@ -652,6 +653,45 @@ std::vector<std::string> headerSnapshot(const AppState& state) {
     return fields;
 }
 
+/// Where the typing stands, as the history keeps it.
+EditFocus editFocus(const AppState& state) {
+    return {state.composeInHeader, state.composeField, state.composeCursor,
+            state.edit.cursor()};
+}
+
+/// Hands the history the message as it now stands, a change since it last
+/// looked being a step of `kind`.
+void settleHistory(AppState& state, EditHistory::Kind kind, std::string_view typed = {}) {
+    state.composeHistory.settle(state.edit.lines, headerSnapshot(state), editFocus(state),
+                                kind, typed);
+}
+
+/// Takes a change back, or puts one back again where `redo` says so: the text
+/// and the fields as the step leaves them, and the typing where it stood when
+/// the change was made. A selection is dropped — it was made over text that
+/// has just changed under it.
+void undoEdit(AppState& state, bool redo) {
+    EditContent content{state.edit.lines, headerSnapshot(state), editFocus(state)};
+    const bool moved = redo ? state.composeHistory.redo(content)
+                            : state.composeHistory.undo(content);
+    if (!moved) return;
+    state.edit.lines = std::move(content.lines);
+    for (int i = 0; i < kAttributes; ++i) {
+        valueOf(state.compose, i) = content.header[static_cast<size_t>(i)];
+    }
+    // Under an editor of the user's own the typing never leaves the header,
+    // whatever half the change was made in: the text is not typed into here.
+    state.composeInHeader = content.focus.inHeader || state.externalEditing();
+    state.composeField = content.focus.field;
+    state.composeCursor = content.focus.fieldCursor;
+    state.edit.row = content.focus.text.row;
+    state.edit.col = content.focus.text.col;
+    state.edit.anchor.reset();
+    state.composeFieldAnchor.reset();
+    state.composeDrag = AppState::ComposeDrag::None;
+    if (!state.composeInHeader) scrollToCursor(state);
+}
+
 /// Fills the editor with what the template makes of this message, and puts the
 /// cursor on the line the template's @position names — for a forward as for
 /// every other message.
@@ -672,6 +712,9 @@ void fillFromTemplate(AppState& state) {
     // as long as the two are the same, the header may still rewrite the text.
     state.composeStartText = state.edit.lines;
     state.composeStartHeader = headerSnapshot(state);
+    // Every step held was taken against the text just replaced, and would put
+    // its lines back into a text they were never part of.
+    state.composeHistory.clear();
 
     const auto lines = static_cast<int>(state.edit.lines.size());
     state.edit.row = std::clamp(start.cursorLine, 0, lines - 1);
@@ -735,6 +778,7 @@ void openWithText(AppState& state, std::vector<std::string> lines) {
     state.edit.row = 0;
     state.edit.col = 0;
     state.editScroll = 0;
+    state.composeHistory.clear();
     // The same as every other message that opens in the text: it goes to the
     // user's own editor, the header having been filled in from the message
     // being changed.
@@ -778,6 +822,7 @@ void leaveHeader(AppState& state) {
 /// Back out of the compose screen, onto the reader underneath.
 void leaveEditor(AppState& state) {
     state.edit = TextBuffer{};
+    state.composeHistory.clear();
     state.composeFieldAnchor.reset();
     state.composeDrag = AppState::ComposeDrag::None;
     state.composeStartText.clear();
@@ -2229,8 +2274,6 @@ bool textKey(AppState& state, const Event& event) {
     // so that Del bound to a command is that command here too.
     if (state.keys.is(event, Command::ComposeDeleteLine)) {
         deleteLine(state.edit);
-    } else if (state.keys.is(event, Command::ComposeRestoreLine)) {
-        restoreLine(state.edit);
     } else if (state.keys.is(event, Command::ComposeDeleteQuote)) {
         deleteQuote(state.edit);
     } else if (state.keys.is(event, Command::ComposeDeleteWord)) {
@@ -2671,6 +2714,17 @@ bool dispatch(AppState& state, const Event& event) {
         copySelection(state, true);
         return true;
     }
+    // A change taken back, and put back again — from either half, since a
+    // step may be of the text or of a field and puts the typing back where it
+    // was made.
+    if (state.keys.is(event, Command::ComposeUndo)) {
+        undoEdit(state, false);
+        return true;
+    }
+    if (state.keys.is(event, Command::ComposeRedo)) {
+        undoEdit(state, true);
+        return true;
+    }
     // Esc over a selection drops the selection and nothing else: it is the
     // nearer thing to be undone, and the message is a keystroke further away.
     if (event == Event::Escape && state.composeHasSelection()) {
@@ -2777,11 +2831,27 @@ bool dispatch(AppState& state, const Event& event) {
 }  // namespace
 
 bool handleEvent(AppState& state, const Event& event) {
+    // Whatever changed the message since the last key — a paste the shell
+    // answered, a file read in, a utility handing the message back — is a step
+    // of its own, and the key about to be answered starts from there.
+    settleHistory(state, EditHistory::Kind::Other);
+    // What the key is to the history: typing and deleting in a run gather into
+    // one step, and over a selection either is a change of its own.
+    EditHistory::Kind kind = EditHistory::Kind::Other;
+    if (!state.composeHasSelection()) {
+        if (typesText(event)) {
+            kind = EditHistory::Kind::Typing;
+        } else if (event == Event::Backspace || event == Event::Delete) {
+            kind = EditHistory::Kind::Deleting;
+        }
+    }
+
     // A selection belongs to the half of the screen it was made in: the typing
     // moving to the other one leaves it behind, and coming back later finds
     // nothing selected rather than an end left standing where it was.
     const bool wasInHeader = state.composeInHeader;
     const bool handled = dispatch(state, event);
+    settleHistory(state, kind, event.character());
     if (state.composeInHeader != wasInHeader) {
         if (state.composeInHeader) {
             state.edit.anchor.reset();

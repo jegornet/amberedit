@@ -1050,8 +1050,8 @@ hint_bar_capitalize off
 #                   thread_down  quit  help
 #
 #   compose_hints   save  attributes  import  header_back  delete_line
-#                   restore_line  delete_quote  delete_word  word_left
-#                   word_right  line_start  line_end  paste  copy  cut
+#                   delete_quote  delete_word  word_left  word_right
+#                   line_start  line_end  paste  copy  cut  undo  redo
 #                   quit  help
 #
 # The area list, the reader and the editor each name "extern_util0" through
@@ -1070,7 +1070,7 @@ hint_bar_capitalize off
 arealist_hints next_unread toggle_unread rescan
 msglist_hints none
 reader_hints reply reply_elsewhere new list export nodelist
-compose_hints save delete_line import
+compose_hints save undo redo import
 
 # Whether the reader and the message list show a back button — a left arrow in
 # the top-left corner. Optional; "when_narrow" by default. Esc does the same

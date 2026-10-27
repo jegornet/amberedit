@@ -53,7 +53,6 @@ enum class Command : uint8_t {
     ComposeImport,          ///< compose.import
     ComposeHeaderBack,      ///< compose.header_back
     ComposeDeleteLine,      ///< compose.delete_line
-    ComposeRestoreLine,     ///< compose.restore_line
     ComposeDeleteQuote,     ///< compose.delete_quote
     ComposeDeleteWord,      ///< compose.delete_word
     ComposeWordLeft,        ///< compose.word_left
@@ -63,6 +62,8 @@ enum class Command : uint8_t {
     ComposePaste,           ///< compose.paste
     ComposeCopy,            ///< compose.copy
     ComposeCut,             ///< compose.cut
+    ComposeUndo,            ///< compose.undo
+    ComposeRedo,            ///< compose.redo
     // The external utilities, ten to a screen and every one of them the same
     // command with another program behind it. They stand together at the end
     // because that is what lets a slot and a screen be worked out from the
@@ -237,6 +238,18 @@ public:
     /// `_`: `reader.reply-elsewhere` is how the same command was written once,
     /// and a config that still says so is still read.
     [[nodiscard]] static const Info* named(std::string_view name);
+
+    /// Whether that whole name is one no command answers to any more but a
+    /// layout written earlier may still hold — `compose.restore_line`, whose
+    /// work undo does now. A `keys` line or a list naming one is passed over
+    /// with a warning rather than refused: the file was right when it was
+    /// written, and AmberEdit refusing to start over it would be the upgrade
+    /// breaking a config that asked for nothing new.
+    [[nodiscard]] static bool retired(std::string_view name);
+
+    /// The same for the short name a screen's list writes — `restore_line` in
+    /// `compose_hints`.
+    [[nodiscard]] static bool retiredOn(CommandScreen screen, std::string_view name);
 
     /// The command that screen calls by that short name, or nothing where it
     /// offers none — a screen's own commands and the ones answered everywhere,

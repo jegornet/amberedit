@@ -1242,7 +1242,8 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
                                Command::ReaderNew, Command::ReaderList,
                                Command::ReaderExport, Command::ReaderNodelist});
     CHECK(defaults.composeHints == std::vector<Command>{Command::ComposeSave,
-                                                        Command::ComposeDeleteLine,
+                                                        Command::ComposeUndo,
+                                                        Command::ComposeRedo,
                                                         Command::ComposeImport});
 
     // The hints stand in the order they are written, and a row may name
@@ -1252,6 +1253,16 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
           std::vector<Command>{Command::ReaderInfo, Command::ReaderKludges});
     CHECK(with("compose_hints word_left line_end\n").composeHints ==
           std::vector<Command>{Command::ComposeWordLeft, Command::ComposeLineEnd});
+
+    // A command that is no more is left out of the list and warned about, the
+    // config loading as it would without it.
+    const AppConfig retired = with("compose_hints save restore_line import\n");
+    CHECK(retired.composeHints ==
+          std::vector<Command>{Command::ComposeSave, Command::ComposeImport});
+    REQUIRE(retired.warnings.size() == 1);
+    CHECK_MESSAGE(contains(retired.warnings.front(),
+                           "compose_hints: 'restore_line' is no longer a command"),
+                  retired.warnings.front());
 
     // The names were written with a `-` once, and a config that still writes
     // one is read as it stands.
