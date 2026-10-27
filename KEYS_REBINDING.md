@@ -30,7 +30,7 @@ copy `amberkeys.cfg.example` (which contains the default bindings, spelled out)
 and edit that instead of starting from a blank file.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
-apart), a function key (`F1` to `F12`), `Del`, `Ins`, `Ctrl-Ins`, `Shift-Ins`,
+apart), a function key (`F1` to `F12`), `Del`, `Ins`, `Ctrl-Ins`, `Shift-Ins`, `Shift-Del`,
 `Ctrl-` and a letter, or `Alt-` and a letter, an arrow, a function key or
 `Backspace`. Two screens may share a key, as `F2`
 does between the reader and the editor; two commands of one screen may not, and
@@ -40,7 +40,8 @@ a layout that tries says which line clashes with which.
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
 every screen — mostly bare: `Alt-Left` and `Alt-Backspace` are chords of their
 own and may be bound, while `Ctrl-Home` and `Ctrl-End` move about as well, to
-the first and the last message of the area — and the dialogs answer for
+the first and the last message of the area, and `Shift` with an arrow, `Home` or
+`End` selects text in the editor — and the dialogs answer for
 themselves entirely. `Space` in the message list marks the message rather than
 paging, which is a key the screen answers and not a binding; `PgDn` pages there
 as everywhere.
@@ -56,7 +57,7 @@ and the editor never being the same screen.
 | `arealist.` | the area list | `next_unread`, `toggle_unread`, `rescan`, `mark_toggle`, `catch_up` |
 | `msglist.` | the message list | `mark_toggle`, `delete` |
 | `reader.` | the reader | `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`, `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `charset`, `scrollbar`, `thread_up`, `thread_down`, `mark_toggle`, `mark_menu`, `shell`, `copy` |
-| `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `word_left`, `word_right`, `line_start`, `line_end`, `paste` |
+| `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `word_left`, `word_right`, `line_start`, `line_end`, `paste`, `copy`, `cut` |
 
 `app.quit` is answered ahead of every dialog as well: no box is worth being the
 one thing between you and the way out. Everything else waits until the box in

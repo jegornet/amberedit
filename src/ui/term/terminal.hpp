@@ -186,6 +186,21 @@ private:
     /// leaves alone. Anything else waiting is handed back to ncurses.
     void swallowLineEndPartner(wint_t first);
 
+    /// Notes a mouse event's effect on whether the left button is held, and
+    /// answers whether it is worth passing on: a movement is only while the
+    /// button is down, being a drag then and a hand wandering otherwise.
+    bool noteButton(const Event& event);
+
+    /// Asks the terminal to report the pointer moving while a button is held —
+    /// xterm's button-event tracking, mode 1002 — or stops it. ncurses asks for
+    /// presses and releases alone, and a drag is what a selection is made with.
+    /// Written straight to the terminal as `ModifiedKeyReporting` is, and taken
+    /// back off before the terminal is handed to anything else.
+    void setDragReporting(bool on);
+
+    static constexpr const char* kDragOn = "\x1b[?1002h";
+    static constexpr const char* kDragOff = "\x1b[?1002l";
+
     Screen screen_;
     /// Whether a clipboard answer, and the DA1 answer sent after it, may still
     /// be on their way from a question given up on — which `poll()` then takes
@@ -193,6 +208,8 @@ private:
     bool oscPending_{false};
     bool da1Pending_{false};
     bool running_{true};
+    bool dragReporting_{false};
+    bool leftHeld_{false};
     bool cursorVisible_{false};
     int cursorX_{0};
     int cursorY_{0};

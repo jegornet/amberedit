@@ -10,7 +10,10 @@ using amberedit::ui::deleteLine;
 using amberedit::ui::EditOptions;
 using amberedit::ui::insertNewline;
 using amberedit::ui::insertText;
+using amberedit::ui::deleteSelection;
 using amberedit::ui::restoreLine;
+using amberedit::ui::selectedText;
+using amberedit::ui::TextPoint;
 using amberedit::ui::TextBuffer;
 using amberedit::ui::trimmedLines;
 
@@ -394,4 +397,26 @@ TEST_CASE("Ctrl-D on the last quote leaves a line to write on [editor]") {
     TextBuffer buffer = bufferOf({" AB> one", " AB> two"}, 0, 0);
     deleteQuote(buffer);
     CHECK(shown(buffer) == "^");
+}
+
+TEST_CASE("A selection reads and deletes from its front end whichever way it was made [editor]") {
+    TextBuffer buffer;
+    buffer.lines = {"one two", "three", "four five"};
+    buffer.row = 0;
+    buffer.col = 4;
+    CHECK(selectedText(buffer).empty());
+
+    // Made backwards: the anchor is the later end.
+    buffer.anchor = TextPoint{2, 4};
+    CHECK(selectedText(buffer) == "two\nthree\nfour");
+    REQUIRE(deleteSelection(buffer));
+    CHECK(shown(buffer) == "one ^ five");
+    CHECK_FALSE(buffer.anchor);
+
+    // An anchor standing on the cursor selects nothing, and one left past the
+    // end of the text by a change answers for the end of it.
+    buffer.anchor = TextPoint{0, 4};
+    CHECK_FALSE(deleteSelection(buffer));
+    buffer.anchor = TextPoint{7, 99};
+    CHECK(selectedText(buffer) == " five");
 }

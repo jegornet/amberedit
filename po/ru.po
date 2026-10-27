@@ -262,7 +262,8 @@ msgstr "Шелл"
 msgid "Run the system shell"
 msgstr "Запустить системный шелл"
 
-#: src/config/commands.cpp:82 src/ui/forward_dialog.cpp:121
+#: src/config/commands.cpp:82 src/config/commands.cpp:113
+#: src/ui/forward_dialog.cpp:121
 msgid "Copy"
 msgstr "Скопировать"
 
@@ -375,11 +376,23 @@ msgstr "Вставить"
 msgid "Paste from the clipboard at the cursor"
 msgstr "Вставить из буфера обмена в позицию курсора"
 
-#: src/config/commands.cpp:179
+#: src/config/commands.cpp:114
+msgid "Copy the selected text to the clipboard"
+msgstr "Скопировать выделенный текст в буфер обмена"
+
+#: src/config/commands.cpp:115
+msgid "Cut"
+msgstr "Вырезать"
+
+#: src/config/commands.cpp:116
+msgid "Move the selected text to the clipboard"
+msgstr "Вырезать выделенный текст в буфер обмена"
+
+#: src/config/commands.cpp:183
 msgid "Run the program the config names"
 msgstr "Запустить программу из конфига"
 
-#: src/config/commands.cpp:179
+#: src/config/commands.cpp:183
 msgid "Utility"
 msgstr "Утилита"
 
@@ -401,7 +414,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-10-15 22:27+0200\n"
+"POT-Creation-Date: 2026-10-27 22:26+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -592,25 +605,25 @@ msgstr "базу не удалось открыть"
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
 
-#: src/ui/app_shell.cpp:113
+#: src/ui/app_shell.cpp:114
 msgid ""
 "this terminal does not hand its clipboard over to programs (OSC 52 reads)"
 msgstr "этот терминал не отдаёт программам свой буфер обмена (чтение OSC 52)"
 
-#: src/ui/app_shell.cpp:116
+#: src/ui/app_shell.cpp:117
 msgid "the terminal did not answer with its clipboard"
 msgstr "терминал не прислал свой буфер обмена"
 
-#: src/ui/app_shell.cpp:120
+#: src/ui/app_shell.cpp:121
 msgid "the terminal answered with a clipboard it garbled"
 msgstr "терминал прислал буфер обмена в повреждённом виде"
 
-#: src/ui/app_shell.cpp:203
+#: src/ui/app_shell.cpp:204
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:981
+#: src/ui/app_shell.cpp:982
 msgid "Not found"
 msgstr "Не найдено"
 
@@ -1066,6 +1079,10 @@ msgstr "на этом экране ни одна клавиша ничего н�
 msgid "Esc closes"
 msgstr "Esc закрыть"
 
+#: src/ui/hint_bar.cpp:89
+msgid "Clear selection"
+msgstr "Снять выделение"
+
 #: src/ui/import_dialog.cpp:78
 msgid "Enter open · Tab move · Esc close"
 msgstr "Enter открыть · Tab перейти · Esc закрыть"
@@ -1278,44 +1295,44 @@ msgstr " Область: {0}▌"
 msgid "Every area has been read."
 msgstr "Все области прочитаны."
 
-#: src/ui/screens/compose_screen.cpp:307
+#: src/ui/screens/compose_screen.cpp:318
 msgid "change"
 msgstr "правка"
 
-#: src/ui/screens/compose_screen.cpp:308
+#: src/ui/screens/compose_screen.cpp:319
 msgid "forward"
 msgstr "пересылка"
 
-#: src/ui/screens/compose_screen.cpp:309
+#: src/ui/screens/compose_screen.cpp:320
 msgid "moved reply"
 msgstr "ответ в другой области"
 
-#: src/ui/screens/compose_screen.cpp:310
+#: src/ui/screens/compose_screen.cpp:321
 msgid "reply"
 msgstr "ответ"
 
-#: src/ui/screens/compose_screen.cpp:311
+#: src/ui/screens/compose_screen.cpp:322
 msgid "new message"
 msgstr "новое сообщение"
 
-#: src/ui/screens/compose_screen.cpp:781
+#: src/ui/screens/compose_screen.cpp:821
 #, c++-format
 msgid ""
 "The message was not stored: {0} It is still here, and nothing has been lost."
 msgstr "Сообщение не сохранено: {0} Оно осталось здесь, ничего не потеряно."
 
-#: src/ui/screens/compose_screen.cpp:1290
+#: src/ui/screens/compose_screen.cpp:1330
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr "Копия не сделана для: {0}. Строки с ними остались в сообщении."
 
-#: src/ui/screens/compose_screen.cpp:1296
+#: src/ui/screens/compose_screen.cpp:1336
 #, c++-format
 msgid "The copy did not reach: {0}. The message itself is stored."
 msgstr "Копия не дошла до: {0}. Само сообщение сохранено."
 
-#: src/ui/screens/compose_screen.cpp:1322
+#: src/ui/screens/compose_screen.cpp:1362
 #, c++-format
 msgid ""
 "{0} is open for reading only: its files are not yours to write, so nothing "

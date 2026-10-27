@@ -1042,7 +1042,8 @@ hint_bar_capitalize off
 #
 #   compose_hints   save  attributes  import  header_back  delete_line
 #                   restore_line  delete_quote  delete_word  word_left
-#                   word_right  line_start  line_end  quit  help
+#                   word_right  line_start  line_end  paste  copy  cut
+#                   quit  help
 #
 # The area list, the reader and the editor each name "extern_util0" through
 # "extern_util9" besides — see extern_utilN above. A hint for one shows the
@@ -1054,6 +1055,9 @@ hint_bar_capitalize off
 # is given: every key on it either moves the cursor or marks the message under
 # it, and neither is worth a row of the screen. A list may otherwise be as long
 # as you like — what the window has no room for is left off the end of the row.
+#
+# While text is selected in the editor its row is copy, cut and Esc instead,
+# whatever compose_hints says.
 arealist_hints next_unread toggle_unread rescan
 msglist_hints none
 reader_hints reply reply_elsewhere new list export nodelist

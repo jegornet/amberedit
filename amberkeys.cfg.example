@@ -146,6 +146,12 @@ Ctrl-E          compose.line_end
 # than the one "clipboard" names.
 Ctrl-V          compose.paste
 Shift-Ins       compose.paste
+# Copy and cut act on the selection — Shift with an arrow, Home or End, or a
+# drag of the mouse — and do nothing without one.
+Ctrl-C          compose.copy
+Ctrl-Ins        compose.copy
+Ctrl-X          compose.cut
+Shift-Del       compose.cut
 
 # --- the external utilities ---------------------------------------------------
 # The ten programs an "extern_util0".."extern_util9" line in amberedit.cfg names,

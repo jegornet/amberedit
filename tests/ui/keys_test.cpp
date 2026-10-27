@@ -164,11 +164,12 @@ TEST_CASE("A key is read the way it is written [keys]") {
     }
 }
 
-TEST_CASE("Ctrl and Shift go with Insert and with no other named key [keys]") {
+TEST_CASE("Ctrl and Shift go with Insert, and Shift with Delete [keys]") {
     CHECK(keyNamed("Ctrl-Ins") == Event::Named(Event::Name::Insert, true, false, false));
     CHECK(keyNamed("shift-insert") ==
           Event::Named(Event::Name::Insert, false, false, true));
     CHECK(keyNamed("Ins") == Event::Insert);
+    CHECK(keyNamed("Shift-Del") == Event::Named(Event::Name::Delete, false, false, true));
 
     // A shifted character is the other character, and is written as itself.
     CHECK_FALSE(keyNamed("Shift-g"));
@@ -181,7 +182,11 @@ TEST_CASE("Ctrl and Shift go with Insert and with no other named key [keys]") {
     CHECK(isReservedKey("Shift-Tab"));
     CHECK(isReservedKey("Shift-Space"));
 
-    for (const char* spelling : {"Ctrl-Ins", "Shift-Ins"}) {
+    // Shift with an arrow is a selection being made, and moves about too.
+    CHECK(isReservedKey("Shift-Left"));
+    CHECK(isReservedKey("Shift-End"));
+
+    for (const char* spelling : {"Ctrl-Ins", "Shift-Ins", "Shift-Del"}) {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(spellingOf(*key) == spelling);

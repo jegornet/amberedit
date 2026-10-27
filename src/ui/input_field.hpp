@@ -40,6 +40,17 @@ namespace amberedit::ui {
 /// part of a field puts the cursor.
 [[nodiscard]] size_t offsetAtColumn(const std::string& value, size_t origin, int column);
 
+/// The bytes of a field that are selected, [begin, end) — nothing where the two
+/// are equal. An `end` past the last byte of the text selects the rest of the
+/// field after it as well, which is how a row of the message says that the
+/// line break closing it is part of the selection.
+struct FieldSelection {
+    size_t begin{0};
+    size_t end{0};
+
+    [[nodiscard]] bool empty() const { return begin >= end; }
+};
+
 /// The field itself, `width` columns wide and written in `tint`.
 ///
 /// The active one carries the cursor and is the only one that scrolls: an
@@ -55,10 +66,21 @@ namespace amberedit::ui {
 /// something, which wants them, and a row of the message text under the cursor,
 /// which is edited the same way and is not a box at all. Passing no color pads
 /// with blanks, as everything did before there were any.
+///
+/// `selection` is drawn in `selection_text` on `selection`, the cursor's own
+/// cell excepted: the cursor is one end of what is selected, and a cell that
+/// stopped looking like the cursor would leave nothing saying which end moves.
 [[nodiscard]] term::Element inputField(const std::string& value, size_t cursor, int width,
                                        bool active, theme::Color tint,
                                        std::optional<theme::Color> filler = std::nullopt,
-                                       size_t* origin = nullptr);
+                                       size_t* origin = nullptr,
+                                       FieldSelection selection = {});
+
+/// `piece` written in `tint`, the part of it `selection` covers drawn as
+/// selected — `from` being the byte of the whole text `piece` begins at, so
+/// that a selection counted against the whole is cut against any piece of it.
+[[nodiscard]] term::Element selectedRun(const std::string& piece, size_t from,
+                                        theme::Color tint, FieldSelection selection);
 
 /// `color` where the theme asks for the underscores and nothing where it does
 /// not — `input_filler_show`. What a field passes as its `filler`: whether it

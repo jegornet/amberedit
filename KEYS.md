@@ -84,7 +84,7 @@ standing in both.
 | `Enter` | the next field, then down into the text                            |
 | `Alt-H` | edit header                                                         |
 | `Ctrl-S` / `F2` / `Alt-S` | save (asks first)                                         |
-| `Esc` | drop the message (asks first)                                      |
+| `Esc` | drop the message (asks first); over a selection, drop the selection |
 | `Ctrl-F` | edit message attributes                                         |
 | `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |
 | `Ctrl-Y` / `Alt-D` | delete the line — or the button beside it, on the right-hand edge |
@@ -93,4 +93,7 @@ standing in both.
 | `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
-| `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor; many terminals keep `Shift-Ins` for their own paste |
+| `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
+| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same |
+| `Ctrl-C` / `Ctrl-Ins` | copy the selection to the clipboard                    |
+| `Ctrl-X` / `Shift-Del` | cut the selection to the clipboard                    |

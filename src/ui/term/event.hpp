@@ -13,9 +13,12 @@
 /// see the `isAlt` this replaced — and is now spelled once.
 namespace amberedit::ui::term {
 
-/// Where the pointer was and what it did. Only presses are acted on anywhere in
-/// amberedit: a release would arrive after whatever the press did — a screen opened,
-/// a dialog closed — and act a second time on whatever has since moved under it.
+/// Where the pointer was and what it did. A press is what a click is, everywhere
+/// in amberedit: a release would arrive after whatever the press did — a screen
+/// opened, a dialog closed — and act a second time on whatever has since moved
+/// under it. The one thing that reads the other two is a drag in the editor,
+/// which a press there begins: `Moved` is the pointer travelling with the left
+/// button held, and `Released` is where the drag ends.
 struct MouseEvent {
     enum class Button : uint8_t { None, Left, Middle, Right, WheelUp, WheelDown };
     enum class Motion : uint8_t { Pressed, Released, Moved };

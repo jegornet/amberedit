@@ -34,7 +34,8 @@ namespace amberedit::app {
 /// U+FFFD, the line endings of any system taken off, and each line through
 /// `config::text::messageLine()` — tabs opened out, control bytes dropped —
 /// exactly as a file read into a message is. Whatever the clipboard held came
-/// from another program, and a NUL in it would end the message there.
+/// from another program, and a NUL in it would end the message there. A break
+/// closing the text is kept, as an empty last line.
 [[nodiscard]] std::vector<std::string> pastedLines(std::string_view text);
 
 }  // namespace amberedit::app

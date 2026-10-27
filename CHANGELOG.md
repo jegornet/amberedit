@@ -3,6 +3,7 @@
 ## Unreleased
 
 - fix every other click on rescan in the hint bar doing nothing
+- select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it
 
 ## 0.9.4 — 2026-10-26
 

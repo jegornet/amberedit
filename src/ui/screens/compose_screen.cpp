@@ -125,10 +125,20 @@ const std::string& valueOf(const app::ComposeFields& fields, int field) {
 /// not, being shown or written rather than asked for.
 Element field(const std::string& value, size_t cursor, int width, bool active,
               theme::Color tint, std::optional<theme::Color> filler = std::nullopt,
-              AppState::ComposeSpot* spot = nullptr) {
+              AppState::ComposeSpot* spot = nullptr, FieldSelection selection = {}) {
     if (spot == nullptr) return inputField(value, cursor, width, active, tint, filler);
-    return inputField(value, cursor, width, active, tint, filler, &spot->origin) |
+    return inputField(value, cursor, width, active, tint, filler, &spot->origin,
+                      selection) |
            reflect(spot->box);
+}
+
+/// What of the field the typing is in is selected, or nothing.
+FieldSelection fieldSelection(const AppState& state) {
+    if (!state.composeHasSelection()) return {};
+    const size_t size = valueOf(state.compose, state.composeField).size();
+    const size_t anchor = std::min(state.composeFieldAnchor->at, size);
+    const size_t cursor = std::min(state.composeCursor, size);
+    return {std::min(anchor, cursor), std::max(anchor, cursor)};
 }
 
 /// One row: the label, the name column and — where the row has one — the
@@ -232,7 +242,8 @@ Elements headerRows(AppState& state, bool editing) {
         return field(valueOf(state.compose, which), state.composeCursor, width, focused,
                      focused ? theme::palette.focusedText : theme::palette.inputText,
                      fieldFiller(theme::palette.inputFiller),
-                     &state.composeFieldSpots[static_cast<size_t>(which)]) |
+                     &state.composeFieldSpots[static_cast<size_t>(which)],
+                     focused ? fieldSelection(state) : FieldSelection{}) |
                bgcolor(focused ? theme::palette.focusedField : theme::palette.inputField);
     };
     // What is left of the row once the labels and the names are taken off —
@@ -767,6 +778,8 @@ void leaveHeader(AppState& state) {
 /// Back out of the compose screen, onto the reader underneath.
 void leaveEditor(AppState& state) {
     state.edit = TextBuffer{};
+    state.composeFieldAnchor.reset();
+    state.composeDrag = AppState::ComposeDrag::None;
     state.composeStartText.clear();
     state.composeStartHeader.clear();
     state.editScroll = 0;
@@ -1375,6 +1388,20 @@ void askToSave(AppState& state) {
 /// This is the whole of moving between the header and the text with the mouse —
 /// there is no separate step for it, because a click that names a field is
 /// already saying the typing goes there.
+/// The byte of `line` a pointer `column` columns into `row` stands on, where
+/// the row's leftmost column shows byte `origin`.
+///
+/// Never past the row pointed at. A row that closes its line ends where the
+/// typing goes on from; one the line goes on past ends on its last character,
+/// the byte after it being drawn on the row below — and the pointer lands where
+/// it points, not a row further down.
+size_t columnOnRow(const std::string& line, const EditRow& row, size_t origin,
+                   int column) {
+    size_t limit = std::min(row.end, line.size());
+    if (row.end < line.size()) limit = prevChar(line, limit);
+    return std::min(offsetAtColumn(line, origin, column), limit);
+}
+
 bool clickToCursor(AppState& state, const MouseEvent& click) {
     // The one thing leaving a field does beyond moving the cursor: off the To
     // address, the AKA the message is written from is chosen for whoever it is
@@ -1433,19 +1460,186 @@ bool clickToCursor(AppState& state, const MouseEvent& click) {
 
         state.edit.row =
             std::clamp(row.line, 0, static_cast<int>(state.edit.lines.size()) - 1);
-        // Never past the row that was pointed at. A row that closes its line
-        // ends where the typing goes on from; one the line goes on past ends on
-        // its last character, the byte after it being drawn on the row below —
-        // and a click lands where it points, not a row further down.
-        const std::string& line = state.edit.line();
-        size_t limit = std::min(row.end, line.size());
-        if (row.end < line.size()) limit = prevChar(line, limit);
         state.edit.col =
-            std::min(offsetAtColumn(line, spot.origin, click.x - spot.box.x_min), limit);
+            columnOnRow(state.edit.line(), row, spot.origin, click.x - spot.box.x_min);
         scrollToCursor(state);
         return true;
     }
     return false;
+}
+
+/// Begins a drag where a click has just put the cursor: the cursor is one end
+/// of whatever the drag selects, so the other is put down where it stands. A
+/// click that is never dragged leaves the two together, which selects nothing.
+void startDrag(AppState& state) {
+    if (state.composeInHeader) {
+        if (state.composeField >= kAttributes) return;
+        state.composeFieldAnchor = AppState::FieldAnchor{state.composeField,
+                                                         state.composeCursor};
+        state.composeDrag = AppState::ComposeDrag::Field;
+        return;
+    }
+    if (state.externalEditing()) return;
+    state.edit.anchor = state.edit.cursor();
+    state.composeDrag = AppState::ComposeDrag::Text;
+}
+
+/// The cursor carried to where the pointer has been dragged, the anchor left
+/// where the drag began.
+///
+/// In a field, only across it: a field is one line, and the pointer wandering
+/// off its row still means somewhere along it. Past either end is the end of
+/// what the field shows and a character over, which is what scrolls a field
+/// wider than its box along under the pointer a step at a time.
+///
+/// In the text, onto the row under the pointer — and off the top or the bottom
+/// of the window, onto the row past it, the frame scrolling to keep the cursor
+/// in sight: that is how a selection is dragged over more of the message than
+/// the window holds.
+void dragTo(AppState& state, int x, int y) {
+    if (state.composeDrag == AppState::ComposeDrag::Field) {
+        if (!state.composeInHeader || !state.composeFieldAnchor ||
+            state.composeFieldAnchor->field != state.composeField) {
+            return;
+        }
+        const AppState::ComposeSpot& spot =
+            state.composeFieldSpots[static_cast<size_t>(state.composeField)];
+        if (spot.box.x_max < spot.box.x_min) return;
+        const int column = std::clamp(x, spot.box.x_min, spot.box.x_max + 1) - spot.box.x_min;
+        state.composeCursor =
+            offsetAtColumn(valueOf(state.compose, state.composeField), spot.origin, column);
+        return;
+    }
+
+    if (state.composeInHeader || state.composeTextRows.empty()) return;
+    const auto& rows = state.composeTextRows;
+    int on = static_cast<int>(rows.size());
+    if (y < rows.front().box.y_min) on = -1;
+    for (size_t i = 0; i < rows.size(); ++i) {
+        if (y >= rows[i].box.y_min && y <= rows[i].box.y_max) on = static_cast<int>(i);
+    }
+    const TextLayout layout = textLayout(state);
+    if (layout.rows.empty()) return;
+    const int index = std::clamp(state.editScroll + on, 0,
+                                 static_cast<int>(layout.rows.size()) - 1);
+    const EditRow row = layout.rows[static_cast<size_t>(index)];
+    state.edit.row =
+        std::clamp(row.line, 0, static_cast<int>(state.edit.lines.size()) - 1);
+    state.edit.col = columnOnRow(state.edit.line(), row, row.begin,
+                                 std::max(0, x - rows.front().box.x_min));
+    scrollToCursor(state);
+}
+
+/// Whether a key is one a selection is made with: Shift with an arrow, Home or
+/// End. The arrows and the pair without Shift move the cursor and drop the
+/// selection; with it they move the cursor and leave the other end standing.
+bool extendsSelection(const Event& event) {
+    if (!event.shift() || event.ctrl() || event.alt() ||
+        event.kind() != Event::Kind::Key) {
+        return false;
+    }
+    switch (event.name()) {
+        case Event::Name::ArrowLeft:
+        case Event::Name::ArrowRight:
+        case Event::Name::ArrowUp:
+        case Event::Name::ArrowDown:
+        case Event::Name::Home:
+        case Event::Name::End: return true;
+        default: return false;
+    }
+}
+
+/// Whether a key types into what has the typing — the keys that, over a
+/// selection, write over it rather than beside it.
+bool typesText(const Event& event) {
+    if (!event.is_character() || event.ctrl() || event.alt()) return false;
+    const std::string& input = event.character();
+    return !(input.size() == 1 && static_cast<unsigned char>(input[0]) < 0x20);
+}
+
+/// Shift with a key that moves, in a field: the cursor moves as the bare key
+/// would move it inside the field and the anchor stays where the selection
+/// began. A field is one line, so Up and Down are its two ends — the same two
+/// a single-line box anywhere goes to — and nothing crosses into the field
+/// beside it the way the bare arrows do: a selection is of one field's text.
+void extendInField(AppState& state, const Event& event) {
+    if (state.composeField >= kAttributes) return;
+    if (!state.composeFieldAnchor || state.composeFieldAnchor->field != state.composeField) {
+        state.composeFieldAnchor =
+            AppState::FieldAnchor{state.composeField, state.composeCursor};
+    }
+    const std::string& value = valueOf(state.compose, state.composeField);
+    size_t& cursor = state.composeCursor;
+    switch (event.name()) {
+        case Event::Name::ArrowLeft: cursor = prevChar(value, cursor); break;
+        case Event::Name::ArrowRight:
+            cursor = std::min(value.size(), cursor + charLen(value, cursor));
+            break;
+        case Event::Name::ArrowUp:
+        case Event::Name::Home: cursor = 0; break;
+        default: cursor = value.size(); break;
+    }
+}
+
+/// The same in the text, where Up and Down go a row as they always do — and
+/// stop at the top of the message rather than going on up into the header the
+/// way the bare Up does from there.
+void extendInText(AppState& state, const Event& event) {
+    if (!state.edit.anchor) state.edit.anchor = state.edit.cursor();
+    switch (event.name()) {
+        case Event::Name::ArrowLeft: moveLeft(state.edit); break;
+        case Event::Name::ArrowRight: moveRight(state.edit); break;
+        case Event::Name::ArrowUp: moveRows(state, -1); break;
+        case Event::Name::ArrowDown: moveRows(state, 1); break;
+        case Event::Name::Home: moveToLineStart(state.edit); break;
+        default: moveToLineEnd(state.edit); break;
+    }
+    scrollToCursor(state);
+}
+
+/// What is selected, in whichever half the typing is in.
+std::string selectionText(const AppState& state) {
+    if (!state.composeHasSelection()) return {};
+    if (!state.composeInHeader) return selectedText(state.edit);
+    const FieldSelection chosen = fieldSelection(state);
+    return valueOf(state.compose, state.composeField)
+        .substr(chosen.begin, chosen.end - chosen.begin);
+}
+
+/// Takes the selection out of whichever half the typing is in, the cursor left
+/// where it began, and drops both anchors either way. Says whether there was
+/// anything to take out.
+bool deleteSelected(AppState& state) {
+    const bool any = state.composeHasSelection();
+    if (any && state.composeInHeader) {
+        const FieldSelection chosen = fieldSelection(state);
+        valueOf(state.compose, state.composeField)
+            .erase(chosen.begin, chosen.end - chosen.begin);
+        state.composeCursor = chosen.begin;
+    } else if (any) {
+        deleteSelection(state.edit);
+        scrollToCursor(state);
+    }
+    state.composeFieldAnchor.reset();
+    state.edit.anchor.reset();
+    return any;
+}
+
+/// Copy, and cut where `cut` says so: what is selected goes to the clipboard
+/// `clipboard` names — AmberEdit's own here and now, any other by way of the
+/// shell, as the reader's copy goes — and a cut takes it out of the message
+/// besides. The selection stays standing after a copy, there being nothing
+/// done to it.
+void copySelection(AppState& state, bool cut) {
+    if (!state.composeHasSelection()) return;
+    std::string text = selectionText(state);
+    if (cut) deleteSelected(state);
+    if (state.config.clipboardInEffect() == config::ClipboardMode::Internal) {
+        state.clipboard = std::move(text);
+        state.copiedNotice = state.config.clipboardCopyIndicate;
+    } else {
+        state.clipboardCopyRequested = std::move(text);
+    }
 }
 
 /// Opens a reply or a comment whose fields have just been filled in, the
@@ -1797,6 +1991,18 @@ bool askNodelist(AppState& state) {
 /// A keystroke aimed at the header block. false is a key the block does not
 /// bind, which the screen around it then gets a look at.
 bool headerKey(AppState& state, const Event& event) {
+    if (extendsSelection(event)) {
+        extendInField(state, event);
+        return true;
+    }
+    // Over a selection, the keys that delete and the keys that type write over
+    // it, below; every other key leaves it behind — moving off it, walking to
+    // another field, Enter — and so drops it.
+    const bool overSelection =
+        state.composeHasSelection() &&
+        (event == Event::Backspace || event == Event::Delete || typesText(event));
+    if (!overSelection) state.composeFieldAnchor.reset();
+
     // The attributes are a button and not a field, so what they answer to is
     // what a button answers to. Only the walking below is shared with the
     // fields; the editing under it would work on text the button does not
@@ -1881,6 +2087,11 @@ bool headerKey(AppState& state, const Event& event) {
 
     std::string& value = valueOf(state.compose, state.composeField);
     size_t& cursor = state.composeCursor;
+
+    if (overSelection) {
+        deleteSelected(state);
+        if (event == Event::Backspace || event == Event::Delete) return true;
+    }
 
     // The word keys the message text answers, answering the same way in a
     // field: what is edited up here is a line of text like any other, and a
@@ -1981,6 +2192,21 @@ bool textKey(AppState& state, const Event& event) {
     // the quoting was done at: the editor rewraps a quote as it is typed, and
     // the two answering differently would show a line moving as it was edited.
     const EditOptions options{state.composeConfig().quoteMargin};
+
+    if (extendsSelection(event)) {
+        extendInText(state, event);
+        return true;
+    }
+    // A selection is written over by what deletes and what types — Enter
+    // included, which types a line break — and left behind by everything else.
+    if (state.composeHasSelection() &&
+        (event == Event::Backspace || event == Event::Delete || event == Event::Return ||
+         typesText(event))) {
+        deleteSelected(state);
+        if (event == Event::Backspace || event == Event::Delete) return true;
+    } else {
+        state.edit.anchor.reset();
+    }
 
     // The layout first, as on every other screen: a key it has been given is
     // that command and not what the key would otherwise have typed or deleted.
@@ -2234,6 +2460,28 @@ Element render(AppState& state) {
         return hbox({std::move(row) | flex, rightOf(at)});
     };
 
+    // What of each row is selected, counted from the start of the row: the
+    // selection is a run of the text, and a row is a run of one line of it. A
+    // row closing a line whose break the selection takes in reaches a byte past
+    // the row — which is how the break is drawn: the rest of the row selected.
+    const auto range = state.composeInHeader ? std::nullopt : selectionOf(state.edit);
+    const auto rowSelection = [&](const EditRow& row,
+                                  const std::string& line) -> FieldSelection {
+        if (!range) return {};
+        const auto& [from, to] = *range;
+        if (row.line < from.row || row.line > to.row) return {};
+        const size_t begin = row.line == from.row ? from.col : 0;
+        const bool breakSelected = row.line < to.row;
+        const size_t end = row.line == to.row ? to.col : line.size();
+        // The bytes of this row, and the break where the row closes its line.
+        const size_t rowEnd = row.end;
+        const size_t lo = std::max(begin, row.begin);
+        size_t hi = std::min(end, rowEnd);
+        if (breakSelected && rowEnd >= line.size()) hi = rowEnd + 1;
+        if (lo >= hi) return {};
+        return {lo - row.begin, hi - row.begin};
+    };
+
     // One per row on screen, the blank ones under the end of the message
     // included: a click there is still a click in the text.
     state.composeTextRows.assign(static_cast<size_t>(std::max(0, rows)),
@@ -2257,6 +2505,7 @@ Element render(AppState& state) {
             : depth > 0
                 ? (depth % 2 == 1 ? theme::palette.quoteOdd : theme::palette.quoteEven)
                 : theme::palette.text;
+        const FieldSelection chosen = rowSelection(row, line);
         // Only one cursor on the screen: the text keeps it while the typing goes
         // there, and gives it up to the header block while that is being filled
         // in. Two would say the typing goes to both places.
@@ -2265,7 +2514,18 @@ Element render(AppState& state) {
             // against — the same thing `field()` works out for the row that
             // carries the cursor, which is the only one drawn scrolled.
             spot.origin = row.begin;
-            content.push_back(placed(text(piece) | color(base) | reflect(spot.box), i));
+            Element drawn = selectedRun(piece, 0, base, chosen);
+            // The line break, where the selection takes it in: the rest of the
+            // row in the selection's colors, out to the edge of the text — a
+            // line selected with its break is a whole line selected, and reads
+            // as one however short it is.
+            if (!chosen.empty() && chosen.end > piece.size()) {
+                const auto rest = static_cast<size_t>(
+                    std::max(1, layout.width - displayWidth(piece)));
+                drawn = hbox({std::move(drawn),
+                              selectedRun(std::string(rest, ' '), 0, base, {0, rest})});
+            }
+            content.push_back(placed(std::move(drawn) | reflect(spot.box), i));
             continue;
         }
         // The row the cursor is on is drawn like any other. The cursor says
@@ -2275,7 +2535,8 @@ Element render(AppState& state) {
         const size_t within = std::min(
             state.edit.col > row.begin ? state.edit.col - row.begin : 0, piece.size());
         content.push_back(placed(
-            field(piece, within, layout.width, true, base, std::nullopt, &spot), i));
+            field(piece, within, layout.width, true, base, std::nullopt, &spot, chosen),
+            i));
         // `field()` counts the scroll from the start of what it was given, and
         // what it was given starts partway into the line.
         spot.origin += row.begin;
@@ -2284,7 +2545,27 @@ Element render(AppState& state) {
     return chrome(state, std::move(content));
 }
 
-bool handleEvent(AppState& state, const Event& event) {
+namespace {
+
+bool dispatch(AppState& state, const Event& event) {
+    // A drag under way, before anything a click could mean: the pointer was
+    // pressed on a field or in the text, and wherever it is now is where the
+    // selection runs to — over a button or off the window as much as anywhere.
+    // A press begins afresh, whatever the last drag left behind: a release that
+    // went to a box standing over the screen never reached here to end it.
+    if (const auto mouse = mouseOf(event);
+        mouse && mouse->button == MouseEvent::Button::Left) {
+        if (mouse->motion == MouseEvent::Motion::Pressed) {
+            state.composeDrag = AppState::ComposeDrag::None;
+        } else if (state.composeDrag != AppState::ComposeDrag::None) {
+            dragTo(state, mouse->x, mouse->y);
+            if (mouse->motion == MouseEvent::Motion::Released) {
+                state.composeDrag = AppState::ComposeDrag::None;
+            }
+            return true;
+        }
+    }
+
     // The menu button in the top-right corner, before anything else a click
     // could mean: it stands over the header block's own first row.
     if (state.composeMenuShown() && menu_button::clicked(event, state.width)) {
@@ -2326,6 +2607,23 @@ bool handleEvent(AppState& state, const Event& event) {
         askToSave(state);
         return true;
     }
+    // What is selected, to the clipboard. With nothing selected there is
+    // nothing to copy, and the key is swallowed rather than typed.
+    if (state.keys.is(event, Command::ComposeCopy)) {
+        copySelection(state, false);
+        return true;
+    }
+    if (state.keys.is(event, Command::ComposeCut)) {
+        copySelection(state, true);
+        return true;
+    }
+    // Esc over a selection drops the selection and nothing else: it is the
+    // nearer thing to be undone, and the message is a keystroke further away.
+    if (event == Event::Escape && state.composeHasSelection()) {
+        state.composeFieldAnchor.reset();
+        state.edit.anchor.reset();
+        return true;
+    }
     if (event == Event::Escape ||
         (state.backButtonShown() && back_button::clicked(event))) {
         // When it was the button, the press is shown on it before the dialog
@@ -2339,6 +2637,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // had their look: the header block and the text are one screen, and a click
     // in either says the typing goes there, at the character pointed at.
     if (const auto click = leftClick(event); click && clickToCursor(state, *click)) {
+        startDrag(state);
         return true;
     }
     // The wheel over the message, a row per notch, exactly as it moves the body
@@ -2415,7 +2714,28 @@ bool handleEvent(AppState& state, const Event& event) {
         }
     }
 
+    // Everything below is a key. A pointer that got this far — moved with no
+    // drag under way, released over nothing — means nothing to either half.
+    if (event.is_mouse()) return false;
     return state.composeInHeader ? headerKey(state, event) : textKey(state, event);
+}
+
+}  // namespace
+
+bool handleEvent(AppState& state, const Event& event) {
+    // A selection belongs to the half of the screen it was made in: the typing
+    // moving to the other one leaves it behind, and coming back later finds
+    // nothing selected rather than an end left standing where it was.
+    const bool wasInHeader = state.composeInHeader;
+    const bool handled = dispatch(state, event);
+    if (state.composeInHeader != wasInHeader) {
+        if (state.composeInHeader) {
+            state.edit.anchor.reset();
+        } else {
+            state.composeFieldAnchor.reset();
+        }
+    }
+    return handled;
 }
 
 void saveMessage(AppState& state) {
@@ -2666,6 +2986,7 @@ void externalEditReturned(AppState& state, bool changed, std::vector<std::string
 
 void externUtilReturned(AppState& state, std::vector<std::string> lines) {
     state.edit.lines = std::move(lines);
+    state.edit.anchor.reset();
     // A message the utility emptied is still a message with a line in it: the
     // editor is written against a buffer that always has one, and the same
     // guard stands wherever text is put into it.
@@ -2704,6 +3025,7 @@ void scrollText(AppState& state, int delta) {
 
 void insertImported(AppState& state, const std::vector<std::string>& lines) {
     if (lines.empty()) return;
+    state.edit.anchor.reset();
     // The typing may still be up in the header, Ctrl-O and the Import button
     // both being answered from either half of the screen. What was read goes
     // into the text, so the cursor goes there first — and that is the ordinary
@@ -2730,6 +3052,8 @@ void insertImported(AppState& state, const std::vector<std::string>& lines) {
 void pasteText(AppState& state, std::string_view text) {
     const std::vector<std::string> lines = app::pastedLines(text);
     if (lines.empty()) return;
+    // Over a selection, in place of it — the way a key typed over one goes.
+    deleteSelected(state);
 
     if (state.composeInHeader) {
         if (state.composeField == kAttributes) return;

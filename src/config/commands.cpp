@@ -110,6 +110,10 @@ constexpr Commands::Info kCommands[] = {
      N_("To the end of the line"), "", "Ctrl-E", false},
     {Command::ComposePaste, "compose.paste", CommandScreen::Compose, N_("Paste"),
      N_("Paste from the clipboard at the cursor"), "⎀", "Ctrl-V Shift-Ins", true},
+    {Command::ComposeCopy, "compose.copy", CommandScreen::Compose, N_("Copy"),
+     N_("Copy the selected text to the clipboard"), "", "Ctrl-C Ctrl-Ins", false},
+    {Command::ComposeCut, "compose.cut", CommandScreen::Compose, N_("Cut"),
+     N_("Move the selected text to the clipboard"), "", "Ctrl-X Shift-Del", false},
 };
 
 /// The screens an external utility can be run from, in the order their commands

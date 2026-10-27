@@ -371,4 +371,55 @@ std::vector<std::string> trimmedLines(const TextBuffer& buffer) {
     return out;
 }
 
+namespace {
+
+/// The point held to the text as it stands: a line that is there, and a byte
+/// of it that is.
+TextPoint clamped(const TextBuffer& buffer, TextPoint point) {
+    point.row = std::clamp(point.row, 0, static_cast<int>(buffer.lines.size()) - 1);
+    point.col = std::min(point.col, buffer.lines[static_cast<size_t>(point.row)].size());
+    return point;
+}
+
+}  // namespace
+
+std::optional<std::pair<TextPoint, TextPoint>> selectionOf(const TextBuffer& buffer) {
+    if (!buffer.anchor || buffer.lines.empty()) return std::nullopt;
+    const TextPoint anchor = clamped(buffer, *buffer.anchor);
+    const TextPoint cursor = clamped(buffer, buffer.cursor());
+    if (anchor == cursor) return std::nullopt;
+    return anchor < cursor ? std::make_pair(anchor, cursor)
+                           : std::make_pair(cursor, anchor);
+}
+
+std::string selectedText(const TextBuffer& buffer) {
+    const auto range = selectionOf(buffer);
+    if (!range) return {};
+    const auto& [from, to] = *range;
+    std::string out;
+    for (int row = from.row; row <= to.row; ++row) {
+        const std::string& line = buffer.lines[static_cast<size_t>(row)];
+        const size_t begin = row == from.row ? from.col : 0;
+        const size_t end = row == to.row ? to.col : line.size();
+        if (row != from.row) out += '\n';
+        out.append(line, begin, end - begin);
+    }
+    return out;
+}
+
+bool deleteSelection(TextBuffer& buffer) {
+    const auto range = selectionOf(buffer);
+    buffer.anchor.reset();
+    if (!range) return false;
+    const auto& [from, to] = *range;
+    auto& lines = buffer.lines;
+    const std::string tail = lines[static_cast<size_t>(to.row)].substr(to.col);
+    lines[static_cast<size_t>(from.row)].erase(from.col);
+    lines[static_cast<size_t>(from.row)] += tail;
+    lines.erase(lines.begin() + from.row + 1, lines.begin() + to.row + 1);
+    buffer.row = from.row;
+    buffer.col = from.col;
+    return true;
+}
+
 }  // namespace amberedit::ui

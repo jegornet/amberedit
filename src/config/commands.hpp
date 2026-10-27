@@ -61,6 +61,8 @@ enum class Command : uint8_t {
     ComposeLineStart,       ///< compose.line_start
     ComposeLineEnd,         ///< compose.line_end
     ComposePaste,           ///< compose.paste
+    ComposeCopy,            ///< compose.copy
+    ComposeCut,             ///< compose.cut
     // The external utilities, ten to a screen and every one of them the same
     // command with another program behind it. They stand together at the end
     // because that is what lets a slot and a screen be worked out from the

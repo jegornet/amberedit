@@ -4,6 +4,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace amberedit::ui {
@@ -15,6 +16,20 @@ struct DeletedLine {
     /// it: a line deleted off the bottom has nothing left under it to go back
     /// above, and without this it would come back one line too high.
     int row{0};
+};
+
+/// A place in the text: a line and a byte offset into it.
+struct TextPoint {
+    int row{0};
+    size_t col{0};
+
+    [[nodiscard]] bool operator==(const TextPoint& other) const {
+        return row == other.row && col == other.col;
+    }
+    [[nodiscard]] bool operator!=(const TextPoint& other) const { return !(*this == other); }
+    [[nodiscard]] bool operator<(const TextPoint& other) const {
+        return row != other.row ? row < other.row : col < other.col;
+    }
 };
 
 /// The text of a message being written, and where the cursor stands in it.
@@ -32,6 +47,14 @@ struct TextBuffer {
     /// the message: the editor closing takes the whole `TextBuffer` with it, and
     /// what was deleted out of one message is nothing the next one may be handed.
     std::vector<DeletedLine> deleted;
+
+    /// The other end of the selection, the cursor being the end that moves —
+    /// where Shift was first held with an arrow, or where the pointer was
+    /// pressed before it was dragged. Nothing where no selection has been
+    /// begun; one standing on the cursor selects nothing.
+    std::optional<TextPoint> anchor;
+
+    [[nodiscard]] TextPoint cursor() const { return {row, col}; }
 
     [[nodiscard]] const std::string& line() const {
         return lines[static_cast<size_t>(row)];
@@ -130,6 +153,29 @@ void moveWordLeft(TextBuffer& buffer);
 /// means what it means in the text rather than nearly that.
 [[nodiscard]] std::optional<size_t> wordStartBefore(const std::string& text, size_t at);
 [[nodiscard]] std::optional<size_t> wordEndAfter(const std::string& text, size_t at);
+
+/// The selection, front end first: from the anchor to the cursor or the other
+/// way round, whichever comes first in the text. Nothing where no text is
+/// selected — no anchor, or one standing on the cursor. Both ends are held to
+/// the text as it now stands, so an anchor a change has left past the end of a
+/// line or of the message answers for the end of it.
+[[nodiscard]] std::optional<std::pair<TextPoint, TextPoint>> selectionOf(
+    const TextBuffer& buffer);
+
+/// What is selected, a line break in it written as a line feed — what a
+/// clipboard is handed. Empty where nothing is.
+///
+/// A break is in the selection exactly when the selection runs on past it to
+/// the line below: `Shift-End` stops before the break closing a line, and
+/// `Shift-→` from there, or `Shift-↓` from the start of it, takes the break in.
+/// The two are different selections and are copied differently — the
+/// characters of a line, or the line itself.
+[[nodiscard]] std::string selectedText(const TextBuffer& buffer);
+
+/// Takes the selection out of the text, joining what stood before it to what
+/// stood after it, and leaves the cursor where it began. The selection goes
+/// with it either way. Says whether there was anything to take out.
+bool deleteSelection(TextBuffer& buffer);
 
 /// The text with the trailing empty lines dropped — what a message is saved
 /// as. A blank line the user left at the end is padding, not content.

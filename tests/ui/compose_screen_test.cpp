@@ -22,6 +22,7 @@
 #include "ui/attributes_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
 #include "ui/extern_util.hpp"
+#include "ui/hint_bar.hpp"
 #include "ui/keys.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
@@ -2731,4 +2732,362 @@ TEST_CASE(
     // And what the shell comes back with goes in where the cursor is.
     compose::pasteText(state, "pasted");
     CHECK(textHas(state, "pasted"));
+}
+
+namespace {
+
+/// Shift held with a key that moves — what a selection is made with.
+Event shifted(Event::Name name) { return Event::Named(name, false, false, true); }
+
+/// The pointer, with the left button held, at a cell of the screen — dragged
+/// there or let go of there.
+Event pointerAt(int x, int y, term::MouseEvent::Motion motion) {
+    term::MouseEvent mouse;
+    mouse.button = term::MouseEvent::Button::Left;
+    mouse.motion = motion;
+    mouse.x = x;
+    mouse.y = y;
+    return Event::Mouse(mouse);
+}
+
+/// The editor in the text of an echo message holding `lines`, the cursor at
+/// the start of the first, writing to AmberEdit's own clipboard.
+void inText(ComposeFixture& fixture, std::vector<std::string> lines) {
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.config.clipboardCopyIndicate = false;
+    compose::startNew(fixture.state);
+    fixture.walkToText();
+    fixture.state.edit.lines = std::move(lines);
+    fixture.state.edit.row = 0;
+    fixture.state.edit.col = 0;
+    fixture.state.editScroll = 0;
+}
+
+}  // namespace
+
+TEST_CASE("Shift and the arrows select text, and Ctrl-C copies it [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world", "second line"});
+
+    state.edit.col = 6;
+    for (int i = 0; i < 5; ++i) compose::handleEvent(state, shifted(Event::Name::ArrowRight));
+    CHECK(state.composeHasSelection());
+    compose::handleEvent(state, shifted(Event::Name::ArrowDown));
+
+    REQUIRE(compose::handleEvent(state, ctrl('c')));
+    CHECK(state.clipboard == "world\nsecond line");
+    // A copy does nothing to what it copied: the text is as it was, and the
+    // selection still stands to be cut or copied again.
+    CHECK(state.edit.lines == std::vector<std::string>{"Hello world", "second line"});
+    CHECK(state.composeHasSelection());
+
+    // Ctrl-Ins is the other key it is copied with.
+    state.clipboard.clear();
+    compose::handleEvent(state, Event::Named(Event::Name::Insert, true, false, false));
+    CHECK(state.clipboard == "world\nsecond line");
+
+    // A bare arrow moves on and leaves the selection behind.
+    compose::handleEvent(state, Event::ArrowLeft);
+    CHECK_FALSE(state.composeHasSelection());
+    state.clipboard = "kept";
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "kept");
+}
+
+TEST_CASE("Ctrl-X and Shift-Del cut the selection out [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"one two", "three four", "five"});
+
+    // From the middle of the first line to the middle of the second, selected
+    // backwards — the anchor is the later end of it.
+    state.edit.row = 1;
+    state.edit.col = 5;
+    compose::handleEvent(state, shifted(Event::Name::ArrowUp));
+    compose::handleEvent(state, shifted(Event::Name::ArrowLeft));
+    REQUIRE(state.composeHasSelection());
+
+    REQUIRE(compose::handleEvent(state, ctrl('x')));
+    CHECK(state.clipboard == "two\nthree");
+    CHECK(state.edit.lines == std::vector<std::string>{"one  four", "five"});
+    CHECK(state.edit.row == 0);
+    CHECK(state.edit.col == 4);
+    CHECK_FALSE(state.composeHasSelection());
+
+    compose::handleEvent(state, shifted(Event::Name::End));
+    compose::handleEvent(state, Event::Named(Event::Name::Delete, false, false, true));
+    CHECK(state.clipboard == " four");
+    CHECK(state.edit.lines == std::vector<std::string>{"one ", "five"});
+}
+
+TEST_CASE("What is typed over a selection takes its place [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world"});
+
+    state.edit.col = 6;
+    compose::handleEvent(state, shifted(Event::Name::End));
+    compose::handleEvent(state, Event::Character('X'));
+    CHECK(state.edit.lines == std::vector<std::string>{"Hello X"});
+
+    compose::handleEvent(state, shifted(Event::Name::Home));
+    compose::handleEvent(state, Event::Backspace);
+    CHECK(state.edit.lines == std::vector<std::string>{""});
+    CHECK(state.edit.col == 0);
+
+    // And a paste goes where the selection stood, rather than beside it.
+    state.edit.lines = {"Hello world"};
+    state.edit.col = 0;
+    compose::handleEvent(state, shifted(Event::Name::End));
+    state.clipboard = "Bye";
+    compose::handleEvent(state, ctrl('v'));
+    CHECK(state.edit.lines == std::vector<std::string>{"Bye"});
+}
+
+TEST_CASE("Esc drops a selection before it asks about the message [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world"});
+
+    compose::handleEvent(state, shifted(Event::Name::End));
+    REQUIRE(state.composeHasSelection());
+    compose::handleEvent(state, Event::Escape);
+    CHECK_FALSE(state.composeHasSelection());
+    CHECK(state.confirm == amberedit::ui::AppState::Confirm::None);
+    CHECK(state.edit.lines == std::vector<std::string>{"Hello world"});
+
+    compose::handleEvent(state, Event::Escape);
+    CHECK(state.confirm == amberedit::ui::AppState::Confirm::DropMessage);
+}
+
+TEST_CASE("A header field is selected in and copied from [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.config.clipboardCopyIndicate = false;
+
+    compose::startNew(state);
+    REQUIRE(state.composeInHeader);
+    state.composeField = compose::kToAddr;
+    state.compose.toAddr = "2:382/736";
+    state.composeCursor = 0;
+
+    // Shift-Left at the start of an address stays in it, where the bare arrow
+    // would cross onto the name beside it: a selection is of one field.
+    compose::handleEvent(state, shifted(Event::Name::ArrowLeft));
+    CHECK(state.composeField == compose::kToAddr);
+    for (int i = 0; i < 5; ++i) compose::handleEvent(state, shifted(Event::Name::ArrowRight));
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "2:382");
+
+    // Shift-Down is the end of the field rather than the field under it.
+    compose::handleEvent(state, shifted(Event::Name::ArrowDown));
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "2:382/736");
+
+    compose::handleEvent(state, Event::Character('5'));
+    CHECK(state.compose.toAddr == "5");
+
+    // Walking to another field and back finds nothing selected.
+    compose::handleEvent(state, shifted(Event::Name::Home));
+    REQUIRE(state.composeHasSelection());
+    compose::handleEvent(state, Event::TabReverse);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kToAddr);
+    CHECK_FALSE(state.composeHasSelection());
+}
+
+TEST_CASE("A selection is left behind in the half it was made in [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world"});
+
+    compose::handleEvent(state, shifted(Event::Name::End));
+    REQUIRE(state.composeHasSelection());
+    compose::handleEvent(state, alt('h'));
+    REQUIRE(state.composeInHeader);
+    CHECK_FALSE(state.composeHasSelection());
+    fixture.walkToText();
+    CHECK_FALSE(state.composeHasSelection());
+}
+
+TEST_CASE("A drag of the pointer selects in the text [compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"first line", "second line"});
+
+    screenRowsOf(state);
+    const auto first = state.composeTextRows[0].box;
+    const auto second = state.composeTextRows[1].box;
+
+    compose::handleEvent(state, clickAt(first.x_min + 6, first.y_min));
+    CHECK_FALSE(state.composeHasSelection());
+    compose::handleEvent(state, pointerAt(first.x_min + 8, second.y_min,
+                                          term::MouseEvent::Motion::Moved));
+    compose::handleEvent(state, pointerAt(first.x_min + 6, second.y_min,
+                                          term::MouseEvent::Motion::Released));
+    REQUIRE(state.composeHasSelection());
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "line\nsecond");
+
+    // Once let go of, the pointer moving selects nothing more.
+    compose::handleEvent(state, pointerAt(first.x_min, first.y_min,
+                                          term::MouseEvent::Motion::Moved));
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "line\nsecond");
+
+    // And a click that is not dragged leaves nothing selected.
+    compose::handleEvent(state, clickAt(first.x_min + 2, first.y_min));
+    compose::handleEvent(state, pointerAt(first.x_min + 2, first.y_min,
+                                          term::MouseEvent::Motion::Released));
+    CHECK_FALSE(state.composeHasSelection());
+}
+
+TEST_CASE("A drag of the pointer selects in a header field [compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.config.clipboardCopyIndicate = false;
+
+    compose::startNew(state);
+    state.compose.subject = "Re: something";
+    screenRowsOf(state);
+    const auto subject = state.composeFieldSpots[compose::kSubject].box;
+
+    compose::handleEvent(state, clickAt(subject.x_min + 4, subject.y_min));
+    // Off the row and past the end of the field is the end of what it says.
+    compose::handleEvent(state, pointerAt(subject.x_max + 10, subject.y_min + 3,
+                                          term::MouseEvent::Motion::Moved));
+    REQUIRE(state.composeHasSelection());
+    compose::handleEvent(state, ctrl('x'));
+    CHECK(state.clipboard == "something");
+    CHECK(state.compose.subject == "Re: ");
+}
+
+TEST_CASE("Selected text is drawn in the selection's colors [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world", "second"});
+    state.edit.col = 6;
+    compose::handleEvent(state, shifted(Event::Name::End));
+
+    term::Screen screen(state.width, state.height);
+    term::render(screen, compose::render(state));
+    const auto row = state.composeTextRows[0].box;
+    // "Hello " as it was, "world" selected; the cursor stands past the end.
+    CHECK_FALSE(screen.at(row.x_min, row.y_min).bg == theme::palette.selection);
+    for (int x = 6; x < 11; ++x) {
+        CHECK(screen.at(row.x_min + x, row.y_min).bg == theme::palette.selection);
+        CHECK(screen.at(row.x_min + x, row.y_min).fg == theme::palette.selectionText);
+    }
+    CHECK_FALSE(screen.at(row.x_min, state.composeTextRows[1].box.y_min).bg ==
+                theme::palette.selection);
+
+    // Up to the end of the line, the break left out: the row past the text is
+    // not selected.
+    const int lastColumn = row.x_min + 60;
+    CHECK_FALSE(screen.at(lastColumn, row.y_min).bg == theme::palette.selection);
+
+    // The break taken in is the rest of the row selected, out to the edge of
+    // the text — on a line of text and on an empty one, and on the row the
+    // cursor is on as much as on any other.
+    state.edit.anchor.reset();
+    state.edit.lines = {"ab", "", "cd"};
+    state.edit.row = 0;
+    state.edit.col = 0;
+    compose::handleEvent(state, shifted(Event::Name::ArrowDown));
+    compose::handleEvent(state, shifted(Event::Name::ArrowDown));
+    term::render(screen, compose::render(state));
+    for (int i = 0; i < 2; ++i) {
+        const auto box = state.composeTextRows[static_cast<size_t>(i)].box;
+        CHECK(screen.at(box.x_min, box.y_min).bg == theme::palette.selection);
+        CHECK(screen.at(lastColumn, box.y_min).bg == theme::palette.selection);
+    }
+    CHECK_FALSE(screen.at(lastColumn, state.composeTextRows[2].box.y_min).bg ==
+                theme::palette.selection);
+
+    compose::handleEvent(state, Event::Escape);
+    // Selected backwards, the cursor standing at the end of the line on the
+    // break it selects: its own cell is the cursor, the rest of the row is the
+    // selection's.
+    state.edit.row = 1;
+    state.edit.col = 0;
+    compose::handleEvent(state, shifted(Event::Name::ArrowLeft));
+    REQUIRE(state.edit.row == 0);
+    term::render(screen, compose::render(state));
+    const auto first = state.composeTextRows[0].box;
+    CHECK_FALSE(screen.at(first.x_min, first.y_min).bg == theme::palette.selection);
+    CHECK(screen.at(lastColumn, first.y_min).bg == theme::palette.selection);
+}
+
+TEST_CASE("The hint bar offers what can be done with a selection [compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world"});
+    state.width = 100;
+
+    const std::string usual = amberedit::ui::hint_bar::text(state);
+    compose::handleEvent(state, shifted(Event::Name::End));
+    CHECK(amberedit::ui::hint_bar::text(state) ==
+          "ctrl-c copy  ctrl-x cut  esc clear selection");
+
+    // The Esc hint presses Esc, which drops the selection and brings the row
+    // the editor had back.
+    term::Screen screen(state.width, 1);
+    term::render(screen, amberedit::ui::hint_bar::render(state));
+    REQUIRE(state.hintSpots.size() == 3);
+    const auto pressed = amberedit::ui::hint_bar::clicked(
+        state, clickAt(state.hintSpots[2].box.x_min, state.hintSpots[2].box.y_min));
+    REQUIRE(pressed);
+    CHECK(*pressed == Event::Escape);
+    compose::handleEvent(state, *pressed);
+    CHECK(amberedit::ui::hint_bar::text(state) == usual);
+}
+
+TEST_CASE(
+    "A line's characters and the line with its break are two selections "
+    "[compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"one", "two", "three"});
+
+    // Home to End is the characters, the break left out.
+    state.edit.row = 1;
+    compose::handleEvent(state, shifted(Event::Name::End));
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "two");
+
+    // A step further takes the break in.
+    compose::handleEvent(state, shifted(Event::Name::ArrowRight));
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "two\n");
+
+    // So does Down from the start of the line.
+    compose::handleEvent(state, Event::Escape);
+    state.edit.row = 1;
+    state.edit.col = 0;
+    compose::handleEvent(state, shifted(Event::Name::ArrowDown));
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "two\n");
+
+    // Cut with its break, the line goes and leaves nothing in its place.
+    compose::handleEvent(state, ctrl('x'));
+    CHECK(state.edit.lines == std::vector<std::string>{"one", "three"});
+    CHECK(state.edit.row == 1);
+    CHECK(state.edit.col == 0);
+
+    // And pasted at the start of a line it goes in as a line above it.
+    state.edit.row = 0;
+    compose::handleEvent(state, ctrl('v'));
+    CHECK(state.edit.lines == std::vector<std::string>{"two", "one", "three"});
+    CHECK(state.edit.row == 1);
+    CHECK(state.edit.col == 0);
+
+    // Cut without it, the characters go and the line stays, empty.
+    compose::handleEvent(state, shifted(Event::Name::End));
+    compose::handleEvent(state, ctrl('x'));
+    CHECK(state.clipboard == "one");
+    CHECK(state.edit.lines == std::vector<std::string>{"two", "", "three"});
 }

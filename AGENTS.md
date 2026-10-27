@@ -939,9 +939,9 @@ Rules that hold the design together:
   command. Two things make Ctrl-Q work, both in `app_shell.cpp`: flow control has
   to be turned off, or the line discipline eats Ctrl-Q as XON, and the chord has
   to be matched in two forms — the raw C0 byte and the kitty protocol's
-  `CSI <codepoint>;5u`. The input layer folds both into one event. `Ctrl-C` is
-  bound to nothing and `raw()` keeps the terminal from making a signal of it, so
-  it does nothing at all until a layout gives it something to do.
+  `CSI <codepoint>;5u`. The input layer folds both into one event. `raw()` keeps
+  the terminal from making a signal of `Ctrl-C`, which leaves it a key like any
+  other: copying, in the reader and in the editor, by default.
 - The wheel moves a line per notch on every screen — the cursor in the lists, the
   body in the reader — through `ui::wheelDelta()` (`ui/event_util.hpp`), which
   returns -1/0/+1 and leaves each screen to decide what that moves. A list whose
@@ -954,6 +954,19 @@ Rules that hold the design together:
   terminfo's decision: an entry with `xm` gets SGR 1006 and works at any width,
   one without falls back to the original mode, whose coordinates stop at column
   223. Apple's terminfo has no `xm`; every current Linux one does.
+- **A drag is asked for by AmberEdit, not by ncurses.** ncurses writes mode 1000
+  — presses and releases — and nothing else whatever the mask says, so
+  `Terminal::draw()` writes xterm's 1002, button-event tracking, after the first
+  frame has gone out: the terminal keeps one tracking mode, the one asked for
+  last, and ncurses writes its own as the screen is first drawn. It comes off
+  before `endwin()` in the destructor and in `handOver()`, and goes back on with
+  the frame after. `REPORT_MOUSE_POSITION` is in the mask so that ncurses hands
+  the movement over at all, and `Terminal::noteButton()` passes a movement on
+  only while the left button is down — a terminal in 1003 reports a hand
+  wandering too. Draining a run of reports, a release wins over a movement
+  gathered with it: it is what ends a drag. Only the editor reads `Moved` and
+  `Released` (see the selection bullet under [Writing a
+  message](#writing-a-message)); everything else still acts on the press alone.
 - **The wheel moves what scrolls, and a column of buttons does not.** A box with
   a long thing in it answers the wheel — the lists in `ui/area_dialog.*` and
   `ui/nodelist_dialog.*` move their cursor, `ui/external_dialog.*` scrolls the
@@ -2443,6 +2456,44 @@ decides what an occurrence is.
   box per row into `AppState::DeleteLineSpots`, three of them because the button
   is drawn a cell at a time with nothing standing over all three rows; the click
   is `deleteLine()`, the same call `Ctrl-Y` makes.
+- **A selection is an anchor, and the cursor is its other end.** In the text it
+  is `TextBuffer::anchor`, in a header field `AppState::composeFieldAnchor`,
+  which carries the field so that an anchor left in one field selects nothing in
+  the next; `AppState::composeHasSelection()` asks whichever half the typing is
+  in, and `handleEvent()` drops the other half's anchor when the typing moves
+  across. Shift with an arrow, `Home` or `End` puts the anchor down where none
+  stands and moves the cursor (`extendsSelection()`); every other key drops it,
+  bar the ones that write over it — Backspace and Delete take the selection out,
+  a character, Enter in the text and a paste go in its place. **In a field the
+  shifted keys stay in the field**: Up and Down are its two ends and Left does
+  not cross onto the name beside an address, a selection being of one field's
+  text. A press on a field or in the text puts the anchor under the pointer and
+  begins `AppState::composeDrag`; a movement carries the cursor along — off the
+  top or the bottom of the window onto the row past it, which is what scrolls a
+  selection over more than the window holds — and the release ends it. A press
+  not dragged leaves anchor and cursor together, which selects nothing.
+  - **Esc over a selection drops the selection**, and asks nothing: the
+    confirmation is the next Esc's.
+  - **Copy and cut go where `clipboard` says**, as the reader's copy does —
+    `compose.copy` (`Ctrl-C`, `Ctrl-Ins`) and `compose.cut` (`Ctrl-X`,
+    `Shift-Del`) — and do nothing with nothing selected. The lines are joined by
+    a line feed. A copy leaves the selection standing.
+  - **A line break is selected or it is not, and nothing guesses which.** The
+    characters of a line and the line itself are two selections: `Shift-End`
+    stops before the break, `Shift-→` from there or `Shift-↓` from the start of
+    the line takes it in, and a drag takes it in by reaching the line below. A
+    selected break is copied as a line feed and cut with the line, and is drawn
+    as the rest of its row selected out to the edge of the text — a whole line
+    reads as one however short it is. `app::pastedLines()` keeps a closing break
+    as an empty last line, so a line copied with its break pastes as a line.
+  - **The hint bar is the selection's while there is one**: copy, cut and Esc,
+    in place of `compose_hints` — what there is to do then is to do something
+    with it. Esc is no command and no layout binds it, so `HintSpot::key` is
+    what a click on a hint presses, the command being optional beside it.
+  - **It is drawn in `selection_text` on `selection`**, through
+    `theme::selectionBold()` as every bar is, by `ui::inputField()`'s
+    `FieldSelection` on a field and the cursor's row and by `selectedRun()` on
+    the rest. The cursor's own cell stays the cursor.
 - **What `Ctrl-Y` deletes is kept, and `Ctrl-U` puts it back.** `TextBuffer`
   carries the stack (`deleted`), `deleteLine()` pushes onto it and
   `restoreLine()` pops: four presses out and four presses back leave the text as
@@ -5177,9 +5228,9 @@ together — `keys_mode` says which.
     whole, any line ending taken off, every line through `messageLine()` — what
     the import does to a file, since a clipboard is another program's bytes as
     much as a file is.
-  - `Ctrl-Ins` and `Shift-Ins` are the one place Ctrl and Shift go with a named
-    key in a layout (`takesCtrlOrShift()` in `ui/keys.cpp`), one modifier at a
-    time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
+  - `Ctrl-Ins`, `Shift-Ins` and `Shift-Del` are the one place Ctrl and Shift go
+    with a named key in a layout (`takesCtrl()` and `takesShift()` in
+    `ui/keys.cpp`), one modifier at a time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
     and the text then arrives typed — the terminal's clipboard, not
     `clipboard`'s.
 - **The hint bar reads the layout rather than naming keys of its own**
@@ -5233,7 +5284,9 @@ together — `keys_mode` says which.
   anything else would make the row a lie. Where each hint landed comes off
   `render()` in `AppState::hintSpots`, as every other clickable thing does, and
   the two spaces between hints belong to the row so that a click lands on a hint
-  or on nothing.
+  or on nothing. Each spot keeps the key it was written under, which is what
+  the click presses — the editor's selection row has an Esc hint that no
+  command stands behind.
 
 ## Reference material in the tree
 

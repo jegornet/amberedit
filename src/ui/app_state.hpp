@@ -1230,6 +1230,22 @@ struct AppState {
     /// message it answers.
     bool composeInHeader{false};
 
+    /// The other end of the selection in a header field, the cursor being the
+    /// end that moves: which field, and the byte of it. The field is kept with
+    /// it so that an anchor left in one field selects nothing in the next.
+    /// The text's own is `edit.anchor`; `composeHasSelection()` asks whichever
+    /// half the typing is in.
+    struct FieldAnchor {
+        int field{0};
+        size_t at{0};
+    };
+    std::optional<FieldAnchor> composeFieldAnchor;
+
+    /// What a drag of the pointer is selecting: nothing until the button goes
+    /// down on a field or in the text, then that, until it comes back up.
+    enum class ComposeDrag : uint8_t { None, Field, Text };
+    ComposeDrag composeDrag{ComposeDrag::None};
+
     /// Where the Change button beside the attributes was drawn, filled in by the
     /// compose screen's render().
     term::Box changeAttributesBox;
@@ -2043,7 +2059,11 @@ struct AppState {
     /// drawn rather than against a second guess at the same arithmetic. In the
     /// order they are drawn, which is the order `Pressed::Hint` numbers them in.
     struct HintSpot {
-        Command command{};
+        /// What it runs, or nothing where the hint is for a key that moves
+        /// about rather than a command — the Esc a selection is dropped with.
+        std::optional<Command> command;
+        /// The key it is written under, which is what a click on it presses.
+        term::Event key;
         term::Box box;
     };
     std::vector<HintSpot> hintSpots;
@@ -2117,6 +2137,17 @@ struct AppState {
     /// names an editor takes the internal one away entirely, so the compose
     /// screen shows the text and never lets a key into it.
     [[nodiscard]] bool externalEditing() const { return !config.externalEditor.empty(); }
+
+    /// Whether anything is selected on the compose screen, in whichever half of
+    /// it the typing is in — a header field or the text. Under `external_editor`
+    /// the text is never typed into and so never selected in.
+    [[nodiscard]] bool composeHasSelection() const {
+        if (composeInHeader) {
+            return composeFieldAnchor && composeFieldAnchor->field == composeField &&
+                   composeFieldAnchor->at != composeCursor;
+        }
+        return !externalEditing() && selectionOf(edit).has_value();
+    }
 
     /// Rows the header block stands on whatever the config says, in the reader
     /// and in the editor alike: From, To, Subj and the Date row under them.
