@@ -1629,17 +1629,29 @@ bool deleteSelected(AppState& state) {
 /// `clipboard` names — AmberEdit's own here and now, any other by way of the
 /// shell, as the reader's copy goes — and a cut takes it out of the message
 /// besides. The selection stays standing after a copy, there being nothing
-/// done to it.
-void copySelection(AppState& state, bool cut) {
+/// done to it. `quiet` leaves the "Copied" box out, for the copy a drag of the
+/// mouse makes by itself.
+void copySelection(AppState& state, bool cut, bool quiet = false) {
     if (!state.composeHasSelection()) return;
     std::string text = selectionText(state);
     if (cut) deleteSelected(state);
     if (state.config.clipboardInEffect() == config::ClipboardMode::Internal) {
         state.clipboard = std::move(text);
-        state.copiedNotice = state.config.clipboardCopyIndicate;
+        state.copiedNotice = state.config.clipboardCopyIndicate && !quiet;
     } else {
         state.clipboardCopyRequested = std::move(text);
+        state.clipboardCopyQuiet = quiet;
     }
+}
+
+/// The selection as it stands after a step of Shift and an arrow, to the
+/// clipboard where `clipboard_copy_on_select always` asks: there is no letting
+/// go of Shift for a terminal to report, so every step is the selection made,
+/// and each is copied as it is. A step back onto the anchor selects nothing and
+/// copies nothing, leaving the clipboard with the step before it.
+void copyKeyboardSelection(AppState& state) {
+    if (state.config.clipboardCopyOnSelect != config::CopyOnSelect::Always) return;
+    copySelection(state, false, /*quiet=*/true);
 }
 
 /// Opens a reply or a comment whose fields have just been filled in, the
@@ -1993,6 +2005,7 @@ bool askNodelist(AppState& state) {
 bool headerKey(AppState& state, const Event& event) {
     if (extendsSelection(event)) {
         extendInField(state, event);
+        copyKeyboardSelection(state);
         return true;
     }
     // Over a selection, the keys that delete and the keys that type write over
@@ -2195,6 +2208,7 @@ bool textKey(AppState& state, const Event& event) {
 
     if (extendsSelection(event)) {
         extendInText(state, event);
+        copyKeyboardSelection(state);
         return true;
     }
     // A selection is written over by what deletes and what types — Enter
@@ -2561,6 +2575,13 @@ bool dispatch(AppState& state, const Event& event) {
             dragTo(state, mouse->x, mouse->y);
             if (mouse->motion == MouseEvent::Motion::Released) {
                 state.composeDrag = AppState::ComposeDrag::None;
+                // What the drag selected goes to the clipboard as the button is
+                // let go, where `clipboard_copy_on_select` asks — once, at the
+                // end, rather than as the pointer travels. A click that was
+                // never dragged has selected nothing and copies nothing.
+                if (state.config.clipboardCopyOnSelect != config::CopyOnSelect::Off) {
+                    copySelection(state, false, /*quiet=*/true);
+                }
             }
             return true;
         }

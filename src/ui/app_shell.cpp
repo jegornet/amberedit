@@ -662,11 +662,13 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         if (state.clipboardCopyRequested) {
             const std::string text = std::move(*state.clipboardCopyRequested);
             state.clipboardCopyRequested.reset();
+            const bool quiet = state.clipboardCopyQuiet;
+            state.clipboardCopyQuiet = false;
             if (auto copied = copyOut(state, terminal, text); !copied) {
                 state.errorMessage = copied.error()->message();
                 state.errorEndsScreen = false;
             } else {
-                state.copiedNotice = state.config.clipboardCopyIndicate;
+                state.copiedNotice = state.config.clipboardCopyIndicate && !quiet;
             }
             continue;
         }

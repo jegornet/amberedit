@@ -2426,6 +2426,14 @@ TEST_CASE("AppConfig reads which clipboard copies and pastes go through [app_con
 
     CHECK(with("").clipboardCopyIndicate);
     CHECK_FALSE(with("clipboard_copy_indicate off\n").clipboardCopyIndicate);
+    using amberedit::config::CopyOnSelect;
+    CHECK(with("").clipboardCopyOnSelect == CopyOnSelect::Mouse);
+    CHECK(with("clipboard_copy_on_select Always\n").clipboardCopyOnSelect ==
+          CopyOnSelect::Always);
+    CHECK(with("clipboard_copy_on_select off\n").clipboardCopyOnSelect ==
+          CopyOnSelect::Off);
+    const std::string badCopy = errorWith("clipboard_copy_on_select keys\n");
+    CHECK_MESSAGE(contains(badCopy, "expected always | mouse | off"), badCopy);
 
     const std::string unknown = errorWith("clipboard x11\n");
     CHECK_MESSAGE(contains(unknown, "unknown clipboard: 'x11'"), unknown);

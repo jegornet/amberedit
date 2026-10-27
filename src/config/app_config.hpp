@@ -464,6 +464,18 @@ enum class KeysMode {
     Clear,  ///< `clear` — the file is the layout entire, and nothing is kept
 };
 
+/// Which selections in the editor go to the clipboard by themselves, from
+/// `clipboard_copy_on_select`.
+enum class CopyOnSelect {
+    /// `always` — every selection, as it is made: a drag as the button is let
+    /// go, Shift and an arrow at every step.
+    Always,
+    /// `mouse` — a drag alone, as the button is let go.
+    Mouse,
+    /// `off` — none; Ctrl-C and Ctrl-X are the only way to the clipboard.
+    Off,
+};
+
 /// Where a copy goes and a paste comes from, from `clipboard`.
 enum class ClipboardMode {
     /// `windows` — the Windows clipboard, asked for through the system. On any
@@ -1336,6 +1348,12 @@ struct AppConfig {
     /// `clipboard_copy_indicate`. On by default: a copy changes nothing on the
     /// screen, and a key that seems to do nothing is a key pressed again.
     bool clipboardCopyIndicate{true};
+
+    /// Which selections in the editor are copied as they are made, from
+    /// `clipboard_copy_on_select`. `mouse` by default: a drag is often the whole
+    /// of the gesture, where Shift and the arrows are more often a step on the
+    /// way to Ctrl-C or Ctrl-X.
+    CopyOnSelect clipboardCopyOnSelect{CopyOnSelect::Mouse};
 
     /// What `clipboard` comes to on this system: `windows` is `internal` on any
     /// other, there being no system clipboard there for a program to ask.

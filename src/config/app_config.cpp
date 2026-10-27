@@ -583,6 +583,17 @@ tl::expected<ClipboardMode, ErrorPtr> parseClipboardMode(const CfgEntry& entry) 
                       "' (expected windows | external | terminal | internal)");
 }
 
+tl::expected<CopyOnSelect, ErrorPtr> parseCopyOnSelect(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "always") return CopyOnSelect::Always;
+    if (value == "mouse") return CopyOnSelect::Mouse;
+    if (value == "off") return CopyOnSelect::Off;
+    return entry.fail("unknown clipboard_copy_on_select: '" + value +
+                      "' (expected always | mouse | off)");
+}
+
 tl::expected<domain::FtnAddress, ErrorPtr> readAddress(const CfgEntry& entry,
                                                        const std::string& value) {
     const auto address = domain::FtnAddress::parse(value);
@@ -1686,6 +1697,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.clipboardCopyIndicate = *read;
+    } else if (key == "clipboard_copy_on_select") {
+        auto read = parseCopyOnSelect(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.clipboardCopyOnSelect = *read;
     } else if (key == "clipboard_external_copy") {
         if (entry.values.empty()) {
             return entry.fail("clipboard_external_copy names no program");

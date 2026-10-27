@@ -3091,3 +3091,95 @@ TEST_CASE(
     CHECK(state.clipboard == "one");
     CHECK(state.edit.lines == std::vector<std::string>{"two", "", "three"});
 }
+
+TEST_CASE("A mouse selection is copied as the button is let go [compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"first line", "second line"});
+    fixture.config.clipboardCopyIndicate = true;
+
+    screenRowsOf(state);
+    const auto first = state.composeTextRows[0].box;
+    const auto drag = [&](int from, int to) {
+        compose::handleEvent(state, clickAt(first.x_min + from, first.y_min));
+        compose::handleEvent(state, pointerAt(first.x_min + to, first.y_min,
+                                              term::MouseEvent::Motion::Moved));
+        // Not while the pointer is still travelling: once, at the end.
+        CHECK(state.clipboard.empty());
+        compose::handleEvent(state, pointerAt(first.x_min + to, first.y_min,
+                                              term::MouseEvent::Motion::Released));
+    };
+
+    drag(0, 5);
+    CHECK(state.clipboard == "first");
+    // Without the box a copy asked for by a key is followed by.
+    CHECK_FALSE(state.copiedNotice);
+    CHECK(state.composeHasSelection());
+
+    // A click is no selection, and leaves the clipboard as it was.
+    compose::handleEvent(state, clickAt(first.x_min + 2, first.y_min));
+    compose::handleEvent(state, pointerAt(first.x_min + 2, first.y_min,
+                                          term::MouseEvent::Motion::Released));
+    CHECK(state.clipboard == "first");
+
+    // Nor is a selection made from the keyboard copied by itself.
+    compose::handleEvent(state, shifted(Event::Name::End));
+    CHECK(state.clipboard == "first");
+
+    // Off, a drag selects and copies nothing.
+    compose::handleEvent(state, Event::Escape);
+    state.clipboard.clear();
+    fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Off;
+    drag(0, 5);
+    CHECK(state.composeHasSelection());
+    CHECK(state.clipboard.empty());
+
+    // Through a clipboard that is the shell's, the request carries that it is
+    // to be made without the box.
+    fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Mouse;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::External;
+    compose::handleEvent(state, clickAt(first.x_min, first.y_min));
+    compose::handleEvent(state, pointerAt(first.x_min + 5, first.y_min,
+                                          term::MouseEvent::Motion::Released));
+    REQUIRE(state.clipboardCopyRequested);
+    CHECK(*state.clipboardCopyRequested == "first");
+    CHECK(state.clipboardCopyQuiet);
+}
+
+TEST_CASE(
+    "clipboard_copy_on_select always copies a selection from the keyboard too "
+    "[compose][selection]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"Hello world"});
+    fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Always;
+
+    // Every step is the selection made, and is copied as it stands.
+    compose::handleEvent(state, shifted(Event::Name::ArrowRight));
+    CHECK(state.clipboard == "H");
+    compose::handleEvent(state, shifted(Event::Name::End));
+    CHECK(state.clipboard == "Hello world");
+    CHECK_FALSE(state.copiedNotice);
+
+    // A step back onto where it began selects nothing and copies nothing.
+    compose::handleEvent(state, shifted(Event::Name::Home));
+    CHECK_FALSE(state.composeHasSelection());
+    CHECK(state.clipboard == "Hello world");
+
+    // In a header field as much as in the text.
+    compose::handleEvent(state, alt('h'));
+    REQUIRE(state.composeInHeader);
+    state.composeField = compose::kSubject;
+    state.compose.subject = "Topic";
+    state.composeCursor = 0;
+    compose::handleEvent(state, shifted(Event::Name::End));
+    CHECK(state.clipboard == "Topic");
+
+    // Under mouse, the keyboard selects and copies nothing.
+    fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Mouse;
+    compose::handleEvent(state, Event::Escape);
+    state.composeCursor = 0;
+    compose::handleEvent(state, shifted(Event::Name::ArrowRight));
+    CHECK(state.composeHasSelection());
+    CHECK(state.clipboard == "Topic");
+}

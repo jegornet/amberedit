@@ -2478,6 +2478,15 @@ decides what an occurrence is.
     `compose.copy` (`Ctrl-C`, `Ctrl-Ins`) and `compose.cut` (`Ctrl-X`,
     `Shift-Del`) — and do nothing with nothing selected. The lines are joined by
     a line feed. A copy leaves the selection standing.
+  - **A selection may copy itself**, as `clipboard_copy_on_select` says: a drag
+    as it ends — the release in `dispatch()`, once and not as the pointer
+    travels — under `mouse` and `always`, and under `always` every step of
+    Shift and an arrow as well (`copyKeyboardSelection()`): no terminal reports
+    Shift being let go, so each step is the selection made. Both call the same
+    `copySelection()` `Ctrl-C` does, quietly — no "Copied" box,
+    `AppState::clipboardCopyQuiet` carrying that to the shell for a clipboard
+    the shell answers — because it happens on every gesture and nobody asked to
+    be told.
   - **A line break is selected or it is not, and nothing guesses which.** The
     characters of a line and the line itself are two selections: `Shift-End`
     stops before the break, `Shift-→` from there or `Shift-↓` from the start of

@@ -462,6 +462,14 @@ reader_show_message_size off
 # Optional; on by default.
 #clipboard_copy_indicate on
 
+# Whether selected text selected should be automatically copied
+# Optional; "mouse" by default:
+#   always  every selection: each step is a copy, which under "external" runs
+#           the program once per keystroke
+#   mouse   mouse selection, copied on release
+#   off     none, Ctrl-C and Ctrl-X only
+#clipboard_copy_on_select mouse
+
 # --- area list ----------------------------------------------------------------
 
 # How the area list is sorted. Optional; "te" by default. A set of letters,

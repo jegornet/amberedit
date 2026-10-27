@@ -353,6 +353,11 @@ struct AppState {
     /// shell's, and a screen has neither.
     std::optional<std::string> clipboardCopyRequested;
 
+    /// Whether that copy goes through without the "Copied" box — a mouse
+    /// selection copied as the button is let go, which happens on every drag
+    /// and is not something the user asked to be told about.
+    bool clipboardCopyQuiet{false};
+
     /// Whether the editor has asked for a paste from a clipboard that is not
     /// this one. Set and answered as `clipboardCopyRequested` is; what comes
     /// back goes in through `compose::pasteText()`.
