@@ -715,7 +715,12 @@ void Terminal::handOver(const std::function<void()>& work) {
     syncSize();
 }
 
-void Terminal::flushInput() { flushinp(); }
+// Read off one event at a time rather than thrown away with flushinp(): that
+// drops the bytes before ncurses has parsed them, and a mouse release among
+// them is one ncurses never hears of. It goes on believing the button is down,
+// reports the next press as a movement, and the click after a rescan does
+// nothing. Reading them through is what escapePressed() already does.
+void Terminal::flushInput() { static_cast<void>(escapePressed()); }
 
 bool Terminal::escapePressed() {
     // Asked from inside a run that is holding the loop, so nothing here may

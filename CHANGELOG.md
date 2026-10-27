@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix every other click on rescan in the hint bar doing nothing
+
 ## 0.9.4 — 2026-10-26
 
 - drop the quote prefix when joining lines of one quote

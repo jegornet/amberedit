@@ -1015,6 +1015,12 @@ Rules that hold the design together:
   `addresseeOf()` is to be kept in step with the dispatch chain in `app_shell.cpp`
   in the same way: the two list the same modals in the same order, and a box left
   out of the first is one the tail of a flick can still scroll.
+- **Typeahead is dropped by reading it, never by `flushinp()`.**
+  `Terminal::flushInput()` reads every event off the queue through ncurses and
+  throws it away after. ncurses remembers which buttons are down and forgets
+  only on a release it has parsed; a release thrown away unread leaves button 1
+  held, and the next press is reported as `REPORT_MOUSE_POSITION`, which nothing
+  acts on. A click on Rescan that ran every second time was this.
 - Horizontal scrolling is deliberately unhandled, and "swipe to the next message"
   is not to be reached for again without a new signal: nothing the terminal
   reports carries an event's phase, so a trackpad's momentum tail cannot be told

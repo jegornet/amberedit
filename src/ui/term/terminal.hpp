@@ -125,6 +125,12 @@ public:
     /// pressed while the areas were being rescanned were aimed at a list that
     /// was being rebuilt underneath them, and acting on them once it comes back
     /// would open an area nobody chose.
+    ///
+    /// **Never `flushinp()`.** The bytes are read through ncurses and dropped
+    /// afterwards, so that a mouse release among them still reaches the state
+    /// ncurses keeps about which buttons are down; thrown away unparsed, it
+    /// leaves the button held as far as ncurses knows, and the next press comes
+    /// back as a movement nothing acts on.
     void flushInput();
 
     /// Ends the loop after the current pass. Kept as a flag rather than acted on
