@@ -5,6 +5,7 @@
 - fix every other click on rescan in the hint bar doing nothing
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
+- a double click on a header field in the editor selects the whole field
 
 ## 0.9.4 — 2026-10-26
 

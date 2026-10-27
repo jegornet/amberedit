@@ -2487,6 +2487,13 @@ decides what an occurrence is.
     `AppState::clipboardCopyQuiet` carrying that to the shell for a clipboard
     the shell answers — because it happens on every gesture and nobody asked to
     be told.
+  - **A double click on a header field selects the field**, and copies it under
+    `mouse` and `always` as a drag would. `mouseinterval(0)` keeps ncurses from
+    ever reporting one, so `doubleClickOnField()` tells it from two clicks
+    itself: two presses on one field within `kDoubleClickMs`, by
+    `AppState::monotonicMs()`, the last press kept in
+    `composeLastFieldClick`. No drag follows it, so the release after it moves
+    nothing. A third press begins a pair of its own.
   - **A line break is selected or it is not, and nothing guesses which.** The
     characters of a line and the line itself are two selections: `Shift-End`
     stops before the break, `Shift-→` from there or `Shift-↓` from the start of

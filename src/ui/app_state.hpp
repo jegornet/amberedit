@@ -1251,6 +1251,16 @@ struct AppState {
     enum class ComposeDrag : uint8_t { None, Field, Text };
     ComposeDrag composeDrag{ComposeDrag::None};
 
+    /// The last press on a header field — which field, and when — for telling a
+    /// double click from two clicks. ncurses is not asked: `mouseinterval(0)`
+    /// keeps it from holding a press back to see whether a second follows, and
+    /// so it never reports one.
+    struct FieldClick {
+        int field{0};
+        Millis at{0};
+    };
+    std::optional<FieldClick> composeLastFieldClick;
+
     /// Where the Change button beside the attributes was drawn, filled in by the
     /// compose screen's render().
     term::Box changeAttributesBox;
@@ -1729,10 +1739,11 @@ struct AppState {
     WheelThrottle listWheel;
 
     /// What time it is, in milliseconds off a monotonic clock — the only clock
-    /// the interface reads, and it reads it for one thing: how far apart two
-    /// notches of the wheel arrived. It is a member so that a test can hand the
-    /// screens a clock it moves itself, a real wheel being the one thing a test
-    /// cannot roll.
+    /// the interface reads, and it reads it for two things: how far apart two
+    /// notches of the wheel arrived, and how far apart two clicks on a header
+    /// field did. It is a member so that a test can hand the screens a clock it
+    /// moves itself, a real wheel and a real hand being what a test cannot
+    /// supply.
     std::function<Millis()> monotonicMs{[] {
         using namespace std::chrono;
         return duration_cast<milliseconds>(steady_clock::now().time_since_epoch())

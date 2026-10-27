@@ -94,6 +94,6 @@ standing in both.
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
-| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`) |
+| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`); a double click selects a whole header field |
 | `Ctrl-C` / `Ctrl-Ins` | copy the selection to the clipboard                    |
 | `Ctrl-X` / `Shift-Del` | cut the selection to the clipboard                    |

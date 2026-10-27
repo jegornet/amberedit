@@ -2561,6 +2561,39 @@ Element render(AppState& state) {
 
 namespace {
 
+/// How close together two presses on one field have to come to be a double
+/// click. The common desktop default; nothing behind the number is a user's to
+/// prefer.
+constexpr Millis kDoubleClickMs = 400;
+
+/// Answers a press on a header field that is the second of a double click by
+/// selecting the whole field, and copying it where `clipboard_copy_on_select`
+/// copies a mouse selection. Says whether it was: the first press of a pair is
+/// remembered and answered as any other click, and a third press begins a pair
+/// of its own rather than being a second double click.
+bool doubleClickOnField(AppState& state) {
+    if (!state.composeInHeader || state.composeField >= kAttributes) {
+        state.composeLastFieldClick.reset();
+        return false;
+    }
+    const Millis now = state.monotonicMs();
+    const auto last = state.composeLastFieldClick;
+    if (!last || last->field != state.composeField || now - last->at > kDoubleClickMs) {
+        state.composeLastFieldClick = AppState::FieldClick{state.composeField, now};
+        return false;
+    }
+    state.composeLastFieldClick.reset();
+    state.composeFieldAnchor = AppState::FieldAnchor{state.composeField, 0};
+    state.composeCursor = valueOf(state.compose, state.composeField).size();
+    // Nothing to drag: the selection is the field, and the release coming
+    // after this press is not the end of anything.
+    state.composeDrag = AppState::ComposeDrag::None;
+    if (state.config.clipboardCopyOnSelect != config::CopyOnSelect::Off) {
+        copySelection(state, false, /*quiet=*/true);
+    }
+    return true;
+}
+
 bool dispatch(AppState& state, const Event& event) {
     // A drag under way, before anything a click could mean: the pointer was
     // pressed on a field or in the text, and wherever it is now is where the
@@ -2658,7 +2691,7 @@ bool dispatch(AppState& state, const Event& event) {
     // had their look: the header block and the text are one screen, and a click
     // in either says the typing goes there, at the character pointed at.
     if (const auto click = leftClick(event); click && clickToCursor(state, *click)) {
-        startDrag(state);
+        if (!doubleClickOnField(state)) startDrag(state);
         return true;
     }
     // The wheel over the message, a row per notch, exactly as it moves the body

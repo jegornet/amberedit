@@ -3183,3 +3183,54 @@ TEST_CASE(
     CHECK(state.composeHasSelection());
     CHECK(state.clipboard == "Topic");
 }
+
+TEST_CASE("A double click on a header field selects the whole of it [compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.config.clipboardCopyIndicate = true;
+    amberedit::ui::Millis now = 1000;
+    state.monotonicMs = [&now] { return now; };
+
+    compose::startNew(state);
+    state.compose.subject = "Re: something";
+    state.compose.toAddr = "2:382/736";
+    screenRowsOf(state);
+    const auto subject = state.composeFieldSpots[compose::kSubject].box;
+    const auto toAddr = state.composeFieldSpots[compose::kToAddr].box;
+    const auto release = [&](const term::Box& box) {
+        compose::handleEvent(state, pointerAt(box.x_min + 4, box.y_min,
+                                              term::MouseEvent::Motion::Released));
+    };
+
+    compose::handleEvent(state, clickAt(subject.x_min + 4, subject.y_min));
+    release(subject);
+    CHECK_FALSE(state.composeHasSelection());
+    now += 200;
+    compose::handleEvent(state, clickAt(subject.x_min + 4, subject.y_min));
+    release(subject);
+    REQUIRE(state.composeHasSelection());
+    CHECK(state.composeCursor == state.compose.subject.size());
+    // Copied, as a drag is, and quietly.
+    CHECK(state.clipboard == "Re: something");
+    CHECK_FALSE(state.copiedNotice);
+
+    // Too slow is two clicks; two clicks on two fields are two clicks.
+    now += 1000;
+    compose::handleEvent(state, clickAt(toAddr.x_min + 1, toAddr.y_min));
+    now += 600;
+    compose::handleEvent(state, clickAt(toAddr.x_min + 1, toAddr.y_min));
+    CHECK_FALSE(state.composeHasSelection());
+    now += 1000;
+    compose::handleEvent(state, clickAt(subject.x_min, subject.y_min));
+    now += 100;
+    compose::handleEvent(state, clickAt(toAddr.x_min, toAddr.y_min));
+    CHECK_FALSE(state.composeHasSelection());
+
+    // Under off it still selects, and copies nothing.
+    fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Off;
+    now += 100;
+    compose::handleEvent(state, clickAt(toAddr.x_min, toAddr.y_min));
+    REQUIRE(state.composeHasSelection());
+    CHECK(state.clipboard == "Re: something");
+}
