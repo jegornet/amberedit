@@ -83,7 +83,7 @@ constexpr Commands::Info kCommands[] = {
     {Command::ReaderCopy, "reader.copy", CommandScreen::Reader, N_("Copy"),
      N_("Copy the message to the clipboard"), "⎘", "Ctrl-C Ctrl-Ins", true},
     {Command::ReaderSelect, "reader.select", CommandScreen::Reader, N_("Select"),
-     N_("Select text in the message to copy it"), "⛶", "Ctrl-M", true},
+     N_("Select text in the message to copy it"), "⛶", "v", true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"),
      N_("Save the message"), "✓", "Ctrl-S F2 Alt-S", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,

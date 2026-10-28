@@ -8,7 +8,7 @@
 - a double click in the editor and in the reader's selection mode selects a word, a triple click the line or the whole header field
 - undo and redo in the editor: Ctrl-Z or Ctrl-U to undo, Ctrl-R to redo
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
-- add reader selecttion mode (Ctrl-M)
+- add reader selection mode (V key)
 
 ## 0.9.4 — 2026-10-26
 

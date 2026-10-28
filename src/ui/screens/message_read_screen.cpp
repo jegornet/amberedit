@@ -2775,15 +2775,7 @@ bool handleEvent(AppState& state, const Event& event) {
         return true;
     }
     // A cursor in the message, to select some of it rather than copy all.
-    //
-    // Enter as well, where the layout puts the command on Ctrl-M: the two are
-    // one byte on a terminal that reports no modified keys, and there Ctrl-M
-    // arrives as Enter — which the reader binds to nothing else.
-    const bool ctrlMIsEnter =
-        event == Event::Return &&
-        state.keys.is(Event::Character("m", /*ctrl=*/true, false, false),
-                      Command::ReaderSelect);
-    if (ctrlMIsEnter || state.keys.is(event, Command::ReaderSelect)) {
+    if (state.keys.is(event, Command::ReaderSelect)) {
         reader_select::start(state);
         return true;
     }

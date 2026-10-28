@@ -1152,7 +1152,7 @@ reader_side_tap_width 6
 #                 copy             the message to the clipboard, as
 #                                  Ctrl-C does
 #                 select           select text in the message to copy it,
-#                                  as Ctrl-M does
+#                                  as v does
 #
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does

@@ -1841,7 +1841,7 @@ Rules that hold the design together:
 
 ### Selecting text in the reader
 
-`reader.select` — `Ctrl-M`, and `select` closing the default `reader_menu` in
+`reader.select` — `v`, and `select` closing the default `reader_menu` in
 the place `shell` had. `ui/reader_select.*` is the whole of the mode and
 `AppState::readSelect` the whole of its state; the screen only draws it and
 hands it events.
@@ -1910,14 +1910,12 @@ hands it events.
   and with the mode left on: nobody asked for that copy.
 - **The hint bar is the mode's while it is on**: the reader's copy key and Esc,
   in place of `reader_hints` — `readerSelectionHints()` in `ui/hint_bar.cpp`.
-- **`Ctrl-M` is the byte Enter has sent since ASCII**, so it arrives as a chord
-  only on a terminal reporting modified keys — the kitty protocol `runApp()`
-  asks for does — and as Enter everywhere else. So the reader takes Enter for
-  `reader.select` wherever the layout puts the command on `Ctrl-M`, Enter being
-  bound to nothing else there; moved to another key, Enter is nothing again.
-  Inside the mode Enter is copying, which is why the mode's own key leaving it
-  is a nicety of terminals that tell the two apart. The attributes dialog's
-  `Ctrl-M` has no such fallback: Enter there is keeping what was done.
+- **`v` and not a chord**, the key a pager's and vim's visual mode are on: a
+  bare letter reaches the reader from every terminal, where `Ctrl-M` is the byte
+  Enter sends and arrives as a chord only on one reporting modified keys. Enter
+  in the reader opens nothing — it is the mode's copy key once the mode is on,
+  and a key that both began a selection and ended one would do the wrong of the
+  two half the time.
 
 ### Marked messages
 

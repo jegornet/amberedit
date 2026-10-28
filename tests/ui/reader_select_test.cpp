@@ -75,12 +75,12 @@ Event pointerAt(int x, int y, term::MouseEvent::Motion motion) {
 
 }  // namespace
 
-TEST_CASE("Ctrl-M puts a cursor on the first row on screen [messageread][select]") {
+TEST_CASE("v puts a cursor on the first row on screen [messageread][select]") {
     Reader reader({"first line", "second line", "third line"});
     auto& state = reader.state;
     state.readScroll = 1;
 
-    REQUIRE(reader.key(ctrl('m')));
+    REQUIRE(reader.key(Event::Character('v')));
     REQUIRE(state.readSelect.on);
     CHECK_FALSE(state.readSelect.inHeader);
     CHECK(state.readSelect.text.row == 1);
@@ -103,20 +103,10 @@ TEST_CASE("Ctrl-M puts a cursor on the first row on screen [messageread][select]
     CHECK(state.navigator.current() == ScreenId::MessageRead);
 }
 
-TEST_CASE("Enter is Ctrl-M where the terminal cannot tell them apart "
-          "[messageread][select]") {
+TEST_CASE("Enter does not begin the mode [messageread][select]") {
     Reader reader({"text"});
-    auto& state = reader.state;
-
-    REQUIRE(reader.key(Event::Return));
-    CHECK(state.readSelect.on);
-    reader.key(Event::Escape);
-
-    // Only while the command is on Ctrl-M: moved elsewhere, Enter is nothing.
-    state.keys = amberedit::test::valueOf(
-        amberedit::ui::KeyMap::parse("F8 reader.select\n", "keys"));
     reader.key(Event::Return);
-    CHECK_FALSE(state.readSelect.on);
+    CHECK_FALSE(reader.state.readSelect.on);
 }
 
 TEST_CASE("Enter and Ctrl-C copy what is selected and leave the mode "
@@ -124,7 +114,7 @@ TEST_CASE("Enter and Ctrl-C copy what is selected and leave the mode "
     Reader reader({"Hello world", "second line"});
     auto& state = reader.state;
 
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     // Nothing selected is nothing to copy, and the mode stays on.
     reader.key(Event::Return);
     CHECK(state.readSelect.on);
@@ -137,7 +127,7 @@ TEST_CASE("Enter and Ctrl-C copy what is selected and leave the mode "
     CHECK_FALSE(state.readSelect.on);
 
     // A break the message wrote is a line feed.
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.key(Event::Named(Event::Name::ArrowRight, false, true, false));  // Alt-→
     reader.key(shifted(Event::Name::ArrowDown));
     reader.key(ctrl('c'));
@@ -156,7 +146,7 @@ TEST_CASE("A line the window broke is copied as one line [messageread][select]")
     CHECK(state.readLines[0].joiner == " ");
     CHECK_FALSE(state.readLines.back().continues);
 
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.key(shifted(Event::Name::ArrowDown));
     reader.key(shifted(Event::Name::ArrowDown));
     reader.key(shifted(Event::Name::End));
@@ -172,7 +162,7 @@ TEST_CASE("Up off the first row is the header, walked as the editor walks it "
     auto& state = reader.state;
     reader.draw();
 
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.key(Event::ArrowUp);
     REQUIRE(state.readSelect.inHeader);
     CHECK(state.readSelect.field == compose::kSubject);
@@ -185,7 +175,7 @@ TEST_CASE("Up off the first row is the header, walked as the editor walks it "
 
     // Tab walks the fields from the From name, the To address left out of an
     // echo, and closes the ring through the text.
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.key(Event::Tab);
     CHECK(state.readSelect.field == compose::kFromName);
     reader.key(Event::Tab);
@@ -222,7 +212,7 @@ TEST_CASE("A selection copies itself as clipboard_copy_on_select says, and the m
     auto& config = reader.fixture.config;
 
     // The keyboard only under `always`.
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.key(shifted(Event::Name::End));
     CHECK(state.clipboard.empty());
     config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Always;
@@ -265,7 +255,7 @@ TEST_CASE("A double click selects a word and a triple one the line "
     amberedit::ui::Millis now = 1000;
     state.monotonicMs = [&now] { return now; };
 
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.draw();
     const auto second = state.readSelect.textRows[1].box;
     const auto click = [&](const term::Box& box, int dx) {
@@ -310,11 +300,11 @@ TEST_CASE("The menu starts and ends the mode, and another message ends it "
     CHECK_FALSE(state.readSelect.on);
 
     // Any other button ends it before it does what it does.
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     message_read::runMenuCommand(state, Command::ReaderKludges);
     CHECK_FALSE(state.readSelect.on);
 
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     REQUIRE(state.readSelect.on);
     message_read::loadMessage(state, state.readHeader->number);
     CHECK_FALSE(state.readSelect.on);
@@ -345,7 +335,7 @@ TEST_CASE("The corners finish the mode: ✓ copies, ← does not "
     };
 
     CHECK(topRow().find("│ ≡ │") != std::string::npos);
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     CHECK(topRow().find("│ ✓ │") != std::string::npos);
     CHECK(topRow().find("≡") == std::string::npos);
 
@@ -358,7 +348,7 @@ TEST_CASE("The corners finish the mode: ✓ copies, ← does not "
     CHECK(topRow().find("│ ≡ │") != std::string::npos);
 
     // The ✓ copies what is selected and leaves — no menu put up.
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.key(shifted(Event::Name::End));
     reader.key(press(state.width - 2));
     CHECK_FALSE(state.readSelect.on);
@@ -377,7 +367,7 @@ TEST_CASE("The sides of the text are text in the mode, not ← and → "
     REQUIRE(state.messageCount > 1);
     const uint32_t number = state.readHeader->number;
 
-    reader.key(ctrl('m'));
+    reader.key(Event::Character('v'));
     reader.draw();
     const int top = state.readTop();
     // A press in the left strip puts the cursor there; one in the right strip
