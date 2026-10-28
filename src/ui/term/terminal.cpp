@@ -52,9 +52,26 @@ std::unordered_map<int, Event> customKeys;
 
 #ifndef _WIN32
 
-/// Custom key codes are handed out from just above the range terminfo uses, so
-/// that they cannot collide with a key the terminal description already names.
+/// Custom key codes are handed out from above every code ncurses already uses.
+/// `KEY_MAX` is not that line: ncurses gives the extended keys a terminfo entry
+/// names — `kPRV5` for Ctrl-PgUp, `kUP5` for Ctrl-Up and the rest — codes of
+/// their own above it, so a code counted up from `KEY_MAX + 1` is one that key
+/// arrives under too, and the key is read as whatever was registered there.
 int nextKeyCode = KEY_MAX + 1;
+
+/// How far above `KEY_MAX` the extended keys are looked for. An entry holds a
+/// few hundred extended capabilities at most, and not all of them are keys.
+constexpr int kExtendedKeySpan = 4096;
+
+/// The first code above every key the terminal description has been given.
+/// Asked after `keypad()`, which is when ncurses has handed those codes out.
+int firstFreeKeyCode() {
+    int last = KEY_MAX;
+    for (int code = KEY_MAX + 1; code <= KEY_MAX + kExtendedKeySpan; ++code) {
+        if (has_key(code) == TRUE) last = code;
+    }
+    return last + 1;
+}
 
 void registerKey(const std::string& sequence, const Event& event) {
     const int code = nextKeyCode++;
@@ -75,6 +92,10 @@ void registerKey(const std::string& sequence, const Event& event) {
 /// description, and it puts them through the same matcher as everything else,
 /// with no timing left for this code to get wrong.
 void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
+    // Never below a code an earlier terminal registered: `customKeys` keeps
+    // those for the life of the process.
+    nextKeyCode = std::max(nextKeyCode, firstFreeKeyCode());
+
     // The disambiguated Escape. With the kitty protocol on, a bare Escape is
     // reported like this precisely so it cannot be read as the start of
     // something longer — which is what makes pressing Esc reliable at last.
