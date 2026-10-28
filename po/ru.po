@@ -45,362 +45,370 @@ msgstr "файл уже есть: {0}"
 msgid "template: {0}"
 msgstr "шаблон: {0}"
 
-#: src/config/app_config.cpp:2743
+#: src/config/app_config.cpp:2756
 msgid "no description"
 msgstr "нет описания"
 
-#: src/config/commands.cpp:22
+#: src/config/commands.cpp:23
 msgid "Quit"
 msgstr "Выход"
 
-#: src/config/commands.cpp:23
+#: src/config/commands.cpp:24
 msgid "Leave AmberEdit"
 msgstr "Выйти из AmberEdit"
 
-#: src/config/commands.cpp:24
+#: src/config/commands.cpp:25
 msgid "Help"
 msgstr "Справка"
 
-#: src/config/commands.cpp:25
+#: src/config/commands.cpp:26
 msgid "This list of keys"
 msgstr "Этот список клавиш"
 
-#: src/config/commands.cpp:27
+#: src/config/commands.cpp:28
 msgid "Go to the next area with unread mail"
 msgstr "Перейти в следующую область с непрочитанным"
 
-#: src/config/commands.cpp:27
+#: src/config/commands.cpp:28
 msgid "Next unread"
 msgstr "След. непрочит."
 
-#: src/config/commands.cpp:29
+#: src/config/commands.cpp:30
 msgid "Show the areas with unread mail, or all of them"
 msgstr "Показать области с непрочитанным или все"
 
-#: src/config/commands.cpp:29
+#: src/config/commands.cpp:30
 msgid "Toggle unread"
 msgstr "Перекл. непрочит."
 
-#: src/config/commands.cpp:31
+#: src/config/commands.cpp:32
 msgid "Rescan"
 msgstr "Обновить"
 
-#: src/config/commands.cpp:32
+#: src/config/commands.cpp:33
 msgid "Read the message bases again"
 msgstr "Перечитать базы сообщений"
 
-#: src/config/commands.cpp:34 src/config/commands.cpp:38
-#: src/config/commands.cpp:76
+#: src/config/commands.cpp:35 src/config/commands.cpp:39
+#: src/config/commands.cpp:77
 msgid "Mark"
 msgstr "Пометить"
 
-#: src/config/commands.cpp:34
+#: src/config/commands.cpp:35
 msgid "Mark the area, or take the mark off"
 msgstr "Пометить область или снять пометку"
 
-#: src/config/commands.cpp:36
+#: src/config/commands.cpp:37
 msgid "Catch up"
 msgstr "Прочитано"
 
-#: src/config/commands.cpp:36
+#: src/config/commands.cpp:37
 msgid "Mark the area read"
 msgstr "Пометить область прочитанной"
 
-#: src/config/commands.cpp:38 src/config/commands.cpp:77
+#: src/config/commands.cpp:39 src/config/commands.cpp:78
 msgid "Mark the message, or take the mark off"
 msgstr "Пометить сообщение или снять пометку"
 
-#: src/config/commands.cpp:40 src/config/commands.cpp:54
+#: src/config/commands.cpp:41 src/config/commands.cpp:55
 msgid "Delete"
 msgstr "Удалить"
 
-#: src/config/commands.cpp:40 src/config/commands.cpp:55
+#: src/config/commands.cpp:41 src/config/commands.cpp:56
 msgid "Delete the message"
 msgstr "Удалить сообщение"
 
-#: src/config/commands.cpp:41
+#: src/config/commands.cpp:42
 msgid "Reply"
 msgstr "Ответ"
 
-#: src/config/commands.cpp:42
+#: src/config/commands.cpp:43
 msgid "Reply in this area"
 msgstr "Ответить в этой области"
 
-#: src/config/commands.cpp:44
+#: src/config/commands.cpp:45
 msgid "Reply elsewhere"
 msgstr "Ответ в др. обл."
 
-#: src/config/commands.cpp:44
+#: src/config/commands.cpp:45
 msgid "Reply in another area"
 msgstr "Ответить в другой области"
 
-#: src/config/commands.cpp:46
+#: src/config/commands.cpp:47
 msgid "Comment-reply"
 msgstr "Комментарий"
 
-#: src/config/commands.cpp:46
+#: src/config/commands.cpp:47
 msgid "Reply to whoever the message was written to"
 msgstr "Ответить тому, кому написано сообщение"
 
-#: src/config/commands.cpp:48
+#: src/config/commands.cpp:49
 msgid "New"
 msgstr "Новое"
 
-#: src/config/commands.cpp:49
+#: src/config/commands.cpp:50
 msgid "Write a new message"
 msgstr "Написать новое сообщение"
 
-#: src/config/commands.cpp:50
+#: src/config/commands.cpp:51
 msgid "Fwd / Copy"
 msgstr "Переслать/копия"
 
-#: src/config/commands.cpp:51
+#: src/config/commands.cpp:52
 msgid "Forward, move or copy into another area"
 msgstr "Переслать, перенести или скопировать в другую область"
 
-#: src/config/commands.cpp:52
+#: src/config/commands.cpp:53
 msgid "Change"
 msgstr "Править"
 
-#: src/config/commands.cpp:53
+#: src/config/commands.cpp:54
 msgid "Change the message"
 msgstr "Изменить сообщение"
 
-#: src/config/commands.cpp:56
+#: src/config/commands.cpp:57
 msgid "Export"
 msgstr "Экспорт"
 
-#: src/config/commands.cpp:57
+#: src/config/commands.cpp:58
 msgid "Write the message, or a file in it, to disk"
 msgstr "Сохранить сообщение или файл из него на диск"
 
-#: src/config/commands.cpp:58 src/ui/find_dialog.cpp:67
+#: src/config/commands.cpp:59 src/ui/find_dialog.cpp:67
 msgid "Find"
 msgstr "Поиск"
 
-#: src/config/commands.cpp:59
+#: src/config/commands.cpp:60
 msgid "Look for a message in this area"
 msgstr "Искать сообщение в этой области"
 
-#: src/config/commands.cpp:60
+#: src/config/commands.cpp:61
 msgid "List"
 msgstr "Список"
 
-#: src/config/commands.cpp:61
+#: src/config/commands.cpp:62
 msgid "Back to the list of messages"
 msgstr "Вернуться к списку сообщений"
 
-#: src/config/commands.cpp:62
+#: src/config/commands.cpp:63
 msgid "Info"
 msgstr "Инфо"
 
-#: src/config/commands.cpp:63
+#: src/config/commands.cpp:64
 msgid "What the message base holds about it"
 msgstr "Что о нём хранит база сообщений"
 
-#: src/config/commands.cpp:64
+#: src/config/commands.cpp:65
 msgid "Nodelist"
 msgstr "Нодлист"
 
-#: src/config/commands.cpp:65
+#: src/config/commands.cpp:66
 msgid "Look an address or a sysop up"
 msgstr "Найти адрес или сисопа"
 
-#: src/config/commands.cpp:66
+#: src/config/commands.cpp:67
 msgid "Kludges"
 msgstr "Клуджи"
 
-#: src/config/commands.cpp:67
+#: src/config/commands.cpp:68
 msgid "Show or hide the service lines"
 msgstr "Показать или скрыть служебные строки"
 
-#: src/config/commands.cpp:68
+#: src/config/commands.cpp:69
 msgid "Charset"
 msgstr "Кодировка"
 
-#: src/config/commands.cpp:69
+#: src/config/commands.cpp:70
 msgid "Read this message in another charset"
 msgstr "Прочитать это сообщение в другой кодировке"
 
-#: src/config/commands.cpp:70
+#: src/config/commands.cpp:71
 msgid "Scrollbar"
 msgstr "Прокрутка"
 
-#: src/config/commands.cpp:71
+#: src/config/commands.cpp:72
 msgid "Show or hide the scrollbar"
 msgstr "Показать или скрыть полосу прокрутки"
 
-#: src/config/commands.cpp:72
+#: src/config/commands.cpp:73
 msgid "Thread up"
 msgstr "Вверх по треду"
 
-#: src/config/commands.cpp:73
+#: src/config/commands.cpp:74
 msgid "The message this one answers"
 msgstr "Сообщение, на которое отвечает это"
 
-#: src/config/commands.cpp:75
+#: src/config/commands.cpp:76
 msgid "The next answer to this message"
 msgstr "Следующий ответ на это сообщение"
 
-#: src/config/commands.cpp:75
+#: src/config/commands.cpp:76
 msgid "Thread down"
 msgstr "Вниз по треду"
 
-#: src/config/commands.cpp:78
+#: src/config/commands.cpp:79
 msgid "Marks"
 msgstr "Пометки"
 
-#: src/config/commands.cpp:79
+#: src/config/commands.cpp:80
 msgid "Mark a run of messages at once"
 msgstr "Пометить сразу несколько сообщений"
 
-#: src/config/commands.cpp:80
+#: src/config/commands.cpp:81
 msgid "Shell"
 msgstr "Шелл"
 
-#: src/config/commands.cpp:81
+#: src/config/commands.cpp:82
 msgid "Run the system shell"
 msgstr "Запустить системный шелл"
 
-#: src/config/commands.cpp:82 src/config/commands.cpp:111
+#: src/config/commands.cpp:83 src/config/commands.cpp:114
 #: src/ui/forward_dialog.cpp:121
 msgid "Copy"
 msgstr "Скопировать"
 
-#: src/config/commands.cpp:83
+#: src/config/commands.cpp:84
 msgid "Copy the message to the clipboard"
 msgstr "Скопировать сообщение в буфер обмена"
 
-#: src/config/commands.cpp:84 src/ui/export_dialog.cpp:83
+#: src/config/commands.cpp:85
+msgid "Select"
+msgstr "Выделить"
+
+#: src/config/commands.cpp:86
+msgid "Select text in the message to copy it"
+msgstr "Выделить текст сообщения, чтобы его скопировать"
+
+#: src/config/commands.cpp:87 src/ui/export_dialog.cpp:83
 #: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:458
 msgid "Save"
 msgstr "Сохранить"
 
-#: src/config/commands.cpp:85
+#: src/config/commands.cpp:88
 msgid "Save the message"
 msgstr "Сохранить сообщение"
 
-#: src/config/commands.cpp:87
+#: src/config/commands.cpp:90
 msgid "Attributes"
 msgstr "Атрибуты"
 
-#: src/config/commands.cpp:87
+#: src/config/commands.cpp:90
 msgid "Change the message attributes"
 msgstr "Изменить атрибуты сообщения"
 
-#: src/config/commands.cpp:88
+#: src/config/commands.cpp:91
 msgid "Import"
 msgstr "Импорт"
 
-#: src/config/commands.cpp:89
+#: src/config/commands.cpp:92
 msgid "Read a file into the message"
 msgstr "Вставить файл в сообщение"
 
-#: src/config/commands.cpp:91
+#: src/config/commands.cpp:94
 msgid "Back up into the header fields"
 msgstr "Вернуться к полям заголовка"
 
-#: src/config/commands.cpp:91 src/ui/external_dialog.cpp:79
+#: src/config/commands.cpp:94 src/ui/external_dialog.cpp:79
 msgid "Header"
 msgstr "Заголовок"
 
-#: src/config/commands.cpp:93
+#: src/config/commands.cpp:96
 msgid "Delete line"
 msgstr "Удалить строку"
 
-#: src/config/commands.cpp:93
+#: src/config/commands.cpp:96
 msgid "Delete the line the cursor is on"
 msgstr "Удалить строку под курсором"
 
-#: src/config/commands.cpp:96
+#: src/config/commands.cpp:99
 msgid "Delete quote"
 msgstr "Удалить цитату"
 
-#: src/config/commands.cpp:96
+#: src/config/commands.cpp:99
 msgid "Delete the quoted text after the cursor"
 msgstr "Удалить цитату после курсора"
 
-#: src/config/commands.cpp:99
+#: src/config/commands.cpp:102
 msgid "Delete the word before the cursor"
 msgstr "Удалить слово перед курсором"
 
-#: src/config/commands.cpp:99
+#: src/config/commands.cpp:102
 msgid "Delete word"
 msgstr "Удалить слово"
 
-#: src/config/commands.cpp:102
+#: src/config/commands.cpp:105
 msgid "A word to the left"
 msgstr "На слово влево"
 
-#: src/config/commands.cpp:102
+#: src/config/commands.cpp:105
 msgid "Word left"
 msgstr "Слово влево"
 
-#: src/config/commands.cpp:104
+#: src/config/commands.cpp:107
 msgid "A word to the right"
 msgstr "На слово вправо"
 
-#: src/config/commands.cpp:104
+#: src/config/commands.cpp:107
 msgid "Word right"
 msgstr "Слово вправо"
 
-#: src/config/commands.cpp:106
+#: src/config/commands.cpp:109
 msgid "Line start"
 msgstr "В начало строки"
 
-#: src/config/commands.cpp:106
+#: src/config/commands.cpp:109
 msgid "To the start of the line"
 msgstr "В начало строки"
 
-#: src/config/commands.cpp:107
+#: src/config/commands.cpp:110
 msgid "Line end"
 msgstr "В конец строки"
 
-#: src/config/commands.cpp:108
+#: src/config/commands.cpp:111
 msgid "To the end of the line"
 msgstr "В конец строки"
 
-#: src/config/commands.cpp:109
+#: src/config/commands.cpp:112
 msgid "Paste"
 msgstr "Вставить"
 
-#: src/config/commands.cpp:110
+#: src/config/commands.cpp:113
 msgid "Paste from the clipboard at the cursor"
 msgstr "Вставить из буфера обмена в позицию курсора"
 
-#: src/config/commands.cpp:112
+#: src/config/commands.cpp:115
 msgid "Copy the selected text to the clipboard"
 msgstr "Скопировать выделенный текст в буфер обмена"
 
-#: src/config/commands.cpp:113
+#: src/config/commands.cpp:116
 msgid "Cut"
 msgstr "Вырезать"
 
-#: src/config/commands.cpp:114
+#: src/config/commands.cpp:117
 msgid "Move the selected text to the clipboard"
 msgstr "Вырезать выделенный текст в буфер обмена"
 
-#: src/config/commands.cpp:115
+#: src/config/commands.cpp:118
 msgid "Undo"
 msgstr "Отменить"
 
-#: src/config/commands.cpp:116
+#: src/config/commands.cpp:119
 msgid "Take the last change back"
 msgstr "Отменить последнее изменение"
 
-#: src/config/commands.cpp:117
+#: src/config/commands.cpp:120
 msgid "Redo"
 msgstr "Повторить"
 
-#: src/config/commands.cpp:118
+#: src/config/commands.cpp:121
 msgid "Make the change undone again"
 msgstr "Вернуть отменённое изменение"
 
-#: src/config/commands.cpp:185
+#: src/config/commands.cpp:197
 msgid "Run the program the config names"
 msgstr "Запустить программу из конфига"
 
-#: src/config/commands.cpp:185
+#: src/config/commands.cpp:197
 msgid "Utility"
 msgstr "Утилита"
 
@@ -422,7 +430,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-10-27 23:50+0100\n"
+"POT-Creation-Date: 2026-10-28 07:44+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -496,7 +504,7 @@ msgid "{0}{1} into {2}"
 msgstr "{0}{1} в {2}"
 
 #: src/main.cpp:91 src/main.cpp:121 src/main.cpp:231 src/main.cpp:291
-#: src/main.cpp:386 src/ui/setup/setup_run.cpp:47
+#: src/main.cpp:319 src/main.cpp:392 src/ui/setup/setup_run.cpp:47
 #, c++-format
 msgid "warning: {0}"
 msgstr "предупреждение: {0}"
@@ -519,8 +527,8 @@ msgstr "{0} назначена на {1}, но ни одна строка {2} е�
 msgid "error: {0} needs a value"
 msgstr "ошибка: {0} требует значения"
 
-#: src/main.cpp:211 src/main.cpp:278 src/main.cpp:308 src/main.cpp:324
-#: src/main.cpp:334 src/main.cpp:358 src/main.cpp:370 src/main.cpp:398
+#: src/main.cpp:211 src/main.cpp:278 src/main.cpp:308 src/main.cpp:330
+#: src/main.cpp:340 src/main.cpp:364 src/main.cpp:376 src/main.cpp:404
 #, c++-format
 msgid "error: {0}"
 msgstr "ошибка: {0}"
@@ -1091,6 +1099,10 @@ msgstr "Esc закрыть"
 msgid "Clear selection"
 msgstr "Снять выделение"
 
+#: src/ui/hint_bar.cpp:104
+msgid "Exit selection mode"
+msgstr "Выйти из режима выделения"
+
 #: src/ui/import_dialog.cpp:78
 msgid "Enter open · Tab move · Esc close"
 msgstr "Enter открыть · Tab перейти · Esc закрыть"
@@ -1349,40 +1361,40 @@ msgstr ""
 "{0} открыта только для чтения: её файлы вам не принадлежат, так что писать в "
 "неё и править в ней ничего нельзя."
 
-#: src/ui/screens/message_read_screen.cpp:575
+#: src/ui/screens/message_read_screen.cpp:651
 msgid "This is a twit message. Press Space to view it"
 msgstr "Сообщение из твит-листа. Нажмите пробел, чтобы прочитать его"
 
-#: src/ui/screens/message_read_screen.cpp:2085
+#: src/ui/screens/message_read_screen.cpp:2193
 #, c++-format
 msgid " from {0}"
 msgstr " из {0}"
 
-#: src/ui/screens/message_read_screen.cpp:2106
+#: src/ui/screens/message_read_screen.cpp:2214
 msgid " empty"
 msgstr " пусто"
 
-#: src/ui/screens/message_read_screen.cpp:2718
+#: src/ui/screens/message_read_screen.cpp:2865
 msgctxt "header block"
 msgid "From"
 msgstr "От"
 
-#: src/ui/screens/message_read_screen.cpp:2721
+#: src/ui/screens/message_read_screen.cpp:2868
 msgctxt "header block"
 msgid "To"
 msgstr "Кому"
 
-#: src/ui/screens/message_read_screen.cpp:2724
+#: src/ui/screens/message_read_screen.cpp:2871
 msgctxt "header block"
 msgid "Subj"
 msgstr "Тема"
 
-#: src/ui/screens/message_read_screen.cpp:2727
+#: src/ui/screens/message_read_screen.cpp:2874
 msgctxt "header block"
 msgid "Date"
 msgstr "Дата"
 
-#: src/ui/screens/message_read_screen.cpp:2730
+#: src/ui/screens/message_read_screen.cpp:2877
 msgctxt "header block"
 msgid "Recd"
 msgstr "Получ"

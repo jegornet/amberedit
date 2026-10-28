@@ -3189,7 +3189,8 @@ TEST_CASE(
     CHECK(state.clipboard == "Topic");
 }
 
-TEST_CASE("A double click on a header field selects the whole of it [compose][selection][mouse]") {
+TEST_CASE("A double click selects a word, a triple one the field or the line "
+          "[compose][selection][mouse]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
     fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
@@ -3203,41 +3204,83 @@ TEST_CASE("A double click on a header field selects the whole of it [compose][se
     screenRowsOf(state);
     const auto subject = state.composeFieldSpots[compose::kSubject].box;
     const auto toAddr = state.composeFieldSpots[compose::kToAddr].box;
-    const auto release = [&](const term::Box& box) {
-        compose::handleEvent(state, pointerAt(box.x_min + 4, box.y_min,
+    const auto click = [&](const term::Box& box, int dx) {
+        compose::handleEvent(state, clickAt(box.x_min + dx, box.y_min));
+        compose::handleEvent(state, pointerAt(box.x_min + dx, box.y_min,
                                               term::MouseEvent::Motion::Released));
     };
 
-    compose::handleEvent(state, clickAt(subject.x_min + 4, subject.y_min));
-    release(subject);
+    // One click is the cursor, two the word under it, three the field.
+    click(subject, 6);
     CHECK_FALSE(state.composeHasSelection());
     now += 200;
-    compose::handleEvent(state, clickAt(subject.x_min + 4, subject.y_min));
-    release(subject);
+    click(subject, 6);
     REQUIRE(state.composeHasSelection());
-    CHECK(state.composeCursor == state.compose.subject.size());
     // Copied, as a drag is, and quietly.
-    CHECK(state.clipboard == "Re: something");
+    CHECK(state.clipboard == "something");
     CHECK_FALSE(state.copiedNotice);
+    now += 200;
+    click(subject, 6);
+    CHECK(state.clipboard == "Re: something");
+    CHECK(state.composeCursor == state.compose.subject.size());
+    // A fourth begins a run of its own.
+    now += 200;
+    click(subject, 6);
+    CHECK_FALSE(state.composeHasSelection());
 
     // Too slow is two clicks; two clicks on two fields are two clicks.
     now += 1000;
-    compose::handleEvent(state, clickAt(toAddr.x_min + 1, toAddr.y_min));
+    click(toAddr, 1);
     now += 600;
-    compose::handleEvent(state, clickAt(toAddr.x_min + 1, toAddr.y_min));
+    click(toAddr, 1);
     CHECK_FALSE(state.composeHasSelection());
     now += 1000;
-    compose::handleEvent(state, clickAt(subject.x_min, subject.y_min));
+    click(subject, 0);
     now += 100;
-    compose::handleEvent(state, clickAt(toAddr.x_min, toAddr.y_min));
+    click(toAddr, 0);
     CHECK_FALSE(state.composeHasSelection());
 
     // Under off it still selects, and copies nothing.
     fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Off;
     now += 100;
-    compose::handleEvent(state, clickAt(toAddr.x_min, toAddr.y_min));
+    click(toAddr, 0);
     REQUIRE(state.composeHasSelection());
     CHECK(state.clipboard == "Re: something");
+}
+
+TEST_CASE("In the text a double click is a word and a triple one the line "
+          "[compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    amberedit::ui::Millis now = 1000;
+    state.monotonicMs = [&now] { return now; };
+    inText(fixture, {"first line here", "second line"});
+
+    screenRowsOf(state);
+    const auto row = state.composeTextRows[0].box;
+    const auto click = [&](int dx) {
+        compose::handleEvent(state, clickAt(row.x_min + dx, row.y_min));
+        compose::handleEvent(state, pointerAt(row.x_min + dx, row.y_min,
+                                              term::MouseEvent::Motion::Released));
+        now += 150;
+    };
+    click(7);
+    click(7);
+    CHECK(state.clipboard == "line");
+    click(7);
+    CHECK(state.clipboard == "first line here");
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "first line here");
+
+    // On a blank the run of blanks, past the end the last word.
+    now += 1000;
+    click(5);
+    click(5);
+    CHECK(state.clipboard == " ");
+    now += 1000;
+    click(40);
+    click(40);
+    CHECK(state.clipboard == "here");
 }
 
 namespace {

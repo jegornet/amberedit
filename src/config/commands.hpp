@@ -48,6 +48,7 @@ enum class Command : uint8_t {
     ReaderMarkMenu,         ///< reader.mark_menu
     ReaderShell,            ///< reader.shell
     ReaderCopy,             ///< reader.copy
+    ReaderSelect,           ///< reader.select
     ComposeSave,            ///< compose.save
     ComposeAttributes,      ///< compose.attributes
     ComposeImport,          ///< compose.import

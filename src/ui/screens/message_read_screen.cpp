@@ -37,6 +37,7 @@
 #include "ui/message_marks.hpp"
 #include "ui/nodelist_dialog.hpp"
 #include "ui/progress_run.hpp"
+#include "ui/reader_select.hpp"
 #include "ui/reader_side_tap.hpp"
 #include "ui/reader_sidebar.hpp"
 #include "ui/scope_dialog.hpp"
@@ -161,32 +162,36 @@ Element headerCell(const std::string& value, int width, theme::Color tint,
     return hbox({painted(shown, tint, search->findAll(shown)), text(pad)});
 }
 
+/// A header field while text is being selected: drawn by `ui::inputField()`,
+/// which is what carries a cursor and a selection, and remembered where it
+/// landed so that a click is tested against what was drawn. No fill: the block
+/// is still the reader's, and only the cursor and the selection say otherwise.
+Element selectableCell(AppState& state, int field, int width, theme::Color tint) {
+    auto& select = state.readSelect;
+    auto& spot = select.fieldSpots[static_cast<size_t>(field)];
+    const bool active = select.inHeader && select.field == field;
+    return inputField(reader_select::fieldValue(state, field), select.fieldCursor, width,
+                      active, tint, std::nullopt, &spot.origin,
+                      reader_select::fieldSelection(state, field)) |
+           reflect(spot.box);
+}
+
 /// One row of the header table: a name down the left and, where the block has
 /// a second column, an address hard against it. Nothing stands between the two:
 /// the name column is padded to its width, so where it ends is where the
 /// address begins, and a column of blank would only push the addresses in off
 /// the margin they already stand on.
-Element headerRow(const std::string& label, const std::string& name, bool ownName,
-                  const std::string& address, const HeaderLayout& layout,
-                  const encoding::TextSearch* search) {
-    Elements cells{
-        headerLabel(label),
-        headerCell(name, layout.name,
-                   ownName ? theme::palette.ownName : theme::palette.header, search)};
-    if (layout.address > 0) {
-        cells.push_back(
-            headerCell(address, layout.address, theme::palette.header, search));
-    }
+Element headerRow(const std::string& label, Element name, std::optional<Element> address) {
+    Elements cells{headerLabel(label), std::move(name)};
+    if (address) cells.push_back(std::move(*address));
     return hbox(std::move(cells));
 }
 
 /// The Subj row, which runs across the whole block: a subject is one long thing
 /// rather than two, nothing lines up under it, and cutting it at the columns
 /// beside it would drop the end of a subject a wide window has room for.
-Element subjectRow(const std::string& subject, const HeaderLayout& layout,
-                   const encoding::TextSearch* search) {
-    return hbox({headerLabel(header_labels::subject()),
-                 headerCell(subject, layout.subject, theme::palette.header, search)});
+Element subjectRow(Element subject) {
+    return hbox({headerLabel(header_labels::subject()), std::move(subject)});
 }
 
 /// The Date row: when the message was written, down the left where the names
@@ -247,16 +252,14 @@ struct HeaderBlock {
 /// the Recd row, where `show_recd_date` asks for one. The same block the editor
 /// draws over a message being written, so that a message read and a message
 /// written line up field for field.
-HeaderBlock headerBlock(const AppState& state, const domain::MessageHeader& header,
+HeaderBlock headerBlock(AppState& state, const domain::MessageHeader& header,
                         const encoding::TextSearch* search) {
-    const std::string fromAddr =
-        header.origAddr.isValid() ? header.origAddr.toString() : "";
     // Outside netmail the destination address addresses nobody, so showing it
-    // would only invite the reader to draw conclusions from noise.
-    const std::string toAddr =
-        state.currentArea.hasAddressedRecipient() && header.destAddr.isValid()
-            ? header.destAddr.toString()
-            : "";
+    // would only invite the reader to draw conclusions from noise — which
+    // `fieldValue()` is where it is left out, the selection mode reading the
+    // same fields.
+    const std::string fromAddr = reader_select::fieldValue(state, compose::kFromAddr);
+    const std::string toAddr = reader_select::fieldValue(state, compose::kToAddr);
 
     // The Date row carries when the message was written and the Recd row under
     // it when it arrived here. A message written locally never arrived, so that
@@ -280,8 +283,12 @@ HeaderBlock headerBlock(const AppState& state, const domain::MessageHeader& head
     // Sizing it on the addresses alone would leave a message no room for its
     // attributes, the row would overflow the window and the columns would
     // silently stop lining up.
+    //
+    // A column more while text is being selected, for the cursor to stand in
+    // at the end of the widest address rather than scroll it a character over.
     const int column =
-        std::max({displayWidth(fromAddr), displayWidth(toAddr), displayWidth(trailing)});
+        std::max({displayWidth(fromAddr), displayWidth(toAddr), displayWidth(trailing)}) +
+        (state.readSelect.on ? 1 : 0);
     // What the widest stamp in the left column takes, which the column may be
     // widened to where the window allows it — see headerLayout(). The two stand
     // on rows of their own, so it is the wider of them and not their sum.
@@ -290,12 +297,34 @@ HeaderBlock headerBlock(const AppState& state, const domain::MessageHeader& head
         std::max(displayWidth(writtenStamp), recd ? displayWidth(arrivedStamp) : 0);
     const HeaderLayout layout =
         headerLayout(state.readerPaneWidth() - kRightPad, column, stamps);
+    // Each field as the reader shows it, or — while text is being selected —
+    // as a field the cursor can stand in, which is the one difference the mode
+    // makes to the block. What a search lit is not lit there: the selection is
+    // what is being shown.
+    auto& select = state.readSelect;
+    select.fieldSpots.assign(compose::kFieldCount, AppState::ComposeSpot{});
+    select.addressesShown = layout.address > 0;
+    const auto cell = [&](int field, const std::string& value, int width,
+                          theme::Color tint) {
+        if (select.on) return selectableCell(state, field, width, tint);
+        return headerCell(value, width, tint, search);
+    };
+    const auto address = [&](int field, const std::string& value) -> std::optional<Element> {
+        if (layout.address <= 0) return std::nullopt;
+        return cell(field, value, layout.address, theme::palette.header);
+    };
+    const auto nameTint = [&](const std::string& name) {
+        return state.isOwnName(name) ? theme::palette.ownName : theme::palette.header;
+    };
     Elements rows{
-        headerRow(header_labels::from(), header.from, state.isOwnName(header.from),
-                  fromAddr, layout, search),
-        headerRow(header_labels::to(), header.to, state.isOwnName(header.to), toAddr,
-                  layout, search),
-        subjectRow(header.subject, layout, search),
+        headerRow(header_labels::from(),
+                  cell(compose::kFromName, header.from, layout.name, nameTint(header.from)),
+                  address(compose::kFromAddr, fromAddr)),
+        headerRow(header_labels::to(),
+                  cell(compose::kToName, header.to, layout.name, nameTint(header.to)),
+                  address(compose::kToAddr, toAddr)),
+        subjectRow(cell(compose::kSubject, header.subject, layout.subject,
+                        theme::palette.header)),
         dateRow(writtenStamp, trailing, layout),
     };
     if (recd) rows.push_back(recdRow(arrivedStamp, layout));
@@ -566,6 +595,53 @@ Element bodyLine(const AppState::DisplayLine& source, theme::Color base, AppStat
     }
     closeLink();
     return hbox(std::move(runs));
+}
+
+/// The color a body row is written in where nothing in it says otherwise: the
+/// service lines', the footer's, a quote's by its depth, or the text's own.
+theme::Color baseColorOf(const AppState::DisplayLine& source) {
+    if (source.kludge) return theme::palette.kludge;
+    if (source.footer) return theme::palette.footer;
+    if (source.quoteDepth > 0) {
+        return source.quoteDepth % 2 == 1 ? theme::palette.quoteOdd
+                                          : theme::palette.quoteEven;
+    }
+    return theme::palette.text;
+}
+
+/// Row `row` of the body while text is being selected, drawn on row `at` of the
+/// viewport. A row the selection does
+/// not touch and the cursor is not on is drawn as it always is, links, colors
+/// and all; the cursor's row and the selected ones are drawn plain under the
+/// selection, as the editor draws its own — the selection is what is being
+/// looked at there. The cursor's row goes through `ui::inputField()`, which is
+/// what scrolls a row the cursor has been taken past the edge of.
+Element selectingLine(AppState& state, int row, size_t at, int width, size_t firstLink) {
+    const auto& source = state.readLines[static_cast<size_t>(row)];
+    const auto& select = state.readSelect;
+    const theme::Color base = baseColorOf(source);
+    const FieldSelection chosen = reader_select::rowSelection(state, row);
+
+    if (!select.inHeader && select.text.row == row) {
+        auto& spot = state.readSelect.textRows[at];
+        return inputField(source.text, std::min(select.text.col, source.text.size()), width,
+                          true, base, std::nullopt, &spot.origin, chosen);
+    }
+    if (chosen.empty()) {
+        if (source.kludge) return text(source.text) | color(base);
+        return bodyLine(source, base, state, firstLink);
+    }
+    Element drawn = selectedRun(source.text, 0, base, chosen);
+    // The break, where the selection takes it in: the rest of the row selected,
+    // out to the edge of the text, so that a line selected whole reads as one
+    // however short it is.
+    if (chosen.end > source.text.size()) {
+        const auto rest =
+            static_cast<size_t>(std::max(1, width - displayWidth(source.text)));
+        drawn = hbox({std::move(drawn),
+                      selectedRun(std::string(rest, ' '), 0, base, {0, rest})});
+    }
+    return drawn;
 }
 
 /// What stands in place of a twit's text until the reader is asked for it. One
@@ -901,6 +977,7 @@ bool commandEnabled(const AppState& state, Command command) {
         case Command::ReaderMarkMenu:
         case Command::ReaderCharset:
         case Command::ReaderCopy:
+        case Command::ReaderSelect:
         case Command::ReaderList: return state.messageCount > 0;
         default: return true;
     }
@@ -918,6 +995,13 @@ void openMenu(AppState& state) {
 }
 
 void runMenuCommand(AppState& state, Command command) {
+    // A button picked while text is being selected: the mode ends first, every
+    // other command being about the message rather than about the cursor in it
+    // — and its own button is how the menu ends it.
+    if (state.readSelect.on) {
+        reader_select::stop(state);
+        if (command == Command::ReaderSelect) return;
+    }
     switch (command) {
         case Command::ReaderReply: compose::startReply(state); break;
         case Command::ReaderReplyElsewhere:
@@ -945,6 +1029,7 @@ void runMenuCommand(AppState& state, Command command) {
         case Command::ReaderMarkMenu: mark_dialog::open(state); break;
         case Command::ReaderShell: state.shellRequested = true; break;
         case Command::ReaderCopy: copyToClipboard(state); break;
+        case Command::ReaderSelect: reader_select::start(state); break;
         // Everything the reader answers with a key of its own and nothing a
         // button stands for, which `reader_menu` cannot name — and the ten
         // utilities, which are one case rather than ten.
@@ -1025,6 +1110,9 @@ bool loadMessage(AppState& state, uint32_t msgNumber) {
     // taken off — every way to another message, and every way out of the area,
     // comes through here.
     state.readCharset.clear();
+    // And the selection mode was begun over the message on screen: its cursor
+    // and what it selected are places in that message's text.
+    reader_select::stop(state);
 
     if (state.base == nullptr || msgNumber == 0 || msgNumber > state.messageCount) {
         return false;
@@ -1098,6 +1186,7 @@ void showEmptyArea(AppState& state) {
     state.readUrlLinks.clear();
     state.readLines.clear();
     state.readScroll = 0;
+    reader_select::stop(state);
     // relayout() has no body to work from and leaves this alone, so it is
     // cleared here rather than left over from the area before.
     state.scrollbarShown = false;
@@ -1893,12 +1982,27 @@ void wrapBody(AppState& state, const domain::MessageBody& body, int width) {
         // an address anyone follows.
         std::vector<std::vector<AppState::DisplayLine::LinkRun>> links(rows.size());
         if (!line.kludge) links = linksForRows(shown, rows);
+        // Where each row starts in the line, so that what a break took out of
+        // it — the blanks between two words, or nothing where a word was cut —
+        // is known to whoever copies the rows back out as one line.
+        std::vector<size_t> starts(rows.size(), 0);
+        for (size_t i = 0, at = 0; i < rows.size(); ++i) {
+            const size_t start = shown.find(rows[i], at);
+            starts[i] = start == std::string::npos ? at : start;
+            at = starts[i] + rows[i].size();
+        }
         for (size_t i = 0; i < rows.size(); ++i) {
+            const bool continues = i + 1 < rows.size();
+            const size_t end = starts[i] + rows[i].size();
+            std::string joiner;
+            if (continues && starts[i + 1] > end) {
+                joiner = shown.substr(end, starts[i + 1] - end);
+            }
             state.readLines.push_back(
                 {std::move(rows[i]), line.kludge, depth, line.footer,
                  colored ? std::move(runs[i]) : std::vector<bbs::ColorRun>{},
                  searched ? std::move(found[i]) : std::vector<encoding::TextMatch>{},
-                 std::move(links[i])});
+                 std::move(links[i]), false, continues, std::move(joiner)});
         }
     }
 }
@@ -1941,6 +2045,7 @@ void relayout(AppState& state) {
         state.readLayoutWidth = available;
         state.readLayoutHeight = rows;
         state.readScroll = 0;
+        reader_select::sync(state);
         return;
     }
 
@@ -1972,6 +2077,9 @@ void relayout(AppState& state) {
     // alone entirely: nothing has come into view to follow.
     if (grown > 0 && below <= grown) state.readScroll -= grown;
     state.readScroll = std::clamp(state.readScroll, 0, maxScroll(state));
+    // The cursor of the selection mode stands in rows that have just been laid
+    // out afresh.
+    reader_select::sync(state);
 }
 
 void readInCharset(AppState& state, const std::string& charset) {
@@ -2163,9 +2271,25 @@ Element render(AppState& state) {
     state.readUrlLinks.clear();
     if (!state.config.urlHandler.empty()) state.readUrlLinks = std::move(found);
 
+    // While text is being selected, where each row of the viewport is drawn —
+    // the blank ones under the end of the message included, a press there
+    // being a press at the end of it — and how wide the text runs.
+    auto& select = state.readSelect;
+    select.textRows.assign(static_cast<size_t>(std::max(0, viewportHeight)),
+                           AppState::ComposeSpot{});
+    const int textWidth =
+        std::max(1, state.readerPaneWidth() - (state.scrollbarShown ? 1 : 0));
+
     size_t linkAt = 0;
     for (int i = firstLine; i < lastLine; ++i) {
         const auto& source = state.readLines[i];
+        if (select.on) {
+            const auto at = static_cast<size_t>(i - firstLine);
+            bodyLines.push_back(selectingLine(state, i, at, textWidth, linkAt) |
+                                reflect(select.textRows[at].box));
+            linkAt += source.links.size();
+            continue;
+        }
         if (source.kludge) {
             // Service lines render darker, so they read as service data wherever in
             // the message they happen to sit, and are drawn whole: nothing in one
@@ -2186,8 +2310,11 @@ Element render(AppState& state) {
         bodyLines.push_back(bodyLine(source, base, state, linkAt));
         linkAt += source.links.size();
     }
-    while (static_cast<int>(bodyLines.size()) < viewportHeight)
-        bodyLines.push_back(text(""));
+    while (static_cast<int>(bodyLines.size()) < viewportHeight) {
+        Element blank = text("");
+        if (select.on) blank |= reflect(select.textRows[bodyLines.size()].box);
+        bodyLines.push_back(std::move(blank));
+    }
 
     Element viewport = vbox(std::move(bodyLines)) | color(theme::palette.text);
     if (state.scrollbarShown) {
@@ -2327,7 +2454,8 @@ Element render(AppState& state) {
         // their appetite for more up to its own parent, so a filler buried
         // inside one would grow into nothing.
         titleRow.push_back(filler());
-        titleRow.push_back(menu_button::topRow(pressedMenu));
+        titleRow.push_back(menu_button::topRow(
+            pressedMenu, state.readSelect.on ? menu_button::kDoneLabel : menu_button::kLabel));
         ruleRow.push_back(menu_button::bottomRow(pressedMenu));
     }
 
@@ -2367,19 +2495,34 @@ Element render(AppState& state) {
 }
 
 bool handleEvent(AppState& state, const Event& event) {
+    // A drag of the selection mode under way, before anything a click could
+    // mean: wherever the pointer is now is where the selection runs to, over a
+    // button as much as anywhere.
+    if (reader_select::dragged(state, event)) return true;
     // The back button, where it is shown, goes the same way Esc does here —
-    // out of the area, not back a screen.
+    // out of the area, not back a screen — and out of the selection mode,
+    // where that is what Esc does.
     if (state.backButtonShown() && back_button::clicked(event, state.readerPaneLeft())) {
         state.showClick(AppState::Pressed::Back);
-        message_list::leaveArea(state);
+        if (state.readSelect.on) {
+            reader_select::stop(state);
+        } else {
+            message_list::leaveArea(state);
+        }
         return true;
     }
     // The menu button in the other corner, which puts the menu up over this
     // screen. What it holds is decided as it opens, on the message that is in
     // front of the user now.
+    // While text is being selected the corner is a ✓ instead, and finishes the
+    // selection: what is selected is copied and the mode ends.
     if (state.readerMenuShown() && menu_button::clicked(event, state.readerPaneRight())) {
         state.showClick(AppState::Pressed::MenuButton);
-        openMenu(state);
+        if (state.readSelect.on) {
+            reader_select::finish(state);
+        } else {
+            openMenu(state);
+        }
         return true;
     }
     // The sidebar, where it is up. A row clicked is opened in the reader the
@@ -2411,8 +2554,10 @@ bool handleEvent(AppState& state, const Event& event) {
             return true;
         }
         // Only ever filled where a handler is named, so this loop is what makes
-        // a click on a link do nothing when there is none — see render().
-        for (size_t at = 0; at < state.readUrlLinks.size(); ++at) {
+        // a click on a link do nothing when there is none — see render(). Not
+        // while text is being selected: a click on an address there is the
+        // cursor put on it, which is how an address is selected to be copied.
+        for (size_t at = 0; !state.readSelect.on && at < state.readUrlLinks.size(); ++at) {
             if (!state.readUrlLinks[at].box.Contain(click->x, click->y)) continue;
             // Copied out for the same reason the number above is: the frame the
             // press is shown on is built afresh, over the very vector this is
@@ -2426,6 +2571,10 @@ bool handleEvent(AppState& state, const Event& event) {
             return true;
         }
     }
+    // Everything else while text is being selected is the selection's: the
+    // cursor, the keys that move it and the keys that copy or leave. The
+    // columns at the sides are text there like the rest.
+    if (state.readSelect.on) return reader_select::handleEvent(state, event);
     // The columns down either side of the text, where the config asks for them
     // and as many of them as `reader_side_tap_width` says: a click in them is ←
     // and →, `reader_edge` and all. After the links above rather than before
@@ -2623,6 +2772,19 @@ bool handleEvent(AppState& state, const Event& event) {
     // `clipboard` names.
     if (state.keys.is(event, Command::ReaderCopy)) {
         copyToClipboard(state);
+        return true;
+    }
+    // A cursor in the message, to select some of it rather than copy all.
+    //
+    // Enter as well, where the layout puts the command on Ctrl-M: the two are
+    // one byte on a terminal that reports no modified keys, and there Ctrl-M
+    // arrives as Enter — which the reader binds to nothing else.
+    const bool ctrlMIsEnter =
+        event == Event::Return &&
+        state.keys.is(Event::Character("m", /*ctrl=*/true, false, false),
+                      Command::ReaderSelect);
+    if (ctrlMIsEnter || state.keys.is(event, Command::ReaderSelect)) {
+        reader_select::start(state);
         return true;
     }
     // Asked for here and run by runApp(): handing the terminal over is the

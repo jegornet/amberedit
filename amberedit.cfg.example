@@ -466,8 +466,8 @@ reader_show_message_size off
 # Optional; "mouse" by default:
 #   always  every selection: each step is a copy, which under "external" runs
 #           the program once per keystroke
-#   mouse   mouse selection, copied on release, and a header field selected
-#           by a double click
+#   mouse   mouse selection, copied on release, and a word or a line selected
+#           by a double or a triple click
 #   off     none, Ctrl-C and Ctrl-X only
 #clipboard_copy_on_select mouse
 
@@ -1151,6 +1151,8 @@ reader_side_tap_width 6
 #                                  leave it
 #                 copy             the message to the clipboard, as
 #                                  Ctrl-C does
+#                 select           select text in the message to copy it,
+#                                  as Ctrl-M does
 #
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does
@@ -1166,19 +1168,20 @@ reader_side_tap_width 6
 # does menu_button off — the first for one screen, the second for all three.
 #
 # The three lines below are the defaults. "change", "info", "export",
-# "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's,
-# and "next_unread", "mark_toggle" and "catch_up" out of the list's — write them
-# in to have them:
+# "comment_reply", "mark_toggle", "mark_menu", "shell" and "copy" are left out of
+# the reader's, and "next_unread", "mark_toggle" and "catch_up" out of the
+# list's — write them in to have them:
 #
 #   reader_menu   list reply reply_elsewhere comment_reply new forward find
-#                 change info export nodelist mark_toggle mark_menu shell
+#                 change info export nodelist mark_toggle mark_menu shell copy
+#                 select
 #
 #   arealist_menu rescan toggle_unread next_unread mark_toggle catch_up
 #
 # The message list carries no menu button and has no setting for one: marking
 # the message under the cursor is its one command, and one button is no menu.
 arealist_menu rescan toggle_unread
-reader_menu list reply reply_elsewhere new forward find nodelist shell
+reader_menu list reply reply_elsewhere new forward find nodelist select
 compose_menu save import
 
 # Whether the area list, the reader and the editor show the menu button at all.

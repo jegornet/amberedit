@@ -100,6 +100,7 @@ add_executable(amberedit_tests
   ui/focus_test.cpp
   ui/quick_search_test.cpp
   ui/theme_test.cpp
+  ui/reader_select_test.cpp
   ui/reader_sidebar_test.cpp
   ui/text_layout_test.cpp
   ui/bbs_codes_test.cpp
@@ -177,6 +178,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/message_marks.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/nodelist_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/progress_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/reader_select.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/reader_sidebar.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/area_list_format.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/msg_list_format.cpp

@@ -90,6 +90,21 @@ std::vector<Hint> selectionHints(const AppState& state) {
     return hints;
 }
 
+/// The reader's row while text is being selected there, in place of
+/// `reader_hints`: copying, which leaves the mode, and leaving it without — the
+/// two things there are to do with the cursor once it has been put somewhere.
+/// Copy is written under the key the layout gives the reader's copy; Esc is the
+/// mode's own.
+std::vector<Hint> readerSelectionHints(const AppState& state) {
+    std::vector<Hint> hints;
+    if (const auto key = state.keys.preferredKey(Command::ReaderCopy)) {
+        hints.push_back(hintFor(state, Command::ReaderCopy, *key,
+                                state.config.labelOf(Command::ReaderCopy)));
+    }
+    hints.push_back(hintFor(state, std::nullopt, Event::Escape, _("Exit selection mode")));
+    return hints;
+}
+
 /// The hints for whichever screen is up.
 ///
 /// A command the layout leaves unbound is left out: there is no key to put in
@@ -99,6 +114,9 @@ std::vector<Hint> hintsOf(const AppState& state) {
     if (state.navigator.current() == app::ScreenId::Compose &&
         state.composeHasSelection()) {
         return selectionHints(state);
+    }
+    if (state.navigator.current() == app::ScreenId::MessageRead && state.readSelect.on) {
+        return readerSelectionHints(state);
     }
     std::vector<Hint> hints;
     for (const Command command : commandsOf(state)) {

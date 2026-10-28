@@ -2124,13 +2124,17 @@ TEST_CASE("The shell is offered in an empty area [messageread][squish]") {
     REQUIRE(fixture.state.messageCount == 0);
 
     // Everything that acts on the message needs one to act on. The shell is not
-    // one of those, so its button is offered rather than drawn quietly.
+    // one of those, so its button is offered rather than drawn quietly; selecting
+    // text is, there being no text to select.
+    fixture.config.readerMenu = {Command::ReaderShell, Command::ReaderSelect};
     message_read::openMenu(fixture.state);
     REQUIRE(fixture.state.menuView);
     const auto& items = fixture.state.menuView->items;
-    REQUIRE(!items.empty());
-    CHECK(items.back().command == amberedit::config::Command::ReaderShell);
-    CHECK(items.back().enabled);
+    REQUIRE(items.size() == 2);
+    CHECK(items[0].command == Command::ReaderShell);
+    CHECK(items[0].enabled);
+    CHECK(items[1].command == Command::ReaderSelect);
+    CHECK_FALSE(items[1].enabled);
 }
 
 TEST_CASE("The function keys answer beside the letters they double "

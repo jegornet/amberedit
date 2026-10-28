@@ -5,6 +5,7 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -735,12 +736,35 @@ void Terminal::draw(const Element& document) {
     if (!dragReporting_) setDragReporting(true);
 }
 
-bool Terminal::noteButton(const Event& event) {
+bool Terminal::noteButton(Event& event) {
     if (!event.is_mouse() || event.mouse().button != MouseEvent::Button::Left) return true;
-    switch (event.mouse().motion) {
+    MouseEvent mouse = event.mouse();
+    const auto now = std::chrono::steady_clock::now();
+    const auto gap =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - lastMouseAt_).count();
+    const int distance = std::max(std::abs(mouse.x - lastMouseX_), std::abs(mouse.y - lastMouseY_));
+    lastMouseAt_ = now;
+    lastMouseX_ = mouse.x;
+    lastMouseY_ = mouse.y;
+
+    switch (mouse.motion) {
         case MouseEvent::Motion::Pressed: leftHeld_ = true; return true;
         case MouseEvent::Motion::Released: leftHeld_ = false; return true;
-        case MouseEvent::Motion::Moved: return leftHeld_;
+        case MouseEvent::Motion::Moved:
+            if (!leftHeld_) return false;
+            // A press ncurses took for a movement: the release before it was
+            // never reported — a terminal says nothing of a button let go
+            // outside its window — so ncurses still has the button down and
+            // reports the next press as the pointer moving with it. A button
+            // really held is reported cell by cell as the pointer crosses
+            // them, so a movement that comes after a pause and lands away from
+            // where the last report left the pointer is a fresh press, and is
+            // passed on as one.
+            if (gap > kLostReleaseGapMs && distance > 1) {
+                mouse.motion = MouseEvent::Motion::Pressed;
+                event = Event::Mouse(mouse);
+            }
+            return true;
     }
     return true;
 }
@@ -832,7 +856,8 @@ bool Terminal::escapePressed() {
             // A mouse report has to be taken off ncurses' own queue as well,
             // or the next one read would be this one.
             if (key == KEY_MOUSE) {
-                static_cast<void>(noteButton(mouseEvent()));
+                Event report = mouseEvent();
+                static_cast<void>(noteButton(report));
                 continue;
             }
             if (const auto found = customKeys.find(key);
@@ -882,7 +907,8 @@ std::optional<wint_t> Terminal::readRaw(int waitMs, bool& named) {
                 continue;
             }
             if (key == KEY_MOUSE) {
-                static_cast<void>(noteButton(mouseEvent()));
+                Event report = mouseEvent();
+                static_cast<void>(noteButton(report));
                 continue;
             }
             named = true;
@@ -1086,7 +1112,7 @@ Event Terminal::poll() {
                 return Event::Resize;
             }
             if (key == KEY_MOUSE) {
-                const Event event = mouseEvent();
+                Event event = mouseEvent();
                 if (event.kind() == Event::Kind::None || !noteButton(event)) continue;
                 return event;
             }

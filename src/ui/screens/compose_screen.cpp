@@ -2604,32 +2604,38 @@ Element render(AppState& state) {
 
 namespace {
 
-/// How close together two presses on one field have to come to be a double
-/// click. The common desktop default; nothing behind the number is a user's to
-/// prefer.
-constexpr Millis kDoubleClickMs = 400;
+/// Answers a press that is the second or the third of a run on one cell —
+/// `ui::countClick()` — by selecting the word under the pointer or the whole
+/// line, and copying it where `clipboard_copy_on_select` copies a mouse
+/// selection. In a header field the line is the field. Says whether it was: the
+/// first press of a run is answered as any other click, a drag beginning there.
+///
+/// The line is its characters and not its break: a line selected to be copied
+/// is wanted on its own, and Shift-↓ is there for whoever wants the break too.
+bool multiClick(AppState& state, const MouseEvent& click) {
+    const int count = countClick(state.composeClicks, click.x, click.y, state.monotonicMs());
+    if (count < 2) return false;
 
-/// Answers a press on a header field that is the second of a double click by
-/// selecting the whole field, and copying it where `clipboard_copy_on_select`
-/// copies a mouse selection. Says whether it was: the first press of a pair is
-/// remembered and answered as any other click, and a third press begins a pair
-/// of its own rather than being a second double click.
-bool doubleClickOnField(AppState& state) {
-    if (!state.composeInHeader || state.composeField >= kAttributes) {
-        state.composeLastFieldClick.reset();
-        return false;
+    if (state.composeInHeader) {
+        if (state.composeField >= kAttributes) return false;
+        const std::string& value = valueOf(state.compose, state.composeField);
+        const auto [begin, end] =
+            count == 2 ? wordAround(value, state.composeCursor)
+                       : std::pair<size_t, size_t>{0, value.size()};
+        state.composeFieldAnchor = AppState::FieldAnchor{state.composeField, begin};
+        state.composeCursor = end;
+    } else {
+        if (state.externalEditing()) return false;
+        TextBuffer& edit = state.edit;
+        const auto [begin, end] = count == 2
+                                      ? wordAround(edit.line(), edit.col)
+                                      : std::pair<size_t, size_t>{0, edit.line().size()};
+        edit.anchor = TextPoint{edit.row, begin};
+        edit.col = end;
+        scrollToCursor(state);
     }
-    const Millis now = state.monotonicMs();
-    const auto last = state.composeLastFieldClick;
-    if (!last || last->field != state.composeField || now - last->at > kDoubleClickMs) {
-        state.composeLastFieldClick = AppState::FieldClick{state.composeField, now};
-        return false;
-    }
-    state.composeLastFieldClick.reset();
-    state.composeFieldAnchor = AppState::FieldAnchor{state.composeField, 0};
-    state.composeCursor = valueOf(state.compose, state.composeField).size();
-    // Nothing to drag: the selection is the field, and the release coming
-    // after this press is not the end of anything.
+    // Nothing to drag: the selection is made, and the release coming after
+    // this press is not the end of anything.
     state.composeDrag = AppState::ComposeDrag::None;
     if (state.config.clipboardCopyOnSelect != config::CopyOnSelect::Off) {
         copySelection(state, false, /*quiet=*/true);
@@ -2745,7 +2751,7 @@ bool dispatch(AppState& state, const Event& event) {
     // had their look: the header block and the text are one screen, and a click
     // in either says the typing goes there, at the character pointed at.
     if (const auto click = leftClick(event); click && clickToCursor(state, *click)) {
-        if (!doubleClickOnField(state)) startDrag(state);
+        if (!multiClick(state, *click)) startDrag(state);
         return true;
     }
     // The wheel over the message, a row per notch, exactly as it moves the body

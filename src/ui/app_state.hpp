@@ -29,6 +29,7 @@
 #include "nodelist/nodelist_db.hpp"
 #include "ports/i_msgbase.hpp"
 #include "ui/bbs_codes.hpp"
+#include "ui/click_count.hpp"
 #include "ui/dir_listing.hpp"
 #include "ui/edit_history.hpp"
 #include "ui/event_util.hpp"
@@ -875,6 +876,13 @@ struct AppState {
         /// rows over in the same shape the pipe codes leave a line in — so
         /// nothing else about the drawing has to know where a row came from.
         bool canvas{false};
+        /// Whether the row below is the rest of the same line, broken here by
+        /// the window rather than by the message — and what the break took out
+        /// of it, the blanks between two words or nothing at all where a word
+        /// too long for the row was cut. What a selection is copied with: a
+        /// line the window broke is one line on the clipboard.
+        bool continues{false};
+        std::string joiner;
     };
     std::vector<DisplayLine> readLines;
     int readScroll{0};
@@ -1252,15 +1260,9 @@ struct AppState {
     enum class ComposeDrag : uint8_t { None, Field, Text };
     ComposeDrag composeDrag{ComposeDrag::None};
 
-    /// The last press on a header field — which field, and when — for telling a
-    /// double click from two clicks. ncurses is not asked: `mouseinterval(0)`
-    /// keeps it from holding a press back to see whether a second follows, and
-    /// so it never reports one.
-    struct FieldClick {
-        int field{0};
-        Millis at{0};
-    };
-    std::optional<FieldClick> composeLastFieldClick;
+    /// The presses on the message so far, for telling a double click — a word
+    /// — and a triple one — the line, or the whole of a field — from clicks.
+    ClickRun composeClicks;
 
     /// Where the Change button beside the attributes was drawn, filled in by the
     /// compose screen's render().
@@ -1285,6 +1287,40 @@ struct AppState {
     /// not the line in the buffer, which is that plus `editScroll`. Only the row
     /// the cursor is on ever has an origin: it is the only one drawn scrolled.
     std::vector<ComposeSpot> composeTextRows;
+
+    /// The reader's selection mode — `reader.select` — in which a cursor stands
+    /// in the message and text is selected to be copied, and the message is
+    /// never edited. `ui/reader_select.*` is the whole of what it does; nothing
+    /// here outlives the message it was begun over, `loadMessage()` ending it.
+    struct ReaderSelect {
+        bool on{false};
+        /// Which half the cursor is in: a header field, or the text.
+        bool inHeader{false};
+        /// The field, in `compose::Field` numbering — the same five the editor
+        /// types into, the attributes button aside.
+        int field{0};
+        size_t fieldCursor{0};
+        /// The other end of a selection in that field; dropped whenever the
+        /// cursor goes to another one.
+        std::optional<size_t> fieldAnchor;
+        /// The rows of the message as the reader has them laid out, one line of
+        /// the buffer per row on the screen, with the cursor and the anchor in
+        /// it — so that every motion the editor's buffer knows is the one used
+        /// here. Its lines are never changed but by `reader_select::sync()`.
+        TextBuffer text;
+        enum class Drag : uint8_t { None, Field, Text };
+        Drag drag{Drag::None};
+        /// Whether the frame drew the address column, which is what says
+        /// whether the cursor may go there.
+        bool addressesShown{true};
+        /// Where each field and each row on screen was drawn, as the editor
+        /// keeps them: one per field in `compose::Field` order, the attributes
+        /// button's left `Nowhere`, and one per row of the viewport.
+        std::vector<ComposeSpot> fieldSpots;
+        std::vector<ComposeSpot> textRows;
+        ClickRun clicks;
+    };
+    ReaderSelect readSelect;
 
     /// Where the editor drew the delete-line button, row by row, filled in by
     /// its render(). Three boxes rather than one: the button is drawn a cell at

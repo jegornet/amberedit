@@ -116,6 +116,7 @@ s               reader.mark_menu
 Ctrl-X          reader.shell
 Ctrl-C          reader.copy
 Ctrl-Ins        reader.copy
+Ctrl-M          reader.select
 -               reader.thread_up
 +               reader.thread_down
 =               reader.thread_down

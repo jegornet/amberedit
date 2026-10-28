@@ -128,6 +128,12 @@ void moveWordLeft(TextBuffer& buffer);
 [[nodiscard]] std::optional<size_t> wordStartBefore(const std::string& text, size_t at);
 [[nodiscard]] std::optional<size_t> wordEndAfter(const std::string& text, size_t at);
 
+/// The word a double click at `at` selects, as [begin, end): the run of letters
+/// and digits it lands in — a word as `wordStartBefore()` means one — or the run
+/// of blanks, or the one other character standing there. Past the end of the
+/// text is the last character of it; an empty text is {0, 0}.
+[[nodiscard]] std::pair<size_t, size_t> wordAround(const std::string& text, size_t at);
+
 /// The selection, front end first: from the anchor to the cursor or the other
 /// way round, whichever comes first in the text. Nothing where no text is
 /// selected — no anchor, or one standing on the cursor. Both ends are held to

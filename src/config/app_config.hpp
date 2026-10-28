@@ -1734,11 +1734,12 @@ struct AppConfig {
     /// about a message is a question most readers never ask, a message is
     /// written out to a file now and then, and answering the recipient rather
     /// than the sender is a thing wanted now and then — `c`/F2, `i`, `w` and
-    /// `g`/Alt-G do all four without a button.
+    /// `g`/Alt-G do all four without a button. The shell is left out too,
+    /// `Ctrl-X` reaching it, and the last button is selecting text instead.
     std::vector<Command> readerMenu{Command::ReaderList,           Command::ReaderReply,
                                     Command::ReaderReplyElsewhere, Command::ReaderNew,
                                     Command::ReaderForward,        Command::ReaderFind,
-                                    Command::ReaderNodelist,       Command::ReaderShell};
+                                    Command::ReaderNodelist,       Command::ReaderSelect};
 
     /// The editor's two: storing the message and reading a file into it. The
     /// rest of what it does is editing, which is the keyboard's — Ctrl-Y and

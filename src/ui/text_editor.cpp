@@ -285,6 +285,34 @@ std::optional<size_t> wordEndAfter(const std::string& text, size_t at) {
     return at;
 }
 
+std::pair<size_t, size_t> wordAround(const std::string& text, size_t at) {
+    if (text.empty()) return {0, 0};
+    // Past the end of the line is the last character of it, as a pointer
+    // beyond the text means the word it trails off from.
+    at = std::min(at, text.size());
+    if (at == text.size()) at = prevBoundary(text, at);
+    while (at > 0 && (static_cast<unsigned char>(text[at]) & 0xC0u) == 0x80u) --at;
+
+    // A run of one kind: letters and digits, or blanks. Anything else is a
+    // character on its own — a bracket or a quote marker is not a word, and
+    // taking the punctuation beside it would take half a line with it.
+    const auto kind = [&text](size_t pos) {
+        const char byte = text[pos];
+        if (isWordByte(byte)) return 0;
+        if (byte == ' ' || byte == '\t') return 1;
+        return 2;
+    };
+    const int mine = kind(at);
+    size_t begin = at;
+    size_t end = at + charLength(text, at);
+    if (mine == 2) return {begin, end};
+    while (begin > 0 && kind(prevBoundary(text, begin)) == mine) {
+        begin = prevBoundary(text, begin);
+    }
+    while (end < text.size() && kind(end) == mine) end += charLength(text, end);
+    return {begin, end};
+}
+
 void moveWordRight(TextBuffer& buffer) {
     while (true) {
         if (const auto at = wordEndAfter(buffer.line(), buffer.col)) {

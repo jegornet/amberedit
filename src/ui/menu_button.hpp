@@ -30,6 +30,10 @@ namespace amberedit::ui::menu_button {
 /// than a word: it is what a menu has been drawn as for as long as there have
 /// been menus to draw, and it needs no translating.
 constexpr const char* kLabel = " ≡ ";
+/// The label where the corner finishes something rather than opening a menu —
+/// the reader's selection mode, whose one thing left to do is to copy. Same
+/// width as the bars, so nothing on the row moves as the one becomes the other.
+constexpr const char* kDoneLabel = " ✓ ";
 /// The label plus a side on either hand — five columns, the glyph being one
 /// column wide whatever it takes in bytes.
 constexpr int kWidth = 5;
@@ -49,8 +53,9 @@ constexpr int kWidth = 5;
 /// `pressed` is passed to both rows, which are laid out a screen apart, so that
 /// the button lights up as one thing rather than as the half of it the pointer
 /// happened to land on.
-[[nodiscard]] inline term::Element topRow(bool pressed = false) {
-    return term::text("│" + std::string(kLabel) + "│") | term::color(colorOf(pressed));
+[[nodiscard]] inline term::Element topRow(bool pressed = false,
+                                          const char* label = kLabel) {
+    return term::text("│" + std::string(label) + "│") | term::color(colorOf(pressed));
 }
 
 /// The bottom row, which is what the second row of the screen costs: it lands on

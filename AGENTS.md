@@ -1028,6 +1028,15 @@ Rules that hold the design together:
   `addresseeOf()` is to be kept in step with the dispatch chain in `app_shell.cpp`
   in the same way: the two list the same modals in the same order, and a box left
   out of the first is one the tail of a flick can still scroll.
+- **A release nobody reported is made up for by the press after it.** A terminal
+  says nothing of a button let go outside its window, so a drag carried past the
+  edge ends with ncurses still holding button 1 down, and the next press arrives
+  as `REPORT_MOUSE_POSITION` — a click on a button that drags the selection to
+  it instead. `Terminal::noteButton()` rewrites such a movement into the press it
+  is: a held button is reported cell by cell as the pointer crosses them, so a
+  movement that comes after `kLostReleaseGapMs` of nothing and lands more than a
+  cell from the last report is not a drag. The release that follows it is a real
+  one and puts ncurses right.
 - **Typeahead is dropped by reading it, never by `flushinp()`.**
   `Terminal::flushInput()` reads every event off the queue through ncurses and
   throws it away after. ncurses remembers which buttons are down and forgets
@@ -1830,6 +1839,86 @@ Rules that hold the design together:
   them. It is read off `AppState::areaConfig` and not off `config`, being a
   setting an area group may state.
 
+### Selecting text in the reader
+
+`reader.select` — `Ctrl-M`, and `select` closing the default `reader_menu` in
+the place `shell` had. `ui/reader_select.*` is the whole of the mode and
+`AppState::readSelect` the whole of its state; the screen only draws it and
+hands it events.
+
+- **A mode that reads and never writes.** While it is on, a key either moves
+  the cursor, copies, or leaves, and everything else is swallowed —
+  `message_read::handleEvent()` hands every event to `reader_select::handleEvent()`
+  once the corner buttons, the sidebar and the thread markers have had their
+  look. The reader's own commands are not answered: a cursor standing in the
+  text is the cue that letters do something there, and `q` opening a reply
+  under it would be the surprise. The arrows are the cursor's, so ← and → do
+  not walk between messages, the side taps are off, and a click on a link puts
+  the cursor on it rather than opening it — selecting an address to copy is one
+  of the things the mode is for.
+- **It lives as long as the message on screen.** `loadMessage()` and
+  `showEmptyArea()` end it, so a thread marker, a row of the sidebar or anything
+  else that opens another message leaves the mode with it. A menu button picked
+  while it is on ends it first — every other command is about the message, not
+  the cursor — and its own button is how the menu ends it.
+- **The corners are the mode's two ways out.** The back button ends it with
+  nothing copied, where Esc would, rather than leaving the area. The menu button
+  is drawn `✓` instead of `≡` (`menu_button::kDoneLabel`, the same width so the
+  row does not move) and is `reader_select::finish()`: what is selected is
+  copied and the mode ends, no menu put up. A button pressed is asked to finish,
+  so it ends the mode with nothing selected as well, where Enter waits.
+- **The cursor walks the rows as the reader laid them out.** `ReaderSelect::text`
+  is a `TextBuffer` holding one line per `readLines` row, so the editor's motions
+  (`moveLeft`, `moveWordRight`, …) are the ones used; ↑↓ go a row and keep the
+  column. `reader_select::sync()` refills it after every `relayout()` and drops
+  the anchor, whose ends were places in rows that are no longer there. The text
+  is not wrapped a column narrower for the cursor the way the editor's is: that
+  would reflow every long paragraph the moment the mode was entered, and a
+  cursor at the end of a row filling the window is drawn by scrolling that one
+  row a column, which `ui::inputField()` already does.
+- **A row the window broke is one line on the clipboard.** `wrapBody()` records
+  on each `DisplayLine` whether the row below continues it and what the break
+  took out — `continues` and `joiner`, the blanks `wrapText()` dropped or nothing
+  where a word was cut — and `selectedText()` joins rows with that. Only a break
+  the message itself made is a line feed.
+- **The header is the editor's five fields, walked the editor's way.**
+  `compose::Field` numbering, the attributes button left out: Tab and Shift-Tab
+  round the fields and through the text, the arrows by the block as it is drawn,
+  ↑ off the first row of the text onto the subject, ↓ off the subject into the
+  text at the first row on screen. The editor's own `compose.word_left`,
+  `word_right`, `line_start` and `line_end` keys are read for the same motions.
+  `reader_select::fieldValue()` is the one place the reader says what a field
+  holds — `headerBlock()` reads it too — so the text selected is the text drawn.
+  An address is a stop only where the frame drew the column
+  (`ReaderSelect::addressesShown`), the To address only in netmail.
+- **While the mode is on the fields are `ui::inputField()`s with no fill**, the
+  cursor an inverted cell and the selection in `selection`, and the address
+  column is a column wider so the cursor at the end of the widest address has
+  somewhere to stand. Rows the selection or the cursor is on are drawn plain in
+  their base color, as the editor draws its own, and every other row is drawn by
+  `bodyLine()` as always, links and colors included.
+- **A double click is a word and a triple one the line**, as in the editor — and
+  the line is the one the message wrote, every row the window broke it into,
+  since that is what a line means when it is copied.
+- **Copying ends the mode; a selection copying itself does not.** Enter and the
+  reader's copy key copy what is selected and leave, the "Copied" box with them;
+  with nothing selected they do nothing and the mode stays. Esc and the mode's
+  own key leave with nothing copied — Esc does not first drop the selection, as
+  the editor's does, there being no message under it to keep editing.
+  `clipboard_copy_on_select` is answered exactly as in the editor — the release
+  of a drag, every Shift step under `always`, a double or a triple click — quietly
+  and with the mode left on: nobody asked for that copy.
+- **The hint bar is the mode's while it is on**: the reader's copy key and Esc,
+  in place of `reader_hints` — `readerSelectionHints()` in `ui/hint_bar.cpp`.
+- **`Ctrl-M` is the byte Enter has sent since ASCII**, so it arrives as a chord
+  only on a terminal reporting modified keys — the kitty protocol `runApp()`
+  asks for does — and as Enter everywhere else. So the reader takes Enter for
+  `reader.select` wherever the layout puts the command on `Ctrl-M`, Enter being
+  bound to nothing else there; moved to another key, Enter is nothing again.
+  Inside the mode Enter is copying, which is why the mode's own key leaving it
+  is a nicety of terminals that tell the two apart. The attributes dialog's
+  `Ctrl-M` has no such fallback: Enter there is keeping what was done.
+
 ### Marked messages
 
 The user picking a handful of messages out of an area and saying, later, what to
@@ -2487,13 +2576,18 @@ decides what an occurrence is.
     `AppState::clipboardCopyQuiet` carrying that to the shell for a clipboard
     the shell answers — because it happens on every gesture and nobody asked to
     be told.
-  - **A double click on a header field selects the field**, and copies it under
-    `mouse` and `always` as a drag would. `mouseinterval(0)` keeps ncurses from
-    ever reporting one, so `doubleClickOnField()` tells it from two clicks
-    itself: two presses on one field within `kDoubleClickMs`, by
-    `AppState::monotonicMs()`, the last press kept in
-    `composeLastFieldClick`. No drag follows it, so the release after it moves
-    nothing. A third press begins a pair of its own.
+  - **A double click selects a word and a triple one the line** — in a header
+    field the field, a field being one line — and either is copied under
+    `mouse` and `always` as a drag would be. `mouseinterval(0)` keeps ncurses
+    from ever reporting one, so `ui/click_count.hpp` counts them: presses on one
+    cell within `kMultiClickMs`, by `AppState::monotonicMs()`, the run kept in
+    `composeClicks`. A word is `wordAround()` in `ui/text_editor.hpp`, the
+    letters and digits the word keys walk over, or a run of blanks, or the one
+    other character there. The line is its characters without the break: a line
+    picked out to be copied is wanted on its own. No drag follows either, so the
+    release after it moves nothing; a fourth press begins a run of its own.
+    `multiClick()` is the editor's half and `reader_select.cpp`'s of the same
+    name the reader's.
   - **A line break is selected or it is not, and nothing guesses which.** The
     characters of a line and the line itself are two selections: `Shift-End`
     stops before the break, `Shift-→` from there or `Shift-↓` from the start of
@@ -5391,7 +5485,8 @@ netmail is answered with — see [Confirmation
 receipts](#confirmation-receipts); a keyboard
 layout of one's own, from `keys`, and the help box behind `app.help` that reads
 it back; the user's own shell behind `reader.shell`;
-copying the message on screen and pasting into the one being written, through
+copying the message on screen, or what is selected of it in the reader's
+selection mode, and pasting into the one being written, through
 the clipboard `clipboard` names;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
 a menu button or a hint on the area list, in the reader or in the editor, handed

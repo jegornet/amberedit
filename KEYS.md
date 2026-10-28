@@ -70,6 +70,7 @@ standing in both.
 | `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `Ctrl-C` / `Ctrl-Ins` | copy the message to the clipboard (`clipboard`), header and all, as `w` writes it; kludges only where `k` shows them |
+| `Ctrl-M` | select text                                                             |
 | `i` | technical info from the message base                                         |
 | `w` / `F7` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
@@ -93,7 +94,7 @@ standing in both.
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
-| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`); a double click selects a whole header field |
+| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`); a double click selects a word, a triple one the line or the whole header field; the same in the reader's selection mode |
 | `Ctrl-C` / `Ctrl-Ins` | copy the selection to the clipboard                    |
 | `Ctrl-X` / `Shift-Del` | cut the selection to the clipboard                    |
 | `Ctrl-Z` / `Ctrl-U` | undo the last change, in the text or a header field — a line `Ctrl-Y` deleted included; typing goes back a word at a time |
