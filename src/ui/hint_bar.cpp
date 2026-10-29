@@ -101,7 +101,7 @@ std::vector<Hint> readerSelectionHints(const AppState& state) {
         hints.push_back(hintFor(state, Command::ReaderCopy, *key,
                                 state.config.labelOf(Command::ReaderCopy)));
     }
-    hints.push_back(hintFor(state, std::nullopt, Event::Escape, _("Exit selection mode")));
+    hints.push_back(hintFor(state, std::nullopt, Event::Escape, _("Cancel")));
     return hints;
 }
 

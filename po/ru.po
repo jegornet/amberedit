@@ -1099,10 +1099,6 @@ msgstr "Esc закрыть"
 msgid "Clear selection"
 msgstr "Снять выделение"
 
-#: src/ui/hint_bar.cpp:104
-msgid "Exit selection mode"
-msgstr "Выйти из режима выделения"
-
 #: src/ui/import_dialog.cpp:78
 msgid "Enter open · Tab move · Esc close"
 msgstr "Enter открыть · Tab перейти · Esc закрыть"
@@ -1248,7 +1244,7 @@ msgstr "Помеченные"
 msgid "Current"
 msgstr "Текущее"
 
-#: src/ui/scope_dialog.cpp:116
+#: src/ui/hint_bar.cpp:104 src/ui/scope_dialog.cpp:116
 msgid "Cancel"
 msgstr "Отмена"
 

@@ -85,7 +85,7 @@ TEST_CASE("v puts a cursor on the first row on screen [messageread][select]") {
     CHECK_FALSE(state.readSelect.inHeader);
     CHECK(state.readSelect.text.row == 1);
     CHECK(state.readSelect.text.col == 0);
-    CHECK(hint_bar::text(state) == "ctrl-c copy  esc exit selection mode");
+    CHECK(hint_bar::text(state) == "ctrl-c copy  esc cancel");
 
     // The arrows move the cursor and not the reader: → is not the next message.
     const uint32_t number = state.readHeader->number;

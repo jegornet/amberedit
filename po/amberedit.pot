@@ -1064,10 +1064,6 @@ msgstr ""
 msgid "Clear selection"
 msgstr ""
 
-#: src/ui/hint_bar.cpp:104
-msgid "Exit selection mode"
-msgstr ""
-
 #: src/ui/import_dialog.cpp:78
 msgid "Enter open · Tab move · Esc close"
 msgstr ""
@@ -1213,7 +1209,7 @@ msgstr ""
 msgid "Current"
 msgstr ""
 
-#: src/ui/scope_dialog.cpp:116
+#: src/ui/hint_bar.cpp:104 src/ui/scope_dialog.cpp:116
 msgid "Cancel"
 msgstr ""
 
