@@ -1804,7 +1804,7 @@ struct AppConfig {
     std::vector<Command> msglistHints;
     std::vector<Command> readerHints{Command::ReaderReply,  Command::ReaderReplyElsewhere,
                                      Command::ReaderNew,    Command::ReaderList,
-                                     Command::ReaderExport, Command::ReaderNodelist};
+                                     Command::ReaderExport, Command::ReaderSelect};
     std::vector<Command> composeHints{Command::ComposeSave, Command::ComposeUndo,
                                       Command::ComposeRedo, Command::ComposeImport};
 

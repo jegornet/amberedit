@@ -8,6 +8,7 @@
 - undo and redo in the editor: Ctrl-Z or Ctrl-U to undo, Ctrl-R to redo
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 - add reader selection mode (V key). Reply in the selection mode quotes only what is selected, or the whole message where nothing is selected. Space key in the selection mode holds the anchor down, so the arrows select without Shift; Space again releases it
+- the reader's default hint bar offers v select in place of ctrl-n nodelist
 
 ## 0.9.4 — 2026-10-26
 

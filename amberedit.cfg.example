@@ -1067,10 +1067,10 @@ hint_bar_capitalize off
 #
 # While text is selected in the editor its row is copy, cut and Esc instead,
 # whatever compose_hints says.
-arealist_hints next_unread toggle_unread rescan
-msglist_hints none
-reader_hints reply reply_elsewhere new list export nodelist
-compose_hints save undo redo import
+#arealist_hints next_unread toggle_unread rescan
+#msglist_hints none
+#reader_hints reply reply_elsewhere new list export select
+#compose_hints save undo redo import
 
 # Whether the reader and the message list show a back button — a left arrow in
 # the top-left corner. Optional; "when_narrow" by default. Esc does the same

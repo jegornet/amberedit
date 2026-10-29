@@ -75,7 +75,7 @@ TEST_CASE("The hint bar names the commands of the screen it stands under [hintba
     CHECK(hint_bar::text(Fixture(ScreenId::AreaList).state) ==
           "/ next unread  ctrl-u toggle unread  ctrl-r rescan");
     CHECK(hint_bar::text(Fixture(ScreenId::MessageRead).state) ==
-          "q reply  n reply elsewhere  e new  l list  w export  ctrl-n nodelist");
+          "q reply  n reply elsewhere  e new  l list  w export  v select");
     CHECK(hint_bar::text(Fixture(ScreenId::Compose).state) ==
           "ctrl-s save  ctrl-z undo  ctrl-r redo  ctrl-o import");
     // Every key on the message list moves the cursor, so its list starts empty.

@@ -1240,7 +1240,7 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
     CHECK(defaults.readerHints ==
           std::vector<Command>{Command::ReaderReply, Command::ReaderReplyElsewhere,
                                Command::ReaderNew, Command::ReaderList,
-                               Command::ReaderExport, Command::ReaderNodelist});
+                               Command::ReaderExport, Command::ReaderSelect});
     CHECK(defaults.composeHints == std::vector<Command>{Command::ComposeSave,
                                                         Command::ComposeUndo,
                                                         Command::ComposeRedo,
