@@ -2127,8 +2127,9 @@ struct AppState {
         /// What it runs, or nothing where the hint is for a key that moves
         /// about rather than a command — the Esc a selection is dropped with.
         std::optional<Command> command;
-        /// The key it is written under, which is what a click on it presses.
-        term::Event key;
+        /// The key it is written under, which is what a click on it presses —
+        /// nothing for a gesture, Shift with the arrows, which no click can.
+        std::optional<term::Event> key;
         term::Box box;
     };
     std::vector<HintSpot> hintSpots;

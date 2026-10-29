@@ -1921,8 +1921,10 @@ hands it events.
   `clipboard_copy_on_select` is answered exactly as in the editor — the release
   of a drag, every Shift step under `always`, a double or a triple click — quietly
   and with the mode left on: nobody asked for that copy.
-- **The hint bar is the mode's while it is on**: the reader's copy, reply and
-  reply-elsewhere keys and Esc, in place of `reader_hints` — `readerSelectionHints()` in `ui/hint_bar.cpp`.
+- **The hint bar is the mode's while it is on**: Shift with the arrows, the
+  reader's copy, reply and reply-elsewhere keys and Esc, in place of
+  `reader_hints`. Shift with the arrows is a gesture and not a key, so its hint
+  carries none and a click on it presses nothing — `readerSelectionHints()` in `ui/hint_bar.cpp`.
 - **`v` and not a chord**, the key a pager's and vim's visual mode are on: a
   bare letter reaches the reader from every terminal, where `Ctrl-M` is the byte
   Enter sends and arrives as a chord only on one reporting modified keys. Enter

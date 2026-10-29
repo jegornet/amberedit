@@ -40,10 +40,12 @@ const std::vector<Command>& commandsOf(const AppState& state) {
 
 /// One hint: what it runs, the key it is written under, and how it reads.
 struct Hint {
-    /// Nothing for the one hint that names a key rather than a command — Esc,
-    /// which drops a selection and which no layout binds.
+    /// Nothing for a hint that names a key rather than a command — Esc, which
+    /// drops a selection and which no layout binds.
     std::optional<Command> command;
-    Event key;
+    /// Nothing for a hint that names a gesture rather than a key — Shift with
+    /// the arrows — which no one key stands for and a click cannot press.
+    std::optional<Event> key;
     /// `q reply` — the key and what it does, which is the whole of the hint,
     /// in the case `hint_bar_capitalize` asks for.
     std::string text;
@@ -75,6 +77,15 @@ Hint hintFor(const AppState& state, std::optional<Command> command, const Event&
             hintSpellingOf(key, capitals) + " " + (capitals ? label : lowered(label))};
 }
 
+/// A hint for a gesture rather than a key: what the selection mode is made
+/// with, written the way the row spells a key and pressed by nothing.
+Hint gestureHint(const AppState& state, const std::string& label) {
+    const bool capitals = state.config.hintBarCapitalize;
+    return {std::nullopt, std::nullopt,
+            std::string(capitals ? "Shift-Arrows" : "shift-arrows") + " " +
+                (capitals ? label : lowered(label))};
+}
+
 /// The editor's row while text is selected, which stands in place of
 /// `compose_hints` for as long as the selection does: what there is to do then
 /// is to do something with it, and the three hints are the whole of that.
@@ -91,12 +102,13 @@ std::vector<Hint> selectionHints(const AppState& state) {
 }
 
 /// The reader's row while text is being selected there, in place of
-/// `reader_hints`: copying, which leaves the mode, the reply here and the reply
-/// elsewhere, which quote what is selected, and leaving it without any of them.
-/// Each is written under the key the layout gives the reader's command; Esc is
-/// the mode's own.
+/// `reader_hints`: how a selection is made, copying, which leaves the mode, the
+/// reply here and the reply elsewhere, which quote what is selected, and leaving
+/// it without any of them. Each command is written under the key the layout
+/// gives it; Shift with the arrows and Esc are the mode's own.
 std::vector<Hint> readerSelectionHints(const AppState& state) {
     std::vector<Hint> hints;
+    hints.push_back(gestureHint(state, _("Select")));
     for (const Command command :
          {Command::ReaderCopy, Command::ReaderReply, Command::ReaderReplyElsewhere}) {
         if (const auto key = state.keys.preferredKey(command)) {
@@ -257,10 +269,12 @@ std::optional<Event> clicked(AppState& state, const Event& event) {
     for (size_t i = 0; i < state.hintSpots.size(); ++i) {
         if (!state.hintSpots[i].box.Contain(click->x, click->y)) continue;
 
+        // A gesture is pressed by nothing, and a click on it lands on no hint.
+        if (!state.hintSpots[i].key) continue;
         // The key is taken off the row before anything else: showing the click
         // draws a frame, and `render()` builds the spots afresh every time it
         // does — which leaves nothing behind the entry it came from.
-        const Event key = state.hintSpots[i].key;
+        const Event key = *state.hintSpots[i].key;
         state.showClick(AppState::Pressed::Hint, static_cast<uint32_t>(i));
 
         // The key the hint is written under rather than a second way into the

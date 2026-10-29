@@ -85,7 +85,7 @@ TEST_CASE("v puts a cursor on the first row on screen [messageread][select]") {
     CHECK_FALSE(state.readSelect.inHeader);
     CHECK(state.readSelect.text.row == 1);
     CHECK(state.readSelect.text.col == 0);
-    CHECK(hint_bar::text(state) == "ctrl-c copy  q reply  n reply elsewhere  esc cancel");
+    CHECK(hint_bar::text(state) == "shift-arrows select  ctrl-c copy  q reply  n reply elsewhere  esc cancel");
 
     // The arrows move the cursor and not the reader: → is not the next message.
     const uint32_t number = state.readHeader->number;
@@ -460,4 +460,25 @@ TEST_CASE("n from the mode keeps the selection for the area picked, and an answe
     REQUIRE(state.navigator.current() == ScreenId::Compose);
     CHECK_FALSE(state.quoteSelection);
     CHECK(editorHolds(state, "> second line"));
+}
+
+TEST_CASE("The mode's Shift-arrows hint is pressed by no click "
+          "[messageread][select][hintbar]") {
+    Reader reader({"Hello world"});
+    auto& state = reader.state;
+    reader.key(Event::Character('v'));
+
+    term::Screen screen(state.width, 1);
+    term::render(screen, hint_bar::render(state));
+    REQUIRE(state.hintSpots.size() == 5);
+    CHECK_FALSE(state.hintSpots[0].key);
+
+    const auto& gesture = state.hintSpots[0].box;
+    CHECK_FALSE(hint_bar::clicked(
+        state, pointerAt(gesture.x_min, gesture.y_min, term::MouseEvent::Motion::Pressed)));
+    const auto& copy = state.hintSpots[1].box;
+    const auto pressed = hint_bar::clicked(
+        state, pointerAt(copy.x_min, copy.y_min, term::MouseEvent::Motion::Pressed));
+    REQUIRE(pressed);
+    CHECK(state.keys.is(*pressed, Command::ReaderCopy));
 }
