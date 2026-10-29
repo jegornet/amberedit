@@ -376,8 +376,11 @@ TemplateContext contextFor(const BuildRequest& request) {
     }
     if (request.originalBody != nullptr) {
         context.omsgid = msgidOf(*request.originalBody);
-        const std::vector<std::string> carried = quotableLines(
-            *request.originalBody, request.kludgesShown, request.config.quoteFooter);
+        const std::vector<std::string> carried =
+            request.quoteOnly != nullptr && !context.isForward
+                ? *request.quoteOnly
+                : quotableLines(*request.originalBody, request.kludgesShown,
+                                request.config.quoteFooter);
         // One or the other, never both: a forward puts the message in whole
         // where @message stands, and a reply quotes it where @quote does. Both
         // tokens are unconditional inserts in the template GoldED ships, so

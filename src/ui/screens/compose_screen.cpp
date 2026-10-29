@@ -514,6 +514,11 @@ app::BuildRequest buildRequest(AppState& state) {
         // carries them: a message is answered the way it was being read.
         state.showKludges,
     };
+    // What the reader's selection mode had selected when the reply was begun,
+    // quoted in place of the whole message.
+    if (state.compose.reply && state.quoteSelection) {
+        request.quoteOnly = &*state.quoteSelection;
+    }
     // The thread link the base keeps, and only where there is a base in common
     // to keep it: a message answered in the area it was read in. A reply the
     // user moved and one following an `AREA:` line both land in another base,
@@ -822,6 +827,7 @@ void leaveHeader(AppState& state) {
 /// Back out of the compose screen, onto the reader underneath.
 void leaveEditor(AppState& state) {
     state.edit = TextBuffer{};
+    state.quoteSelection.reset();
     state.composeHistory.clear();
     state.composeFieldAnchor.reset();
     state.composeDrag = AppState::ComposeDrag::None;

@@ -1851,11 +1851,24 @@ hands it events.
   `message_read::handleEvent()` hands every event to `reader_select::handleEvent()`
   once the corner buttons, the sidebar and the thread markers have had their
   look. The reader's own commands are not answered: a cursor standing in the
-  text is the cue that letters do something there, and `q` opening a reply
-  under it would be the surprise. The arrows are the cursor's, so ← and → do
+  text is the cue that letters do something there, and `c` opening the
+  editor under it would be the surprise. The arrows are the cursor's, so ← and → do
   not walk between messages, the side taps are off, and a click on a link puts
   the cursor on it rather than opening it — selecting an address to copy is one
   of the things the mode is for.
+- **The three answers are the exception, and they quote the selection.**
+  `reader.reply`, `reader.reply_elsewhere` and `reader.comment_reply` are taken
+  by the reader before the mode sees the key, through `answer()` in
+  `message_read_screen.cpp` — the one way every answer is begun, by key or by
+  menu button, in the mode or out of it. What is selected becomes
+  `AppState::quoteSelection`, which `buildRequest()` hands the builder as
+  `BuildRequest::quoteOnly` in place of the message's own lines; nothing
+  selected quotes the whole message, as an answer begun outside the mode does.
+  `answer()` settles it for every answer rather than only for one begun in the
+  mode, because `n` stands an area picker between the key and the reply: a
+  picker given up on would otherwise leave a selection behind for the next
+  reply to quote. It lives as long as the reply — the template is expanded again
+  as the header is left — and `leaveEditor()` drops it.
 - **It lives as long as the message on screen.** `loadMessage()` and
   `showEmptyArea()` end it, so a thread marker, a row of the sidebar or anything
   else that opens another message leaves the mode with it. A menu button picked
@@ -1908,8 +1921,8 @@ hands it events.
   `clipboard_copy_on_select` is answered exactly as in the editor — the release
   of a drag, every Shift step under `always`, a double or a triple click — quietly
   and with the mode left on: nobody asked for that copy.
-- **The hint bar is the mode's while it is on**: the reader's copy key and Esc,
-  in place of `reader_hints` — `readerSelectionHints()` in `ui/hint_bar.cpp`.
+- **The hint bar is the mode's while it is on**: the reader's copy, reply and
+  reply-elsewhere keys and Esc, in place of `reader_hints` — `readerSelectionHints()` in `ui/hint_bar.cpp`.
 - **`v` and not a chord**, the key a pager's and vim's visual mode are on: a
   bare letter reaches the reader from every terminal, where `Ctrl-M` is the byte
   Enter sends and arrives as a chord only on one reporting modified keys. Enter

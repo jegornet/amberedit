@@ -983,6 +983,39 @@ bool commandEnabled(const AppState& state, Command command) {
     }
 }
 
+/// Which of the three answers to the message on screen the key is, if any.
+std::optional<Command> answerOf(const AppState& state, const Event& event) {
+    for (const Command command : {Command::ReaderReply, Command::ReaderReplyElsewhere,
+                                  Command::ReaderCommentReply}) {
+        if (state.keys.is(event, command)) return command;
+    }
+    return std::nullopt;
+}
+
+/// Begins one of the three answers. What the selection mode has selected, where
+/// it is on and anything is, is what the answer quotes in place of the whole
+/// message; the mode ends either way, the answer being the work it was on for.
+/// Settled for every answer, selection or none, so that one begun later never
+/// quotes what an answer abandoned in the area picker had selected.
+void answer(AppState& state, Command command) {
+    state.quoteSelection.reset();
+    if (state.readSelect.on) {
+        if (reader_select::hasSelection(state)) {
+            state.quoteSelection =
+                config::text::splitLines(reader_select::selectedText(state));
+        }
+        reader_select::stop(state);
+    }
+    switch (command) {
+        case Command::ReaderReply: compose::startReply(state); break;
+        case Command::ReaderReplyElsewhere:
+            askArea(state, AppState::AreaPicker::For::Reply);
+            break;
+        case Command::ReaderCommentReply: compose::startCommentReply(state); break;
+        default: break;
+    }
+}
+
 }  // namespace
 
 void openMenu(AppState& state) {
@@ -995,6 +1028,13 @@ void openMenu(AppState& state) {
 }
 
 void runMenuCommand(AppState& state, Command command) {
+    // The answers first, which take what is selected into the quote and end
+    // the selection mode themselves.
+    if (command == Command::ReaderReply || command == Command::ReaderReplyElsewhere ||
+        command == Command::ReaderCommentReply) {
+        answer(state, command);
+        return;
+    }
     // A button picked while text is being selected: the mode ends first, every
     // other command being about the message rather than about the cursor in it
     // — and its own button is how the menu ends it.
@@ -1003,11 +1043,6 @@ void runMenuCommand(AppState& state, Command command) {
         if (command == Command::ReaderSelect) return;
     }
     switch (command) {
-        case Command::ReaderReply: compose::startReply(state); break;
-        case Command::ReaderReplyElsewhere:
-            askArea(state, AppState::AreaPicker::For::Reply);
-            break;
-        case Command::ReaderCommentReply: compose::startCommentReply(state); break;
         case Command::ReaderForward:
             if (state.marks.empty()) {
                 askForward(state, /*marked=*/false);
@@ -2572,9 +2607,16 @@ bool handleEvent(AppState& state, const Event& event) {
         }
     }
     // Everything else while text is being selected is the selection's: the
-    // cursor, the keys that move it and the keys that copy or leave. The
-    // columns at the sides are text there like the rest.
-    if (state.readSelect.on) return reader_select::handleEvent(state, event);
+    // cursor, the keys that move it and the keys that copy or leave — bar the
+    // three answers, which quote what is selected. The columns at the sides are
+    // text there like the rest.
+    if (state.readSelect.on) {
+        if (const auto command = answerOf(state, event)) {
+            answer(state, *command);
+            return true;
+        }
+        return reader_select::handleEvent(state, event);
+    }
     // The columns down either side of the text, where the config asks for them
     // and as many of them as `reader_side_tap_width` says: a click in them is ←
     // and →, `reader_edge` and all. After the links above rather than before
@@ -2644,7 +2686,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // Replying and writing anew. Both belong to the reader alone: a reply is a
     // reply to the message on screen, and the other screens leave the keys free.
     if (state.keys.is(event, Command::ReaderReply)) {
-        compose::startReply(state);
+        answer(state, Command::ReaderReply);
         return true;
     }
     if (state.keys.is(event, Command::ReaderNew)) {
@@ -2669,7 +2711,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // Answering in another area: the dialog asks which, and what follows is the
     // ordinary reply, quote and all, written where it says.
     if (state.keys.is(event, Command::ReaderReplyElsewhere)) {
-        askArea(state, AppState::AreaPicker::For::Reply);
+        answer(state, Command::ReaderReplyElsewhere);
         return true;
     }
     // The same answer, addressed to whoever the message was written to rather
@@ -2677,7 +2719,7 @@ bool handleEvent(AppState& state, const Event& event) {
     // `g` and Alt-G do it: it is not in the hint bar, and a button for it is
     // `reader_menu comment_reply`.
     if (state.keys.is(event, Command::ReaderCommentReply)) {
-        compose::startCommentReply(state);
+        answer(state, Command::ReaderCommentReply);
         return true;
     }
     // Passing the message on into another area, having asked first in what

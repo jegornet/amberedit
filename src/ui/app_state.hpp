@@ -1321,6 +1321,13 @@ struct AppState {
         ClickRun clicks;
     };
     ReaderSelect readSelect;
+    /// What a reply begun from the selection mode quotes in place of the whole
+    /// message — the selection as it stood, a line per line break in it. Set by
+    /// the reader for every answer it begins, emptied where nothing was
+    /// selected, so a reply begun afterwards never quotes a stale one; read by
+    /// the compose screen for as long as the reply is open, since the template
+    /// is expanded again as the header is left, and dropped by `leaveEditor()`.
+    std::optional<std::vector<std::string>> quoteSelection;
 
     /// Where the editor drew the delete-line button, row by row, filled in by
     /// its render(). Three boxes rather than one: the button is drawn a cell at

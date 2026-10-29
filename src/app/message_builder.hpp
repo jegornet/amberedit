@@ -68,6 +68,11 @@ struct BuildRequest {
     /// it was read in: that number means nothing in the area being written
     /// into, and only the caller knows whether the two are the same area.
     uint32_t replyTo{0};
+    /// What a reply quotes in place of the message it answers: the text the
+    /// reader's selection mode had selected when the answer was begun, a line
+    /// per line break in it. Null quotes the message whole, as ever. A forward
+    /// is not asked — it carries the message, not a piece of one.
+    const std::vector<std::string>* quoteOnly{nullptr};
 };
 
 /// The text the editor opens on: the template expanded against this message,

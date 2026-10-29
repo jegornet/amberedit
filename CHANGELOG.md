@@ -2,13 +2,14 @@
 
 ## Unreleased
 
-- fix every other click on rescan in the hint bar doing nothing
+- fix every other click on rescan in the hint bar of the area list doing nothing
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
 - a double click in the editor and in the reader's selection mode selects a word, a triple click the line or the whole header field
 - undo and redo in the editor: Ctrl-Z or Ctrl-U to undo, Ctrl-R to redo
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 - add reader selection mode (V key)
+- reply in the reader's selection mode quotes only what is selected, or the whole message where nothing is selected
 
 ## 0.9.4 — 2026-10-26
 

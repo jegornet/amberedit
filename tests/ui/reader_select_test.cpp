@@ -85,7 +85,7 @@ TEST_CASE("v puts a cursor on the first row on screen [messageread][select]") {
     CHECK_FALSE(state.readSelect.inHeader);
     CHECK(state.readSelect.text.row == 1);
     CHECK(state.readSelect.text.col == 0);
-    CHECK(hint_bar::text(state) == "ctrl-c copy  esc cancel");
+    CHECK(hint_bar::text(state) == "ctrl-c copy  q reply  n reply elsewhere  esc cancel");
 
     // The arrows move the cursor and not the reader: → is not the next message.
     const uint32_t number = state.readHeader->number;
@@ -93,8 +93,9 @@ TEST_CASE("v puts a cursor on the first row on screen [messageread][select]") {
     CHECK(state.readSelect.text.col == 1);
     CHECK(state.readHeader->number == number);
 
-    // Nothing the reader binds is answered: `q` is not a reply.
-    reader.key(Event::Character('q'));
+    // The reader's own commands are not answered: `c` does not change the
+    // message.
+    reader.key(Event::Character('c'));
     CHECK(state.navigator.current() == ScreenId::MessageRead);
     CHECK(state.readSelect.on);
 
@@ -391,4 +392,72 @@ TEST_CASE("The sides of the text are text in the mode, not ← and → "
     reader.draw();
     reader.key(pointerAt(state.readerPaneRight() - 2, top, term::MouseEvent::Motion::Pressed));
     CHECK(state.readHeader->number != number);
+}
+
+namespace {
+
+/// Whether any line of the editor holds `text`.
+bool editorHolds(const amberedit::ui::AppState& state, const std::string& text) {
+    for (const auto& line : state.edit.lines) {
+        if (amberedit::test::contains(line, text)) return true;
+    }
+    return false;
+}
+
+}  // namespace
+
+TEST_CASE("A reply from the mode quotes what is selected and nothing else "
+          "[messageread][select][compose]") {
+    Reader reader({"Hello world", "second line", "third line"});
+    auto& state = reader.state;
+
+    reader.key(Event::Character('v'));
+    reader.key(Event::ArrowDown);
+    for (int i = 0; i < 6; ++i) reader.key(shifted(Event::Name::ArrowRight));
+    REQUIRE(reader_select::selectedText(state) == "second");
+
+    reader.key(Event::Character('q'));
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    CHECK_FALSE(state.readSelect.on);
+    CHECK(editorHolds(state, "> second"));
+    CHECK_FALSE(editorHolds(state, "second line"));
+    CHECK_FALSE(editorHolds(state, "Hello world"));
+
+    // The quote goes with the reply it was taken for.
+    compose::dropMessage(state);
+    CHECK_FALSE(state.quoteSelection);
+}
+
+TEST_CASE("A reply from the mode with nothing selected quotes the whole message "
+          "[messageread][select][compose]") {
+    Reader reader({"Hello world", "second line"});
+    auto& state = reader.state;
+
+    reader.key(Event::Character('v'));
+    reader.key(Event::Character('g'));
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    CHECK_FALSE(state.readSelect.on);
+    CHECK(editorHolds(state, "> Hello world"));
+    CHECK(editorHolds(state, "> second line"));
+}
+
+TEST_CASE("n from the mode keeps the selection for the area picked, and an answer "
+          "begun afterwards does not [messageread][select][compose]") {
+    Reader reader({"Hello world", "second line"});
+    auto& state = reader.state;
+
+    reader.key(Event::Character('v'));
+    for (int i = 0; i < 5; ++i) reader.key(shifted(Event::Name::ArrowRight));
+    reader.key(Event::Character('n'));
+    REQUIRE(state.areaPicker);
+    CHECK_FALSE(state.readSelect.on);
+    REQUIRE(state.quoteSelection);
+    CHECK(*state.quoteSelection == std::vector<std::string>{"Hello"});
+
+    // The picker given up on, a reply begun outside the mode quotes it all.
+    state.areaPicker.reset();
+    reader.key(Event::Character('q'));
+    REQUIRE(state.navigator.current() == ScreenId::Compose);
+    CHECK_FALSE(state.quoteSelection);
+    CHECK(editorHolds(state, "> second line"));
 }
