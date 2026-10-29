@@ -1303,6 +1303,11 @@ struct AppState {
         /// The other end of a selection in that field; dropped whenever the
         /// cursor goes to another one.
         std::optional<size_t> fieldAnchor;
+        /// The anchor held down — Space — so that the arrows, Home and End
+        /// select without Shift, as a held Shift would. Lifted by Space again,
+        /// by Tab out of the half it was put down in, by a press of the pointer
+        /// and by anything that drops the selection under it.
+        bool anchored{false};
         /// The rows of the message as the reader has them laid out, one line of
         /// the buffer per row on the screen, with the cursor and the anchor in
         /// it — so that every motion the editor's buffer knows is the one used

@@ -78,12 +78,13 @@ Hint hintFor(const AppState& state, std::optional<Command> command, const Event&
 }
 
 /// A hint for a gesture rather than a key: what the selection mode is made
-/// with, written the way the row spells a key and pressed by nothing.
-Hint gestureHint(const AppState& state, const std::string& label) {
+/// with — the arrows, with Shift unless the anchor is held — written the way
+/// the row spells a key and pressed by nothing.
+Hint gestureHint(const AppState& state, bool shifted, const std::string& label) {
     const bool capitals = state.config.hintBarCapitalize;
-    return {std::nullopt, std::nullopt,
-            std::string(capitals ? "Shift-Arrows" : "shift-arrows") + " " +
-                (capitals ? label : lowered(label))};
+    std::string gesture = capitals ? "Arrows" : "arrows";
+    if (shifted) gesture = (capitals ? "Shift-" : "shift-") + gesture;
+    return {std::nullopt, std::nullopt, gesture + " " + (capitals ? label : lowered(label))};
 }
 
 /// The editor's row while text is selected, which stands in place of
@@ -102,15 +103,19 @@ std::vector<Hint> selectionHints(const AppState& state) {
 }
 
 /// The reader's row while text is being selected there, in place of
-/// `reader_hints`: how a selection is made, copying, which leaves the mode, the
-/// reply here and the reply elsewhere, which quote what is selected, and leaving
-/// it without any of them. Each command is written under the key the layout
-/// gives it; Shift with the arrows and Esc are the mode's own.
+/// `reader_hints`: how a selection is made, the anchor that makes it with the
+/// bare arrows, copying, which leaves the mode, the reply, which quotes what is
+/// selected, and leaving it without either. Each command is written under the
+/// key the layout gives it; the arrows, Space and Esc are the mode's own. The
+/// reply elsewhere and the comment reply quote the selection as well, and are
+/// left for the help box to name: the row has room for one answer.
 std::vector<Hint> readerSelectionHints(const AppState& state) {
+    const bool anchored = state.readSelect.anchored;
     std::vector<Hint> hints;
-    hints.push_back(gestureHint(state, _("Select")));
-    for (const Command command :
-         {Command::ReaderCopy, Command::ReaderReply, Command::ReaderReplyElsewhere}) {
+    hints.push_back(gestureHint(state, !anchored, _("Select")));
+    hints.push_back(hintFor(state, std::nullopt, Event::Character(' '),
+                            anchored ? _("Release") : _("Anchor")));
+    for (const Command command : {Command::ReaderCopy, Command::ReaderReply}) {
         if (const auto key = state.keys.preferredKey(command)) {
             hints.push_back(hintFor(state, command, *key, state.config.labelOf(command)));
         }

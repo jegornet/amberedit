@@ -12,7 +12,8 @@
 /// **It reads and never writes.** The cursor walks the rows as the reader has
 /// laid them out and the header fields as the editor walks its own — the arrows,
 /// Tab and Shift-Tab, the word and line keys the editor binds — and a selection
-/// is made with Shift and the same keys, or by dragging the pointer. Nothing
+/// is made with Shift and the same keys, with the bare keys once Space has put
+/// the anchor down, or by dragging the pointer. Nothing
 /// typed reaches the message, and the reader's own commands are not answered
 /// while the mode is on: a key either moves the cursor, copies, or leaves. The
 /// three answers are the exception, and the reader takes them before this sees

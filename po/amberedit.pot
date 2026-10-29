@@ -40,7 +40,7 @@ msgstr ""
 msgid "file exists: {0}"
 msgstr ""
 
-#: src/app/message_builder.cpp:591
+#: src/app/message_builder.cpp:594
 #, c++-format
 msgid "template: {0}"
 msgstr ""
@@ -271,7 +271,7 @@ msgstr ""
 msgid "Copy the message to the clipboard"
 msgstr ""
 
-#: src/config/commands.cpp:85
+#: src/config/commands.cpp:85 src/ui/hint_bar.cpp:115
 msgid "Select"
 msgstr ""
 
@@ -423,7 +423,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-10-28 07:44+0100\n"
+"POT-Creation-Date: 2026-10-29 06:27+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -608,7 +608,7 @@ msgstr ""
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:711 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:712 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -1060,8 +1060,20 @@ msgstr ""
 msgid "Esc closes"
 msgstr ""
 
-#: src/ui/hint_bar.cpp:89
+#: src/ui/hint_bar.cpp:101
 msgid "Clear selection"
+msgstr ""
+
+#: src/ui/hint_bar.cpp:117
+msgid "Anchor"
+msgstr ""
+
+#: src/ui/hint_bar.cpp:117
+msgid "Release"
+msgstr ""
+
+#: src/ui/hint_bar.cpp:123 src/ui/scope_dialog.cpp:116
+msgid "Cancel"
 msgstr ""
 
 #: src/ui/import_dialog.cpp:78
@@ -1209,10 +1221,6 @@ msgstr ""
 msgid "Current"
 msgstr ""
 
-#: src/ui/hint_bar.cpp:104 src/ui/scope_dialog.cpp:116
-msgid "Cancel"
-msgstr ""
-
 #: src/ui/scope_dialog.cpp:124
 #, c++-format
 msgid "{0} area marked"
@@ -1294,24 +1302,24 @@ msgstr ""
 msgid "new message"
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:866
+#: src/ui/screens/compose_screen.cpp:872
 #, c++-format
 msgid ""
 "The message was not stored: {0} It is still here, and nothing has been lost."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1375
+#: src/ui/screens/compose_screen.cpp:1381
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1381
+#: src/ui/screens/compose_screen.cpp:1387
 #, c++-format
 msgid "The copy did not reach: {0}. The message itself is stored."
 msgstr ""
 
-#: src/ui/screens/compose_screen.cpp:1407
+#: src/ui/screens/compose_screen.cpp:1413
 #, c++-format
 msgid ""
 "{0} is open for reading only: its files are not yours to write, so nothing "
@@ -1322,36 +1330,36 @@ msgstr ""
 msgid "This is a twit message. Press Space to view it"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2193
+#: src/ui/screens/message_read_screen.cpp:2228
 #, c++-format
 msgid " from {0}"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2214
+#: src/ui/screens/message_read_screen.cpp:2249
 msgid " empty"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2865
+#: src/ui/screens/message_read_screen.cpp:2914
 msgctxt "header block"
 msgid "From"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2868
+#: src/ui/screens/message_read_screen.cpp:2917
 msgctxt "header block"
 msgid "To"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2871
+#: src/ui/screens/message_read_screen.cpp:2920
 msgctxt "header block"
 msgid "Subj"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2874
+#: src/ui/screens/message_read_screen.cpp:2923
 msgctxt "header block"
 msgid "Date"
 msgstr ""
 
-#: src/ui/screens/message_read_screen.cpp:2877
+#: src/ui/screens/message_read_screen.cpp:2926
 msgctxt "header block"
 msgid "Recd"
 msgstr ""

@@ -85,7 +85,8 @@ TEST_CASE("v puts a cursor on the first row on screen [messageread][select]") {
     CHECK_FALSE(state.readSelect.inHeader);
     CHECK(state.readSelect.text.row == 1);
     CHECK(state.readSelect.text.col == 0);
-    CHECK(hint_bar::text(state) == "shift-arrows select  ctrl-c copy  q reply  n reply elsewhere  esc cancel");
+    CHECK(hint_bar::text(state) ==
+          "shift-arrows select  space anchor  ctrl-c copy  q reply  esc cancel");
 
     // The arrows move the cursor and not the reader: → is not the next message.
     const uint32_t number = state.readHeader->number;
@@ -476,9 +477,55 @@ TEST_CASE("The mode's Shift-arrows hint is pressed by no click "
     const auto& gesture = state.hintSpots[0].box;
     CHECK_FALSE(hint_bar::clicked(
         state, pointerAt(gesture.x_min, gesture.y_min, term::MouseEvent::Motion::Pressed)));
-    const auto& copy = state.hintSpots[1].box;
+    const auto& anchor = state.hintSpots[1].box;
+    const auto space = hint_bar::clicked(
+        state, pointerAt(anchor.x_min, anchor.y_min, term::MouseEvent::Motion::Pressed));
+    REQUIRE(space);
+    CHECK(*space == Event::Character(' '));
+    const auto& copy = state.hintSpots[2].box;
     const auto pressed = hint_bar::clicked(
         state, pointerAt(copy.x_min, copy.y_min, term::MouseEvent::Motion::Pressed));
     REQUIRE(pressed);
     CHECK(state.keys.is(*pressed, Command::ReaderCopy));
+}
+
+TEST_CASE("Space holds the anchor down, and the bare arrows select "
+          "[messageread][select]") {
+    Reader reader({"Hello world", "second line"});
+    auto& state = reader.state;
+    reader.key(Event::Character('v'));
+
+    reader.key(Event::Character(' '));
+    REQUIRE(state.readSelect.anchored);
+    CHECK(hint_bar::text(state) ==
+          "arrows select  space release  ctrl-c copy  q reply  esc cancel");
+    for (int i = 0; i < 5; ++i) reader.key(Event::ArrowRight);
+    CHECK(reader_select::selectedText(state) == "Hello");
+    // The word keys carry it on as well.
+    reader.key(Event::Named(Event::Name::ArrowRight, false, true, false));  // Alt-→
+    CHECK(reader_select::selectedText(state) == "Hello world");
+    reader.key(Event::ArrowDown);
+    CHECK(reader_select::selectedText(state) == "Hello world\nsecond line");
+
+    // Space again lifts it with the selection left standing, and the next bare
+    // arrow drops that.
+    reader.key(Event::Character(' '));
+    CHECK_FALSE(state.readSelect.anchored);
+    CHECK(reader_select::hasSelection(state));
+    reader.key(Event::ArrowLeft);
+    CHECK_FALSE(reader_select::hasSelection(state));
+    CHECK(state.readSelect.on);
+
+    // In a field the bare arrows stay in it, as Shift's do, and Tab lifts it.
+    reader.key(Event::Character(' '));
+    reader.key(Event::Tab);
+    REQUIRE(state.readSelect.inHeader);
+    CHECK_FALSE(state.readSelect.anchored);
+    reader.key(Event::Character(' '));
+    reader.key(Event::Home);
+    CHECK(state.readSelect.field == amberedit::ui::screens::compose::kFromName);
+    CHECK(reader_select::selectedText(state) == state.readHeader->from);
+    reader.key(ctrl('c'));
+    CHECK(state.clipboard == state.readHeader->from);
+    CHECK_FALSE(state.readSelect.on);
 }

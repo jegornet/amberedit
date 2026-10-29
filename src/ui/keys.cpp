@@ -224,9 +224,10 @@ std::string hintSpellingOf(const Event& key, bool capitalize) {
     const std::string full = spellingOf(key);
     if (!capitalize) return config::text::toLower(full);
     // A modifier and a named key already carry their own capitals — `Ctrl-R`,
-    // `F7`, `Del` — and are written as they stand; a bare letter is the only
+    // `F7`, `Del`, `Space` — and are written as they stand; a bare letter is the only
     // part with a case of its own to raise.
-    if (key.ctrl() || key.alt() || key.shift() || key.kind() == Event::Kind::Key) {
+    if (key.ctrl() || key.alt() || key.shift() || key.kind() == Event::Kind::Key ||
+        key.input() == " ") {
         return full;
     }
     return config::text::toUpper(full);

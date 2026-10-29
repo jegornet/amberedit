@@ -125,12 +125,11 @@ void copy(AppState& state, bool quiet) {
     }
 }
 
-/// Shift with an arrow, Home or End — what a selection is made with.
-bool extendsSelection(const Event& event) {
-    if (!event.shift() || event.ctrl() || event.alt() ||
-        event.kind() != Event::Kind::Key) {
-        return false;
-    }
+/// Shift with an arrow, Home or End — what a selection is made with — or the
+/// bare key while the anchor is held.
+bool extendsSelection(const AppState& state, const Event& event) {
+    if (event.ctrl() || event.alt() || event.kind() != Event::Kind::Key) return false;
+    if (!event.shift() && !state.readSelect.anchored) return false;
     switch (event.name()) {
         case Event::Name::ArrowLeft:
         case Event::Name::ArrowRight:
@@ -159,7 +158,7 @@ void headerKey(AppState& state, const Event& event) {
     size_t& cursor = select.fieldCursor;
     cursor = std::min(cursor, value.size());
 
-    if (extendsSelection(event)) {
+    if (extendsSelection(state, event)) {
         if (!select.fieldAnchor) select.fieldAnchor = cursor;
         switch (event.name()) {
             case Event::Name::ArrowLeft: cursor = prevChar(value, cursor); break;
@@ -175,7 +174,14 @@ void headerKey(AppState& state, const Event& event) {
         }
         return;
     }
-    select.fieldAnchor.reset();
+    // The anchor held stays where it was put down for every motion inside the
+    // field; Tab takes the cursor out of it, and a selection is one field's.
+    if (select.anchored && event != Event::Tab && event != Event::TabReverse) {
+        if (!select.fieldAnchor) select.fieldAnchor = cursor;
+    } else {
+        select.anchored = false;
+        select.fieldAnchor.reset();
+    }
 
     if (event == Event::ArrowDown) {
         const int below = fieldBelow(state);
@@ -240,7 +246,7 @@ void headerKey(AppState& state, const Event& event) {
 void textKey(AppState& state, const Event& event) {
     TextBuffer& text = state.readSelect.text;
 
-    if (extendsSelection(event)) {
+    if (extendsSelection(state, event)) {
         if (!text.anchor) text.anchor = text.cursor();
         switch (event.name()) {
             case Event::Name::ArrowLeft: moveLeft(text); break;
@@ -256,7 +262,14 @@ void textKey(AppState& state, const Event& event) {
         }
         return;
     }
-    text.anchor.reset();
+    // The anchor held stays down for the word, page and Ctrl-Home/End keys too;
+    // Tab takes the cursor up into the header and lifts it.
+    if (state.readSelect.anchored && event != Event::Tab && event != Event::TabReverse) {
+        if (!text.anchor) text.anchor = text.cursor();
+    } else {
+        state.readSelect.anchored = false;
+        text.anchor.reset();
+    }
 
     if (event == Event::Tab) {
         toField(state, kFromName);
@@ -392,6 +405,7 @@ bool multiClick(AppState& state, const MouseEvent& click) {
 /// A press: the cursor to where it points, and a drag begun from there.
 bool press(AppState& state, const MouseEvent& click) {
     auto& select = state.readSelect;
+    select.anchored = false;
     if (const int field = fieldAt(state, click.x, click.y); field >= 0) {
         select.text.anchor.reset();
         select.inHeader = true;
@@ -458,6 +472,7 @@ void sync(AppState& state) {
         --text.col;
     }
     text.anchor.reset();
+    select.anchored = false;
 }
 
 std::string fieldValue(const AppState& state, int field) {
@@ -588,6 +603,19 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     if (event == Event::Escape || state.keys.is(event, Command::ReaderSelect)) {
         stop(state);
+        return true;
+    }
+    // Space puts the anchor down where the cursor stands, and lifts it again
+    // with what it selected left standing: the next bare motion drops that.
+    if (event == Event::Character(' ')) {
+        select.anchored = !select.anchored;
+        if (select.anchored) {
+            if (select.inHeader) {
+                if (!select.fieldAnchor) select.fieldAnchor = select.fieldCursor;
+            } else if (!select.text.anchor) {
+                select.text.anchor = select.text.cursor();
+            }
+        }
         return true;
     }
 

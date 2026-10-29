@@ -40,7 +40,7 @@ msgstr "нечего сохранять"
 msgid "file exists: {0}"
 msgstr "файл уже есть: {0}"
 
-#: src/app/message_builder.cpp:591
+#: src/app/message_builder.cpp:594
 #, c++-format
 msgid "template: {0}"
 msgstr "шаблон: {0}"
@@ -271,7 +271,7 @@ msgstr "Скопировать"
 msgid "Copy the message to the clipboard"
 msgstr "Скопировать сообщение в буфер обмена"
 
-#: src/config/commands.cpp:85
+#: src/config/commands.cpp:85 src/ui/hint_bar.cpp:115
 msgid "Select"
 msgstr "Выделить"
 
@@ -430,7 +430,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.9.4\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-10-28 07:44+0100\n"
+"POT-Creation-Date: 2026-10-29 06:27+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -643,7 +643,7 @@ msgstr " ошибка: {0}"
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:711 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:712 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -1095,9 +1095,21 @@ msgstr "на этом экране ни одна клавиша ничего н�
 msgid "Esc closes"
 msgstr "Esc закрыть"
 
-#: src/ui/hint_bar.cpp:89
+#: src/ui/hint_bar.cpp:101
 msgid "Clear selection"
 msgstr "Снять выделение"
+
+#: src/ui/hint_bar.cpp:117
+msgid "Anchor"
+msgstr "Якорь"
+
+#: src/ui/hint_bar.cpp:117
+msgid "Release"
+msgstr "Отпустить"
+
+#: src/ui/hint_bar.cpp:123 src/ui/scope_dialog.cpp:116
+msgid "Cancel"
+msgstr "Отмена"
 
 #: src/ui/import_dialog.cpp:78
 msgid "Enter open · Tab move · Esc close"
@@ -1244,10 +1256,6 @@ msgstr "Помеченные"
 msgid "Current"
 msgstr "Текущее"
 
-#: src/ui/hint_bar.cpp:104 src/ui/scope_dialog.cpp:116
-msgid "Cancel"
-msgstr "Отмена"
-
 #: src/ui/scope_dialog.cpp:124
 #, c++-format
 msgid "{0} area marked"
@@ -1331,24 +1339,24 @@ msgstr "ответ"
 msgid "new message"
 msgstr "новое сообщение"
 
-#: src/ui/screens/compose_screen.cpp:866
+#: src/ui/screens/compose_screen.cpp:872
 #, c++-format
 msgid ""
 "The message was not stored: {0} It is still here, and nothing has been lost."
 msgstr "Сообщение не сохранено: {0} Оно осталось здесь, ничего не потеряно."
 
-#: src/ui/screens/compose_screen.cpp:1375
+#: src/ui/screens/compose_screen.cpp:1381
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr "Копия не сделана для: {0}. Строки с ними остались в сообщении."
 
-#: src/ui/screens/compose_screen.cpp:1381
+#: src/ui/screens/compose_screen.cpp:1387
 #, c++-format
 msgid "The copy did not reach: {0}. The message itself is stored."
 msgstr "Копия не дошла до: {0}. Само сообщение сохранено."
 
-#: src/ui/screens/compose_screen.cpp:1407
+#: src/ui/screens/compose_screen.cpp:1413
 #, c++-format
 msgid ""
 "{0} is open for reading only: its files are not yours to write, so nothing "
@@ -1361,36 +1369,36 @@ msgstr ""
 msgid "This is a twit message. Press Space to view it"
 msgstr "Сообщение из твит-листа. Нажмите пробел, чтобы прочитать его"
 
-#: src/ui/screens/message_read_screen.cpp:2193
+#: src/ui/screens/message_read_screen.cpp:2228
 #, c++-format
 msgid " from {0}"
 msgstr " из {0}"
 
-#: src/ui/screens/message_read_screen.cpp:2214
+#: src/ui/screens/message_read_screen.cpp:2249
 msgid " empty"
 msgstr " пусто"
 
-#: src/ui/screens/message_read_screen.cpp:2865
+#: src/ui/screens/message_read_screen.cpp:2914
 msgctxt "header block"
 msgid "From"
 msgstr "От"
 
-#: src/ui/screens/message_read_screen.cpp:2868
+#: src/ui/screens/message_read_screen.cpp:2917
 msgctxt "header block"
 msgid "To"
 msgstr "Кому"
 
-#: src/ui/screens/message_read_screen.cpp:2871
+#: src/ui/screens/message_read_screen.cpp:2920
 msgctxt "header block"
 msgid "Subj"
 msgstr "Тема"
 
-#: src/ui/screens/message_read_screen.cpp:2874
+#: src/ui/screens/message_read_screen.cpp:2923
 msgctxt "header block"
 msgid "Date"
 msgstr "Дата"
 
-#: src/ui/screens/message_read_screen.cpp:2877
+#: src/ui/screens/message_read_screen.cpp:2926
 msgctxt "header block"
 msgid "Recd"
 msgstr "Получ"

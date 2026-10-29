@@ -70,7 +70,7 @@ standing in both.
 | `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `Ctrl-C` / `Ctrl-Ins` | copy the message to the clipboard (`clipboard`), header and all, as `w` writes it; kludges only where `k` shows them |
-| `v` | select text; `q`, `n` and `g` there reply quoting only what is selected  |
+| `v` | select text: Shift with the arrows, or `Space` to anchor and the bare arrows; `q`, `n` and `g` there reply quoting only what is selected |
 | `i` | technical info from the message base                                         |
 | `w` / `F7` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |

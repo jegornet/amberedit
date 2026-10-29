@@ -1921,10 +1921,22 @@ hands it events.
   `clipboard_copy_on_select` is answered exactly as in the editor — the release
   of a drag, every Shift step under `always`, a double or a triple click — quietly
   and with the mode left on: nobody asked for that copy.
-- **The hint bar is the mode's while it is on**: Shift with the arrows, the
-  reader's copy, reply and reply-elsewhere keys and Esc, in place of
-  `reader_hints`. Shift with the arrows is a gesture and not a key, so its hint
-  carries none and a click on it presses nothing — `readerSelectionHints()` in `ui/hint_bar.cpp`.
+- **Space holds the anchor down**, `ReaderSelect::anchored`: put down where the
+  cursor stands, it makes the bare arrows, Home and End select as they would with
+  Shift, and the word, page and Ctrl-Home/End keys carry the selection on rather
+  than dropping it. Space again lifts it and leaves what it selected standing,
+  for the next bare motion to drop. Tab out of the half it was put down in lifts
+  it — a selection is one field's or the text's — and so do a press of the
+  pointer, which puts an anchor of its own down, and `sync()`, which drops the
+  selection under it. Space is the screen's to answer and no layout's, which is
+  why it needs no command: inside the mode it has nothing else to do, the arrows
+  being the cursor's and there being no page to turn.
+- **The hint bar is the mode's while it is on**: the arrows — with Shift, or bare
+  while the anchor is held — Space, the reader's copy and reply keys and Esc, in
+  place of `reader_hints`. The arrows are a gesture and not a key, so their hint
+  carries none and a click on it presses nothing — `readerSelectionHints()` in
+  `ui/hint_bar.cpp`. The reply elsewhere and the comment reply quote the
+  selection as well and are left off the row, which has room for one answer.
 - **`v` and not a chord**, the key a pager's and vim's visual mode are on: a
   bare letter reaches the reader from every terminal, where `Ctrl-M` is the byte
   Enter sends and arrives as a chord only on one reporting modified keys. Enter
