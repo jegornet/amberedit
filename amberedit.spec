@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.9.4
+Version:        0.10.0
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,16 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Fri Oct 30 2026 Yegor Gluhov <git@jegor.net> - 0.10.0-1
+- add header_format: what the header block holds, with translated labels
+- show_recd_date is ignored with a warning: the Recd row is a line of header_format
+- Ctrl-Home and Ctrl-End in the editor: the start and the end of the message text
+- every letter key in the reader also works with Alt
+- move charset override from Alt-E to h and Alt-H: Alt-E now writes a new message
+- fix every other click on rescan in the hint bar doing nothing
+- fix Ctrl-PgUp, Ctrl-Up and the like being read as other keys on some terminals
+- limit origin, tearline and tagline to 79 characters
+
 * Mon Oct 26 2026 Yegor Gluhov <git@jegor.net> - 0.9.4-1
 - drop the quote prefix when joining lines of one quote
 - arrow keys in compose header follow the fields layout

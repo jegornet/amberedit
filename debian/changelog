@@ -1,3 +1,16 @@
+amberedit (0.10.0-1) unstable; urgency=low
+
+  * add header_format: what the header block holds, with translated labels
+  * show_recd_date is ignored with a warning: the Recd row is a line of header_format
+  * Ctrl-Home and Ctrl-End in the editor: the start and the end of the message text
+  * every letter key in the reader also works with Alt
+  * move charset override from Alt-E to h and Alt-H: Alt-E now writes a new message
+  * fix every other click on rescan in the hint bar doing nothing
+  * fix Ctrl-PgUp, Ctrl-Up and the like being read as other keys on some terminals
+  * limit origin, tearline and tagline to 79 characters
+
+ -- Yegor Gluhov <git@jegor.net>  Fri, 30 Oct 2026 12:00:00 +0000
+
 amberedit (0.9.4-1) unstable; urgency=low
 
   * drop the quote prefix when joining lines of one quote
