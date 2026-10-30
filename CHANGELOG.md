@@ -6,6 +6,7 @@
 - every letter key in the reader also works with Alt
 - move charset override from Alt-E to h and Alt-H: Alt-E now writes a new message
 - fix every other click on rescan in the hint bar doing nothing
+- limit origin, tearline and tagline to 79 characters
 
 ## 0.9.4 — 2026-10-26
 

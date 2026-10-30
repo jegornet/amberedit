@@ -827,6 +827,14 @@ Rules that hold the design together:
   the same setting — and there the pair is spoiled to `-+-`/` + Origin:` on the
   way out, being a tearline standing in the middle of a message. It is per area,
   as `quote_string` and `quote_margin` are.
+- **No line of the footer AmberEdit writes runs past 79 characters.**
+  `kFooterLineChars` in `app/message_builder.cpp`, and the lines are built there
+  and nowhere else: `tearlineFrom()`, `taglineFrom()` and `originLine()` cut the
+  *text* after its tokens are expanded, so the marker always stands and an origin
+  keeps its address, which is what a tosser reads the line for. Counted in
+  characters, the message not being in its charset yet, and cut between them. It
+  holds for what the config produces: a line the user typed into the editor over
+  it stands as typed, and so does one a template writes by itself.
 - **The block closing a message is the footer, and nothing else is.** The
   tagline, the tearline and the origin are one thing wherever they are met:
   `markFooter()` flags them, `MessageLine::footer` carries the flag,

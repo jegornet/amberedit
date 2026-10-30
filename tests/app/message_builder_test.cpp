@@ -748,6 +748,52 @@ TEST_CASE("The tearline and the origin say what the config asks them to [builder
     CHECK(textOf(buildDraft(request, {"hi"})) == "hi|---| * Origin:  (2:382/736.1)");
 }
 
+TEST_CASE("The lines closing a message stop at 79 characters [builder]") {
+    AppConfig cfg = config();
+    const AreaConfig area = areaOf(AreaKind::Echo);
+    ComposeFields fields = netmailFields();
+    const BuildRequest request = echoRequest(cfg, area, fields);
+
+    const auto repeated = [](const std::string& piece, const size_t count) {
+        std::string out;
+        for (size_t i = 0; i < count; ++i) out += piece;
+        return out;
+    };
+    const std::string address = " (2:382/736.1)";
+
+    // The origin gives up its text and neither the marker nor the address; the
+    // other two have only the text to give up.
+    cfg.taglines = {std::string(100, 't')};
+    cfg.tearlines = {std::string(100, 'd')};
+    cfg.origins = {std::string(100, 'o')};
+    CHECK(textOf(buildDraft(request, {"hi"})) ==
+          "hi|... " + std::string(75, 't') + "|--- " + std::string(75, 'd') +
+              "| * Origin: " + std::string(54, 'o') + address);
+
+    // Exactly 79 is not over.
+    cfg.taglines = {std::string(75, 't')};
+    cfg.tearlines = {std::string(75, 'd')};
+    cfg.origins = {std::string(54, 'o')};
+    CHECK(textOf(buildDraft(request, {"hi"})) ==
+          "hi|... " + std::string(75, 't') + "|--- " + std::string(75, 'd') +
+              "| * Origin: " + std::string(54, 'o') + address);
+
+    // Counted in characters and cut between them, whatever they cost in UTF-8.
+    cfg.taglines.clear();
+    cfg.tearlines = {repeated("я", 100)};
+    cfg.origins = {repeated("я", 100)};
+    CHECK(textOf(buildDraft(request, {"hi"})) == "hi|--- " + repeated("я", 75) +
+                                                     "| * Origin: " + repeated("я", 54) +
+                                                     address);
+
+    // A cut falling just after a blank leaves no blank behind.
+    cfg.tearlines = {std::string(74, 'd') + " and on"};
+    cfg.origins = {std::string(53, 'o') + " and on"};
+    CHECK(textOf(buildDraft(request, {"hi"})) == "hi|--- " + std::string(74, 'd') +
+                                                     "| * Origin: " +
+                                                     std::string(53, 'o') + address);
+}
+
 TEST_CASE("A message ends with the tearline and the origin [builder]") {
     const AppConfig cfg = config();
     const AreaConfig area = areaOf(AreaKind::Echo);
