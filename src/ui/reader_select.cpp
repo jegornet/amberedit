@@ -4,15 +4,16 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "ui/event_util.hpp"
+#include "ui/header_format.hpp"
 #include "ui/screens/compose_screen.hpp"
 #include "ui/text_editor.hpp"
 #include "ui/text_layout.hpp"
 
 namespace amberedit::ui::reader_select {
 
-using screens::compose::kAttributes;
 using screens::compose::kFromAddr;
 using screens::compose::kFromName;
 using screens::compose::kSubject;
@@ -23,45 +24,60 @@ using term::MouseEvent;
 
 namespace {
 
-/// Whether the cursor may stand in `field`: one the frame drew, and the To
-/// address only in netmail, where it addresses somebody.
+/// Whether the cursor may stand in `field`: a stop of the block as the frame
+/// drew it.
 bool fieldShown(const AppState& state, int field) {
-    if (field < kFromName || field > kSubject) return false;
-    if (field == kToAddr && !state.currentArea.hasAddressedRecipient()) return false;
-    const auto& drawn = state.readSelect.fieldsDrawn;
-    return drawn.empty() || drawn[static_cast<size_t>(field)];
+    const auto& stops = state.readSelect.stops;
+    return field >= 0 && static_cast<size_t>(field) < stops.size() &&
+           stops[static_cast<size_t>(field)].has_value();
 }
 
-/// The field after the cursor's in `step`'s direction, as Tab walks them, or
+/// The field after the cursor's in `step`'s direction, as the block is read, or
 /// -1 where that is off either end — into the text, the ring closing there.
 int fieldAfter(const AppState& state, int step) {
-    for (int next = state.readSelect.field + step; next >= kFromName && next <= kSubject;
-         next += step) {
-        if (fieldShown(state, next)) return next;
+    const std::vector<int> order = header_format::stopsInOrder(state.readSelect.stops);
+    int at = -1;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == state.readSelect.field) at = static_cast<int>(i);
     }
-    return -1;
+    const int next = at + step;
+    if (next < 0 || next >= static_cast<int>(order.size())) return -1;
+    return order[static_cast<size_t>(next)];
 }
 
 /// The field under the cursor's as the block is drawn, -1 being the text — the
-/// editor's `fieldBelow()`, with the text where its button stands.
+/// editor's `fieldBelow()`, with no button in the way.
 int fieldBelow(const AppState& state) {
-    switch (state.readSelect.field) {
-        case kFromName: return kToName;
-        case kFromAddr: return fieldShown(state, kToAddr) ? kToAddr : kSubject;
-        case kToName:
-        case kToAddr: return kSubject;
-        default: return -1;
-    }
+    const auto& select = state.readSelect;
+    if (!fieldShown(state, select.field)) return -1;
+    return header_format::stopToward(select.stops,
+                                     *select.stops[static_cast<size_t>(select.field)], 1);
 }
 
-/// The field over it, or the field itself on the From row.
+/// The field over it, or -1 where nothing stands over it.
 int fieldAbove(const AppState& state) {
-    switch (state.readSelect.field) {
-        case kToName: return kFromName;
-        case kToAddr: return kFromAddr;
-        case kSubject: return kToName;
-        default: return state.readSelect.field;
-    }
+    const auto& select = state.readSelect;
+    if (!fieldShown(state, select.field)) return -1;
+    return header_format::stopToward(select.stops,
+                                     *select.stops[static_cast<size_t>(select.field)], -1);
+}
+
+/// The first field read in the block and the last, or -1 with none drawn.
+int firstField(const AppState& state) {
+    const std::vector<int> order = header_format::stopsInOrder(state.readSelect.stops);
+    return order.empty() ? -1 : order.front();
+}
+
+int lastField(const AppState& state) {
+    const std::vector<int> order = header_format::stopsInOrder(state.readSelect.stops);
+    return order.empty() ? -1 : order.back();
+}
+
+/// The field ↑ goes onto off the first row of the text: the one nearest the
+/// left edge on the lowest line of the block holding one, or -1 with none drawn.
+int fieldOverText(const AppState& state) {
+    return header_format::stopToward(
+        state.readSelect.stops, header_format::Stop{state.readerHeaderRows(), 0, 1}, -1);
 }
 
 int lastRow(const AppState& state) {
@@ -190,7 +206,8 @@ void headerKey(AppState& state, const Event& event) {
         return;
     }
     if (event == Event::ArrowUp) {
-        toField(state, fieldAbove(state));
+        const int above = fieldAbove(state);
+        if (above >= 0) toField(state, above);
         return;
     }
     if (event == Event::Tab || event == Event::TabReverse) {
@@ -210,20 +227,25 @@ void headerKey(AppState& state, const Event& event) {
         cursor = wordEndAfter(value, cursor).value_or(value.size());
         return;
     }
-    // A name and its address stand side by side, and the arrows cross between
-    // them at the edge they share, as in the editor.
+    // Fields standing side by side, and the arrows cross between them at the
+    // edge they share, as in the editor.
     if (event == Event::ArrowLeft) {
-        if (cursor == 0 && (select.field == kFromAddr || select.field == kToAddr)) {
-            toField(state, select.field - 1);
+        const int beside = fieldShown(state, select.field)
+                               ? header_format::stopBeside(select.stops, select.field, -1)
+                               : -1;
+        if (cursor == 0 && beside >= 0) {
+            toField(state, beside);
             return;
         }
         cursor = prevChar(value, cursor);
         return;
     }
     if (event == Event::ArrowRight) {
-        if (cursor == value.size() && (select.field == kFromName || select.field == kToName) &&
-            fieldShown(state, select.field + 1)) {
-            toField(state, select.field + 1);
+        const int beside = fieldShown(state, select.field)
+                               ? header_format::stopBeside(select.stops, select.field, 1)
+                               : -1;
+        if (cursor == value.size() && beside >= 0) {
+            toField(state, beside);
             select.fieldCursor = 0;
             return;
         }
@@ -268,17 +290,13 @@ void textKey(AppState& state, const Event& event) {
         text.anchor.reset();
     }
 
-    if (event == Event::Tab) {
-        toField(state, kFromName);
-        return;
-    }
-    if (event == Event::TabReverse) {
-        toField(state, kSubject);
-        return;
-    }
-    // Up off the first row of the message is the header over it.
-    if (event == Event::ArrowUp && text.row == 0) {
-        toField(state, kSubject);
+    if (event == Event::Tab || event == Event::TabReverse ||
+        (event == Event::ArrowUp && text.row == 0)) {
+        // Up off the first row of the message is the header over it.
+        const int field = event == Event::Tab          ? firstField(state)
+                          : event == Event::TabReverse ? lastField(state)
+                                                       : fieldOverText(state);
+        if (field >= 0) toField(state, field);
         return;
     }
     if (state.keys.is(event, Command::ComposeWordLeft)) {
@@ -432,19 +450,27 @@ bool press(AppState& state, const MouseEvent& click) {
     return true;
 }
 
+/// The mode as nothing has touched it. Where the fields stand is the last
+/// frame's and not the mode's, so it stays.
+void reset(AppState::ReaderSelect& select) {
+    header_format::Stops stops = std::move(select.stops);
+    select = AppState::ReaderSelect{};
+    select.stops = std::move(stops);
+}
+
 }  // namespace
 
 void start(AppState& state) {
     if (!state.readHeader) return;
     auto& select = state.readSelect;
-    select = AppState::ReaderSelect{};
+    reset(select);
     select.on = true;
     sync(state);
     select.text.row = std::clamp(state.readScroll, 0, lastRow(state));
     select.text.col = 0;
 }
 
-void stop(AppState& state) { state.readSelect = AppState::ReaderSelect{}; }
+void stop(AppState& state) { reset(state.readSelect); }
 
 void finish(AppState& state) {
     if (hasSelection(state)) copy(state, /*quiet=*/false);

@@ -120,6 +120,19 @@ Element selectableCell(AppState& state, int field, int width, theme::Color tint)
            reflect(spot.box);
 }
 
+/// The field of the block a piece of the format is, in `compose::Field`
+/// numbering, or -1 for what the selection mode's cursor does not stand in.
+int stopOf(config::HeaderFieldKind kind) {
+    switch (kind) {
+        case config::HeaderFieldKind::FromName: return compose::kFromName;
+        case config::HeaderFieldKind::FromAddr: return compose::kFromAddr;
+        case config::HeaderFieldKind::ToName: return compose::kToName;
+        case config::HeaderFieldKind::ToAddr: return compose::kToAddr;
+        case config::HeaderFieldKind::Subject: return compose::kSubject;
+        default: return -1;
+    }
+}
+
 /// What the base says about the message, in brackets, or nothing at all where
 /// it says nothing — not even an empty pair of them.
 std::string attributesOf(const domain::MessageHeader& header) {
@@ -188,10 +201,9 @@ HeaderBlock headerBlock(AppState& state, const domain::MessageHeader& header,
     // what is being shown.
     auto& select = state.readSelect;
     select.fieldSpots.assign(compose::kFieldCount, AppState::ComposeSpot{});
-    select.fieldsDrawn.assign(compose::kFieldCount, false);
+    select.stops.assign(compose::kFieldCount, std::nullopt);
     const auto field = [&](int stop, const std::string& value, int width,
                            theme::Color tint) {
-        select.fieldsDrawn[static_cast<size_t>(stop)] = true;
         if (select.on) return selectableCell(state, stop, width, tint);
         return headerCell(value, width, tint, search);
     };
@@ -200,10 +212,16 @@ HeaderBlock headerBlock(AppState& state, const domain::MessageHeader& header,
     };
 
     Elements rows;
-    for (const auto& line : layout) {
+    for (size_t row = 0; row < layout.size(); ++row) {
         Elements cells;
-        for (const auto& cell : line) {
+        for (const auto& cell : layout[row]) {
             if (cell.width <= 0) continue;
+            const int stop = stopOf(cell.kind);
+            if (stop >= 0 && (stop != compose::kToAddr ||
+                              state.currentArea.hasAddressedRecipient())) {
+                select.stops[static_cast<size_t>(stop)] = header_format::Stop{
+                    static_cast<int>(row), cell.x, cell.x + cell.width};
+            }
             switch (cell.kind) {
                 case HeaderFieldKind::Label:
                 case HeaderFieldKind::Literal: {

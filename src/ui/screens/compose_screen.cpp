@@ -180,18 +180,14 @@ header_format::Layout composeLayout(const AppState& state) {
         });
 }
 
-/// Where a stop of the block stands: its line and the columns it spans.
-struct StopSpot {
-    int line{0};
-    int left{0};
-    int right{0};
-};
+using header_format::Stop;
+using header_format::Stops;
 
 /// Where each stop stands in this window, by `Field`, or nothing for one the
 /// block does not draw as a stop — the To address in echomail, and a field the
 /// window had no column for.
-std::vector<std::optional<StopSpot>> stopSpots(const AppState& state) {
-    std::vector<std::optional<StopSpot>> spots(kFieldCount);
+Stops stopSpots(const AppState& state) {
+    Stops spots(kFieldCount);
     const header_format::Layout layout = composeLayout(state);
     for (size_t line = 0; line < layout.size(); ++line) {
         for (const auto& cell : layout[line]) {
@@ -199,52 +195,10 @@ std::vector<std::optional<StopSpot>> stopSpots(const AppState& state) {
             if (stop < 0 || cell.width <= 0) continue;
             if (stop == kToAddr && !state.compose.netmail) continue;
             spots[static_cast<size_t>(stop)] =
-                StopSpot{static_cast<int>(line), cell.x, cell.x + cell.width};
+                Stop{static_cast<int>(line), cell.x, cell.x + cell.width};
         }
     }
     return spots;
-}
-
-/// The stop nearest `from` on the nearest line in `step`'s direction that has
-/// one, or -1 where no line that way does — the block as it is drawn, whatever
-/// the format put where:
-///
-/// - the nearest line holding a stop at all, so a line of stamps alone is
-///   stepped over;
-/// - on it, the stop sharing the most columns with `from`;
-/// - sharing none, the one standing nearest beside it;
-/// - and between two equally near, the one further left.
-int stopToward(const AppState& state, const StopSpot& from, int step) {
-    const auto spots = stopSpots(state);
-    int best = -1;
-    int bestLine = 0;
-    int bestOverlap = 0;
-    int bestGap = 0;
-    int bestLeft = 0;
-    for (int stop = 0; stop < kFieldCount; ++stop) {
-        const auto& spot = spots[static_cast<size_t>(stop)];
-        if (!spot) continue;
-        const int distance = (spot->line - from.line) * step;
-        if (distance <= 0) continue;
-        const int overlap = std::max(
-            0, std::min(spot->right, from.right) - std::max(spot->left, from.left));
-        const int gap = overlap > 0 ? 0
-                                    : std::max(spot->left - from.right + 1,
-                                               from.left - spot->right + 1);
-        const bool better =
-            best < 0 || distance < (bestLine - from.line) * step ||
-            (distance == (bestLine - from.line) * step &&
-             (overlap > bestOverlap ||
-              (overlap == bestOverlap &&
-               (gap < bestGap || (gap == bestGap && spot->left < bestLeft)))));
-        if (!better) continue;
-        best = stop;
-        bestLine = spot->line;
-        bestOverlap = overlap;
-        bestGap = gap;
-        bestLeft = spot->left;
-    }
-    return best;
 }
 
 /// The typed field beside the one the cursor is in on its own line — `step`
@@ -253,21 +207,9 @@ int stopToward(const AppState& state, const StopSpot& from, int step) {
 /// as the arrows cross a line end in the text. The attributes are a button and
 /// not where typing goes on, so they are not one of these.
 int fieldBeside(const AppState& state, int step) {
-    const auto spots = stopSpots(state);
-    const auto& from = spots[static_cast<size_t>(state.composeField)];
-    if (!from) return -1;
-    int best = -1;
-    int bestLeft = 0;
-    for (int stop = 0; stop < kAttributes; ++stop) {
-        const auto& spot = spots[static_cast<size_t>(stop)];
-        if (!spot || stop == state.composeField || spot->line != from->line) continue;
-        if ((spot->left - from->left) * step <= 0) continue;
-        if (best < 0 || (spot->left - bestLeft) * step < 0) {
-            best = stop;
-            bestLeft = spot->left;
-        }
-    }
-    return best;
+    Stops spots = stopSpots(state);
+    spots[static_cast<size_t>(kAttributes)].reset();
+    return header_format::stopBeside(spots, state.composeField, step);
 }
 
 /// What the message's attributes say, in the short forms the reader shows them
@@ -526,19 +468,9 @@ Element chrome(const AppState& state, Elements body) {
 /// the top, and along each line from the left — whatever line the format puts
 /// each field on. What Tab walks, and Enter too, the button left out.
 std::vector<int> stopsInOrder(const AppState& state, bool typedOnly) {
-    const auto spots = stopSpots(state);
-    std::vector<int> order;
-    for (int stop = 0; stop < kFieldCount; ++stop) {
-        if (!spots[static_cast<size_t>(stop)]) continue;
-        if (typedOnly && stop == kAttributes) continue;
-        order.push_back(stop);
-    }
-    std::sort(order.begin(), order.end(), [&spots](int a, int b) {
-        const StopSpot& first = *spots[static_cast<size_t>(a)];
-        const StopSpot& second = *spots[static_cast<size_t>(b)];
-        return std::tie(first.line, first.left) < std::tie(second.line, second.left);
-    });
-    return order;
+    Stops spots = stopSpots(state);
+    if (typedOnly) spots[static_cast<size_t>(kAttributes)].reset();
+    return header_format::stopsInOrder(spots);
 }
 
 /// The stop after the one the cursor is on in `step`'s direction, as the block
@@ -557,7 +489,7 @@ int fieldAfter(const AppState& state, int step, bool typedOnly) {
         // Not in the order: where it would stand in it, so a step either way
         // lands on its neighbours.
         for (size_t i = 0; i < order.size(); ++i) {
-            const StopSpot& spot = *spots[static_cast<size_t>(order[i])];
+            const Stop& spot = *spots[static_cast<size_t>(order[i])];
             if (std::tie(spot.line, spot.left) < std::tie(from->line, from->left)) {
                 at = static_cast<int>(i);
             }
@@ -594,7 +526,7 @@ int fieldBelow(const AppState& state) {
     const auto spots = stopSpots(state);
     const auto& from = spots[static_cast<size_t>(state.composeField)];
     if (!from) return kFieldCount;
-    const int below = stopToward(state, *from, 1);
+    const int below = header_format::stopToward(spots, *from, 1);
     return below < 0 ? static_cast<int>(kFieldCount) : below;
 }
 
@@ -603,14 +535,14 @@ int fieldAbove(const AppState& state) {
     const auto spots = stopSpots(state);
     const auto& from = spots[static_cast<size_t>(state.composeField)];
     if (!from) return -1;
-    return stopToward(state, *from, -1);
+    return header_format::stopToward(spots, *from, -1);
 }
 
 /// The stop the typing goes up onto from the very start of the text: the one
 /// standing nearest the left edge on the lowest line of the block that has one.
 int fieldOverText(const AppState& state) {
     const int lines = static_cast<int>(state.composeHeaderFormat().size());
-    const int stop = stopToward(state, StopSpot{lines, 0, 1}, -1);
+    const int stop = header_format::stopToward(stopSpots(state), Stop{lines, 0, 1}, -1);
     return stop < 0 ? static_cast<int>(kAttributes) : stop;
 }
 

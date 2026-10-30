@@ -33,6 +33,7 @@
 #include "ui/dir_listing.hpp"
 #include "ui/edit_history.hpp"
 #include "ui/event_util.hpp"
+#include "ui/header_format.hpp"
 #include "ui/keys.hpp"
 #include "ui/text_editor.hpp"
 #include "ui/wheel_throttle.hpp"
@@ -1315,11 +1316,12 @@ struct AppState {
         TextBuffer text;
         enum class Drag : uint8_t { None, Field, Text };
         Drag drag{Drag::None};
-        /// Which fields the frame drew, one per field in `compose::Field` order,
-        /// which is what says whether the cursor may go there: `header_format`
-        /// and the window decide what the block holds. Empty until a frame has
-        /// been drawn, which leaves every field to the cursor.
-        std::vector<bool> fieldsDrawn;
+        /// Where the frame drew each field, in `compose::Field` order, which is
+        /// what the cursor walks: `header_format` and the window decide what
+        /// the block holds and where. Nothing for a field that is no stop — the
+        /// To address outside netmail, the attributes button, one the window
+        /// had no column for.
+        header_format::Stops stops;
         /// Where each field and each row on screen was drawn, as the editor
         /// keeps them: one per field in `compose::Field` order, the attributes
         /// button's left `Nowhere`, and one per row of the viewport.

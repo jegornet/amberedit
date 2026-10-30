@@ -1903,18 +1903,20 @@ hands it events.
   where a word was cut — and `selectedText()` joins rows with that. Only a break
   the message itself made is a line feed.
 - **The header is the editor's five fields, walked the editor's way.**
-  `compose::Field` numbering, the attributes button left out: Tab and Shift-Tab
-  round the fields and through the text, the arrows name to address and down the
-  fields in that order, ↑ off the first row of the text onto the subject, ↓ off the subject into the
-  text at the first row on screen. The editor's own `compose.word_left`,
-  `word_right`, `line_start` and `line_end` keys are read for the same motions.
+  `compose::Field` numbering, the attributes button left out, and walked as the
+  block is drawn: `headerBlock()` writes where each field stands into
+  `ReaderSelect::stops` on every frame, and `header_format`'s `stopsInOrder()`,
+  `stopToward()` and `stopBeside()` are the walk the editor makes over its own
+  block, so the two cannot come to disagree whatever `header_format` says. Tab
+  and Shift-Tab go round the fields as they are read and through the text, ↑ off
+  the first row of the text goes to the field nearest the left edge on the lowest
+  line holding one, and ↓ off the lowest field into the text at the first row on
+  screen. The editor's own `compose.word_left`, `word_right`, `line_start` and
+  `line_end` keys are read for the same motions.
   `reader_select::fieldValue()` is the one place the reader says what a field
   holds — `headerBlock()` reads it too — so the text selected is the text drawn.
-  A field is a stop only where the frame drew it (`ReaderSelect::fieldsDrawn`) —
-  `header_format` and the window decide that — and the To address only in
-  netmail. The walk goes by that numbering and not by `stopToward()`, so a format
-  moving the subject off the last line leaves ↑ and ↓ crossing where they always
-  did.
+  A field the window had no column for is no stop, and neither is the To address
+  outside netmail.
 - **While the mode is on the fields are `ui::inputField()`s with no fill**, the
   cursor an inverted cell and the selection in `selection`, each in the columns
   `header_format` gave it: the mode moves nothing, and a value wider than its

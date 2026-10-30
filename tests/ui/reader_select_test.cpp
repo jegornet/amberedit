@@ -50,6 +50,9 @@ struct Reader {
         state.readLayoutWidth = 0;
         message_read::relayout(state);
         state.readScroll = 0;
+        // A frame always stands before a key: it is what says where the fields
+        // of the block are for the cursor to walk.
+        draw();
     }
 
     bool key(const Event& event) { return message_read::handleEvent(state, event); }
@@ -314,13 +317,39 @@ TEST_CASE("The fields are where header_format put them, and only those are stops
     CHECK(state.readSelect.inHeader);
     CHECK(state.readSelect.field == compose::kSubject);
 
+    // The block as it is drawn, whatever its order: the subject on top is the
+    // first stop read and the last line holding one is what ↑ off the text finds.
+    reader.key(Event::Escape);
+    reader.key(Event::Character('v'));
+    reader.draw();
+    reader.key(Event::Tab);
+    CHECK(state.readSelect.field == compose::kSubject);
+    reader.key(Event::Tab);
+    CHECK(state.readSelect.field == compose::kToName);
+    reader.key(Event::ArrowDown);
+    CHECK(state.readSelect.field == compose::kFromName);
+    reader.key(Event::ArrowDown);
+    CHECK_FALSE(state.readSelect.inHeader);
+    reader.key(Event::ArrowUp);
+    REQUIRE(state.readSelect.inHeader);
+    CHECK(state.readSelect.field == compose::kFromName);
+    reader.key(Event::ArrowUp);
+    reader.key(Event::ArrowUp);
+    CHECK(state.readSelect.field == compose::kSubject);
+    reader.key(Event::ArrowUp);
+    CHECK(state.readSelect.field == compose::kSubject);
+
     // Twenty columns leave the name no room beside its address: nothing was
-    // drawn there, so nothing there takes a click.
+    // drawn there, so the cursor is not taken there.
     state.width = 20;
     reader.draw();
-    REQUIRE(state.readSelect.fieldsDrawn.size() == compose::kFieldCount);
-    CHECK_FALSE(state.readSelect.fieldsDrawn[compose::kFromName]);
-    CHECK(state.readSelect.fieldsDrawn[compose::kFromAddr]);
+    REQUIRE(state.readSelect.stops.size() == compose::kFieldCount);
+    CHECK_FALSE(state.readSelect.stops[compose::kFromName].has_value());
+    REQUIRE(state.readSelect.stops[compose::kFromAddr].has_value());
+    reader.key(Event::TabReverse);
+    reader.key(Event::ArrowDown);
+    reader.key(Event::ArrowUp);
+    CHECK(state.readSelect.field != compose::kFromName);
 }
 
 TEST_CASE("The menu starts and ends the mode, and another message ends it "
