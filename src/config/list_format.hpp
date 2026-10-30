@@ -29,6 +29,14 @@ namespace amberedit::config {
 /// is simply no number to write as the default.
 constexpr int kAutoWidth = -1;
 
+/// The `letter` of a run of text a format draws as it was written — `: ` between
+/// a label and its field. Only a spec allowing `literals` produces one.
+constexpr char kLiteralLetter = '"';
+
+/// The `letter` of a label, `{From}` — a word the program draws in the
+/// interface's language. Only a spec naming `labels` produces one.
+constexpr char kLabelLetter = '{';
+
 /// One field of a format as it was written: the letter, lowercased, the width it
 /// stands in — the one written after the letter, or the letter's own default
 /// where none was — and whatever stood in brackets after that. A space is the
@@ -40,9 +48,13 @@ struct ListFormatField {
     /// written. Only a letter the spec marks may carry one; what it means is the
     /// caller's business, this having read it and nothing more.
     std::string format;
+    /// What a literal draws, as it was written, or which label a label is — the
+    /// name between the braces, lowercased. Empty for every other field.
+    std::string text;
 
     friend bool operator==(const ListFormatField& a, const ListFormatField& b) {
-        return a.letter == b.letter && a.width == b.width && a.format == b.format;
+        return a.letter == b.letter && a.width == b.width && a.format == b.format &&
+               a.text == b.text;
     }
 };
 
@@ -82,9 +94,26 @@ struct ListFormatSpec {
     /// that does not names them: `d date`. Empty where no letter does, and the
     /// complaint then says so instead.
     std::string_view formatted;
+    /// Whether a character that is neither a letter nor a digit is drawn as it
+    /// stands — `:` after a label — rather than refused. Off for both lists,
+    /// whose columns are fields and the spaces between them; on for the header
+    /// block, whose labels want something standing between them and their
+    /// fields. A run of such characters is one literal, spaces and all. Letters
+    /// are never literals, so a field misspelt is still a complaint.
+    bool literals{false};
+    /// The labels a format may name in braces — `{From}` — lowercased. A label
+    /// is a word the program supplies in the interface's language: what the
+    /// format says is where it stands and how wide, never what it reads.
+    std::vector<std::string_view> labels;
 };
 
 /// Reads one format value into the lines of fields it names.
+///
+/// Where the spec allows them, a label is `{name}` with an optional width after
+/// the closing brace — `kAutoWidth` where none is written, the caller measuring
+/// it — and a literal is every run of characters that are neither letters,
+/// digits nor braces. A width of 0 is refused for a label: a word does not grow
+/// into what a line leaves over.
 ///
 /// A row stands at most `kMaxFormatLines` lines tall and every line has to hold
 /// something: a row that is to have a blank line in it writes that line as a

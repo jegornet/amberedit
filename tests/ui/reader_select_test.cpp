@@ -1,6 +1,7 @@
 #include <doctest/doctest.h>
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "domain/message.hpp"
@@ -278,8 +279,10 @@ TEST_CASE("A double click selects a word and a triple one the line "
     CHECK(state.clipboard == "alpha beta gamma delta epsilon zeta eta theta iota kappa");
     CHECK(state.readSelect.on);
 
-    // In a field: a word, then the field.
+    // In a field: a word, then the field. Wide enough for the name to be drawn:
+    // twenty columns go to the address beside it.
     now += 1000;
+    state.width = 80;
     reader.draw();
     const auto from = state.readSelect.fieldSpots[compose::kFromName].box;
     click(from, 1);
@@ -289,6 +292,35 @@ TEST_CASE("A double click selects a word and a triple one the line "
     CHECK(state.clipboard == name.substr(0, name.find(' ')));
     click(from, 1);
     CHECK(state.clipboard == name);
+}
+
+TEST_CASE("The fields are where header_format put them, and only those are stops "
+          "[messageread][select][mouse]") {
+    Reader reader({"text"});
+    auto& state = reader.state;
+    state.width = 80;
+    auto& config = reader.fixture.config;
+    std::swap(config.headerFormatWide[0], config.headerFormatWide[2]);
+    std::swap(config.headerFormatNarrow[0], config.headerFormatNarrow[2]);
+
+    reader.key(Event::Character('v'));
+    reader.draw();
+    const auto subject = state.readSelect.fieldSpots[compose::kSubject].box;
+    const auto from = state.readSelect.fieldSpots[compose::kFromName].box;
+    CHECK(subject.y_min < from.y_min);
+
+    reader.key(pointerAt(subject.x_min, subject.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(subject.x_min, subject.y_min, term::MouseEvent::Motion::Released));
+    CHECK(state.readSelect.inHeader);
+    CHECK(state.readSelect.field == compose::kSubject);
+
+    // Twenty columns leave the name no room beside its address: nothing was
+    // drawn there, so nothing there takes a click.
+    state.width = 20;
+    reader.draw();
+    REQUIRE(state.readSelect.fieldsDrawn.size() == compose::kFieldCount);
+    CHECK_FALSE(state.readSelect.fieldsDrawn[compose::kFromName]);
+    CHECK(state.readSelect.fieldsDrawn[compose::kFromAddr]);
 }
 
 TEST_CASE("The menu starts and ends the mode, and another message ends it "

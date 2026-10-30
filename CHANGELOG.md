@@ -2,13 +2,23 @@
 
 ## Unreleased
 
-- fix every other click on rescan in the hint bar of the area list doing nothing
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
 - undo and redo in the editor: Ctrl-Z or Ctrl-U to undo, Ctrl-R to redo
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 - add reader selection mode (V key). Reply in the selection mode quotes only what is selected, or the whole message where nothing is selected. Space key in the selection mode holds the anchor down, so the arrows select without Shift; Space again releases it
 - the reader's default hint bar offers v select in place of ctrl-n nodelist
+
+## 0.10.0 — 2026-10-30
+
+- add header_format: what the header block holds, with translated labels
+- show_recd_date is ignored with a warning: the Recd row is a line of header_format
+- Ctrl-Home and Ctrl-End in the editor: the start and the end of the message text
+- every letter key in the reader also works with Alt
+- move charset override from Alt-E to h and Alt-H: Alt-E now writes a new message
+- fix every other click on rescan in the hint bar doing nothing
+- fix Ctrl-PgUp, Ctrl-Up and the like being read as other keys on some terminals
+- limit origin, tearline and tagline to 79 characters
 
 ## 0.9.4 — 2026-10-26
 

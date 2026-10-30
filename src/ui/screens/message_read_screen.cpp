@@ -29,6 +29,7 @@
 #include "ui/extern_util.hpp"
 #include "ui/find_dialog.hpp"
 #include "ui/goto_field.hpp"
+#include "ui/header_format.hpp"
 #include "ui/info_dialog.hpp"
 #include "ui/input_field.hpp"
 #include "ui/mark_dialog.hpp"
@@ -54,70 +55,13 @@ using namespace term;
 
 namespace {
 
-/// " From : ", " To   : ", " Subj : " — the indent in front of a label and the
-/// " : " behind it, the screen carrying no outer margin of its own. The label
-/// between them is `header_labels::labelWidth()`, which is measured.
-constexpr int kLabelChrome = 4;
 constexpr int kBackWidth = back_button::kWidth;
 constexpr int kMenuWidth = menu_button::kWidth;
-/// A column of margin at the right end of the header block, so the addresses —
-/// and the attributes that line up under them — stand off the edge of the window
-/// rather than running into it. The rules and the body still span the full
-/// width; this is the header table's own margin.
+/// A column of margin at the right end of the header block, so a field running
+/// to the end of its line stands off the edge of the window rather than running
+/// into it. The rules and the body still span the full width; this is the
+/// header block's own margin.
 constexpr int kRightPad = 1;
-constexpr int kMinNameWidth = 8;
-/// XMSG stores 35 characters of a name at most, so a wider column could never
-/// be filled.
-constexpr int kMaxNameWidth = 36;
-
-/// Column widths of the header table. The right-hand column lines up under
-/// itself across the four rows, so it is measured once for the whole block
-/// rather than per row.
-struct HeaderLayout {
-    /// The column down the left, which holds a name on the From and To rows,
-    /// the stamps on the Date row, and the beginning of the subject.
-    int name{0};
-    /// The column beside it, as wide as the widest thing that goes in it — an
-    /// address or the attributes.
-    int address{0};
-    /// What the Subj row has to itself: everything right of the label, which is
-    /// wider than the two columns together whenever the names stop at
-    /// kMaxNameWidth and the window leaves the rest over.
-    int subject{0};
-};
-
-/// Works the columns out from the window and from how wide what stands beside
-/// the names actually is — most addresses are around 13 characters, and
-/// reserving room for the widest one FTN allows would take it from the names
-/// for nothing.
-///
-/// `stampsWidth` is what the Date and Recd rows would like the left column to
-/// be: a stamp stands there too, and it is not a name. The column stops at the
-/// width of the name field FTS-0001 fixes, which no name can outgrow — but a
-/// date format can, `reader_datetime_format` being free to ask for anything, and
-/// capping a stamp at a name's width would cut it at every window size rather
-/// than only in a narrow one. So a stamp may widen the column, and the window is
-/// still what decides: what there is no room for is cut back here as it always
-/// was.
-HeaderLayout headerLayout(int width, int addressWidth, int stampsWidth) {
-    HeaderLayout layout;
-    layout.address = addressWidth;
-
-    const auto nameRoom = [&] {
-        return width - header_labels::labelColumn() - layout.address;
-    };
-    // A window too narrow for both drops the column at the right: who the
-    // message is from and to is what the rows are for.
-    if (nameRoom() < kMinNameWidth) layout.address = 0;
-
-    layout.name = std::clamp(nameRoom(), 1, std::max(kMaxNameWidth, stampsWidth));
-    layout.subject = std::max(1, width - header_labels::labelColumn());
-    return layout;
-}
-
-Element headerLabel(const std::string& label) {
-    return text(header_labels::labelCell(label)) | bold | color(theme::palette.header);
-}
 
 /// A stretch of text with what a search found in it lit up: the theme's `found`
 /// as a fill, with `found_text` written on it, so that an occurrence is seen at
@@ -176,53 +120,6 @@ Element selectableCell(AppState& state, int field, int width, theme::Color tint)
            reflect(spot.box);
 }
 
-/// One row of the header table: a name down the left and, where the block has
-/// a second column, an address hard against it. Nothing stands between the two:
-/// the name column is padded to its width, so where it ends is where the
-/// address begins, and a column of blank would only push the addresses in off
-/// the margin they already stand on.
-Element headerRow(const std::string& label, Element name, std::optional<Element> address) {
-    Elements cells{headerLabel(label), std::move(name)};
-    if (address) cells.push_back(std::move(*address));
-    return hbox(std::move(cells));
-}
-
-/// The Subj row, which runs across the whole block: a subject is one long thing
-/// rather than two, nothing lines up under it, and cutting it at the columns
-/// beside it would drop the end of a subject a wide window has room for.
-Element subjectRow(Element subject) {
-    return hbox({headerLabel(header_labels::subject()), std::move(subject)});
-}
-
-/// The Date row: when the message was written, down the left where the names
-/// stand, and the attributes in the column the addresses stand in above.
-Element dateRow(const std::string& written, const std::string& attributes,
-                const HeaderLayout& layout) {
-    Elements cells{headerLabel(header_labels::date()),
-                   headerCell(written, layout.name, theme::palette.header, nullptr)};
-    if (layout.address > 0) {
-        cells.push_back(
-            headerCell(attributes, layout.address, theme::palette.header, nullptr));
-    }
-    return hbox(std::move(cells));
-}
-
-/// The Recd row under it: when the message arrived here, which
-/// `show_recd_date` decides whether the block carries at all.
-///
-/// A row of its own rather than a second stamp beside the written one: the two
-/// are the same thing said of two different clocks, and the only way to tell
-/// which was which was that one came second. The label is what says it now, so
-/// the row is drawn like the Date row above it, in the block's own color: the
-/// two are a pair of stamps and read as one.
-///
-/// Nothing goes in the column beside it: the attributes on the Date row above are
-/// message's, said once.
-Element recdRow(const std::string& arrived, const HeaderLayout& layout) {
-    return hbox({headerLabel(header_labels::received()),
-                 headerCell(arrived, layout.name, theme::palette.header, nullptr)});
-}
-
 /// What the base says about the message, in brackets, or nothing at all where
 /// it says nothing — not even an empty pair of them.
 std::string attributesOf(const domain::MessageHeader& header) {
@@ -236,99 +133,123 @@ std::string attributesOf(const domain::MessageHeader& header) {
     return trailing + "]";
 }
 
-/// The header table, and where its right-hand column starts — which is what the
-/// location standing in the rule below it lines itself up with.
+/// The header block's rows, and where the sender's location stands in the rule
+/// under them — see `header_format::locationColumn()`, nothing being the right
+/// end of the rule.
 struct HeaderBlock {
     Elements rows;
-    int column{0};
+    std::optional<int> column;
 };
 
-/// The header block over the message: who it is from and to, what it is about,
-/// and when it was written and when it arrived.
+/// The header block over the message, as `header_format` lays it out: a row per
+/// line of the format, each piece of it in the columns the layout gave it.
 ///
-/// Four rows whatever the window — the names down the left with the addresses
-/// beside them, the subject across both columns, and the Date row carrying the
-/// written stamp on the left and the attributes under the addresses — and a fifth,
-/// the Recd row, where `show_recd_date` asks for one. The same block the editor
-/// draws over a message being written, so that a message read and a message
-/// written line up field for field.
+/// The labels and the literals beside them are drawn bold in the block's own
+/// color, as a label always has been; the fields in that color too, a name that
+/// is the user's own in `own_name`, and a search lights what it found in the
+/// names, the addresses and the subject. The same format the editor draws over a
+/// message being written, so that a message read and a message written line up
+/// field for field.
 HeaderBlock headerBlock(AppState& state, const domain::MessageHeader& header,
                         const encoding::TextSearch* search) {
+    using config::HeaderFieldKind;
+
     // Outside netmail the destination address addresses nobody, so showing it
     // would only invite the reader to draw conclusions from noise — which
     // `fieldValue()` is where it is left out, the selection mode reading the
     // same fields.
     const std::string fromAddr = reader_select::fieldValue(state, compose::kFromAddr);
     const std::string toAddr = reader_select::fieldValue(state, compose::kToAddr);
+    const std::string trailing = attributesOf(header);
 
-    // The Date row carries when the message was written and the Recd row under
-    // it when it arrived here. A message written locally never arrived, so that
-    // stamp is simply absent rather than repeated from the other — the row is
-    // still there, since `show_recd_date` is what says whether the block has
-    // one and the message on the screen is not.
-    //
     // Only the written stamp is given a zone: `%z` in the format writes the
     // offset the message's TZUTC states, and TZUTC is about the clock the
     // message was written by. When it arrived here was read off this system's
     // clock, which the message says nothing about, so `%z` writes nothing
-    // there rather than borrowing an offset that is not its own.
-    const std::string writtenStamp =
-        header.date.format(state.config.readerDateTimeFormat, header.utcOffset);
-    const std::string arrivedStamp =
-        header.arrivalDate.format(state.config.readerDateTimeFormat);
-    const std::string trailing = attributesOf(header);
+    // there rather than borrowing an offset that is not its own. A message
+    // written locally never arrived, and its stamp is simply blank.
+    const auto stampOf = [&](HeaderFieldKind kind, const std::string& format) {
+        const std::string& written =
+            format.empty() ? state.config.readerDateTimeFormat : format;
+        return kind == HeaderFieldKind::Written
+                   ? header.date.format(written, header.utcOffset)
+                   : header.arrivalDate.format(written);
+    };
 
-    // The one column beside the names holds an address on the From and To rows
-    // and the attributes on the Date row, so it is as wide as the widest of them.
-    // Sizing it on the addresses alone would leave a message no room for its
-    // attributes, the row would overflow the window and the columns would
-    // silently stop lining up.
-    //
-    // A column more while text is being selected, for the cursor to stand in
-    // at the end of the widest address rather than scroll it a character over.
-    const int column =
-        std::max({displayWidth(fromAddr), displayWidth(toAddr), displayWidth(trailing)}) +
-        (state.readSelect.on ? 1 : 0);
-    // What the widest stamp in the left column takes, which the column may be
-    // widened to where the window allows it — see headerLayout(). The two stand
-    // on rows of their own, so it is the wider of them and not their sum.
-    const bool recd = state.recdRowShown();
-    const int stamps =
-        std::max(displayWidth(writtenStamp), recd ? displayWidth(arrivedStamp) : 0);
-    const HeaderLayout layout =
-        headerLayout(state.readerPaneWidth() - kRightPad, column, stamps);
+    const header_format::Layout layout = header_format::layout(
+        state.readerHeaderFormat(), state.readerPaneWidth() - kRightPad,
+        [&](const config::HeaderField& field) {
+            return displayWidth(stampOf(field.kind, field.text));
+        });
+
     // Each field as the reader shows it, or — while text is being selected —
     // as a field the cursor can stand in, which is the one difference the mode
     // makes to the block. What a search lit is not lit there: the selection is
     // what is being shown.
     auto& select = state.readSelect;
     select.fieldSpots.assign(compose::kFieldCount, AppState::ComposeSpot{});
-    select.addressesShown = layout.address > 0;
-    const auto cell = [&](int field, const std::string& value, int width,
-                          theme::Color tint) {
-        if (select.on) return selectableCell(state, field, width, tint);
+    select.fieldsDrawn.assign(compose::kFieldCount, false);
+    const auto field = [&](int stop, const std::string& value, int width,
+                           theme::Color tint) {
+        select.fieldsDrawn[static_cast<size_t>(stop)] = true;
+        if (select.on) return selectableCell(state, stop, width, tint);
         return headerCell(value, width, tint, search);
-    };
-    const auto address = [&](int field, const std::string& value) -> std::optional<Element> {
-        if (layout.address <= 0) return std::nullopt;
-        return cell(field, value, layout.address, theme::palette.header);
     };
     const auto nameTint = [&](const std::string& name) {
         return state.isOwnName(name) ? theme::palette.ownName : theme::palette.header;
     };
-    Elements rows{
-        headerRow(header_labels::from(),
-                  cell(compose::kFromName, header.from, layout.name, nameTint(header.from)),
-                  address(compose::kFromAddr, fromAddr)),
-        headerRow(header_labels::to(),
-                  cell(compose::kToName, header.to, layout.name, nameTint(header.to)),
-                  address(compose::kToAddr, toAddr)),
-        subjectRow(cell(compose::kSubject, header.subject, layout.subject,
-                        theme::palette.header)),
-        dateRow(writtenStamp, trailing, layout),
-    };
-    if (recd) rows.push_back(recdRow(arrivedStamp, layout));
-    return {std::move(rows), header_labels::labelColumn() + layout.name};
+
+    Elements rows;
+    for (const auto& line : layout) {
+        Elements cells;
+        for (const auto& cell : line) {
+            if (cell.width <= 0) continue;
+            switch (cell.kind) {
+                case HeaderFieldKind::Label:
+                case HeaderFieldKind::Literal: {
+                    const std::string shown =
+                        cell.kind == HeaderFieldKind::Label
+                            ? std::string(header_format::labelText(cell.label))
+                            : cell.text;
+                    cells.push_back(
+                        text(padRight(truncateToWidth(shown, cell.width), cell.width)) |
+                        bold | color(theme::palette.header));
+                    break;
+                }
+                case HeaderFieldKind::FromName:
+                    cells.push_back(field(compose::kFromName, header.from, cell.width,
+                                          nameTint(header.from)));
+                    break;
+                case HeaderFieldKind::ToName:
+                    cells.push_back(field(compose::kToName, header.to, cell.width,
+                                          nameTint(header.to)));
+                    break;
+                case HeaderFieldKind::FromAddr:
+                    cells.push_back(field(compose::kFromAddr, fromAddr, cell.width,
+                                          theme::palette.header));
+                    break;
+                case HeaderFieldKind::ToAddr:
+                    cells.push_back(
+                        field(compose::kToAddr, toAddr, cell.width, theme::palette.header));
+                    break;
+                case HeaderFieldKind::Subject:
+                    cells.push_back(field(compose::kSubject, header.subject, cell.width,
+                                          theme::palette.header));
+                    break;
+                case HeaderFieldKind::Written:
+                case HeaderFieldKind::Arrived:
+                    cells.push_back(headerCell(stampOf(cell.kind, cell.text), cell.width,
+                                               theme::palette.header, nullptr));
+                    break;
+                case HeaderFieldKind::Attributes:
+                    cells.push_back(
+                        headerCell(trailing, cell.width, theme::palette.header, nullptr));
+                    break;
+            }
+        }
+        rows.push_back(hbox(std::move(cells)));
+    }
+    return {std::move(rows), header_format::locationColumn(layout)};
 }
 
 /// Where the message was written, as the nodelist gives it for the address it
@@ -398,8 +319,8 @@ std::string messageSize(const AppState& state) {
 /// word. Both are in the kludges' color for the reason the kludges are — they
 /// are there to be glanced at, and they are not the message. A window with no
 /// room left for one gets that much of the plain rule back.
-Element closingRule(const std::string& size, const std::string& location, int column,
-                    int width) {
+Element closingRule(const std::string& size, const std::string& location,
+                    std::optional<int> column, int width) {
     Elements cells;
     int left = width;
 
@@ -413,11 +334,17 @@ Element closingRule(const std::string& size, const std::string& location, int co
     }
 
     // What is left of the rule is measured from where the size ended, since the
-    // location stands in a column of the window and not in one of the rule.
-    const int before = std::max(0, column - 1 - (width - left));
-    const int room = std::max(0, left - before - 2);
-    const std::string shown =
+    // location stands in a column of the window and not in one of the rule. With
+    // no column to stand under it stands at the right end, a stretch of rule
+    // after it as there is one before.
+    int before = column ? std::max(0, *column - 1 - (width - left)) : 0;
+    int room = std::max(0, left - before - 2);
+    std::string shown =
         location.empty() ? std::string{} : truncateToWidth(location, room);
+    if (!column && !shown.empty()) {
+        shown = truncateToWidth(location, std::max(0, left - 3));
+        before = std::max(0, left - displayWidth(shown) - 3);
+    }
     if (shown.empty()) {
         cells.push_back(text(horizontalRule(left)) | color(theme::palette.separator));
         return hbox(std::move(cells));
@@ -2907,48 +2834,5 @@ bool handleEvent(AppState& state, const Event& event) {
     }
     return false;
 }
-
-namespace header_labels {
-
-const char* from() {
-    return C_("header block", "From");
-}
-const char* to() {
-    return C_("header block", "To");
-}
-const char* subject() {
-    return C_("header block", "Subj");
-}
-const char* date() {
-    return C_("header block", "Date");
-}
-const char* received() {
-    return C_("header block", "Recd");
-}
-
-int labelWidth() {
-    // Measured once. The catalog is loaded before anything is drawn and does not
-    // change under a running program, and this is asked for every row of every
-    // frame. Never under four: the English labels are that wide, and a language
-    // with shorter words has no business narrowing the block.
-    static const int width = [] {
-        int widest = 4;
-        for (const char* label : {from(), to(), subject(), date(), received()}) {
-            widest = std::max(widest, displayWidth(label));
-        }
-        return widest;
-    }();
-    return width;
-}
-
-int labelColumn() {
-    return kLabelChrome + labelWidth();
-}
-
-std::string labelCell(const std::string& label) {
-    return " " + padRight(label, labelWidth()) + " : ";
-}
-
-}  // namespace header_labels
 
 }  // namespace amberedit::ui::screens::message_read

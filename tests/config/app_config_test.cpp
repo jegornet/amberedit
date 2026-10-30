@@ -1137,24 +1137,114 @@ TEST_CASE("AppConfig reads how tall a dialog's buttons stand [app_config]") {
     CHECK_FALSE(loads("dialog_tall_buttons on\ndialog_tall_buttons off\n"));
 }
 
-TEST_CASE(
-    "AppConfig reads whether the header block carries the Recd row "
-    "[app_config]") {
-    using amberedit::config::Visibility;
+TEST_CASE("AppConfig reads what the header block holds [app_config]") {
+    using amberedit::config::HeaderField;
+    using amberedit::config::HeaderFieldKind;
+    using amberedit::config::HeaderFormat;
+    using amberedit::config::HeaderLabel;
+    using amberedit::config::kAutoWidth;
 
-    // Off unless it is asked for — the one `Visibility` whose default is not
-    // the window's: the row costs a fifth of the header block, and when a
-    // message arrived here is rarely what it is being read for.
-    CHECK(with("").showRecdDate == Visibility::Off);
-    CHECK(with("show_recd_date on\n").showRecdDate == Visibility::On);
-    CHECK(with("show_recd_date off\n").showRecdDate == Visibility::Off);
-    CHECK(with("show_recd_date when_narrow\n").showRecdDate == Visibility::WhenNarrow);
-    CHECK(with("show_recd_date when_wide\n").showRecdDate == Visibility::WhenWide);
+    const auto formatOf = [](const std::string& value) {
+        return with("header_format " + value + "\n").headerFormatNarrow;
+    };
+    const auto formatError = [](const std::string& value) {
+        return errorWith("header_format " + value + "\n");
+    };
+    // Every field the editor types into, once — what a format has to hold to
+    // be read at all, standing after whatever a case is about.
+    const std::string rest = "\\nfotrsa";
 
-    CHECK_FALSE(loads("show_recd_date 1\n"));
-    CHECK_FALSE(loads("show_recd_date yes\n"));
-    CHECK_FALSE(loads("show_recd_date\n"));
-    CHECK_FALSE(loads("show_recd_date on off\n"));
+    // The defaults: the names, the subject, the Date row under them; the
+    // narrow window giving the names what is left and the addresses a column of
+    // their own, the wide one the names their 36 columns and the addresses the
+    // rest, the attributes beside the stamp in the addresses' column.
+    const auto label = [](HeaderLabel which, int width) {
+        return HeaderField{HeaderFieldKind::Label, width, {}, which};
+    };
+    const HeaderField colon{HeaderFieldKind::Literal, 0, ": "};
+    const HeaderField indent{HeaderFieldKind::Literal, 0, " "};
+    const auto defaults = [&](int names, int addresses, int attributes) {
+        return HeaderFormat{
+            {indent,
+             label(HeaderLabel::From, 5),
+             colon,
+             {HeaderFieldKind::FromName, names},
+             {HeaderFieldKind::FromAddr, addresses}},
+            {indent,
+             label(HeaderLabel::To, 5),
+             colon,
+             {HeaderFieldKind::ToName, names},
+             {HeaderFieldKind::ToAddr, addresses}},
+            {indent,
+             label(HeaderLabel::Subject, 5),
+             colon,
+             {HeaderFieldKind::Subject, 0}},
+            {indent,
+             label(HeaderLabel::Date, 5),
+             colon,
+             {HeaderFieldKind::Written, names},
+             {HeaderFieldKind::Attributes, attributes}},
+        };
+    };
+    CHECK(with("").headerFormatNarrow == defaults(0, 15, 15));
+    CHECK(with("").headerFormatWide == defaults(36, 23, 25));
+
+    // A label without a width stands at the widest label's, measured where it
+    // is drawn; its name is read in any case. A run of anything that is not a
+    // letter, a digit or a brace is one literal, spaces and all.
+    const HeaderFormat read = formatOf("\"{recd} | p(%H:%M)" + rest + "\"");
+    REQUIRE(read.size() == 2);
+    CHECK(read.front() ==
+          amberedit::config::HeaderLine{label(HeaderLabel::Received, kAutoWidth),
+                                        {HeaderFieldKind::Literal, 0, " | "},
+                                        {HeaderFieldKind::Arrived, kAutoWidth, "%H:%M"}});
+    // Defaults where nothing is written: a name 36, an address 25, the subject
+    // what is left, the attributes 25.
+    CHECK(read.back() ==
+          amberedit::config::HeaderLine{{HeaderFieldKind::FromName, 36},
+                                        {HeaderFieldKind::FromAddr, 25},
+                                        {HeaderFieldKind::ToName, 36},
+                                        {HeaderFieldKind::ToAddr, 25},
+                                        {HeaderFieldKind::Subject, 0},
+                                        {HeaderFieldKind::Attributes, 25}});
+    // One format gives both windows.
+    CHECK(with("header_format \"fotrsa\"\n").headerFormatWide ==
+          with("header_format \"fotrsa\"\n").headerFormatNarrow);
+
+    // What is refused, and said so.
+    std::string error = formatError("\"{Sender}: f" + rest + "\"");
+    CHECK_MESSAGE(contains(error, "'{Sender}' is not a label"), error);
+    CHECK_MESSAGE(contains(error, "{From}, {To}, {Subj}, {Date}, {Recd}"), error);
+    error = formatError("\"{From: f" + rest + "\"");
+    CHECK_MESSAGE(contains(error, "never closed"), error);
+    error = formatError("\"{From}0: d" + rest + "\"");
+    CHECK_MESSAGE(contains(error, "a label is a word"), error);
+    error = formatError("\"fotrs\"");
+    CHECK_MESSAGE(contains(error, "'a' is missing"), error);
+    error = formatError("\"fotrsaf\"");
+    CHECK_MESSAGE(contains(error, "'f' is written twice"), error);
+    // Both windows are held to it: the editor is dragged across the line.
+    error = formatError("\"fotrsa\" \"fotrs\"");
+    CHECK_MESSAGE(contains(error, "'a' is missing"), error);
+    // A letter is never a literal, so a misspelt field is still a complaint.
+    error = formatError("\"x" + rest + "\"");
+    CHECK_MESSAGE(contains(error, "'x' is not a field"), error);
+    // A width belongs to a field or a label, not to what stands between them.
+    error = formatError("\":5 d" + rest + "\"");
+    CHECK_MESSAGE(contains(error, "is not a field"), error);
+    // A stamp's format is held to what reader_datetime_format is held to.
+    error = formatError("\"d(%n)" + rest + "\"");
+    CHECK_MESSAGE(contains(error, "header_format's d(...)"), error);
+}
+
+TEST_CASE("show_recd_date is read and ignored, with a warning [app_config]") {
+    // A config written before header_format still loads; what the line no
+    // longer does is said rather than refused.
+    const AppConfig cfg = with("show_recd_date on\n");
+    REQUIRE(cfg.warnings.size() == 1);
+    CHECK_MESSAGE(contains(cfg.warnings.front(), "show_recd_date is ignored"),
+                  cfg.warnings.front());
+    CHECK(with("").warnings.empty());
 }
 
 TEST_CASE("AppConfig reads the menus [app_config]") {
@@ -2754,6 +2844,27 @@ TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     // uncommented one would have a new user sending netmail from an address
     // that is not theirs. What they do once uncommented is the test below.
     CHECK(cfg.akaMatches.empty());
+}
+
+TEST_CASE(
+    "The example config's other header formats parse once uncommented "
+    "[app_config]") {
+    // The sample offers them to be copied, so each has to be a value
+    // header_format takes — the editor's fields included.
+    const auto path = amberedit::test::projectPath("amberedit.cfg.example");
+    const std::string text =
+        amberedit::test::valueOf(amberedit::config::text::readFile(path));
+    int found = 0;
+    size_t at = 0;
+    while ((at = text.find("\n#header_format ", at)) != std::string::npos) {
+        const size_t end = text.find('\n', at + 1);
+        const std::string line = text.substr(at + 2, end - at - 2);
+        CAPTURE(line);
+        CHECK(loads(line + "\n"));
+        ++found;
+        at = end;
+    }
+    CHECK(found >= 2);
 }
 
 TEST_CASE("The example config's AKA lines parse once uncommented [app_config]") {

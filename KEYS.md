@@ -54,25 +54,25 @@ standing in both.
 | `Ctrl-Home`, `Ctrl-End` | the first, the last message of the area |
 | any digit | go to a message by number: the title's `12/44` becomes a field standing in exactly those columns, `Enter` goes there, `Backspace` edits it, `Esc` closes it |
 | `q` / `F4` / `Alt-Q` | reply                                                              |
-| `e` / `Ins` | write a new message                                                  |
-| `n` / `F5` | reply into another area                                                      |
+| `e` / `Ins` / `Alt-E` | write a new message                                                  |
+| `n` / `F5` / `Alt-N` | reply into another area                                                      |
 | `g` / `Alt-G` | reply, addressed to whoever the message was written to                 |
-| `m` | forward, move or copy into another area — with messages marked, asks whether you mean those (copy/move) or this one |
-| `c` / `F2` | change the message                                                           |
-| `d` / `Del` | delete it (asks first) — with messages marked, asks whether you mean those or this one |
+| `m` / `Alt-M` | forward, move or copy into another area — with messages marked, asks whether you mean those (copy/move) or this one |
+| `c` / `F2` / `Alt-C` | change the message                                                           |
+| `d` / `Del` / `Alt-D` | delete it (asks first) — with messages marked, asks whether you mean those or this one |
 | `-` `+` / `=` | up and down the thread                                                       |
 | `Ctrl-F` / `F6` | look for a message in the area                                               |
-| `l` / `F9` | the list of messages                                                         |
-| `k` | show the kludges — a reply then quotes them, a forward carries them          |
-| `Alt-E` | read this message in another charset |
-| `b` | toggle the scrollbar                                                         |
+| `l` / `F9` / `Alt-L` | the list of messages                                                         |
+| `k` / `Alt-K` | show the kludges — a reply then quotes them, a forward carries them          |
+| `h` / `Alt-H` | read this message in another charset |
+| `b` / `Alt-B` | toggle the scrollbar                                                         |
 | `Ctrl-T` | mark the message, or take the mark off it                               |
-| `s` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
+| `s` / `Alt-S` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `Ctrl-C` / `Ctrl-Ins` | copy the message to the clipboard (`clipboard`), header and all, as `w` writes it; kludges only where `k` shows them |
-| `v` | select text: Shift with the arrows, or `Space` to anchor and the bare arrows; `q`, `n` and `g` there reply quoting only what is selected |
-| `i` | technical info from the message base                                         |
-| `w` / `F7` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
+| `v` / `Alt-V` | select text: Shift with the arrows, or `Space` to anchor and the bare arrows; `q`, `n` and `g` there reply quoting only what is selected |
+| `i` / `Alt-I` | technical info from the message base                                         |
+| `w` / `F7` / `Alt-W` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
 | `Space` | show a message blanked as a twit                                             |
 | `Esc` `Backspace` | back to the area list                                                        |
@@ -81,8 +81,10 @@ standing in both.
 
 | Key | What it does                                                       |
 |---|--------------------------------------------------------------------|
-| `Tab` `Shift-Tab` | the ring: the fields, the subject, the attributes button, the text |
-| `Enter` | the next field, then down into the text                            |
+| `Tab` `Shift-Tab` | the ring: the header's fields and the attributes button as they are read — along a line, then down — and the text |
+| `Enter` | the next field the same way, past the button, then down into the text |
+| `↑` `↓` in the header | the field above or below as the block is drawn; off the bottom, the text |
+| `←` `→` at the edge of a field | the field beside it on the same line |
 | `Alt-H` | edit header                                                         |
 | `Ctrl-S` / `F2` / `Alt-S` | save (asks first)                                         |
 | `Esc` | drop the message (asks first); over a selection, drop the selection |
@@ -93,6 +95,7 @@ standing in both.
 | `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
+| `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
 | `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`); a double click selects a word, a triple one the line or the whole header field; the same in the reader's selection mode |
 | `Ctrl-C` / `Ctrl-Ins` | copy the selection to the clipboard                    |

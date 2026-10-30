@@ -827,6 +827,14 @@ Rules that hold the design together:
   the same setting — and there the pair is spoiled to `-+-`/` + Origin:` on the
   way out, being a tearline standing in the middle of a message. It is per area,
   as `quote_string` and `quote_margin` are.
+- **No line of the footer AmberEdit writes runs past 79 characters.**
+  `kFooterLineChars` in `app/message_builder.cpp`, and the lines are built there
+  and nowhere else: `tearlineFrom()`, `taglineFrom()` and `originLine()` cut the
+  *text* after its tokens are expanded, so the marker always stands and an origin
+  keeps its address, which is what a tosser reads the line for. Counted in
+  characters, the message not being in its charset yet, and cut between them. It
+  holds for what the config produces: a line the user typed into the editor over
+  it stands as typed, and so does one a template writes by itself.
 - **The block closing a message is the footer, and nothing else is.** The
   tagline, the tearline and the origin are one thing wherever they are met:
   `markFooter()` flags them, `MessageLine::footer` carries the flag,
@@ -916,7 +924,7 @@ Rules that hold the design together:
   way** and for the same reason, a modified key being in no terminfo entry at
   all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
   four of each, which is how the reader is sent to the first and the last
-  message of an area. Do not narrow either set to the forms one terminal happens
+  message of an area and the editor to the start and the end of the text. Do not narrow either set to the forms one terminal happens
   to need. No other named key needs this: the rest are spelled the same way
   everywhere.
 - **A CR and an LF waiting together are one Return.** `poll()` reads either as
@@ -1896,20 +1904,23 @@ hands it events.
   the message itself made is a line feed.
 - **The header is the editor's five fields, walked the editor's way.**
   `compose::Field` numbering, the attributes button left out: Tab and Shift-Tab
-  round the fields and through the text, the arrows by the block as it is drawn,
-  ↑ off the first row of the text onto the subject, ↓ off the subject into the
+  round the fields and through the text, the arrows name to address and down the
+  fields in that order, ↑ off the first row of the text onto the subject, ↓ off the subject into the
   text at the first row on screen. The editor's own `compose.word_left`,
   `word_right`, `line_start` and `line_end` keys are read for the same motions.
   `reader_select::fieldValue()` is the one place the reader says what a field
   holds — `headerBlock()` reads it too — so the text selected is the text drawn.
-  An address is a stop only where the frame drew the column
-  (`ReaderSelect::addressesShown`), the To address only in netmail.
+  A field is a stop only where the frame drew it (`ReaderSelect::fieldsDrawn`) —
+  `header_format` and the window decide that — and the To address only in
+  netmail. The walk goes by that numbering and not by `stopToward()`, so a format
+  moving the subject off the last line leaves ↑ and ↓ crossing where they always
+  did.
 - **While the mode is on the fields are `ui::inputField()`s with no fill**, the
-  cursor an inverted cell and the selection in `selection`, and the address
-  column is a column wider so the cursor at the end of the widest address has
-  somewhere to stand. Rows the selection or the cursor is on are drawn plain in
-  their base color, as the editor draws its own, and every other row is drawn by
-  `bodyLine()` as always, links and colors included.
+  cursor an inverted cell and the selection in `selection`, each in the columns
+  `header_format` gave it: the mode moves nothing, and a value wider than its
+  column scrolls under the cursor. Rows the selection or the cursor is on are
+  drawn plain in their base color, as the editor draws its own, and every other
+  row is drawn by `bodyLine()` as always, links and colors included.
 - **A double click is a word and a triple one the line**, as in the editor — and
   the line is the one the message wrote, every row the window broke it into,
   since that is what a line means when it is copied.
@@ -2305,22 +2316,32 @@ decides what an occurrence is.
   and a reply into netmail alike — so one that bypasses it ignores the setting.
   Esc asks before dropping the message wherever the cursor is.
 - **Tab is a ring round the whole of it, the text standing in it where a field
-  would.** Forwards: the four fields, the subject, the attributes button, off the
-  last into the text, and out of the text onto the **first** stop — not the one
-  it was left from, which would cycle between two and never reach the rest.
-  `Shift-Tab` (`Event::TabReverse`) walks it the other way: off the **first**
-  stop down into the text, out of the text onto the last. The To address is
-  skipped in echomail either way, `fieldAfter()` answering for both. **Enter is
-  not the ring**: it walks the fields that are typed into and hands the typing
-  down to the text off the subject, going past the button. **Nor are the
-  arrows: they walk the block as it is drawn** (`fieldBelow()`, `fieldAbove()`).
-  `↓` goes down a column — a name onto the name under it, the From address onto
-  the To address — and off the To row onto the subject, the button and the text
-  in that order; `↑` climbs back the same way, the subject onto the To name, and
-  stops on the From row. Up off the very start of the text, row and column zero,
-  is the button. `→` at the end of a name and `←` at the start of an address
-  cross between the two halves of their row, as the arrows cross a line end in
-  the text, and everywhere else they move inside the field. `Alt-H` goes back
+  would, and it walks the block as it is read** — `stopsInOrder()`: a line at a
+  time from the top, along each line from the left, whatever line
+  `header_format` puts each stop on. Off the last stop read is the text, and out
+  of the text is the **first** — not the one it was left from, which would cycle
+  between two and never reach the rest. `Shift-Tab` (`Event::TabReverse`) walks
+  it the other way: off the first stop down into the text, out of the text onto
+  the last. So where the Date row stands on top, the button is the first stop
+  and Tab off the subject is the text. The To address is skipped in echomail
+  either way, `fieldAfter()` answering for both. **Enter walks the same order
+  with the button left out**, handing the typing down to the text off the last
+  field typed into rather than stopping at a button on the way. **Nor are the
+  arrows: they walk the block as it is drawn** (`stopToward()`), whatever the
+  format: `↓` and `↑` go to the nearest line that way holding a stop at all — a
+  line of stamps alone is stepped over — and on it to the stop sharing the most
+  columns with the one the cursor is on; sharing none, to the one standing
+  nearest beside it, and between two equally near to the one further left. `↓`
+  off the lowest line is the text, `↑` off the highest goes nowhere, and up off
+  the very start of the text, row and column zero, is the stop nearest the left
+  edge on the lowest line. `→` at the end of a field and `←` at the start of one
+  cross to the typed field beside it on its line (`fieldBeside()`, the button
+  not among them), as the arrows cross a line end in the text, and everywhere
+  else they move inside the field. **`Ctrl-Home` and
+  `Ctrl-End` are the two ends of the text from anywhere on the screen**: from
+  the header they go down into it the way a click does, the To address left
+  without being held, and under `external_editor` they scroll the message to
+  that end instead, there being no cursor in the text. `Alt-H` goes back
   onto the field the cursor was last in — a chord of its own rather than
   `Ctrl-I`, which is the byte Tab has sent since ASCII and would be the ring on
   all but a terminal reporting modified keys.
@@ -2488,9 +2509,10 @@ decides what an occurrence is.
   where they are known, which is `FtnMsgBase::encode()` — see
   **`compose_fts1_field_limits`** below. The boxes are drawn one column wider than
   their limit, for the cursor to stand in.
-- **The attributes stand under the addresses and are the button that opens the
-  dialog.** `headerRows()` carries them on the Date row, right-hand column,
-  `[Uns Pvt Loc]`, exactly where the reader shows the same thing — the same
+- **The attributes are the button that opens the dialog.** `headerRows()`
+  draws them wherever `header_format` puts `a` — beside the stamp, under the
+  addresses, in the default formats — `[Uns Pvt Loc]`, exactly where the reader
+  shows the same thing — the same
   `messageAttributes()`, so a message reads the same being written as read. A
   message carrying none says `Attrs...`. `Ctrl-F` opens the dialog from anywhere
   on the screen. Six things worth knowing:
@@ -2504,8 +2526,8 @@ decides what an occurrence is.
     field no fill of its own, which is what `input_filler_show` is for.
     The fields wear it and so does the attributes button beside them, in the same
     colors and only as wide as what it says rather than the width of a column: it
-    is a stop of the block, and what the attributes say is its value. The Date and
-    Recd rows are shown rather than typed into and keep `header` on no fill. The field the typing is in takes
+    is a stop of the block, and what the attributes say is its value. The stamps
+    are shown rather than typed into and keep `header` on no fill. The field the typing is in takes
     `focused_field`/`focused_text`, which the button beside them takes as well,
     so whatever the typing is on wears one color everywhere. That pair defaults
     to `selection`/`selection_text` — the bar the lists give the row Enter would
@@ -3132,7 +3154,7 @@ taking a row.
   again. The box asks and does not search: what walks the base and moves the
   reader is `message_read::findMessage()`, which the shell calls with what the
   box holds. See [Finding a message](#finding-a-message).
-- **`Alt-E` in the reader reads the message on screen in another charset**,
+- **`h` in the reader reads the message on screen in another charset**,
   with `charset` on the list `reader_menu` may name. `ui/charset_dialog.*` is the
   modal: a line saying what the message is being read in and which of three
   things decided that — its own CHRS kludge, the area's `default_charset`, or an
@@ -3599,7 +3621,7 @@ taking a row.
   `default_charset`. Fidonet names are mapped onto iconv names in
   `charset_detector.cpp` — `+7_FIDO` and `866` both mean CP866.
 - **One message can be read in a charset nobody configured, and that is the
-  reader's own doing.** `Alt-E` puts up `ui/charset_dialog.*`, and what it is
+  reader's own doing.** `h` puts up `ui/charset_dialog.*`, and what it is
   answered with reaches the base through the second form of `IMsgBase::header()`
   and `IMsgBase::body()`, which take the charset to read in instead of asking the
   message. `FtnMsgBase::charsetFor()` is the whole of the rule: the name asked
@@ -3904,7 +3926,7 @@ taking a row.
   the rule is the `Plural-Forms:` line of the `.po`, read as the C expression it
   is written as.
 - **A width is measured and never counted.** A label is drawn into a column, and
-  a translation of it is as long as it is: `header_labels::labelWidth()` measures
+  a translation of it is as long as it is: `header_format::labelWidth()` measures
   the header block's labels and `attributes_dialog`'s `nameWidth()` measures the
   attribute names, both once, so that neither block is laid out against the width
   of the English word. Do not write a constant that is the length of a literal.
@@ -4380,41 +4402,64 @@ taking a row.
 
 ### The header block and adaptive layout
 
-- **The header block has one layout, and the one setting for it is a row.** Six
-  fields on `AppState::kHeaderRows` (4) rows and two columns, whatever the
-  window: the names down the left, hard against them the addresses, then the
-  attributes, then the written stamp on a Date row of its own. Nothing stands
-  between the two columns in either screen — the name cell is padded to its
-  width, so where it ends is where the address begins. The left column is as wide
-  as the widest thing in it: names stop at `kMaxNameWidth` (36, the FTS-0001
-  field), and a stamp may ask for more, in which case the addresses move over
-  with it — which is why `headerLayout()` takes the width it wants rather than
-  capping everything at `kMaxNameWidth`. The window still decides what is cut.
-- **The rightmost column holds either the stamps or the attributes**, so it is
-  reserved whenever there is anything for it, not just when a stamp exists.
-  Sizing it on the stamps alone leaves a message that has none no room for its
-  attributes, the layout squeezes the cells to fit, and the columns silently stop
-  lining up.
-- **The arrival stamp has a row of its own, and `show_recd_date` says whether
-  there is one.** `Recd : 14 Aug 26 20:15` under the Date row, drawn exactly like
-  it, label and stamp in the block's own `header`. `AppState::recdRowShown()`
-  answers the setting and `AppState::headerRows()` is `kHeaderRows` plus that row
-  — **both screens count their chrome from `headerRows()`**, never from
-  `kHeaderRows`, or the block and the text under it come apart. The row does not
-  come and go with the message: one written here arrived from nowhere and the row
-  is simply blank, a block that grew and shrank message by message walking the
-  body up and down the window while reading through an area.
-- **The editor's block is the reader's, field for field**, its Date and Recd rows
-  standing where the reader's do and showing the clock, read afresh every frame:
-  a message being written is written now and arrives here now. The stamps are
-  `app::localStamp()`'s at the moment the message is stored, and neither row is a
-  stop in the ring the cursor walks.
+- **What the header block holds is `header_format`'s**, read by
+  `config/list_format.*` like the two lists and laid out by
+  `ui/header_format.*` — one format for the reader and the editor alike, so a
+  message read and a message written line up field for field. Two things the
+  lists do not have are switched on in its `ListFormatSpec`: **labels**,
+  `{From}`, and **literals**, every run of characters that is neither a letter,
+  a digit nor a brace. Letters are never literals, so a field misspelt is still
+  a complaint; a digit after a literal is one too, a width belonging to a field
+  or a label.
+  - **A label is a name in the format and a word in the catalog.** The format
+    says where it stands and how wide; `header_format::labelText()` says what it
+    reads, through the same five `C_("header block", …)` msgids. The text is
+    never the config's: a word written into a config would stay the language it
+    was written in. A label with no width stands at `labelWidth()`, the widest
+    of the five measured in the interface's language, so labels written without
+    one line up down the block in any language; one with a width is cut to it.
+  - **Widths are the lists' rules, a line at a time** — fixed widths first, then
+    the stamps (`d`, `p`) at what they come to held to an even share, then the
+    fields written `0` share the rest, the odd column to the first. Nothing
+    lines up across lines but what the format writes to line up. A window too
+    narrow for the fixed widths gives the shares nothing and the line is cut at
+    the right edge.
+  - **The editor holds a field written `0` to what it will take where nothing
+    typed stands after it on its line** — `header_format::Cap`: a name 36, an
+    address 25, the subject 72. A box wider than that offers room the base has
+    none for. Only there, because a field narrowed in the middle of a line
+    would carry what stands after it out of the columns it holds in the reader.
+  - **Every format holds `f`, `o`, `t`, `r`, `s` and `a` exactly once**,
+    `checkHeaderFields()`, both formats of a line: the editor draws the same
+    block, and a field missing from it is one a message cannot be addressed or
+    marked through. The stamps are optional and may stand twice.
+- **The reader's format follows the reader's width, the editor's the
+  window's.** `AppState::readerHeaderFormat()` asks `readerPaneWidth()` against
+  `adaptive_ui_threshold` — the window less the sidebar where one is up, that
+  being what the block is laid out across — and `composeHeaderFormat()` asks
+  `wideWindow()`. **Both screens count their chrome from
+  `readerHeaderRows()`/`composeHeaderRows()`**, a row per line of the format,
+  or the block and the text under it come apart. The rows do not come and go
+  with the message: a Recd line over a message written here is simply blank, a
+  block that grew and shrank message by message walking the body up and down the
+  window while reading through an area.
+- **The arrival stamp is a line of the format and not a setting.** `p` puts it
+  up; `show_recd_date` is read and ignored with a warning, a config written
+  before `header_format` going on loading.
+- **The sender's location stands under the second field of the line holding
+  `f`** — `header_format::locationColumn()`, the addresses in every format worth
+  writing — and at the right end of the rule closing the block where that line
+  holds one field only.
+- **The editor's block is the reader's, field for field**, its stamps showing
+  the clock, read afresh every frame: a message being written is written now and
+  arrives here now. The stamps are `app::localStamp()`'s at the moment the
+  message is stored, and neither is a stop in the ring the cursor walks.
 - **A window of `AppConfig::adaptiveUiThreshold` columns or more is wide**, and
   that is the line the whole interface adapts on. It is asked on every frame
   (`wideWindow()`, `AppState::shown()`) rather than settled at startup, because a
   window can be dragged and the config is read off `AppState::config` each time.
   Every `config::Visibility` setting — `menu_button`, `back_button`,
-  `show_recd_date`, `dialog_tall_buttons`, `reader_side_taps` — is answered by
+  `dialog_tall_buttons`, `reader_side_taps` — is answered by
   `AppState::shown()`,
   the one place that reads a `when_narrow` / `when_wide` from either side. Write
   the width as the setting, never as a literal 80.
@@ -4963,8 +5008,9 @@ under the cursor, line for line as the nodelist has it, and the bottom of the
 frame names the file it came from (`sourceAt()` and the `SourceState` behind it).
 
 **`show_location`** puts the sender's location, as the nodelist gives it, into
-the rule that closes the reader's header block — lined up under the addresses, in
-the kludges' color, costing no row since the rule is there either way. A sender
+the rule that closes the reader's header block — lined up under the second field
+of the sender's line, the addresses in the default formats, and at the rule's
+right end where that line holds one field — in the kludges' color, costing no row since the rule is there either way. A sender
 no compiled nodelist holds leaves the rule exactly as it was. That is also what
 opens the compiled file in an ordinary session, so `AppState::nodelist()` is
 where the lazy open lives rather than in the box.
@@ -5171,8 +5217,8 @@ together — `keys_mode` says which.
 - **A merged clash is settled for the file, by the rule that refuses one.** A
   default key goes only where the file gave it to a command `clash()` says it
   meets — the same screen, or one of the two answered before every screen — the
-  same function the parser stops a file for making a clash with itself. So `k`
-  moved to `reader.list` leaves `reader.kludges` with no key at all, and `F2`
+  same function the parser stops a file for making a clash with itself. So `-`
+  moved to `reader.list` leaves `reader.thread_up` with no key at all, and `F2`
   given to a reader command takes nothing from `compose.save`. The file's keys
   stand in front of the kept ones, so a hint is drawn under the key the user
   chose.
@@ -5210,6 +5256,9 @@ together — `keys_mode` says which.
   msgids and both are asked as they are drawn (`Commands::labelOf()`,
   `Commands::helpOf()`), the table being built before the config that names a
   catalog has been read.
+- **Every bare letter the reader answers has an Alt twin in `kCommands`**, so a
+  new reader command on a letter is given both. `-`, `+` and `=` have none:
+  `keyNamed()` takes Alt with a letter and not with punctuation.
 - **A bare letter bound in the area list stops being a letter the quick search
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.

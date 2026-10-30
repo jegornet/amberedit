@@ -23,16 +23,13 @@ using term::MouseEvent;
 
 namespace {
 
-/// Whether the cursor may stand in `field`: the names and the subject always,
-/// an address only where the frame drew the column, and the To address only in
-/// netmail, where it addresses somebody.
+/// Whether the cursor may stand in `field`: one the frame drew, and the To
+/// address only in netmail, where it addresses somebody.
 bool fieldShown(const AppState& state, int field) {
-    if (field == kFromAddr) return state.readSelect.addressesShown;
-    if (field == kToAddr) {
-        return state.readSelect.addressesShown &&
-               state.currentArea.hasAddressedRecipient();
-    }
-    return field >= kFromName && field <= kSubject;
+    if (field < kFromName || field > kSubject) return false;
+    if (field == kToAddr && !state.currentArea.hasAddressedRecipient()) return false;
+    const auto& drawn = state.readSelect.fieldsDrawn;
+    return drawn.empty() || drawn[static_cast<size_t>(field)];
 }
 
 /// The field after the cursor's in `step`'s direction, as Tab walks them, or

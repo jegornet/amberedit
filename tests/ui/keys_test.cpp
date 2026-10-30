@@ -89,7 +89,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bcdefghqsz");
+    CHECK(keys.altLetters() == "bcdefghiklmnqsvwz");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -273,12 +273,13 @@ TEST_CASE("A merged layout keeps what the file did not move [keys]") {
 
     CHECK(keys.is(Event::Character('k'), Command::ReaderList));
     // The keys the default layout had for it are keys the file took nothing
-    // from, so the command answers to all three: merging adds a key and does
+    // from, so the command answers to all of them: merging adds a key and does
     // not move one — `keys_mode clear` is what moves a key.
     CHECK(keys.is(Event::Character('l'), Command::ReaderList));
     CHECK(keys.is(Event::F9, Command::ReaderList));
     CHECK(keys.keysOf(Command::ReaderList) ==
-          std::vector<Event>{Event::Character('k'), Event::Character('l'), Event::F9});
+          std::vector<Event>{Event::Character('k'), Event::Character('l'), Event::F9,
+                             alt('l')});
     // And the file's own key is the one a hint is drawn from: it is the key the
     // user asked this command to be under.
     CHECK(keys.preferredKey(Command::ReaderList) == Event::Character('k'));
@@ -297,9 +298,14 @@ TEST_CASE("A merged layout settles a clash in the file's favour [keys]") {
     const KeyMap keys = file.mergedOnto(KeyMap::defaults());
 
     CHECK_FALSE(keys.is(Event::Character('k'), Command::ReaderKludges));
-    // Kludges had that one key and now has none — the file said what `k` does,
-    // and nothing says what Kludges is under instead.
-    CHECK(keys.keysOf(Command::ReaderKludges).empty());
+    // Its other key stands: the file said what `k` does and nothing about Alt-K.
+    CHECK(keys.keysOf(Command::ReaderKludges) == std::vector<Event>{alt('k')});
+
+    // Thread up had one key and now has none, and nothing says what it is under
+    // instead.
+    const KeyMap thread = valueOf(KeyMap::parse("- reader.list\n", "keys"))
+                              .mergedOnto(KeyMap::defaults());
+    CHECK(thread.keysOf(Command::ReaderThreadUp).empty());
 
     // A command answered before every screen meets all of them, so it loses a
     // key to any screen's command.
@@ -331,10 +337,10 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
             .mergedOnto(KeyMap::defaults());
 
     CHECK(keys.keysOf(Command::ReaderList) ==
-          std::vector<Event>{Event::Character('l'), Event::F9});
+          std::vector<Event>{Event::Character('l'), Event::F9, alt('l')});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bcdefghjqsz");
+    CHECK(keys.altLetters() == "bcdefghijklmnqsvwz");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.

@@ -1315,9 +1315,11 @@ struct AppState {
         TextBuffer text;
         enum class Drag : uint8_t { None, Field, Text };
         Drag drag{Drag::None};
-        /// Whether the frame drew the address column, which is what says
-        /// whether the cursor may go there.
-        bool addressesShown{true};
+        /// Which fields the frame drew, one per field in `compose::Field` order,
+        /// which is what says whether the cursor may go there: `header_format`
+        /// and the window decide what the block holds. Empty until a frame has
+        /// been drawn, which leaves every field to the cursor.
+        std::vector<bool> fieldsDrawn;
         /// Where each field and each row on screen was drawn, as the editor
         /// keeps them: one per field in `compose::Field` order, the attributes
         /// button's left `Nowhere`, and one per row of the viewport.
@@ -2220,32 +2222,43 @@ struct AppState {
         return !externalEditing() && selectionOf(edit).has_value();
     }
 
-    /// Rows the header block stands on whatever the config says, in the reader
-    /// and in the editor alike: From, To, Subj and the Date row under them.
-    static constexpr int kHeaderRows = 4;
+    /// The header block the reader draws, from `header_format`: the wide format
+    /// where the reader itself has `adaptive_ui_threshold` columns or more — the
+    /// window less the sidebar and its rule where one is up — and the narrow one
+    /// otherwise. The pane and not the window, since it is the pane the block is
+    /// laid out across.
+    [[nodiscard]] const config::HeaderFormat& readerHeaderFormat() const {
+        return readerPaneWidth() >= config.adaptiveUiThreshold
+                   ? config.headerFormatWide
+                   : config.headerFormatNarrow;
+    }
 
-    /// Whether the header block carries the Recd row under the Date row, from
-    /// `show_recd_date` — off unless it is asked for. Asked on every frame like
-    /// every other `Visibility`: `when_wide` and `when_narrow` are answered by a
-    /// window that can be dragged.
-    [[nodiscard]] bool recdRowShown() const { return shown(config.showRecdDate); }
+    /// The header block the editor draws, which has no sidebar beside it and so
+    /// is read against the window.
+    [[nodiscard]] const config::HeaderFormat& composeHeaderFormat() const {
+        return wideWindow() ? config.headerFormatWide : config.headerFormatNarrow;
+    }
 
-    /// Rows the header block actually stands on: the four it always has, and the
-    /// Recd row where the config asks for one. Both screens count their chrome
-    /// from this, so the block and the text under it move together.
-    ///
-    /// The row is there whether or not the message on the screen ever arrived
-    /// from anywhere: a block that grew and shrank from one message to the next
-    /// would walk the body up and down the window while reading through an area.
-    [[nodiscard]] int headerRows() const {
-        return kHeaderRows + (recdRowShown() ? 1 : 0);
+    /// Rows the reader's header block stands on: a line per line of its format.
+    /// Everything under the block is counted from this, so the block and the
+    /// text under it move together. The rows are there whatever the message on
+    /// the screen holds — a block that grew and shrank from one message to the
+    /// next would walk the body up and down the window while reading through an
+    /// area.
+    [[nodiscard]] int readerHeaderRows() const {
+        return static_cast<int>(readerHeaderFormat().size());
+    }
+
+    /// The same for the editor's block.
+    [[nodiscard]] int composeHeaderRows() const {
+        return static_cast<int>(composeHeaderFormat().size());
     }
 
     /// The first row of the message body, counted from the top of the window:
     /// under the title, the rule beneath it, the header block and the rule that
     /// closes the block off. What a click in the text is measured against, and
     /// what the height below is measured from, so the two cannot drift apart.
-    [[nodiscard]] int readTop() const { return 3 + headerRows(); }
+    [[nodiscard]] int readTop() const { return 3 + readerHeaderRows(); }
 
     /// Height of the message body viewport — the window less that chrome.
     [[nodiscard]] int readRows() const {

@@ -55,12 +55,41 @@ std::vector<std::string> customKludges(const config::AppConfig& config,
     return lines;
 }
 
+/// The longest line the block closing a message may come to, marker and address
+/// included: the width of the terminal these lines have always been read on, less
+/// the column a cursor stands in. Characters and not bytes, the message not being
+/// in its charset yet.
+constexpr size_t kFooterLineChars = 79;
+
+size_t charCount(std::string_view text) {
+    return static_cast<size_t>(std::count_if(text.begin(), text.end(), [](const char c) {
+        return (static_cast<unsigned char>(c) & 0xC0) != 0x80;
+    }));
+}
+
+/// The first `limit` characters of `text`, and all of it where it holds no more.
+/// A blank the cut leaves at the end goes too: it would stand against whatever
+/// closes the line, or end the line in a space.
+std::string cutToChars(std::string text, const size_t limit) {
+    size_t chars = 0;
+    for (size_t i = 0; i < text.size(); ++i) {
+        if ((static_cast<unsigned char>(text[i]) & 0xC0) == 0x80) continue;
+        if (chars++ == limit) {
+            text.resize(i);
+            while (!text.empty() && text.back() == ' ') text.pop_back();
+            break;
+        }
+    }
+    return text;
+}
+
 /// The tearline built from what the config puts after the "--- ". A tearline
 /// names the program that wrote the message (FTS-0004) — the one thing it is
 /// read for, when a message turns out to have been written wrong — but what it
 /// says is the writer's to decide, and an empty one is still a tearline.
 std::string tearlineFrom(const std::string& text) {
-    return text.empty() ? "---" : "--- " + text;
+    const std::string kept = cutToChars(text, kFooterLineChars - 4);
+    return kept.empty() ? "---" : "--- " + kept;
 }
 
 /// The tagline built from what the config puts after the "... ", and nothing at
@@ -71,7 +100,8 @@ std::string tearlineFrom(const std::string& text) {
 /// while a tagline is only ever the text somebody chose to sign with. No text,
 /// no line — which is what a config that never mentions `tagline` means.
 std::string taglineFrom(const std::string& text) {
-    return text.empty() ? "" : "... " + text;
+    const std::string kept = cutToChars(text, kFooterLineChars - 4);
+    return kept.empty() ? "" : "... " + kept;
 }
 
 /// The address as INTL writes it: three dimensions, the point left off. FSC-0004
@@ -86,9 +116,14 @@ std::string addressText(const domain::FtnAddress& address) {
 }
 
 /// The origin line a message written from `address` closes with: the text the
-/// config gives, between the marker and the address in brackets.
+/// config gives, between the marker and the address in brackets. Only the text
+/// gives way to the limit: the address is what a tosser reads the line for.
 std::string originLine(const std::string& text, const std::string& address) {
-    return " * Origin: " + text + " (" + address + ")";
+    const std::string marker = " * Origin: ";
+    const std::string closing = " (" + address + ")";
+    const size_t taken = charCount(marker) + charCount(closing);
+    const size_t room = taken < kFooterLineChars ? kFooterLineChars - taken : 0;
+    return marker + cutToChars(text, room) + closing;
 }
 
 bool isBlank(std::string_view line) {

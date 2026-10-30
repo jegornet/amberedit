@@ -356,73 +356,124 @@ TEST_CASE("With reader_edge stay the ends of an area are a dead end "
     CHECK(fixture.state.readHeader->number == total);
 }
 
-TEST_CASE("The header gives each stamp a row of its own "
-          "[messageread][header][squish]") {
+namespace {
+
+using amberedit::config::HeaderField;
+using amberedit::config::HeaderFieldKind;
+using amberedit::config::HeaderFormat;
+using amberedit::config::HeaderLabel;
+using amberedit::config::HeaderLine;
+
+/// `" {Name}5: "` — the label and what the default formats put round it.
+std::vector<HeaderField> labelled(HeaderLabel label) {
+    return {{HeaderFieldKind::Literal, 0, " "},
+            {HeaderFieldKind::Label, 5, {}, label},
+            {HeaderFieldKind::Literal, 0, ": "}};
+}
+
+/// A line of the format: a label and the fields after it.
+HeaderLine lineOf(HeaderLabel label, std::vector<HeaderField> fields) {
+    HeaderLine line = labelled(label);
+    line.insert(line.end(), fields.begin(), fields.end());
+    return line;
+}
+
+/// The default formats with a Recd line under them, which is how a config asks
+/// for the arrival stamp.
+void withRecdLine(AreaFixture& fixture) {
+    const HeaderLine recd =
+        lineOf(HeaderLabel::Received, {{HeaderFieldKind::Arrived, 0}});
+    fixture.config.headerFormatNarrow.push_back(recd);
+    fixture.config.headerFormatWide.push_back(recd);
+}
+
+}  // namespace
+
+TEST_CASE(
+    "The default header puts the Date row under the names and the subject "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     // The title row is not what is under test.
     fixture.config.backButton = Visibility::Off;
-    fixture.config.showRecdDate = Visibility::On;
     fixture.state.width = 92;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader.has_value());
+    REQUIRE(fixture.state.readHeader->origAddr.isValid());
+    fixture.state.readHeader->attributes = amberedit::domain::attr::kPrivate;
 
     const std::vector<std::string> rows = rowsOf(fixture);
     CHECK(startsWith(rows[2], " From : "));
     CHECK(startsWith(rows[3], " To   : "));
     CHECK(startsWith(rows[4], " Subj : "));
     CHECK(startsWith(rows[5], " Date : "));
-    CHECK(startsWith(rows[6], " Recd : "));
-    // When the message was written on the one row and when it arrived on the
-    // other, each in the column the names stand in above, and nothing standing
-    // between them: the label is what says which stamp a row carries.
-    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readTop() == 7);
+
+    // The stamp after the label, and in the wide format the names their 36
+    // columns with the addresses after them — the attributes standing in that
+    // same column on the Date row.
     const std::string written =
         fixture.state.readHeader->date.format(fixture.config.readerDateTimeFormat);
+    CHECK(rows[5].find(written) == 8);
+    const std::string address = fixture.state.readHeader->origAddr.toString();
+    CHECK(rows[2].find(address) == 8 + 36);
+    CHECK(rows[5].find("[Pvt]") == 8 + 36);
+}
+
+TEST_CASE(
+    "The narrow format gives the names what the addresses leave "
+    "[messageread][header][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = Visibility::Off;
+    fixture.config.menuButton = Visibility::Off;
+    fixture.state.width = 60;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader.has_value());
+    fixture.state.readHeader->attributes = amberedit::domain::attr::kPrivate;
+
+    // The addresses and the attributes their 15 columns against the margin,
+    // the names and the stamp taking what is left — and in a window narrower
+    // than that, the labels kept whole.
+    const std::vector<std::string> rows = rowsOf(fixture);
+    const std::string address = fixture.state.readHeader->origAddr.toString();
+    CHECK(rows[2].find(address) == static_cast<size_t>(60 - 1 - 15));
+    CHECK(rows[5].find("[Pvt]") == static_cast<size_t>(60 - 1 - 15));
+
+    fixture.state.width = 30;
+    const std::vector<std::string> narrow = rowsOf(fixture);
+    CHECK(startsWith(narrow[2], " From : "));
+    CHECK(startsWith(narrow[5], " Date : "));
+}
+
+TEST_CASE(
+    "A Recd line puts the arrival stamp up and takes a row off the text "
+    "[messageread][header][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    fixture.config.backButton = Visibility::Off;
+    fixture.state.width = 92;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader.has_value());
+    const int bodyRows = fixture.state.readRows();
+
+    withRecdLine(fixture);
+    const std::vector<std::string> rows = rowsOf(fixture);
+    CHECK(startsWith(rows[6], " Recd : "));
     const std::string arrived =
         fixture.state.readHeader->arrivalDate.format(fixture.config.readerDateTimeFormat);
     REQUIRE_FALSE(arrived.empty());
-    // Right after the label column, which is eight wide.
-    CHECK(rows[5].find(written) == 8);
     CHECK(rows[6].find(arrived) == 8);
-    CHECK(rows[5].find(" | ") == std::string::npos);
+    CHECK(fixture.state.readRows() == bodyRows - 1);
 }
 
-TEST_CASE("A stamp widens its column rather than being cut at a name's width "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "%z writes the zone the message states, and only on the stamp it dates "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
-    // A format free enough with its words to outgrow the name field FTS-0001
-    // fixes — which is what the column would otherwise stop at, cutting the
-    // stamp at every width rather than only in a narrow window.
-    fixture.config.readerDateTimeFormat = "%A, the %d of %B %Y, %H:%M %z";
-    fixture.state.width = 100;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
-    REQUIRE(fixture.state.readHeader.has_value());
-
-    fixture.state.readHeader->utcOffset = "+0300";
-    const std::string written = fixture.state.readHeader->date.format(
-        fixture.config.readerDateTimeFormat, "+0300");
-    // Wider than the 36 columns a name may take, which is where the column
-    // used to stop.
-    REQUIRE(written.size() > 36);
-
-    const std::vector<std::string> rows = rowsOf(fixture);
-    CHECK(rows[5].find(written) == 8);
-    // The column beside it moves with it rather than being written over: the
-    // address on the From row begins past the stamp, so the block still lines
-    // up down its two columns.
-    const std::string address = fixture.state.readHeader->origAddr.toString();
-    REQUIRE_FALSE(address.empty());
-    CHECK(rows[2].find(address) >= 8 + written.size());
-}
-
-TEST_CASE("%z writes the zone the message states, and only on the row it dates "
-          "[messageread][header][squish]") {
-    TempSquishBase base;
-    AreaFixture fixture(base.path());
-    fixture.config.backButton = Visibility::Off;
-    fixture.config.showRecdDate = Visibility::On;
+    withRecdLine(fixture);
     fixture.state.width = 92;
     fixture.config.readerDateTimeFormat = "%H:%M %z";
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
@@ -436,77 +487,107 @@ TEST_CASE("%z writes the zone the message states, and only on the row it dates "
     REQUIRE_FALSE(arrived.empty());
 
     const std::vector<std::string> rows = rowsOf(fixture);
-    // The offset stands on the row of the stamp it dates and on no other: TZUTC
-    // says which clock the message was written by, and when it arrived here was
-    // read off this system's, which the message has nothing to say about.
+    // TZUTC says which clock the message was written by, and when it arrived
+    // here was read off this system's, which the message says nothing about.
     CHECK(rows[5].find(written + " +0300") == 8);
     CHECK(rows[6].find(arrived) == 8);
     CHECK(rows[6].find("+0300") == std::string::npos);
 }
 
-TEST_CASE("show_recd_date is what puts the Recd row up, and it is off by default "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "A stamp written with a format of its own uses that format "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.state.width = 92;
+    fixture.config.headerFormatWide.back() = lineOf(
+        HeaderLabel::Date,
+        {{HeaderFieldKind::Written, 0, "%Y-%m-%d"}, {HeaderFieldKind::Attributes, 25}});
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    REQUIRE(fixture.state.readHeader.has_value());
 
-    // Off unless it is asked for: the row is a fifth of the header block and a
-    // row off the message under it.
-    CHECK(fixture.config.showRecdDate == Visibility::Off);
-    std::vector<std::string> rows = rowsOf(fixture);
-    CHECK(startsWith(rows[5], " Date : "));
-    CHECK_FALSE(startsWith(rows[6], " Recd : "));
-    // The rule closing the block off stands where the row would have been, so
-    // the body begins a row higher.
-    const int bodyRows = fixture.state.readRows();
-
-    fixture.config.showRecdDate = Visibility::On;
-    rows = rowsOf(fixture);
-    CHECK(startsWith(rows[6], " Recd : "));
-    CHECK(fixture.state.readRows() == bodyRows - 1);
+    const std::string written = fixture.state.readHeader->date.format("%Y-%m-%d");
+    CHECK(rowsOf(fixture)[5].find(written) == 8);
 }
 
-TEST_CASE("show_recd_date when_wide follows the width of the window "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "The labels and the stamps stand wherever the format puts them "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
-    fixture.config.showRecdDate = Visibility::WhenWide;
-    fixture.config.adaptiveUiThreshold = 80;
-
-    fixture.state.width = 92;
+    fixture.state.width = 120;
+    // Three columns: the stamps beside the addresses, labelled on their own.
+    const HeaderFormat threeColumns{
+        lineOf(HeaderLabel::From, {{HeaderFieldKind::FromName, 35},
+                                   {HeaderFieldKind::FromAddr, 20},
+                                   {HeaderFieldKind::Label, 5, {}, HeaderLabel::Date},
+                                   {HeaderFieldKind::Literal, 0, ": "},
+                                   {HeaderFieldKind::Written, 0}}),
+        lineOf(HeaderLabel::To, {{HeaderFieldKind::ToName, 35},
+                                 {HeaderFieldKind::ToAddr, 20},
+                                 {HeaderFieldKind::Label, 5, {}, HeaderLabel::Received},
+                                 {HeaderFieldKind::Literal, 0, ": "},
+                                 {HeaderFieldKind::Arrived, 0}}),
+        lineOf(HeaderLabel::Subject,
+               {{HeaderFieldKind::Subject, 55}, {HeaderFieldKind::Attributes, 17}}),
+    };
+    fixture.config.headerFormatWide = threeColumns;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
-    CHECK(startsWith(rowsOf(fixture)[6], " Recd : "));
+    REQUIRE(fixture.state.readHeader.has_value());
 
-    // Dragged under the threshold, the row goes with the width it was asked for
-    // — the same line every other window-led setting is read against.
-    fixture.state.width = 70;
-    CHECK_FALSE(startsWith(rowsOf(fixture)[6], " Recd : "));
-
-    fixture.config.showRecdDate = Visibility::WhenNarrow;
-    CHECK(startsWith(rowsOf(fixture)[6], " Recd : "));
+    const std::vector<std::string> rows = rowsOf(fixture);
+    CHECK(fixture.state.readTop() == 6);
+    const size_t stamps = 8 + 35 + 20;
+    CHECK(rows[2].find("Date : ") == stamps);
+    CHECK(rows[3].find("Recd : ") == stamps);
+    const std::string written =
+        fixture.state.readHeader->date.format(fixture.config.readerDateTimeFormat);
+    CHECK(rows[2].find(written) == stamps + 7);
 }
 
-TEST_CASE("The Recd row is drawn in the color the Date row is "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "The reader's format follows its own width, not the window's "
+    "[messageread][header][sidebar][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    withRecdLine(fixture);
+    // A Recd line in the wide format alone, so the format chosen shows in the
+    // height of the block.
+    fixture.config.headerFormatNarrow.pop_back();
+    fixture.config.adaptiveUiThreshold = 100;
+    fixture.config.readerSidebarThreshold = 120;
+    fixture.state.width = 125;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    // The window is wide; the reader beside the panel is not.
+    REQUIRE(fixture.state.readerSidebarShown());
+    REQUIRE(fixture.state.readerPaneWidth() < 100);
+    CHECK(fixture.state.readerHeaderRows() == 4);
+
+    // Without the panel the reader has the window, and the wide format.
+    fixture.config.readerSidebarThreshold = 0;
+    CHECK(fixture.state.readerHeaderRows() == 5);
+}
+
+TEST_CASE(
+    "The arrival stamp is drawn in the color the written one is "
+    "[messageread][header][squish]") {
     namespace theme = amberedit::ui::theme;
 
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
-    fixture.config.showRecdDate = Visibility::On;
+    withRecdLine(fixture);
     fixture.state.width = 92;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     term::Screen screen(fixture.state.width, fixture.state.height);
     term::render(screen, message_read::render(fixture.state));
 
-    // The two are a pair of stamps and read as one, so the label and what
-    // stands beside it are the block's own color on both rows — the arrival
-    // stamp wore the kludges' shade while the two shared a row, and the label
-    // is what tells them apart now.
+    // The two are a pair of stamps and read as one: the label and the stamp
+    // are the block's own color on both rows.
     const std::string arrived =
         fixture.state.readHeader->arrivalDate.format(fixture.config.readerDateTimeFormat);
     REQUIRE_FALSE(arrived.empty());
@@ -542,7 +623,6 @@ TEST_CASE(
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.config.menuButton = Visibility::Off;
-    fixture.config.showRecdDate = Visibility::Off;
     fixture.state.width = 92;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
@@ -560,9 +640,9 @@ TEST_CASE(
     for (const term::Color& bg : fillOf(0)) CHECK(bg == titleFill);
 
     // The block, the rule over it and the rule under it included — six rows
-    // here: the rule, From, To, Subj, Date, and the rule that closes it off.
-    // The two lines are what the block is read as starting and stopping at, so
-    // they carry its fill rather than the screen's.
+    // here: the rule, the four lines of the format, and the rule that closes
+    // it off. The two lines are what the block is read as starting and
+    // stopping at, so they carry its fill rather than the screen's.
     for (int y = 1; y <= 6; ++y) {
         CAPTURE(y);
         for (const term::Color& bg : fillOf(y)) CHECK(bg == headerFill);
@@ -575,12 +655,13 @@ TEST_CASE(
     }
 }
 
-TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "A message that never arrived keeps the Recd row and leaves it blank "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
-    fixture.config.showRecdDate = Visibility::On;
+    withRecdLine(fixture);
     fixture.state.width = 92;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.readHeader.has_value());
@@ -594,8 +675,9 @@ TEST_CASE("A message that never arrived keeps the Recd row and leaves it blank "
     CHECK(rows[6].find_first_not_of(' ', 8) == std::string::npos);
 }
 
-TEST_CASE("The Subj row runs to the edge of the block rather than to the columns "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "The Subj row runs to the edge of the block rather than to the columns "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
@@ -614,66 +696,17 @@ TEST_CASE("The Subj row runs to the edge of the block rather than to the columns
     CHECK(rows[4].find(subject) == 8);
 }
 
-TEST_CASE("A window too narrow for both stamps keeps the one that dates the message "
-          "[messageread][header][squish]") {
-    TempSquishBase base;
-    AreaFixture fixture(base.path());
-    fixture.config.backButton = Visibility::Off;
-    fixture.config.menuButton = Visibility::Off;
-    // Long enough that the pair cannot fit the name column at any width, so
-    // the arrival stamp is what has to go.
-    fixture.config.readerDateTimeFormat = "%A %d %B %Y %H:%M:%S";
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
-
-    REQUIRE(fixture.state.readHeader.has_value());
-    const std::string written =
-        fixture.state.readHeader->date.format(fixture.config.readerDateTimeFormat);
-    const std::string arrived =
-        fixture.state.readHeader->arrivalDate.format(fixture.config.readerDateTimeFormat);
-    REQUIRE_FALSE(arrived.empty());
-
-    const std::vector<std::string> rows = rowsOf(fixture);
-    CHECK(startsWith(rows[5], " Date : "));
-    CHECK(rows[5].find(" | ") == std::string::npos);
-    // Truncated to the column rather than dropped: the date is what the row is
-    // for, and it is the arrival stamp that gives way.
-    CHECK(rows[5].find(written.substr(0, 8)) != std::string::npos);
-}
-
-TEST_CASE("The subject runs the width of the header block and the attributes close it "
-          "[messageread][header][squish]") {
-    TempSquishBase base;
-    AreaFixture fixture(base.path());
-    fixture.config.backButton = Visibility::Off;
-    fixture.state.width = 92;
-    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
-
-    REQUIRE(fixture.state.readHeader.has_value());
-    REQUIRE(fixture.state.readHeader->origAddr.isValid());
-    // Longer than the name column, which stops at 36: a subject has nothing
-    // lining up under it, so it runs on into the column the addresses hold.
-    const std::string subject(40, 'x');
-    fixture.state.readHeader->subject = subject;
-    fixture.state.readHeader->attributes = amberedit::domain::attr::kPrivate;
-
-    const std::vector<std::string> rows = rowsOf(fixture);
-    CHECK(rows[4].find(subject) == 8);
-    // The attributes stand where the addresses do, on the Date row.
-    const size_t address = rows[2].find(fixture.state.readHeader->origAddr.toString());
-    REQUIRE(address != std::string::npos);
-    CHECK(rows[5].find("[Pvt]") == address);
-}
-
-TEST_CASE("The header block keeps its four rows at any width "
-          "[messageread][header][squish]") {
+TEST_CASE(
+    "The header block keeps its four rows at any width "
+    "[messageread][header][squish]") {
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.backButton = Visibility::Off;
     fixture.config.menuButton = Visibility::Off;
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
-    // Eighty columns is the line the rest of the interface adapts on, and the
-    // header block does not: the stamps keep their own row either side of it.
+    // Both default formats are four lines, so crossing the line between them
+    // moves nothing under the block.
     const int wide = fixture.config.adaptiveUiThreshold;
     for (const int width : {wide + 40, wide, wide - 1, 40}) {
         fixture.state.width = width;
@@ -1827,16 +1860,12 @@ int columnOf(const AreaFixture& fixture, term::Screen& screen, int row,
     return -1;
 }
 
-/// The rule closing the header block, which is the row under the Date row —
-/// or under the Recd row where the config asks for one.
+/// The rule closing the header block, the row over the first row of the text.
 std::string closingRule(AreaFixture& fixture) {
     const std::vector<std::string> rows = rowsOf(fixture);
-    const int date = rowHolding(rows, "Date :");
-    REQUIRE(date >= 0);
-    const auto after =
-        static_cast<size_t>(date) + 1 + (fixture.state.recdRowShown() ? 1 : 0);
-    REQUIRE(after < rows.size());
-    return rows[after];
+    const auto at = static_cast<size_t>(fixture.state.readTop() - 1);
+    REQUIRE(at < rows.size());
+    return rows[at];
 }
 
 }  // namespace
@@ -1915,6 +1944,30 @@ TEST_CASE("With show_location off the rule is a rule "
     CHECK(closingRule(fixture).find("Belgrade") == std::string::npos);
 }
 
+TEST_CASE(
+    "With one field on the sender's line the location stands at the rule's end "
+    "[messageread][nodelist][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    amberedit::test::TempDir dir;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    giveNodelistWithSender(fixture, dir);
+
+    // The sender's name alone on its line, the address on a line of its own:
+    // there is no second column to stand under.
+    HeaderFormat format = fixture.config.headerFormatWide;
+    format[0] = lineOf(HeaderLabel::From, {{HeaderFieldKind::FromName, 0}});
+    format.push_back(lineOf(HeaderLabel::From, {{HeaderFieldKind::FromAddr, 0}}));
+    fixture.config.headerFormatWide = format;
+
+    const std::string rule = closingRule(fixture);
+    const size_t at = rule.find("Belgrade");
+    REQUIRE(at != std::string::npos);
+    // A space and one stretch of rule after it, and nothing else.
+    const std::string tail = rule.substr(at + std::string("Belgrade").size());
+    CHECK(tail == " ─");
+}
+
 TEST_CASE("The rule under the header says how much message there is "
           "[messageread][squish]") {
     TempSquishBase base;
@@ -1938,8 +1991,7 @@ TEST_CASE("The rule under the header says how much message there is "
     CHECK(startsWith(rule, " " + size + " "));
 
     const std::vector<std::string> rows = rowsOf(fixture);
-    const int at = rowHolding(rows, "Date :") + 1;
-    REQUIRE(at > 0);
+    const int at = fixture.state.readTop() - 1;
     REQUIRE(rows[static_cast<size_t>(at)] == rule);
 
     term::Screen screen(fixture.state.width, fixture.state.height);

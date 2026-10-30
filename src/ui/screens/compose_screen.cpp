@@ -5,10 +5,12 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -28,6 +30,7 @@
 #include "ui/edit_layout.hpp"
 #include "ui/event_util.hpp"
 #include "ui/extern_util.hpp"
+#include "ui/header_format.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/input_field.hpp"
 #include "ui/menu_button.hpp"
@@ -46,15 +49,13 @@ using namespace term;
 
 namespace {
 
-/// " From : ", " To   : ", " Subj : " — the same label column the reader
-/// draws, indent included, so a message being written lines up with one being
-/// read. Measured there and asked for here, so that the two cannot part company
-/// in a language whose words are a different length.
-using screens::message_read::header_labels::labelColumn;
+/// A column of margin at the right end of the header block, as the reader keeps.
 constexpr int kRightPad = 1;
-/// "65535:65535/65535.65535": the widest a 4D address can be. Fixed rather
-/// than measured, so the column does not shuffle sideways as it is typed into.
-constexpr int kAddressWidth = 23;
+/// The most an address field written `0` is given where nothing stands after
+/// it: the width the default formats and a bare `o` or `r` give one, so that an
+/// address reads the same width wherever it stands. The widest 4D address,
+/// "65535:65535/65535.65535", is 23 of them.
+constexpr int kAddressWidth = 25;
 /// What a header field will hold, in characters.
 ///
 /// XMSG keeps 36 bytes for a name and 72 for the subject, the terminating zero
@@ -74,11 +75,6 @@ constexpr size_t kMaxSubjectChars = 71;
 /// sideways the moment it was filled.
 constexpr int kMaxNameWidth = static_cast<int>(kMaxNameChars) + 1;
 constexpr int kMaxSubjectWidth = static_cast<int>(kMaxSubjectChars) + 1;
-
-int nameWidth(int screenWidth) {
-    const int room = screenWidth - kRightPad - labelColumn() - kAddressWidth;
-    return std::clamp(room, 1, kMaxNameWidth);
-}
 
 /// The most the field will take, or 0 for one that is not limited this way: an
 /// address is bounded by what parses as an address, and the attributes are a
@@ -142,16 +138,136 @@ FieldSelection fieldSelection(const AppState& state) {
     return {std::min(anchor, cursor), std::max(anchor, cursor)};
 }
 
-/// One row: the label, the name column and — where the row has one — the
-/// address column, hard against it. The two are fields now, each on a fill of
-/// its own, and the edge where one ends and the next begins is what a column of
-/// blank between them used to be there to draw.
-Element row(const std::string& label, Element name, Element address) {
-    Elements cells{text(screens::message_read::header_labels::labelCell(label)) | bold |
-                       color(theme::palette.header),
-                   std::move(name)};
-    if (address) cells.push_back(std::move(address));
-    return hbox(std::move(cells));
+/// The stop of the block a piece of the format is, or -1 for a label, a literal
+/// and a stamp — shown and never typed into.
+int stopOf(config::HeaderFieldKind kind) {
+    switch (kind) {
+        case config::HeaderFieldKind::FromName: return kFromName;
+        case config::HeaderFieldKind::FromAddr: return kFromAddr;
+        case config::HeaderFieldKind::ToName: return kToName;
+        case config::HeaderFieldKind::ToAddr: return kToAddr;
+        case config::HeaderFieldKind::Subject: return kSubject;
+        case config::HeaderFieldKind::Attributes: return kAttributes;
+        default: return -1;
+    }
+}
+
+/// The header block as `header_format` lays it out across this window. The
+/// stamps are measured off the clock, which is what the Date and Recd rows
+/// show over a message being written; a field written `0` with nothing typed
+/// after it on its line is held to what it will take — see `header_format::Cap`.
+header_format::Layout composeLayout(const AppState& state) {
+    const std::time_t when = std::time(nullptr);
+    const std::string zone = app::zoneOffset(sys::utcOffsetMinutes(when));
+    return header_format::layout(
+        state.composeHeaderFormat(), state.width - kRightPad,
+        [&](const config::HeaderField& field) {
+            const std::string& format =
+                field.text.empty() ? state.config.readerDateTimeFormat : field.text;
+            return displayWidth(field.kind == config::HeaderFieldKind::Written
+                                    ? app::localStamp(when).format(format, zone)
+                                    : app::localStamp(when).format(format));
+        },
+        [](config::HeaderFieldKind kind) {
+            switch (kind) {
+                case config::HeaderFieldKind::FromName:
+                case config::HeaderFieldKind::ToName: return kMaxNameWidth;
+                case config::HeaderFieldKind::FromAddr:
+                case config::HeaderFieldKind::ToAddr: return kAddressWidth;
+                case config::HeaderFieldKind::Subject: return kMaxSubjectWidth;
+                default: return 0;
+            }
+        });
+}
+
+/// Where a stop of the block stands: its line and the columns it spans.
+struct StopSpot {
+    int line{0};
+    int left{0};
+    int right{0};
+};
+
+/// Where each stop stands in this window, by `Field`, or nothing for one the
+/// block does not draw as a stop — the To address in echomail, and a field the
+/// window had no column for.
+std::vector<std::optional<StopSpot>> stopSpots(const AppState& state) {
+    std::vector<std::optional<StopSpot>> spots(kFieldCount);
+    const header_format::Layout layout = composeLayout(state);
+    for (size_t line = 0; line < layout.size(); ++line) {
+        for (const auto& cell : layout[line]) {
+            const int stop = stopOf(cell.kind);
+            if (stop < 0 || cell.width <= 0) continue;
+            if (stop == kToAddr && !state.compose.netmail) continue;
+            spots[static_cast<size_t>(stop)] =
+                StopSpot{static_cast<int>(line), cell.x, cell.x + cell.width};
+        }
+    }
+    return spots;
+}
+
+/// The stop nearest `from` on the nearest line in `step`'s direction that has
+/// one, or -1 where no line that way does — the block as it is drawn, whatever
+/// the format put where:
+///
+/// - the nearest line holding a stop at all, so a line of stamps alone is
+///   stepped over;
+/// - on it, the stop sharing the most columns with `from`;
+/// - sharing none, the one standing nearest beside it;
+/// - and between two equally near, the one further left.
+int stopToward(const AppState& state, const StopSpot& from, int step) {
+    const auto spots = stopSpots(state);
+    int best = -1;
+    int bestLine = 0;
+    int bestOverlap = 0;
+    int bestGap = 0;
+    int bestLeft = 0;
+    for (int stop = 0; stop < kFieldCount; ++stop) {
+        const auto& spot = spots[static_cast<size_t>(stop)];
+        if (!spot) continue;
+        const int distance = (spot->line - from.line) * step;
+        if (distance <= 0) continue;
+        const int overlap = std::max(
+            0, std::min(spot->right, from.right) - std::max(spot->left, from.left));
+        const int gap = overlap > 0 ? 0
+                                    : std::max(spot->left - from.right + 1,
+                                               from.left - spot->right + 1);
+        const bool better =
+            best < 0 || distance < (bestLine - from.line) * step ||
+            (distance == (bestLine - from.line) * step &&
+             (overlap > bestOverlap ||
+              (overlap == bestOverlap &&
+               (gap < bestGap || (gap == bestGap && spot->left < bestLeft)))));
+        if (!better) continue;
+        best = stop;
+        bestLine = spot->line;
+        bestOverlap = overlap;
+        bestGap = gap;
+        bestLeft = spot->left;
+    }
+    return best;
+}
+
+/// The typed field beside the one the cursor is in on its own line — `step`
+/// +1 the next to the right, -1 the next to the left — or -1 where none stands
+/// that way. What → off the end of a field and ← off the start of one cross to,
+/// as the arrows cross a line end in the text. The attributes are a button and
+/// not where typing goes on, so they are not one of these.
+int fieldBeside(const AppState& state, int step) {
+    const auto spots = stopSpots(state);
+    const auto& from = spots[static_cast<size_t>(state.composeField)];
+    if (!from) return -1;
+    int best = -1;
+    int bestLeft = 0;
+    for (int stop = 0; stop < kAttributes; ++stop) {
+        const auto& spot = spots[static_cast<size_t>(stop)];
+        if (!spot || stop == state.composeField || spot->line != from->line) continue;
+        if ((spot->left - from->left) * step <= 0) continue;
+        if (best < 0 || (spot->left - bestLeft) * step < 0) {
+            best = stop;
+            bestLeft = spot->left;
+        }
+    }
+    return best;
 }
 
 /// What the message's attributes say, in the short forms the reader shows them
@@ -220,24 +336,26 @@ Element attributesColumn(AppState& state, int width, bool focused) {
                  text(std::string(static_cast<size_t>(std::max(0, width - used)), ' '))});
 }
 
-/// The four rows of the header block, over the message's text.
+/// The rows of the header block, over the message's text, as `header_format`
+/// lays them out — the same format the reader draws a message by.
 ///
 /// `editing` is whether the typing goes into them: the field the cursor is in
 /// carries it, and none of them does while the text below has it.
 Elements headerRows(AppState& state, bool editing) {
-    // Nowhere until the row is drawn, so that the one echomail leaves out —
-    // the To address — answers no click at all.
-    state.composeFieldSpots.assign(kFieldCount, AppState::ComposeSpot{});
+    using config::HeaderFieldKind;
 
-    const int names = nameWidth(state.width);
+    // Nowhere until the field is drawn, so that one the block leaves out — the
+    // To address in echomail — answers no click at all.
+    state.composeFieldSpots.assign(kFieldCount, AppState::ComposeSpot{});
+    state.changeAttributesBox = Box::Nowhere();
+
     // A field that is typed into is drawn on a fill the width of its column, so
     // that it reads as a box asking for something before anything is in it: the
-    // block is otherwise five values written on a screen, with nothing about
-    // them saying which of the two blocks on this screen may be changed. Idle,
-    // that is `input_field` with `input_text` on it; the one the typing is in
-    // takes `focused_field`/`focused_text` instead — the same pair the
-    // attributes button beside them takes, so whatever the typing is on wears
-    // one color everywhere.
+    // block is otherwise values written on a screen, with nothing about them
+    // saying which of the two blocks on this screen may be changed. Idle, that
+    // is `input_field` with `input_text` on it; the one the typing is in takes
+    // `focused_field`/`focused_text` instead — the same pair the attributes
+    // button takes, so whatever the typing is on wears one color everywhere.
     const auto cell = [&](int which, int width) {
         const bool focused = editing && state.composeField == which;
         return field(valueOf(state.compose, which), state.composeCursor, width, focused,
@@ -247,63 +365,73 @@ Elements headerRows(AppState& state, bool editing) {
                      focused ? fieldSelection(state) : FieldSelection{}) |
                bgcolor(focused ? theme::palette.focusedField : theme::palette.inputField);
     };
-    // What is left of the row once the labels and the names are taken off —
-    // wider than the address column above it, since the names stop at
-    // kMaxNameWidth and a roomy window leaves the rest over.
-    const int trailing = std::max(1, state.width - kRightPad - labelColumn() - names);
 
-    // The Date row the reader draws, over a message that has no stamp of its
-    // own yet: what is being written is written now, read afresh on every
-    // frame. Shown rather than typed into — the message is stamped when it is
-    // stored, not from here, which is why the row is not one of the fields the
-    // cursor walks. The Recd row under it, where `show_recd_date` asks for one,
-    // is the same clock read the same way: a message being written arrives here
-    // as it is stored, and the row is there so that the block goes on being the
-    // reader's field for field.
+    // The Date and Recd rows the reader draws, over a message that has no stamp
+    // of its own yet: what is being written is written now, read afresh on
+    // every frame, and arrives here as it is stored. Shown rather than typed
+    // into — the message is stamped when it is stored, not from here, which is
+    // why neither is a stop the cursor walks. A message being changed is stamped
+    // afresh when it is stored too, so the row says what it will be dated by.
     //
-    // A message being changed is stamped afresh when it is stored, so the row
-    // is the clock there too — it says what the message will be dated by, not
-    // what it was dated by when the editor opened on it.
-    //
-    // The zone `%z` writes here is the clock here, which is the offset the
-    // TZUTC of this message will state: the reader shows a message by the zone
-    // it says it was written in, and the editor is where this one is being
-    // written.
+    // The zone `%z` writes on the Date row is the clock here, which is the
+    // offset the TZUTC of this message will state. The arrival stamp is given
+    // none, here as in the reader: when a message arrived is read off this
+    // system's clock, which is not something the message states.
     const std::time_t when = std::time(nullptr);
     const std::string zone = app::zoneOffset(sys::utcOffsetMinutes(when));
-    const std::string now =
-        app::localStamp(when).format(state.config.readerDateTimeFormat, zone);
-    // The arrival stamp is given no zone, here as in the reader: when a message
-    // arrived is read off this system's clock, which is not something the
-    // message states, so `%z` writes nothing there on either screen.
-    const std::string arrived =
-        app::localStamp(when).format(state.config.readerDateTimeFormat);
-
-    Elements rows{
-        row(screens::message_read::header_labels::from(), cell(kFromName, names),
-            cell(kFromAddr, kAddressWidth)),
-        // Echomail is addressed to the area, so the row carries a name and
-        // nothing else — the same as the reader shows for it.
-        row(screens::message_read::header_labels::to(), cell(kToName, names),
-            state.compose.netmail ? cell(kToAddr, kAddressWidth) : Element{}),
-        // The subject runs across both columns, as it does in the reader — but
-        // no further than what it will hold: a box stretching across a wide
-        // window would offer room the base has none for.
-        row(screens::message_read::header_labels::subject(),
-            cell(kSubject, std::min(names + trailing, kMaxSubjectWidth)), Element{}),
-        // The stamp in the block's own color, and on no fill: it is the one
-        // value here that is shown rather than typed into, and the fills above
-        // are what say which of them the typing may go to.
-        row(screens::message_read::header_labels::date(),
-            field(now, 0, names, false, theme::palette.header),
-            attributesColumn(state, trailing,
-                             editing && state.composeField == kAttributes)),
+    const auto stamp = [&](HeaderFieldKind kind, const std::string& format) {
+        const std::string& written =
+            format.empty() ? state.config.readerDateTimeFormat : format;
+        return kind == HeaderFieldKind::Written
+                   ? app::localStamp(when).format(written, zone)
+                   : app::localStamp(when).format(written);
     };
-    // In the block's own color and on no fill, as the Date row above it is: the
-    // two are a pair of stamps, and the reader draws them the same way.
-    if (state.recdRowShown()) {
-        rows.push_back(row("Recd", field(arrived, 0, names, false, theme::palette.header),
-                           Element{}));
+
+    Elements rows;
+    for (const auto& line : composeLayout(state)) {
+        Elements cells;
+        for (const auto& piece : line) {
+            if (piece.width <= 0) continue;
+            switch (piece.kind) {
+                case HeaderFieldKind::Label:
+                case HeaderFieldKind::Literal: {
+                    const std::string shown =
+                        piece.kind == HeaderFieldKind::Label
+                            ? std::string(header_format::labelText(piece.label))
+                            : piece.text;
+                    cells.push_back(
+                        text(padRight(truncateToWidth(shown, piece.width), piece.width)) |
+                        bold | color(theme::palette.header));
+                    break;
+                }
+                // The stamps in the block's own color, and on no fill: they are
+                // the values here that are shown rather than typed into, and the
+                // fills are what say which of them the typing may go to.
+                case HeaderFieldKind::Written:
+                case HeaderFieldKind::Arrived:
+                    cells.push_back(field(stamp(piece.kind, piece.text), 0, piece.width,
+                                          false, theme::palette.header));
+                    break;
+                case HeaderFieldKind::Attributes:
+                    cells.push_back(
+                        attributesColumn(state, piece.width,
+                                         editing && state.composeField == kAttributes));
+                    break;
+                case HeaderFieldKind::ToAddr:
+                    // Echomail is addressed to the area, so there is no address
+                    // to type — the columns stand blank, as the reader leaves
+                    // them for it.
+                    if (!state.compose.netmail) {
+                        cells.push_back(
+                            text(std::string(static_cast<size_t>(piece.width), ' ')));
+                        break;
+                    }
+                    cells.push_back(cell(kToAddr, piece.width));
+                    break;
+                default: cells.push_back(cell(stopOf(piece.kind), piece.width)); break;
+            }
+        }
+        rows.push_back(hbox(std::move(cells)));
     }
     return rows;
 }
@@ -394,39 +522,96 @@ Element chrome(const AppState& state, Elements body) {
     return vbox(std::move(content));
 }
 
-/// Moves to the next field in `step`'s direction, skipping the To address
-/// where there is none. Returns kFieldCount when the header is done with.
-int fieldAfter(const AppState& state, int step) {
-    int next = state.composeField + step;
-    if (next == kToAddr && !state.compose.netmail) next += step;
-    return std::clamp(next, 0, static_cast<int>(kFieldCount));
+/// The stops of the block in the order they are read: a line at a time from
+/// the top, and along each line from the left — whatever line the format puts
+/// each field on. What Tab walks, and Enter too, the button left out.
+std::vector<int> stopsInOrder(const AppState& state, bool typedOnly) {
+    const auto spots = stopSpots(state);
+    std::vector<int> order;
+    for (int stop = 0; stop < kFieldCount; ++stop) {
+        if (!spots[static_cast<size_t>(stop)]) continue;
+        if (typedOnly && stop == kAttributes) continue;
+        order.push_back(stop);
+    }
+    std::sort(order.begin(), order.end(), [&spots](int a, int b) {
+        const StopSpot& first = *spots[static_cast<size_t>(a)];
+        const StopSpot& second = *spots[static_cast<size_t>(b)];
+        return std::tie(first.line, first.left) < std::tie(second.line, second.left);
+    });
+    return order;
 }
 
-/// The stop under the one the cursor is on, as the block is drawn: the names
-/// down the left, the addresses beside them, the subject under both and the
-/// attributes button under that. The From address goes down onto the To
-/// address where there is one; a name steps over it onto the subject.
+/// The stop after the one the cursor is on in `step`'s direction, as the block
+/// is read — see `stopsInOrder()` — or kFieldCount where there is none that
+/// way, which is the text either way round. A cursor on a stop the order leaves
+/// out — the button, for Enter — starts from the first stop read after it.
+int fieldAfter(const AppState& state, int step, bool typedOnly) {
+    const std::vector<int> order = stopsInOrder(state, typedOnly);
+    const auto spots = stopSpots(state);
+    const auto& from = spots[static_cast<size_t>(state.composeField)];
+    int at = -1;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == state.composeField) at = static_cast<int>(i);
+    }
+    if (at < 0 && from) {
+        // Not in the order: where it would stand in it, so a step either way
+        // lands on its neighbours.
+        for (size_t i = 0; i < order.size(); ++i) {
+            const StopSpot& spot = *spots[static_cast<size_t>(order[i])];
+            if (std::tie(spot.line, spot.left) < std::tie(from->line, from->left)) {
+                at = static_cast<int>(i);
+            }
+        }
+        if (step > 0) {
+            const int next = at + 1;
+            return next < static_cast<int>(order.size())
+                       ? order[static_cast<size_t>(next)]
+                       : static_cast<int>(kFieldCount);
+        }
+        return at >= 0 ? order[static_cast<size_t>(at)] : static_cast<int>(kFieldCount);
+    }
+    const int next = at + step;
+    if (next < 0 || next >= static_cast<int>(order.size())) return kFieldCount;
+    return order[static_cast<size_t>(next)];
+}
+
+/// The first stop Tab reaches coming up out of the text, and the last one
+/// Shift-Tab does.
+int firstStop(const AppState& state) {
+    const std::vector<int> order = stopsInOrder(state, false);
+    return order.empty() ? static_cast<int>(kFromName) : order.front();
+}
+
+int lastStop(const AppState& state) {
+    const std::vector<int> order = stopsInOrder(state, false);
+    return order.empty() ? static_cast<int>(kAttributes) : order.back();
+}
+
+/// The stop under the one the cursor is on, as the block is drawn — see
+/// `stopToward()` — or kFieldCount where nothing stands under it, which is the
+/// text.
 int fieldBelow(const AppState& state) {
-    switch (state.composeField) {
-        case kFromName: return kToName;
-        case kFromAddr: return state.compose.netmail ? kToAddr : kSubject;
-        case kToName:
-        case kToAddr: return kSubject;
-        default: return kAttributes;
-    }
+    const auto spots = stopSpots(state);
+    const auto& from = spots[static_cast<size_t>(state.composeField)];
+    if (!from) return kFieldCount;
+    const int below = stopToward(state, *from, 1);
+    return below < 0 ? static_cast<int>(kFieldCount) : below;
 }
 
-/// The stop over the one the cursor is on, or -1 on the From row, which has
-/// nothing above it. The subject goes up onto the To name, the column the
-/// typing comes down from more often than not.
+/// The stop over the one the cursor is on, or -1 where nothing stands over it.
 int fieldAbove(const AppState& state) {
-    switch (state.composeField) {
-        case kToName: return kFromName;
-        case kToAddr: return kFromAddr;
-        case kSubject: return kToName;
-        case kAttributes: return kSubject;
-        default: return -1;
-    }
+    const auto spots = stopSpots(state);
+    const auto& from = spots[static_cast<size_t>(state.composeField)];
+    if (!from) return -1;
+    return stopToward(state, *from, -1);
+}
+
+/// The stop the typing goes up onto from the very start of the text: the one
+/// standing nearest the left edge on the lowest line of the block that has one.
+int fieldOverText(const AppState& state) {
+    const int lines = static_cast<int>(state.composeHeaderFormat().size());
+    const int stop = stopToward(state, StopSpot{lines, 0, 1}, -1);
+    return stop < 0 ? static_cast<int>(kAttributes) : stop;
 }
 
 void moveTo(AppState& state, int field) {
@@ -2093,11 +2278,12 @@ bool headerKey(AppState& state, const Event& event) {
     // will not parse, the rule Tab and Shift-Tab follow below.
     if (event == Event::ArrowDown) {
         if (state.composeField == kToAddr && !leaveToAddr(state)) return true;
-        if (onButton) {
+        const int below = fieldBelow(state);
+        if (below >= kFieldCount) {
             leaveHeader(state);
             return true;
         }
-        moveTo(state, fieldBelow(state));
+        moveTo(state, below);
         return true;
     }
     if (event == Event::ArrowUp) {
@@ -2111,13 +2297,13 @@ bool headerKey(AppState& state, const Event& event) {
     if (event == Event::Return || event == Event::Tab) {
         if (state.composeField == kToAddr && !leaveToAddr(state)) return true;
 
-        // Enter walks the fields that are typed into and no further: off the
-        // subject it hands the typing down to the message, which is what the
-        // user came to write, rather than stopping at a button on the way. Tab
-        // walks the whole ring, the button among the rest.
-        const int last = event == Event::Return ? kAttributes : kFieldCount;
-        const int next = fieldAfter(state, 1);
-        if (next >= last) {
+        // Both walk the block as it is read — along a line, then down to the
+        // next. Enter walks the fields that are typed into and no further: off
+        // the last of them it hands the typing down to the message, which is
+        // what the user came to write, rather than stopping at a button on the
+        // way. Tab walks the whole ring, the button among the rest.
+        const int next = fieldAfter(state, 1, event == Event::Return);
+        if (next >= kFieldCount) {
             // Off the last stop is down into the text — the addresses are not
             // checked here. An address is typed through states that do not
             // parse, and the header is no longer a gate the message has to pass
@@ -2135,13 +2321,14 @@ bool headerKey(AppState& state, const Event& event) {
         // forwards does: what is behind the field is already filled in, and an
         // address still half typed is no reason to refuse to look at it.
         if (state.composeField == kToAddr) leaveToAddr(state);
-        // Shift-Tab closes the ring Tab walks: off the first field is down into
-        // the text, exactly as off the last field is going the other way.
-        if (state.composeField == kFromName) {
+        // Shift-Tab closes the ring Tab walks: off the first stop is down into
+        // the text, exactly as off the last stop is going the other way.
+        const int previous = fieldAfter(state, -1, false);
+        if (previous >= kFieldCount) {
             leaveHeader(state);
             return true;
         }
-        moveTo(state, fieldAfter(state, -1));
+        moveTo(state, previous);
         return true;
     }
 
@@ -2182,22 +2369,26 @@ bool headerKey(AppState& state, const Event& event) {
     // a line end in the text: → off the end of a name onto the start of its
     // address, ← off the start of an address onto the end of its name.
     if (event == Event::ArrowLeft) {
-        if (cursor == 0 &&
-            (state.composeField == kFromAddr || state.composeField == kToAddr)) {
-            if (state.composeField == kToAddr) leaveToAddr(state);
-            moveTo(state, state.composeField - 1);
-            return true;
+        if (cursor == 0) {
+            const int beside = fieldBeside(state, -1);
+            if (beside >= 0) {
+                if (state.composeField == kToAddr) leaveToAddr(state);
+                moveTo(state, beside);
+                return true;
+            }
         }
         cursor = prevChar(value, cursor);
         return true;
     }
     if (event == Event::ArrowRight) {
-        if (cursor == value.size() &&
-            (state.composeField == kFromName ||
-             (state.composeField == kToName && state.compose.netmail))) {
-            state.composeField += 1;
-            state.composeCursor = 0;
-            return true;
+        if (cursor == value.size()) {
+            const int beside = fieldBeside(state, 1);
+            if (beside >= 0) {
+                if (state.composeField == kToAddr) leaveToAddr(state);
+                state.composeField = beside;
+                state.composeCursor = 0;
+                return true;
+            }
         }
         cursor = std::min(value.size(), cursor + charLen(value, cursor));
         return true;
@@ -2301,7 +2492,7 @@ bool textKey(AppState& state, const Event& event) {
     } else if (event == Event::ArrowUp && state.edit.row == 0 && state.edit.col == 0) {
         // Up off the very start of the message is the block drawn above it, onto
         // the stop nearest the text.
-        enterHeader(state, kAttributes);
+        enterHeader(state, fieldOverText(state));
     } else if (event == Event::ArrowUp) {
         moveRows(state, -1);
     } else if (event == Event::ArrowDown) {
@@ -2411,7 +2602,7 @@ int editorRows(const AppState& state) {
     // The title, a rule, the rows of the header block and the rule closing them
     // off. The menu button costs no row: it stands in the two the title and the
     // rule already take.
-    const int chrome = 3 + state.headerRows();
+    const int chrome = 3 + state.composeHeaderRows();
     return state.height <= chrome ? 1 : state.height - chrome;
 }
 
@@ -2807,6 +2998,37 @@ bool dispatch(AppState& state, const Event& event) {
         scrollBy(state, event == Event::PageDown ? rows : -rows);
         return true;
     }
+    // Ctrl with Home and End is the start and the end of the text, wherever the
+    // typing is: the bare pair is the ends of a line or a field, and the chord
+    // is the same two ends one level out, as it is in the reader. From the
+    // header it is a way down into the text, and goes down the way a click
+    // does — the To address left as leaving it by hand leaves it, but not held
+    // on one that will not parse, the key having said where it wants to be.
+    // Under an external editor there is no cursor in the text to put anywhere,
+    // so the chord scrolls the message to that end, as the page keys do.
+    const bool toStart = event == Event::Named(Event::Name::Home, /*ctrl=*/true);
+    const bool toEnd = event == Event::Named(Event::Name::End, /*ctrl=*/true);
+    if (toStart || toEnd) {
+        if (state.externalEditing()) {
+            scrollBy(state, toStart ? std::numeric_limits<int>::min() / 2
+                                    : std::numeric_limits<int>::max() / 2);
+            return true;
+        }
+        if (state.composeInHeader) {
+            if (state.composeField == kToAddr) leaveToAddr(state);
+            leaveHeader(state);
+        }
+        if (state.edit.lines.empty()) return true;
+        if (toStart) {
+            state.edit.row = 0;
+            state.edit.col = 0;
+        } else {
+            state.edit.row = static_cast<int>(state.edit.lines.size()) - 1;
+            state.edit.col = state.edit.line().size();
+        }
+        scrollToCursor(state);
+        return true;
+    }
     // Back up into the header, asked only from the text — in the header Tab is
     // the next field.
     //
@@ -2825,11 +3047,11 @@ bool dispatch(AppState& state, const Event& event) {
             return true;
         }
         if (event == Event::Tab) {
-            enterHeader(state, kFromName);
+            enterHeader(state, firstStop(state));
             return true;
         }
         if (event == Event::TabReverse) {
-            enterHeader(state, kAttributes);
+            enterHeader(state, lastStop(state));
             return true;
         }
     }

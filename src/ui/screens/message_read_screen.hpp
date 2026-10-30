@@ -217,32 +217,4 @@ void copyMarked(AppState& state, const domain::AreaConfig& target);
 /// leaves it.
 void moveMarked(AppState& state, const domain::AreaConfig& target);
 
-/// The words down the left of the header block, and the column they stand in.
-///
-/// Here rather than in either screen because both draw the block and the two
-/// have to line up field for field — the reader and the editor show the same
-/// message. A translation is what makes the width worth asking for: `From` is
-/// four columns and its Russian is two, and a label longer than the column would
-/// push the name column sideways on one screen and not the other.
-namespace header_labels {
-
-[[nodiscard]] const char* from();
-[[nodiscard]] const char* to();
-[[nodiscard]] const char* subject();
-[[nodiscard]] const char* date();
-[[nodiscard]] const char* received();
-
-/// The widest of them, measured — never fewer than the four columns the English
-/// labels take, so that a language with shorter words does not narrow the block.
-[[nodiscard]] int labelWidth();
-
-/// The whole column a label stands in: the indent in front of it, the label, and
-/// the " : " behind. What a row's remaining width is measured from.
-[[nodiscard]] int labelColumn();
-
-/// One label as it is drawn, padded into that column.
-[[nodiscard]] std::string labelCell(const std::string& label);
-
-}  // namespace header_labels
-
 }  // namespace amberedit::ui::screens::message_read
