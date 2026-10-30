@@ -514,6 +514,41 @@ TEST_CASE("↑ inside the text stays in the text [compose]") {
     CHECK_FALSE(state.composeInHeader);
 }
 
+TEST_CASE("Ctrl-Home and Ctrl-End are the two ends of the text [compose]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    const Event ctrlHome = Event::Named(Event::Name::Home, /*ctrl=*/true);
+    const Event ctrlEnd = Event::Named(Event::Name::End, /*ctrl=*/true);
+
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"first", "second", "third line"};
+    state.edit.row = 1;
+    state.edit.col = 2;
+
+    compose::handleEvent(state, ctrlEnd);
+    CHECK(state.edit.row == 2);
+    CHECK(state.edit.col == std::string("third line").size());
+    compose::handleEvent(state, ctrlHome);
+    CHECK(state.edit.row == 0);
+    CHECK(state.edit.col == 0);
+
+    // From the header the chord is a way down into the text.
+    compose::handleEvent(state, Event::Tab);
+    REQUIRE(state.composeInHeader);
+    compose::handleEvent(state, ctrlEnd);
+    CHECK_FALSE(state.composeInHeader);
+    CHECK(state.edit.row == static_cast<int>(state.edit.lines.size()) - 1);
+    CHECK(state.edit.col == state.edit.line().size());
+
+    compose::handleEvent(state, Event::Tab);
+    REQUIRE(state.composeInHeader);
+    compose::handleEvent(state, ctrlHome);
+    CHECK_FALSE(state.composeInHeader);
+    CHECK(state.edit.row == 0);
+    CHECK(state.edit.col == 0);
+}
+
 TEST_CASE("A reply opens on its quote, the header already filled in [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;

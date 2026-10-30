@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -2386,6 +2387,37 @@ bool handleEvent(AppState& state, const Event& event) {
     if (state.externalEditing() && (event == Event::PageUp || event == Event::PageDown)) {
         const int rows = std::max(1, editorRows(state));
         scrollBy(state, event == Event::PageDown ? rows : -rows);
+        return true;
+    }
+    // Ctrl with Home and End is the start and the end of the text, wherever the
+    // typing is: the bare pair is the ends of a line or a field, and the chord
+    // is the same two ends one level out, as it is in the reader. From the
+    // header it is a way down into the text, and goes down the way a click
+    // does — the To address left as leaving it by hand leaves it, but not held
+    // on one that will not parse, the key having said where it wants to be.
+    // Under an external editor there is no cursor in the text to put anywhere,
+    // so the chord scrolls the message to that end, as the page keys do.
+    const bool toStart = event == Event::Named(Event::Name::Home, /*ctrl=*/true);
+    const bool toEnd = event == Event::Named(Event::Name::End, /*ctrl=*/true);
+    if (toStart || toEnd) {
+        if (state.externalEditing()) {
+            scrollBy(state, toStart ? std::numeric_limits<int>::min() / 2
+                                    : std::numeric_limits<int>::max() / 2);
+            return true;
+        }
+        if (state.composeInHeader) {
+            if (state.composeField == kToAddr) leaveToAddr(state);
+            leaveHeader(state);
+        }
+        if (state.edit.lines.empty()) return true;
+        if (toStart) {
+            state.edit.row = 0;
+            state.edit.col = 0;
+        } else {
+            state.edit.row = static_cast<int>(state.edit.lines.size()) - 1;
+            state.edit.col = state.edit.line().size();
+        }
+        scrollToCursor(state);
         return true;
     }
     // Back up into the header, asked only from the text — in the header Tab is

@@ -916,7 +916,7 @@ Rules that hold the design together:
   way** and for the same reason, a modified key being in no terminfo entry at
   all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
   four of each, which is how the reader is sent to the first and the last
-  message of an area. Do not narrow either set to the forms one terminal happens
+  message of an area and the editor to the start and the end of the text. Do not narrow either set to the forms one terminal happens
   to need. No other named key needs this: the rest are spelled the same way
   everywhere.
 - **A CR and an LF waiting together are one Return.** `poll()` reads either as
@@ -2193,7 +2193,11 @@ decides what an occurrence is.
   stops on the From row. Up off the very start of the text, row and column zero,
   is the button. `→` at the end of a name and `←` at the start of an address
   cross between the two halves of their row, as the arrows cross a line end in
-  the text, and everywhere else they move inside the field. `Alt-H` goes back
+  the text, and everywhere else they move inside the field. **`Ctrl-Home` and
+  `Ctrl-End` are the two ends of the text from anywhere on the screen**: from
+  the header they go down into it the way a click does, the To address left
+  without being held, and under `external_editor` they scroll the message to
+  that end instead, there being no cursor in the text. `Alt-H` goes back
   onto the field the cursor was last in — a chord of its own rather than
   `Ctrl-I`, which is the byte Tab has sent since ASCII and would be the ring on
   all but a terminal reporting modified keys.
