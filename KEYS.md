@@ -84,7 +84,7 @@ standing in both.
 | `Tab` `Shift-Tab` | the ring: the header's fields and the attributes button as they are read — along a line, then down — and the text |
 | `Enter` | the next field the same way, past the button, then down into the text |
 | `↑` `↓` in the header | the field above or below as the block is drawn; off the bottom, the text |
-| `←` `→` at the edge of a field | the field beside it on the same line |
+| `←` `→` at the edge of a field | the field or button beside it on the same line |
 | `Alt-H` | edit header                                                         |
 | `Ctrl-S` / `F2` / `Alt-S` | save (asks first)                                         |
 | `Esc` | drop the message (asks first); over a selection, drop the selection |

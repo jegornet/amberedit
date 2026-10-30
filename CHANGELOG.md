@@ -8,6 +8,7 @@
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 - add reader selection mode (V key). Reply in the selection mode quotes only what is selected, or the whole message where nothing is selected. Space key in the selection mode holds the anchor down, so the arrows select without Shift; Space again releases it
 - the reader's default hint bar offers v select in place of ctrl-n nodelist
+- fix right arrow not reaching attributes button from subject in 3-columns header_format
 
 ## 0.10.0 — 2026-10-30
 

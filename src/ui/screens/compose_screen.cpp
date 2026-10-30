@@ -201,15 +201,13 @@ Stops stopSpots(const AppState& state) {
     return spots;
 }
 
-/// The typed field beside the one the cursor is in on its own line — `step`
-/// +1 the next to the right, -1 the next to the left — or -1 where none stands
-/// that way. What → off the end of a field and ← off the start of one cross to,
-/// as the arrows cross a line end in the text. The attributes are a button and
-/// not where typing goes on, so they are not one of these.
-int fieldBeside(const AppState& state, int step) {
-    Stops spots = stopSpots(state);
-    spots[static_cast<size_t>(kAttributes)].reset();
-    return header_format::stopBeside(spots, state.composeField, step);
+/// The stop beside the one the cursor is on, on its own line — `step` +1 the
+/// next to the right, -1 the next to the left — or -1 where none stands that
+/// way. What → off the end of a field and ← off the start of one cross to, as
+/// the arrows cross a line end in the text, and what they cross to from the
+/// attributes button, which has no text to move through first.
+int stopBeside(const AppState& state, int step) {
+    return header_format::stopBeside(stopSpots(state), state.composeField, step);
 }
 
 /// What the message's attributes say, in the short forms the reader shows them
@@ -2168,6 +2166,18 @@ bool askNodelist(AppState& state) {
     return false;
 }
 
+/// Crosses to the stop beside the cursor's, `step` as `stopBeside()` takes it,
+/// and false where none stands that way. Going right the cursor lands at the
+/// start of what is there, going left at the end: the side it came in from.
+bool crossBeside(AppState& state, int step) {
+    const int beside = stopBeside(state, step);
+    if (beside < 0) return false;
+    if (state.composeField == kToAddr) leaveToAddr(state);
+    moveTo(state, beside);
+    if (step > 0) state.composeCursor = 0;
+    return true;
+}
+
 /// A keystroke aimed at the header block. false is a key the block does not
 /// bind, which the screen around it then gets a look at.
 bool headerKey(AppState& state, const Event& event) {
@@ -2264,6 +2274,11 @@ bool headerKey(AppState& state, const Event& event) {
         return true;
     }
 
+    // The button has no text for the arrows to move through, so they cross from
+    // it at once and not only from an edge.
+    if (onButton && event == Event::ArrowLeft) return crossBeside(state, -1);
+    if (onButton && event == Event::ArrowRight) return crossBeside(state, 1);
+
     // Past the walking, and everything past it is about text. The button has
     // none: a key it does not bind is the screen's, not a no-op of its own.
     if (onButton) return false;
@@ -2296,32 +2311,17 @@ bool headerKey(AppState& state, const Event& event) {
         cursor = from;
         return true;
     }
-    // A name and its address stand side by side on one row, so the arrows
-    // cross from one to the other at the edge between them, the way they cross
-    // a line end in the text: → off the end of a name onto the start of its
-    // address, ← off the start of an address onto the end of its name.
+    // Stops stand side by side on a line, so the arrows cross from one to the
+    // next at the edge between them, the way they cross a line end in the text:
+    // → off the end of a name onto the start of its address, ← off the start of
+    // an address onto the end of its name.
     if (event == Event::ArrowLeft) {
-        if (cursor == 0) {
-            const int beside = fieldBeside(state, -1);
-            if (beside >= 0) {
-                if (state.composeField == kToAddr) leaveToAddr(state);
-                moveTo(state, beside);
-                return true;
-            }
-        }
+        if (cursor == 0 && crossBeside(state, -1)) return true;
         cursor = prevChar(value, cursor);
         return true;
     }
     if (event == Event::ArrowRight) {
-        if (cursor == value.size()) {
-            const int beside = fieldBeside(state, 1);
-            if (beside >= 0) {
-                if (state.composeField == kToAddr) leaveToAddr(state);
-                state.composeField = beside;
-                state.composeCursor = 0;
-                return true;
-            }
-        }
+        if (cursor == value.size() && crossBeside(state, 1)) return true;
         cursor = std::min(value.size(), cursor + charLen(value, cursor));
         return true;
     }
