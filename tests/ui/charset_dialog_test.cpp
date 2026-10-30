@@ -164,7 +164,8 @@ TEST_CASE("The charset box says what the message is being read in [charset][squi
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
 
     // The default key, and the one the user asked for.
-    CHECK(fixture.state.keys.is(Event::Character("e", false, /*alt=*/true),
+    CHECK(fixture.state.keys.is(Event::Character('h'), Command::ReaderCharset));
+    CHECK(fixture.state.keys.is(Event::Character("h", false, /*alt=*/true),
                                 Command::ReaderCharset));
 
     charset_dialog::open(fixture.state);
