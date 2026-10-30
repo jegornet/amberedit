@@ -708,6 +708,7 @@ add_executable(amberedit
   src/ui/bbs_codes.cpp
   src/ui/area_list_format.cpp
   src/ui/msg_list_format.cpp
+  src/ui/header_format.cpp
   src/ui/confirm_dialog.cpp
   src/ui/clipboard_dialog.cpp
   src/ui/scope_dialog.cpp

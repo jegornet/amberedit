@@ -82,6 +82,8 @@ standing in both.
 |---|--------------------------------------------------------------------|
 | `Tab` `Shift-Tab` | the ring: the fields, the subject, the attributes button, the text |
 | `Enter` | the next field, then down into the text                            |
+| `↑` `↓` in the header | the field above or below as the block is drawn; off the bottom, the text |
+| `←` `→` at the edge of a field | the field beside it on the same line |
 | `Alt-H` | edit header                                                         |
 | `Ctrl-S` / `F2` / `Alt-S` | save (asks first)                                         |
 | `Esc` | drop the message (asks first)                                      |
