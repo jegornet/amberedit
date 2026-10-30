@@ -22,7 +22,7 @@
 ///
 /// **Where `external_editor` names a program, the text is shown and never typed
 /// into.** The header block works exactly as it always did; leaving it downwards
-/// — Enter off the subject, Tab off the last stop, a click in the text — hands
+/// — Enter off the last field, Tab off the last stop, a click in the text — hands
 /// the message to that program instead of the cursor, and a reply, a comment, a
 /// forward moved elsewhere and a message being changed go straight there, their
 /// headers having been filled in already. What comes back is drawn under the
@@ -32,8 +32,9 @@
 /// every command that edits text — the import above all — is dead here.
 namespace amberedit::ui::screens::compose {
 
-/// The stops of the header, in the order Tab walks them. The To address is
-/// skipped in echomail, where it addresses nobody.
+/// The stops of the header. Tab walks them as `header_format` lays them out — a
+/// line at a time from the top, along each line from the left — and not in this
+/// order; the To address is skipped in echomail, where it addresses nobody.
 ///
 /// The last of them is not a field but a button: the message's attributes,
 /// which are set in a dialog rather than typed. Everything before it is typed

@@ -65,6 +65,7 @@ add_executable(amberedit_tests
   ui/area_list_screen_test.cpp
   ui/area_list_format_test.cpp
   ui/msg_list_format_test.cpp
+  ui/header_format_test.cpp
   ui/message_marks_test.cpp
   ui/progress_test.cpp
   ui/message_list_screen_test.cpp
@@ -179,6 +180,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/reader_sidebar.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/area_list_format.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/msg_list_format.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/header_format.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/text_layout.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/text_editor.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/edit_layout.cpp

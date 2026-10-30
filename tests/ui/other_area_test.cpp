@@ -1605,7 +1605,7 @@ TEST_CASE(
     // A window with three rows to write in, so that the message being passed on
     // is longer than what fits and there is something to scroll.
     constexpr int kRows = 3;
-    state.height = 3 + amberedit::ui::AppState::kHeaderRows + kRows;
+    state.height = 3 + state.composeHeaderRows() + kRows;
 
     fixture.askForward(Mode::Forward);
     REQUIRE(state.areaPicker);

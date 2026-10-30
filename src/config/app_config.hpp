@@ -391,6 +391,65 @@ using MsgListLine = std::vector<MsgListField>;
 /// What a row of the message list holds: the lines it is drawn on, in order.
 using MsgListFormat = std::vector<MsgListLine>;
 
+/// What one piece of `header_format` shows.
+enum class HeaderFieldKind {
+    FromName,    ///< 'f' — who the message is from
+    FromAddr,    ///< 'o' — the address it was written from
+    Written,     ///< 'd' — when it was written, in the field's own format
+    ToName,      ///< 't' — who it is to
+    ToAddr,      ///< 'r' — the address it is to, which only netmail has
+    Arrived,     ///< 'p' — when it arrived here, in the field's own format
+    Subject,     ///< 's' — what it is about
+    Attributes,  ///< 'a' — its attributes, in brackets; the editor's button
+    Label,       ///< `{From}` — a word the interface draws in its own language
+    Literal,     ///< anything else written — `: ` — drawn as it was written
+};
+
+/// Which word a label draws. The format names one and the program spells it,
+/// through the catalog — a word written into a config would stay the language
+/// it was written in.
+enum class HeaderLabel { From, To, Subject, Date, Received };
+
+/// One piece of `header_format`: what it shows, how wide it stands, and what a
+/// literal or a stamp needs besides.
+struct HeaderField {
+    HeaderFieldKind kind{HeaderFieldKind::Literal};
+    /// Columns. Zero is a share of what the line leaves over, as in the lists;
+    /// `kAutoWidth` is what a stamp is measured to and what a label stands at
+    /// where the format names no width — the widest of the labels, measured in
+    /// the interface's language.
+    int width{0};
+    /// The text a literal draws, or the strftime format a stamp is written
+    /// with — empty there for `reader_datetime_format`, which is put with it
+    /// only where the stamp is drawn, `header_format` being free to stand above
+    /// it in the file.
+    std::string text;
+    /// Which word a label is. Read only where `kind` is `Label`.
+    HeaderLabel label{HeaderLabel::From};
+
+    friend bool operator==(const HeaderField& a, const HeaderField& b) {
+        return a.kind == b.kind && a.width == b.width && a.text == b.text &&
+               a.label == b.label;
+    }
+};
+
+/// One line of the header block: its pieces, in the order written. A width of
+/// `0` is measured against the line it stands on and nothing else, as it is in
+/// the lists — what lines up down the block is what the format writes to line up.
+using HeaderLine = std::vector<HeaderField>;
+
+/// The whole header block: its lines, in order. Never empty, and holding each of
+/// `f`, `o`, `t`, `r`, `s` and `a` exactly once, which `header_format` refuses a
+/// value short of: the editor draws the same block, and a field missing from it
+/// is one a message cannot be addressed or marked through.
+using HeaderFormat = std::vector<HeaderLine>;
+
+/// The header block `header_format` gives where a config says nothing — the
+/// narrow window's and the wide one's. Read out of the same text the sample
+/// config states, so the two cannot come to say different things.
+[[nodiscard]] const HeaderFormat& defaultHeaderFormatNarrow();
+[[nodiscard]] const HeaderFormat& defaultHeaderFormatWide();
+
 /// Which description an area is shown by where the tosser config and an echolist
 /// both have one, from `arealist_description_priority`.
 enum class DescriptionPriority {
@@ -525,9 +584,8 @@ struct EcholistSource {
 };
 
 /// Whether a piece of the interface is on the screen at all: the menu button,
-/// from `menu_button`, the back button, from `back_button`, the editor's
-/// delete-line button, from `compose_delete_line_button`, and the header
-/// block's Recd row, from `show_recd_date`.
+/// from `menu_button`, the back button, from `back_button`, and the editor's
+/// delete-line button, from `compose_delete_line_button`.
 ///
 /// One enumeration for all of them because the question is the same one, and so
 /// is the answer the two window-led values give: the window's width against
@@ -1602,20 +1660,19 @@ struct AppConfig {
     /// than asking for one of its own.
     Visibility composeDeleteLineButton{Visibility::WhenNarrow};
 
-    /// Whether the header block carries the Recd row — when the message arrived
-    /// here — under the Date row saying when it was written, from
-    /// `show_recd_date`.
+    /// What the header block holds over a message, in the reader and in the
+    /// editor alike, from `header_format`'s two values — the narrow window's
+    /// and the wide one's, on either side of `adaptive_ui_threshold` as the
+    /// lists' are.
     ///
-    /// `off` by default: the two stamps are rarely far apart, and the row is a
-    /// fifth of the header block and a row off the message under it. `on` puts
-    /// it up whatever the window is, and `when_wide`/`when_narrow` read the
-    /// same line every other window-led setting does — a tall window is not
-    /// what is measured, but a wide one is the one with room to spare.
-    ///
-    /// The same row in the reader and in the editor, so the two blocks go on
-    /// lining up field for field; what the editor shows there is this moment,
-    /// a message being written arriving here as it is stored.
-    Visibility showRecdDate{Visibility::Off};
+    /// The defaults put the names first, the subject under them and the Date
+    /// row last, the attributes beside the stamp where the addresses stand
+    /// beside the names: the narrow one gives the names what the window leaves and the
+    /// addresses a column of their own, the wide one the names their 36 columns
+    /// and the addresses the rest. The Recd row is a line of `p` and not a
+    /// setting of its own.
+    HeaderFormat headerFormatNarrow{defaultHeaderFormatNarrow()};
+    HeaderFormat headerFormatWide{defaultHeaderFormatWide()};
 
     /// Whether the reader says where the message was written, from
     /// `show_location`: the sender's location as the nodelist gives it, standing

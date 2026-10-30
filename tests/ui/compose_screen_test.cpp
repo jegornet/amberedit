@@ -397,6 +397,8 @@ TEST_CASE("↑ and ↓ walk the block as it is drawn [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
 
+    // The default wide format: the From and To rows, the subject, and the Date
+    // row with the attributes under the addresses.
     compose::startNew(state);
     state.composeField = compose::kFromName;
     // There is nothing above the From row for ↑ to reach — the text is below
@@ -405,13 +407,17 @@ TEST_CASE("↑ and ↓ walk the block as it is drawn [compose]") {
     CHECK(state.composeInHeader);
     CHECK(state.composeField == compose::kFromName);
 
-    // Down the names, stepping over the To address onto the subject.
+    // Down the names onto the subject, which is the only stop on its line, and
+    // on onto the attributes, the only one on theirs.
     compose::handleEvent(state, Event::ArrowDown);
     CHECK(state.composeField == compose::kToName);
     compose::handleEvent(state, Event::ArrowDown);
     CHECK(state.composeField == compose::kSubject);
     compose::handleEvent(state, Event::ArrowDown);
     CHECK(state.composeField == compose::kAttributes);
+    // Up from the attributes is the subject, and up from the subject the stop
+    // it shares the most columns with: the To name, the subject starting where
+    // the names do.
     compose::handleEvent(state, Event::ArrowUp);
     CHECK(state.composeField == compose::kSubject);
     compose::handleEvent(state, Event::ArrowUp);
@@ -421,15 +427,10 @@ TEST_CASE("↑ and ↓ walk the block as it is drawn [compose]") {
 
     // Down the addresses.
     state.composeField = compose::kFromAddr;
-    compose::handleEvent(state, Event::ArrowUp);
-    CHECK(state.composeField == compose::kFromAddr);
     compose::handleEvent(state, Event::ArrowDown);
     CHECK(state.composeField == compose::kToAddr);
     compose::handleEvent(state, Event::ArrowUp);
     CHECK(state.composeField == compose::kFromAddr);
-    for (const char letter : std::string("2:5020/2")) {
-        compose::handleEvent(state, Event::Character(letter));
-    }
     compose::handleEvent(state, Event::ArrowDown);
     for (const char letter : std::string("2:5020/9")) {
         compose::handleEvent(state, Event::Character(letter));
@@ -437,7 +438,8 @@ TEST_CASE("↑ and ↓ walk the block as it is drawn [compose]") {
     compose::handleEvent(state, Event::ArrowDown);
     CHECK(state.composeField == compose::kSubject);
 
-    // Off the button is down into the text, and up off its very start is back.
+    // Off the bottom line is down into the text, and up off its very start is
+    // back onto the stop on the lowest line of the block.
     state.composeField = compose::kAttributes;
     compose::handleEvent(state, Event::ArrowDown);
     REQUIRE_FALSE(state.composeInHeader);
@@ -448,14 +450,120 @@ TEST_CASE("↑ and ↓ walk the block as it is drawn [compose]") {
     CHECK(state.composeField == compose::kAttributes);
 }
 
-TEST_CASE("The From address goes down onto the subject in an echo [compose]") {
+TEST_CASE("↑ and ↓ follow the format the config writes [compose]") {
+    using amberedit::config::HeaderField;
+    using amberedit::config::HeaderFieldKind;
+
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    // The fields one under another, the attributes first and the subject last
+    // but one: the arrows go where they stand and Tab does not.
+    fixture.config.headerFormatWide = {
+        {HeaderField{HeaderFieldKind::Attributes, 20}},
+        {HeaderField{HeaderFieldKind::ToName, 20},
+         HeaderField{HeaderFieldKind::ToAddr, 20}},
+        {HeaderField{HeaderFieldKind::Subject, 40}},
+        {HeaderField{HeaderFieldKind::FromName, 20},
+         HeaderField{HeaderFieldKind::FromAddr, 20}},
+    };
+    compose::startNew(state);
+
+    state.composeField = compose::kToAddr;
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::ArrowDown);
+    CHECK(state.composeField == compose::kFromName);
+    // → off the end of a field is the field beside it on its own line.
+    REQUIRE(state.composeCursor == state.compose.fromName.size());
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kFromAddr);
+    compose::handleEvent(state, Event::ArrowLeft);
+    CHECK(state.composeField == compose::kFromName);
+
+    // Tab walks the block as it is read: along a line, then down to the next,
+    // and off the last stop into the text.
+    state.composeField = compose::kAttributes;
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kToName);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kFromName);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kFromAddr);
+    compose::handleEvent(state, Event::Tab);
+    REQUIRE_FALSE(state.composeInHeader);
+    // Out of the text, Tab is the first stop read and Shift-Tab the last.
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kAttributes);
+    compose::handleEvent(state, Event::TabReverse);
+    REQUIRE_FALSE(state.composeInHeader);
+    compose::handleEvent(state, Event::TabReverse);
+    CHECK(state.composeField == compose::kFromAddr);
+    compose::handleEvent(state, Event::TabReverse);
+    CHECK(state.composeField == compose::kFromName);
+
+    // Enter walks the same order past the button: from the To name to the end
+    // of the typed fields, and then the text.
+    state.composeField = compose::kToName;
+    compose::handleEvent(state, Event::Return);
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, Event::Return);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::Return);
+    CHECK(state.composeField == compose::kFromName);
+    compose::handleEvent(state, Event::Return);
+    compose::handleEvent(state, Event::Return);
+    REQUIRE_FALSE(state.composeInHeader);
+
+    // Up off the text is the lowest line, nearest the left edge.
+    state.edit.row = 0;
+    state.edit.col = 0;
+    compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kFromName);
+}
+
+TEST_CASE("Tab off the last line of the block is the text [compose]") {
+    using amberedit::config::HeaderField;
+    using amberedit::config::HeaderFieldKind;
+
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    // The Date row on top: the button is the first stop read and the subject
+    // the last, so Tab off the subject goes to the text and not to the button.
+    fixture.config.headerFormatWide = {
+        {HeaderField{HeaderFieldKind::Written, 36},
+         HeaderField{HeaderFieldKind::Attributes, 25}},
+        {HeaderField{HeaderFieldKind::Arrived, 36}},
+        {HeaderField{HeaderFieldKind::FromName, 36},
+         HeaderField{HeaderFieldKind::FromAddr, 23}},
+        {HeaderField{HeaderFieldKind::ToName, 36},
+         HeaderField{HeaderFieldKind::ToAddr, 23}},
+        {HeaderField{HeaderFieldKind::Subject, 0}},
+    };
+    compose::startNew(state);
+
+    state.composeField = compose::kSubject;
+    compose::handleEvent(state, Event::Tab);
+    CHECK_FALSE(state.composeInHeader);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kAttributes);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kFromName);
+}
+
+TEST_CASE("The From address goes down onto the To name in an echo [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;
 
+    // An echo has no To address, so the To row's one stop is the nearest under
+    // it.
     compose::startNew(state);
     state.composeField = compose::kFromAddr;
     compose::handleEvent(state, Event::ArrowDown);
-    CHECK(state.composeField == compose::kSubject);
+    CHECK(state.composeField == compose::kToName);
 }
 
 TEST_CASE("← and → cross between a name and its address at the edge [compose]") {
@@ -842,7 +950,7 @@ TEST_CASE("The editor's header block closes with the reader's Date row [compose]
         }
         return -1;
     }();
-    // Under From, To and Subj — the fourth row of the block, where the reader
+    // Under From, To and Subj — the last row of the block, where the reader
     // draws it over a message being read.
     REQUIRE(row > 0);
     CHECK(rows[static_cast<size_t>(row) - 1].rfind(" Subj : ", 0) == 0);
@@ -858,12 +966,29 @@ TEST_CASE("The editor's header block closes with the reader's Date row [compose]
     // In the column the names stand in above.
     CHECK(static_cast<int>(written) == columnOf(rows, "Yegor Gluhov"));
 
-    // Shown rather than typed into: the fields the cursor walks are the five
-    // above it, and the header is still left by walking off the subject.
+    // Shown rather than typed into: the stamp is no stop of the ring, and the
+    // header is still left by walking off the subject.
     fixture.walkToText();
     CHECK_FALSE(state.composeInHeader);
     CHECK(shows(screenRowsOf(state), stamp));
 }
+
+namespace {
+
+/// The default formats with a Recd line under them, which is how a config asks
+/// for the arrival stamp.
+void withRecdLine(amberedit::config::AppConfig& config) {
+    using amberedit::config::HeaderFieldKind;
+    const amberedit::config::HeaderLine recd{
+        {HeaderFieldKind::Literal, 0, " "},
+        {HeaderFieldKind::Label, 5, {}, amberedit::config::HeaderLabel::Received},
+        {HeaderFieldKind::Literal, 0, ": "},
+        {HeaderFieldKind::Arrived, 0}};
+    config.headerFormatNarrow.push_back(recd);
+    config.headerFormatWide.push_back(recd);
+}
+
+}  // namespace
 
 TEST_CASE("The editor's Recd row is the clock too, where one is asked for [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
@@ -877,32 +1002,30 @@ TEST_CASE("The editor's Recd row is the clock too, where one is asked for [compo
         return -1;
     };
 
-    // Off unless the config asks for it, in the editor as in the reader.
-    CHECK(fixture.config.showRecdDate == amberedit::config::Visibility::Off);
+    // Not in the default formats, in the editor as in the reader.
     auto rows = screenRowsOf(state);
     const int date = rowOf(rows, " Date : ");
     REQUIRE(date > 0);
     CHECK(rowOf(rows, " Recd : ") == -1);
-    // The rule closing the block off stands right under the Date row.
+    // The rule closing the block off stands right under the last line.
     CHECK(rows[static_cast<size_t>(date) + 1].rfind("─", 0) == 0);
 
-    fixture.config.showRecdDate = amberedit::config::Visibility::On;
+    withRecdLine(fixture.config);
     const std::string before = stampNow(state.config);
     rows = screenRowsOf(state);
     const std::string after = stampNow(state.config);
 
-    // Under the Date row and above the rule, where the reader draws it.
-    CHECK(rowOf(rows, " Date : ") == date);
+    // Where the format puts it, above the rule.
     REQUIRE(rowOf(rows, " Recd : ") == date + 1);
     CHECK(rows[static_cast<size_t>(date) + 2].rfind("─", 0) == 0);
 
-    // This moment, as the Date row above it is: a message being written arrives
-    // here as it is stored. Read either side of the frame, since a minute that
-    // turns while it is drawn would make one of the two the wrong one.
+    // This moment, as the Date row is: a message being written arrives here as
+    // it is stored. Read either side of the frame, since a minute that turns
+    // while it is drawn would make one of the two the wrong one.
     const std::string& recd = rows[static_cast<size_t>(date) + 1];
     CHECK((recd.find(before) != std::string::npos ||
            recd.find(after) != std::string::npos));
-    // In the column the names stand in above.
+    // In the column the names stand in.
     const std::string stamp = recd.find(before) != std::string::npos ? before : after;
     CHECK(static_cast<int>(recd.find(stamp)) == columnOf(rows, "Yegor Gluhov"));
 }
@@ -912,7 +1035,7 @@ TEST_CASE(
     "[compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
     auto& state = fixture.state;
-    fixture.config.showRecdDate = amberedit::config::Visibility::On;
+    withRecdLine(fixture.config);
     compose::startNew(state);
 
     // The same ring as without it: the five fields and the attributes button. The
@@ -1141,7 +1264,7 @@ TEST_CASE("The block and the title stand on the fills a theme gives them [compos
     // The rule over the block, its rows, and the rule that closes it off —
     // which is what `editorRows()` counts as three rows of chrome plus the
     // block's own.
-    const int lastBlockRow = 2 + state.headerRows();
+    const int lastBlockRow = 2 + state.composeHeaderRows();
     for (int y = 1; y <= lastBlockRow; ++y) {
         CAPTURE(y);
         bool onBlock = false;

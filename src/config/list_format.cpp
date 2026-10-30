@@ -25,6 +25,37 @@ std::string takesInstead(const ListFormatSpec& spec) {
     return " — the ones that are: " + std::string(spec.formatted);
 }
 
+bool isDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+bool isAsciiLetter(char c) {
+    const char lower = text::asciiLower(c);
+    return lower >= 'a' && lower <= 'z';
+}
+
+/// Whether the character at `at` is a piece of a literal where the spec allows
+/// them: anything but a letter, a digit, a brace, and the backslash of a `\n`.
+bool literalAt(const std::string& value, size_t at) {
+    const char c = value[at];
+    if (isAsciiLetter(c) || isDigit(c) || c == '{' || c == '}') return false;
+    if (c == '\\' && at + 1 < value.size() && text::asciiLower(value[at + 1]) == 'n') {
+        return false;
+    }
+    return true;
+}
+
+/// The labels a complaint offers instead: `{From}, {To}, …` as the spec names
+/// them, the case being nothing a reader of the complaint has to match.
+std::string labelList(const ListFormatSpec& spec) {
+    std::string list;
+    for (const auto label : spec.labels) {
+        if (!list.empty()) list += ", ";
+        list += "{" + std::string(label) + "}";
+    }
+    return list;
+}
+
 }  // namespace
 
 tl::expected<ListFormatRow, ErrorPtr> parseListFormat(const CfgEntry& entry,
@@ -34,6 +65,53 @@ tl::expected<ListFormatRow, ErrorPtr> parseListFormat(const CfgEntry& entry,
     ListFormatRow lines{ListFormatLine{}};
 
     for (size_t i = 0; i < value.size();) {
+        if (spec.literals && literalAt(value, i)) {
+            std::string run;
+            while (i < value.size() && literalAt(value, i)) run += value[i++];
+            lines.back().push_back(
+                ListFormatField{kLiteralLetter, 0, std::string{}, std::move(run)});
+            continue;
+        }
+        if (!spec.labels.empty() && value[i] == '{') {
+            const size_t close = value.find('}', i);
+            if (close == std::string::npos) {
+                return entry.fail(setting +
+                                  ": a label opened with '{' is never closed — " +
+                                  "a '}' ends it, e.g. " + quoted(spec.example));
+            }
+            const std::string name = text::toLower(value.substr(i + 1, close - i - 1));
+            const bool known = std::any_of(
+                spec.labels.begin(), spec.labels.end(), [&name](std::string_view label) {
+                    return text::toLower(std::string(label)) == name;
+                });
+            if (!known) {
+                return entry.fail(
+                    setting + ": '{" + value.substr(i + 1, close - i - 1) +
+                    "}' is not a label — the ones there are: " + labelList(spec));
+            }
+            i = close + 1;
+            int width = kAutoWidth;
+            if (i < value.size() && isDigit(value[i])) {
+                width = 0;
+                while (i < value.size() && isDigit(value[i])) {
+                    width = (width * 10) + (value[i] - '0');
+                    if (width > kMaxFieldWidth) {
+                        return entry.fail(setting + ": a label is asked for more than " +
+                                          std::to_string(kMaxFieldWidth) + " columns");
+                    }
+                    ++i;
+                }
+                if (width == 0) {
+                    return entry.fail(setting + ": a label is a word and takes a width " +
+                                      "of its own, not what the line leaves over — " +
+                                      "write the width, or none to have the widest " +
+                                      "label's");
+                }
+            }
+            lines.back().push_back(
+                ListFormatField{kLabelLetter, width, std::string{}, name});
+            continue;
+        }
         if (value[i] == ' ') {
             lines.back().push_back(ListFormatField{' ', 1});
             ++i;

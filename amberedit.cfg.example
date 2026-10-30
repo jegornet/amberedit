@@ -710,6 +710,42 @@ mark_moves_down on
 
 # --- message reader -----------------------------------------------------------
 
+# What the header block over a message holds, in the reader and in the editor
+# alike. Optional; the two formats below by default. One or two formats, the
+# narrow window's and the wide one's, read as msglist_format is — letters, each
+# optionally followed by its width, \n beginning the next line:
+#   f   who the message is from                           36 columns
+#   o   the address it was written from                   25 columns
+#   d   when it was written                               what the stamp needs
+#   t   who it is to                                      36 columns
+#   r   the address it is to (netmail only)               25 columns
+#   p   when it arrived here                              what the stamp needs
+#   s   what it is about                                  what is left
+#   a   its attributes; the button that sets them         25 columns
+# A width of 0 is a share of what the line leaves, and each line is measured on
+# its own. d and p take a strftime format in brackets, as msglist_format's d
+# does; without one they are reader_datetime_format's.
+#
+# {From}, {To}, {Subj}, {Date} and {Recd} are labels, drawn in the interface's
+# language; a width after the brace cuts or pads the word to it, and with none
+# it stands at the widest label's. Anything that is not a letter, a digit or a
+# brace is drawn as written — the ": " after each label, the space in front.
+#
+# Every format holds f, o, t, r, s and a once each: the editor draws the same
+# block. A line of p is the Recd row. The reader picks between the two formats
+# by its own width, less the sidebar where one is up. The sender's location
+# stands under the second field of the line holding f, or at the right end of
+# the rule where that line holds only one.
+#
+# Default format:
+#header_format " {From}5: f0o15\n {To}5: t0r15\n {Subj}5: s0\n {Date}5: d0a15" " {From}5: f36o23\n {To}5: t36r23\n {Subj}5: s0\n {Date}5: d36a25"
+#
+# The Date row on top:
+#header_format " {Date}5: d0a15\n {Recd}5: p0\n {From}5: f0o15\n {To}5: t0r15\n {Subj}5: s0" " {Date}5: d36a25\n {Recd}5: p36\n {From}5: f36o23\n {To}5: t36r23\n {Subj}5: s0"
+#
+# Three columns:
+#header_format " {From}5: f32o18d0\n {To}5: t32r18p0\n {Subj}5: s50a0"
+
 # Whether the message reader starts with the scrollbar beside the text shown.
 # Optional; on by default. The `b` key toggles it for the session.
 reader_scrollbar on
@@ -1241,15 +1277,16 @@ wheel_settle_ms 1500
 
 # --- dates --------------------------------------------------------------------
 
-# How every stamp shown while reading is written: the two in the reader's header
-# block (Date, and Recd under it), the one beside each answer in the replies
-# dialog, the file stamps in the import dialog, and the one at the head of an
-# exported message. Optional; "%d %b %y %H:%M %z" by default. One setting for the
-# date and the time both, because each place showing them shows one string.
+# How every stamp shown while reading is written: the ones in the header block,
+# the one beside each answer in the replies dialog, the file stamps in the import
+# dialog, and the one at the head of an exported message. Optional;
+# "%d %b %y %H:%M %z" by default. One setting for the date and the time both,
+# because each place showing them shows one string.
 #
-# The message list's Date column is written with this too, and is the one place
-# that may say otherwise: msglist_format's d(...) gives that column a format of
-# its own, which is what both of its defaults do.
+# The message list's Date column is written with this too. Two places may say
+# otherwise: msglist_format's d(...) gives that column a format of its own, which
+# is what both of its defaults do, and header_format's d(...) and p(...) do the
+# same for the header block's stamps.
 #
 # The value is a strftime(3) format: %d day, %m month, %b month by name, %y and
 # %Y the year in two digits and in four, %H:%M:%S the time, %a the weekday, %% a
@@ -1265,14 +1302,6 @@ wheel_settle_ms 1500
 # likes; what it may not do is write more than one line (%n, %t) or nothing but
 # blank.
 reader_datetime_format "%d %b %y %H:%M %z"
-
-# Whether the header block carries a "Recd" row — when the message arrived here —
-# under the Date row saying when it was written. Optional; "off" by default; the
-# same four values as back_button. Drawn exactly as the Date row is. The same row
-# in the reader and in the editor, so the two blocks go on lining up field for
-# field; a message written here arrived from nowhere and the row is simply blank
-# rather than coming and going with the message.
-show_recd_date off
 
 # What the message template's date and time tokens are written with: @cdate and
 # @ctime for the message being written, @odate and @otime for the one being

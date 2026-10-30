@@ -209,6 +209,112 @@ MsgFieldKind msgFieldOf(char letter) {
     }
 }
 
+/// The two formats `header_format` stands at where a config names none: the
+/// narrow window's and the wide one's. The sample config states the same line.
+constexpr std::string_view kHeaderFormatNarrow =
+    " {From}5: f0o15\\n {To}5: t0r15\\n {Subj}5: s0\\n {Date}5: d0a15";
+constexpr std::string_view kHeaderFormatWide =
+    " {From}5: f36o23\\n {To}5: t36r23\\n {Subj}5: s0\\n {Date}5: d36a25";
+
+/// The letters `header_format` is written with, the labels it may name and the
+/// literals it may hold. A name stands at 36 columns where no width is written —
+/// what FTS-0001 keeps for one, and the column the cursor stands in past the
+/// last character the editor lets in — an address at 25, the column the default
+/// formats give one, and a stamp at what it comes to.
+const ListFormatSpec& headerFormatSpec() {
+    static const ListFormatSpec spec{
+        "header_format",
+        {{'f', 36},
+         {'o', 25},
+         {'d', kAutoWidth, true},
+         {'t', 36},
+         {'r', 25},
+         {'p', kAutoWidth, true},
+         {'s', 0},
+         {'a', 25}},
+        "f from, o from address, d date written, t to, r to address, p date "
+        "received, s subject, a attributes",
+        kHeaderFormatNarrow,
+        kHeaderFormatWide,
+        "d date written, p date received",
+        true,
+        {"From", "To", "Subj", "Date", "Recd"},
+    };
+    return spec;
+}
+
+HeaderLabel headerLabelOf(const std::string& name) {
+    if (name == "to") return HeaderLabel::To;
+    if (name == "subj") return HeaderLabel::Subject;
+    if (name == "date") return HeaderLabel::Date;
+    if (name == "recd") return HeaderLabel::Received;
+    return HeaderLabel::From;
+}
+
+HeaderField headerFieldFrom(const ListFormatField& field) {
+    switch (field.letter) {
+        case kLiteralLetter:
+            return HeaderField{HeaderFieldKind::Literal, field.width, field.text};
+        case kLabelLetter:
+            return HeaderField{
+                HeaderFieldKind::Label, field.width, {}, headerLabelOf(field.text)};
+        case 'f': return HeaderField{HeaderFieldKind::FromName, field.width};
+        case 'o': return HeaderField{HeaderFieldKind::FromAddr, field.width};
+        case 'd': return HeaderField{HeaderFieldKind::Written, field.width, field.format};
+        case 't': return HeaderField{HeaderFieldKind::ToName, field.width};
+        case 'r': return HeaderField{HeaderFieldKind::ToAddr, field.width};
+        case 'p': return HeaderField{HeaderFieldKind::Arrived, field.width, field.format};
+        case 's': return HeaderField{HeaderFieldKind::Subject, field.width};
+        default: return HeaderField{HeaderFieldKind::Attributes, field.width};
+    }
+}
+
+HeaderFormat headerFormatOf(const ListFormatRow& lines) {
+    HeaderFormat format;
+    for (const auto& line : lines) {
+        HeaderLine pieces;
+        for (const auto& field : line) pieces.push_back(headerFieldFrom(field));
+        format.push_back(std::move(pieces));
+    }
+    return format;
+}
+
+/// What the editor needs of a header format: each field it is typed into, and
+/// the attributes button, exactly once. Missing, a message could not be
+/// addressed or marked through the block; twice, one field would stand in two
+/// places and a keystroke would have to pick which of them it was typed into.
+tl::expected<bool, ErrorPtr> checkHeaderFields(const CfgEntry& entry,
+                                               const ListFormatRow& row) {
+    for (const char letter : {'f', 'o', 't', 'r', 's', 'a'}) {
+        int count = 0;
+        for (const auto& line : row) {
+            count += static_cast<int>(std::count_if(
+                line.begin(), line.end(),
+                [letter](const ListFormatField& f) { return f.letter == letter; }));
+        }
+        if (count == 1) continue;
+        return entry.fail(
+            std::string("header_format: '") + letter +
+            (count == 0 ? "' is missing — the editor draws the same block, and every one "
+                          "of f, o, t, r, s and a is a field of it a message is written "
+                          "through"
+                        : "' is written twice — a field the editor types into stands in "
+                          "one place"));
+    }
+    return true;
+}
+
+/// One default format read out of its text, through the very reader a config
+/// line goes through. A default that did not read would be a build that never
+/// passed its tests, so the empty format it would leave is never drawn.
+HeaderFormat defaultHeaderFormat(std::string_view text) {
+    CfgEntry entry;
+    entry.key = "header_format";
+    entry.origin = "<default>";
+    auto read = parseListFormat(entry, headerFormatSpec(), std::string(text));
+    return read ? headerFormatOf(*read) : HeaderFormat{};
+}
+
 /// The lines the shared reader came back with, under the fields this list knows
 /// its letters by. What a letter shows is the only thing either list decides
 /// for itself — and, for the message list, whatever else the field carries; the
@@ -1469,6 +1575,21 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!checked) return tl::make_unexpected(std::move(checked).error());
         cfg.messageListFormatNarrow = formatOf<MsgListFormat>(read->narrow, msgFieldFrom);
         cfg.messageListFormatWide = formatOf<MsgListFormat>(read->wide, msgFieldFrom);
+    } else if (key == "header_format") {
+        auto read = parseListFormats(entry, headerFormatSpec());
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        // The stamps are judged by what `reader_datetime_format` is judged by,
+        // and the fields the editor needs are asked for in both formats: the
+        // window is dragged across the line between them while a message is
+        // being written.
+        auto checked = checkFieldFormats(entry, *read);
+        if (!checked) return tl::make_unexpected(std::move(checked).error());
+        for (const ListFormatRow* row : {&read->narrow, &read->wide}) {
+            auto fields = checkHeaderFields(entry, *row);
+            if (!fields) return tl::make_unexpected(std::move(fields).error());
+        }
+        cfg.headerFormatNarrow = headerFormatOf(read->narrow);
+        cfg.headerFormatWide = headerFormatOf(read->wide);
     } else if (key == "arealist_description_priority") {
         auto read = parseDescriptionPriority(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -1864,9 +1985,12 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerShowMessageSize = *read;
     } else if (key == "show_recd_date") {
-        auto read = parseVisibility(entry);
-        if (!read) return tl::make_unexpected(std::move(read).error());
-        cfg.showRecdDate = *read;
+        // Whether the block carries the arrival stamp is `header_format`'s to
+        // say now, a line of `p`. A config written before that still loads,
+        // and is told what the line no longer does rather than refused for it.
+        cfg.warnings.emplace_back(
+            "show_recd_date is ignored — the Recd row is a line of header_format, "
+            "written with p");
     } else if (key == "menu_button") {
         auto read = parseVisibility(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
@@ -3571,6 +3695,16 @@ std::optional<std::string> AppConfig::findDefaultConfigPath() {
         if (std::filesystem::exists(candidate, ec)) return candidate;
     }
     return std::nullopt;
+}
+
+const HeaderFormat& defaultHeaderFormatNarrow() {
+    static const HeaderFormat format = defaultHeaderFormat(kHeaderFormatNarrow);
+    return format;
+}
+
+const HeaderFormat& defaultHeaderFormatWide() {
+    static const HeaderFormat format = defaultHeaderFormat(kHeaderFormatWide);
+    return format;
 }
 
 }  // namespace amberedit::config
