@@ -480,21 +480,77 @@ TEST_CASE("↑ and ↓ follow the format the config writes [compose]") {
     compose::handleEvent(state, Event::ArrowLeft);
     CHECK(state.composeField == compose::kFromName);
 
-    // Tab still walks the fields in their own order, whatever line each is on.
-    state.composeField = compose::kFromName;
+    // Tab walks the block as it is read: along a line, then down to the next,
+    // and off the last stop into the text.
+    state.composeField = compose::kAttributes;
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kToName);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kFromName);
     compose::handleEvent(state, Event::Tab);
     CHECK(state.composeField == compose::kFromAddr);
     compose::handleEvent(state, Event::Tab);
-    CHECK(state.composeField == compose::kToName);
+    REQUIRE_FALSE(state.composeInHeader);
+    // Out of the text, Tab is the first stop read and Shift-Tab the last.
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kAttributes);
+    compose::handleEvent(state, Event::TabReverse);
+    REQUIRE_FALSE(state.composeInHeader);
+    compose::handleEvent(state, Event::TabReverse);
+    CHECK(state.composeField == compose::kFromAddr);
+    compose::handleEvent(state, Event::TabReverse);
+    CHECK(state.composeField == compose::kFromName);
 
-    // Up off the text is the lowest line, nearest the left edge.
+    // Enter walks the same order past the button: from the To name to the end
+    // of the typed fields, and then the text.
+    state.composeField = compose::kToName;
     compose::handleEvent(state, Event::Return);
+    CHECK(state.composeField == compose::kToAddr);
+    compose::handleEvent(state, Event::Return);
+    CHECK(state.composeField == compose::kSubject);
+    compose::handleEvent(state, Event::Return);
+    CHECK(state.composeField == compose::kFromName);
     compose::handleEvent(state, Event::Return);
     compose::handleEvent(state, Event::Return);
     REQUIRE_FALSE(state.composeInHeader);
+
+    // Up off the text is the lowest line, nearest the left edge.
     state.edit.row = 0;
     state.edit.col = 0;
     compose::handleEvent(state, Event::ArrowUp);
+    CHECK(state.composeField == compose::kFromName);
+}
+
+TEST_CASE("Tab off the last line of the block is the text [compose]") {
+    using amberedit::config::HeaderField;
+    using amberedit::config::HeaderFieldKind;
+
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    // The Date row on top: the button is the first stop read and the subject
+    // the last, so Tab off the subject goes to the text and not to the button.
+    fixture.config.headerFormatWide = {
+        {HeaderField{HeaderFieldKind::Written, 36},
+         HeaderField{HeaderFieldKind::Attributes, 25}},
+        {HeaderField{HeaderFieldKind::Arrived, 36}},
+        {HeaderField{HeaderFieldKind::FromName, 36},
+         HeaderField{HeaderFieldKind::FromAddr, 23}},
+        {HeaderField{HeaderFieldKind::ToName, 36},
+         HeaderField{HeaderFieldKind::ToAddr, 23}},
+        {HeaderField{HeaderFieldKind::Subject, 0}},
+    };
+    compose::startNew(state);
+
+    state.composeField = compose::kSubject;
+    compose::handleEvent(state, Event::Tab);
+    CHECK_FALSE(state.composeInHeader);
+    compose::handleEvent(state, Event::Tab);
+    CHECK(state.composeField == compose::kAttributes);
+    compose::handleEvent(state, Event::Tab);
     CHECK(state.composeField == compose::kFromName);
 }
 

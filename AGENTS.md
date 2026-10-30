@@ -2178,15 +2178,17 @@ decides what an occurrence is.
   and a reply into netmail alike — so one that bypasses it ignores the setting.
   Esc asks before dropping the message wherever the cursor is.
 - **Tab is a ring round the whole of it, the text standing in it where a field
-  would.** Forwards: the four fields, the subject, the attributes button, off the
-  last into the text, and out of the text onto the **first** stop — not the one
-  it was left from, which would cycle between two and never reach the rest.
-  `Shift-Tab` (`Event::TabReverse`) walks it the other way: off the **first**
-  stop down into the text, out of the text onto the last. The To address is
-  skipped in echomail either way, `fieldAfter()` answering for both. **Enter is
-  not the ring**: it walks the fields that are typed into and hands the typing
-  down to the text off the subject, going past the button. The ring is the
-  fields' own order whatever line `header_format` puts each on. **Nor are the
+  would, and it walks the block as it is read** — `stopsInOrder()`: a line at a
+  time from the top, along each line from the left, whatever line
+  `header_format` puts each stop on. Off the last stop read is the text, and out
+  of the text is the **first** — not the one it was left from, which would cycle
+  between two and never reach the rest. `Shift-Tab` (`Event::TabReverse`) walks
+  it the other way: off the first stop down into the text, out of the text onto
+  the last. So where the Date row stands on top, the button is the first stop
+  and Tab off the subject is the text. The To address is skipped in echomail
+  either way, `fieldAfter()` answering for both. **Enter walks the same order
+  with the button left out**, handing the typing down to the text off the last
+  field typed into rather than stopping at a button on the way. **Nor are the
   arrows: they walk the block as it is drawn** (`stopToward()`), whatever the
   format: `↓` and `↑` go to the nearest line that way holding a stop at all — a
   line of stamps alone is stepped over — and on it to the stop sharing the most

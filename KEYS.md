@@ -80,8 +80,8 @@ standing in both.
 
 | Key | What it does                                                       |
 |---|--------------------------------------------------------------------|
-| `Tab` `Shift-Tab` | the ring: the fields, the subject, the attributes button, the text |
-| `Enter` | the next field, then down into the text                            |
+| `Tab` `Shift-Tab` | the ring: the header's fields and the attributes button as they are read — along a line, then down — and the text |
+| `Enter` | the next field the same way, past the button, then down into the text |
 | `↑` `↓` in the header | the field above or below as the block is drawn; off the bottom, the text |
 | `←` `→` at the edge of a field | the field beside it on the same line |
 | `Alt-H` | edit header                                                         |

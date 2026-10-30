@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -509,12 +510,69 @@ Element chrome(const AppState& state, Elements body) {
     return vbox(std::move(content));
 }
 
-/// Moves to the next field in `step`'s direction, skipping the To address
-/// where there is none. Returns kFieldCount when the header is done with.
-int fieldAfter(const AppState& state, int step) {
-    int next = state.composeField + step;
-    if (next == kToAddr && !state.compose.netmail) next += step;
-    return std::clamp(next, 0, static_cast<int>(kFieldCount));
+/// The stops of the block in the order they are read: a line at a time from
+/// the top, and along each line from the left — whatever line the format puts
+/// each field on. What Tab walks, and Enter too, the button left out.
+std::vector<int> stopsInOrder(const AppState& state, bool typedOnly) {
+    const auto spots = stopSpots(state);
+    std::vector<int> order;
+    for (int stop = 0; stop < kFieldCount; ++stop) {
+        if (!spots[static_cast<size_t>(stop)]) continue;
+        if (typedOnly && stop == kAttributes) continue;
+        order.push_back(stop);
+    }
+    std::sort(order.begin(), order.end(), [&spots](int a, int b) {
+        const StopSpot& first = *spots[static_cast<size_t>(a)];
+        const StopSpot& second = *spots[static_cast<size_t>(b)];
+        return std::tie(first.line, first.left) < std::tie(second.line, second.left);
+    });
+    return order;
+}
+
+/// The stop after the one the cursor is on in `step`'s direction, as the block
+/// is read — see `stopsInOrder()` — or kFieldCount where there is none that
+/// way, which is the text either way round. A cursor on a stop the order leaves
+/// out — the button, for Enter — starts from the first stop read after it.
+int fieldAfter(const AppState& state, int step, bool typedOnly) {
+    const std::vector<int> order = stopsInOrder(state, typedOnly);
+    const auto spots = stopSpots(state);
+    const auto& from = spots[static_cast<size_t>(state.composeField)];
+    int at = -1;
+    for (size_t i = 0; i < order.size(); ++i) {
+        if (order[i] == state.composeField) at = static_cast<int>(i);
+    }
+    if (at < 0 && from) {
+        // Not in the order: where it would stand in it, so a step either way
+        // lands on its neighbours.
+        for (size_t i = 0; i < order.size(); ++i) {
+            const StopSpot& spot = *spots[static_cast<size_t>(order[i])];
+            if (std::tie(spot.line, spot.left) < std::tie(from->line, from->left)) {
+                at = static_cast<int>(i);
+            }
+        }
+        if (step > 0) {
+            const int next = at + 1;
+            return next < static_cast<int>(order.size())
+                       ? order[static_cast<size_t>(next)]
+                       : static_cast<int>(kFieldCount);
+        }
+        return at >= 0 ? order[static_cast<size_t>(at)] : static_cast<int>(kFieldCount);
+    }
+    const int next = at + step;
+    if (next < 0 || next >= static_cast<int>(order.size())) return kFieldCount;
+    return order[static_cast<size_t>(next)];
+}
+
+/// The first stop Tab reaches coming up out of the text, and the last one
+/// Shift-Tab does.
+int firstStop(const AppState& state) {
+    const std::vector<int> order = stopsInOrder(state, false);
+    return order.empty() ? static_cast<int>(kFromName) : order.front();
+}
+
+int lastStop(const AppState& state) {
+    const std::vector<int> order = stopsInOrder(state, false);
+    return order.empty() ? static_cast<int>(kAttributes) : order.back();
 }
 
 /// The stop under the one the cursor is on, as the block is drawn — see
@@ -1969,13 +2027,13 @@ bool headerKey(AppState& state, const Event& event) {
     if (event == Event::Return || event == Event::Tab) {
         if (state.composeField == kToAddr && !leaveToAddr(state)) return true;
 
-        // Enter walks the fields that are typed into and no further: off the
-        // subject it hands the typing down to the message, which is what the
-        // user came to write, rather than stopping at a button on the way. Tab
-        // walks the whole ring, the button among the rest.
-        const int last = event == Event::Return ? kAttributes : kFieldCount;
-        const int next = fieldAfter(state, 1);
-        if (next >= last) {
+        // Both walk the block as it is read — along a line, then down to the
+        // next. Enter walks the fields that are typed into and no further: off
+        // the last of them it hands the typing down to the message, which is
+        // what the user came to write, rather than stopping at a button on the
+        // way. Tab walks the whole ring, the button among the rest.
+        const int next = fieldAfter(state, 1, event == Event::Return);
+        if (next >= kFieldCount) {
             // Off the last stop is down into the text — the addresses are not
             // checked here. An address is typed through states that do not
             // parse, and the header is no longer a gate the message has to pass
@@ -1993,13 +2051,14 @@ bool headerKey(AppState& state, const Event& event) {
         // forwards does: what is behind the field is already filled in, and an
         // address still half typed is no reason to refuse to look at it.
         if (state.composeField == kToAddr) leaveToAddr(state);
-        // Shift-Tab closes the ring Tab walks: off the first field is down into
-        // the text, exactly as off the last field is going the other way.
-        if (state.composeField == kFromName) {
+        // Shift-Tab closes the ring Tab walks: off the first stop is down into
+        // the text, exactly as off the last stop is going the other way.
+        const int previous = fieldAfter(state, -1, false);
+        if (previous >= kFieldCount) {
             leaveHeader(state);
             return true;
         }
-        moveTo(state, fieldAfter(state, -1));
+        moveTo(state, previous);
         return true;
     }
 
@@ -2569,11 +2628,11 @@ bool handleEvent(AppState& state, const Event& event) {
             return true;
         }
         if (event == Event::Tab) {
-            enterHeader(state, kFromName);
+            enterHeader(state, firstStop(state));
             return true;
         }
         if (event == Event::TabReverse) {
-            enterHeader(state, kAttributes);
+            enterHeader(state, lastStop(state));
             return true;
         }
     }

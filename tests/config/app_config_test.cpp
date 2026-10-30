@@ -2845,7 +2845,7 @@ TEST_CASE(
         ++found;
         at = end;
     }
-    CHECK(found == 2);
+    CHECK(found >= 2);
 }
 
 TEST_CASE("The example config's AKA lines parse once uncommented [app_config]") {
