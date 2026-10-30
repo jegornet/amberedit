@@ -738,10 +738,10 @@ mark_moves_down on
 # the rule where that line holds only one.
 #
 # Default format:
-#header_format " {From}5: f0o15\n {To}5: t0r15\n {Subj}5: s0\n {Date}5: d0a15" "
+#header_format " {From}5: f0o15\n {To}5: t0r15\n {Subj}5: s0\n {Date}5: d0a15" " {From}5: f36o23\n {To}5: t36r23\n {Subj}5: s0\n {Date}5: d36a25"
 #
 # The Date row on top:
-#header_format " {Date}5: d0a15\n {Recd}5: p0\n {From}5: f0o15\n {To}5: t0r15\n
+#header_format " {Date}5: d0a15\n {Recd}5: p0\n {From}5: f0o15\n {To}5: t0r15\n {Subj}5: s0" " {Date}5: d36a25\n {Recd}5: p36\n {From}5: f36o23\n {To}5: t36r23\n {Subj}5: s0"
 #
 # Three columns:
 #header_format " {From}5: f32o18d0\n {To}5: t32r18p0\n {Subj}5: s50a0"
