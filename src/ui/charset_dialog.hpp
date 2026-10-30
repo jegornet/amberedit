@@ -5,7 +5,7 @@
 #include "ui/term/event.hpp"
 
 /// The dialog that asks which charset the message on screen is to be read in —
-/// what the reader's Alt-E, and the `charset` button in its menu, put up.
+/// what the reader's `h`, and the `charset` button in its menu, put up.
 ///
 /// It says what the message is being read in and where that came from — its own
 /// CHRS kludge, the area's `default_charset`, or an earlier answer to this same

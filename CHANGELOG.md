@@ -5,7 +5,10 @@
 - add header_format: what the header block holds, with translated labels
 - show_recd_date is ignored with a warning: the Recd row is a line of header_format
 - Ctrl-Home and Ctrl-End in the editor: the start and the end of the message text
+- every letter key in the reader also works with Alt
+- move charset override from Alt-E to h and Alt-H: Alt-E now writes a new message
 - fix every other click on rescan in the hint bar doing nothing
+- limit origin, tearline and tagline to 79 characters
 
 ## 0.9.4 — 2026-10-26
 

@@ -827,6 +827,14 @@ Rules that hold the design together:
   the same setting — and there the pair is spoiled to `-+-`/` + Origin:` on the
   way out, being a tearline standing in the middle of a message. It is per area,
   as `quote_string` and `quote_margin` are.
+- **No line of the footer AmberEdit writes runs past 79 characters.**
+  `kFooterLineChars` in `app/message_builder.cpp`, and the lines are built there
+  and nowhere else: `tearlineFrom()`, `taglineFrom()` and `originLine()` cut the
+  *text* after its tokens are expanded, so the marker always stands and an origin
+  keeps its address, which is what a tosser reads the line for. Counted in
+  characters, the message not being in its charset yet, and cut between them. It
+  holds for what the config produces: a line the user typed into the editor over
+  it stands as typed, and so does one a template writes by itself.
 - **The block closing a message is the footer, and nothing else is.** The
   tagline, the tearline and the origin are one thing wherever they are met:
   `markFooter()` flags them, `MessageLine::footer` carries the flag,
@@ -2945,7 +2953,7 @@ taking a row.
   again. The box asks and does not search: what walks the base and moves the
   reader is `message_read::findMessage()`, which the shell calls with what the
   box holds. See [Finding a message](#finding-a-message).
-- **`Alt-E` in the reader reads the message on screen in another charset**,
+- **`h` in the reader reads the message on screen in another charset**,
   with `charset` on the list `reader_menu` may name. `ui/charset_dialog.*` is the
   modal: a line saying what the message is being read in and which of three
   things decided that — its own CHRS kludge, the area's `default_charset`, or an
@@ -3412,7 +3420,7 @@ taking a row.
   `default_charset`. Fidonet names are mapped onto iconv names in
   `charset_detector.cpp` — `+7_FIDO` and `866` both mean CP866.
 - **One message can be read in a charset nobody configured, and that is the
-  reader's own doing.** `Alt-E` puts up `ui/charset_dialog.*`, and what it is
+  reader's own doing.** `h` puts up `ui/charset_dialog.*`, and what it is
   answered with reaches the base through the second form of `IMsgBase::header()`
   and `IMsgBase::body()`, which take the charset to read in instead of asking the
   message. `FtnMsgBase::charsetFor()` is the whole of the rule: the name asked
@@ -4999,8 +5007,8 @@ together — `keys_mode` says which.
 - **A merged clash is settled for the file, by the rule that refuses one.** A
   default key goes only where the file gave it to a command `clash()` says it
   meets — the same screen, or one of the two answered before every screen — the
-  same function the parser stops a file for making a clash with itself. So `k`
-  moved to `reader.list` leaves `reader.kludges` with no key at all, and `F2`
+  same function the parser stops a file for making a clash with itself. So `-`
+  moved to `reader.list` leaves `reader.thread_up` with no key at all, and `F2`
   given to a reader command takes nothing from `compose.save`. The file's keys
   stand in front of the kept ones, so a hint is drawn under the key the user
   chose.
@@ -5038,6 +5046,9 @@ together — `keys_mode` says which.
   msgids and both are asked as they are drawn (`Commands::labelOf()`,
   `Commands::helpOf()`), the table being built before the config that names a
   catalog has been read.
+- **Every bare letter the reader answers has an Alt twin in `kCommands`**, so a
+  new reader command on a letter is given both. `-`, `+` and `=` have none:
+  `keyNamed()` takes Alt with a letter and not with punctuation.
 - **A bare letter bound in the area list stops being a letter the quick search
   can be typed with**: the commands are answered before `searchInput()`. By
   default only `/` is taken there.

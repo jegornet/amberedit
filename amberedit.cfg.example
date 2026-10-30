@@ -1492,6 +1492,8 @@ import_end "=== Cut ==="
 # The line itself is written whatever it says — an echomail message without one
 # is one a tosser may refuse — and an empty tearline goes out as "---" alone.
 #
+# Each of the three lines stops at 79 characters, markers included.
+#
 # A tagline is the one of the three that is NOT written unless you ask for it:
 # with no "tagline" line here your messages carry no such line at all. Write one
 # and every message you write is signed with it, the same way the other two are.
