@@ -2827,6 +2827,27 @@ TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     CHECK(cfg.akaMatches.empty());
 }
 
+TEST_CASE(
+    "The example config's other header formats parse once uncommented "
+    "[app_config]") {
+    // The sample offers them to be copied, so each has to be a value
+    // header_format takes — the editor's fields included.
+    const auto path = amberedit::test::projectPath("amberedit.cfg.example");
+    const std::string text =
+        amberedit::test::valueOf(amberedit::config::text::readFile(path));
+    int found = 0;
+    size_t at = 0;
+    while ((at = text.find("\n#header_format ", at)) != std::string::npos) {
+        const size_t end = text.find('\n', at + 1);
+        const std::string line = text.substr(at + 2, end - at - 2);
+        CAPTURE(line);
+        CHECK(loads(line + "\n"));
+        ++found;
+        at = end;
+    }
+    CHECK(found == 2);
+}
+
 TEST_CASE("The example config's AKA lines parse once uncommented [app_config]") {
     // Being commented out, nothing in the example itself reads them — a user
     // uncommenting them would be the first to find out whether they still
