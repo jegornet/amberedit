@@ -2205,9 +2205,9 @@ decides what an occurrence is.
   off the lowest line is the text, `↑` off the highest goes nowhere, and up off
   the very start of the text, row and column zero, is the stop nearest the left
   edge on the lowest line. `→` at the end of a field and `←` at the start of one
-  cross to the typed field beside it on its line (`fieldBeside()`, the button
-  not among them), as the arrows cross a line end in the text, and everywhere
-  else they move inside the field. **`Ctrl-Home` and
+  cross to the stop beside it on its line (`stopBeside()`, the button among
+  them), as the arrows cross a line end in the text, and everywhere else they
+  move inside the field; on the button, having no text, they cross at once. **`Ctrl-Home` and
   `Ctrl-End` are the two ends of the text from anywhere on the screen**: from
   the header they go down into it the way a click does, the To address left
   without being held, and under `external_editor` they scroll the message to

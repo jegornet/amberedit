@@ -598,6 +598,43 @@ TEST_CASE("← and → cross between a name and its address at the edge [compose
     CHECK(state.composeField == compose::kToName);
 }
 
+TEST_CASE("← and → cross onto the attributes button beside a field [compose]") {
+    using amberedit::config::HeaderField;
+    using amberedit::config::HeaderFieldKind;
+
+    ComposeFixture fixture(AreaKind::Netmail, "2:5020/1");
+    auto& state = fixture.state;
+    fixture.config.headerFormatWide = {
+        {HeaderField{HeaderFieldKind::FromName, 20},
+         HeaderField{HeaderFieldKind::FromAddr, 20}},
+        {HeaderField{HeaderFieldKind::ToName, 20},
+         HeaderField{HeaderFieldKind::ToAddr, 20}},
+        {HeaderField{HeaderFieldKind::Subject, 40},
+         HeaderField{HeaderFieldKind::Attributes, 0}},
+    };
+    compose::startNew(state);
+
+    state.composeField = compose::kSubject;
+    state.compose.subject = "subject";
+    state.composeCursor = 3;
+    // Inside the subject → is the ordinary motion, and only its end crosses.
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kSubject);
+    CHECK(state.composeCursor == 4);
+
+    state.composeCursor = state.compose.subject.size();
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kAttributes);
+    CHECK(state.composeCursor == 0);
+
+    // The button has nothing to its right, and no text for ← to move through.
+    compose::handleEvent(state, Event::ArrowRight);
+    CHECK(state.composeField == compose::kAttributes);
+    compose::handleEvent(state, Event::ArrowLeft);
+    CHECK(state.composeField == compose::kSubject);
+    CHECK(state.composeCursor == state.compose.subject.size());
+}
+
 TEST_CASE("→ off the To name goes nowhere in an echo [compose]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;

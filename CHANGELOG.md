@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix right arrow not reaching attributes button from subject in 3-columns header_format
+
 ## 0.10.0 — 2026-10-30
 
 - add header_format: what the header block holds, with translated labels
