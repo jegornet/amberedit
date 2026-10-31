@@ -3145,6 +3145,93 @@ TEST_CASE("A drag of the pointer selects in the text [compose][selection][mouse]
     CHECK_FALSE(state.composeHasSelection());
 }
 
+TEST_CASE("A drag begun inside a selection grows it [compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"one two three four"});
+    screenRowsOf(state);
+    const auto row = state.composeTextRows[0].box;
+    const auto at = [&](int column, term::MouseEvent::Motion motion) {
+        compose::handleEvent(state, pointerAt(row.x_min + column, row.y_min, motion));
+    };
+    const auto selected = [&] {
+        state.clipboard.clear();
+        compose::handleEvent(state, ctrl('c'));
+        return state.clipboard;
+    };
+    using Motion = term::MouseEvent::Motion;
+    const auto selectTwo = [&] {
+        compose::handleEvent(state, clickAt(row.x_min + 17, row.y_min));
+        at(17, Motion::Released);
+        compose::handleEvent(state, clickAt(row.x_min + 4, row.y_min));
+        at(7, Motion::Moved);
+        at(7, Motion::Released);
+        REQUIRE(selected() == "two");
+    };
+
+    // Rightwards past its end and leftwards past its start, all of it kept.
+    selectTwo();
+    compose::handleEvent(state, clickAt(row.x_min + 5, row.y_min));
+    at(13, Motion::Moved);
+    at(13, Motion::Released);
+    CHECK(selected() == "two three");
+
+    selectTwo();
+    compose::handleEvent(state, clickAt(row.x_min + 5, row.y_min));
+    at(0, Motion::Moved);
+    at(0, Motion::Released);
+    CHECK(selected() == "one two");
+
+    // A drag that stays inside it changes nothing.
+    selectTwo();
+    compose::handleEvent(state, clickAt(row.x_min + 5, row.y_min));
+    at(6, Motion::Moved);
+    at(6, Motion::Released);
+    CHECK(selected() == "two");
+
+    // A drag begun outside it selects afresh.
+    selectTwo();
+    compose::handleEvent(state, clickAt(row.x_min + 8, row.y_min));
+    at(13, Motion::Moved);
+    at(13, Motion::Released);
+    CHECK(selected() == "three");
+
+    // A click inside it that is not dragged drops it, as any other click does.
+    selectTwo();
+    compose::handleEvent(state, clickAt(row.x_min + 5, row.y_min));
+    at(5, Motion::Released);
+    CHECK_FALSE(state.composeHasSelection());
+}
+
+TEST_CASE("A drag survives the pointer leaving the window [compose][selection][mouse]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    inText(fixture, {"one", "two", "three", "four"});
+    screenRowsOf(state);
+    const auto first = state.composeTextRows[0].box;
+    const auto fourth = state.composeTextRows[3].box;
+    using Motion = term::MouseEvent::Motion;
+
+    compose::handleEvent(state, clickAt(first.x_min, first.y_min));
+    compose::handleEvent(state, pointerAt(first.x_min + 3, first.y_min, Motion::Moved));
+
+    // No release reached us, and the pointer comes back several rows away.
+    Event back = pointerAt(first.x_min + 2, fourth.y_min, Motion::Pressed);
+    auto mouse = back.mouse();
+    mouse.resumed = true;
+    compose::handleEvent(state, Event::Mouse(mouse));
+    compose::handleEvent(state, pointerAt(first.x_min + 4, fourth.y_min, Motion::Moved));
+    compose::handleEvent(state, pointerAt(first.x_min + 4, fourth.y_min, Motion::Released));
+    state.clipboard.clear();
+    compose::handleEvent(state, ctrl('c'));
+    CHECK(state.clipboard == "one\ntwo\nthree\nfour");
+
+    // With no drag to carry on it is the press it reads as.
+    compose::handleEvent(state, Event::Mouse(mouse));
+    compose::handleEvent(state, pointerAt(first.x_min + 2, fourth.y_min, Motion::Released));
+    CHECK_FALSE(state.composeHasSelection());
+}
+
 TEST_CASE("A drag of the pointer selects in a header field [compose][selection][mouse]") {
     ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
     auto& state = fixture.state;

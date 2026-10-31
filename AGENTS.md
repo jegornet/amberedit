@@ -1044,7 +1044,13 @@ Rules that hold the design together:
   is: a held button is reported cell by cell as the pointer crosses them, so a
   movement that comes after `kLostReleaseGapMs` of nothing and lands more than a
   cell from the last report is not a drag. The release that follows it is a real
-  one and puts ncurses right.
+  one and puts ncurses right. **A button held while the pointer left the window
+  and came back reads exactly the same**, and nothing ncurses hands over tells
+  them apart, so such a press carries `MouseEvent::resumed` and the screen with
+  a drag under way settles it by where it landed: over what the drag is selecting
+  in it carries the drag on, and anywhere else — a button, the hint bar — it is
+  the click it reads as. What that costs is one click in the text after a release
+  really lost, which extends the selection rather than dropping it.
 - **Typeahead is dropped by reading it, never by `flushinp()`.**
   `Terminal::flushInput()` reads every event off the queue through ncurses and
   throws it away after. ncurses remembers which buttons are down and forgets
@@ -2610,6 +2616,13 @@ decides what an occurrence is.
   top or the bottom of the window onto the row past it, which is what scrolls a
   selection over more than the window holds — and the release ends it. A press
   not dragged leaves anchor and cursor together, which selects nothing.
+  - **A drag begun inside a selection grows it; one begun anywhere else selects
+    afresh.** `HeldSelection` in `ui/text_editor.hpp` is the whole of it, shared
+    with the reader's mode: the two ends are read before the press moves the
+    cursor, and the drag then runs from whichever end the pointer has gone past,
+    keeping everything between. Nothing is decided until the pointer moves, so a
+    click inside a selection still drops it, that being how a cursor is put down
+    there.
   - **Esc over a selection drops the selection**, and asks nothing: the
     confirmation is the next Esc's.
   - **Copy and cut go where `clipboard` says**, as the reader's copy does —

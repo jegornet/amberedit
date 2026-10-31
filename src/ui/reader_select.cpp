@@ -420,6 +420,15 @@ bool multiClick(AppState& state, const MouseEvent& click) {
 /// A press: the cursor to where it points, and a drag begun from there.
 bool press(AppState& state, const MouseEvent& click) {
     auto& select = state.readSelect;
+    // What was selected before the cursor moves, for a press inside it to hold.
+    const bool wasInHeader = select.inHeader;
+    const int wasField = select.field;
+    const FieldSelection inField =
+        wasInHeader ? fieldSelection(state, wasField) : FieldSelection{};
+    const auto inText = wasInHeader ? std::nullopt : selectionOf(select.text);
+    select.heldField.reset();
+    select.heldText.reset();
+
     select.anchored = false;
     if (const int field = fieldAt(state, click.x, click.y); field >= 0) {
         select.text.anchor.reset();
@@ -431,6 +440,11 @@ bool press(AppState& state, const MouseEvent& click) {
         if (!multiClick(state, click)) {
             select.fieldAnchor = select.fieldCursor;
             select.drag = AppState::ReaderSelect::Drag::Field;
+            using Held = HeldSelection<size_t>;
+            if (wasInHeader && wasField == field && !inField.empty() &&
+                Held::covers(inField.begin, inField.end, select.fieldCursor)) {
+                select.heldField = Held{inField.begin, inField.end, select.fieldCursor};
+            }
         }
         return true;
     }
@@ -446,6 +460,10 @@ bool press(AppState& state, const MouseEvent& click) {
     if (!multiClick(state, click)) {
         select.text.anchor = select.text.cursor();
         select.drag = AppState::ReaderSelect::Drag::Text;
+        using Held = HeldSelection<TextPoint>;
+        if (inText && Held::covers(inText->first, inText->second, select.text.cursor())) {
+            select.heldText = Held{inText->first, inText->second, select.text.cursor()};
+        }
     }
     return true;
 }
@@ -581,7 +599,19 @@ bool dragged(AppState& state, const Event& event) {
     auto& select = state.readSelect;
     const auto mouse = mouseOf(event);
     if (!select.on || !mouse || mouse->button != MouseEvent::Button::Left) return false;
-    if (mouse->motion == MouseEvent::Motion::Pressed) {
+    // The pointer back in the window with the button still down carries the drag
+    // on; a button or the hint bar is still clicked.
+    const auto overDragged = [&] {
+        if (select.drag == AppState::ReaderSelect::Drag::Field) {
+            return select.fieldSpots[static_cast<size_t>(select.field)].box.Contain(mouse->x,
+                                                                                    mouse->y);
+        }
+        return std::any_of(select.textRows.begin(), select.textRows.end(),
+                           [&](const auto& spot) { return spot.box.Contain(mouse->x, mouse->y); });
+    };
+    const bool pressed = mouse->motion == MouseEvent::Motion::Pressed;
+    if (pressed && (!mouse->resumed || select.drag == AppState::ReaderSelect::Drag::None ||
+                    !overDragged())) {
         // A press begins afresh, whatever the last drag left behind: a release
         // that went to a box standing over the screen never reached here.
         select.drag = AppState::ReaderSelect::Drag::None;
@@ -596,9 +626,21 @@ bool dragged(AppState& state, const Event& event) {
                 std::clamp(mouse->x, spot.box.x_min, spot.box.x_max + 1) - spot.box.x_min;
             select.fieldCursor =
                 offsetAtColumn(fieldValue(state, select.field), spot.origin, column);
+            if (select.heldField) {
+                const auto [anchor, cursor] = select.heldField->endsFor(select.fieldCursor);
+                select.fieldAnchor = anchor;
+                select.fieldCursor = cursor;
+            }
         }
     } else if (!select.inHeader) {
         pointTo(state, viewportRowAt(state, mouse->y), mouse->x);
+        if (select.heldText) {
+            const auto [anchor, cursor] = select.heldText->endsFor(select.text.cursor());
+            select.text.anchor = anchor;
+            select.text.row = cursor.row;
+            select.text.col = cursor.col;
+            scrollToCursor(state);
+        }
     }
 
     if (mouse->motion == MouseEvent::Motion::Released) {

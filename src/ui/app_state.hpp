@@ -1260,6 +1260,9 @@ struct AppState {
     /// down on a field or in the text, then that, until it comes back up.
     enum class ComposeDrag : uint8_t { None, Field, Text };
     ComposeDrag composeDrag{ComposeDrag::None};
+    /// The selection the drag under way was pressed inside of, if it was.
+    std::optional<HeldSelection<size_t>> composeHeldField;
+    std::optional<HeldSelection<TextPoint>> composeHeldText;
 
     /// The presses on the message so far, for telling a double click — a word
     /// — and a triple one — the line, or the whole of a field — from clicks.
@@ -1316,6 +1319,9 @@ struct AppState {
         TextBuffer text;
         enum class Drag : uint8_t { None, Field, Text };
         Drag drag{Drag::None};
+        /// The selection the drag under way was pressed inside of, if it was.
+        std::optional<HeldSelection<size_t>> heldField;
+        std::optional<HeldSelection<TextPoint>> heldText;
         /// Where the frame drew each field, in `compose::Field` order, which is
         /// what the cursor walks: `header_format` and the window decide what
         /// the block holds and where. Nothing for a field that is no stop — the

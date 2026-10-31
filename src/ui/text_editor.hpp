@@ -134,6 +134,33 @@ void moveWordLeft(TextBuffer& buffer);
 /// text is the last character of it; an empty text is {0, 0}.
 [[nodiscard]] std::pair<size_t, size_t> wordAround(const std::string& text, size_t at);
 
+/// A selection a press landed inside, held for the drag that may come of it:
+/// dragged, it grows towards the pointer and keeps everything it held; a click
+/// that never moves drops it, as a click anywhere else does. `Point` is a
+/// TextPoint in the text and a byte offset in a one-line field.
+template <typename Point>
+struct HeldSelection {
+    Point from;
+    Point to;
+    Point pressed;
+    bool moved{false};
+
+    /// Whether a press at `at` lands on a selection from `begin` to `end`. The
+    /// end is the place after the last character selected, which is not on it.
+    [[nodiscard]] static bool covers(const Point& begin, const Point& end, const Point& at) {
+        return !(at < begin) && at < end;
+    }
+
+    /// The anchor and the cursor with the pointer at `pointer`.
+    [[nodiscard]] std::pair<Point, Point> endsFor(const Point& pointer) {
+        if (pointer != pressed) moved = true;
+        if (!moved) return {pressed, pressed};
+        if (pointer < from) return {to, pointer};
+        if (to < pointer) return {from, pointer};
+        return {from, to};
+    }
+};
+
 /// The selection, front end first: from the anchor to the cursor or the other
 /// way round, whichever comes first in the text. Nothing where no text is
 /// selected — no anchor, or one standing on the cursor. Both ends are held to

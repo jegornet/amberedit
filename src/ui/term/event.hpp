@@ -27,6 +27,10 @@ struct MouseEvent {
     Motion motion{Motion::Pressed};
     int x{0};
     int y{0};
+    /// A press worked out from a movement with no release before it: either the
+    /// button let go outside the window and pressed again, or the button held
+    /// all along and the pointer coming back in. Nothing reported tells which.
+    bool resumed{false};
 };
 
 class Event {

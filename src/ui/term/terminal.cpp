@@ -780,9 +780,12 @@ bool Terminal::noteButton(Event& event) {
             // really held is reported cell by cell as the pointer crosses
             // them, so a movement that comes after a pause and lands away from
             // where the last report left the pointer is a fresh press, and is
-            // passed on as one.
+            // passed on as one. A button held while the pointer went out of the
+            // window and came back reads exactly the same, which `resumed` says
+            // for whatever has a drag to carry on.
             if (gap > kLostReleaseGapMs && distance > 1) {
                 mouse.motion = MouseEvent::Motion::Pressed;
+                mouse.resumed = true;
                 event = Event::Mouse(mouse);
             }
             return true;

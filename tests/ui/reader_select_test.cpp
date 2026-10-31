@@ -232,12 +232,51 @@ TEST_CASE("A selection copies itself as clipboard_copy_on_select says, and the m
     reader.draw();
     const auto first = state.readSelect.textRows[0].box;
     const auto second = state.readSelect.textRows[1].box;
+    reader.key(pointerAt(first.x_min, second.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min, second.y_min, term::MouseEvent::Motion::Released));
+    reader.draw();
     reader.key(pointerAt(first.x_min + 6, first.y_min, term::MouseEvent::Motion::Pressed));
     reader.key(pointerAt(first.x_min + 3, second.y_min, term::MouseEvent::Motion::Moved));
     reader.key(pointerAt(first.x_min + 6, second.y_min, term::MouseEvent::Motion::Released));
     CHECK(state.clipboard == "line\nsecond");
     CHECK_FALSE(state.copiedNotice);
     CHECK(state.readSelect.on);
+
+    // A drag begun inside the selection grows it; one begun outside starts anew.
+    reader.key(pointerAt(first.x_min + 7, second.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 7, second.y_min, term::MouseEvent::Motion::Released));
+    reader.draw();
+    reader.key(pointerAt(first.x_min + 1, second.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 6, second.y_min, term::MouseEvent::Motion::Released));
+    REQUIRE(reader_select::hasSelection(state));
+    CHECK(reader_select::selectedText(state) == "econd");
+    reader.draw();
+    reader.key(pointerAt(first.x_min + 3, second.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 9, second.y_min, term::MouseEvent::Motion::Moved));
+    reader.key(pointerAt(first.x_min + 9, second.y_min, term::MouseEvent::Motion::Released));
+    CHECK(reader_select::selectedText(state) == "econd li");
+    reader.draw();
+    reader.key(pointerAt(first.x_min + 4, second.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min, second.y_min, term::MouseEvent::Motion::Moved));
+    reader.key(pointerAt(first.x_min, second.y_min, term::MouseEvent::Motion::Released));
+    CHECK(reader_select::selectedText(state) == "second li");
+    reader.draw();
+    reader.key(pointerAt(first.x_min, first.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 3, first.y_min, term::MouseEvent::Motion::Released));
+    CHECK(reader_select::selectedText(state) == "fir");
+
+    // The pointer out of the window and back with the button held carries on.
+    reader.draw();
+    reader.key(pointerAt(first.x_min + 9, first.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 9, first.y_min, term::MouseEvent::Motion::Released));
+    reader.draw();
+    reader.key(pointerAt(first.x_min, first.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 2, first.y_min, term::MouseEvent::Motion::Moved));
+    auto back = pointerAt(first.x_min + 6, second.y_min, term::MouseEvent::Motion::Pressed).mouse();
+    back.resumed = true;
+    reader.key(Event::Mouse(back));
+    reader.key(pointerAt(first.x_min + 6, second.y_min, term::MouseEvent::Motion::Released));
+    CHECK(reader_select::selectedText(state) == "first line\nsecond");
 
     // And not at all under `off`.
     config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Off;

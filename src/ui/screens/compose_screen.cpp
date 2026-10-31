@@ -1634,20 +1634,57 @@ bool clickToCursor(AppState& state, const MouseEvent& click) {
     return false;
 }
 
+/// What was selected before a press moved the cursor, in whichever half the
+/// typing was in.
+struct SelectionBefore {
+    bool inHeader{false};
+    int field{0};
+    FieldSelection inField;
+    std::optional<std::pair<TextPoint, TextPoint>> inText;
+};
+
+SelectionBefore selectionBefore(const AppState& state) {
+    SelectionBefore before;
+    before.inHeader = state.composeInHeader;
+    before.field = state.composeField;
+    if (state.composeInHeader) {
+        before.inField = fieldSelection(state);
+    } else {
+        before.inText = selectionOf(state.edit);
+    }
+    return before;
+}
+
 /// Begins a drag where a click has just put the cursor: the cursor is one end
 /// of whatever the drag selects, so the other is put down where it stands. A
 /// click that is never dragged leaves the two together, which selects nothing.
-void startDrag(AppState& state) {
+/// A press inside what `before` held selected keeps that for the drag to grow.
+void startDrag(AppState& state, const SelectionBefore& before) {
+    state.composeHeldField.reset();
+    state.composeHeldText.reset();
     if (state.composeInHeader) {
         if (state.composeField >= kAttributes) return;
         state.composeFieldAnchor = AppState::FieldAnchor{state.composeField,
                                                          state.composeCursor};
         state.composeDrag = AppState::ComposeDrag::Field;
+        using Held = HeldSelection<size_t>;
+        if (before.inHeader && before.field == state.composeField &&
+            !before.inField.empty() &&
+            Held::covers(before.inField.begin, before.inField.end, state.composeCursor)) {
+            state.composeHeldField =
+                Held{before.inField.begin, before.inField.end, state.composeCursor};
+        }
         return;
     }
     if (state.externalEditing()) return;
     state.edit.anchor = state.edit.cursor();
     state.composeDrag = AppState::ComposeDrag::Text;
+    using Held = HeldSelection<TextPoint>;
+    if (!before.inHeader && before.inText &&
+        Held::covers(before.inText->first, before.inText->second, state.edit.cursor())) {
+        state.composeHeldText =
+            Held{before.inText->first, before.inText->second, state.edit.cursor()};
+    }
 }
 
 /// The cursor carried to where the pointer has been dragged, the anchor left
@@ -1674,6 +1711,11 @@ void dragTo(AppState& state, int x, int y) {
         const int column = std::clamp(x, spot.box.x_min, spot.box.x_max + 1) - spot.box.x_min;
         state.composeCursor =
             offsetAtColumn(valueOf(state.compose, state.composeField), spot.origin, column);
+        if (state.composeHeldField) {
+            const auto [anchor, cursor] = state.composeHeldField->endsFor(state.composeCursor);
+            state.composeFieldAnchor->at = anchor;
+            state.composeCursor = cursor;
+        }
         return;
     }
 
@@ -1693,7 +1735,24 @@ void dragTo(AppState& state, int x, int y) {
         std::clamp(row.line, 0, static_cast<int>(state.edit.lines.size()) - 1);
     state.edit.col = columnOnRow(state.edit.line(), row, row.begin,
                                  std::max(0, x - rows.front().box.x_min));
+    if (state.composeHeldText) {
+        const auto [anchor, cursor] = state.composeHeldText->endsFor(state.edit.cursor());
+        state.edit.anchor = anchor;
+        state.edit.row = cursor.row;
+        state.edit.col = cursor.col;
+    }
     scrollToCursor(state);
+}
+
+/// Whether the pointer is over what the drag under way is selecting in: the
+/// field it began in, or the rows of the text.
+bool overDragged(const AppState& state, int x, int y) {
+    if (state.composeDrag == AppState::ComposeDrag::Field) {
+        return state.composeFieldSpots[static_cast<size_t>(state.composeField)].box.Contain(x,
+                                                                                            y);
+    }
+    return std::any_of(state.composeTextRows.begin(), state.composeTextRows.end(),
+                       [&](const AppState::ComposeSpot& spot) { return spot.box.Contain(x, y); });
 }
 
 /// Whether a key is one a selection is made with: Shift with an arrow, Home or
@@ -2777,9 +2836,18 @@ bool dispatch(AppState& state, const Event& event) {
     // pressed on a field or in the text, and wherever it is now is where the
     // selection runs to — over a button or off the window as much as anywhere.
     // A press begins afresh, whatever the last drag left behind: a release that
-    // went to a box standing over the screen never reached here to end it.
+    // went to a box standing over the screen never reached here to end it. The
+    // one that does not is `resumed` over what the drag is selecting in, which
+    // is the pointer back in the window with the button still down; a button or
+    // the hint bar is still clicked.
     if (const auto mouse = mouseOf(event);
         mouse && mouse->button == MouseEvent::Button::Left) {
+        if (mouse->motion == MouseEvent::Motion::Pressed && mouse->resumed &&
+            state.composeDrag != AppState::ComposeDrag::None &&
+            overDragged(state, mouse->x, mouse->y)) {
+            dragTo(state, mouse->x, mouse->y);
+            return true;
+        }
         if (mouse->motion == MouseEvent::Motion::Pressed) {
             state.composeDrag = AppState::ComposeDrag::None;
         } else if (state.composeDrag != AppState::ComposeDrag::None) {
@@ -2879,8 +2947,9 @@ bool dispatch(AppState& state, const Event& event) {
     // Pointing at the message itself, once the buttons standing over it have
     // had their look: the header block and the text are one screen, and a click
     // in either says the typing goes there, at the character pointed at.
+    const SelectionBefore before = selectionBefore(state);
     if (const auto click = leftClick(event); click && clickToCursor(state, *click)) {
-        if (!multiClick(state, *click)) startDrag(state);
+        if (!multiClick(state, *click)) startDrag(state, before);
         return true;
     }
     // The wheel over the message, a row per notch, exactly as it moves the body

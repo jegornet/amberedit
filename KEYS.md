@@ -97,7 +97,7 @@ standing in both.
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
-| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`); a double click selects a word, a triple one the line or the whole header field; the same in the reader's selection mode |
+| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`), a drag begun inside a selection growing it; a double click selects a word, a triple one the line or the whole header field; the same in the reader's selection mode |
 | `Ctrl-C` / `Ctrl-Ins` | copy the selection to the clipboard                    |
 | `Ctrl-X` / `Shift-Del` | cut the selection to the clipboard                    |
 | `Ctrl-Z` / `Ctrl-U` | undo the last change, in the text or a header field — a line `Ctrl-Y` deleted included; typing goes back a word at a time |
