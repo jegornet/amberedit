@@ -108,11 +108,32 @@ QuoteStringParts splitQuoteString(std::string_view quoteString) {
     return parts;
 }
 
+/// The name with whatever stands in angle brackets taken out: a gateway writes
+/// `Vasya Pupkin <vasya@example.com>`, and the address is no part of the name. A
+/// `<` nothing closes runs to the end, a name field having cut the address short.
+std::string withoutAngleBrackets(std::string_view author) {
+    std::string out;
+    size_t pos = 0;
+    while (pos < author.size()) {
+        const size_t open = author.find('<', pos);
+        if (open == std::string_view::npos) {
+            out += author.substr(pos);
+            break;
+        }
+        out += author.substr(pos, open - pos);
+        out += ' ';
+        const size_t close = author.find('>', open);
+        if (close == std::string_view::npos) break;
+        pos = close + 1;
+    }
+    return out;
+}
+
 /// The initials of a name, written into the quote string's template: F for the
 /// first name, L for the last, M for the names in between. A one-word name has
 /// a first name and nothing else, so F is all it yields.
 std::string initialsOf(std::string_view author, std::string_view letters) {
-    std::istringstream stream{std::string(author)};
+    std::istringstream stream{withoutAngleBrackets(author)};
     std::vector<std::string> words;
     for (std::string word; stream >> word;) words.push_back(word);
 

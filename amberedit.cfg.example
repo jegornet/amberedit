@@ -1452,9 +1452,9 @@ template /usr/share/amberedit/default.tpl
 
 # What a quoted line is prefixed with. Optional; " FL> " by default, which is
 # GoldED's — the letters before the ">" stand for the initials of whoever is
-# being quoted. Exactly one ">" is required: that character is what quote levels
-# are counted in, so a second would send a first-level quote out looking like a
-# second-level one.
+# being quoted, what stands in <> in the name not counting. Exactly one ">" is
+# required: that character is what quote levels are counted in, so a second would
+# send a first-level quote out looking like a second-level one.
 quote_string " FL> "
 
 # The column quoted text is wrapped at. Optional; 78 by default, which keeps a
