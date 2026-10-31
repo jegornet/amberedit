@@ -927,6 +927,11 @@ TEST_CASE("AppConfig reads the scrollbar setting [app_config]") {
     CHECK_FALSE(with("reader_scrollbar off\n").showScrollbar);
     CHECK_FALSE(loads("reader_scrollbar yes\n"));
     CHECK_FALSE(loads("reader_scrollbar 1\n"));
+
+    CHECK_FALSE(with("").showKludges);  // hidden unless the config says otherwise
+    CHECK(with("reader_show_kludges on\n").showKludges);
+    CHECK_FALSE(with("reader_show_kludges off\n").showKludges);
+    CHECK_FALSE(loads("reader_show_kludges yes\n"));
 }
 
 TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {

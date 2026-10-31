@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.1 — 2026-10-31
 
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
@@ -11,6 +11,7 @@
 - fix right arrow not reaching attributes button from subject in 3-columns header_format
 - ignore angle brackets in quote initials 
 - treat bare quote markers as empty quotes
+- add reader_show_kludges: whether the reader starts with the kludges shown
 
 ## 0.10.0 — 2026-10-30
 

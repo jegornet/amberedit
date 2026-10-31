@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.10.0
+Version:        0.10.1
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,12 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Sat Oct 31 2026 Yegor Gluhov <git@jegor.net> - 0.10.1-1
+- fix right arrow not reaching attributes button from subject in 3-columns header_format
+- ignore angle brackets in quote initials
+- treat bare quote markers as empty quotes
+- add reader_show_kludges: whether the reader starts with the kludges shown
+
 * Fri Oct 30 2026 Yegor Gluhov <git@jegor.net> - 0.10.0-1
 - add header_format: what the header block holds, with translated labels
 - show_recd_date is ignored with a warning: the Recd row is a line of header_format

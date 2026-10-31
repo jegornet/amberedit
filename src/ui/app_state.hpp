@@ -1124,8 +1124,9 @@ struct AppState {
     /// Whether links in the message text are underlined, from the config.
     bool underlineLinks{true};
 
-    /// Whether the kludges are on screen. They are off by default: they are
-    /// service data, interesting when something looks wrong and noise otherwise.
+    /// Whether the kludges are on screen. `k` toggles them; the config decides
+    /// where they start, off unless it says otherwise: they are service data,
+    /// interesting when something looks wrong and noise otherwise.
     bool showKludges{false};
 
     // --- composing --------------------------------------------------------
@@ -1917,6 +1918,7 @@ struct AppState {
           areaUnreadOnly(appConfig.areaListUnreadOnly),
           showScrollbar(appConfig.showScrollbar),
           underlineLinks(appConfig.underlineLinks),
+          showKludges(appConfig.showKludges),
           clickAnimationMs(appConfig.clickAnimationMs),
           composeConfig_(appConfig) {}
 

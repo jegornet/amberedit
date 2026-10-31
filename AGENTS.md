@@ -807,7 +807,7 @@ Rules that hold the design together:
     may keep its values in a file" under
     [Config and area groups](#config-and-area-groups).
 - **What the reader is showing is what an answer carries.** `BuildRequest::kludgesShown`
-  is the reader's `k`, and `quotableLines()` keeps the control lines with the text
+  is the reader's `k`, which starts where `reader_show_kludges` says, and `quotableLines()` keeps the control lines with the text
   when it is set: a reply quotes them under the same initials as everything else,
   a forward passes them on where `@message` stands. They go in as the reader shows
   them, `@` for ^A, since what is carried is text *about* a message and not

@@ -759,6 +759,10 @@ mark_moves_down on
 # Optional; on by default. The `b` key toggles it for the session.
 reader_scrollbar on
 
+# Whether the message reader starts with the kludges shown. Optional; off by
+# default. The `k` key toggles them for the session.
+#reader_show_kludges off
+
 # How wide the window has to be before the reader puts the list of messages up
 # one side of itself, separated from the message by a vertical rule. Optional; 0
 # by default — no panel at any width — and "off" says the same. 81 to 255

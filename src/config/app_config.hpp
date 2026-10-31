@@ -1362,6 +1362,11 @@ struct AppConfig {
     /// the session; this only decides where it starts.
     bool showScrollbar{true};
 
+    /// Whether the reader starts with the kludges shown, from
+    /// `reader_show_kludges`. `k` toggles them for the session; this only decides
+    /// where they start.
+    bool showKludges{false};
+
     /// Whether links in the message text are underlined as well as colored.
     /// On by default: a theme may put the link color close to the text's, and
     /// the underline says "address" whatever the colors do.
