@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.10.1 — 2026-10-31
+## Unreleased
 
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
@@ -8,6 +8,9 @@
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 - add reader selection mode (V key). Reply in the selection mode quotes only what is selected, or the whole message where nothing is selected. Space key in the selection mode holds the anchor down, so the arrows select without Shift; Space again releases it
 - the reader's default hint bar offers v select in place of ctrl-n nodelist
+
+## 0.10.1 — 2026-10-31
+
 - fix right arrow not reaching attributes button from subject in 3-columns header_format
 - ignore angle brackets in quote initials 
 - treat bare quote markers as empty quotes
