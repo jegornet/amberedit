@@ -92,6 +92,17 @@ TEST_CASE("isOwnName matches nothing when the config names nobody [appstate]") {
     CHECK_FALSE(anonymous.state.isOwnName("Yegor Gluhov"));
 }
 
+TEST_CASE("reader_show_kludges decides where the kludges start [appstate]") {
+    CHECK_FALSE(StateWithManager("Yegor Gluhov").state.showKludges);
+
+    AppConfig cfg;
+    cfg.showKludges = true;
+    AreaManager manager(std::make_unique<EmptyAreaSource>(),
+                        std::make_unique<amberedit::msgbase::NullLastReadStore>(), cfg);
+    const AppState state(manager, cfg);
+    CHECK(state.showKludges);
+}
+
 TEST_CASE("a click is shown on the button before it acts [appstate]") {
     StateWithConfig clicked(200);
 

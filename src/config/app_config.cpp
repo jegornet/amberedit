@@ -1763,6 +1763,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.showScrollbar = *read;
+    } else if (key == "reader_show_kludges") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.showKludges = *read;
     } else if (key == "reader_underline_links") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
