@@ -44,6 +44,14 @@ TEST_CASE("The quote prefix is the quote string with the initials in it [quoting
     // two bytes.
     CHECK(quotePrefixFor(" FL> ", "Иван Петров") == " ИП> ");
 
+    // What stands in angle brackets is an address and not a name, and a name
+    // field may have cut it off before the closing bracket.
+    CHECK(quotePrefixFor(" FL> ", "Vasya Pupkin <vasya@example.com>") == " VP> ");
+    CHECK(quotePrefixFor(" FL> ", "Vasya Pupkin <vasya@exam") == " VP> ");
+    CHECK(quotePrefixFor(" FML> ", "Vasya <v@example.com> Pupkin") == " VP> ");
+    CHECK(quotePrefixFor(" FL> ", "Vasya <vasya at example dot com>") == " V> ");
+    CHECK(quotePrefixFor(" FL> ", "<vasya@example.com>") == " > ");
+
     // The space after the markers is not the quote string's to leave out.
     CHECK(quotePrefixFor(" FL>", "Vasya Pupkin") == " VP> ");
 }
