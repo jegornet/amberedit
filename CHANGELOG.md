@@ -10,6 +10,7 @@
 - the reader's default hint bar offers v select in place of ctrl-n nodelist
 - fix right arrow not reaching attributes button from subject in 3-columns header_format
 - ignore angle brackets in quote initials 
+- treat bare quote markers as empty quotes
 
 ## 0.10.0 — 2026-10-30
 

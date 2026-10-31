@@ -220,16 +220,10 @@ void deleteWordBefore(TextBuffer& buffer) {
 }
 
 void deleteQuote(TextBuffer& buffer) {
-    /// Whether the line belongs to a quoted block: a quote, a blank line, or a
-    /// quote prefix with nothing after it. That last one is what quoting an
-    /// empty line leaves behind — nothing trails the markers, so a reader does
-    /// not count it as a quote, but it is part of the block all the same and
-    /// stopping there would leave half of one behind.
+    /// Whether the line belongs to a quoted block: a quote or a blank line.
     const auto quotedOrBlank = [](const std::string& line) {
         if (line.find_first_not_of(" \t") == std::string::npos) return true;
-        if (app::parseQuotePrefix(line).level > 0) return true;
-        const auto padded = app::parseQuotePrefix(line + " ");
-        return padded.level > 0 && padded.length >= line.size() + 1;
+        return app::parseQuotePrefix(line).level > 0;
     };
     if (!quotedOrBlank(buffer.line())) return;
 
