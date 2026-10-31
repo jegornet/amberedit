@@ -3108,10 +3108,13 @@ taking a row.
   flush, the scrollbar taking the rightmost column when shown.
 - **Quoting.** `ui::quoteDepth()` decides whether a body line is a quote and how
   deep: optional one or two leading spaces, up to six letters of initials
-  (Cyrillic included, so counted in code points), the `>` markers, and a
-  mandatory space after them. Odd depths render gold, even ones amber. The depth
-  is taken from the source line and copied onto every wrapped piece, or a long
-  quote would lose its color halfway down.
+  (Cyrillic included, so counted in code points), the `>` markers, and a space
+  after them or the end of the line. The end of the line counts because `>` and
+  ` >` are empty quotes whose trailing space something took off on the way: they
+  are colored like any quote, and `app::quoteLines()` drops them from a reply as
+  it drops `> `. Odd depths render gold, even ones amber. The depth is taken from
+  the source line and copied onto every wrapped piece, or a long quote would lose
+  its color halfway down.
 - **Links** are found by `ui::findLinks()` and colored per run inside the body
   line, which is why a body line is an hbox of pieces rather than one text when
   it holds one. Only `http://`, `https://` and `ftp://` count: a schemeless

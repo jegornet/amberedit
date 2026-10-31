@@ -333,12 +333,13 @@ QuotePrefix parseQuotePrefix(std::string_view line) {
     }
     if (markers == 0) return prefix;
     // The space after the markers is what tells a quote from a line that
-    // merely begins with a '>'.
-    if (pos >= line.size() || line[pos] != ' ') return prefix;
+    // merely begins with a '>'. The end of the line does as well: `>` is an empty
+    // quote that has lost its trailing space.
+    if (pos < line.size() && line[pos] != ' ') return prefix;
 
     prefix.initials = std::string(line.substr(initialsAt, initialsEnd - initialsAt));
     prefix.level = markers;
-    prefix.length = pos + 1;
+    prefix.length = std::min(pos + 1, line.size());
     return prefix;
 }
 

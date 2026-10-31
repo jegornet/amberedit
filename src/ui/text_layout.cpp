@@ -64,9 +64,10 @@ int quoteDepth(std::string_view line) {
     }
     if (markers == 0) return 0;
 
-    // No space after the markers means this is not a quote, whatever it looks
-    // like — ">8 lines later" and the like stay ordinary text.
-    if (pos >= line.size() || line[pos] != ' ') return 0;
+    // Text straight after the markers means this is not a quote, whatever it
+    // looks like — ">8 lines later" and the like stay ordinary text. The end of
+    // the line is no text: `>` is an empty quote whose trailing space was lost.
+    if (pos < line.size() && line[pos] != ' ') return 0;
     return markers;
 }
 

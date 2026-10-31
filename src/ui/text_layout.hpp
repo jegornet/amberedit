@@ -42,8 +42,9 @@ std::string horizontalRule(int width);
 ///
 /// A quote opens with an optional one or two spaces, then up to six letters of
 /// the quoted author's initials, then an optional '-', then the markers, then a
-/// space. That last space is what tells `> like this` apart from text that
-/// merely starts with a greater-than sign, so it is required. The '-' is there
+/// space or the end of the line. That is what tells `> like this` apart from text
+/// that merely starts with a greater-than sign, and the end of the line is an
+/// empty quote that has lost its trailing space. The '-' is there
 /// for `-> like this`, which is how QWK gateways quote. Initials may be
 /// Cyrillic: Russian echoes write them that way as a matter of course.
 int quoteDepth(std::string_view line);

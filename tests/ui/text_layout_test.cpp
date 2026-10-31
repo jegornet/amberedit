@@ -91,6 +91,10 @@ TEST_CASE("quoteDepth counts the markers a quote opens with [quote]") {
     CHECK(quoteDepth(">> text") == 2);
     CHECK(quoteDepth(">>> text") == 3);
     CHECK(quoteDepth("> ") == 1);  // nothing quoted, but still a quote line
+    CHECK(quoteDepth(">") == 1);   // and the same with its trailing space lost
+    CHECK(quoteDepth(" >") == 1);
+    CHECK(quoteDepth(">>>") == 3);
+    CHECK(quoteDepth(" AB>") == 1);
 }
 
 TEST_CASE("quoteDepth accepts optional initials [quote]") {
@@ -120,8 +124,6 @@ TEST_CASE("quoteDepth requires the space after the markers [quote]") {
     CHECK(quoteDepth(">text") == 0);
     CHECK(quoteDepth(">>>text") == 0);
     CHECK(quoteDepth("AB>text") == 0);
-    CHECK(quoteDepth(">") == 0);
-    CHECK(quoteDepth(">>>") == 0);
 }
 
 TEST_CASE("quoteDepth reads the '->' QWK gateways quote with [quote]") {

@@ -92,6 +92,11 @@ TEST_CASE("A line with nothing on it comes out empty rather than quoted [quoting
     // depth and whether or not it kept its trailing space.
     CHECK(quoted({" AB> "}, "Vasya Pupkin", " FL> ", 78).empty());
     CHECK(quoted({" AB>>   "}, "Vasya Pupkin", " FL> ", 78).empty());
+    CHECK(quoted({">"}, "Vasya Pupkin", " FL> ", 78).empty());
+    CHECK(quoted({" >"}, "Vasya Pupkin", " FL> ", 78).empty());
+    CHECK(quoted({" AB>>"}, "Vasya Pupkin", " FL> ", 78).empty());
+    CHECK(quoted({"one", ">", "two"}, "Vasya Pupkin", " FL> ", 78) ==
+          " VP> one|| VP> two");
 
     // One empty line between two paragraphs stays one.
     CHECK(quoted({"one", "", "two"}, "Vasya Pupkin", " FL> ", 78) ==
@@ -158,6 +163,13 @@ TEST_CASE("parseQuotePrefix reads what quoteDepth recognises [quoting]") {
     CHECK(bare.level == 1);
     CHECK(bare.initials.empty());
     CHECK(bare.length == 2);
+}
+
+TEST_CASE("parseQuotePrefix takes the end of the line for the space [quoting]") {
+    const auto empty = parseQuotePrefix(" >");
+    CHECK(empty.level == 1);
+    CHECK(empty.length == 2);
+    CHECK(parseQuotePrefix(">>").level == 2);
 }
 
 TEST_CASE("parseQuotePrefix reads the '->' of a QWK gateway [quoting]") {
