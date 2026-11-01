@@ -844,9 +844,11 @@ void Terminal::handOver(const std::function<void()>& work) {
     // the difference against something the user cannot see. The size is settled
     // at the same time: the window may have been resized while the shell had it,
     // and nothing was reading KEY_RESIZE to notice.
-    wclear(stdscr);
+    forgetScreen();
     syncSize();
 }
+
+void Terminal::forgetScreen() { wclear(stdscr); }
 
 // Read off one event at a time rather than thrown away with flushinp(): that
 // drops the bytes before ncurses has parsed them, and a mouse release among

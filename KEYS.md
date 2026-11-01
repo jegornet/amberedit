@@ -9,6 +9,10 @@ program, for whichever screen is up. That box is the layout as it stands rather
 than this page: a key that has been rebound is the key it shows, and a command
 left unbound is not in it at all.
 
+**Ctrl-L** draws the whole screen again, for when another program writing to the
+terminal has left it in pieces. It works everywhere but in the attributes box,
+where it is Local.
+
 **Esc breaks off a long run over the marked messages** — deleting, copying or
 moving a whole area's worth — while the box counting them is on the screen.
 What it had already done stands, and every message it never reached is still

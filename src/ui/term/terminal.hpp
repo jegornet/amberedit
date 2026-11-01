@@ -72,6 +72,13 @@ public:
     /// terminal over and takes it back, and nothing between the two is looked at.
     void handOver(const std::function<void()>& work);
 
+    /// Forgets what is on the screen, so that the next `draw()` paints all of it.
+    ///
+    /// ncurses sends only what differs from what it believes the terminal shows,
+    /// and it cannot know what another program sharing the tty has written there:
+    /// nothing reports that, so this is asked for by a key.
+    void forgetScreen();
+
     /// Whether Escape is among whatever has been typed and not yet read, taking
     /// the lot off the queue either way.
     ///

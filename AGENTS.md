@@ -1181,6 +1181,13 @@ Rules that hold the design together:
   put the box away first. The screen with no areas at all is the one exception:
   it is two lines of prose with no headings to hang a corner from, so neither
   the button nor a click on it is there.
+- **`app.redraw` makes the next frame paint every cell.** ncurses sends the
+  difference against what it believes the terminal shows, and another program
+  holding the same tty — a tosser started in the background of this session —
+  writes past it. Nothing reports that, so it is mended by a key rather than
+  noticed. `Terminal::forgetScreen()` is the whole of it, the call `handOver()`
+  ends on, and `runApp()` answers the command ahead of every box but the
+  attributes dialog, whose chords are its own: `Ctrl-L` is Local there.
 - **Ctrl-R reads everything again** — the tosser config and every base, which is
   what brings the counts up to date after a tosser run. Deliberately two steps:
   the key only sets `AppState::rescanning`, and `runApp()` does the reading on
@@ -3091,7 +3098,7 @@ taking a row.
   exactly as the info box does: every key either moves inside it or puts it away
   (Esc, Backspace, Enter, `F1`, a click anywhere).
   - **The screen's own commands come first and the ones answered everywhere
-    last**, under a heading, the second block being the same two rows on every
+    last**, under a heading, the second block being the same rows on every
     screen. `app.help` is an `Anywhere` command like `app.quit`, so `runApp()`
     opens it before the four screens and behind every modal — a dialog answers
     for its own keys, F1 included.

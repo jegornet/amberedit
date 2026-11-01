@@ -63,9 +63,11 @@
 # --- anywhere -----------------------------------------------------------------
 # Quitting and the help box, from whatever screen is up — except while a dialog
 # is on the screen, which answers for itself entirely. Quitting is the one thing
-# no box stands in front of.
+# no box stands in front of. Redrawing works over a dialog too, all but the
+# attributes box, whose chords are its own.
 Ctrl-Q          app.quit
 F1              app.help
+Ctrl-L          app.redraw
 
 # --- the area list ------------------------------------------------------------
 /               arealist.next_unread

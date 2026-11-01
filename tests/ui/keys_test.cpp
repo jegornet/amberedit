@@ -60,6 +60,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     // The help box, on the key every program in front of a terminal has put it
     // on, and answered on all four screens as quitting is.
     CHECK(keys.is(Event::F1, Command::AppHelp));
+    CHECK(keys.is(ctrl('l'), Command::AppRedraw));
     CHECK(keys.is(ctrl('w'), Command::ComposeDeleteWord));
     CHECK(keys.is(Event::Named(Event::Name::Backspace, false, true),
                   Command::ComposeDeleteWord));
