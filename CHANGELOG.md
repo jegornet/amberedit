@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- add app.redraw: Ctrl-L draws the whole screen again
+- document Alpine Linux build
+
 ## 0.10.1 — 2026-10-31
 
 - fix right arrow not reaching attributes button from subject in 3-columns header_format
