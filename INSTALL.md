@@ -20,15 +20,15 @@ tl::expected and doctest are header-only and wanted only while building; the
 packages are `expected-devel` and `doctest-devel` on RHEL and Fedora,
 `libexpected-dev` and `doctest-dev` on Debian and Ubuntu, `tl-expected` and
 `doctest` in Arch's extra and in Homebrew, `expected` and `doctest` in FreeBSD's
-ports.
+ports, `tl-expected` and `doctest-dev` on Alpine.
 
 gettext is two things here. Its `msgfmt` compiles `po/*.po` into the catalogs the
 interface is drawn from, and that half is wanted only while building — without it
 the build says so and goes on, and the interface is the English the program is
 written in. Its runtime, `libintl`, is what reads a catalog, and that half is
-required: on glibc it is part of libc and there is nothing to install, on macOS
-and the BSDs it is a library of its own. The package is called `gettext`
-everywhere named below.
+required: on glibc it is part of libc and there is nothing to install, on macOS,
+the BSDs and Alpine it is a library of its own. The package is called `gettext`
+everywhere named below, and `gettext-dev` on Alpine.
 
 One thing gettext needs is the system's rather than AmberEdit's: **the locale
 you ask for has to exist**. A stock Debian or Ubuntu generates none at all — only
@@ -109,6 +109,23 @@ the header under `ncursesw/` — and FreeBSD's base ncurses is the wide one and
 installs it as plain `<curses.h>`, so the fallback fails on a system that has
 everything. With `pkgconf` there, the `ncursesw.pc` the base system ships
 answers and nothing has to be told where anything is.
+
+**Alpine** — as root, with the `community` repository enabled in
+`/etc/apk/repositories`:
+
+```bash
+apk add build-base cmake pkgconf git ncurses-dev zlib-dev gettext-dev \
+        tl-expected doctest-dev gnu-libiconv-dev
+```
+
+musl's iconv refuses `//TRANSLIT` and lacks charsets FTN mail uses, so messages
+would read as mojibake. Build against GNU libiconv by adding these to the first
+`cmake` line below:
+
+```bash
+-DICONV_INCLUDE_DIR=/usr/include/gnu-libiconv \
+-DCMAKE_CXX_FLAGS=-I/usr/include/gnu-libiconv
+```
 
 Then, on any of them:
 

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - add app.redraw: Ctrl-L draws the whole screen again
+- document Alpine Linux build
 
 ## 0.10.1 — 2026-10-31
 
