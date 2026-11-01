@@ -722,6 +722,14 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             continue;
         }
 
+        // Ahead of every other box: what a key here repairs is the box as much
+        // as what is behind it, and the box goes on standing. The frame at the
+        // top of the loop is the one that paints everything.
+        if (state.keys.is(event, Command::AppRedraw)) {
+            terminal.forgetScreen();
+            continue;
+        }
+
         // The error box is modal in the same way, and stands where a screen
         // that would not open should have been: until it is acknowledged there
         // is nothing underneath for a key to mean.

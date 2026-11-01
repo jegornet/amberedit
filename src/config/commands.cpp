@@ -23,6 +23,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Leave AmberEdit"), "", "Ctrl-Q", false},
     {Command::AppHelp, "app.help", CommandScreen::Anywhere, N_("Help"),
      N_("This list of keys"), "", "F1", false},
+    {Command::AppRedraw, "app.redraw", CommandScreen::Anywhere, N_("Redraw"),
+     N_("Draw the whole screen again"), "", "Ctrl-L", false},
     {Command::AreaListNextUnread, "arealist.next_unread", CommandScreen::AreaList,
      N_("Next unread"), N_("Go to the next area with unread mail"), "⇩", "/", true},
     {Command::AreaListToggleUnread, "arealist.toggle_unread", CommandScreen::AreaList,

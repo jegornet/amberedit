@@ -167,6 +167,8 @@ it. It is the layout read back rather than a fixed page, so a rebound key is the
 key the box shows.
 .B Ctrl\-Q
 quits from anywhere.
+.B Ctrl\-L
+draws the whole screen again.
 .PP
 Every key that runs a command can be moved: the
 .B keys

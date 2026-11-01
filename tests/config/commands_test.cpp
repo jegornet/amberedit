@@ -95,13 +95,13 @@ TEST_CASE("A command is found by the name it is written under [commands]") {
     CHECK(Commands::namedOn(CommandScreen::Compose, "delete_line", Commands::In::Menu) ==
           nullptr);
 
-    // `app.quit` and `app.help` are answered before every screen, so every
+    // The `app.` commands are answered before every screen, so every
     // screen's row may name either — and no menu does, a menu being the
     // screen's own commands.
     for (const CommandScreen screen :
          {CommandScreen::AreaList, CommandScreen::MessageList, CommandScreen::Reader,
           CommandScreen::Compose}) {
-        for (const char* name : {"quit", "help"}) {
+        for (const char* name : {"quit", "help", "redraw"}) {
             INFO(name);
             CHECK(Commands::namedOn(screen, name, Commands::In::HintBar) != nullptr);
             CHECK(Commands::namedOn(screen, name, Commands::In::Menu) == nullptr);

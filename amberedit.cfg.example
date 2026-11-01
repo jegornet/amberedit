@@ -1066,9 +1066,9 @@ hint_bar_capitalize off
 # the four lines at the end of this block are the defaults. Each key names
 # commands of its own screen, by the part of the name after the dot — the
 # "reply_elsewhere" of "reader.reply_elsewhere", which is the spelling the "keys"
-# file uses — and "quit" and "help" besides, which every screen answers. A "-" in
-# a name reads as a "_", so a config written when they were spelled
-# "reply-elsewhere" is read as it stands:
+# file uses — and "quit", "help" and "redraw" besides, which every screen
+# answers. A "-" in a name reads as a "_", so a config written when they were
+# spelled "reply-elsewhere" is read as it stands:
 #
 #   arealist_hints  next_unread  toggle_unread  rescan  mark_toggle  catch_up
 #                   quit  help

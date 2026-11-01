@@ -1829,7 +1829,7 @@ struct AppConfig {
     /// What each screen's hint bar names, in the order the hints are to stand —
     /// from `arealist_hints`, `msglist_hints`, `reader_hints` and
     /// `compose_hints`, each naming commands of its own screen the way the
-    /// menus do, and `app.quit` besides, which every screen answers.
+    /// menus do, and the `app.` commands besides, which every screen answers.
     ///
     /// Not everything a screen answers, by default: the row is a reminder of
     /// what there is to do here, and the keys left out of it are the ones that

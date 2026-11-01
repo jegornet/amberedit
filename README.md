@@ -194,7 +194,7 @@ amberedit                           # whatever your shell already says
 it — the layout read back, so a rebound key is the key the box shows.
 [KEYS.md](KEYS.md) is the same thing written out, screen by screen.
 
-**Ctrl-Q** quits from anywhere.
+**Ctrl-Q** quits from anywhere. **Ctrl-L** draws the whole screen again.
 
 ### Rebinding the keys
 
