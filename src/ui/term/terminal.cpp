@@ -202,8 +202,13 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     registerKey("\x1b[27;2;32~", shiftSpace);
 }
 
-/// Home and End, in the forms `khome` and `kend` do not name, and the same
-/// pair with Ctrl held.
+/// The arrows in both forms, Home and End in the forms `khome` and `kend` do not
+/// name, and that pair with Ctrl held.
+///
+/// `keypad()` asks for application mode and terminfo then names `ESC O A`, but a
+/// terminal is free to go back to `ESC [ A`: Konsole does once `ModifiedKeyReporting`
+/// has asked for the kitty protocol, and iTerm2 does for that request alone. Left
+/// unnamed, the form that arrives is read as Escape and two typed characters.
 ///
 /// A terminfo entry names one sequence per key — the one the terminal it was
 /// written for sends — and on this pair the terminals never agreed. xterm's
@@ -219,6 +224,17 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
 /// are read as Home and End, as every editor on that keyboard has read them,
 /// and nothing here binds Find or Select.
 void registerNavigationKeys() {
+    const std::array<std::pair<char, Event>, 4> arrows{{
+        {'A', Event::ArrowUp},
+        {'B', Event::ArrowDown},
+        {'C', Event::ArrowRight},
+        {'D', Event::ArrowLeft},
+    }};
+    for (const auto& [final, event] : arrows) {
+        registerKey(std::string("\x1b[") + final, event);
+        registerKey(std::string("\x1bO") + final, event);
+    }
+
     for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
         registerKey(form, Event::Home);
     }

@@ -925,8 +925,17 @@ Rules that hold the design together:
   all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
   four of each, which is how the reader is sent to the first and the last
   message of an area and the editor to the start and the end of the text. Do not narrow either set to the forms one terminal happens
-  to need. No other named key needs this: the rest are spelled the same way
-  everywhere.
+  to need. No key but these and the arrows needs this: the rest are spelled the
+  same way everywhere.
+- **The arrows are claimed in both forms, whatever application mode says.**
+  `keypad()` sends `smkx` and terminfo then names `ESC O A`, but the request for
+  the kitty protocol can put a terminal back on `ESC [ A`. Konsole does that
+  with both of `ModifiedKeyReporting`'s requests standing; iTerm2 does it for
+  the kitty request alone, the modifyOtherKeys one written after it undoing
+  that. Terminals disagree here and nothing reports which way one went, so
+  `registerNavigationKeys()` registers both forms rather than leaning on the
+  mode. An unnamed form is worse than a dead key: ncurses hands its bytes over
+  one at a time, so an arrow reads as Escape and then two characters.
 - **A CR and an LF waiting together are one Return.** `poll()` reads either as
   Return and then takes its partner off the input where it is already there
   behind it (`swallowLineEndPartner()`), never waiting for one. A console that
