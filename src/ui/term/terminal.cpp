@@ -235,6 +235,28 @@ void registerNavigationKeys() {
         registerKey(std::string("\x1bO") + final, event);
     }
 
+    // The bare keys with their modifier written out. A modifier parameter of 1
+    // is no modifier at all and the kitty protocol lets it be left off, but
+    // WezTerm writes it on every key: `CSI 1 ; 1 A` is Up and `CSI 27 ; 1 u` is
+    // Escape. Nothing else spells these, so they are claimed whoever sends them.
+    const std::array<std::pair<const char*, Event>, 27> plainForms{{
+        {"\x1b[1;1A", Event::ArrowUp},    {"\x1b[1;1B", Event::ArrowDown},
+        {"\x1b[1;1C", Event::ArrowRight}, {"\x1b[1;1D", Event::ArrowLeft},
+        {"\x1b[1;1H", Event::Home},       {"\x1b[1;1F", Event::End},
+        {"\x1b[2;1~", Event::Insert},     {"\x1b[3;1~", Event::Delete},
+        {"\x1b[5;1~", Event::PageUp},     {"\x1b[6;1~", Event::PageDown},
+        {"\x1b[27;1u", Event::Escape},    {"\x1b[1;1P", Event::F1},
+        {"\x1b[1;1Q", Event::F2},         {"\x1b[1;1R", Event::F3},
+        {"\x1b[1;1S", Event::F4},         {"\x1b[11;1~", Event::F1},
+        {"\x1b[12;1~", Event::F2},        {"\x1b[13;1~", Event::F3},
+        {"\x1b[14;1~", Event::F4},        {"\x1b[15;1~", Event::F5},
+        {"\x1b[17;1~", Event::F6},        {"\x1b[18;1~", Event::F7},
+        {"\x1b[19;1~", Event::F8},        {"\x1b[20;1~", Event::F9},
+        {"\x1b[21;1~", Event::F10},       {"\x1b[23;1~", Event::F11},
+        {"\x1b[24;1~", Event::F12},
+    }};
+    for (const auto& [form, event] : plainForms) registerKey(form, event);
+
     for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
         registerKey(form, Event::Home);
     }

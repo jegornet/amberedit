@@ -4,7 +4,7 @@
 
 - add app.redraw: Ctrl-L draws the whole screen again
 - document Alpine Linux build
-- fix arrow keys on certain terminals
+- fix navigation keys, function keys and Esc on certain terminals
 
 ## 0.10.1 — 2026-10-31
 
