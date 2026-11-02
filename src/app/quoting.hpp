@@ -18,11 +18,12 @@ struct QuotePrefix {
     size_t length{0};
 };
 
-/// Reads the quote prefix off a line, by the same rules ui::quoteDepth()
-/// recognises one: up to two leading spaces, up to six letters of initials, an
-/// optional '-' for the `-> ` that QWK gateways quote with, the markers, then a
-/// space or the end of the line. Anything else means level 0 — what we write has
-/// to be what our own reader reads back as a quote.
+/// Reads the quote prefix off a line: up to two leading spaces, up to six
+/// letters of initials, an optional '-' for the `-> ` that QWK gateways quote
+/// with, the markers, then a space or the end of the line. Anything else means
+/// level 0 — what we write has to be what our own reader reads back as a quote.
+/// ui::quoteDepth() reads one shape more, `>like this`, and colors it; a reply
+/// quotes such a line as text under its own prefix, which reads back the same.
 [[nodiscard]] QuotePrefix parseQuotePrefix(std::string_view line);
 
 /// The prefix a line of `author`'s message is quoted with, from the configured

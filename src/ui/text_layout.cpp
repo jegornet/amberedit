@@ -55,7 +55,8 @@ int quoteDepth(std::string_view line) {
 
     // A single '-' may stand before the markers: QWK gateways quote with "-> "
     // and messages carrying it come through the echoes as they are.
-    if (pos < line.size() && line[pos] == '-') ++pos;
+    const bool dash = pos < line.size() && line[pos] == '-';
+    if (dash) ++pos;
 
     int markers = 0;
     while (pos < line.size() && line[pos] == '>') {
@@ -64,11 +65,21 @@ int quoteDepth(std::string_view line) {
     }
     if (markers == 0) return 0;
 
-    // Text straight after the markers means this is not a quote, whatever it
-    // looks like — ">8 lines later" and the like stay ordinary text. The end of
-    // the line is no text: `>` is an empty quote whose trailing space was lost.
-    if (pos < line.size() && line[pos] != ' ') return 0;
-    return markers;
+    // The end of the line is no text: `>` is an empty quote whose trailing space
+    // was lost.
+    if (pos >= line.size() || line[pos] == ' ') return markers;
+
+    // A letter straight after the markers is a quote all the same —
+    // `>Best regards` and `AB>text` are how a good many readers quote — and so
+    // is a quoted tearline or origin, `>--- Mystic BBS` and `>* Origin:`.
+    // Anything else there is ordinary text: ">8 lines later", ">=". So is
+    // `->next`, an arrow in somebody's prose far more often than a gateway's
+    // quote.
+    if (dash) return 0;
+    const std::string_view rest = line.substr(pos);
+    if (rest.substr(0, 3) == "---" || rest.substr(0, 9) == "* Origin:") return markers;
+    size_t next = pos;
+    return isInitialLetter(term::decodeUtf8(line, next)) ? markers : 0;
 }
 
 int displayWidth(std::string_view s) { return term::stringWidth(s); }

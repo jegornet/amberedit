@@ -5,6 +5,7 @@
 - add app.redraw: Ctrl-L draws the whole screen again
 - document Alpine Linux build
 - fix navigation keys, function keys and Esc on certain terminals
+- read quotes with no space after the markers e.g. ">Best regards"
 
 ## 0.10.1 — 2026-10-31
 

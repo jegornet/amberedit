@@ -3135,7 +3135,16 @@ taking a row.
   after them or the end of the line. The end of the line counts because `>` and
   ` >` are empty quotes whose trailing space something took off on the way: they
   are colored like any quote, and `app::quoteLines()` drops them from a reply as
-  it drops `> `. Odd depths render gold, even ones amber. The depth is taken from
+  it drops `> `. **The markers may be followed straight by a letter** —
+  `>Best regards` and `AB>text` are quotes — or by a quoted tearline or origin,
+  `>--- Mystic BBS` and `>* Origin:`. Any other digit or sign after them
+  (`>8 lines later`, `>=`) is text, and so is a letter after `->`, which is an
+  arrow in prose far more often than a gateway's quote. A comparison like
+  `If a>b` stands mid-line, past where initials may begin. This is the
+  reader's and the editor's coloring alone; `app::parseQuotePrefix()` keeps the
+  space, so a reply quotes such a line whole under a prefix of its own, and
+  what it writes still reads back as the quote it is. Odd depths render gold,
+  even ones amber. The depth is taken from
   the source line and copied onto every wrapped piece, or a long quote would lose
   its color halfway down.
 - **Links** are found by `ui::findLinks()` and colored per run inside the body
