@@ -232,8 +232,13 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     registerKey("\x1b[27;2;32~", shiftSpace);
 }
 
-/// Home and End, in the forms `khome` and `kend` do not name, and the same
-/// pair with Ctrl held.
+/// The arrows in both forms, Home and End in the forms `khome` and `kend` do not
+/// name, and that pair with Ctrl held.
+///
+/// `keypad()` asks for application mode and terminfo then names `ESC O A`, but a
+/// terminal is free to go back to `ESC [ A`: Konsole does once `ModifiedKeyReporting`
+/// has asked for the kitty protocol, and iTerm2 does for that request alone. Left
+/// unnamed, the form that arrives is read as Escape and two typed characters.
 ///
 /// A terminfo entry names one sequence per key — the one the terminal it was
 /// written for sends — and on this pair the terminals never agreed. xterm's
@@ -249,6 +254,39 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
 /// are read as Home and End, as every editor on that keyboard has read them,
 /// and nothing here binds Find or Select.
 void registerNavigationKeys() {
+    const std::array<std::pair<char, Event>, 4> arrows{{
+        {'A', Event::ArrowUp},
+        {'B', Event::ArrowDown},
+        {'C', Event::ArrowRight},
+        {'D', Event::ArrowLeft},
+    }};
+    for (const auto& [final, event] : arrows) {
+        registerKey(std::string("\x1b[") + final, event);
+        registerKey(std::string("\x1bO") + final, event);
+    }
+
+    // The bare keys with their modifier written out. A modifier parameter of 1
+    // is no modifier at all and the kitty protocol lets it be left off, but
+    // WezTerm writes it on every key: `CSI 1 ; 1 A` is Up and `CSI 27 ; 1 u` is
+    // Escape. Nothing else spells these, so they are claimed whoever sends them.
+    const std::array<std::pair<const char*, Event>, 27> plainForms{{
+        {"\x1b[1;1A", Event::ArrowUp},    {"\x1b[1;1B", Event::ArrowDown},
+        {"\x1b[1;1C", Event::ArrowRight}, {"\x1b[1;1D", Event::ArrowLeft},
+        {"\x1b[1;1H", Event::Home},       {"\x1b[1;1F", Event::End},
+        {"\x1b[2;1~", Event::Insert},     {"\x1b[3;1~", Event::Delete},
+        {"\x1b[5;1~", Event::PageUp},     {"\x1b[6;1~", Event::PageDown},
+        {"\x1b[27;1u", Event::Escape},    {"\x1b[1;1P", Event::F1},
+        {"\x1b[1;1Q", Event::F2},         {"\x1b[1;1R", Event::F3},
+        {"\x1b[1;1S", Event::F4},         {"\x1b[11;1~", Event::F1},
+        {"\x1b[12;1~", Event::F2},        {"\x1b[13;1~", Event::F3},
+        {"\x1b[14;1~", Event::F4},        {"\x1b[15;1~", Event::F5},
+        {"\x1b[17;1~", Event::F6},        {"\x1b[18;1~", Event::F7},
+        {"\x1b[19;1~", Event::F8},        {"\x1b[20;1~", Event::F9},
+        {"\x1b[21;1~", Event::F10},       {"\x1b[23;1~", Event::F11},
+        {"\x1b[24;1~", Event::F12},
+    }};
+    for (const auto& [form, event] : plainForms) registerKey(form, event);
+
     for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
         registerKey(form, Event::Home);
     }

@@ -120,10 +120,31 @@ TEST_CASE("quoteDepth allows up to two leading spaces [quote]") {
     CHECK(quoteDepth("   > text") == 0);  // three is indentation, not a quote
 }
 
-TEST_CASE("quoteDepth requires the space after the markers [quote]") {
-    CHECK(quoteDepth(">text") == 0);
-    CHECK(quoteDepth(">>>text") == 0);
-    CHECK(quoteDepth("AB>text") == 0);
+TEST_CASE("quoteDepth takes markers with a letter after them [quote]") {
+    CHECK(quoteDepth(">Best regards") == 1);
+    CHECK(quoteDepth(">>>text") == 3);
+    CHECK(quoteDepth("  >text") == 1);
+    CHECK(quoteDepth(">Привет") == 1);
+    CHECK(quoteDepth("AB>text") == 1);
+    CHECK(quoteDepth(" ЕГ>>текст") == 2);
+}
+
+TEST_CASE("quoteDepth takes a quoted tearline and origin with no space [quote]") {
+    CHECK(quoteDepth(">--- Mystic BBS v1.12 A49 2024/05/29 (Linux/64)") == 1);
+    CHECK(quoteDepth(">>---") == 2);
+    CHECK(quoteDepth("AB>--- GoldED+/LNX 1.1.5") == 1);
+    CHECK(quoteDepth(">* Origin: somewhere (2:382/736)") == 1);
+    CHECK(quoteDepth(">-- not a tearline") == 0);
+    CHECK(quoteDepth(">*bold*") == 0);
+}
+
+TEST_CASE("quoteDepth requires the space after anything else [quote]") {
+    CHECK(quoteDepth("If a>b then...") == 0);  // the comparison is mid-line
+    CHECK(quoteDepth("->text") == 0);          // an arrow, not a QWK quote
+    CHECK(quoteDepth(">8 lines later") == 0);
+    CHECK(quoteDepth(">= 5") == 0);
+    CHECK(quoteDepth(">_<") == 0);
+    CHECK(quoteDepth("   >text") == 0);  // three spaces are indentation
 }
 
 TEST_CASE("quoteDepth reads the '->' QWK gateways quote with [quote]") {

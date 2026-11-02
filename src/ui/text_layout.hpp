@@ -44,7 +44,10 @@ std::string horizontalRule(int width);
 /// the quoted author's initials, then an optional '-', then the markers, then a
 /// space or the end of the line. That is what tells `> like this` apart from text
 /// that merely starts with a greater-than sign, and the end of the line is an
-/// empty quote that has lost its trailing space. The '-' is there
+/// empty quote that has lost its trailing space. Markers with no '-' in front
+/// may also be followed straight by a letter, for `>like this` and `AB>this`,
+/// or by a quoted tearline or origin, `>--- ` and `>* Origin:`; any other
+/// digit or sign there is still text. The '-' is there
 /// for `-> like this`, which is how QWK gateways quote. Initials may be
 /// Cyrillic: Russian echoes write them that way as a matter of course.
 int quoteDepth(std::string_view line);

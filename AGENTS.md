@@ -925,16 +925,32 @@ Rules that hold the design together:
   all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
   four of each, which is how the reader is sent to the first and the last
   message of an area and the editor to the start and the end of the text. Do not narrow either set to the forms one terminal happens
-  to need. No other named key needs this: the rest are spelled the same way
-  everywhere.
+  to need. No key but these and the arrows needs this: the rest are spelled the
+  same way everywhere.
+- **The arrows are claimed in both forms, whatever application mode says.**
+  `keypad()` sends `smkx` and terminfo then names `ESC O A`, but the request for
+  the kitty protocol can put a terminal back on `ESC [ A`. Konsole does that
+  with both of `ModifiedKeyReporting`'s requests standing; iTerm2 does it for
+  the kitty request alone, the modifyOtherKeys one written after it undoing
+  that. Terminals disagree here and nothing reports which way one went, so
+  `registerNavigationKeys()` registers both forms rather than leaning on the
+  mode. An unnamed form is worse than a dead key: ncurses hands its bytes over
+  one at a time, so an arrow reads as Escape and then two characters.
+- **A modifier of 1 is no modifier, and the bare keys are claimed with it
+  written out.** The kitty protocol leaves that parameter off where it is 1, and
+  WezTerm writes it anyway: Up is `CSI 1 ; 1 A`, PgUp `CSI 5 ; 1 ~`, F1
+  `CSI 11 ; 1 ~` and Escape `CSI 27 ; 1 u`. `registerNavigationKeys()` names the
+  arrows, Home, End, Insert, Delete, the page keys, Escape and F1 to F12 in that
+  form, F1 to F4 in the `CSI 1 ; 1 P` spelling as well. None of them means
+  anything else, so none waits on the layout.
 - **A CR and an LF waiting together are one Return.** `poll()` reads either as
   Return and then takes its partner off the input where it is already there
   behind it (`swallowLineEndPartner()`), never waiting for one. A console that
   types a paste out — conhost's own `Ctrl-V` — sends the CR LF Windows text
   carries, which read as two keys put a blank line under every line pasted;
   an Enter pressed by hand is one code and is not touched.
-- Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`,
-  without it ncurses resolves the ambiguity on its own timer
+- Escape needs no repair: with the kitty protocol on it arrives as `CSI 27 u`
+  or `CSI 27 ; 1 u`, without it ncurses resolves the ambiguity on its own timer
   (`set_escdelay(25)`).
 - Shift+Space needs the terminal to report modified keys, which none does by
   default. `runApp()` turns that on (kitty keyboard protocol at the disambiguate
@@ -3335,7 +3351,16 @@ taking a row.
   after them or the end of the line. The end of the line counts because `>` and
   ` >` are empty quotes whose trailing space something took off on the way: they
   are colored like any quote, and `app::quoteLines()` drops them from a reply as
-  it drops `> `. Odd depths render gold, even ones amber. The depth is taken from
+  it drops `> `. **The markers may be followed straight by a letter** —
+  `>Best regards` and `AB>text` are quotes — or by a quoted tearline or origin,
+  `>--- Mystic BBS` and `>* Origin:`. Any other digit or sign after them
+  (`>8 lines later`, `>=`) is text, and so is a letter after `->`, which is an
+  arrow in prose far more often than a gateway's quote. A comparison like
+  `If a>b` stands mid-line, past where initials may begin. This is the
+  reader's and the editor's coloring alone; `app::parseQuotePrefix()` keeps the
+  space, so a reply quotes such a line whole under a prefix of its own, and
+  what it writes still reads back as the quote it is. Odd depths render gold,
+  even ones amber. The depth is taken from
   the source line and copied onto every wrapped piece, or a long quote would lose
   its color halfway down.
 - **Links** are found by `ui::findLinks()` and colored per run inside the body
