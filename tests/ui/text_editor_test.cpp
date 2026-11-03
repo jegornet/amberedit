@@ -291,6 +291,16 @@ TEST_CASE("Ctrl-W takes the word before the cursor [editor]") {
     deleteWordBefore(joined);
     CHECK(shown(joined) == "one|^two");
 
+    // An empty line is the exception, and goes as Backspace takes it.
+    TextBuffer blank = bufferOf({"one", "", ""}, 2, 0);
+    deleteWordBefore(blank);
+    CHECK(shown(blank) == "one|^");
+    deleteWordBefore(blank);
+    CHECK(shown(blank) == "one^");
+    TextBuffer first = bufferOf({"", "two"}, 0, 0);
+    deleteWordBefore(first);
+    CHECK(shown(first) == "^|two");
+
     // A word is a word whatever alphabet it is in, and the whole character
     // goes with it.
     TextBuffer cyrillic =

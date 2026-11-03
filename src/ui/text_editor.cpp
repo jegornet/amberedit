@@ -242,9 +242,14 @@ bool restoreLine(TextBuffer& buffer) {
 }
 
 void deleteWordBefore(TextBuffer& buffer) {
-    // Nothing before it on this line: the line break is Backspace's to take
-    // out, and a word erased across one would take the paragraph's shape with
-    // it.
+    // An empty line has no word to take and goes as Backspace takes it, so
+    // that a run of blank lines is erased by holding the same key. A line with
+    // text on it keeps its break: a word erased across one would take the
+    // paragraph's shape with it.
+    if (buffer.line().empty()) {
+        deleteBefore(buffer);
+        return;
+    }
     if (buffer.col == 0) return;
 
     // Where `moveWordLeft()` would have left the cursor had it stayed on the
