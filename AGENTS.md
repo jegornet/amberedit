@@ -942,8 +942,8 @@ Rules that hold the design together:
   all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
   four of each, which is how the reader is sent to the first and the last
   message of an area and the editor to the start and the end of the text. Do not narrow either set to the forms one terminal happens
-  to need. No key but these and the arrows needs this: the rest are spelled the
-  same way everywhere.
+  to need. No key but these, the arrows and F1 to F4 needs this: the rest are
+  spelled the same way everywhere.
 - **The arrows are claimed in both forms, whatever application mode says.**
   `keypad()` sends `smkx` and terminfo then names `ESC O A`, but the request for
   the kitty protocol can put a terminal back on `ESC [ A`. Konsole and iTerm2
@@ -958,6 +958,12 @@ Rules that hold the design together:
   arrows, Home, End, Insert, Delete, the page keys, Escape and F1 to F12 in that
   form, F1 to F4 in the `CSI 1 ; 1 P` spelling as well. None of them means
   anything else, so none waits on the layout.
+- **F1 to F4 are claimed in the kitty protocol's bare spelling too** — `CSI P`,
+  `CSI Q`, `CSI 13 ~`, `CSI S`, the parameter left off as the protocol allows —
+  and in the VT220 numbers `CSI 11 ~` to `CSI 14 ~`. iTerm2 sends the first set
+  under the protocol, where terminfo names only `ESC O P`; unnamed, each reads
+  as Escape and two characters. F3 is a number because `CSI R` is the cursor
+  position report.
 - **A CR and an LF waiting together are one Return.** `poll()` reads either as
   Return and then takes its partner off the input where it is already there
   behind it (`swallowLineEndPartner()`), never waiting for one. A console that

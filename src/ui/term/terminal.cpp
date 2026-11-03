@@ -289,6 +289,23 @@ void registerNavigationKeys() {
     }};
     for (const auto& [form, event] : plainForms) registerKey(form, event);
 
+    // F1 to F4 as the kitty protocol spells them with no modifier at all:
+    // `CSI P`, `CSI Q`, `CSI 13 ~` and `CSI S`, which iTerm2 sends under it.
+    // F3 is a number rather than `CSI R` because that is the cursor position
+    // report. The VT220 numbers for all four go with them — rxvt and PuTTY send
+    // those — and none of these means anything else coming in. Left unnamed,
+    // each is read as Escape and then two typed characters.
+    const std::array<std::pair<const char*, Event>, 7> firstFour{{
+        {"\x1b[P", Event::F1},
+        {"\x1b[Q", Event::F2},
+        {"\x1b[S", Event::F4},
+        {"\x1b[11~", Event::F1},
+        {"\x1b[12~", Event::F2},
+        {"\x1b[13~", Event::F3},
+        {"\x1b[14~", Event::F4},
+    }};
+    for (const auto& [form, event] : firstFour) registerKey(form, event);
+
     for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
         registerKey(form, Event::Home);
     }
