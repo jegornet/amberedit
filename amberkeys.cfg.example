@@ -156,8 +156,10 @@ Alt-Delete      compose.delete_next_word
 Ctrl-Delete     compose.delete_next_word
 Alt-B           compose.word_left
 Alt-Left        compose.word_left
+Ctrl-Left       compose.word_left
 Alt-F           compose.word_right
 Alt-Right       compose.word_right
+Ctrl-Right      compose.word_right
 Ctrl-A          compose.line_start
 Ctrl-E          compose.line_end
 # Shift-Ins is the key many terminals keep for their own paste, and AmberEdit

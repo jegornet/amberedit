@@ -915,8 +915,12 @@ Rules that hold the design together:
   `CSI 3 ; 5 ~` and rxvt's `CSI 3 ^` — the spellings xterm and kitty agree on,
   none of them ambiguous. rxvt's Alt+Delete is a bare `ESC` in front of Delete
   and stays Escape then Delete. `takesAlt()` in `ui/keys.cpp` names the arrows,
-  the function keys, Backspace and Delete, and `takesCtrl()` Insert, Backspace
-  and Delete.
+  the function keys, Backspace and Delete, and `takesCtrl()` Insert, Backspace,
+  Delete, Left and Right.
+- **Ctrl+Left and Ctrl+Right are the word motion beside Alt's**,
+  `compose.word_left` and `compose.word_right`, claimed as `CSI 1 ; 5 D`/`C`,
+  rxvt's `ESC O d`/`c` and screen's `CSI 5 D`/`C` — none of them ambiguous.
+  Ctrl with Up and Down is registered nowhere, nothing moving by it.
 - **Ctrl+Backspace is the kitty protocol's `CSI 127 ; 5 u` and nothing else.**
   Without the protocol a terminal sends the chord as 08H or 7FH, the two bytes
   plain Backspace is sent as — which of them is the terminal's choice and not
@@ -5089,7 +5093,7 @@ together — `keys_mode` says which.
   `KeyMap::altBackspace()`, and the boxes that close on the key that opened
   them — Info, the nodelist — ask the layout what that key is. Everything else
   a modifier reaches AmberEdit through is a CSI sequence and so ambiguous with
-  nothing: Alt with an arrow, Alt with a function key — `Alt-F1` and its eleven
+  nothing: Alt with an arrow, Ctrl with Left and Right, Alt with a function key — `Alt-F1` and its eleven
   fellows, the row the utilities are meant to be bound with — both
   protocols' spelling of Alt-Backspace, kitty's of Ctrl-Backspace and the CSI
   forms of Alt-Delete and Ctrl-Delete are registered whether a layout binds them or not.

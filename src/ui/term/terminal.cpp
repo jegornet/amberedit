@@ -134,6 +134,19 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey(std::string("\x1b[1;9") + final, alt);
     }
 
+    // Ctrl with Left and Right, the other spelling of a word to either side.
+    // Modifier 5 is xterm's and kitty's, `ESC O d` and `ESC O c` are rxvt's, and
+    // `CSI 5 D` is what screen and the older xterms send; none means anything
+    // else. Up and Down are left alone: nothing here moves by them under Ctrl.
+    const Event ctrlLeft = Event::Named(Event::Name::ArrowLeft, true, false, false);
+    const Event ctrlRight = Event::Named(Event::Name::ArrowRight, true, false, false);
+    registerKey("\x1b[1;5D", ctrlLeft);
+    registerKey("\x1bOd", ctrlLeft);
+    registerKey("\x1b[5D", ctrlLeft);
+    registerKey("\x1b[1;5C", ctrlRight);
+    registerKey("\x1bOc", ctrlRight);
+    registerKey("\x1b[5C", ctrlRight);
+
     // Alt with a function key, which is what the external utilities are bound
     // with. Both families are CSI sequences and neither is ambiguous with
     // anything, so all twelve are registered whether the layout binds one or
@@ -531,6 +544,8 @@ Event namedKey(int code) {
         case ALT_BKSP: return Event::Named(Event::Name::Backspace, false, true, false);
         case ALT_DEL: return Event::Named(Event::Name::Delete, false, true, false);
         case CTL_DEL: return Event::Named(Event::Name::Delete, true, false, false);
+        case CTL_LEFT: return Event::Named(Event::Name::ArrowLeft, true, false, false);
+        case CTL_RIGHT: return Event::Named(Event::Name::ArrowRight, true, false, false);
         case CTL_HOME: return Event::Named(Event::Name::Home, true, false, false);
         case CTL_END: return Event::Named(Event::Name::End, true, false, false);
         case CTL_INS: return Event::Named(Event::Name::Insert, true, false, false);

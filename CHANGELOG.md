@@ -6,6 +6,7 @@
 - add Ctrl-Backspace to delete a word in the editor, under the kitty keyboard protocol
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
 - add Alt-Delete and Ctrl-Delete to delete the word after the cursor in the editor
+- add Ctrl-Left and Ctrl-Right to move by words in the editor, beside Alt-Left and Alt-Right
 - add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
 - document Alpine Linux build
 - fix navigation keys, function keys and Esc on certain terminals

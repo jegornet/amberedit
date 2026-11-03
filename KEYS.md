@@ -98,7 +98,7 @@ standing in both.
 | `Ctrl-D` / `Alt-Z` | delete the quoted text after the cursor                   |
 | `Ctrl-W` / `Alt-Backspace` / `Ctrl-Backspace` | delete the word before the cursor; `Ctrl-Backspace` only under the kitty keyboard protocol |
 | `Alt-Del` / `Ctrl-Del` | delete the word after the cursor                           |
-| `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
+| `Alt-B` `Alt-F` / `Alt+←` `Alt+→` / `Ctrl+←` `Ctrl+→` | by words                   |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor; many terminals keep `Shift-Ins` for their own paste |

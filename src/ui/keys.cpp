@@ -72,11 +72,13 @@ bool takesShift(Event::Name name) {
     return name == Event::Name::Insert;
 }
 
-/// The same for Ctrl: Insert, Delete, and Backspace — which only the kitty
+/// The same for Ctrl: Insert, Delete, Left and Right — the word motion every
+/// editor outside a terminal puts there — and Backspace, which only the kitty
 /// protocol tells apart from Backspace itself, see `registerModifiedKeys()`.
 bool takesCtrl(Event::Name name) {
     return takesShift(name) || name == Event::Name::Backspace ||
-           name == Event::Name::Delete;
+           name == Event::Name::Delete || name == Event::Name::ArrowLeft ||
+           name == Event::Name::ArrowRight;
 }
 
 bool isAsciiLetter(char c) {
@@ -173,7 +175,7 @@ std::optional<Event> keyNamed(std::string_view spelling) {
     if (const NamedKey* named = namedKey(parsed.body)) {
         // Alt with an arrow, a function key, Backspace or Delete is one a
         // terminal can be asked to report, and so is Ctrl or Shift with Insert
-        // and Ctrl with Backspace or Delete; nothing else
+        // and Ctrl with Backspace, Delete, Left or Right; nothing else
         // here is bindable under a modifier, and a spelling that asks for one is
         // either a key that would never arrive or — Ctrl with Home and End —
         // one reserved above. One modifier at a time: no terminal agrees on

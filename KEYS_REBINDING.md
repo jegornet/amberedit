@@ -31,14 +31,14 @@ and edit that instead of starting from a blank file.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ins`, `Ctrl-Ins`, `Shift-Ins`,
-`Ctrl-Backspace` (kitty keyboard protocol only), `Ctrl-Del`, `Ctrl-` and a
-letter, or `Alt-` and a letter, an arrow, a function key, `Backspace` or `Del`. Two screens may
+`Ctrl-Backspace` (kitty keyboard protocol only), `Ctrl-Del`, `Ctrl-Left`,
+`Ctrl-Right`, `Ctrl-` and a letter, or `Alt-` and a letter, an arrow, a function key, `Backspace` or `Del`. Two screens may
 share a key, as `F2` does between the reader and the editor; two commands of one
 screen may not, and a layout that tries says which line clashes with which.
 
 **Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
-every screen — mostly bare: `Alt-Left`, `Alt-Backspace` and `Ctrl-Backspace` 
+every screen — mostly bare: `Alt-Left`, `Ctrl-Left`, `Alt-Backspace` and `Ctrl-Backspace` 
 are chords of their own and may be bound, while `Ctrl-Home` and `Ctrl-End` 
 move about as well, to the first and the last message of the area — and 
 the dialogs answer for themselves entirely. `Space` in the message list marks 

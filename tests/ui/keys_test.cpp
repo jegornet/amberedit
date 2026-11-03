@@ -78,6 +78,10 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     CHECK(keys.is(alt('b'), Command::ComposeWordLeft));
     CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, false, true),
                   Command::ComposeWordLeft));
+    CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, true, false),
+                  Command::ComposeWordLeft));
+    CHECK(keys.is(Event::Named(Event::Name::ArrowRight, true, false),
+                  Command::ComposeWordRight));
     // Taking the line out answers on two keys: the chord the editors in front
     // of a terminal have always put it on, and Alt-D beside it.
     CHECK(keys.is(ctrl('y'), Command::ComposeDeleteLine));
@@ -153,6 +157,8 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK(keyNamed("alt-backspace") == Event::Named(Event::Name::Backspace, false, true));
     CHECK(keyNamed("Ctrl-Backspace") == Event::Named(Event::Name::Backspace, true, false));
     CHECK(keyNamed("Alt-Del") == Event::Named(Event::Name::Delete, false, true));
+    CHECK(keyNamed("Ctrl-Left") == Event::Named(Event::Name::ArrowLeft, true, false));
+    CHECK(keyNamed("ctrl-right") == Event::Named(Event::Name::ArrowRight, true, false));
     CHECK(keyNamed("Ctrl-Delete") == Event::Named(Event::Name::Delete, true, false));
     CHECK(keyNamed("Alt-F1") == Event::Named(Event::Name::F1, false, true));
     CHECK(keyNamed("alt-f12") == Event::Named(Event::Name::F12, false, true));
@@ -164,6 +170,7 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK_FALSE(keyNamed("Ctrl-+"));
     CHECK_FALSE(keyNamed("Shift-Backspace"));
     CHECK_FALSE(keyNamed("Shift-Del"));
+    CHECK_FALSE(keyNamed("Ctrl-Up"));
     CHECK_FALSE(keyNamed("Alt-F13"));
     CHECK_FALSE(keyNamed("Alt-Home"));
     CHECK_FALSE(keyNamed("F13"));
@@ -173,7 +180,7 @@ TEST_CASE("A key is read the way it is written [keys]") {
     // And what is written back out reads the same again.
     for (const char* spelling :
          {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left", "Alt-Backspace",
-          "Ctrl-Backspace", "Alt-Del", "Ctrl-Del", "Alt-F1"}) {
+          "Ctrl-Backspace", "Alt-Del", "Ctrl-Del", "Ctrl-Left", "Alt-F1"}) {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(keyNamed(spellingOf(*key)) == key);
