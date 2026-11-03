@@ -101,7 +101,7 @@ constexpr Commands::Info kCommands[] = {
      "Ctrl-D Alt-Z", false},
     {Command::ComposeDeleteWord, "compose.delete_word", CommandScreen::Compose,
      N_("Delete word"), N_("Delete the word before the cursor"), "",
-     "Ctrl-W Alt-Backspace", false},
+     "Ctrl-W Alt-Backspace Ctrl-Backspace", false},
     {Command::ComposeWordLeft, "compose.word_left", CommandScreen::Compose,
      N_("Word left"), N_("A word to the left"), "", "Alt-B Alt-Left", false},
     {Command::ComposeWordRight, "compose.word_right", CommandScreen::Compose,

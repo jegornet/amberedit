@@ -3,6 +3,7 @@
 ## Unreleased
 
 - add app.redraw: Ctrl-L draws the whole screen again
+- add Ctrl-Backspace to delete a word in the editor, under the kitty keyboard protocol
 - document Alpine Linux build
 - fix navigation keys, function keys and Esc on certain terminals
 - read quotes with no space after the markers e.g. ">Best regards"

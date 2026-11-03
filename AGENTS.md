@@ -912,6 +912,15 @@ Rules that hold the design together:
   named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
   naming the arrows and it; by default it is `compose.delete_word` beside
   `Ctrl-W`.
+- **Ctrl+Backspace is the kitty protocol's `CSI 127 ; 5 u` and nothing else.**
+  Without the protocol a terminal sends the chord as 08H or 7FH, the two bytes
+  plain Backspace is sent as — which of them is the terminal's choice and not
+  the key's — so reading either byte as the chord would take Backspace away on
+  whichever terminal sends that byte for it. Both stay Backspace in `poll()`,
+  and a terminal not speaking the protocol simply has no Ctrl-Backspace.
+  `takesCtrl()` in `ui/keys.cpp` lets Ctrl go in front of Backspace as well as
+  Insert, and `takesShift()` Shift in front of Insert alone. By default it is
+  `compose.delete_word`, the third key beside `Ctrl-W` and `Alt-Backspace`.
 - **Home and End are claimed in every form, Ctrl and all, through the same
   `define_key()`.**
   `khome` and `kend` name the one sequence the terminal their entry was written
@@ -5069,9 +5078,9 @@ together — `keys_mode` says which.
   them — Info, the nodelist — ask the layout what that key is. Everything else
   a modifier reaches AmberEdit through is a CSI sequence and so ambiguous with
   nothing: Alt with an arrow, Alt with a function key — `Alt-F1` and its eleven
-  fellows, the row the utilities are meant to be bound with — and both
-  protocols' spelling of Alt-Backspace are registered whether a layout binds
-  them or not.
+  fellows, the row the utilities are meant to be bound with — both
+  protocols' spelling of Alt-Backspace and kitty's of Ctrl-Backspace are
+  registered whether a layout binds them or not.
 - **What a command is is stated three times in the one row and nowhere else**:
   `labelId` is the word a button and a hint are written with, `helpId` is the
   sentence the help box writes beside the keys, and `icon` is the glyph a menu

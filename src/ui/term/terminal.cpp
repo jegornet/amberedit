@@ -184,6 +184,13 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey("\x1b\b", altBack);
     }
 
+    // Ctrl with Backspace, the same word taken out, and only as the kitty
+    // protocol reports it. Without the protocol a terminal sends Ctrl-Backspace
+    // as one of the two bytes Backspace itself is sent as — 08H or 7FH, which
+    // of them depending on the terminal and not on the key — so neither byte can
+    // be read as the chord without taking Backspace away from somebody.
+    registerKey("\x1b[127;5u", Event::Named(Event::Name::Backspace, true, false, false));
+
     // Ctrl and Shift with Insert, the old pair a clipboard is copied to and
     // pasted from. xterm writes the modifier as a second parameter, rxvt as a
     // final byte of its own; neither means anything else. terminfo names

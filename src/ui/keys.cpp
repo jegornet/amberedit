@@ -62,13 +62,19 @@ bool takesAlt(Event::Name name) {
     return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace;
 }
 
-/// Whether a named key is one a terminal will report with Ctrl or Shift held,
-/// and nothing here already keeps for moving about. Insert is: Ctrl-Ins and
+/// Whether a named key is one a terminal will report with Shift held, and
+/// nothing here already keeps for moving about. Insert is: Ctrl-Ins and
 /// Shift-Ins are how a clipboard has been copied to and pasted from since the
 /// keyboards that had no Ctrl-C and Ctrl-V for it, and every terminal still
 /// spells both.
-bool takesCtrlOrShift(Event::Name name) {
+bool takesShift(Event::Name name) {
     return name == Event::Name::Insert;
+}
+
+/// The same for Ctrl: Insert, and Backspace — which only the kitty protocol
+/// tells apart from Backspace itself, see `registerModifiedKeys()`.
+bool takesCtrl(Event::Name name) {
+    return takesShift(name) || name == Event::Name::Backspace;
 }
 
 bool isAsciiLetter(char c) {
@@ -164,7 +170,8 @@ std::optional<Event> keyNamed(std::string_view spelling) {
 
     if (const NamedKey* named = namedKey(parsed.body)) {
         // Alt with an arrow, a function key or Backspace is one a terminal can
-        // be asked to report, and so is Ctrl or Shift with Insert; nothing else
+        // be asked to report, and so is Ctrl or Shift with Insert and Ctrl with
+        // Backspace; nothing else
         // here is bindable under a modifier, and a spelling that asks for one is
         // either a key that would never arrive or — Ctrl with Home and End —
         // one reserved above. One modifier at a time: no terminal agrees on
@@ -172,9 +179,8 @@ std::optional<Event> keyNamed(std::string_view spelling) {
         const int held =
             (parsed.ctrl ? 1 : 0) + (parsed.alt ? 1 : 0) + (parsed.shift ? 1 : 0);
         if (held > 1) return std::nullopt;
-        if ((parsed.ctrl || parsed.shift) && !takesCtrlOrShift(named->name)) {
-            return std::nullopt;
-        }
+        if (parsed.ctrl && !takesCtrl(named->name)) return std::nullopt;
+        if (parsed.shift && !takesShift(named->name)) return std::nullopt;
         if (parsed.alt && !takesAlt(named->name)) return std::nullopt;
         return Event::Named(named->name, parsed.ctrl, parsed.alt, parsed.shift);
     }

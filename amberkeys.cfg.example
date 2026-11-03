@@ -149,6 +149,9 @@ Ctrl-D          compose.delete_quote
 Alt-Z           compose.delete_quote
 Ctrl-W          compose.delete_word
 Alt-Backspace   compose.delete_word
+# Ctrl-Backspace arrives only from a terminal speaking the kitty keyboard
+# protocol; elsewhere it is sent as plain Backspace.
+Ctrl-Backspace  compose.delete_word
 Alt-B           compose.word_left
 Alt-Left        compose.word_left
 Alt-F           compose.word_right
