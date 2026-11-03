@@ -103,6 +103,13 @@ void deleteQuote(TextBuffer& buffer);
 /// begins.
 void deleteWordBefore(TextBuffer& buffer);
 
+/// Deletes the word after the cursor, and the separators between the two — the
+/// other half of `deleteWordBefore()`, and bound by the same rule: within the
+/// line, a cursor at the end of a line with text on it deleting nothing, and an
+/// empty line taken out as Delete takes it, joining the line below. A word is
+/// what `moveWordRight()` walks over.
+void deleteWordAfter(TextBuffer& buffer);
+
 void moveLeft(TextBuffer& buffer);
 void moveRight(TextBuffer& buffer);
 void moveToLineStart(TextBuffer& buffer);

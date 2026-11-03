@@ -69,6 +69,12 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
     // Ctrl-Backspace is the kitty protocol's chord, never the plain key.
     CHECK(keys.is(Event::Named(Event::Name::Backspace, true, false),
                   Command::ComposeDeleteWord));
+    CHECK(keys.is(Event::Named(Event::Name::Delete, false, true),
+                  Command::ComposeDeleteNextWord));
+    CHECK(keys.is(Event::Named(Event::Name::Delete, true, false),
+                  Command::ComposeDeleteNextWord));
+    // A bare Delete is still the key that takes out one character.
+    CHECK_FALSE(keys.is(Event::Delete, Command::ComposeDeleteNextWord));
     CHECK(keys.is(alt('b'), Command::ComposeWordLeft));
     CHECK(keys.is(Event::Named(Event::Name::ArrowLeft, false, true),
                   Command::ComposeWordLeft));
@@ -146,6 +152,8 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK(keyNamed("Alt-Left") == Event::Named(Event::Name::ArrowLeft, false, true));
     CHECK(keyNamed("alt-backspace") == Event::Named(Event::Name::Backspace, false, true));
     CHECK(keyNamed("Ctrl-Backspace") == Event::Named(Event::Name::Backspace, true, false));
+    CHECK(keyNamed("Alt-Del") == Event::Named(Event::Name::Delete, false, true));
+    CHECK(keyNamed("Ctrl-Delete") == Event::Named(Event::Name::Delete, true, false));
     CHECK(keyNamed("Alt-F1") == Event::Named(Event::Name::F1, false, true));
     CHECK(keyNamed("alt-f12") == Event::Named(Event::Name::F12, false, true));
 
@@ -155,6 +163,7 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK_FALSE(keyNamed("Ctrl-F5"));
     CHECK_FALSE(keyNamed("Ctrl-+"));
     CHECK_FALSE(keyNamed("Shift-Backspace"));
+    CHECK_FALSE(keyNamed("Shift-Del"));
     CHECK_FALSE(keyNamed("Alt-F13"));
     CHECK_FALSE(keyNamed("Alt-Home"));
     CHECK_FALSE(keyNamed("F13"));
@@ -163,14 +172,15 @@ TEST_CASE("A key is read the way it is written [keys]") {
 
     // And what is written back out reads the same again.
     for (const char* spelling :
-         {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left", "Alt-Backspace", "Ctrl-Backspace", "Alt-F1"}) {
+         {"g", "G", "Ctrl-N", "F10", "Del", "-", "Alt-Left", "Alt-Backspace",
+          "Ctrl-Backspace", "Alt-Del", "Ctrl-Del", "Alt-F1"}) {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(keyNamed(spellingOf(*key)) == key);
     }
 }
 
-TEST_CASE("Ctrl and Shift go with Insert and with no other named key [keys]") {
+TEST_CASE("Shift goes with Insert and with no other named key [keys]") {
     CHECK(keyNamed("Ctrl-Ins") == Event::Named(Event::Name::Insert, true, false, false));
     CHECK(keyNamed("shift-insert") ==
           Event::Named(Event::Name::Insert, false, false, true));
@@ -179,7 +189,7 @@ TEST_CASE("Ctrl and Shift go with Insert and with no other named key [keys]") {
     // A shifted character is the other character, and is written as itself.
     CHECK_FALSE(keyNamed("Shift-g"));
     CHECK_FALSE(keyNamed("Shift-F2"));
-    CHECK_FALSE(keyNamed("Ctrl-Del"));
+    CHECK_FALSE(keyNamed("Ctrl-F2"));
     // One modifier at a time: no two terminals agree on what two of them with
     // Insert are sent as.
     CHECK_FALSE(keyNamed("Ctrl-Shift-Ins"));

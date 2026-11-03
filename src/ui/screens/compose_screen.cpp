@@ -2106,6 +2106,11 @@ bool headerKey(AppState& state, const Event& event) {
         cursor = from;
         return true;
     }
+    if (state.keys.is(event, Command::ComposeDeleteNextWord)) {
+        const size_t to = wordEndAfter(value, cursor).value_or(value.size());
+        value.erase(cursor, to - cursor);
+        return true;
+    }
     // Stops stand side by side on a line, so the arrows cross from one to the
     // next at the edge between them, the way they cross a line end in the text:
     // → off the end of a name onto the start of its address, ← off the start of
@@ -2188,6 +2193,8 @@ bool textKey(AppState& state, const Event& event) {
         deleteQuote(state.edit);
     } else if (state.keys.is(event, Command::ComposeDeleteWord)) {
         deleteWordBefore(state.edit);
+    } else if (state.keys.is(event, Command::ComposeDeleteNextWord)) {
+        deleteWordAfter(state.edit);
     } else if (state.keys.is(event, Command::ComposeWordRight)) {
         moveWordRight(state.edit);
     } else if (state.keys.is(event, Command::ComposeWordLeft)) {

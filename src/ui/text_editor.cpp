@@ -260,6 +260,20 @@ void deleteWordBefore(TextBuffer& buffer) {
     buffer.col = at;
 }
 
+void deleteWordAfter(TextBuffer& buffer) {
+    // The empty line goes as Delete takes it, for the reason the word behind the
+    // cursor gives: a run of blank lines is erased by holding the key.
+    if (buffer.line().empty()) {
+        deleteAt(buffer);
+        return;
+    }
+    // Up to where `moveWordRight()` would stop on this line, and the rest of the
+    // line where nothing but separators is left on it.
+    const size_t to =
+        wordEndAfter(buffer.line(), buffer.col).value_or(buffer.line().size());
+    buffer.line().erase(buffer.col, to - buffer.col);
+}
+
 void deleteQuote(TextBuffer& buffer) {
     /// Whether the line belongs to a quoted block: a quote or a blank line.
     const auto quotedOrBlank = [](const std::string& line) {

@@ -53,13 +53,14 @@ bool isFunctionKey(Event::Name name) {
 }
 
 /// Whether a named key is one a terminal will report with Alt held. The arrows
-/// are, and so is Backspace — Alt with it is the other way a word is taken out —
-/// and so are the function keys: `Alt-F1` is a row of chords nothing else in
-/// AmberEdit wants, which is what makes it the row the external utilities are
-/// reached by. Nothing else is worth spelling: a key that would never arrive is
-/// a binding that would never fire.
+/// are, and so are Backspace and Delete — Alt with them is how a word is taken
+/// out behind the cursor and ahead of it — and so are the function keys: `Alt-F1` is a
+/// row of chords nothing else in AmberEdit wants, which is what makes it the row the
+/// external utilities are reached by. Nothing else is worth spelling: a key that would
+/// never arrive is a binding that would never fire.
 bool takesAlt(Event::Name name) {
-    return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace;
+    return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace ||
+           name == Event::Name::Delete;
 }
 
 /// Whether a named key is one a terminal will report with Shift held, and
@@ -71,10 +72,11 @@ bool takesShift(Event::Name name) {
     return name == Event::Name::Insert;
 }
 
-/// The same for Ctrl: Insert, and Backspace — which only the kitty protocol
-/// tells apart from Backspace itself, see `registerModifiedKeys()`.
+/// The same for Ctrl: Insert, Delete, and Backspace — which only the kitty
+/// protocol tells apart from Backspace itself, see `registerModifiedKeys()`.
 bool takesCtrl(Event::Name name) {
-    return takesShift(name) || name == Event::Name::Backspace;
+    return takesShift(name) || name == Event::Name::Backspace ||
+           name == Event::Name::Delete;
 }
 
 bool isAsciiLetter(char c) {
@@ -169,9 +171,9 @@ std::optional<Event> keyNamed(std::string_view spelling) {
     if (parsed.body.empty()) return std::nullopt;
 
     if (const NamedKey* named = namedKey(parsed.body)) {
-        // Alt with an arrow, a function key or Backspace is one a terminal can
-        // be asked to report, and so is Ctrl or Shift with Insert and Ctrl with
-        // Backspace; nothing else
+        // Alt with an arrow, a function key, Backspace or Delete is one a
+        // terminal can be asked to report, and so is Ctrl or Shift with Insert
+        // and Ctrl with Backspace or Delete; nothing else
         // here is bindable under a modifier, and a spelling that asks for one is
         // either a key that would never arrive or — Ctrl with Home and End —
         // one reserved above. One modifier at a time: no terminal agrees on

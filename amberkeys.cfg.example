@@ -152,6 +152,8 @@ Alt-Backspace   compose.delete_word
 # Ctrl-Backspace arrives only from a terminal speaking the kitty keyboard
 # protocol; elsewhere it is sent as plain Backspace.
 Ctrl-Backspace  compose.delete_word
+Alt-Delete      compose.delete_next_word
+Ctrl-Delete     compose.delete_next_word
 Alt-B           compose.word_left
 Alt-Left        compose.word_left
 Alt-F           compose.word_right

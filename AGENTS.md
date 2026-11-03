@@ -908,18 +908,22 @@ Rules that hold the design together:
   hands them to `Terminal`, which passes them to `registerModifiedKeys()`. All 26
   `CSI u` forms are registered already. **Alt+Backspace** goes the same way —
   both protocol spellings always, the bare `ESC`+DEL (and `ESC`+BS) form only
-  when `KeyMap::altBackspace()` says a layout wants it. It is the one other
-  named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
-  naming the arrows and it; by default it is `compose.delete_word` beside
-  `Ctrl-W`.
+  when `KeyMap::altBackspace()` says a layout wants it. By default it is
+  `compose.delete_word` beside `Ctrl-W`.
+- **Alt+Delete and Ctrl+Delete are the word ahead of the cursor**,
+  `compose.delete_next_word`, claimed as `CSI 3 ; 3 ~`, `CSI 3 ; 9 ~`,
+  `CSI 3 ; 5 ~` and rxvt's `CSI 3 ^` — the spellings xterm and kitty agree on,
+  none of them ambiguous. rxvt's Alt+Delete is a bare `ESC` in front of Delete
+  and stays Escape then Delete. `takesAlt()` in `ui/keys.cpp` names the arrows,
+  the function keys, Backspace and Delete, and `takesCtrl()` Insert, Backspace
+  and Delete.
 - **Ctrl+Backspace is the kitty protocol's `CSI 127 ; 5 u` and nothing else.**
   Without the protocol a terminal sends the chord as 08H or 7FH, the two bytes
   plain Backspace is sent as — which of them is the terminal's choice and not
   the key's — so reading either byte as the chord would take Backspace away on
   whichever terminal sends that byte for it. Both stay Backspace in `poll()`,
   and a terminal not speaking the protocol simply has no Ctrl-Backspace.
-  `takesCtrl()` in `ui/keys.cpp` lets Ctrl go in front of Backspace as well as
-  Insert, and `takesShift()` Shift in front of Insert alone. By default it is
+  `takesShift()` lets Shift go in front of Insert alone. By default it is
   `compose.delete_word`, the third key beside `Ctrl-W` and `Alt-Backspace`.
 - **Home and End are claimed in every form, Ctrl and all, through the same
   `define_key()`.**
@@ -2282,15 +2286,17 @@ decides what an occurrence is.
 - **A field is edited with the keys the text is edited with.** The arrows,
   Backspace, Delete, `Home`/`End` and the `compose.line_start`/`line_end` chords
   are answered in `headerKey()`, and so are `compose.word_left`,
-  `compose.word_right` and `compose.delete_word`: a header the arrows alone can
+  `compose.word_right`, `compose.delete_word` and
+  `compose.delete_next_word`: a header the arrows alone can
   cross is a header nobody corrects twice. What a word is is defined once —
   `wordStartBefore()` and `wordEndAfter()` in `ui/text_editor.hpp`, which the
-  buffer's own `moveWordLeft()`, `moveWordRight()` and `deleteWordBefore()` are
+  buffer's own `moveWordLeft()`, `moveWordRight()`, `deleteWordBefore()` and
+  `deleteWordAfter()` are
   written on — so the two halves of the screen cannot come to disagree about
   where one begins. **A field is one line**, and that is the only difference: the
   two answer `std::nullopt` where nothing but separators lies that way, which in
   the text carries the motion onto the line above or below and in a field is the
-  edge it stops at. These three are live under `external_editor` for the same
+  edge it stops at. These four are live under `external_editor` for the same
   reason the line ends are — see `ui/command_live.hpp`: they act on a field, and
   the header block is what is still typed into there.
 - **A long line is broken by the window, never by the editor.**
@@ -5085,8 +5091,8 @@ together — `keys_mode` says which.
   a modifier reaches AmberEdit through is a CSI sequence and so ambiguous with
   nothing: Alt with an arrow, Alt with a function key — `Alt-F1` and its eleven
   fellows, the row the utilities are meant to be bound with — both
-  protocols' spelling of Alt-Backspace and kitty's of Ctrl-Backspace are
-  registered whether a layout binds them or not.
+  protocols' spelling of Alt-Backspace, kitty's of Ctrl-Backspace and the CSI
+  forms of Alt-Delete and Ctrl-Delete are registered whether a layout binds them or not.
 - **What a command is is stated three times in the one row and nowhere else**:
   `labelId` is the word a button and a hint are written with, `helpId` is the
   sentence the help box writes beside the keys, and `icon` is the glyph a menu
@@ -5273,9 +5279,9 @@ together — `keys_mode` says which.
     whole, any line ending taken off, every line through `messageLine()` — what
     the import does to a file, since a clipboard is another program's bytes as
     much as a file is.
-  - `Ctrl-Ins` and `Shift-Ins` are the one place Ctrl and Shift go with a named
-    key in a layout (`takesCtrlOrShift()` in `ui/keys.cpp`), one modifier at a
-    time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
+  - `Ctrl-Ins` and `Shift-Ins` are the one place Shift goes with a named key in
+    a layout (`takesShift()` and `takesCtrl()` in `ui/keys.cpp`), one modifier
+    at a time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
     and the text then arrives typed — the terminal's clipboard, not
     `clipboard`'s.
 - **The hint bar reads the layout rather than naming keys of its own**

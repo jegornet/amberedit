@@ -31,8 +31,8 @@ and edit that instead of starting from a blank file.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ins`, `Ctrl-Ins`, `Shift-Ins`,
-`Ctrl-Backspace` (kitty keyboard protocol only), `Ctrl-` and a letter, or 
-`Alt-` and a letter, an arrow, a function key or`Backspace`. Two screens may
+`Ctrl-Backspace` (kitty keyboard protocol only), `Ctrl-Del`, `Ctrl-` and a
+letter, or `Alt-` and a letter, an arrow, a function key, `Backspace` or `Del`. Two screens may
 share a key, as `F2` does between the reader and the editor; two commands of one
 screen may not, and a layout that tries says which line clashes with which.
 
@@ -56,7 +56,7 @@ and the editor never being the same screen.
 | `arealist.` | the area list | `next_unread`, `toggle_unread`, `rescan`, `mark_toggle`, `catch_up` |
 | `msglist.` | the message list | `mark_toggle`, `delete` |
 | `reader.` | the reader | `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`, `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `charset`, `scrollbar`, `thread_up`, `thread_down`, `mark_toggle`, `mark_menu`, `shell`, `copy` |
-| `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `word_left`, `word_right`, `line_start`, `line_end`, `paste` |
+| `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `delete_next_word`, `word_left`, `word_right`, `line_start`, `line_end`, `paste` |
 
 `app.quit` is answered ahead of every dialog as well: no box is worth being the
 one thing between you and the way out. `app.redraw` is too, all but the

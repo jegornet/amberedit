@@ -191,6 +191,18 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     // be read as the chord without taking Backspace away from somebody.
     registerKey("\x1b[127;5u", Event::Named(Event::Name::Backspace, true, false, false));
 
+    // Alt and Ctrl with Delete, the word ahead of the cursor taken out. xterm
+    // and kitty both write the modifier as a second parameter, some terminals
+    // send 9 for Alt, and rxvt gives Ctrl a final byte of its own; none of them
+    // means anything else. rxvt's Alt-Delete is a bare ESC in front of Delete,
+    // which is Escape then Delete as well, and is left to be that.
+    const Event altDelete = Event::Named(Event::Name::Delete, false, true, false);
+    registerKey("\x1b[3;3~", altDelete);
+    registerKey("\x1b[3;9~", altDelete);
+    const Event ctrlDelete = Event::Named(Event::Name::Delete, true, false, false);
+    registerKey("\x1b[3;5~", ctrlDelete);
+    registerKey("\x1b[3^", ctrlDelete);
+
     // Ctrl and Shift with Insert, the old pair a clipboard is copied to and
     // pasted from. xterm writes the modifier as a second parameter, rxvt as a
     // final byte of its own; neither means anything else. terminfo names
@@ -517,6 +529,8 @@ Event namedKey(int code) {
         case ALT_LEFT: return Event::Named(Event::Name::ArrowLeft, false, true, false);
         case ALT_RIGHT: return Event::Named(Event::Name::ArrowRight, false, true, false);
         case ALT_BKSP: return Event::Named(Event::Name::Backspace, false, true, false);
+        case ALT_DEL: return Event::Named(Event::Name::Delete, false, true, false);
+        case CTL_DEL: return Event::Named(Event::Name::Delete, true, false, false);
         case CTL_HOME: return Event::Named(Event::Name::Home, true, false, false);
         case CTL_END: return Event::Named(Event::Name::End, true, false, false);
         case CTL_INS: return Event::Named(Event::Name::Insert, true, false, false);
