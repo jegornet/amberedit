@@ -4,6 +4,7 @@
 
 - add app.redraw: Ctrl-L draws the whole screen again
 - add Ctrl-Backspace to delete a word in the editor, under the kitty keyboard protocol
+- add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
 - document Alpine Linux build
 - fix navigation keys, function keys and Esc on certain terminals
 - read quotes with no space after the markers e.g. ">Best regards"

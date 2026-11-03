@@ -309,13 +309,29 @@ void registerNavigationKeys() {}
 /// cover the field between them, and a terminal that understands neither ignores
 /// both sequences.
 ///
+/// The requests go out in `modifier_key_reporting`'s order, and are taken back
+/// in the reverse one. A terminal that speaks both keeps whichever came last —
+/// iTerm2 does — and only the kitty protocol tells Ctrl-Backspace from
+/// Backspace: under modifyOtherKeys it is the same 08H.
+///
 /// Written straight to stdout rather than through ncurses: this happens once at
 /// each end of the run, when ncurses has nothing outstanding, and going through
 /// its output would mean it believed it had drawn something it had not.
 class ModifiedKeyReporting {
 public:
-    ModifiedKeyReporting() { write(kKittyPush, kXtermOn); }
-    ~ModifiedKeyReporting() { write(kKittyPop, kXtermOff); }
+    explicit ModifiedKeyReporting(std::vector<KeyProtocol> protocols)
+        : protocols_(std::move(protocols)) {
+        for (const KeyProtocol protocol : protocols_) {
+            std::fputs(protocol == KeyProtocol::Kitty ? kKittyPush : kXtermOn, stdout);
+        }
+        std::fflush(stdout);
+    }
+    ~ModifiedKeyReporting() {
+        for (auto it = protocols_.rbegin(); it != protocols_.rend(); ++it) {
+            std::fputs(*it == KeyProtocol::Kitty ? kKittyPop : kXtermOff, stdout);
+        }
+        std::fflush(stdout);
+    }
 
     ModifiedKeyReporting(const ModifiedKeyReporting&) = delete;
     ModifiedKeyReporting& operator=(const ModifiedKeyReporting&) = delete;
@@ -323,11 +339,7 @@ public:
     ModifiedKeyReporting& operator=(ModifiedKeyReporting&&) = delete;
 
 private:
-    static void write(const char* one, const char* two) {
-        std::fputs(one, stdout);
-        std::fputs(two, stdout);
-        std::fflush(stdout);
-    }
+    std::vector<KeyProtocol> protocols_;
 
     /// kitty keyboard protocol, "disambiguate escape codes" only. Higher flags
     /// would rewrite Enter, Tab and Backspace too, which we have no use for.
@@ -380,7 +392,9 @@ private:
 /// as a code of its own whether anyone asks or not. And there is no line
 /// discipline to take Ctrl-S and Ctrl-Q out of the stream before they arrive, so
 /// nothing has to be turned off for Ctrl-Q to be seen.
-struct ModifiedKeyReporting {};
+struct ModifiedKeyReporting {
+    explicit ModifiedKeyReporting(const std::vector<KeyProtocol>&) {}
+};
 struct FlowControlOff {};
 
 #endif  // _WIN32
@@ -604,7 +618,9 @@ Event mouseEvent() {
 
 }  // namespace
 
-Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
+Terminal::Terminal(std::string altLetters, bool altBackspace,
+                   std::vector<KeyProtocol> reporting)
+    : screen_(0, 0), keyProtocols_(std::move(reporting)) {
     // Before ncurses starts: it reads the locale as it initialises, and what it
     // finds there decides the encoding everything is written out in.
     ensureUtf8Locale();
@@ -643,7 +659,7 @@ Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
     initColors();
 
     flowControl = std::make_unique<FlowControlOff>();
-    keyReporting = std::make_unique<ModifiedKeyReporting>();
+    keyReporting = std::make_unique<ModifiedKeyReporting>(keyProtocols_);
     registerModifiedKeys(altLetters, altBackspace);
     registerNavigationKeys();
 
@@ -769,7 +785,7 @@ void Terminal::handOver(const std::function<void()>& work) {
     mousemask(mouseEvents(), nullptr);
     mouseinterval(0);
     flowControl = std::make_unique<FlowControlOff>();
-    keyReporting = std::make_unique<ModifiedKeyReporting>();
+    keyReporting = std::make_unique<ModifiedKeyReporting>(keyProtocols_);
     curs_set(cursorVisible_ ? 1 : 0);
 
     // What ncurses believes is on the screen is whatever was there before the

@@ -6,12 +6,20 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/screen.hpp"
 
 namespace amberedit::ui::term {
+
+/// A protocol the terminal is asked to report modified keys in, from
+/// `modifier_key_reporting`. The requests go out in the order they are given.
+enum class KeyProtocol {
+    Xterm,  ///< xterm's modifyOtherKeys, level 1
+    Kitty,  ///< the kitty keyboard protocol, "disambiguate escape codes" only
+};
 
 /// The terminal, for as long as the interface is up.
 ///
@@ -37,8 +45,12 @@ public:
     /// arrives as an ESC in front of an `f`, which is also what pressing Escape
     /// and then `f` looks like — so a letter is claimed only where the layout
     /// binds it, and Escape keeps the rest. `altBackspace` says the same of
-    /// Alt with Backspace, which arrives the same ambiguous way.
-    explicit Terminal(std::string altLetters = "", bool altBackspace = false);
+    /// Alt with Backspace, which arrives the same ambiguous way. `reporting` is
+    /// which protocols the terminal is asked for modified keys in, and in what
+    /// order.
+    explicit Terminal(std::string altLetters = "", bool altBackspace = false,
+                      std::vector<KeyProtocol> reporting = {KeyProtocol::Xterm,
+                                                            KeyProtocol::Kitty});
     ~Terminal();
 
     Terminal(const Terminal&) = delete;
@@ -194,6 +206,9 @@ private:
     void swallowLineEndPartner(wint_t first);
 
     Screen screen_;
+    /// Which protocols the terminal is asked for modified keys in, kept for
+    /// asking again when `handOver()` takes the terminal back.
+    std::vector<KeyProtocol> keyProtocols_;
     /// Whether a clipboard answer, and the DA1 answer sent after it, may still
     /// be on their way from a question given up on — which `poll()` then takes
     /// off the input rather than passing on as Escape and a run of letters.

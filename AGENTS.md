@@ -938,10 +938,8 @@ Rules that hold the design together:
   same way everywhere.
 - **The arrows are claimed in both forms, whatever application mode says.**
   `keypad()` sends `smkx` and terminfo then names `ESC O A`, but the request for
-  the kitty protocol can put a terminal back on `ESC [ A`. Konsole does that
-  with both of `ModifiedKeyReporting`'s requests standing; iTerm2 does it for
-  the kitty request alone, the modifyOtherKeys one written after it undoing
-  that. Terminals disagree here and nothing reports which way one went, so
+  the kitty protocol can put a terminal back on `ESC [ A`. Konsole and iTerm2
+  both do that with `ModifiedKeyReporting`'s requests standing. Terminals disagree here and nothing reports which way one went, so
   `registerNavigationKeys()` registers both forms rather than leaning on the
   mode. An unnamed form is worse than a dead key: ncurses hands its bytes over
   one at a time, so an arrow reads as Escape and then two characters.
@@ -963,7 +961,15 @@ Rules that hold the design together:
   (`set_escdelay(25)`).
 - Shift+Space needs the terminal to report modified keys, which none does by
   default. `runApp()` turns that on (kitty keyboard protocol at the disambiguate
-  level, plus xterm `modifyOtherKeys=1`) and restores it on exit. The side effect
+  level, plus xterm `modifyOtherKeys=1`) and restores it on exit, in the
+  reverse order. **Which of the two, and in what order, is
+  `modifier_key_reporting`**, read in `config/app_config.cpp` and handed to
+  `Terminal` as `term::KeyProtocol`s by `runApp()` — `ui/term/` includes
+  nothing of `config/`, so the type is its own. The default writes the kitty
+  request after the modifyOtherKeys one: a terminal that speaks both keeps
+  whichever came last — iTerm2 does — and only kitty's `CSI 127 ; 5 u` tells
+  Ctrl+Backspace from Backspace. `--setup` has no config and asks in the
+  default order. The side effect
   is that a bare Escape then arrives as `CSI 27 u`, which `app_shell.cpp` folds
   back into `Event::Escape` before the screens see it — if you raise the kitty
   flags, Enter, Tab and Backspace will need the same treatment.
