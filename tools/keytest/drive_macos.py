@@ -173,11 +173,18 @@ class Opened:
     """A terminal window running the script: its process, and how to tell
     whether that window is still the one in front."""
 
-    def __init__(self, pid, window_check=None, close=None, proc=None):
+    def __init__(self, pid, window_check=None, close=None, proc=None, activate=None):
         self.pid = pid
         self.window_check = window_check
         self.close = close
         self.proc = proc
+        self.activate = activate
+
+    def forward(self):
+        if self.activate is not None:
+            self.activate()
+        else:
+            bring_forward(self.pid)
 
     def in_front(self):
         if front_pid() != self.pid:
@@ -258,12 +265,54 @@ def open_binary(argv, gui):
     return opener
 
 
+GHOSTTY_APP = "/Applications/Ghostty.app"
+
+
+def open_ghostty(script):
+    """Ghostty on a Mac is started through `open` and not by running its binary;
+    the window's process is the ghostty that was not there before. Its own
+    config is left out, so that what is taken is Ghostty as it ships."""
+    binary = f"{GHOSTTY_APP}/Contents/MacOS/ghostty"
+
+    def running():
+        found = subprocess.run(["pgrep", "-f", binary], capture_output=True, text=True)
+        return {int(p) for p in found.stdout.split()}
+
+    before = running()
+    subprocess.run(["open", "-na", GHOSTTY_APP, "--args",
+                    "--config-default-files=false", "-e", script],
+                   capture_output=True)
+    deadline = time.monotonic() + 20
+    pid = None
+    while pid is None and time.monotonic() < deadline:
+        new = running() - before
+        pid = max(new) if new else None
+        time.sleep(0.2)
+
+    def close():
+        if pid is not None:
+            try:
+                os.kill(pid, 15)
+            except ProcessLookupError:
+                pass
+
+    def activate():
+        # System Events will not bring Ghostty forward by its pid; asking the
+        # application by its bundle id does. A Ghostty of the user's own may be
+        # the one that answers, and then the window is not in front and the
+        # run stops, as it does for any other terminal.
+        osascript('tell application id "com.mitchellh.ghostty" to activate')
+
+    return Opened(pid, None, close, activate=activate)
+
+
 WEZTERM = "/Applications/WezTerm.app/Contents/MacOS/wezterm"
 KITTY = "/Applications/kitty.app/Contents/MacOS/kitty"
 
 TERMINALS = {
     "iterm2": ("/Applications/iTerm.app", open_iterm2),
     "terminal-app": ("/System/Applications/Utilities/Terminal.app", open_terminal_app),
+    "ghostty": (GHOSTTY_APP, open_ghostty),
     "wezterm": ("/Applications/WezTerm.app", open_binary(
         [WEZTERM, "--skip-config", "start", "--always-new-process", "--"],
         "wezterm-gui")),
@@ -325,13 +374,13 @@ def take(terminal, protocol, amberedit, out_dir, wait_ms, only, quartz):
         line = read_line(fd, buffer, 60)
         if line is None:
             return f"{stem}: never started"
-        bring_forward(opened.pid)
+        opened.forward()
         time.sleep(0.5)
         pressed = 0
 
         def press_in_front(key, what):
             if not opened.in_front():
-                bring_forward(opened.pid)
+                opened.forward()
                 time.sleep(0.5)
                 if not opened.in_front():
                     raise NotInFront(f"{stem}: the window is not in front at {what}; "

@@ -106,12 +106,12 @@ standing in both.
 ## Keys a terminal cannot send
 
 Some chords leave the terminal as the same bytes as another key, and AmberEdit
-reads them as that key. Measured in 19 Linux terminals and 4 on macOS; the list
+reads them as that key. Measured in 19 Linux terminals and 5 on macOS; the list
 with the bytes is `testdata/keys/limits.lst`.
 
 - `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
   `Tab` and `Enter`, except under the kitty keyboard protocol in kitty, foot,
-  Alacritty, Contour, Konsole and WezTerm with `enable_kitty_keyboard`
+  Ghostty, Alacritty, Contour, Konsole and WezTerm with `enable_kitty_keyboard`
   (`modifier_key_reporting`).
 - `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
 - In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
@@ -128,7 +128,8 @@ with the bytes is `testdata/keys/limits.lst`.
   `modifier_key_reporting` names `xterm`.
 - On macOS, Option is not Alt until the terminal is told so (iTerm2: *Left
   Option key: Esc+*; Terminal.app: *Use Option as Meta key*; kitty:
-  `macos_option_as_alt`; WezTerm: `send_composed_key_when_left_alt_is_pressed`).
+  `macos_option_as_alt`; Ghostty: `macos-option-as-alt`; WezTerm:
+  `send_composed_key_when_left_alt_is_pressed`).
   Until then Option with a letter types a character, Option-←/→ moves by words
   in iTerm2 and Terminal.app, and Option with a function key or an arrow is the
   bare key. A Mac keyboard's Help key is not Insert.

@@ -80,45 +80,8 @@ because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
 with `-tc`, which matches the whole name by wildcard:
 `./build/bin/amberedit_tests -tc="*[squish]*"`.
 
-**The keyboard diagnostics are a build of their own.** `-DAMBEREDIT_KEYTEST=ON`
-adds `--keytest` and `--keycheck` (`src/ui/keytest.*`): what a terminal sends for
-each key, and what `Terminal::poll()` makes of it played back over a pty. A
-release leaves them out — nothing a user of the editor runs — and CI turns them
-on so that they go on compiling. The tests build `keytest.cpp` whatever the
-option says: `[keys][pty]` plays every file under `testdata/keys/` back on every
-build, and a key read as anything but itself fails it unless
-`testdata/keys/limits.lst` says the terminal sent bytes another key is sent as
-too. **A line goes into that file only for what the terminal could not have told
-apart**; a key AmberEdit misreads when the bytes were distinct is a bug in
-`ui/term/terminal.cpp`. The far end of the pty is a `fork()` of the process
-asking, not a second program, so the tests need no binary beside them, and each
-run of bytes is asked once per TERM. A file whose TERM has no terminfo on the
-machine is passed over with a message — kitty's and urxvt's are often not
-installed. `tools/keytest/drive_x11.py`
-takes them in X11 terminals under Xvfb, pressing each key through XTEST **by
-keycode with the modifiers held by hand**: xdotool given a keysym picks the level
-itself, and under Xvfb's map it reaches the function keys through Mod1, so xterm
-sends Alt-F1 for F1. **A terminal's name in the driver must not end in a
-protocol's** — `-kitty`, `-xterm` — or two runs write one file name and
-`collapse.py` cannot tell which is which: tmux inside kitty is `kitty-tmux`.
-`tools/keytest/drive_wayland.py` is the same for a terminal with no X11, in a
-headless sway whose config binds nothing, pressing through `wtype` — which hands
-the compositor a keymap of its own on every call, so each key waits a moment
-behind it or reaches the terminal before the keymap does and is lost.
-`tools/keytest/drive_macos.py` does the same on a Mac through
-Quartz, and takes over that machine's keyboard while it runs: it checks before
-every key that the window it opened is in front and stops where it is not.
-**A driver and `--keytest` keep in step over the FIFO, never by timing**: a
-window just opened may not have the keyboard and a dead key on macOS sends
-nothing until the next one, and either puts every answer after it one key off.
-So `--keytest` asks for `warmup` presses until something arrives, and after a key
-that sent nothing asks for a `flush` — Escape and Space, to put away what the key
-opened and finish a dead key — and throws out what that sends. **Two things are
-excused without a line in `limits.lst`**: a key read as another key the same file
-took as the very same bytes, which is the terminal not telling them apart, and an
-Alt-letter that arrived as one character with no ESC in it, which is a macOS
-terminal composing with Option — the character being the keyboard layout's, no
-list of them could be kept.
+**The keyboard is tested on bytes taken from real terminals**, and how is
+[The keyboard tests](#the-keyboard-tests) below.
 
 The code is C++17 and wants GCC 8, Clang 7 or Apple Clang 11 at the least;
 `CMakeLists.txt` refuses anything older by name, because an older compiler
@@ -180,6 +143,113 @@ about the file are decisions rather than detail:
   The Windows arm64 job is **CLANGARM64** rather than UCRT64, MSYS2 publishing
   no GCC for aarch64 — it links the same Universal CRT, which is what UCRT64 was
   chosen for.
+
+### The keyboard tests
+
+The keyboard table in `ui/term/terminal.cpp` lives under ncurses, and the
+question it answers is split in two. **What a terminal sends** only the terminal
+knows, so it is taken off real ones and kept in `testdata/keys/`. **What
+AmberEdit makes of it** is asked on every build without a terminal:
+`[keys][pty]` (`tests/ui/keytest_test.cpp`) plays every file there into
+`Terminal::poll()` over a pty, under the `TERM` the file was taken with, and a
+key read as anything but itself fails the test.
+
+- **`--keytest` and `--keycheck` are a build of their own**,
+  `-DAMBEREDIT_KEYTEST=ON` (`src/ui/keytest.*`), and `--help` lists them only
+  there. A release leaves them out — nothing a user of the editor runs — and CI
+  turns them on so that they go on compiling. The tests build `keytest.cpp`
+  whatever the option says.
+- **The list of keys is not kept by hand**: every key `KeyMap::defaults()`
+  binds, the keys that move about, each of them under the modifiers `keyNamed()`
+  accepts, and Ctrl and Alt with every letter (`keytest::keys()`). A command
+  given a key of its own is in the next run without anybody adding it, and a run
+  has to be taken again for its key to be in the files.
+- **The far end of the pty is a `fork()` of the process asking**, not a second
+  program, so the tests need no binary beside them; the answer for each run of
+  bytes is kept per TERM, which is what holds forty files to a tenth of a
+  second. A file whose TERM has no terminfo on the machine is passed over with a
+  message — kitty's, urxvt's and Ghostty's are often not installed.
+- **A key read as something else passes in three cases, and only these.** The
+  same file took another key as the very same bytes and the key was read as
+  that one — the terminal did not tell the two apart. An Alt-letter arrived as
+  one character with no ESC in it — a macOS terminal composing with Option, the
+  character being the keyboard layout's, so no list of them could be kept. Or
+  `testdata/keys/limits.lst` names the key, its bytes and what they are read as,
+  over a comment saying why. **A line goes into that file only for what the
+  terminal could not have told apart**; a key misread when the bytes were
+  distinct is a bug in `ui/term/terminal.cpp`, and a line written to make the
+  test pass hides it. KEYS.md says the same limits to a user.
+- **`testdata/keys/` is never edited to make a test pass.** A terminal that
+  changed is taken again. The one change made by hand is taking out what is not
+  the terminal's: kitty pastes the clipboard on `Shift-Ins`, and a file carries
+  `-` there rather than whatever somebody had copied.
+
+**Taking a terminal.** `amberedit --keytest [protocols] --out FILE` asks for
+each key in turn, by hand if need be. A driver does it without hands, once per
+value of `modifier_key_reporting`, and `tools/keytest/collapse.py DIR` then
+folds the four files a terminal gives into one per set of bytes it sends —
+`xterm.txt` where they agree, `kitty-kitty.txt` and `kitty-xterm.txt` where the
+protocol changes what is sent — with the protocols in the header. That is the
+shape `testdata/keys/` is kept in.
+
+- **Each driver presses keys below the terminal**, so that the terminal encodes
+  them itself; anything that typed bytes into the pty would be taking down a
+  guess. `drive_x11.py` runs each terminal in an Xvfb of its own and presses
+  through XTEST **by keycode with the modifiers held by hand** — xdotool given a
+  keysym picks the level itself, and under Xvfb's map reaches the function keys
+  through Mod1, so xterm sends Alt-F1 for F1; it reads 0 to 9 as keysyms too.
+  `drive_wayland.py` runs a terminal with no X11 in a headless sway whose config
+  binds nothing, pressing through `wtype`, which hands the compositor a keymap
+  of its own on every call — so each key waits a moment behind it, or reaches
+  the terminal before its keymap and is lost. `drive_macos.py` posts through
+  Quartz at the HID level.
+- **A driver and `--keytest` keep in step over a FIFO, never by timing.** A
+  window just opened may not have the keyboard yet, and a dead key on macOS
+  sends nothing until the next one; either puts every answer after it one key
+  off. So `--keytest` asks for `warmup` presses until something arrives, and
+  after a key that sent nothing asks for a `flush` — Escape and Space, to put
+  away a menu or a panel the key opened and finish a dead key — and throws out
+  what that sends. Under X11 a click in the terminal goes with it: a GTK 4
+  popover takes no Escape without a window manager, and one put away leaves
+  the keyboard on the button that opened it.
+- **A terminal's name in a driver must not end in a protocol's** — `-kitty`,
+  `-xterm` — or two runs write one file name: tmux inside kitty is
+  `kitty-tmux`. `collapse.py` reads the protocol off the header for the same
+  reason, and marks what it wrote so a second run leaves it alone.
+- **A multiplexer is a terminal of its own in the driver**, tmux and screen
+  inside an xterm (`LAYERS` in `drive_x11.py`), each with its prefix moved off
+  the keys a run asks for: the key after a prefix is a command to the
+  multiplexer, and the run would go out of step.
+
+What a machine needs. **Linux** (the files were taken on Fedora): Xvfb,
+xdotool, xmodmap, libXtst, dbus-x11 and Mesa's software renderer for the
+terminals that want GL; sway and wtype for `drive_wayland.py`; Python 3 with
+nothing beyond the standard library, the X calls going through ctypes because a
+Python binding for them has to match the interpreter. The GTK and Qt terminals
+that are a server behind a client are started under a D-Bus session of their
+own (`NEEDS_DBUS`), and ptyxis under the user's, since it starts its shell in a
+scope of the user's systemd. **macOS**: the application the driver is started
+from needs *Device Control and Data Access* (Privacy & Security; Accessibility
+in older releases), which `drive_macos.py --request` asks for, and it asks once
+for the right to drive Terminal.app and System Events. **It takes over that
+machine's keyboard while it runs**: before every key it checks that the window
+it opened is in front — and for iTerm2 and Terminal.app, whose windows share a
+process, that its window is the current one — and stops at once where it is
+not, so a run started from a session in iTerm2 never types into that session.
+Ghostty is brought forward by its bundle id, System Events declining to by its
+pid.
+
+Adding a terminal: a line in the driver's `TERMINALS` saying how it runs one
+program, a run, `collapse.py`, the files into `testdata/keys/` (macOS ones as
+`macos-*.txt`, the names being the Linux terminals' too), `--keycheck --limits
+testdata/keys/limits.lst` over them, and every mismatch either fixed in
+`terminal.cpp` or, where the terminal sent another key's bytes, a line in
+`limits.lst` and in KEYS.md.
+
+**Not taken**: the Linux console, which wants a VM and QEMU's `sendkey` rather
+than any of these drivers; and Windows, whose console reports key codes rather
+than bytes and has `namedKey()` rather than a table of sequences — `--keytest`
+refuses to run there.
 
 ## Packaging
 
@@ -5427,20 +5497,10 @@ together — `keys_mode` says which.
   reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
-- `testdata/keys/` — what 19 real terminals sent for every key — WezTerm twice,
-  as it ships and with `enable_kitty_keyboard` on (`wezterm-kittykbd`) — under each of
-  the four `modifier_key_reporting` values, taken by `--keytest` through
-  `tools/keytest/drive_x11.py` under Xvfb on Fedora, foot through
-  `tools/keytest/drive_wayland.py` under a headless sway; and `macos-*.txt`, iTerm2,
-  Terminal.app, kitty and WezTerm twice again, as they ship, taken through
-  `tools/keytest/drive_macos.py`; and the multiplexers in front of AmberEdit —
-  `tmux.txt` as it ships, `tmux-extkeys-*.txt` with `extended-keys on`,
-  `kitty-tmux.txt` the same inside kitty, `screen.txt` — each with its prefix
-  moved off the keys taken. All of them folded by
-  `tools/keytest/collapse.py` into one file per set of bytes a terminal sends:
-  `xterm.txt` where the four agree, `kitty-kitty.txt` and `kitty-xterm.txt`
-  where the protocol changes what is sent; `limits.lst` beside them.
-  KEYS.md says the same limits for a user. Do not edit them to make a test
+- `testdata/keys/` — what 19 Linux terminals, 5 on macOS and tmux and screen
+  sent for every key under each of the four `modifier_key_reporting` values,
+  one file per set of bytes a terminal sends, and `limits.lst` beside them. See
+  [The keyboard tests](#the-keyboard-tests); do not edit them to make a test
   pass — take the terminal again.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.
 - `testdata/msgbase/charsets.*` — a small Squish base for the charset tests: the
