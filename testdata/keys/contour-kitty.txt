@@ -1,5 +1,6 @@
-# terminal: contour-0.6.3.8249   TERM: contour   protocol: kitty
+# terminal: contour-0.6.3.8249   TERM: contour   protocol: xterm kitty | kitty xterm | kitty
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \e[A
 Down            \e[B
 Left            \e[D

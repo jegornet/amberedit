@@ -115,6 +115,8 @@ is `testdata/keys/limits.lst`.
 - `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
 - In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
   then the key. Alt with a letter works where the layout binds that letter.
+- WezTerm with `enable_kitty_keyboard` on sends `Del` as `Backspace` under the
+  kitty protocol; `modifier_key_reporting xterm` avoids it.
 - st sends `Ctrl-Home` as `Home` and `Alt-Del` as `Del`; PuTTY sends
   `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt

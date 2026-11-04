@@ -1,11 +1,12 @@
-# terminal: st-0.9.3   TERM: st-256color   protocol: xterm
+# terminal: gnome-terminal-3.60.0   TERM: xterm-256color   protocol: xterm kitty | kitty xterm | kitty | xterm
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \eOA
 Down            \eOB
 Left            \eOD
 Right           \eOC
-Home            \e[1~
-End             \e[4~
+Home            \eOH
+End             \eOF
 PgUp            \e[5~
 PgDn            \e[6~
 Ins             \e[2~
@@ -23,8 +24,8 @@ F6              \e[17~
 F7              \e[18~
 F8              \e[19~
 F9              \e[20~
-F10             \e[21~
-F11             \e[23~
+F10             -
+F11             -
 F12             \e[24~
 Shift-Tab       \e[Z
 Space           \x20
@@ -35,12 +36,12 @@ Ctrl-Left       \e[1;5D
 Alt-Left        \e[1;3D
 Ctrl-Right      \e[1;5C
 Alt-Right       \e[1;3C
-Ctrl-Home       \e[1~
+Ctrl-Home       \e[1;5H
 Ctrl-End        \e[1;5F
-Ctrl-Ins        \e[2;5~
+Ctrl-Ins        -
 Shift-Ins       -
 Ctrl-Del        \e[3;5~
-Alt-Del         \e[3~
+Alt-Del         \e[3;3~
 Ctrl-Backspace  \x08
 Alt-Backspace   \e\x7f
 Alt-F1          \e[1;3P

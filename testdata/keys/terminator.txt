@@ -1,5 +1,6 @@
-# terminal: xfce4-terminal-1.2.0   TERM: xterm-256color   protocol: kitty xterm
+# terminal: terminator-2.1.5   TERM: xterm-256color   protocol: xterm kitty | kitty xterm | kitty | xterm
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \eOA
 Down            \eOB
 Left            \eOD
@@ -23,18 +24,18 @@ F6              \e[17~
 F7              \e[18~
 F8              \e[19~
 F9              \e[20~
-F10             -
+F10             \e[21~
 F11             -
 F12             \e[24~
 Shift-Tab       \e[Z
 Space           \x20
 Shift-Space     \x20
-Alt-Up          \e[1;3A
-Alt-Down        \e[1;3B
+Alt-Up          -
+Alt-Down        -
 Ctrl-Left       \e[1;5D
-Alt-Left        \e[1;3D
+Alt-Left        -
 Ctrl-Right      \e[1;5C
-Alt-Right       \e[1;3C
+Alt-Right       -
 Ctrl-Home       \e[1;5H
 Ctrl-End        \e[1;5F
 Ctrl-Ins        -
@@ -81,18 +82,18 @@ Ctrl-W          \x17
 Ctrl-X          \x18
 Ctrl-Y          \x19
 Ctrl-Z          \x1a
-Alt-A           -
+Alt-A           \ea
 Alt-B           \eb
 Alt-C           \ec
 Alt-D           \ed
-Alt-E           -
-Alt-F           -
+Alt-E           \ee
+Alt-F           \ef
 Alt-G           \eg
-Alt-H           -
+Alt-H           \eh
 Alt-I           \ei
 Alt-J           \ej
 Alt-K           \ek
-Alt-L           \el
+Alt-L           -
 Alt-M           \em
 Alt-N           \en
 Alt-O           \eo
@@ -100,9 +101,9 @@ Alt-P           \ep
 Alt-Q           \eq
 Alt-R           \er
 Alt-S           \es
-Alt-T           -
+Alt-T           \et
 Alt-U           \eu
-Alt-V           -
+Alt-V           \ev
 Alt-W           \ew
 Alt-X           \ex
 Alt-Y           \ey

@@ -1,5 +1,6 @@
 # terminal: wezterm-20261026_082628_e68a8ec2   TERM: xterm-256color   protocol: kitty
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \eOA
 Down            \eOB
 Left            \eOD

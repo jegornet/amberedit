@@ -1,5 +1,6 @@
-# terminal: konsole-26.08.2   TERM: xterm-256color   protocol: kitty
+# terminal: konsole-26.08.2   TERM: xterm-256color   protocol: xterm kitty | kitty xterm | kitty
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \e[A
 Down            \e[B
 Left            \e[D

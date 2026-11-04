@@ -5407,9 +5407,13 @@ together — `keys_mode` says which.
   reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
-- `testdata/keys/` — what 18 real terminals sent for every key, under each of
+- `testdata/keys/` — what 18 real terminals sent for every key — WezTerm twice,
+  as it ships and with `enable_kitty_keyboard` on (`wezterm-kittykbd`) — under each of
   the four `modifier_key_reporting` values, taken by `--keytest` through
-  `tools/keytest/drive_x11.py` under Xvfb on Fedora; `limits.lst` beside them.
+  `tools/keytest/drive_x11.py` under Xvfb on Fedora and folded by
+  `tools/keytest/collapse.py` into one file per set of bytes a terminal sends:
+  `xterm.txt` where the four agree, `kitty-kitty.txt` and `kitty-xterm.txt`
+  where the protocol changes what is sent; `limits.lst` beside them.
   KEYS.md says the same limits for a user. Do not edit them to make a test
   pass — take the terminal again.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.

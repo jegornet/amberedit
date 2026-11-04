@@ -13,7 +13,9 @@ The binary has to be built with -DAMBEREDIT_KEYTEST=ON.
                  [--terminal xterm ...] [--protocol "xterm kitty" ...]
 
 With no --terminal, every terminal below that is installed is taken; with no
---protocol, all four values of modifier_key_reporting are.
+--protocol, all four values of modifier_key_reporting are. collapse.py then
+folds the four files a terminal gives into one per set of bytes it sends, which
+is the shape testdata/keys/ is kept in.
 """
 
 import argparse
@@ -39,6 +41,10 @@ TERMINALS = {
     "alacritty": ["alacritty", "-e"],
     "kitty": ["kitty", "--"],
     "wezterm": ["wezterm", "--skip-config", "start", "--always-new-process", "--"],
+    # The same WezTerm with the kitty keyboard protocol it ships turned off.
+    "wezterm-kittykbd": ["wezterm", "--skip-config", "--config",
+                         "enable_kitty_keyboard=true", "start",
+                         "--always-new-process", "--"],
     "konsole": ["konsole", "--separate", "-e"],
     "gnome-terminal": ["gnome-terminal", "--wait", "--"],
     "ptyxis": ["ptyxis", "--standalone", "--new-window", "-x"],

@@ -1,5 +1,6 @@
 # terminal: alacritty-0.17.0   TERM: alacritty   protocol: xterm
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \eOA
 Down            \eOB
 Left            \eOD

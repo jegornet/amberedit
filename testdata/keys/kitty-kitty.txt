@@ -1,5 +1,6 @@
-# terminal: kitty-0.48.2   TERM: xterm-kitty   protocol: kitty
+# terminal: kitty-0.48.2   TERM: xterm-kitty   protocol: xterm kitty | kitty xterm | kitty
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \e[A
 Down            \e[B
 Left            \e[D

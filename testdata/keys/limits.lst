@@ -25,6 +25,11 @@ Ctrl-Del        \x7f        Backspace
 # modifyOtherKeys at level 1 does not ask.
 Shift-Space     \x20        Space
 
+# WezTerm with enable_kitty_keyboard on sends a bare Delete as 08H under the
+# kitty protocol, where the protocol says CSI 3 ~ — its own bug, and 08H is
+# Backspace in half the terminals here.
+Del             \x08        Backspace
+
 # st sends Ctrl-Home and Alt-Delete as the bare keys.
 Ctrl-Home       \e[1~       Home
 Alt-Del         \e[3~       Del

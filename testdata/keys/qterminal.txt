@@ -1,5 +1,6 @@
-# terminal: mate-terminal-1.28.3   TERM: xterm-256color   protocol: kitty xterm
+# terminal: qterminal-2.4.0   TERM: xterm-256color   protocol: xterm kitty | kitty xterm | kitty | xterm
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \eOA
 Down            \eOB
 Left            \eOD
@@ -10,11 +11,11 @@ PgUp            \e[5~
 PgDn            \e[6~
 Ins             \e[2~
 Del             \e[3~
-Backspace       \x7f
+Backspace       \x08
 Tab             \x09
 Enter           \x0d
 Esc             \e
-F1              -
+F1              \eOP
 F2              \eOQ
 F3              \eOR
 F4              \eOS
@@ -23,8 +24,8 @@ F6              \e[17~
 F7              \e[18~
 F8              \e[19~
 F9              \e[20~
-F10             -
-F11             \e[23~
+F10             \e[21~
+F11             -
 F12             \e[24~
 Shift-Tab       \e[Z
 Space           \x20
@@ -37,16 +38,16 @@ Ctrl-Right      \e[1;5C
 Alt-Right       \e[1;3C
 Ctrl-Home       \e[1;5H
 Ctrl-End        \e[1;5F
-Ctrl-Ins        -
+Ctrl-Ins        \e[2;5~
 Shift-Ins       -
 Ctrl-Del        \e[3;5~
 Alt-Del         \e[3;3~
-Ctrl-Backspace  \x08
-Alt-Backspace   \e\x7f
-Alt-F1          \e[1;3P
-Alt-F2          \e[1;3Q
-Alt-F3          \e[1;3R
-Alt-F4          \e[1;3S
+Ctrl-Backspace  \x7f
+Alt-Backspace   \e\x08
+Alt-F1          \eO3P
+Alt-F2          \eO3Q
+Alt-F3          \eO3R
+Alt-F4          \eO3S
 Alt-F5          \e[15;3~
 Alt-F6          \e[17;3~
 Alt-F7          \e[18;3~
@@ -85,10 +86,10 @@ Alt-A           \ea
 Alt-B           \eb
 Alt-C           \ec
 Alt-D           \ed
-Alt-E           -
-Alt-F           -
+Alt-E           \ee
+Alt-F           \ef
 Alt-G           \eg
-Alt-H           -
+Alt-H           \eh
 Alt-I           \ei
 Alt-J           \ej
 Alt-K           \ek
@@ -99,10 +100,10 @@ Alt-O           \eo
 Alt-P           \ep
 Alt-Q           \eq
 Alt-R           \er
-Alt-S           -
-Alt-T           -
+Alt-S           \es
+Alt-T           \et
 Alt-U           \eu
-Alt-V           -
+Alt-V           \ev
 Alt-W           \ew
 Alt-X           \ex
 Alt-Y           \ey

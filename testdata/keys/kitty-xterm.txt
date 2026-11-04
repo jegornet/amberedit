@@ -1,5 +1,6 @@
 # terminal: kitty-0.48.2   TERM: xterm-kitty   protocol: xterm
 # taken by: AmberEdit/linux 0.10.1
+# folded: one file per set of bytes the terminal sends
 Up              \eOA
 Down            \eOB
 Left            \eOD
