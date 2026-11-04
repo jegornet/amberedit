@@ -60,8 +60,9 @@ void printUsage(const char* program) {
                  "                                <protocols> as modifier_key_reporting takes,\n"
                  "                                then --out FILE, --label TEXT, --sync FIFO,\n"
                  "                                --wait MS, --only KEY,KEY...\n"
-                 "      --keycheck <file>...      play taken files back, report keys read wrong\n"
-                 "      --keytest-replay          the far end of --keycheck's pty, not for people\n";
+                 "      --keycheck [--limits <file>] <file>...\n"
+                 "                                play taken files back, report keys read wrong;\n"
+                 "                                --limits names the keys a terminal cannot send\n";
 #endif
 }
 

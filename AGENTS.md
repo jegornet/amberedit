@@ -81,10 +81,20 @@ with `-tc`, which matches the whole name by wildcard:
 `./build/bin/amberedit_tests -tc="*[squish]*"`.
 
 **The keyboard diagnostics are a build of their own.** `-DAMBEREDIT_KEYTEST=ON`
-adds `--keytest`, `--keycheck` and `--keytest-replay` (`src/ui/keytest.*`): what
-a terminal sends for each key, and what `Terminal::poll()` makes of it played
-back over a pty. A release leaves them out — nothing a user of the editor runs —
-and CI turns them on so that they go on compiling. `tools/keytest/drive_x11.py`
+adds `--keytest` and `--keycheck` (`src/ui/keytest.*`): what a terminal sends for
+each key, and what `Terminal::poll()` makes of it played back over a pty. A
+release leaves them out — nothing a user of the editor runs — and CI turns them
+on so that they go on compiling. The tests build `keytest.cpp` whatever the
+option says: `[keys][pty]` plays every file under `testdata/keys/` back on every
+build, and a key read as anything but itself fails it unless
+`testdata/keys/limits.lst` says the terminal sent bytes another key is sent as
+too. **A line goes into that file only for what the terminal could not have told
+apart**; a key AmberEdit misreads when the bytes were distinct is a bug in
+`ui/term/terminal.cpp`. The far end of the pty is a `fork()` of the process
+asking, not a second program, so the tests need no binary beside them, and each
+run of bytes is asked once per TERM. A file whose TERM has no terminfo on the
+machine is passed over with a message — kitty's and urxvt's are often not
+installed. `tools/keytest/drive_x11.py`
 takes them in X11 terminals under Xvfb, pressing each key through XTEST **by
 keycode with the modifiers held by hand**: xdotool given a keysym picks the level
 itself, and under Xvfb's map it reaches the function keys through Mod1, so xterm
@@ -5397,6 +5407,11 @@ together — `keys_mode` says which.
   reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
+- `testdata/keys/` — what 18 real terminals sent for every key, under each of
+  the four `modifier_key_reporting` values, taken by `--keytest` through
+  `tools/keytest/drive_x11.py` under Xvfb on Fedora; `limits.lst` beside them.
+  KEYS.md says the same limits for a user. Do not edit them to make a test
+  pass — take the terminal again.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.
 - `testdata/msgbase/charsets.*` — a small Squish base for the charset tests: the
   word "Привет" in KOI8-R and in CP866, each with the CHRS kludge that says so,

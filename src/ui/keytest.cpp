@@ -10,14 +10,16 @@
 #endif
 
 #include <algorithm>
-#include <csignal>
 #include <array>
+#include <csignal>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -47,15 +49,6 @@ constexpr Event::Name kNamedKeys[] = {
     Event::Name::F11,      Event::Name::F12,
 };
 
-/// What the replay sends after a key's bytes to say they are over. A character
-/// no key sends and nothing binds, so whatever comes back before it is what the
-/// key was read as, and an unfinished sequence is cut off by it exactly as the
-/// next key pressed would cut it off.
-/// The letters both ends claim under Alt.
-constexpr const char* kAllLetters = "abcdefghijklmnopqrstuvwxyz";
-
-constexpr std::string_view kSentinel = "\xc2\xa4";  // ¤
-
 void add(std::vector<Event>& keys, const Event& key) {
     const std::string name = nameOf(key);
     for (const Event& known : keys) {
@@ -66,25 +59,6 @@ void add(std::vector<Event>& keys, const Event& key) {
 
 bool isHex(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-}
-
-/// The words of `modifier_key_reporting`, or nothing where they are not.
-bool parseProtocols(const std::string& text, std::vector<term::KeyProtocol>& out) {
-    out.clear();
-    for (const std::string& word : config::text::tokenize(text)) {
-        const std::string value = config::text::toLower(word);
-        term::KeyProtocol protocol{};
-        if (value == "xterm") {
-            protocol = term::KeyProtocol::Xterm;
-        } else if (value == "kitty") {
-            protocol = term::KeyProtocol::Kitty;
-        } else {
-            return false;
-        }
-        if (std::find(out.begin(), out.end(), protocol) != out.end()) return false;
-        out.push_back(protocol);
-    }
-    return !out.empty();
 }
 
 }  // namespace
@@ -185,10 +159,74 @@ std::string unescapeBytes(const std::string& text) {
 bool wanted(int argc, char* argv[]) {
     if (argc < 2) return false;
     const std::string_view mode = argv[1];
-    return mode == "--keytest" || mode == "--keycheck" || mode == "--keytest-replay";
+    return mode == "--keytest" || mode == "--keycheck";
+}
+
+namespace {
+
+std::string joined(const std::vector<std::string>& words) {
+    std::string out;
+    for (const std::string& word : words) {
+        if (!out.empty()) out += ' ';
+        out += word;
+    }
+    return out;
+}
+
+std::string padded(std::string text, std::size_t width) {
+    if (text.size() < width) text.append(width - text.size(), ' ');
+    return text;
+}
+
+/// A line without the comment a `#` opens.
+std::string uncommented(const std::string& line) {
+    const std::size_t hash = line.find('#');
+    return hash == std::string::npos ? line : line.substr(0, hash);
+}
+
+/// The `TERM:` a file's first line names, or nothing.
+std::string termOf(const std::string& header) {
+    const std::size_t at = header.find("TERM: ");
+    if (at == std::string::npos) return {};
+    const std::size_t from = at + 6;
+    const std::size_t end = header.find(' ', from);
+    return header.substr(from, end == std::string::npos ? std::string::npos : end - from);
+}
+
+}  // namespace
+
+tl::expected<std::vector<Limit>, ErrorPtr> readLimits(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return failure("cannot read " + path);
+    std::vector<Limit> limits;
+    std::string line;
+    int number = 0;
+    while (std::getline(in, line)) {
+        ++number;
+        const std::vector<std::string> words = config::text::tokenize(uncommented(line));
+        if (words.empty()) continue;
+        if (words.size() < 3) {
+            return failure(path + ":" + std::to_string(number) +
+                           ": a limit is a key, its bytes and what they are read as");
+        }
+        limits.push_back({words[0], unescapeBytes(words[1]),
+                          joined({words.begin() + 2, words.end()})});
+    }
+    return limits;
 }
 
 #ifdef _WIN32
+
+struct Checker::Impl {};
+
+Checker::Checker(std::vector<Limit>) : impl_(std::make_unique<Impl>()) {}
+Checker::~Checker() = default;
+
+tl::expected<CheckResult, ErrorPtr> Checker::check(const std::string&) {
+    CheckResult result;
+    result.skipped = "the Windows console reports key codes, not bytes";
+    return result;
+}
 
 int main(int, char*[]) {
     std::cerr << "keytest: the Windows console reports key codes, not bytes; "
@@ -199,6 +237,34 @@ int main(int, char*[]) {
 #else
 
 namespace {
+
+/// The letters both ends claim under Alt.
+constexpr const char* kAllLetters = "abcdefghijklmnopqrstuvwxyz";
+
+/// What the replay sends after a key's bytes to say they are over. A character
+/// no key sends and nothing binds, so whatever comes back before it is what the
+/// key was read as, and an unfinished sequence is cut off by it exactly as the
+/// next key pressed would cut it off.
+constexpr std::string_view kSentinel = "\xc2\xa4";  // ¤
+
+/// The words of `modifier_key_reporting`, or nothing where they are not.
+bool parseProtocols(const std::string& text, std::vector<term::KeyProtocol>& out) {
+    out.clear();
+    for (const std::string& word : config::text::tokenize(text)) {
+        const std::string value = config::text::toLower(word);
+        term::KeyProtocol protocol{};
+        if (value == "xterm") {
+            protocol = term::KeyProtocol::Xterm;
+        } else if (value == "kitty") {
+            protocol = term::KeyProtocol::Kitty;
+        } else {
+            return false;
+        }
+        if (std::find(out.begin(), out.end(), protocol) != out.end()) return false;
+        out.push_back(protocol);
+    }
+    return !out.empty();
+}
 
 using Clock = std::chrono::steady_clock;
 
@@ -228,8 +294,24 @@ std::string readBurst(int fd, int firstMs, int gapMs) {
     return bytes;
 }
 
-/// An AmberEdit `Terminal` on the far side of a pty, reading what is written
-/// into it and saying on a pipe what each event came to.
+/// The far end of the pty: a `Terminal`, and the name of each event it reads,
+/// a line each on `out`. Every letter under Alt and Alt-Backspace are claimed,
+/// as a layout binding all of them would claim them: the question is whether a
+/// key can be told apart, and a layout leaving Alt-X unbound reads it as
+/// Escape and an x on purpose. Never returns.
+[[noreturn]] void replayChild(int out) {
+    term::Terminal terminal(kAllLetters, true);
+    const auto say = [out](const std::string& line) {
+        const std::string text = line + "\n";
+        (void)::write(out, text.data(), text.size());
+    };
+    say("ready");
+    while (true) say(nameOf(terminal.poll()));
+}
+
+/// A `Terminal` on the far side of a pty, in a process of its own — forked and
+/// not started again, so that the tests can use it as they are — reading what
+/// is written into it and saying on a pipe what each event came to.
 ///
 /// The pty's output — the frames ncurses draws there — is read all the while
 /// and thrown away: a buffer left to fill blocks the child in the middle of a
@@ -239,6 +321,8 @@ public:
     Replay() = default;
     Replay(const Replay&) = delete;
     Replay& operator=(const Replay&) = delete;
+    Replay(Replay&&) = delete;
+    Replay& operator=(Replay&&) = delete;
 
     ~Replay() {
         if (pid_ > 0) {
@@ -250,8 +334,8 @@ public:
         if (names_ >= 0) ::close(names_);
     }
 
-    /// Starts `self --keytest-replay` under `term`, or says why it did not.
-    bool start(const std::string& self, const std::string& term, std::string& why) {
+    /// Starts the far end under `term`, or says why it did not.
+    bool start(const std::string& term, std::string& why) {
         master_ = ::posix_openpt(O_RDWR | O_NOCTTY);
         if (master_ < 0 || ::grantpt(master_) != 0 || ::unlockpt(master_) != 0) {
             why = std::string("cannot open a pty: ") + std::strerror(errno);
@@ -268,6 +352,7 @@ public:
             why = std::string("cannot open a pipe: ") + std::strerror(errno);
             return false;
         }
+        std::fflush(nullptr);
         pid_ = ::fork();
         if (pid_ < 0) {
             why = std::string("cannot fork: ") + std::strerror(errno);
@@ -284,15 +369,12 @@ public:
             ::ioctl(slave, TIOCSWINSZ, &size);
             ::dup2(slave, STDIN_FILENO);
             ::dup2(slave, STDOUT_FILENO);
-            ::dup2(pipeFds[1], STDERR_FILENO);
+            ::dup2(slave, STDERR_FILENO);
             ::close(slave);
             ::close(pipeFds[0]);
-            ::close(pipeFds[1]);
             ::close(master_);
             ::setenv("TERM", term.c_str(), 1);
-            ::execl(self.c_str(), self.c_str(), "--keytest-replay",
-                    static_cast<char*>(nullptr));
-            ::_exit(127);
+            replayChild(pipeFds[1]);
         }
         ::close(pipeFds[1]);
         names_ = pipeFds[0];
@@ -306,8 +388,7 @@ public:
             int status = 0;
             if (::waitpid(pid_, &status, WNOHANG) == pid_) {
                 pid_ = -1;
-                why = "the replay did not start (is terminfo for TERM=" + term +
-                      " installed?)";
+                why = "no terminfo for TERM=" + term + " here";
                 return false;
             }
         }
@@ -315,28 +396,35 @@ public:
         return false;
     }
 
-    /// What `bytes` came to, an event at a time.
-    std::vector<std::string> recognise(const std::string& bytes) {
+    /// What `bytes` came to, the events blank separated: the same answer for
+    /// the same bytes, so each run of them is asked once.
+    std::string recognise(const std::string& bytes) {
+        const auto known = answers_.find(bytes);
+        if (known != answers_.end()) return known->second;
+        return answers_[bytes] = ask(bytes);
+    }
+
+private:
+    std::string ask(const std::string& bytes) {
         std::vector<std::string> seen;
+        // The sentinel goes straight behind the bytes rather than after the
+        // wait ncurses gives an ESC: a sequence the bytes only begin cannot be
+        // finished by a character no sequence holds, so a lone ESC is read as
+        // the Escape it is all the same, and a hundred files take seconds.
         put(bytes);
-        // Longer than ncurses waits to see whether an ESC begins something, so
-        // that a lone one is read as the Escape it is before the sentinel lands.
-        pumpFor(80);
         put(std::string(kSentinel));
         const Clock::time_point began = Clock::now();
         while (msSince(began) < 3000) {
             pump(50);
             while (const auto line = takeLine()) {
-                if (*line == kSentinel) return seen;
+                if (*line == kSentinel) return joined(seen);
                 if (*line == "Resize") continue;
                 seen.push_back(*line);
             }
         }
-        seen.emplace_back("(no answer)");
-        return seen;
+        return "(no answer)";
     }
 
-private:
     void put(const std::string& bytes) {
         std::size_t done = 0;
         while (done < bytes.size()) {
@@ -344,11 +432,6 @@ private:
             if (n <= 0) return;
             done += static_cast<std::size_t>(n);
         }
-    }
-
-    void pumpFor(int ms) {
-        const Clock::time_point began = Clock::now();
-        while (msSince(began) < ms) pump(ms - msSince(began));
     }
 
     /// Reads whatever is waiting on either descriptor, for up to `ms`.
@@ -377,36 +460,81 @@ private:
     int master_{-1};
     int names_{-1};
     std::string namesText_;
+    std::map<std::string, std::string> answers_;
 };
 
-std::string joined(const std::vector<std::string>& words) {
-    std::string out;
-    for (const std::string& word : words) {
-        if (!out.empty()) out += ' ';
-        out += word;
+}  // namespace
+
+struct Checker::Impl {
+    std::vector<Limit> limits;
+    /// The replay per TERM, or why there is none.
+    std::map<std::string, std::unique_ptr<Replay>> replays;
+    std::map<std::string, std::string> unplayable;
+
+    Replay* replayFor(const std::string& term, std::string& why) {
+        if (const auto found = replays.find(term); found != replays.end()) {
+            return found->second.get();
+        }
+        if (const auto found = unplayable.find(term); found != unplayable.end()) {
+            why = found->second;
+            return nullptr;
+        }
+        auto replay = std::make_unique<Replay>();
+        if (!replay->start(term, why)) {
+            unplayable[term] = why;
+            return nullptr;
+        }
+        return (replays[term] = std::move(replay)).get();
     }
-    return out.empty() ? "(nothing)" : out;
+
+    [[nodiscard]] bool excused(const Mismatch& mismatch) const {
+        return std::any_of(limits.begin(), limits.end(), [&](const Limit& limit) {
+            return limit.key == mismatch.key && limit.bytes == mismatch.bytes &&
+                   limit.readAs == mismatch.readAs;
+        });
+    }
+};
+
+Checker::Checker(std::vector<Limit> limits) : impl_(std::make_unique<Impl>()) {
+    impl_->limits = std::move(limits);
 }
 
-std::string padded(std::string text, std::size_t width) {
-    if (text.size() < width) text.append(width - text.size(), ' ');
-    return text;
+Checker::~Checker() = default;
+
+tl::expected<CheckResult, ErrorPtr> Checker::check(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return failure("cannot read " + path);
+
+    CheckResult result;
+    std::vector<std::pair<std::string, std::string>> taken;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.rfind('#', 0) == 0) {
+            if (result.term.empty()) result.term = termOf(line);
+            continue;
+        }
+        const std::vector<std::string> words = config::text::tokenize(uncommented(line));
+        if (words.size() < 2 || words[1] == "-") continue;
+        taken.emplace_back(words[0], unescapeBytes(words[1]));
+    }
+    if (result.term.empty()) return failure(path + ": names no TERM");
+
+    Replay* replay = impl_->replayFor(result.term, result.skipped);
+    if (replay == nullptr) return result;
+    for (const auto& [key, bytes] : taken) {
+        ++result.keys;
+        Mismatch mismatch{key, bytes, replay->recognise(bytes)};
+        if (mismatch.readAs == key) continue;
+        if (impl_->excused(mismatch)) {
+            ++result.excused;
+        } else {
+            result.wrong.push_back(std::move(mismatch));
+        }
+    }
+    return result;
 }
 
-int replayMain() {
-    // Every letter under Alt and Alt-Backspace, as a layout binding all of them
-    // would claim them: the question is whether a key can be told apart, and a
-    // layout that leaves Alt-X unbound reads it as Escape and an x on purpose.
-    term::Terminal terminal(kAllLetters, true);
-    std::fputs("ready\n", stderr);
-    std::fflush(stderr);
-    while (terminal.running()) {
-        const Event event = terminal.poll();
-        std::fprintf(stderr, "%s\n", nameOf(event).c_str());
-        std::fflush(stderr);
-    }
-    return 0;
-}
+namespace {
 
 struct CaptureOptions {
     std::string protocolText{"xterm kitty"};
@@ -419,7 +547,7 @@ struct CaptureOptions {
     std::vector<std::string> only;
 };
 
-int captureMain(const std::string& self, const CaptureOptions& options) {
+int captureMain(const CaptureOptions& options) {
     std::vector<Event> list;
     for (const Event& key : keys()) {
         const std::string name = nameOf(key);
@@ -442,9 +570,11 @@ int captureMain(const std::string& self, const CaptureOptions& options) {
         return 1;
     }
 
+    // Started before this process takes the terminal over: the far end is a
+    // fork, and a fork of a process with ncurses up would inherit it.
     Replay replay;
     std::string replayWhy;
-    const bool replaying = replay.start(self, term, replayWhy);
+    const bool replaying = replay.start(term, replayWhy);
 
     std::FILE* sync = nullptr;
     if (!options.syncPath.empty()) {
@@ -472,8 +602,10 @@ int captureMain(const std::string& self, const CaptureOptions& options) {
             const std::string name = nameOf(list[i]);
             using term::text;
             term::Elements rows;
-            rows.push_back(text("AmberEdit keytest   " + label + "   TERM=" + term +
-                                "   protocol: " + options.protocolText));
+            std::string heading = "AmberEdit keytest   ";
+            heading.append(label).append("   TERM=").append(term);
+            heading.append("   protocol: ").append(options.protocolText);
+            rows.push_back(text(heading));
             rows.push_back(text(""));
             rows.push_back(term::bold(text("Press  " + name)));
             rows.push_back(text("key " + std::to_string(i + 1) + " of " +
@@ -494,10 +626,10 @@ int captureMain(const std::string& self, const CaptureOptions& options) {
 
             std::string comment;
             if (!bytes.empty() && replaying) {
-                const std::vector<std::string> seen = replay.recognise(bytes);
-                const bool same = seen.size() == 1 && seen[0] == name;
+                const std::string seen = replay.recognise(bytes);
+                const bool same = seen == name;
                 if (!same) ++mismatches;
-                comment = same ? "# ok" : "# seen: " + joined(seen);
+                comment = same ? "# ok" : "# seen: " + (seen.empty() ? "(nothing)" : seen);
             }
             out << padded(name, 16) << padded(escaped, 24) << comment << "\n";
             out.flush();
@@ -522,81 +654,60 @@ int captureMain(const std::string& self, const CaptureOptions& options) {
     return 0;
 }
 
-/// The `TERM:` a file's first line names, or nothing.
-std::string termOf(const std::string& header) {
-    const std::size_t at = header.find("TERM: ");
-    if (at == std::string::npos) return {};
-    const std::size_t from = at + 6;
-    const std::size_t end = header.find(' ', from);
-    return header.substr(from, end == std::string::npos ? std::string::npos : end - from);
-}
-
-int checkFile(const std::string& self, const std::string& path, std::ostream& report) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) {
-        report << path << ": cannot read\n";
+int checkMain(int argc, char* argv[]) {
+    std::vector<Limit> limits;
+    std::vector<std::string> files;
+    for (int i = 2; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--limits" && i + 1 < argc) {
+            auto read = readLimits(argv[++i]);
+            if (!read) {
+                std::cerr << "keycheck: " << read.error()->message() << "\n";
+                return 2;
+            }
+            limits = std::move(*read);
+        } else {
+            files.push_back(arg);
+        }
+    }
+    if (files.empty()) {
+        std::cerr << "keycheck: name a file taken by --keytest\n";
         return 2;
     }
-    std::string line;
-    std::string term;
-    std::vector<std::pair<std::string, std::string>> taken;
-    while (std::getline(in, line)) {
-        if (line.rfind('#', 0) == 0) {
-            if (term.empty()) term = termOf(line);
+
+    Checker checker(std::move(limits));
+    int worst = 0;
+    for (const std::string& path : files) {
+        auto checked = checker.check(path);
+        if (!checked) {
+            std::cout << checked.error()->message() << "\n";
+            worst = 2;
             continue;
         }
-        const std::vector<std::string> words = config::text::tokenize(line);
-        if (words.size() < 2 || words[1] == "-") continue;
-        taken.emplace_back(words[0], unescapeBytes(words[1]));
+        const CheckResult& result = *checked;
+        if (!result.skipped.empty()) {
+            std::cout << path << ": skipped, " << result.skipped << "\n";
+            continue;
+        }
+        for (const Mismatch& mismatch : result.wrong) {
+            std::cout << path << ": " << padded(mismatch.key, 16)
+                      << padded(escapeBytes(mismatch.bytes), 24) << "seen: "
+                      << (mismatch.readAs.empty() ? "(nothing)" : mismatch.readAs)
+                      << "\n";
+        }
+        std::cout << path << ": " << result.keys << " keys, " << result.wrong.size()
+                  << " read as something else";
+        if (result.excused != 0) std::cout << ", " << result.excused << " by a limit";
+        std::cout << "\n";
+        if (!result.wrong.empty()) worst = std::max(worst, 1);
     }
-    if (term.empty()) {
-        report << path << ": names no TERM\n";
-        return 2;
-    }
-
-    Replay replay;
-    std::string why;
-    if (!replay.start(self, term, why)) {
-        report << path << ": skipped, " << why << "\n";
-        return 0;
-    }
-    std::size_t wrong = 0;
-    for (const auto& [name, bytes] : taken) {
-        const std::vector<std::string> seen = replay.recognise(bytes);
-        if (seen.size() == 1 && seen[0] == name) continue;
-        ++wrong;
-        report << path << ": " << padded(name, 16) << padded(escapeBytes(bytes), 24)
-               << "seen: " << joined(seen) << "\n";
-    }
-    report << path << ": " << taken.size() << " keys, " << wrong
-           << " read as something else\n";
-    return wrong == 0 ? 0 : 1;
+    return worst;
 }
 
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    // The replay is this same binary, started again: by the path the system
-    // has for it where there is one, argv[0] being whatever PATH found.
-    std::string self = argv[0];
-    std::array<char, 4096> exe{};
-    const ssize_t length = ::readlink("/proc/self/exe", exe.data(), exe.size() - 1);
-    if (length > 0) self.assign(exe.data(), static_cast<std::size_t>(length));
-    const std::string_view mode = argv[1];
-
-    if (mode == "--keytest-replay") return replayMain();
-
-    if (mode == "--keycheck") {
-        if (argc < 3) {
-            std::cerr << "keycheck: name a file taken by --keytest\n";
-            return 2;
-        }
-        int worst = 0;
-        for (int i = 2; i < argc; ++i) {
-            worst = std::max(worst, checkFile(self, argv[i], std::cout));
-        }
-        return worst;
-    }
+    if (std::string_view(argv[1]) == "--keycheck") return checkMain(argc, argv);
 
     CaptureOptions options;
     for (int i = 2; i < argc; ++i) {
@@ -627,7 +738,7 @@ int main(int argc, char* argv[]) {
             return 2;
         }
     }
-    return captureMain(self, options);
+    return captureMain(options);
 }
 
 #endif

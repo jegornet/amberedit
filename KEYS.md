@@ -102,3 +102,20 @@ standing in both.
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor; many terminals keep `Shift-Ins` for their own paste |
+
+## Keys a terminal cannot send
+
+Some chords leave the terminal as the same bytes as another key, and AmberEdit
+reads them as that key. Measured in 18 Linux terminals; the list with the bytes
+is `testdata/keys/limits.lst`.
+
+- `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
+  `Tab` and `Enter`, except under the kitty keyboard protocol in kitty,
+  Alacritty, Contour and Konsole (`modifier_key_reporting`).
+- `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
+- In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
+  then the key. Alt with a letter works where the layout binds that letter.
+- st sends `Ctrl-Home` as `Home` and `Alt-Del` as `Del`; PuTTY sends
+  `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
+- Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
+  with a menu letter for themselves, and AmberEdit never sees them.
