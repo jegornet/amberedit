@@ -42,12 +42,22 @@ def main():
     directory = sys.argv[1]
     taken = collections.defaultdict(dict)
     for name in sorted(os.listdir(directory)):
-        match = SUFFIX.match(name)
+        if not name.endswith(".txt") or not SUFFIX.match(name):
+            continue
+        header = body(os.path.join(directory, name))[0]
         # A file folded already says so — its name reads like a protocol of its
         # own, alacritty-kitty.txt — and is left as it stands.
-        if match and FOLDED not in body(os.path.join(directory, name))[0]:
-            protocol = match["protocol"].replace("-", " ")
-            taken[match["terminal"]][protocol] = os.path.join(directory, name)
+        if FOLDED in header:
+            continue
+        # The protocol is the header's, and the terminal is what is left of the
+        # name in front of it: a terminal may be named tmux-extkeys-kitty, and
+        # read off the name alone that is tmux-extkeys under "kitty".
+        stated = re.search(r"protocol: (.*)$", header[0]) if header else None
+        if not stated or stated[1] not in PROTOCOLS:
+            continue
+        suffix = "-" + stated[1].replace(" ", "-") + ".txt"
+        if name.endswith(suffix):
+            taken[name[:-len(suffix)]][stated[1]] = os.path.join(directory, name)
 
     for terminal, files in sorted(taken.items()):
         ways = collections.OrderedDict()

@@ -98,7 +98,10 @@ installed. `tools/keytest/drive_x11.py`
 takes them in X11 terminals under Xvfb, pressing each key through XTEST **by
 keycode with the modifiers held by hand**: xdotool given a keysym picks the level
 itself, and under Xvfb's map it reaches the function keys through Mod1, so xterm
-sends Alt-F1 for F1. `tools/keytest/drive_macos.py` does the same on a Mac through
+sends Alt-F1 for F1. **A terminal's name in the driver must not end in a
+protocol's** — `-kitty`, `-xterm` — or two runs write one file name and
+`collapse.py` cannot tell which is which: tmux inside kitty is `kitty-tmux`.
+`tools/keytest/drive_macos.py` does the same on a Mac through
 Quartz, and takes over that machine's keyboard while it runs: it checks before
 every key that the window it opened is in front and stops where it is not.
 **A driver and `--keytest` keep in step over the FIFO, never by timing**: a
@@ -5425,7 +5428,10 @@ together — `keys_mode` says which.
   the four `modifier_key_reporting` values, taken by `--keytest` through
   `tools/keytest/drive_x11.py` under Xvfb on Fedora; and `macos-*.txt`, iTerm2,
   Terminal.app, kitty and WezTerm twice again, as they ship, taken through
-  `tools/keytest/drive_macos.py`. All of them folded by
+  `tools/keytest/drive_macos.py`; and the multiplexers in front of AmberEdit —
+  `tmux.txt` as it ships, `tmux-extkeys-*.txt` with `extended-keys on`,
+  `kitty-tmux.txt` the same inside kitty, `screen.txt` — each with its prefix
+  moved off the keys taken. All of them folded by
   `tools/keytest/collapse.py` into one file per set of bytes a terminal sends:
   `xterm.txt` where the four agree, `kitty-kitty.txt` and `kitty-xterm.txt`
   where the protocol changes what is sent; `limits.lst` beside them.

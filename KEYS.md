@@ -121,6 +121,10 @@ with the bytes is `testdata/keys/limits.lst`.
   `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
   with a menu letter for themselves, and AmberEdit never sees them.
+- Inside tmux or screen the kitty keyboard protocol does not get through, so
+  `Ctrl-Backspace` and `Ctrl-H` are `Backspace` there whatever the terminal
+  outside. tmux with `set -s extended-keys on` passes `Shift+Space` on where
+  `modifier_key_reporting` names `xterm`.
 - On macOS, Option is not Alt until the terminal is told so (iTerm2: *Left
   Option key: Esc+*; Terminal.app: *Use Option as Meta key*; kitty:
   `macos_option_as_alt`; WezTerm: `send_composed_key_when_left_alt_is_pressed`).

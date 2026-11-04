@@ -57,6 +57,32 @@ TERMINALS = {
     "sakura": ["sakura", "-x"],
     "contour": ["contour", "--"],
     "pterm": ["pterm", "-e"],
+    # The multiplexers, each in an xterm: a layer of their own between the
+    # terminal and AmberEdit, re-encoding what the terminal sent. {conf} and
+    # {label} are filled in per run.
+    "tmux": ["xterm", "-e", "tmux", "-L", "{label}", "-f", "{conf}", "new-session"],
+    "tmux-extkeys": ["xterm", "-e", "tmux", "-L", "{label}", "-f", "{conf}",
+                     "new-session"],
+    "screen": ["xterm", "-e", "screen", "-c", "{conf}", "-S", "{label}"],
+    # And tmux passing modified keys on from a terminal that reports them.
+    "kitty-tmux": ["kitty", "--", "tmux", "-L", "{label}", "-f", "{conf}",
+                           "new-session"],
+}
+
+# What a multiplexer is started with. Each has its prefix moved off the keys a
+# run asks for — Ctrl-B and Ctrl-A are in the list, and the key after a prefix
+# is a command to the multiplexer rather than a key for the program, which would
+# put every answer after it out of step. That a multiplexer keeps its prefix for
+# itself is known without taking it.
+LAYERS = {
+    "tmux": ("tmux", "set -g prefix None\nunbind C-b\n"),
+    "tmux-extkeys": ("tmux", "set -g prefix None\nunbind C-b\n"
+                             "set -s extended-keys on\n"
+                             "set -as terminal-features 'xterm*:extkeys'\n"),
+    "screen": ("screen", "escape ^]]\n"),
+    "kitty-tmux": ("tmux", "set -g prefix None\nunbind C-b\n"
+                                   "set -s extended-keys on\n"
+                                   "set -as terminal-features '*:extkeys'\n"),
 }
 
 # The terminals that are a server behind a client: started under a D-Bus
@@ -187,10 +213,28 @@ def press(name, codes, display):
 
 
 def free_display():
+    """A display number no live X server holds. A lock left by a server that
+    died without cleaning up names a pid that is gone, and the number is free."""
     for n in range(50, 200):
-        if not os.path.exists(f"/tmp/.X11-unix/X{n}") and \
-           not os.path.exists(f"/tmp/.X{n}-lock"):
+        lock = f"/tmp/.X{n}-lock"
+        try:
+            with open(lock) as f:
+                pid = int(f.read().strip() or 0)
+            os.kill(pid, 0)
+            continue
+        except FileNotFoundError:
+            if not os.path.exists(f"/tmp/.X11-unix/X{n}"):
+                return n
+            continue
+        except (ProcessLookupError, ValueError):
+            for stale in (lock, f"/tmp/.X11-unix/X{n}"):
+                try:
+                    os.remove(stale)
+                except OSError:
+                    pass
             return n
+        except PermissionError:
+            continue
     raise RuntimeError("no free display")
 
 
@@ -260,13 +304,20 @@ def read_line(fd, buffer, timeout):
     return line.decode("utf-8", "replace")
 
 
+def package_version(program):
+    found = subprocess.run(["rpm", "-q", "--qf", "%{VERSION}", "-f",
+                            shutil.which(program) or program],
+                           capture_output=True, text=True)
+    return found.stdout.strip() if found.returncode == 0 else ""
+
+
 def take(terminal, protocol, amberedit, out_dir, wait_ms, only):
-    label = terminal
-    version = subprocess.run(["rpm", "-q", "--qf", "%{VERSION}",
-                              "-f", shutil.which(TERMINALS[terminal][0])],
-                             capture_output=True, text=True)
-    if version.returncode == 0:
-        label = f"{terminal}-{version.stdout.strip()}"
+    layer = LAYERS.get(terminal)
+    program = layer[0] if layer else TERMINALS[terminal][0]
+    version = package_version(program)
+    label = f"{terminal}-{version}" if version else terminal
+    if layer:
+        label += f" in {TERMINALS[terminal][0]}-{package_version(TERMINALS[terminal][0])}"
     stem = f"{terminal}-{protocol.replace(' ', '-')}"
     out_path = os.path.abspath(os.path.join(out_dir, f"{stem}.txt"))
 
@@ -299,7 +350,11 @@ def take(terminal, protocol, amberedit, out_dir, wait_ms, only):
             if os.path.exists(f"/tmp/.X11-unix/X{display}"):
                 break
             time.sleep(0.05)
-        argv = TERMINALS[terminal] + [script]
+        conf = os.path.join(work, "layer.conf")
+        with open(conf, "w") as f:
+            f.write(layer[1] if layer else "")
+        argv = [word.replace("{conf}", conf).replace("{label}", f"keytest{display}")
+                for word in TERMINALS[terminal]] + [script]
         if terminal in NEEDS_DBUS:
             argv = ["dbus-run-session", "--"] + argv
         log = open(os.path.join(work, "terminal.log"), "w")
@@ -343,7 +398,13 @@ def take(terminal, protocol, amberedit, out_dir, wait_ms, only):
             os.close(fd)
         if terminal_proc is not None:
             kill_group(terminal_proc)
-        kill_group(xvfb)
+        # Asked to go rather than killed, so that it takes its lock and socket
+        # with it; killed only if it will not.
+        xvfb.terminate()
+        try:
+            xvfb.wait(5)
+        except subprocess.TimeoutExpired:
+            kill_group(xvfb)
         shutil.rmtree(work, ignore_errors=True)
 
 
