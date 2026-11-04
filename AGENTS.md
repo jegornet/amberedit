@@ -101,6 +101,10 @@ itself, and under Xvfb's map it reaches the function keys through Mod1, so xterm
 sends Alt-F1 for F1. **A terminal's name in the driver must not end in a
 protocol's** — `-kitty`, `-xterm` — or two runs write one file name and
 `collapse.py` cannot tell which is which: tmux inside kitty is `kitty-tmux`.
+`tools/keytest/drive_wayland.py` is the same for a terminal with no X11, in a
+headless sway whose config binds nothing, pressing through `wtype` — which hands
+the compositor a keymap of its own on every call, so each key waits a moment
+behind it or reaches the terminal before the keymap does and is lost.
 `tools/keytest/drive_macos.py` does the same on a Mac through
 Quartz, and takes over that machine's keyboard while it runs: it checks before
 every key that the window it opened is in front and stops where it is not.
@@ -5423,10 +5427,11 @@ together — `keys_mode` says which.
   reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
-- `testdata/keys/` — what 18 real terminals sent for every key — WezTerm twice,
+- `testdata/keys/` — what 19 real terminals sent for every key — WezTerm twice,
   as it ships and with `enable_kitty_keyboard` on (`wezterm-kittykbd`) — under each of
   the four `modifier_key_reporting` values, taken by `--keytest` through
-  `tools/keytest/drive_x11.py` under Xvfb on Fedora; and `macos-*.txt`, iTerm2,
+  `tools/keytest/drive_x11.py` under Xvfb on Fedora, foot through
+  `tools/keytest/drive_wayland.py` under a headless sway; and `macos-*.txt`, iTerm2,
   Terminal.app, kitty and WezTerm twice again, as they ship, taken through
   `tools/keytest/drive_macos.py`; and the multiplexers in front of AmberEdit —
   `tmux.txt` as it ships, `tmux-extkeys-*.txt` with `extended-keys on`,

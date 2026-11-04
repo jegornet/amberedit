@@ -106,12 +106,13 @@ standing in both.
 ## Keys a terminal cannot send
 
 Some chords leave the terminal as the same bytes as another key, and AmberEdit
-reads them as that key. Measured in 18 Linux terminals and 4 on macOS; the list
+reads them as that key. Measured in 19 Linux terminals and 4 on macOS; the list
 with the bytes is `testdata/keys/limits.lst`.
 
 - `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
-  `Tab` and `Enter`, except under the kitty keyboard protocol in kitty,
-  Alacritty, Contour and Konsole (`modifier_key_reporting`).
+  `Tab` and `Enter`, except under the kitty keyboard protocol in kitty, foot,
+  Alacritty, Contour, Konsole and WezTerm with `enable_kitty_keyboard`
+  (`modifier_key_reporting`).
 - `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
 - In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
   then the key. Alt with a letter works where the layout binds that letter.
