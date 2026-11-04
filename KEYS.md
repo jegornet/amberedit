@@ -106,22 +106,27 @@ standing in both.
 ## Keys a terminal cannot send
 
 Some chords leave the terminal as the same bytes as another key, and AmberEdit
-reads them as that key. Measured in 19 Linux terminals and 5 on macOS; the list
-with the bytes is `testdata/keys/limits.lst`.
+reads them as that key. Measured in 19 Linux terminals, 5 on macOS, and PuTTY
+and Windows Terminal logged in over ssh; the list with the bytes is
+`testdata/keys/limits.lst`.
 
 - `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
   `Tab` and `Enter`, except under the kitty keyboard protocol in kitty, foot,
-  Ghostty, Alacritty, Contour, Konsole and WezTerm with `enable_kitty_keyboard`
-  (`modifier_key_reporting`).
+  Ghostty, Alacritty, Contour, Konsole, Windows Terminal 1.25 and later, and
+  WezTerm with `enable_kitty_keyboard` (`modifier_key_reporting`).
 - `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
 - In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
   then the key. Alt with a letter works where the layout binds that letter.
 - WezTerm with `enable_kitty_keyboard` on sends `Del` as `Backspace` under the
   kitty protocol; `modifier_key_reporting xterm` avoids it.
 - st sends `Ctrl-Home` as `Home` and `Alt-Del` as `Del`; PuTTY sends
-  `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
+  `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`, and
+  nothing at all for `Ctrl-Home`, `Ctrl-End`, `Ctrl-Ins`, or on Windows for
+  `Ctrl-Del`.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
-  with a menu letter for themselves, and AmberEdit never sees them.
+  with a menu letter for themselves, and AmberEdit never sees them. Windows
+  Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, and `Alt-F4` closes a window
+  on Windows whatever is running in it.
 - Inside tmux or screen the kitty keyboard protocol does not get through, so
   `Ctrl-Backspace` and `Ctrl-H` are `Backspace` there whatever the terminal
   outside. tmux with `set -s extended-keys on` passes `Shift+Space` on where

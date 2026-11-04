@@ -202,7 +202,15 @@ shape `testdata/keys/` is kept in.
   binds nothing, pressing through `wtype`, which hands the compositor a keymap
   of its own on every call — so each key waits a moment behind it, or reaches
   the terminal before its keymap and is lost. `drive_macos.py` posts through
-  Quartz at the HID level.
+  Quartz at the HID level. `drive_windows.py` presses through `SendInput`, by
+  virtual key with the scan code beside it, into PuTTY and Windows Terminal
+  logged in over ssh to a Unix host where `--keytest` runs: the bytes a Windows
+  terminal sends land on the host's pty like any other terminal's, so they are
+  files of the same kind and the same test plays them. PuTTY gets its
+  connection from `ssh.exe` as a local proxy command over the raw protocol, so
+  it needs no key of its own, and runs as it ships but for a saved session
+  turning off the local echo and line editing raw turns on. Alt-F4 is never
+  pressed there — Windows closes the window on it.
 - **A driver and `--keytest` keep in step over a FIFO, never by timing.** A
   window just opened may not have the keyboard yet, and a dead key on macOS
   sends nothing until the next one; either puts every answer after it one key
@@ -237,19 +245,32 @@ it opened is in front — and for iTerm2 and Terminal.app, whose windows share a
 process, that its window is the current one — and stops at once where it is
 not, so a run started from a session in iTerm2 never types into that session.
 Ghostty is brought forward by its bundle id, System Events declining to by its
-pid.
+pid. **Windows** (the files were taken on Windows 11 against the Fedora
+machine): PuTTY, Windows Terminal, Python 3 and `ssh.exe` logging in to the
+host without a question. `SendInput` reaches only the desktop of the session
+logged on at the console, and an ssh login is not that session, so the driver
+is started there through a scheduled task run interactively (`schtasks /it`).
+**`ssh.exe` is handed plain files, never a pipe**: with a pipe or a
+delete-on-close file on any of its handles it hangs before it greets the
+server, so the driver's commands and the FIFO's lines go through files. It
+checks before every key that its window is in front, clicks into it where it
+is not and stops where that does not bring it forward, and it empties the
+clipboard first, so that what `Ctrl-V` and `Shift-Ins` paste is nothing.
 
 Adding a terminal: a line in the driver's `TERMINALS` saying how it runs one
 program, a run, `collapse.py`, the files into `testdata/keys/` (macOS ones as
-`macos-*.txt`, the names being the Linux terminals' too), `--keycheck --limits
+`macos-*.txt` and Windows ones as `windows-*.txt`, the names being the Linux
+terminals' too), `--keycheck --limits
 testdata/keys/limits.lst` over them, and every mismatch either fixed in
 `terminal.cpp` or, where the terminal sent another key's bytes, a line in
 `limits.lst` and in KEYS.md.
 
-**Not taken**: the Linux console, which wants a VM and QEMU's `sendkey` rather
-than any of these drivers; and Windows, whose console reports key codes rather
-than bytes and has `namedKey()` rather than a table of sequences — `--keytest`
-refuses to run there.
+**Not taken**: the Linux console, deliberately — nobody reads mail on a bare
+virtual console any more, and the `linux` terminfo entry is what a session over
+it would be read with. And AmberEdit's own Windows build, whose console reports
+key codes rather than bytes and has `namedKey()` rather than a table of
+sequences — `--keytest` refuses to run there. A Windows terminal in front of a
+Unix host is another matter and is taken, as above.
 
 ## Packaging
 
@@ -5497,8 +5518,8 @@ together — `keys_mode` says which.
   reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
-- `testdata/keys/` — what 19 Linux terminals, 5 on macOS and tmux and screen
-  sent for every key under each of the four `modifier_key_reporting` values,
+- `testdata/keys/` — what 19 Linux terminals, 5 on macOS, PuTTY and Windows
+  Terminal on Windows, and tmux and screen sent for every key under each of the four `modifier_key_reporting` values,
   one file per set of bytes a terminal sends, and `limits.lst` beside them. See
   [The keyboard tests](#the-keyboard-tests); do not edit them to make a test
   pass — take the terminal again.
