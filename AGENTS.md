@@ -80,6 +80,16 @@ because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
 with `-tc`, which matches the whole name by wildcard:
 `./build/bin/amberedit_tests -tc="*[squish]*"`.
 
+**The keyboard diagnostics are a build of their own.** `-DAMBEREDIT_KEYTEST=ON`
+adds `--keytest`, `--keycheck` and `--keytest-replay` (`src/ui/keytest.*`): what
+a terminal sends for each key, and what `Terminal::poll()` makes of it played
+back over a pty. A release leaves them out — nothing a user of the editor runs —
+and CI turns them on so that they go on compiling. `tools/keytest/drive_x11.py`
+takes them in X11 terminals under Xvfb, pressing each key through XTEST **by
+keycode with the modifiers held by hand**: xdotool given a keysym picks the level
+itself, and under Xvfb's map it reaches the function keys through Mod1, so xterm
+sends Alt-F1 for F1.
+
 The code is C++17 and wants GCC 8, Clang 7 or Apple Clang 11 at the least;
 `CMakeLists.txt` refuses anything older by name, because an older compiler
 accepts `-std=c++17` well enough for CMake to call `CMAKE_CXX_STANDARD 17`

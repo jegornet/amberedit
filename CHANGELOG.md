@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- fix Shift-Tab not read under the kitty keyboard protocol, in WezTerm and in st
+- fix Alt-F1 to Alt-F4 not read in kitty, Alacritty, Contour, Konsole and QTerminal
 - add app.redraw: Ctrl-L draws the whole screen again
 - add Ctrl-Backspace to delete a word in the editor, under the kitty keyboard protocol
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does

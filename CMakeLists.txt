@@ -758,6 +758,16 @@ add_executable(amberedit
 target_link_libraries(amberedit PRIVATE amberedit_nodelist amberedit_echolist
                                         amberedit_term)
 
+# `--keytest`, `--keycheck` and `--keytest-replay`: what a terminal sends for each
+# key and what AmberEdit makes of it, for whoever works on the keyboard table.
+# Nothing a user of the editor needs, so a release binary leaves them out; CI
+# builds them so that they go on compiling.
+option(AMBEREDIT_KEYTEST "Build the --keytest and --keycheck keyboard diagnostics" OFF)
+if(AMBEREDIT_KEYTEST)
+  target_sources(amberedit PRIVATE src/ui/keytest.cpp)
+  target_compile_definitions(amberedit PRIVATE AMBEREDIT_KEYTEST)
+endif()
+
 # The oldest Windows this will run on, said in the header so that an older one
 # refuses it outright rather than failing further in.
 #

@@ -165,6 +165,23 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey(std::string("\x1b[1;3") + final, alt);
         registerKey(std::string("\x1b[1;9") + final, alt);
         registerKey(std::string("\x1bO1;3") + final, alt);
+        // Konsole and QTerminal leave the 1 out: `ESC O 3 P`.
+        registerKey(std::string("\x1bO3") + final, alt);
+    }
+    // F1 to F4 by their VT220 numbers, the modifier after them — what kitty,
+    // Alacritty and Contour send for Alt-F3 under the kitty protocol, F3 having
+    // no final letter there because `CSI R` is the cursor position report.
+    const std::array<std::pair<int, Event::Name>, 4> firstFourNumbered{{
+        {11, Event::Name::F1},
+        {12, Event::Name::F2},
+        {13, Event::Name::F3},
+        {14, Event::Name::F4},
+    }};
+    for (const auto& [number, name] : firstFourNumbered) {
+        const Event alt = Event::Named(name, false, true, false);
+        const std::string code = std::to_string(number);
+        registerKey("\x1b[" + code + ";3~", alt);
+        registerKey("\x1b[" + code + ";9~", alt);
     }
     const std::array<std::pair<int, Event::Name>, 8> theRest{{
         {15, Event::Name::F5},
@@ -305,6 +322,15 @@ void registerNavigationKeys() {
         {"\x1b[14~", Event::F4},
     }};
     for (const auto& [form, event] : firstFour) registerKey(form, event);
+
+    // Shift-Tab, which walks the compose screen's ring backwards. terminfo
+    // names it as `kcbt`, and not every entry names the `CSI Z` every terminal
+    // sends — st's does not. Under the kitty protocol it is Tab with Shift on
+    // it, `CSI 9 ; 2 u`, and under modifyOtherKeys WezTerm sends
+    // `CSI 27 ; 2 ; 9 ~`. None of the three means anything else.
+    for (const char* form : {"\x1b[Z", "\x1b[9;2u", "\x1b[27;2;9~"}) {
+        registerKey(form, Event::TabReverse);
+    }
 
     for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
         registerKey(form, Event::Home);
