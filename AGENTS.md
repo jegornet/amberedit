@@ -98,7 +98,20 @@ installed. `tools/keytest/drive_x11.py`
 takes them in X11 terminals under Xvfb, pressing each key through XTEST **by
 keycode with the modifiers held by hand**: xdotool given a keysym picks the level
 itself, and under Xvfb's map it reaches the function keys through Mod1, so xterm
-sends Alt-F1 for F1.
+sends Alt-F1 for F1. `tools/keytest/drive_macos.py` does the same on a Mac through
+Quartz, and takes over that machine's keyboard while it runs: it checks before
+every key that the window it opened is in front and stops where it is not.
+**A driver and `--keytest` keep in step over the FIFO, never by timing**: a
+window just opened may not have the keyboard and a dead key on macOS sends
+nothing until the next one, and either puts every answer after it one key off.
+So `--keytest` asks for `warmup` presses until something arrives, and after a key
+that sent nothing asks for a `flush` — Escape and Space, to put away what the key
+opened and finish a dead key — and throws out what that sends. **Two things are
+excused without a line in `limits.lst`**: a key read as another key the same file
+took as the very same bytes, which is the terminal not telling them apart, and an
+Alt-letter that arrived as one character with no ESC in it, which is a macOS
+terminal composing with Option — the character being the keyboard layout's, no
+list of them could be kept.
 
 The code is C++17 and wants GCC 8, Clang 7 or Apple Clang 11 at the least;
 `CMakeLists.txt` refuses anything older by name, because an older compiler
@@ -5410,7 +5423,9 @@ together — `keys_mode` says which.
 - `testdata/keys/` — what 18 real terminals sent for every key — WezTerm twice,
   as it ships and with `enable_kitty_keyboard` on (`wezterm-kittykbd`) — under each of
   the four `modifier_key_reporting` values, taken by `--keytest` through
-  `tools/keytest/drive_x11.py` under Xvfb on Fedora and folded by
+  `tools/keytest/drive_x11.py` under Xvfb on Fedora; and `macos-*.txt`, iTerm2,
+  Terminal.app, kitty and WezTerm twice again, as they ship, taken through
+  `tools/keytest/drive_macos.py`. All of them folded by
   `tools/keytest/collapse.py` into one file per set of bytes a terminal sends:
   `xterm.txt` where the four agree, `kitty-kitty.txt` and `kitty-xterm.txt`
   where the protocol changes what is sent; `limits.lst` beside them.

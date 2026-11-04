@@ -308,7 +308,7 @@ def take(terminal, protocol, amberedit, out_dir, wait_ms, only):
         fd = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
         buffer = [b""]
         line = read_line(fd, buffer, 60)
-        if line is None or not line.startswith("ready "):
+        if line is None:
             with open(os.path.join(work, "terminal.log")) as f:
                 tail = f.read()[-800:]
             return f"{stem}: never started\n{tail}"
@@ -317,28 +317,26 @@ def take(terminal, protocol, amberedit, out_dir, wait_ms, only):
         x = Xtest(f":{display}")
         time.sleep(0.3)
         pressed = 0
-        while line is not None and line.startswith("ready "):
-            name = line[len("ready "):]
-            # Again before every key: one the terminal acts on itself — F1 for
-            # its help — can open a window that takes the keyboard with it.
-            if window is not None:
+        # What --keytest asks for, a line at a time, until it closes the FIFO.
+        while line is not None:
+            # Focus again before every key: one the terminal acts on itself —
+            # F1 for its help — can open a window that takes the keyboard.
+            if window is not None and line != "" and not line.startswith("done "):
                 subprocess.run(["xdotool", "windowfocus", window], env=env,
                                capture_output=True)
-            press(name, codes, x)
-            pressed += 1
-            done = read_line(fd, buffer, wait_ms / 1000 + 10)
-            if done is None:
-                return f"{stem}: stopped answering at {name}"
-            if done.endswith(" -") and window is not None:
+            if line == "warmup":
+                press("Space", codes, x)
+            elif line == "flush" and window is not None:
                 # A key the terminal kept for itself may have opened a popover
                 # — ptyxis's menu on F10, tilix's sidebar on F12 — that holds
-                # the keyboard. Escape puts most of them away; --keytest throws
-                # out what this sends before it asks for the next key.
-                subprocess.run(["xdotool", "windowfocus", window], env=env,
-                               capture_output=True)
+                # the keyboard. Escape puts most of them away and the click
+                # the rest; --keytest throws out what they send.
                 press("Esc", codes, x)
                 close_strays(window, env)
-            line = read_line(fd, buffer, 10)
+            elif line.startswith("ready "):
+                press(line[len("ready "):], codes, x)
+                pressed += 1
+            line = read_line(fd, buffer, wait_ms / 1000 + 10)
         return f"{stem}: {pressed} keys -> {out_path}"
     finally:
         if fd is not None:

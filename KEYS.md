@@ -106,8 +106,8 @@ standing in both.
 ## Keys a terminal cannot send
 
 Some chords leave the terminal as the same bytes as another key, and AmberEdit
-reads them as that key. Measured in 18 Linux terminals; the list with the bytes
-is `testdata/keys/limits.lst`.
+reads them as that key. Measured in 18 Linux terminals and 4 on macOS; the list
+with the bytes is `testdata/keys/limits.lst`.
 
 - `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
   `Tab` and `Enter`, except under the kitty keyboard protocol in kitty,
@@ -121,3 +121,9 @@ is `testdata/keys/limits.lst`.
   `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
   with a menu letter for themselves, and AmberEdit never sees them.
+- On macOS, Option is not Alt until the terminal is told so (iTerm2: *Left
+  Option key: Esc+*; Terminal.app: *Use Option as Meta key*; kitty:
+  `macos_option_as_alt`; WezTerm: `send_composed_key_when_left_alt_is_pressed`).
+  Until then Option with a letter types a character, Option-←/→ moves by words
+  in iTerm2 and Terminal.app, and Option with a function key or an arrow is the
+  bare key. A Mac keyboard's Help key is not Insert.

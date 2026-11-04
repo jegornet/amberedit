@@ -306,6 +306,20 @@ void registerNavigationKeys() {
     }};
     for (const auto& [form, event] : plainForms) registerKey(form, event);
 
+    // Backspace, Tab and Enter in the kitty protocol's own spelling with no
+    // modifier on them, which the protocol keeps for the flags above
+    // disambiguation but which iTerm2 sends for Option-Backspace all the same,
+    // the Option dropped. Unnamed, each reads as Escape and a run of letters.
+    const std::array<std::pair<const char*, Event>, 6> plainCsiU{{
+        {"\x1b[127u", Event::Backspace},
+        {"\x1b[127;1u", Event::Backspace},
+        {"\x1b[9u", Event::Tab},
+        {"\x1b[9;1u", Event::Tab},
+        {"\x1b[13u", Event::Return},
+        {"\x1b[13;1u", Event::Return},
+    }};
+    for (const auto& [form, event] : plainCsiU) registerKey(form, event);
+
     // F1 to F4 as the kitty protocol spells them with no modifier at all:
     // `CSI P`, `CSI Q`, `CSI 13 ~` and `CSI S`, which iTerm2 sends under it.
     // F3 is a number rather than `CSI R` because that is the cursor position

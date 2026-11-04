@@ -74,7 +74,10 @@ struct CheckResult {
     /// its TERM — or empty where it was.
     std::string skipped;
     std::size_t keys{0};
-    /// Keys read as something else that a limit accounts for.
+    /// Keys read as something else that the terminal could not have sent
+    /// otherwise: a key read as another one the same file took as the same
+    /// bytes, an Alt-letter a macOS terminal composed into a character, or one
+    /// a limit names.
     std::size_t excused{0};
     std::vector<Mismatch> wrong;
 };
@@ -109,8 +112,10 @@ private:
 /// - `--keytest [protocols] [--out FILE] [--label TEXT] [--sync FIFO]
 ///   [--wait MS] [--only KEY,KEY...]` asks for each key in turn. `protocols` is
 ///   what `modifier_key_reporting` takes, `"xterm kitty"` where none is given.
-///   `--sync` names a FIFO a driver pressing the keys reads `ready <key>` and
-///   `done <key> <bytes>` off, so that nothing has to be timed.
+///   `--sync` names a FIFO a driver pressing the keys reads lines off, so that
+///   nothing has to be timed: `warmup` (press Space; said until something
+///   arrives), `ready <key>` (press it), `done <key> <bytes>`, and `flush`
+///   after a key nothing came of (put away what it opened: Escape, Space).
 /// - `--keycheck [--limits FILE] FILE...` plays the files back and says which
 ///   keys came out as something else; non-zero where any did that no limit
 ///   accounts for.

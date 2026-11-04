@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- fix Option-Backspace in iTerm2 under the kitty keyboard protocol read as Escape and a run of letters
 - fix Shift-Tab not read under the kitty keyboard protocol, in WezTerm and in st
 - fix Alt-F1 to Alt-F4 not read in kitty, Alacritty, Contour, Konsole and QTerminal
 - add app.redraw: Ctrl-L draws the whole screen again

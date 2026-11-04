@@ -193,6 +193,17 @@ std::string termOf(const std::string& header) {
     return header.substr(from, end == std::string::npos ? std::string::npos : end - from);
 }
 
+/// Whether an Alt-letter came as what a macOS terminal makes of Option with a
+/// letter where Option is not Meta: the character the keyboard layout puts
+/// there, with no ESC anywhere in it. Which character is the layout's, so no
+/// list of them could be kept; and bytes with no ESC are bytes nothing could
+/// read as Alt.
+bool optionComposed(const std::string& key, const std::string& bytes) {
+    const bool altLetter = key.size() == 5 && key.compare(0, 4, "Alt-") == 0 &&
+                           key[4] >= 'A' && key[4] <= 'Z';
+    return altLetter && !bytes.empty() && bytes.find('\x1b') == std::string::npos;
+}
+
 }  // namespace
 
 tl::expected<std::vector<Limit>, ErrorPtr> readLimits(const std::string& path) {
@@ -521,11 +532,17 @@ tl::expected<CheckResult, ErrorPtr> Checker::check(const std::string& path) {
 
     Replay* replay = impl_->replayFor(result.term, result.skipped);
     if (replay == nullptr) return result;
+    // What each key was taken as in this file: a key read as another one the
+    // terminal sent the very same bytes for is a key the terminal did not tell
+    // apart, and nothing reading the bytes could do better.
+    std::map<std::string, std::string> bytesOf(taken.begin(), taken.end());
     for (const auto& [key, bytes] : taken) {
         ++result.keys;
         Mismatch mismatch{key, bytes, replay->recognise(bytes)};
         if (mismatch.readAs == key) continue;
-        if (impl_->excused(mismatch)) {
+        const auto twin = bytesOf.find(mismatch.readAs);
+        if ((twin != bytesOf.end() && twin->second == bytes) ||
+            optionComposed(key, bytes) || impl_->excused(mismatch)) {
             ++result.excused;
         } else {
             result.wrong.push_back(std::move(mismatch));
@@ -598,6 +615,20 @@ int captureMain(const CaptureOptions& options) {
         // Whatever the requests were answered with, or a key still held.
         (void)readBurst(STDIN_FILENO, 300, 100);
 
+        // A window that has just been opened may not have the keyboard yet, and
+        // a key that goes astray puts every answer after it one key off. So a
+        // driver is asked to press Space until something arrives, and the first
+        // key is asked for only then.
+        if (sync != nullptr) {
+            terminal.draw(term::text("AmberEdit keytest: waiting for the driver"));
+            for (int tries = 0; tries < 30; ++tries) {
+                std::fputs("warmup\n", sync);
+                std::fflush(sync);
+                if (!readBurst(STDIN_FILENO, 1000, 300).empty()) break;
+            }
+            (void)readBurst(STDIN_FILENO, 500, 300);
+        }
+
         for (std::size_t i = 0; i < list.size(); ++i) {
             const std::string name = nameOf(list[i]);
             using term::text;
@@ -639,10 +670,16 @@ int captureMain(const CaptureOptions& options) {
             if (sync != nullptr) {
                 std::fprintf(sync, "done %s %s\n", name.c_str(), escaped.c_str());
                 std::fflush(sync);
-                // A driver answers a key the terminal kept for itself by putting
-                // away whatever it opened — an Escape, a click beside a popover —
-                // and what that sends is not the next key.
-                if (bytes.empty()) (void)readBurst(STDIN_FILENO, 700, 150);
+                // Nothing arrived: the terminal kept the key for itself — and may
+                // have opened something that holds the keyboard — or the key is a
+                // dead one waiting for a letter to put an accent on. A driver
+                // answers `flush` by putting it away, an Escape and a Space, and
+                // what that sends is not the next key.
+                if (bytes.empty()) {
+                    std::fputs("flush\n", sync);
+                    std::fflush(sync);
+                    (void)readBurst(STDIN_FILENO, 1500, 300);
+                }
             }
         }
     }
