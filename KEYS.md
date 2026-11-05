@@ -96,8 +96,9 @@ standing in both.
 | `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |
 | `Ctrl-Y` / `Alt-D` | delete the line — or the button beside it, on the right-hand edge |
 | `Ctrl-D` / `Alt-Z` | delete the quoted text after the cursor                   |
-| `Ctrl-W` / `Alt-Backspace` | delete the word before the cursor                     |
-| `Alt-B` `Alt-F` / `Alt+←` `Alt+→` | by words                                         |
+| `Ctrl-W` / `Alt-Backspace` / `Ctrl-Backspace` | delete the word before the cursor; `Ctrl-Backspace` only under the kitty keyboard protocol or in the Windows build |
+| `Alt-Del` / `Ctrl-Del` | delete the word after the cursor                           |
+| `Alt-B` `Alt-F` / `Alt+←` `Alt+→` / `Ctrl+←` `Ctrl+→` | by words                   |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
@@ -106,3 +107,58 @@ standing in both.
 | `Ctrl-X` / `Shift-Del` | cut the selection to the clipboard                    |
 | `Ctrl-Z` / `Ctrl-U` | undo the last change, in the text or a header field — a line `Ctrl-Y` deleted included; typing goes back a word at a time |
 | `Ctrl-R` | redo what was undone |
+
+## Known issues
+
+Some chords leave the terminal as the same bytes as another key, and AmberEdit
+reads them as that key. Measured in 19 Linux terminals, 5 on macOS, PuTTY and
+Windows Terminal logged in over ssh, and the Windows build in conhost and
+Windows Terminal; the lists are `testdata/keys/limits.lst` and
+`testdata/keys/pdcurses/limits.lst`.
+
+- `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
+  `Tab` and `Enter`, except under the kitty keyboard protocol in kitty, foot,
+  Ghostty, Alacritty, Contour, Konsole, Windows Terminal 1.25 and later, and
+  WezTerm with `enable_kitty_keyboard` (`modifier_key_reporting`). The Windows
+  build reads `Ctrl-Backspace`, and none of the other four.
+- `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
+- In urxvt and PuTTY as it ships, Alt with an arrow, `Del` or a function key is
+  `Esc` and then the key. Alt with a letter works where the layout binds that
+  letter.
+- WezTerm with `enable_kitty_keyboard` on sends `Del` as `Backspace` under the
+  kitty protocol; `modifier_key_reporting xterm` avoids it.
+- st sends `Ctrl-Home` as `Home` and `Alt-Del` as `Del`; PuTTY as it ships
+  sends `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
+  PuTTY on Windows sends nothing at all for Ctrl with `Home`, `End`, `Ins` or
+  `Del`, whatever it is set to.
+- Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
+  with a menu letter for themselves, and AmberEdit never sees them. Windows
+  Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, conhost `Ctrl-V`, and
+  `Alt-F4` closes a window on Windows whatever is running in it.
+- Inside tmux or screen the kitty keyboard protocol does not get through, so
+  `Ctrl-Backspace` and `Ctrl-H` are `Backspace` there whatever the terminal
+  outside. tmux with `set -s extended-keys on` passes `Shift+Space` on where
+  `modifier_key_reporting` names `xterm`.
+- On macOS, Option is not Alt until the terminal is told so (iTerm2: *Left
+  Option key: Esc+*; Terminal.app: *Use Option as Meta key*; kitty:
+  `macos_option_as_alt`; Ghostty: `macos-option-as-alt`; WezTerm:
+  `send_composed_key_when_left_alt_is_pressed`).
+  Until then Option with a letter types a character, Option-←/→ moves by words
+  in iTerm2 and Terminal.app, and Option with a function key or an arrow is the
+  bare key. A Mac keyboard's Help key is not Insert.
+
+## PuTTY
+
+On Windows, use Windows Terminal 1.25 or later: it speaks the kitty keyboard
+protocol and sends every chord AmberEdit binds but the few it keeps for itself
+(above). PuTTY works, but some chords misbehave in it. Set it up as below:
+
+- *Terminal → Keyboard → The Function keys and keypad*: `Xterm 216+`
+- *Terminal → Keyboard → Shift/Ctrl/Alt with the arrow keys*: `xterm-style bitmap`
+- *Terminal → Features → Disable application cursor keys mode*: on — without it every arrow arrives
+  bare, whatever is held with it
+- *Connection → Data → Terminal-type string*: `xterm-256color` 
+
+Then Ctrl and Alt with the arrows, and Alt with `Del` and the function keys,
+work. Ctrl with `Home`, `End`, `Ins`, `Del` and `Backspace` still does not:
+use `Alt-Backspace` or `Ctrl-W` to delete a word.

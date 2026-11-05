@@ -535,6 +535,13 @@ enum class CopyOnSelect {
     Off,
 };
 
+/// A protocol the terminal is asked to report modified keys in, one word of
+/// `modifier_key_reporting`.
+enum class KeyReporting {
+    Xterm,  ///< `xterm` — xterm's modifyOtherKeys
+    Kitty,  ///< `kitty` — the kitty keyboard protocol
+};
+
 /// Where a copy goes and a paste comes from, from `clipboard`.
 enum class ClipboardMode {
     /// `windows` — the Windows clipboard, asked for through the system. On any
@@ -811,6 +818,13 @@ struct AppConfig {
     /// for. Which of the two it is decides nothing here — `main.cpp` reads the
     /// file and puts the two layouts together.
     KeysMode keysMode{KeysMode::Merge};
+
+    /// Which protocols the terminal is asked to report modified keys in, and in
+    /// what order, from `modifier_key_reporting`. A terminal speaking both
+    /// keeps whichever request came last, so kitty goes second by default: it
+    /// is the one that tells Ctrl-Backspace from Backspace.
+    std::vector<KeyReporting> modifierKeyReporting{KeyReporting::Xterm,
+                                                   KeyReporting::Kitty};
 
     /// A directory for work that needs one, from `tmpdir`. Unpacking a zipped
     /// nodelist or echolist, and the file a message is handed over in where

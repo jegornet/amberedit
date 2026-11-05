@@ -53,24 +53,33 @@ bool isFunctionKey(Event::Name name) {
 }
 
 /// Whether a named key is one a terminal will report with Alt held. The arrows
-/// are, and so is Backspace — Alt with it is the other way a word is taken out —
-/// and so are the function keys: `Alt-F1` is a row of chords nothing else in
-/// AmberEdit wants, which is what makes it the row the external utilities are
-/// reached by. Nothing else is worth spelling: a key that would never arrive is
-/// a binding that would never fire.
+/// are, and so are Backspace and Delete — Alt with them is how a word is taken
+/// out behind the cursor and ahead of it — and so are the function keys: `Alt-F1` is a
+/// row of chords nothing else in AmberEdit wants, which is what makes it the row the
+/// external utilities are reached by. Nothing else is worth spelling: a key that would
+/// never arrive is a binding that would never fire.
 bool takesAlt(Event::Name name) {
-    return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace;
+    return isArrow(name) || isFunctionKey(name) || name == Event::Name::Backspace ||
+           name == Event::Name::Delete;
 }
 
-/// Whether a named key is one a terminal will report with Ctrl or Shift held,
-/// and nothing here already keeps for moving about. Insert is: Ctrl-Ins and
+/// Whether a named key is one a terminal will report with Shift held, and
+/// nothing here already keeps for moving about. Insert is: Ctrl-Ins and
 /// Shift-Ins are how a clipboard has been copied to and pasted from since the
 /// keyboards that had no Ctrl-C and Ctrl-V for it, and every terminal still
 /// spells both. Delete is with Shift alone — Shift-Del is the third of that set,
 /// the one a selection is cut with.
-bool takesCtrl(Event::Name name) { return name == Event::Name::Insert; }
 bool takesShift(Event::Name name) {
     return name == Event::Name::Insert || name == Event::Name::Delete;
+}
+
+/// The same for Ctrl: Insert, Delete, Left and Right — the word motion every
+/// editor outside a terminal puts there — and Backspace, which only the kitty
+/// protocol tells apart from Backspace itself, see `registerModifiedKeys()`.
+bool takesCtrl(Event::Name name) {
+    return name == Event::Name::Insert || name == Event::Name::Backspace ||
+           name == Event::Name::Delete || name == Event::Name::ArrowLeft ||
+           name == Event::Name::ArrowRight;
 }
 
 bool isAsciiLetter(char c) {
@@ -165,9 +174,10 @@ std::optional<Event> keyNamed(std::string_view spelling) {
     if (parsed.body.empty()) return std::nullopt;
 
     if (const NamedKey* named = namedKey(parsed.body)) {
-        // Alt with an arrow, a function key or Backspace is one a terminal can
-        // be asked to report, and so is Ctrl or Shift with Insert and Shift
-        // with Delete; nothing else
+        // Alt with an arrow, a function key, Backspace or Delete is one a
+        // terminal can be asked to report, and so is Ctrl or Shift with Insert,
+        // Shift with Delete and Ctrl with Backspace, Delete, Left or Right;
+        // nothing else
         // here is bindable under a modifier, and a spelling that asks for one is
         // either a key that would never arrive or — Ctrl with Home and End —
         // one reserved above. One modifier at a time: no terminal agrees on

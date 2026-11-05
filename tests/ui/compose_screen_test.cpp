@@ -1489,6 +1489,33 @@ TEST_CASE(
 }
 
 TEST_CASE(
+    "Alt-Delete takes the word after the cursor, in the text and in a field "
+    "[compose][keys]") {
+    ComposeFixture fixture(AreaKind::Echo, "2:5020/1");
+    auto& state = fixture.state;
+    compose::startNew(state);
+    state.composeInHeader = false;
+    state.edit.lines = {"one two three"};
+    state.edit.row = 0;
+    state.edit.col = 3;
+
+    REQUIRE(compose::handleEvent(state, Event::Named(Event::Name::Delete, false, true)));
+    CHECK(state.edit.lines[0] == "one three");
+    REQUIRE(compose::handleEvent(state, Event::Named(Event::Name::Delete, true, false)));
+    CHECK(state.edit.lines[0] == "one");
+    CHECK(state.edit.col == 3);
+
+    // A field is a line like any other.
+    state.composeInHeader = true;
+    state.composeField = compose::kSubject;
+    state.compose.subject = "hello big world";
+    state.composeCursor = 5;
+    REQUIRE(compose::handleEvent(state, Event::Named(Event::Name::Delete, false, true)));
+    CHECK(state.compose.subject == "hello world");
+    CHECK(state.composeCursor == 5);
+}
+
+TEST_CASE(
     "The dialog turns attributes over by chord, by Space and by click "
     "[compose]") {
     namespace attr = amberedit::domain::attr;

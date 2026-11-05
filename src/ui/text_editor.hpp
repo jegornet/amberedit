@@ -93,11 +93,19 @@ void deleteQuote(TextBuffer& buffer);
 /// Deletes the word before the cursor, and the separators between the two —
 /// what Ctrl-W erases in every terminal that ever had a line discipline.
 ///
-/// Within the line and no further: a cursor standing at the start of one has no
-/// word before it and nothing happens, the line break being Backspace's to take
-/// out. A word is what `moveWordLeft()` walks over, so the two agree about where
-/// one begins.
+/// Within the line and no further: a cursor standing at the start of a line
+/// with text on it has no word before it and nothing happens. An empty line is
+/// the exception and is taken out as Backspace takes it, joining the line above.
+/// A word is what `moveWordLeft()` walks over, so the two agree about where one
+/// begins.
 void deleteWordBefore(TextBuffer& buffer);
+
+/// Deletes the word after the cursor, and the separators between the two — the
+/// other half of `deleteWordBefore()`, and bound by the same rule: within the
+/// line, a cursor at the end of a line with text on it deleting nothing, and an
+/// empty line taken out as Delete takes it, joining the line below. A word is
+/// what `moveWordRight()` walks over.
+void deleteWordAfter(TextBuffer& buffer);
 
 void moveLeft(TextBuffer& buffer);
 void moveRight(TextBuffer& buffer);

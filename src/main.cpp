@@ -15,6 +15,9 @@
 #include "ui/app_shell.hpp"
 #include "ui/error_log.hpp"
 #include "ui/keys.hpp"
+#ifdef AMBEREDIT_KEYTEST
+#include "ui/keytest.hpp"
+#endif
 #include "ui/setup/setup_run.hpp"
 #include "ui/term/color.hpp"
 #include "ui/theme.hpp"
@@ -47,6 +50,20 @@ void printUsage(const char* program) {
           "\n"
           "  {0} -o \"theme themes/white.cfg\" -o \"quote_margin 72\"\n"),
         {program});
+#ifdef AMBEREDIT_KEYTEST
+    // Apart from the page above and not translated, as nothing about the
+    // diagnostics is: they exist only in a build asked for them, and the page a
+    // translator works on is the one every build prints.
+    std::cerr << "\n"
+                 "Keyboard diagnostics (built with AMBEREDIT_KEYTEST):\n"
+                 "      --keytest [<protocols>]   take what the terminal sends for each key;\n"
+                 "                                <protocols> as modifier_key_reporting takes,\n"
+                 "                                then --out FILE, --label TEXT, --sync FIFO,\n"
+                 "                                --wait MS, --only KEY,KEY...\n"
+                 "      --keycheck [--limits <file>] <file>...\n"
+                 "                                play taken files back, report keys read wrong;\n"
+                 "                                --limits names the keys a terminal cannot send\n";
+#endif
 }
 
 /// Compiles the nodelists the config names, where they need it.
@@ -159,6 +176,15 @@ int main(int argc, char* argv[]) {
     // the catalogs this binds, and the language is the environment's. What went
     // wrong is held until there is somewhere to say it.
     const amberedit::i18n::Started started = amberedit::i18n::start();
+
+#ifdef AMBEREDIT_KEYTEST
+    // A diagnostic of its own, with arguments of its own: it reads no config
+    // and opens no area, so nothing below applies to it. Only in a build
+    // configured with AMBEREDIT_KEYTEST.
+    if (amberedit::ui::keytest::wanted(argc, argv)) {
+        return amberedit::ui::keytest::main(argc, argv);
+    }
+#endif
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];

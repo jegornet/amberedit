@@ -135,6 +135,19 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey(std::string("\x1b[1;9") + final, alt);
     }
 
+    // Ctrl with Left and Right, the other spelling of a word to either side.
+    // Modifier 5 is xterm's and kitty's, `ESC O d` and `ESC O c` are rxvt's, and
+    // `CSI 5 D` is what screen and the older xterms send; none means anything
+    // else. Up and Down are left alone: nothing here moves by them under Ctrl.
+    const Event ctrlLeft = Event::Named(Event::Name::ArrowLeft, true, false, false);
+    const Event ctrlRight = Event::Named(Event::Name::ArrowRight, true, false, false);
+    registerKey("\x1b[1;5D", ctrlLeft);
+    registerKey("\x1bOd", ctrlLeft);
+    registerKey("\x1b[5D", ctrlLeft);
+    registerKey("\x1b[1;5C", ctrlRight);
+    registerKey("\x1bOc", ctrlRight);
+    registerKey("\x1b[5C", ctrlRight);
+
     // Alt with a function key, which is what the external utilities are bound
     // with. Both families are CSI sequences and neither is ambiguous with
     // anything, so all twelve are registered whether the layout binds one or
@@ -153,6 +166,23 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey(std::string("\x1b[1;3") + final, alt);
         registerKey(std::string("\x1b[1;9") + final, alt);
         registerKey(std::string("\x1bO1;3") + final, alt);
+        // Konsole and QTerminal leave the 1 out: `ESC O 3 P`.
+        registerKey(std::string("\x1bO3") + final, alt);
+    }
+    // F1 to F4 by their VT220 numbers, the modifier after them — what kitty,
+    // Alacritty and Contour send for Alt-F3 under the kitty protocol, F3 having
+    // no final letter there because `CSI R` is the cursor position report.
+    const std::array<std::pair<int, Event::Name>, 4> firstFourNumbered{{
+        {11, Event::Name::F1},
+        {12, Event::Name::F2},
+        {13, Event::Name::F3},
+        {14, Event::Name::F4},
+    }};
+    for (const auto& [number, name] : firstFourNumbered) {
+        const Event alt = Event::Named(name, false, true, false);
+        const std::string code = std::to_string(number);
+        registerKey("\x1b[" + code + ";3~", alt);
+        registerKey("\x1b[" + code + ";9~", alt);
     }
     const std::array<std::pair<int, Event::Name>, 8> theRest{{
         {15, Event::Name::F5},
@@ -184,6 +214,25 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
         registerKey("\x1b\x7f", altBack);
         registerKey("\x1b\b", altBack);
     }
+
+    // Ctrl with Backspace, the same word taken out, and only as the kitty
+    // protocol reports it. Without the protocol a terminal sends Ctrl-Backspace
+    // as one of the two bytes Backspace itself is sent as — 08H or 7FH, which
+    // of them depending on the terminal and not on the key — so neither byte can
+    // be read as the chord without taking Backspace away from somebody.
+    registerKey("\x1b[127;5u", Event::Named(Event::Name::Backspace, true, false, false));
+
+    // Alt and Ctrl with Delete, the word ahead of the cursor taken out. xterm
+    // and kitty both write the modifier as a second parameter, some terminals
+    // send 9 for Alt, and rxvt gives Ctrl a final byte of its own; none of them
+    // means anything else. rxvt's Alt-Delete is a bare ESC in front of Delete,
+    // which is Escape then Delete as well, and is left to be that.
+    const Event altDelete = Event::Named(Event::Name::Delete, false, true, false);
+    registerKey("\x1b[3;3~", altDelete);
+    registerKey("\x1b[3;9~", altDelete);
+    const Event ctrlDelete = Event::Named(Event::Name::Delete, true, false, false);
+    registerKey("\x1b[3;5~", ctrlDelete);
+    registerKey("\x1b[3^", ctrlDelete);
 
     // Ctrl and Shift with Insert, the old pair a clipboard is copied to and
     // pasted from. xterm writes the modifier as a second parameter, rxvt as a
@@ -287,6 +336,57 @@ void registerNavigationKeys() {
     }};
     for (const auto& [form, event] : plainForms) registerKey(form, event);
 
+    // Backspace, Tab and Enter in the kitty protocol's own spelling with no
+    // modifier on them, which the protocol keeps for the flags above
+    // disambiguation but which iTerm2 sends for Option-Backspace all the same,
+    // the Option dropped. Unnamed, each reads as Escape and a run of letters.
+    const std::array<std::pair<const char*, Event>, 6> plainCsiU{{
+        {"\x1b[127u", Event::Backspace},
+        {"\x1b[127;1u", Event::Backspace},
+        {"\x1b[9u", Event::Tab},
+        {"\x1b[9;1u", Event::Tab},
+        {"\x1b[13u", Event::Return},
+        {"\x1b[13;1u", Event::Return},
+    }};
+    for (const auto& [form, event] : plainCsiU) registerKey(form, event);
+
+    // F1 to F4 as the kitty protocol spells them with no modifier at all:
+    // `CSI P`, `CSI Q`, `CSI 13 ~` and `CSI S`, which iTerm2 sends under it.
+    // F3 is a number rather than `CSI R` because that is the cursor position
+    // report. The VT220 numbers go with them, all twelve: rxvt and PuTTY send
+    // the first four that way, and every terminal sends F5 upwards that way —
+    // but a terminfo entry need not name them, and FreeBSD's entries for
+    // Alacritty, Ghostty, st and urxvt leave F10 to F12 out. None of these means
+    // anything else coming in. Left unnamed, each is read as Escape and then a
+    // run of typed characters.
+    const std::array<std::pair<const char*, Event>, 15> functionKeys{{
+        {"\x1b[P", Event::F1},
+        {"\x1b[Q", Event::F2},
+        {"\x1b[S", Event::F4},
+        {"\x1b[11~", Event::F1},
+        {"\x1b[12~", Event::F2},
+        {"\x1b[13~", Event::F3},
+        {"\x1b[14~", Event::F4},
+        {"\x1b[15~", Event::F5},
+        {"\x1b[17~", Event::F6},
+        {"\x1b[18~", Event::F7},
+        {"\x1b[19~", Event::F8},
+        {"\x1b[20~", Event::F9},
+        {"\x1b[21~", Event::F10},
+        {"\x1b[23~", Event::F11},
+        {"\x1b[24~", Event::F12},
+    }};
+    for (const auto& [form, event] : functionKeys) registerKey(form, event);
+
+    // Shift-Tab, which walks the compose screen's ring backwards. terminfo
+    // names it as `kcbt`, and not every entry names the `CSI Z` every terminal
+    // sends — st's does not. Under the kitty protocol it is Tab with Shift on
+    // it, `CSI 9 ; 2 u`, and under modifyOtherKeys WezTerm sends
+    // `CSI 27 ; 2 ; 9 ~`. None of the three means anything else.
+    for (const char* form : {"\x1b[Z", "\x1b[9;2u", "\x1b[27;2;9~"}) {
+        registerKey(form, Event::TabReverse);
+    }
+
     for (const char* form : {"\x1b[1~", "\x1b[7~", "\x1b[H", "\x1bOH"}) {
         registerKey(form, Event::Home);
     }
@@ -332,13 +432,29 @@ void registerNavigationKeys() {}
 /// cover the field between them, and a terminal that understands neither ignores
 /// both sequences.
 ///
+/// The requests go out in `modifier_key_reporting`'s order, and are taken back
+/// in the reverse one. A terminal that speaks both keeps whichever came last —
+/// iTerm2 does — and only the kitty protocol tells Ctrl-Backspace from
+/// Backspace: under modifyOtherKeys it is the same 08H.
+///
 /// Written straight to stdout rather than through ncurses: this happens once at
 /// each end of the run, when ncurses has nothing outstanding, and going through
 /// its output would mean it believed it had drawn something it had not.
 class ModifiedKeyReporting {
 public:
-    ModifiedKeyReporting() { write(kKittyPush, kXtermOn); }
-    ~ModifiedKeyReporting() { write(kKittyPop, kXtermOff); }
+    explicit ModifiedKeyReporting(std::vector<KeyProtocol> protocols)
+        : protocols_(std::move(protocols)) {
+        for (const KeyProtocol protocol : protocols_) {
+            std::fputs(protocol == KeyProtocol::Kitty ? kKittyPush : kXtermOn, stdout);
+        }
+        std::fflush(stdout);
+    }
+    ~ModifiedKeyReporting() {
+        for (auto it = protocols_.rbegin(); it != protocols_.rend(); ++it) {
+            std::fputs(*it == KeyProtocol::Kitty ? kKittyPop : kXtermOff, stdout);
+        }
+        std::fflush(stdout);
+    }
 
     ModifiedKeyReporting(const ModifiedKeyReporting&) = delete;
     ModifiedKeyReporting& operator=(const ModifiedKeyReporting&) = delete;
@@ -346,11 +462,7 @@ public:
     ModifiedKeyReporting& operator=(ModifiedKeyReporting&&) = delete;
 
 private:
-    static void write(const char* one, const char* two) {
-        std::fputs(one, stdout);
-        std::fputs(two, stdout);
-        std::fflush(stdout);
-    }
+    std::vector<KeyProtocol> protocols_;
 
     /// kitty keyboard protocol, "disambiguate escape codes" only. Higher flags
     /// would rewrite Enter, Tab and Backspace too, which we have no use for.
@@ -403,7 +515,9 @@ private:
 /// as a code of its own whether anyone asks or not. And there is no line
 /// discipline to take Ctrl-S and Ctrl-Q out of the stream before they arrive, so
 /// nothing has to be turned off for Ctrl-Q to be seen.
-struct ModifiedKeyReporting {};
+struct ModifiedKeyReporting {
+    explicit ModifiedKeyReporting(const std::vector<KeyProtocol>&) {}
+};
 struct FlowControlOff {};
 
 #endif  // _WIN32
@@ -540,6 +654,10 @@ Event namedKey(int code) {
         case ALT_LEFT: return Event::Named(Event::Name::ArrowLeft, false, true, false);
         case ALT_RIGHT: return Event::Named(Event::Name::ArrowRight, false, true, false);
         case ALT_BKSP: return Event::Named(Event::Name::Backspace, false, true, false);
+        case ALT_DEL: return Event::Named(Event::Name::Delete, false, true, false);
+        case CTL_DEL: return Event::Named(Event::Name::Delete, true, false, false);
+        case CTL_LEFT: return Event::Named(Event::Name::ArrowLeft, true, false, false);
+        case CTL_RIGHT: return Event::Named(Event::Name::ArrowRight, true, false, false);
         case CTL_HOME: return Event::Named(Event::Name::Home, true, false, false);
         case CTL_END: return Event::Named(Event::Name::End, true, false, false);
         case CTL_INS: return Event::Named(Event::Name::Insert, true, false, false);
@@ -548,6 +666,37 @@ Event namedKey(int code) {
 #endif
 
     return {};
+}
+
+/// What one code read off the keyboard is, where it is a key at all: a named
+/// key through `namedKey()`, and a character as itself — but for the control
+/// bytes a terminal still sends for the keys that predate terminfo, and Ctrl
+/// with a letter, which is what a C0 byte has meant since ASCII. Tab, Return
+/// and Backspace are keys in their own right rather than chords anyone presses
+/// as one. A code nothing binds is `Kind::None`.
+Event keyOf(bool named, wint_t code) {
+    if (named) return namedKey(static_cast<int>(code));
+    switch (code) {
+        case 27: return Event::Escape;
+        case 9: return Event::Tab;
+        case 10:
+        case 13: return Event::Return;
+        case 8: return Event::Backspace;
+#ifdef _WIN32
+        // The console reports Backspace as 08H and Ctrl with it as 7FH, always:
+        // there is no terminal in between to choose, so here the two are apart.
+        case 127: return Event::Named(Event::Name::Backspace, true, false, false);
+#else
+        case 127: return Event::Backspace;
+#endif
+        default: break;
+    }
+    if (code < 27) {
+        const auto letter = static_cast<char>('a' + static_cast<int>(code) - 1);
+        return Event::Character(std::string(1, letter), true, false, false);
+    }
+    if (code < 32) return {};
+    return Event::Character(encodeUtf8(static_cast<char32_t>(code)));
 }
 
 /// Everything AmberEdit acts on, and deliberately nothing else — see the note on
@@ -657,7 +806,9 @@ Event mouseEvent() {
 
 }  // namespace
 
-Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
+Terminal::Terminal(std::string altLetters, bool altBackspace,
+                   std::vector<KeyProtocol> reporting)
+    : screen_(0, 0), keyProtocols_(std::move(reporting)) {
     // Before ncurses starts: it reads the locale as it initialises, and what it
     // finds there decides the encoding everything is written out in.
     ensureUtf8Locale();
@@ -696,7 +847,7 @@ Terminal::Terminal(std::string altLetters, bool altBackspace) : screen_(0, 0) {
     initColors();
 
     flowControl = std::make_unique<FlowControlOff>();
-    keyReporting = std::make_unique<ModifiedKeyReporting>();
+    keyReporting = std::make_unique<ModifiedKeyReporting>(keyProtocols_);
     registerModifiedKeys(altLetters, altBackspace);
     registerNavigationKeys();
 
@@ -874,7 +1025,7 @@ void Terminal::handOver(const std::function<void()>& work) {
     mousemask(mouseEvents(), nullptr);
     mouseinterval(0);
     flowControl = std::make_unique<FlowControlOff>();
-    keyReporting = std::make_unique<ModifiedKeyReporting>();
+    keyReporting = std::make_unique<ModifiedKeyReporting>(keyProtocols_);
     curs_set(cursorVisible_ ? 1 : 0);
 
     // What ncurses believes is on the screen is whatever was there before the
@@ -1169,7 +1320,8 @@ Event Terminal::poll() {
         trace((status == KEY_CODE_YES ? "key code=" : "char code=") +
               std::to_string(static_cast<int>(code)));
 
-        if (status == KEY_CODE_YES) {
+        const bool named = status == KEY_CODE_YES;
+        if (named) {
             const auto key = static_cast<int>(code);
             if (key == KEY_RESIZE) {
                 syncSize();
@@ -1183,38 +1335,78 @@ Event Terminal::poll() {
             if (const auto found = customKeys.find(key); found != customKeys.end()) {
                 return found->second;
             }
-            const Event event = namedKey(key);
-            if (event.kind() == Event::Kind::None) continue;  // nothing binds it
-            return event;
         }
 
-        // An ordinary character, or one of the control bytes a terminal still
-        // sends for the keys that predate terminfo.
         // An answer to a question given up on, arriving late: taken off the
         // input whole rather than passed on as Escape and a run of letters.
-        if (code == 27 && (oscPending_ || da1Pending_) && swallowReply()) continue;
-
-        switch (code) {
-            case 27: return Event::Escape;
-            case 9: return Event::Tab;
-            case 10:
-            case 13: swallowLineEndPartner(code); return Event::Return;
-            case 8:
-            case 127: return Event::Backspace;
-            default: break;
+        if (!named && code == 27 && (oscPending_ || da1Pending_) && swallowReply()) {
+            continue;
         }
 
-        // C0: Ctrl with a letter, which is what the byte has meant since ASCII.
-        // Tab, Return and Backspace were taken above, being keys in their own
-        // right rather than chords anyone presses as one.
-        if (code < 27) {
-            const auto letter = static_cast<char>('a' + static_cast<int>(code) - 1);
-            return Event::Character(std::string(1, letter), true, false, false);
-        }
-        if (code < 32) continue;  // a control byte nothing binds
-
-        return Event::Character(encodeUtf8(static_cast<char32_t>(code)));
+        const Event event = keyOf(named, code);
+        if (event.kind() == Event::Kind::None) continue;  // nothing binds it
+        if (!named && (code == 10 || code == 13)) swallowLineEndPartner(code);
+        return event;
     }
 }
+
+#ifdef _WIN32
+
+namespace {
+
+/// A code written so that one word of a line holds it: the library's own name
+/// for a key code, `U+` and the hex for a character, and `K+` and the hex for a
+/// key code the library has no name for.
+std::string codeName(bool named, wint_t code) {
+    std::array<char, 16> hex{};
+    if (!named) {
+        std::snprintf(hex.data(), hex.size(), "U+%04X", static_cast<unsigned>(code));
+        return hex.data();
+    }
+    const char* name = keyname(static_cast<int>(code));
+    const std::string spelled = name != nullptr ? name : "";
+    const bool word = !spelled.empty() &&
+                      spelled.find_first_of(" ,#") == std::string::npos;
+    if (word) return spelled;
+    std::snprintf(hex.data(), hex.size(), "K+%X", static_cast<unsigned>(code));
+    return hex.data();
+}
+
+}  // namespace
+
+std::vector<std::string> Terminal::readCodes(int firstMs, int gapMs) {
+    std::vector<std::string> codes;
+    int wait = firstMs;
+    bool named = false;
+    while (const auto code = readRaw(wait, named)) {
+        codes.push_back(codeName(named, *code));
+        wait = gapMs;
+    }
+    return codes;
+}
+
+Event eventOfCode(const std::string& name) {
+    if (name.size() > 2 && (name[0] == 'U' || name[0] == 'K') && name[1] == '+') {
+        const auto code = static_cast<wint_t>(std::stoul(name.substr(2), nullptr, 16));
+        return keyOf(name[0] == 'K', code);
+    }
+    // The library names its own codes, so the code is found by asking it for
+    // every name it has. Asked once: the table does not change.
+    static const std::unordered_map<std::string, int> codes = [] {
+        std::unordered_map<std::string, int> out;
+        for (int code = KEY_MIN; code <= KEY_MAX; ++code) {
+            const char* spelled = keyname(code);
+            if (spelled != nullptr) out.emplace(spelled, code);
+        }
+        return out;
+    }();
+    const auto found = codes.find(name);
+    if (found == codes.end()) return {};
+    return keyOf(true, static_cast<wint_t>(found->second));
+}
+
+std::string cursesVersion() { return curses_version(); }
+
+#endif  // _WIN32
 
 }  // namespace amberedit::ui::term

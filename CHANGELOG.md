@@ -8,10 +8,16 @@
 - remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
 - add reader selection mode (V key). Reply in the selection mode quotes only what is selected, or the whole message where nothing is selected. Space key in the selection mode holds the anchor down, so the arrows select without Shift; Space again releases it
 - the reader's default hint bar offers v select in place of ctrl-n nodelist
+
+## 0.10.2 — 2026-11-05
+
+- add Ctrl-Backspace, Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
+- delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
+- add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
+- fix navigation keys, function keys, Shift-Tab, Option-Backspace and Esc on certain terminals
+- read quotes with no space after the markers e.g. ">Best regards"
 - add app.redraw: Ctrl-L draws the whole screen again
 - document Alpine Linux build
-- fix navigation keys, function keys and Esc on certain terminals
-- read quotes with no space after the markers e.g. ">Best regards"
 
 ## 0.10.1 — 2026-10-31
 

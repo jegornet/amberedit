@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.10.1
+Version:        0.10.2
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,15 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Thu Nov 05 2026 Yegor Gluhov <git@jegor.net> - 0.10.2-1
+- add Ctrl-Backspace, Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
+- delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
+- add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
+- fix navigation keys, function keys, Shift-Tab, Option-Backspace and Esc on certain terminals
+- read quotes with no space after the markers e.g. ">Best regards"
+- add app.redraw: Ctrl-L draws the whole screen again
+- document Alpine Linux build
+
 * Sat Oct 31 2026 Yegor Gluhov <git@jegor.net> - 0.10.1-1
 - fix right arrow not reaching attributes button from subject in 3-columns header_format
 - ignore angle brackets in quote initials
