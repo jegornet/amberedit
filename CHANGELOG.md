@@ -2,19 +2,12 @@
 
 ## Unreleased
 
-- fix Option-Backspace in iTerm2 under the kitty keyboard protocol read as Escape and a run of letters
-- fix Shift-Tab not read under the kitty keyboard protocol, in WezTerm and in st
-- fix Alt-F1 to Alt-F4 not read in kitty, Alacritty, Contour, Konsole and QTerminal
-- add Ctrl-Backspace to delete a word in the editor, under the kitty keyboard protocol
-- read Ctrl-Backspace in the Windows build, where the console tells it from Backspace
+- add Ctrl-Backspace (depends on your terminal), Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
-- add Alt-Delete and Ctrl-Delete to delete the word after the cursor in the editor
-- add Ctrl-Left and Ctrl-Right to move by words in the editor, beside Alt-Left and Alt-Right
-- fix F1 to F4 read as Escape in iTerm2 under the kitty keyboard protocol
 - add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
 - add app.redraw: Ctrl-L draws the whole screen again
 - document Alpine Linux build
-- fix navigation keys, function keys and Esc on certain terminals
+- fix navigation keys, function keys, Shift-Tab, Option-Backspace and Esc on certain terminals
 - read quotes with no space after the markers e.g. ">Best regards"
 
 ## 0.10.1 — 2026-10-31
