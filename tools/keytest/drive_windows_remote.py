@@ -28,6 +28,9 @@ PuTTY is looked for on PATH, where its installer puts it.
   a saved session `amberedit-keytest` holds the three settings that differ:
   local echo and line editing off, which the raw protocol turns on, and the
   window closed when the connection ends.
+- **putty-xterm216** — the same, with the keyboard set up as KEYS.md says:
+  function keys "Xterm 216+", the arrows' modifiers "xterm-style bitmap" and
+  application cursor keys disabled.
 - **terminal** — Windows Terminal, a window of its own running `ssh -t`, under the title
   the driver gives it.
 
@@ -90,13 +93,27 @@ def putty():
 PUTTY_SESSION = "amberedit-keytest"
 
 
-def putty_session():
+# The keyboard as PuTTY ships it, and as KEYS.md tells a user to set it up:
+# function keys and keypad "Xterm 216+", Shift/Ctrl/Alt with the arrows
+# "xterm-style bitmap", and application cursor keys disabled — without the
+# last, a terminal in application mode, which ncurses always asks for, is sent
+# every arrow bare whatever is held with it.
+KEYBOARD = {
+    "putty": {"LinuxFunctionKeys": 0, "ShiftedArrowKeys": 0, "NoApplicationCursors": 0},
+    "putty-xterm216": {"LinuxFunctionKeys": 6, "ShiftedArrowKeys": 1,
+                       "NoApplicationCursors": 1},
+}
+
+
+def putty_session(keyboard):
     key = winreg.CreateKey(winreg.HKEY_CURRENT_USER,
                            rf"Software\SimonTatham\PuTTY\Sessions\{PUTTY_SESSION}")
     with key:
         winreg.SetValueEx(key, "LocalEcho", 0, winreg.REG_DWORD, 1)  # FORCE_OFF
         winreg.SetValueEx(key, "LocalEdit", 0, winreg.REG_DWORD, 1)
         winreg.SetValueEx(key, "CloseOnExit", 0, winreg.REG_DWORD, 2)  # always
+        for name, value in KEYBOARD[keyboard].items():
+            winreg.SetValueEx(key, name, 0, winreg.REG_DWORD, value)
 
 
 def file_version(path):
@@ -106,8 +123,8 @@ def file_version(path):
     return out.replace("Release ", "")
 
 
-def open_putty(host, script, tag):
-    putty_session()
+def open_putty(host, script, tag, keyboard="putty"):
+    putty_session(keyboard)
     proxy = f"ssh.exe -tt -o BatchMode=yes {host} sh {script}"
     proc = subprocess.Popen([putty(), "-load", PUTTY_SESSION, "-raw",
                              "-proxycmd", proxy, host.split("@")[-1]])
@@ -128,6 +145,9 @@ def open_windows_terminal(host, script, tag):
 # windows-<name>-<protocol>.txt.
 TERMINALS = {
     "putty": (open_putty, "xterm", lambda: file_version(putty())),
+    "putty-xterm216": (lambda host, script, tag: open_putty(host, script, tag,
+                                                            "putty-xterm216"),
+                       "xterm", lambda: file_version(putty())),
     "terminal": (open_windows_terminal, None, lambda: subprocess.run(
         ["powershell", "-NoProfile", "-Command",
          "(Get-AppxPackage Microsoft.WindowsTerminal).Version"],
@@ -137,7 +157,7 @@ TERMINALS = {
 
 def take(terminal, protocol, host, amberedit, out_dir, wait_ms, only, version):
     opener, term, _ = TERMINALS[terminal]
-    name = "putty" if terminal == "putty" else f"windows-{terminal}"
+    name = terminal if terminal.startswith("putty") else f"windows-{terminal}"
     label = f"{name}-{version}" if version else name
     stem = f"windows-{terminal}-{protocol.replace(' ', '-')}"
     out_path = f"{out_dir}/{stem}.txt"
@@ -199,7 +219,7 @@ def take(terminal, protocol, host, amberedit, out_dir, wait_ms, only, version):
             time.sleep(1)
             if user32.IsWindow(hwnd):
                 user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
-        if proc is not None and terminal == "putty" and proc.poll() is None:
+        if proc is not None and terminal.startswith("putty") and proc.poll() is None:
             proc.terminate()
         if sync.poll() is None:
             sync.terminate()

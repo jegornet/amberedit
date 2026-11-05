@@ -103,7 +103,7 @@ standing in both.
 | `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
 | `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor; many terminals keep `Shift-Ins` for their own paste |
 
-## Keys a terminal cannot send
+## Known issues
 
 Some chords leave the terminal as the same bytes as another key, and AmberEdit
 reads them as that key. Measured in 19 Linux terminals, 5 on macOS, PuTTY and
@@ -117,14 +117,15 @@ Windows Terminal; the lists are `testdata/keys/limits.lst` and
   WezTerm with `enable_kitty_keyboard` (`modifier_key_reporting`). The Windows
   build reads `Ctrl-Backspace`, and none of the other four.
 - `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
-- In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
-  then the key. Alt with a letter works where the layout binds that letter.
+- In urxvt and PuTTY as it ships, Alt with an arrow, `Del` or a function key is
+  `Esc` and then the key. Alt with a letter works where the layout binds that
+  letter.
 - WezTerm with `enable_kitty_keyboard` on sends `Del` as `Backspace` under the
   kitty protocol; `modifier_key_reporting xterm` avoids it.
-- st sends `Ctrl-Home` as `Home` and `Alt-Del` as `Del`; PuTTY sends
-  `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`, and
-  nothing at all for `Ctrl-Home`, `Ctrl-End`, `Ctrl-Ins`, or on Windows for
-  `Ctrl-Del`.
+- st sends `Ctrl-Home` as `Home` and `Alt-Del` as `Del`; PuTTY as it ships
+  sends `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
+  PuTTY on Windows sends nothing at all for Ctrl with `Home`, `End`, `Ins` or
+  `Del`, whatever it is set to.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
   with a menu letter for themselves, and AmberEdit never sees them. Windows
   Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, conhost `Ctrl-V`, and
@@ -140,3 +141,19 @@ Windows Terminal; the lists are `testdata/keys/limits.lst` and
   Until then Option with a letter types a character, Option-←/→ moves by words
   in iTerm2 and Terminal.app, and Option with a function key or an arrow is the
   bare key. A Mac keyboard's Help key is not Insert.
+
+## PuTTY
+
+On Windows, use Windows Terminal 1.25 or later: it speaks the kitty keyboard
+protocol and sends every chord AmberEdit binds but the few it keeps for itself
+(above). PuTTY works, but some chords misbehave in it. Set it up as below:
+
+- *Terminal → Keyboard → The Function keys and keypad*: `Xterm 216+`
+- *Terminal → Keyboard → Shift/Ctrl/Alt with the arrow keys*: `xterm-style bitmap`
+- *Terminal → Features → Disable application cursor keys mode*: on — without it every arrow arrives
+  bare, whatever is held with it
+- *Connection → Data → Terminal-type string*: `xterm-256color` 
+
+Then Ctrl and Alt with the arrows, and Alt with `Del` and the function keys,
+work. Ctrl with `Home`, `End`, `Ins`, `Del` and `Backspace` still does not:
+use `Alt-Backspace` or `Ctrl-W` to delete a word.
