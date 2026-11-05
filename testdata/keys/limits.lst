@@ -1,0 +1,104 @@
+# Keys a terminal sends as bytes some other key is sent as too, so that what
+# AmberEdit reads is that other key and can be nothing better. A line is the key,
+# the bytes as a file under testdata/keys/ writes them, and what they are read as.
+#
+# Every line is a fact about a terminal, taken off a file beside this one. A key
+# AmberEdit reads wrongly when the terminal sent something it could have told
+# apart is a bug in ui/term/terminal.cpp, and goes there and not here.
+
+# Ctrl with H, I, J and M is the C0 byte Backspace, Tab, Line Feed and Enter have
+# been sent as since ASCII. Only the kitty keyboard protocol tells them apart, and
+# only in the terminals that speak it.
+Ctrl-H          \x08        Backspace
+Ctrl-I          \x09        Tab
+Ctrl-J          \x0a        Enter
+Ctrl-M          \x0d        Enter
+
+# Ctrl-Backspace is one of the two bytes Backspace itself is sent as, which of
+# them being the terminal's choice; only the kitty protocol's CSI 127;5u is the
+# chord. PuTTY sends Ctrl-Delete as the same 7FH.
+Ctrl-Backspace  \x08        Backspace
+Ctrl-Backspace  \x7f        Backspace
+Ctrl-Del        \x7f        Backspace
+
+# Shift-Space is a plain space wherever nothing has been asked to report it, and
+# modifyOtherKeys at level 1 does not ask.
+Shift-Space     \x20        Space
+
+# WezTerm with enable_kitty_keyboard on sends a bare Delete as 08H under the
+# kitty protocol, where the protocol says CSI 3 ~ — its own bug, and 08H is
+# Backspace in half the terminals here.
+Del             \x08        Backspace
+
+# st sends Ctrl-Home and Alt-Delete as the bare keys.
+Ctrl-Home       \e[1~       Home
+Alt-Del         \e[3~       Del
+
+# PuTTY sends Ctrl with Left and Right as the arrows in normal cursor mode.
+Ctrl-Left       \e[D        Left
+Ctrl-Right      \e[C        Right
+
+# rxvt and PuTTY write Alt as an ESC in front of the key's own sequence, which is
+# also Escape and then the key pressed quickly — or two keys sent in one packet
+# over ssh. Deliberately read as the two keys: see "Alt+Delete and Ctrl+Delete"
+# in AGENTS.md.
+Alt-Up          \e\e[A      Esc Up
+Alt-Down        \e\e[B      Esc Down
+Alt-Right       \e\e[C      Esc Right
+Alt-Left        \e\e[D      Esc Left
+Alt-Up          \e\eOA      Esc Up
+Alt-Down        \e\eOB      Esc Down
+Alt-Right       \e\eOC      Esc Right
+Alt-Left        \e\eOD      Esc Left
+Alt-Del         \e\e[3~     Esc Del
+Alt-F1          \e\e[11~    Esc F1
+Alt-F2          \e\e[12~    Esc F2
+Alt-F3          \e\e[13~    Esc F3
+Alt-F4          \e\e[14~    Esc F4
+Alt-F5          \e\e[15~    Esc F5
+Alt-F6          \e\e[17~    Esc F6
+Alt-F7          \e\e[18~    Esc F7
+Alt-F8          \e\e[19~    Esc F8
+Alt-F9          \e\e[20~    Esc F9
+Alt-F10         \e\e[21~    Esc F10
+Alt-F11         \e\e[23~    Esc F11
+Alt-F12         \e\e[24~    Esc F12
+
+# macOS. Where Option is not set up as Meta, a terminal there gives Option with a
+# letter the character the keyboard layout puts on it, which the checker knows
+# without a list: no ESC in it. What is left:
+
+# iTerm2 and Terminal.app send Option with Left and Right as macOS's own word
+# motion, ESC b and ESC f — Alt-B and Alt-F, which move by words here as well.
+Alt-Left        \eb                     Alt-B
+Alt-Right       \ef                     Alt-F
+
+# Terminal.app sends Option with a function key as the key five above it, F13
+# and up having no name here; Option-Delete is ESC (.
+Alt-F10         \e[28~                  Esc [ 2 8 ~
+Alt-F12         \e[31~                  Esc [ 3 1 ~
+Alt-F6          \e[23~                  F11
+Alt-F8          \e[25~                  Esc [ 2 5 ~
+Alt-F9          \e[26~                  Esc [ 2 6 ~
+Alt-F11         \e[29~                  Esc [ 2 9 ~
+Alt-Del         \e(                     Esc (
+
+# Option dropped: Alt-F11 as F11 where the system kept F11 itself, so the file
+# has no F11 of its own to set it beside; iTerm2's Option-Backspace under the
+# kitty protocol, its Backspace spelled CSI 127 u; WezTerm's Option-Delete with
+# enable_kitty_keyboard, sent as 08H like its Delete.
+Alt-F11         \e[23;1~                F11
+Alt-F11         \e[23~                  F11
+Alt-Backspace   \e[127u                 Backspace
+Alt-Del         \x08                    Backspace
+
+# A Mac keyboard has Help where Insert stands. iTerm2 and WezTerm send it as the
+# private character AppKit gives it, U+F746, and WezTerm under either protocol
+# as that code point with the modifier on it.
+Ctrl-Ins        \e[27;5;63302~          Esc [ 2 7 ; 5 ; 6 3 3 0 2 ~
+Ctrl-Ins        \e[63302;5u             Esc [ 6 3 3 0 2 ; 5 u
+Ctrl-Ins        \xef\x9d\x86            
+Ins             \xef\x9d\x86            
+Shift-Ins       \e[27;2;63302~          Esc [ 2 7 ; 2 ; 6 3 3 0 2 ~
+Shift-Ins       \e[63302;2u             Esc [ 6 3 3 0 2 ; 2 u
+Shift-Ins       \xef\x9d\x86            

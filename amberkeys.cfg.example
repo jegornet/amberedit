@@ -149,10 +149,17 @@ Ctrl-D          compose.delete_quote
 Alt-Z           compose.delete_quote
 Ctrl-W          compose.delete_word
 Alt-Backspace   compose.delete_word
+# Ctrl-Backspace arrives only from a terminal speaking the kitty keyboard
+# protocol; elsewhere it is sent as plain Backspace.
+Ctrl-Backspace  compose.delete_word
+Alt-Delete      compose.delete_next_word
+Ctrl-Delete     compose.delete_next_word
 Alt-B           compose.word_left
 Alt-Left        compose.word_left
+Ctrl-Left       compose.word_left
 Alt-F           compose.word_right
 Alt-Right       compose.word_right
+Ctrl-Right      compose.word_right
 Ctrl-A          compose.line_start
 Ctrl-E          compose.line_end
 # Shift-Ins is the key many terminals keep for their own paste, and AmberEdit

@@ -291,12 +291,66 @@ TEST_CASE("Ctrl-W takes the word before the cursor [editor]") {
     deleteWordBefore(joined);
     CHECK(shown(joined) == "one|^two");
 
+    // An empty line is the exception, and goes as Backspace takes it.
+    TextBuffer blank = bufferOf({"one", "", ""}, 2, 0);
+    deleteWordBefore(blank);
+    CHECK(shown(blank) == "one|^");
+    deleteWordBefore(blank);
+    CHECK(shown(blank) == "one^");
+    TextBuffer first = bufferOf({"", "two"}, 0, 0);
+    deleteWordBefore(first);
+    CHECK(shown(first) == "^|two");
+
     // A word is a word whatever alphabet it is in, and the whole character
     // goes with it.
     TextBuffer cyrillic =
         bufferOf({"AB> Привет, мир"}, 0, std::string("AB> Привет,").size());
     deleteWordBefore(cyrillic);
     CHECK(shown(cyrillic) == "AB> ^ мир");
+}
+
+TEST_CASE("Alt+Delete takes the word after the cursor [editor]") {
+    using amberedit::ui::deleteWordAfter;
+
+    TextBuffer buffer = bufferOf({"one two three"}, 0, 0);
+    deleteWordAfter(buffer);
+    CHECK(shown(buffer) == "^ two three");
+    // The separators go with the next word, up to where Alt+F would stop.
+    deleteWordAfter(buffer);
+    CHECK(shown(buffer) == "^ three");
+    deleteWordAfter(buffer);
+    CHECK(shown(buffer) == "^");
+    deleteWordAfter(buffer);
+    CHECK(shown(buffer) == "^");
+
+    // From inside a word, only what stands after the cursor.
+    TextBuffer inside = bufferOf({"one two"}, 0, 1);
+    deleteWordAfter(inside);
+    CHECK(shown(inside) == "o^ two");
+
+    // Nothing but separators to the end of the line, and they go.
+    TextBuffer trailing = bufferOf({"one  ..", "two"}, 0, 3);
+    deleteWordAfter(trailing);
+    CHECK(shown(trailing) == "one^|two");
+
+    // Within the line: at the end of one with text on it nothing happens.
+    TextBuffer joined = bufferOf({"one", "two"}, 0, 3);
+    deleteWordAfter(joined);
+    CHECK(shown(joined) == "one^|two");
+
+    // An empty line goes as Delete takes it, joining the line below.
+    TextBuffer blank = bufferOf({"", "", "two"}, 0, 0);
+    deleteWordAfter(blank);
+    CHECK(shown(blank) == "^|two");
+    deleteWordAfter(blank);
+    CHECK(shown(blank) == "^two");
+    TextBuffer last = bufferOf({"one", ""}, 1, 0);
+    deleteWordAfter(last);
+    CHECK(shown(last) == "one|^");
+
+    TextBuffer cyrillic = bufferOf({"Привет, мир"}, 0, 0);
+    deleteWordAfter(cyrillic);
+    CHECK(shown(cyrillic) == "^, мир");
 }
 
 TEST_CASE("What is saved has no blank lines trailing it [editor]") {

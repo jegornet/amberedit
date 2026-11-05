@@ -57,6 +57,7 @@ enum class Command : uint8_t {
     ComposeRestoreLine,     ///< compose.restore_line
     ComposeDeleteQuote,     ///< compose.delete_quote
     ComposeDeleteWord,      ///< compose.delete_word
+    ComposeDeleteNextWord,  ///< compose.delete_next_word
     ComposeWordLeft,        ///< compose.word_left
     ComposeWordRight,       ///< compose.word_right
     ComposeLineStart,       ///< compose.line_start

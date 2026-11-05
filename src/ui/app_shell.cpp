@@ -347,7 +347,12 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
     error_log::open(config.errorLogPath);
     // The terminal is told which letters Alt is held with before it starts
     // reading any: a layout binding none leaves Escape unambiguous everywhere.
-    Terminal terminal(keys.altLetters(), keys.altBackspace());
+    std::vector<KeyProtocol> reporting;
+    for (const config::KeyReporting protocol : config.modifierKeyReporting) {
+        reporting.push_back(protocol == config::KeyReporting::Kitty ? KeyProtocol::Kitty
+                                                                    : KeyProtocol::Xterm);
+    }
+    Terminal terminal(keys.altLetters(), keys.altBackspace(), std::move(reporting));
 
     // The first moment the terminal has said how many colors it has: it is
     // `start_color()`, inside the constructor above, that makes it say. Kept

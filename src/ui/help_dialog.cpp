@@ -37,9 +37,10 @@ constexpr int kChromeRows = 2;
 constexpr int kWindowMargin = 2;
 
 /// How wide the keys stand at most. The column itself is the widest of them and
-/// no wider — this is the cap on that. `Ctrl-W, Alt-Backspace` is the longest
-/// the standard layout writes and it fits whole; a layout that wrote a longer
-/// one has it cut rather than taking the column the sentences need.
+/// no wider — this is the cap on that. `Ctrl-W, Alt-Backspace` fits whole, and
+/// the keys of a command that has more than that — Delete word with
+/// `Ctrl-Backspace` after them, the word motions with Ctrl's arrow — are cut
+/// rather than taking the column the sentences need.
 constexpr int kMaxKeyColumn = 22;
 /// The space between the keys and the sentence beside them.
 constexpr int kGap = 2;

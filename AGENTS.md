@@ -80,6 +80,9 @@ because doctest's `TEST_CASE` takes a name and nothing else. They are filtered
 with `-tc`, which matches the whole name by wildcard:
 `./build/bin/amberedit_tests -tc="*[squish]*"`.
 
+**The keyboard is tested on bytes taken from real terminals**, and how is
+[The keyboard tests](#the-keyboard-tests) below.
+
 The code is C++17 and wants GCC 8, Clang 7 or Apple Clang 11 at the least;
 `CMakeLists.txt` refuses anything older by name, because an older compiler
 accepts `-std=c++17` well enough for CMake to call `CMAKE_CXX_STANDARD 17`
@@ -140,6 +143,162 @@ about the file are decisions rather than detail:
   The Windows arm64 job is **CLANGARM64** rather than UCRT64, MSYS2 publishing
   no GCC for aarch64 — it links the same Universal CRT, which is what UCRT64 was
   chosen for.
+
+### The keyboard tests
+
+The keyboard table in `ui/term/terminal.cpp` lives under ncurses, and the
+question it answers is split in two. **What a terminal sends** only the terminal
+knows, so it is taken off real ones and kept in `testdata/keys/`. **What
+AmberEdit makes of it** is asked on every build without a terminal:
+`[keys][pty]` (`tests/ui/keytest_test.cpp`) plays every file there into
+`Terminal::poll()` over a pty, under the `TERM` the file was taken with, and a
+key read as anything but itself fails the test.
+
+**The Windows build has no bytes to take**, and is tested the same way on what
+it has instead. PDCurses reads the console's key records and hands over a code
+of its own for each key — `CTL_HOME`, `ALT_A`, `U+0001` for Ctrl-A — so
+`--keytest` there writes the codes down, the library's own names for them, and
+`testdata/keys/pdcurses/` keeps one file per console. The Windows build's
+`[keys]` test reads each code back through `term::eventOfCode()`, which asks
+the function `poll()` asks, `keyOf()`, and needs no console to do it. The names
+and not the numbers are kept because the numbers are a library release's:
+PDCursesMod has renumbered its key codes before.
+
+- **`--keytest` and `--keycheck` are a build of their own**,
+  `-DAMBEREDIT_KEYTEST=ON` (`src/ui/keytest.*`), and `--help` lists them only
+  there. A release leaves them out — nothing a user of the editor runs — and CI
+  turns them on so that they go on compiling. The tests build `keytest.cpp`
+  whatever the option says.
+- **The list of keys is not kept by hand**: every key `KeyMap::defaults()`
+  binds, the keys that move about, each of them under the modifiers `keyNamed()`
+  accepts, and Ctrl and Alt with every letter (`keytest::keys()`). A command
+  given a key of its own is in the next run without anybody adding it, and a run
+  has to be taken again for its key to be in the files.
+- **The far end of the pty is a `fork()` of the process asking**, not a second
+  program, so the tests need no binary beside them; the answer for each run of
+  bytes is kept per TERM, which is what holds forty files to a tenth of a
+  second. A file whose TERM has no terminfo on the machine is passed over with a
+  message — kitty's, urxvt's and Ghostty's are often not installed.
+- **A key read as something else passes in three cases, and only these.** The
+  same file took another key as the very same bytes and the key was read as
+  that one — the terminal did not tell the two apart. An Alt-letter arrived as
+  one character with no ESC in it — a macOS terminal composing with Option, the
+  character being the keyboard layout's, so no list of them could be kept. Or
+  `testdata/keys/limits.lst` names the key, its bytes and what they are read as,
+  over a comment saying why. **A line goes into that file only for what the
+  terminal could not have told apart**; a key misread when the bytes were
+  distinct is a bug in `ui/term/terminal.cpp`, and a line written to make the
+  test pass hides it. KEYS.md says the same limits to a user.
+  `testdata/keys/pdcurses/limits.lst` is the Windows build's, on the same
+  terms, and holds one line that is a decision rather than the console's
+  limit: `Ctrl-J` is a lone LF, which a paste typed out by the console ends a
+  line with, and reading it as the chord would put the chord in every pasted
+  line break.
+- **`testdata/keys/` is never edited to make a test pass.** A terminal that
+  changed is taken again. The one change made by hand is taking out what is not
+  the terminal's: kitty pastes the clipboard on `Shift-Ins`, and a file carries
+  `-` there rather than whatever somebody had copied.
+
+**Taking a terminal.** `amberedit --keytest [protocols] --out FILE` asks for
+each key in turn, by hand if need be. A driver does it without hands, once per
+value of `modifier_key_reporting`, and `tools/keytest/collapse.py DIR` then
+folds the four files a terminal gives into one per set of bytes it sends —
+`xterm.txt` where they agree, `kitty-kitty.txt` and `kitty-xterm.txt` where the
+protocol changes what is sent — with the protocols in the header. That is the
+shape `testdata/keys/` is kept in.
+
+- **Each driver presses keys below the terminal**, so that the terminal encodes
+  them itself; anything that typed bytes into the pty would be taking down a
+  guess. `drive_x11.py` runs each terminal in an Xvfb of its own and presses
+  through XTEST **by keycode with the modifiers held by hand** — xdotool given a
+  keysym picks the level itself, and under Xvfb's map reaches the function keys
+  through Mod1, so xterm sends Alt-F1 for F1; it reads 0 to 9 as keysyms too.
+  `drive_wayland.py` runs a terminal with no X11 in a headless sway whose config
+  binds nothing, pressing through `wtype`, which hands the compositor a keymap
+  of its own on every call — so each key waits a moment behind it, or reaches
+  the terminal before its keymap and is lost. `drive_macos.py` posts through
+  Quartz at the HID level. `drive_windows_remote.py` presses through
+  `SendInput`, by virtual key with the scan code beside it, into PuTTY and
+  Windows Terminal logged in over ssh to a Unix host where `--keytest` runs:
+  the bytes a Windows terminal sends land on the host's pty like any other
+  terminal's, so they are files of the same kind and the same test plays them.
+  PuTTY gets its connection from `ssh.exe` as a local proxy command over the
+  raw protocol, so it needs no key of its own, and runs as it ships but for a
+  saved session turning off the local echo and line editing raw turns on.
+  Alt-F4 is never pressed there — Windows closes the window on it.
+  `drive_windows_local.py` presses the same way into AmberEdit's own Windows
+  build, in conhost — started as `conhost.exe`, so that a machine whose default
+  terminal is Windows Terminal does not hand the program over — and in Windows
+  Terminal, whose console is its own OpenConsole behind ConPTY. The two are
+  taken apart because they are not one console: Windows Terminal keeps `F11`
+  and `Shift-Ins`, and a chord crossing ConPTY is a sequence for a moment on
+  the way. One file per console, there being no protocol to ask a console for.
+  What both drivers press with and how they keep the window in front is
+  `windows_input.py`.
+- **A driver and `--keytest` keep in step over a FIFO, never by timing.** A
+  window just opened may not have the keyboard yet, and a dead key on macOS
+  sends nothing until the next one; either puts every answer after it one key
+  off. So `--keytest` asks for `warmup` presses until something arrives, and
+  after a key that sent nothing asks for a `flush` — Escape and Space, to put
+  away a menu or a panel the key opened and finish a dead key — and throws out
+  what that sends. Under X11 a click in the terminal goes with it: a GTK 4
+  popover takes no Escape without a window manager, and one put away leaves
+  the keyboard on the button that opened it.
+- **A terminal's name in a driver must not end in a protocol's** — `-kitty`,
+  `-xterm` — or two runs write one file name: tmux inside kitty is
+  `kitty-tmux`. `collapse.py` reads the protocol off the header for the same
+  reason, and marks what it wrote so a second run leaves it alone.
+- **A multiplexer is a terminal of its own in the driver**, tmux and screen
+  inside an xterm (`LAYERS` in `drive_x11.py`), each with its prefix moved off
+  the keys a run asks for: the key after a prefix is a command to the
+  multiplexer, and the run would go out of step.
+
+What a machine needs. **Linux** (the files were taken on Fedora): Xvfb,
+xdotool, xmodmap, libXtst, dbus-x11 and Mesa's software renderer for the
+terminals that want GL; sway and wtype for `drive_wayland.py`; Python 3 with
+nothing beyond the standard library, the X calls going through ctypes because a
+Python binding for them has to match the interpreter. The GTK and Qt terminals
+that are a server behind a client are started under a D-Bus session of their
+own (`NEEDS_DBUS`), and ptyxis under the user's, since it starts its shell in a
+scope of the user's systemd. **macOS**: the application the driver is started
+from needs *Device Control and Data Access* (Privacy & Security; Accessibility
+in older releases), which `drive_macos.py --request` asks for, and it asks once
+for the right to drive Terminal.app and System Events. **It takes over that
+machine's keyboard while it runs**: before every key it checks that the window
+it opened is in front — and for iTerm2 and Terminal.app, whose windows share a
+process, that its window is the current one — and stops at once where it is
+not, so a run started from a session in iTerm2 never types into that session.
+Ghostty is brought forward by its bundle id, System Events declining to by its
+pid. **Windows** (the files were taken on Windows 11 against the Fedora
+machine): PuTTY, Windows Terminal, Python 3 and `ssh.exe` logging in to the
+host without a question. `SendInput` reaches only the desktop of the session
+logged on at the console, and an ssh login is not that session, so the driver
+is started there through a scheduled task run interactively (`schtasks /it`).
+**`ssh.exe` is handed plain files, never a pipe**: with a pipe or a
+delete-on-close file on any of its handles it hangs before it greets the
+server, so the driver's commands and the FIFO's lines go through files. It
+checks before every key that its window is in front, clicks into it where it
+is not and stops where that does not bring it forward, and it empties the
+clipboard first, so that what `Ctrl-V` and `Shift-Ins` paste is nothing.
+The native build is MSYS2's CLANGARM64 or UCRT64 with the packages
+`.github/workflows/ci.yml` installs, configured with `-DAMBEREDIT_KEYTEST=ON`;
+it links statically, so the binary runs from the scheduled task outside MSYS2.
+`--sync` names an ordinary file there, which the driver follows as it grows —
+Windows has no FIFO — and the line `end` the driver's own `run.cmd` writes
+after the program is how it learns the run is over.
+
+Adding a terminal: a line in the driver's `TERMINALS` saying how it runs one
+program, a run, `collapse.py`, the files into `testdata/keys/` (macOS ones as
+`macos-*.txt` and Windows ones as `windows-*.txt`, the names being the Linux
+terminals' too; a console of the native Windows build as
+`testdata/keys/pdcurses/<name>.txt`, with no `collapse.py`), `--keycheck
+--limits testdata/keys/limits.lst` over them, and every mismatch either fixed in
+`terminal.cpp` or, where the terminal sent another key's bytes, a line in
+`limits.lst` and in KEYS.md.
+
+**Not taken**: the Linux console, deliberately — nobody reads mail on a bare
+virtual console any more, and the `linux` terminfo entry is what a session over
+it would be read with.
 
 ## Packaging
 
@@ -908,10 +1067,33 @@ Rules that hold the design together:
   hands them to `Terminal`, which passes them to `registerModifiedKeys()`. All 26
   `CSI u` forms are registered already. **Alt+Backspace** goes the same way —
   both protocol spellings always, the bare `ESC`+DEL (and `ESC`+BS) form only
-  when `KeyMap::altBackspace()` says a layout wants it. It is the one other
-  named key Alt may be written in front of, `takesAlt()` in `ui/keys.cpp`
-  naming the arrows and it; by default it is `compose.delete_word` beside
-  `Ctrl-W`.
+  when `KeyMap::altBackspace()` says a layout wants it. By default it is
+  `compose.delete_word` beside `Ctrl-W`.
+- **Alt+Delete and Ctrl+Delete are the word ahead of the cursor**,
+  `compose.delete_next_word`, claimed as `CSI 3 ; 3 ~`, `CSI 3 ; 9 ~`,
+  `CSI 3 ; 5 ~` and rxvt's `CSI 3 ^` — the spellings xterm and kitty agree on,
+  none of them ambiguous. rxvt's Alt+Delete is a bare `ESC` in front of Delete
+  and stays Escape then Delete. `takesAlt()` in `ui/keys.cpp` names the arrows,
+  the function keys, Backspace and Delete, and `takesCtrl()` Insert, Backspace,
+  Delete, Left and Right.
+- **Ctrl+Left and Ctrl+Right are the word motion beside Alt's**,
+  `compose.word_left` and `compose.word_right`, claimed as `CSI 1 ; 5 D`/`C`,
+  rxvt's `ESC O d`/`c` and screen's `CSI 5 D`/`C` — none of them ambiguous.
+  Ctrl with Up and Down is registered nowhere, nothing moving by it.
+- **Ctrl+Backspace is the kitty protocol's `CSI 127 ; 5 u` and nothing else.**
+  Without the protocol a terminal sends the chord as 08H or 7FH, the two bytes
+  plain Backspace is sent as — which of them is the terminal's choice and not
+  the key's — so reading either byte as the chord would take Backspace away on
+  whichever terminal sends that byte for it. Both stay Backspace in `poll()`,
+  and a terminal not speaking the protocol simply has no Ctrl-Backspace.
+  **The Windows build is the exception**: the console reports Backspace as 08H
+  and the chord as 7FH whatever the window in front of it, there being no
+  terminal to choose, so `keyOf()` reads 7FH as the chord there. The 7FH is the
+  keyboard layout's — the `VK_BACK` row of its character table, `'\b'` bare and
+  with Shift and `0x007f` with Ctrl, as `kbdus.c` in Microsoft's
+  Windows-driver-samples writes it.
+  `takesShift()` lets Shift go in front of Insert alone. By default it is
+  `compose.delete_word`, the third key beside `Ctrl-W` and `Alt-Backspace`.
 - **Home and End are claimed in every form, Ctrl and all, through the same
   `define_key()`.**
   `khome` and `kend` name the one sequence the terminal their entry was written
@@ -925,14 +1107,12 @@ Rules that hold the design together:
   all: the xterm form, the two parameterized numbers and rxvt's `^` final byte,
   four of each, which is how the reader is sent to the first and the last
   message of an area and the editor to the start and the end of the text. Do not narrow either set to the forms one terminal happens
-  to need. No key but these and the arrows needs this: the rest are spelled the
-  same way everywhere.
+  to need. No key but these, the arrows and F1 to F4 needs this: the rest are
+  spelled the same way everywhere.
 - **The arrows are claimed in both forms, whatever application mode says.**
   `keypad()` sends `smkx` and terminfo then names `ESC O A`, but the request for
-  the kitty protocol can put a terminal back on `ESC [ A`. Konsole does that
-  with both of `ModifiedKeyReporting`'s requests standing; iTerm2 does it for
-  the kitty request alone, the modifyOtherKeys one written after it undoing
-  that. Terminals disagree here and nothing reports which way one went, so
+  the kitty protocol can put a terminal back on `ESC [ A`. Konsole and iTerm2
+  both do that with `ModifiedKeyReporting`'s requests standing. Terminals disagree here and nothing reports which way one went, so
   `registerNavigationKeys()` registers both forms rather than leaning on the
   mode. An unnamed form is worse than a dead key: ncurses hands its bytes over
   one at a time, so an arrow reads as Escape and then two characters.
@@ -943,6 +1123,12 @@ Rules that hold the design together:
   arrows, Home, End, Insert, Delete, the page keys, Escape and F1 to F12 in that
   form, F1 to F4 in the `CSI 1 ; 1 P` spelling as well. None of them means
   anything else, so none waits on the layout.
+- **F1 to F4 are claimed in the kitty protocol's bare spelling too** — `CSI P`,
+  `CSI Q`, `CSI 13 ~`, `CSI S`, the parameter left off as the protocol allows —
+  and in the VT220 numbers `CSI 11 ~` to `CSI 14 ~`. iTerm2 sends the first set
+  under the protocol, where terminfo names only `ESC O P`; unnamed, each reads
+  as Escape and two characters. F3 is a number because `CSI R` is the cursor
+  position report.
 - **A CR and an LF waiting together are one Return.** `poll()` reads either as
   Return and then takes its partner off the input where it is already there
   behind it (`swallowLineEndPartner()`), never waiting for one. A console that
@@ -954,7 +1140,15 @@ Rules that hold the design together:
   (`set_escdelay(25)`).
 - Shift+Space needs the terminal to report modified keys, which none does by
   default. `runApp()` turns that on (kitty keyboard protocol at the disambiguate
-  level, plus xterm `modifyOtherKeys=1`) and restores it on exit. The side effect
+  level, plus xterm `modifyOtherKeys=1`) and restores it on exit, in the
+  reverse order. **Which of the two, and in what order, is
+  `modifier_key_reporting`**, read in `config/app_config.cpp` and handed to
+  `Terminal` as `term::KeyProtocol`s by `runApp()` — `ui/term/` includes
+  nothing of `config/`, so the type is its own. The default writes the kitty
+  request after the modifyOtherKeys one: a terminal that speaks both keeps
+  whichever came last — iTerm2 does — and only kitty's `CSI 127 ; 5 u` tells
+  Ctrl+Backspace from Backspace. `--setup` has no config and asks in the
+  default order. The side effect
   is that a bare Escape then arrives as `CSI 27 u`, which `app_shell.cpp` folds
   back into `Event::Escape` before the screens see it — if you raise the kitty
   flags, Enter, Tab and Backspace will need the same treatment.
@@ -2267,15 +2461,17 @@ decides what an occurrence is.
 - **A field is edited with the keys the text is edited with.** The arrows,
   Backspace, Delete, `Home`/`End` and the `compose.line_start`/`line_end` chords
   are answered in `headerKey()`, and so are `compose.word_left`,
-  `compose.word_right` and `compose.delete_word`: a header the arrows alone can
+  `compose.word_right`, `compose.delete_word` and
+  `compose.delete_next_word`: a header the arrows alone can
   cross is a header nobody corrects twice. What a word is is defined once —
   `wordStartBefore()` and `wordEndAfter()` in `ui/text_editor.hpp`, which the
-  buffer's own `moveWordLeft()`, `moveWordRight()` and `deleteWordBefore()` are
+  buffer's own `moveWordLeft()`, `moveWordRight()`, `deleteWordBefore()` and
+  `deleteWordAfter()` are
   written on — so the two halves of the screen cannot come to disagree about
   where one begins. **A field is one line**, and that is the only difference: the
   two answer `std::nullopt` where nothing but separators lies that way, which in
   the text carries the motion onto the line above or below and in a field is the
-  edge it stops at. These three are live under `external_editor` for the same
+  edge it stops at. These four are live under `external_editor` for the same
   reason the line ends are — see `ui/command_live.hpp`: they act on a field, and
   the header block is what is still typed into there.
 - **A long line is broken by the window, never by the editor.**
@@ -5068,10 +5264,10 @@ together — `keys_mode` says which.
   `KeyMap::altBackspace()`, and the boxes that close on the key that opened
   them — Info, the nodelist — ask the layout what that key is. Everything else
   a modifier reaches AmberEdit through is a CSI sequence and so ambiguous with
-  nothing: Alt with an arrow, Alt with a function key — `Alt-F1` and its eleven
-  fellows, the row the utilities are meant to be bound with — and both
-  protocols' spelling of Alt-Backspace are registered whether a layout binds
-  them or not.
+  nothing: Alt with an arrow, Ctrl with Left and Right, Alt with a function key — `Alt-F1` and its eleven
+  fellows, the row the utilities are meant to be bound with — both
+  protocols' spelling of Alt-Backspace, kitty's of Ctrl-Backspace and the CSI
+  forms of Alt-Delete and Ctrl-Delete are registered whether a layout binds them or not.
 - **What a command is is stated three times in the one row and nowhere else**:
   `labelId` is the word a button and a hint are written with, `helpId` is the
   sentence the help box writes beside the keys, and `icon` is the glyph a menu
@@ -5258,9 +5454,9 @@ together — `keys_mode` says which.
     whole, any line ending taken off, every line through `messageLine()` — what
     the import does to a file, since a clipboard is another program's bytes as
     much as a file is.
-  - `Ctrl-Ins` and `Shift-Ins` are the one place Ctrl and Shift go with a named
-    key in a layout (`takesCtrlOrShift()` in `ui/keys.cpp`), one modifier at a
-    time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
+  - `Ctrl-Ins` and `Shift-Ins` are the one place Shift goes with a named key in
+    a layout (`takesShift()` and `takesCtrl()` in `ui/keys.cpp`), one modifier
+    at a time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
     and the text then arrives typed — the terminal's clipboard, not
     `clipboard`'s.
 - **The hint bar reads the layout rather than naming keys of its own**
@@ -5356,6 +5552,13 @@ together — `keys_mode` says which.
   reached us cut to 79 bytes a line, twenty-six of them in the middle of a code,
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
+- `testdata/keys/` — what 19 Linux terminals, 5 on macOS, PuTTY and Windows
+  Terminal on Windows, and tmux and screen sent for every key under each of the
+  four `modifier_key_reporting` values, one file per set of bytes a terminal
+  sends, and `limits.lst` beside them; under `pdcurses/`, the codes conhost and
+  Windows Terminal reported to AmberEdit's own Windows build, with a
+  `limits.lst` of its own. See [The keyboard tests](#the-keyboard-tests); do
+  not edit them to make a test pass — take the terminal again.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.
 - `testdata/msgbase/charsets.*` — a small Squish base for the charset tests: the
   word "Привет" in KOI8-R and in CP866, each with the CHRS kludge that says so,

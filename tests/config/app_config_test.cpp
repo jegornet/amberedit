@@ -2496,6 +2496,31 @@ TEST_CASE("AppConfig reads the keyboard layout and what to do with it [app_confi
     CHECK_MESSAGE(contains(error, "merge | clear"), error);
 }
 
+TEST_CASE("AppConfig reads which protocols modified keys are asked in [app_config]") {
+    using amberedit::config::KeyReporting;
+    using Order = std::vector<KeyReporting>;
+
+    // xterm first and kitty last by default: a terminal speaking both keeps the
+    // request that came last, and kitty's is the one with Ctrl-Backspace in it.
+    CHECK(with("").modifierKeyReporting ==
+          Order{KeyReporting::Xterm, KeyReporting::Kitty});
+    CHECK(with("modifier_key_reporting kitty xterm\n").modifierKeyReporting ==
+          Order{KeyReporting::Kitty, KeyReporting::Xterm});
+    CHECK(with("modifier_key_reporting KITTY\n").modifierKeyReporting ==
+          Order{KeyReporting::Kitty});
+    CHECK(with("modifier_key_reporting xterm\n").modifierKeyReporting ==
+          Order{KeyReporting::Xterm});
+
+    const std::string unknown = errorWith("modifier_key_reporting kitty csi\n");
+    CHECK_MESSAGE(contains(unknown, "unknown modifier_key_reporting: 'csi'"), unknown);
+    const std::string twice = errorWith("modifier_key_reporting kitty kitty\n");
+    CHECK_MESSAGE(contains(twice, "names 'kitty' twice"), twice);
+    const std::string none = errorWith("modifier_key_reporting\n");
+    CHECK_MESSAGE(contains(none, "one or two of xterm | kitty"), none);
+    const std::string three = errorWith("modifier_key_reporting xterm kitty xterm\n");
+    CHECK_MESSAGE(contains(three, "one or two of xterm | kitty"), three);
+}
+
 TEST_CASE("AppConfig reads which clipboard copies and pastes go through [app_config]") {
     using amberedit::config::ClipboardMode;
 

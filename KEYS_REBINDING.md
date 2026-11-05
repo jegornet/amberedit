@@ -19,10 +19,10 @@ F2   reader.change
 A `keys_mode` line says what that file does to the layout AmberEdit already
 has — `merge` by default:
 
-**`keys_mode merge` reads the file on top of the standard layout.** A command the file
-does not name keeps the key it has, and a key the file gives to something else
-is taken off whatever had it: a clash is settled for the file. So a file of
-three lines says what three keys do and changes nothing else.
+**`keys_mode merge` reads the file on top of the standard layout.** A command 
+the file does not name keeps the key it has, and a key the file gives
+to something else is taken off whatever had it: a clash is settled for the file.
+So a file of three lines says what three keys do and changes nothing else.
 
 **`keys_mode clear` throws the standard layout away first, and the file is then
 the entire layout.** Any command not listed in it has no keybinding at all, so
@@ -31,19 +31,19 @@ and edit that instead of starting from a blank file.
 
 Keys are written as a single character (`l`, `G`, `/`, `+` — case tells two
 apart), a function key (`F1` to `F12`), `Del`, `Ins`, `Ctrl-Ins`, `Shift-Ins`,
-`Ctrl-` and a letter, or `Alt-` and a letter, an arrow, a function key or
-`Backspace`. Two screens may share a key, as `F2`
-does between the reader and the editor; two commands of one screen may not, and
-a layout that tries says which line clashes with which.
+`Ctrl-Backspace` (kitty keyboard protocol only), `Ctrl-Del`, `Ctrl-Left`,
+`Ctrl-Right`, `Ctrl-` and a letter, or `Alt-` and a letter, an arrow, a function key, `Backspace` or `Del`. Two screens may
+share a key, as `F2` does between the reader and the editor; two commands of one
+screen may not, and a layout that tries says which line clashes with which.
 
 **Moving about is not bindable**: the arrows, `PgUp` and `PgDn`, `Home` and
 `End`, `Space`, `Enter`, `Esc`, `Backspace` and `Tab` mean the same thing on
-every screen — mostly bare: `Alt-Left` and `Alt-Backspace` are chords of their
-own and may be bound, while `Ctrl-Home` and `Ctrl-End` move about as well, to
-the first and the last message of the area — and the dialogs answer for
-themselves entirely. `Space` in the message list marks the message rather than
-paging, which is a key the screen answers and not a binding; `PgDn` pages there
-as everywhere.
+every screen — mostly bare: `Alt-Left`, `Ctrl-Left`, `Alt-Backspace` and `Ctrl-Backspace` 
+are chords of their own and may be bound, while `Ctrl-Home` and `Ctrl-End` 
+move about as well, to the first and the last message of the area — and 
+the dialogs answer for themselves entirely. `Space` in the message list marks 
+the message rather than paging, which is a key the screen answers and not 
+a binding; `PgDn` pages there as everywhere.
 
 A command is written as where it is answered, a dot, and the command itself —
 `reader.list`, `app.quit`. What stands in front of the dot is what lets one key
@@ -56,7 +56,7 @@ and the editor never being the same screen.
 | `arealist.` | the area list | `next_unread`, `toggle_unread`, `rescan`, `mark_toggle`, `catch_up` |
 | `msglist.` | the message list | `mark_toggle`, `delete` |
 | `reader.` | the reader | `reply`, `reply_elsewhere`, `comment_reply`, `new`, `forward`, `change`, `delete`, `export`, `find`, `list`, `info`, `nodelist`, `kludges`, `charset`, `scrollbar`, `thread_up`, `thread_down`, `mark_toggle`, `mark_menu`, `shell`, `copy` |
-| `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `word_left`, `word_right`, `line_start`, `line_end`, `paste` |
+| `compose.` | the editor | `save`, `attributes`, `import`, `header_back`, `delete_line`, `restore_line`, `delete_quote`, `delete_word`, `delete_next_word`, `word_left`, `word_right`, `line_start`, `line_end`, `paste` |
 
 `app.quit` is answered ahead of every dialog as well: no box is worth being the
 one thing between you and the way out. `app.redraw` is too, all but the

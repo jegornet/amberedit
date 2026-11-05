@@ -242,9 +242,14 @@ bool restoreLine(TextBuffer& buffer) {
 }
 
 void deleteWordBefore(TextBuffer& buffer) {
-    // Nothing before it on this line: the line break is Backspace's to take
-    // out, and a word erased across one would take the paragraph's shape with
-    // it.
+    // An empty line has no word to take and goes as Backspace takes it, so
+    // that a run of blank lines is erased by holding the same key. A line with
+    // text on it keeps its break: a word erased across one would take the
+    // paragraph's shape with it.
+    if (buffer.line().empty()) {
+        deleteBefore(buffer);
+        return;
+    }
     if (buffer.col == 0) return;
 
     // Where `moveWordLeft()` would have left the cursor had it stayed on the
@@ -253,6 +258,20 @@ void deleteWordBefore(TextBuffer& buffer) {
     const size_t at = wordStartBefore(buffer.line(), buffer.col).value_or(0);
     buffer.line().erase(at, buffer.col - at);
     buffer.col = at;
+}
+
+void deleteWordAfter(TextBuffer& buffer) {
+    // The empty line goes as Delete takes it, for the reason the word behind the
+    // cursor gives: a run of blank lines is erased by holding the key.
+    if (buffer.line().empty()) {
+        deleteAt(buffer);
+        return;
+    }
+    // Up to where `moveWordRight()` would stop on this line, and the rest of the
+    // line where nothing but separators is left on it.
+    const size_t to =
+        wordEndAfter(buffer.line(), buffer.col).value_or(buffer.line().size());
+    buffer.line().erase(buffer.col, to - buffer.col);
 }
 
 void deleteQuote(TextBuffer& buffer) {

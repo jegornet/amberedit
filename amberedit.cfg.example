@@ -432,6 +432,14 @@ reader_show_message_size off
 #           program unreachable.
 #keys_mode merge
 
+# Which protocols the terminal is asked to report modified keys (Ctrl, Alt,
+# Shift) in, and in what order. Optional; defaults to "xterm kitty".
+#   xterm kitty   xterm modifyOtherKeys, then the kitty keyboard protocol
+#   kitty xterm   the other way round
+#   kitty         the kitty keyboard protocol only
+#   xterm         xterm modifyOtherKeys only
+#modifier_key_reporting xterm kitty
+
 # --- the clipboard ------------------------------------------------------------
 
 # Where reader.copy (Ctrl-C, Ctrl-Ins) puts the message on screen and

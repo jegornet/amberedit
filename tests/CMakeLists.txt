@@ -83,6 +83,7 @@ add_executable(amberedit_tests
   ui/info_dialog_test.cpp
   ui/error_log_test.cpp
   ui/keys_test.cpp
+  ui/keytest_test.cpp
   ui/nodelist_dialog_test.cpp
   ui/compose_screen_test.cpp
   ui/external_editor_test.cpp
@@ -172,6 +173,10 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/info_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/input_field.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/keys.cpp
+  # The keyboard diagnostics, whatever AMBEREDIT_KEYTEST says: that option is
+  # whether the program offers them, and these tests are what plays the bytes
+  # taken from real terminals back on every build.
+  ${CMAKE_SOURCE_DIR}/src/ui/keytest.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/mark_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/menu_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/message_marks.cpp

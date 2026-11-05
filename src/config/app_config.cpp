@@ -676,6 +676,34 @@ tl::expected<KeysMode, ErrorPtr> parseKeysMode(const CfgEntry& entry) {
     return entry.fail("unknown keys_mode: '" + value + "' (expected merge | clear)");
 }
 
+/// The `modifier_key_reporting` words: which protocols, in the order the
+/// requests go out. Each once, since asking twice for one protocol says nothing
+/// the first request did not.
+tl::expected<std::vector<KeyReporting>, ErrorPtr> parseKeyReporting(
+    const CfgEntry& entry) {
+    if (entry.values.empty() || entry.values.size() > 2) {
+        return entry.fail("modifier_key_reporting takes one or two of xterm | kitty");
+    }
+    std::vector<KeyReporting> protocols;
+    for (const std::string& word : entry.values) {
+        const std::string value = text::toLower(word);
+        KeyReporting protocol{};
+        if (value == "xterm") {
+            protocol = KeyReporting::Xterm;
+        } else if (value == "kitty") {
+            protocol = KeyReporting::Kitty;
+        } else {
+            return entry.fail("unknown modifier_key_reporting: '" + value +
+                              "' (expected xterm | kitty)");
+        }
+        if (std::find(protocols.begin(), protocols.end(), protocol) != protocols.end()) {
+            return entry.fail("modifier_key_reporting names '" + value + "' twice");
+        }
+        protocols.push_back(protocol);
+    }
+    return protocols;
+}
+
 /// The `clipboard` word: where a copy goes and a paste comes from.
 tl::expected<ClipboardMode, ErrorPtr> parseClipboardMode(const CfgEntry& entry) {
     auto only = entry.one();
@@ -1519,6 +1547,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseKeysMode(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.keysMode = *read;
+    } else if (key == "modifier_key_reporting") {
+        auto read = parseKeyReporting(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.modifierKeyReporting = std::move(*read);
     } else if (key == "tmpdir") {
         auto read = readPath(entry, "a directory to work in");
         if (!read) return tl::make_unexpected(std::move(read).error());
