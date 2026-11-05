@@ -5,10 +5,10 @@
 - add Ctrl-Backspace, Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
 - add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
-- add app.redraw: Ctrl-L draws the whole screen again
-- document Alpine Linux build
 - fix navigation keys, function keys, Shift-Tab, Option-Backspace and Esc on certain terminals
 - read quotes with no space after the markers e.g. ">Best regards"
+- add app.redraw: Ctrl-L draws the whole screen again
+- document Alpine Linux build
 
 ## 0.10.1 — 2026-10-31
 
