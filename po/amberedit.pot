@@ -45,7 +45,7 @@ msgstr ""
 msgid "template: {0}"
 msgstr ""
 
-#: src/config/app_config.cpp:2884
+#: src/config/app_config.cpp:2916
 msgid "no description"
 msgstr ""
 
@@ -270,7 +270,7 @@ msgstr ""
 msgid "Run the system shell"
 msgstr ""
 
-#: src/config/commands.cpp:85 src/config/commands.cpp:116
+#: src/config/commands.cpp:85 src/config/commands.cpp:120
 #: src/ui/forward_dialog.cpp:121
 msgid "Copy"
 msgstr ""
@@ -345,78 +345,86 @@ msgid "Delete word"
 msgstr ""
 
 #: src/config/commands.cpp:107
-msgid "A word to the left"
+msgid "Delete next word"
 msgstr ""
 
 #: src/config/commands.cpp:107
+msgid "Delete the word after the cursor"
+msgstr ""
+
+#: src/config/commands.cpp:110
+msgid "A word to the left"
+msgstr ""
+
+#: src/config/commands.cpp:110
 msgid "Word left"
 msgstr ""
 
-#: src/config/commands.cpp:109
+#: src/config/commands.cpp:112
 msgid "A word to the right"
 msgstr ""
 
-#: src/config/commands.cpp:109
+#: src/config/commands.cpp:112
 msgid "Word right"
 msgstr ""
 
-#: src/config/commands.cpp:111
+#: src/config/commands.cpp:115
 msgid "Line start"
 msgstr ""
 
-#: src/config/commands.cpp:111
+#: src/config/commands.cpp:115
 msgid "To the start of the line"
 msgstr ""
 
-#: src/config/commands.cpp:112
+#: src/config/commands.cpp:116
 msgid "Line end"
 msgstr ""
 
-#: src/config/commands.cpp:113
+#: src/config/commands.cpp:117
 msgid "To the end of the line"
 msgstr ""
 
-#: src/config/commands.cpp:114
+#: src/config/commands.cpp:118
 msgid "Paste"
 msgstr ""
 
-#: src/config/commands.cpp:115
+#: src/config/commands.cpp:119
 msgid "Paste from the clipboard at the cursor"
 msgstr ""
 
-#: src/config/commands.cpp:117
+#: src/config/commands.cpp:121
 msgid "Copy the selected text to the clipboard"
 msgstr ""
 
-#: src/config/commands.cpp:118
+#: src/config/commands.cpp:122
 msgid "Cut"
 msgstr ""
 
-#: src/config/commands.cpp:119
+#: src/config/commands.cpp:123
 msgid "Move the selected text to the clipboard"
 msgstr ""
 
-#: src/config/commands.cpp:120
+#: src/config/commands.cpp:124
 msgid "Undo"
 msgstr ""
 
-#: src/config/commands.cpp:121
+#: src/config/commands.cpp:125
 msgid "Take the last change back"
 msgstr ""
 
-#: src/config/commands.cpp:122
+#: src/config/commands.cpp:126
 msgid "Redo"
 msgstr ""
 
-#: src/config/commands.cpp:123
+#: src/config/commands.cpp:127
 msgid "Make the change undone again"
 msgstr ""
 
-#: src/config/commands.cpp:199
+#: src/config/commands.cpp:203
 msgid "Run the program the config names"
 msgstr ""
 
-#: src/config/commands.cpp:199
+#: src/config/commands.cpp:203
 msgid "Utility"
 msgstr ""
 
@@ -431,7 +439,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.10.2\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-11-01 12:50+0100\n"
+"POT-Creation-Date: 2026-11-06 00:13+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -441,7 +449,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: src/main.cpp:31
+#: src/main.cpp:34
 #, c++-format
 msgid ""
 "AmberEdit — a Fidonet mail editor.\n"
@@ -464,71 +472,71 @@ msgid ""
 "  {0} -o \"theme themes/white.cfg\" -o \"quote_margin 72\"\n"
 msgstr ""
 
-#: src/main.cpp:77
+#: src/main.cpp:94
 #, c++-format
 msgid "{0} node"
 msgid_plural "{0} nodes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:83
+#: src/main.cpp:100
 #, c++-format
 msgid " and {0} point"
 msgid_plural " and {0} points"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:86
+#: src/main.cpp:103
 #, c++-format
 msgid "{0}{1} into {2}"
 msgstr ""
 
-#: src/main.cpp:91 src/main.cpp:121 src/main.cpp:231 src/main.cpp:291
-#: src/main.cpp:319 src/main.cpp:392 src/ui/setup/setup_run.cpp:47
+#: src/main.cpp:108 src/main.cpp:138 src/main.cpp:257 src/main.cpp:317
+#: src/main.cpp:345 src/main.cpp:418 src/ui/setup/setup_run.cpp:47
 #, c++-format
 msgid "warning: {0}"
 msgstr ""
 
-#: src/main.cpp:115
+#: src/main.cpp:132
 #, c++-format
 msgid "{0} area into {1}"
 msgid_plural "{0} areas into {1}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.cpp:143
+#: src/main.cpp:160
 #, c++-format
 msgid "{0} is bound to {1}, which no {2} line sets"
 msgstr ""
 
-#: src/main.cpp:191 src/main.cpp:205
+#: src/main.cpp:217 src/main.cpp:231
 #, c++-format
 msgid "error: {0} needs a value"
 msgstr ""
 
-#: src/main.cpp:211 src/main.cpp:278 src/main.cpp:308 src/main.cpp:330
-#: src/main.cpp:340 src/main.cpp:364 src/main.cpp:376 src/main.cpp:404
+#: src/main.cpp:237 src/main.cpp:304 src/main.cpp:334 src/main.cpp:356
+#: src/main.cpp:366 src/main.cpp:390 src/main.cpp:402 src/main.cpp:430
 #, c++-format
 msgid "error: {0}"
 msgstr ""
 
-#: src/main.cpp:219
+#: src/main.cpp:245
 #, c++-format
 msgid "error: unknown option '{0}'"
 msgstr ""
 
-#: src/main.cpp:240
+#: src/main.cpp:266
 msgid "error: --setup writes a config of its own, so it does not take -c or -o"
 msgstr ""
 
-#: src/main.cpp:251
+#: src/main.cpp:277
 #, c++-format
 msgid ""
 "error: there is already an AmberEdit config: {0}\n"
 "Edit it, or move it aside and run --setup again."
 msgstr ""
 
-#: src/main.cpp:264
+#: src/main.cpp:290
 #, c++-format
 msgid ""
 "error: no AmberEdit config found.\n"
@@ -612,7 +620,7 @@ msgstr ""
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:992
+#: src/ui/app_shell.cpp:997
 msgid "Not found"
 msgstr ""
 
@@ -1065,31 +1073,31 @@ msgctxt "header block"
 msgid "Recd"
 msgstr ""
 
-#: src/ui/help_dialog.cpp:51
+#: src/ui/help_dialog.cpp:52
 msgid " Area list keys "
 msgstr ""
 
-#: src/ui/help_dialog.cpp:52
+#: src/ui/help_dialog.cpp:53
 msgid " Message list keys "
 msgstr ""
 
-#: src/ui/help_dialog.cpp:53
+#: src/ui/help_dialog.cpp:54
 msgid " Reader keys "
 msgstr ""
 
-#: src/ui/help_dialog.cpp:56
+#: src/ui/help_dialog.cpp:57
 msgid " Editor keys "
 msgstr ""
 
-#: src/ui/help_dialog.cpp:114
+#: src/ui/help_dialog.cpp:115
 msgid "Everywhere"
 msgstr ""
 
-#: src/ui/help_dialog.cpp:125
+#: src/ui/help_dialog.cpp:126
 msgid "no key on this screen runs anything"
 msgstr ""
 
-#: src/ui/help_dialog.cpp:197
+#: src/ui/help_dialog.cpp:198
 msgid "Esc closes"
 msgstr ""
 
