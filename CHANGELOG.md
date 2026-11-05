@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.2 — 2026-11-05
 
 - add Ctrl-Backspace, Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does

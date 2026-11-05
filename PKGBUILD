@@ -5,7 +5,7 @@
 # Maintainer: Yegor Gluhov <git@jegor.net>
 
 pkgname=amberedit
-pkgver=0.10.1
+pkgver=0.10.2
 pkgrel=1
 pkgdesc='FidoNet mail editor for the terminal'
 arch=('x86_64')
