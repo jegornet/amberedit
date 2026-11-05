@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- add Ctrl-Backspace (depends on your terminal), Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
+- add Ctrl-Backspace, Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
 - add modifier_key_reporting: which of xterm modifyOtherKeys and the kitty keyboard protocol are asked for, and in what order
 - add app.redraw: Ctrl-L draws the whole screen again
