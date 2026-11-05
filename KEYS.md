@@ -96,7 +96,7 @@ standing in both.
 | `Ctrl-Y` / `Alt-D` | delete the line — or the button beside it, on the right-hand edge |
 | `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` / `Alt-Z` | delete the quoted text after the cursor                   |
-| `Ctrl-W` / `Alt-Backspace` / `Ctrl-Backspace` | delete the word before the cursor; `Ctrl-Backspace` only under the kitty keyboard protocol |
+| `Ctrl-W` / `Alt-Backspace` / `Ctrl-Backspace` | delete the word before the cursor; `Ctrl-Backspace` only under the kitty keyboard protocol or in the Windows build |
 | `Alt-Del` / `Ctrl-Del` | delete the word after the cursor                           |
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` / `Ctrl+←` `Ctrl+→` | by words                   |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
@@ -106,14 +106,16 @@ standing in both.
 ## Keys a terminal cannot send
 
 Some chords leave the terminal as the same bytes as another key, and AmberEdit
-reads them as that key. Measured in 19 Linux terminals, 5 on macOS, and PuTTY
-and Windows Terminal logged in over ssh; the list with the bytes is
-`testdata/keys/limits.lst`.
+reads them as that key. Measured in 19 Linux terminals, 5 on macOS, PuTTY and
+Windows Terminal logged in over ssh, and the Windows build in conhost and
+Windows Terminal; the lists are `testdata/keys/limits.lst` and
+`testdata/keys/pdcurses/limits.lst`.
 
 - `Ctrl-H`, `Ctrl-I`, `Ctrl-J`, `Ctrl-M` and `Ctrl-Backspace` are `Backspace`,
   `Tab` and `Enter`, except under the kitty keyboard protocol in kitty, foot,
   Ghostty, Alacritty, Contour, Konsole, Windows Terminal 1.25 and later, and
-  WezTerm with `enable_kitty_keyboard` (`modifier_key_reporting`).
+  WezTerm with `enable_kitty_keyboard` (`modifier_key_reporting`). The Windows
+  build reads `Ctrl-Backspace`, and none of the other four.
 - `Shift+Space` is `Space` everywhere but WezTerm under `xterm`.
 - In urxvt and PuTTY, Alt with an arrow, `Del` or a function key is `Esc` and
   then the key. Alt with a letter works where the layout binds that letter.
@@ -125,8 +127,8 @@ and Windows Terminal logged in over ssh; the list with the bytes is
   `Ctrl-Del`.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
   with a menu letter for themselves, and AmberEdit never sees them. Windows
-  Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, and `Alt-F4` closes a window
-  on Windows whatever is running in it.
+  Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, conhost `Ctrl-V`, and
+  `Alt-F4` closes a window on Windows whatever is running in it.
 - Inside tmux or screen the kitty keyboard protocol does not get through, so
   `Ctrl-Backspace` and `Ctrl-H` are `Backspace` there whatever the terminal
   outside. tmux with `set -s extended-keys on` passes `Shift+Space` on where

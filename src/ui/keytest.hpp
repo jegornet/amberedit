@@ -26,10 +26,14 @@
 /// `keyNamed()` accepts for it, and Ctrl and Alt with every letter — so a command
 /// given a key of its own is in the next run without anybody adding it.
 ///
+/// On Windows there are no bytes: the console reports key records and PDCurses
+/// a code for each key, so a run writes those codes down as
+/// `Terminal::readCodes()` names them, and a `Checker` reads them back through
+/// `term::eventOfCode()` with no console at all.
+///
 /// A diagnostic for whoever works on the keyboard, not part of the interface:
 /// the program offers the two options only where CMake is configured with
-/// `-DAMBEREDIT_KEYTEST=ON`, nothing here is translated, and none of it works on
-/// Windows, where the console reports key codes rather than bytes.
+/// `-DAMBEREDIT_KEYTEST=ON`, and nothing here is translated.
 namespace amberedit::ui::keytest {
 
 /// Every key a run asks for, in the order it asks.
@@ -112,7 +116,8 @@ private:
 /// - `--keytest [protocols] [--out FILE] [--label TEXT] [--sync FIFO]
 ///   [--wait MS] [--only KEY,KEY...]` asks for each key in turn. `protocols` is
 ///   what `modifier_key_reporting` takes, `"xterm kitty"` where none is given.
-///   `--sync` names a FIFO a driver pressing the keys reads lines off, so that
+///   `--sync` names a FIFO a driver pressing the keys reads lines off — on
+///   Windows an ordinary file it follows as it grows — so that
 ///   nothing has to be timed: `warmup` (press Space; said until something
 ///   arrives), `ready <key>` (press it), `done <key> <bytes>`, and `flush`
 ///   after a key nothing came of (put away what it opened: Escape, Space).

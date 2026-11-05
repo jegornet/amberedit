@@ -59,22 +59,16 @@ TEST_CASE("a limit names a key, its bytes and what they are read as [keys]") {
     CHECK_MESSAGE(contains(errorOf(broken), "limits.lst:1"), errorOf(broken));
 }
 
-#ifndef _WIN32
+namespace {
 
-// The bytes real terminals sent, taken by `amberedit --keytest` and kept under
-// testdata/keys/, played back into the Terminal over a pty. A key read as
-// anything but itself fails here unless testdata/keys/limits.lst says the
-// terminal sent bytes some other key is sent as too. A file whose TERM this
-// machine has no terminfo for is passed over: its bytes mean what that entry
-// says they mean, and without it there is nothing to play them against.
-TEST_CASE("keys taken from real terminals read as the keys they were taken for "
-          "[keys][pty]") {
-    auto limits = readLimits(amberedit::test::projectPath("testdata/keys/limits.lst"));
+/// Plays every file in `dir` back through a `Checker` holding the limits beside
+/// them, and fails for each key read as something else.
+void playAll(const std::string& dir) {
+    auto limits = readLimits(amberedit::test::projectPath(dir + "/limits.lst"));
     REQUIRE_MESSAGE(limits.has_value(), errorOf(limits));
 
     std::vector<std::string> files;
-    for (const auto& entry :
-         fs::directory_iterator(amberedit::test::projectPath("testdata/keys"))) {
+    for (const auto& entry : fs::directory_iterator(amberedit::test::projectPath(dir))) {
         if (entry.path().extension() == ".txt") files.push_back(entry.path().string());
     }
     std::sort(files.begin(), files.end());
@@ -97,6 +91,32 @@ TEST_CASE("keys taken from real terminals read as the keys they were taken for "
         }
     }
     MESSAGE(played << " of " << files.size() << " files played back");
+}
+
+}  // namespace
+
+#ifndef _WIN32
+
+// The bytes real terminals sent, taken by `amberedit --keytest` and kept under
+// testdata/keys/, played back into the Terminal over a pty. A key read as
+// anything but itself fails here unless testdata/keys/limits.lst says the
+// terminal sent bytes some other key is sent as too. A file whose TERM this
+// machine has no terminfo for is passed over: its bytes mean what that entry
+// says they mean, and without it there is nothing to play them against.
+TEST_CASE("keys taken from real terminals read as the keys they were taken for "
+          "[keys][pty]") {
+    playAll("testdata/keys");
+}
+
+#else
+
+// The codes the Windows consoles reported through PDCurses, taken by the
+// Windows build's `--keytest` and kept under testdata/keys/pdcurses/, read back
+// as `poll()` reads them. No console is needed: a code is the library's own
+// name for it, and what `poll()` makes of one is asked of the same function.
+TEST_CASE("keys taken from the Windows consoles read as the keys they were taken "
+          "for [keys]") {
+    playAll("testdata/keys/pdcurses");
 }
 
 #endif

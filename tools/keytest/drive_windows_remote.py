@@ -14,9 +14,9 @@ would have given it. That needs the desktop: this runs in the session of the
 user logged on at the console, not in the one an ssh login gets — started from
 ssh, through a scheduled task that runs interactively (`schtasks /it`).
 
-    drive_windows.py --host USER@HOST --amberedit build/bin/amberedit \\
-                     --out keys-windows \\
-                     [--terminal putty ...] [--protocol "xterm kitty" ...]
+    drive_windows_remote.py --host USER@HOST --amberedit build/bin/amberedit \\
+                            --out keys-windows \\
+                            [--terminal putty ...] [--protocol "xterm kitty" ...]
 
 `--amberedit` and `--out` are paths on the host, relative ones read from the
 home directory there, and ssh.exe has to log in there without asking anything.
@@ -43,187 +43,22 @@ bytes it sends, as for the other drivers.
 """
 
 import argparse
-import ctypes
-import ctypes.wintypes as wt
 import os
-import queue
 import shlex
 import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 import uuid
 import winreg
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from windows_input import (NEVER_PRESSED, NotInFront, empty_clipboard,  # noqa: E402
+                           follow, in_front, layout_of, press, user32,
+                           wait_for_window)
+
 PROTOCOLS = ["xterm kitty", "kitty xterm", "kitty", "xterm"]
-
-user32 = ctypes.WinDLL("user32", use_last_error=True)
-
-INPUT_MOUSE, INPUT_KEYBOARD = 0, 1
-KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP = 0x1, 0x2
-MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP = 0x2, 0x4
-ULONG_PTR = ctypes.c_size_t
-
-
-class KEYBDINPUT(ctypes.Structure):
-    _fields_ = [("wVk", wt.WORD), ("wScan", wt.WORD), ("dwFlags", wt.DWORD),
-                ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
-
-
-class MOUSEINPUT(ctypes.Structure):
-    _fields_ = [("dx", wt.LONG), ("dy", wt.LONG), ("mouseData", wt.DWORD),
-                ("dwFlags", wt.DWORD), ("time", wt.DWORD), ("dwExtraInfo", ULONG_PTR)]
-
-
-class _INPUTUNION(ctypes.Union):
-    _fields_ = [("ki", KEYBDINPUT), ("mi", MOUSEINPUT)]
-
-
-class INPUT(ctypes.Structure):
-    _fields_ = [("type", wt.DWORD), ("u", _INPUTUNION)]
-
-
-user32.SendInput.argtypes = [wt.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
-user32.GetForegroundWindow.restype = wt.HWND
-user32.GetWindowThreadProcessId.argtypes = [wt.HWND, ctypes.POINTER(wt.DWORD)]
-user32.GetKeyboardLayout.restype = ctypes.c_void_p
-user32.MapVirtualKeyExW.argtypes = [wt.UINT, wt.UINT, ctypes.c_void_p]
-user32.VkKeyScanExW.argtypes = [wt.WCHAR, ctypes.c_void_p]
-user32.VkKeyScanExW.restype = ctypes.c_short
-user32.SetForegroundWindow.argtypes = [wt.HWND]
-user32.IsWindow.argtypes = [wt.HWND]
-user32.PostMessageW.argtypes = [wt.HWND, wt.UINT, wt.WPARAM, wt.LPARAM]
-user32.GetClientRect.argtypes = [wt.HWND, ctypes.POINTER(wt.RECT)]
-user32.ClientToScreen.argtypes = [wt.HWND, ctypes.POINTER(wt.POINT)]
-user32.GetWindowTextW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]
-user32.GetClassNameW.argtypes = [wt.HWND, wt.LPWSTR, ctypes.c_int]
-user32.IsWindowVisible.argtypes = [wt.HWND]
-WNDENUMPROC = ctypes.WINFUNCTYPE(wt.BOOL, wt.HWND, wt.LPARAM)
-user32.EnumWindows.argtypes = [WNDENUMPROC, wt.LPARAM]
-
-VK = {
-    "Backspace": 0x08, "Tab": 0x09, "Enter": 0x0D, "Esc": 0x1B, "Space": 0x20,
-    "PgUp": 0x21, "PgDn": 0x22, "End": 0x23, "Home": 0x24,
-    "Left": 0x25, "Up": 0x26, "Right": 0x27, "Down": 0x28,
-    "Ins": 0x2D, "Del": 0x2E,
-    **{f"F{n}": 0x6F + n for n in range(1, 13)},
-}
-# The keys of the block between the letters and the keypad: the same scan codes
-# as the keypad's, told apart by the extended flag.
-EXTENDED = {"PgUp", "PgDn", "End", "Home", "Left", "Up", "Right", "Down", "Ins", "Del"}
-MODIFIERS = {"ctrl": 0xA2, "alt": 0xA4, "shift": 0xA0}  # the left-hand ones
-NEVER_PRESSED = {"Alt-F4"}
-
-
-def chord(name, layout):
-    """The modifiers and the virtual key of a key named the way --keytest names
-    it, the punctuation looked up in the layout the terminal is typing in."""
-    mods = []
-    rest = name
-    while True:
-        for prefix, mod in (("Ctrl-", "ctrl"), ("Alt-", "alt"), ("Shift-", "shift")):
-            if rest.startswith(prefix) and len(rest) > len(prefix):
-                mods.append(mod)
-                rest = rest[len(prefix):]
-                break
-        else:
-            break
-    if rest in VK:
-        return mods, rest, VK[rest]
-    if len(rest) == 1 and rest.isalpha():
-        if rest.isupper() and not mods:
-            mods.append("shift")
-        return mods, rest, ord(rest.upper())
-    if len(rest) == 1:
-        found = user32.VkKeyScanExW(rest, layout)
-        if found == -1:
-            raise ValueError(f"no key in this layout types {name!r}")
-        if found & 0x100:
-            mods.append("shift")
-        return mods, rest, found & 0xFF
-    raise ValueError(f"no virtual key for {name!r}")
-
-
-def key_input(vk, up, extended, layout):
-    flags = (KEYEVENTF_KEYUP if up else 0) | (KEYEVENTF_EXTENDEDKEY if extended else 0)
-    scan = user32.MapVirtualKeyExW(vk, 0, layout)  # MAPVK_VK_TO_VSC
-    event = INPUT(type=INPUT_KEYBOARD)
-    event.u.ki = KEYBDINPUT(vk, scan, flags, 0, 0)
-    return event
-
-
-def send(events):
-    array = (INPUT * len(events))(*events)
-    if user32.SendInput(len(events), array, ctypes.sizeof(INPUT)) != len(events):
-        raise OSError(ctypes.get_last_error(), "SendInput refused the events")
-
-
-def press(name, layout):
-    mods, key, vk = chord(name, layout)
-    events = [key_input(MODIFIERS[m], False, False, layout) for m in mods]
-    events.append(key_input(vk, False, key in EXTENDED, layout))
-    events.append(key_input(vk, True, key in EXTENDED, layout))
-    events += [key_input(MODIFIERS[m], True, False, layout) for m in reversed(mods)]
-    send(events)
-    time.sleep(0.05)
-
-
-def click(hwnd):
-    """A click in the middle of the window, which is what gives a window the
-    keyboard when SetForegroundWindow is refused it."""
-    rect = wt.RECT()
-    user32.GetClientRect(hwnd, ctypes.byref(rect))
-    point = wt.POINT(rect.right // 2, rect.bottom // 2)
-    user32.ClientToScreen(hwnd, ctypes.byref(point))
-    user32.SetCursorPos(point.x, point.y)
-    events = []
-    for flag in (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP):
-        event = INPUT(type=INPUT_MOUSE)
-        event.u.mi = MOUSEINPUT(0, 0, 0, flag, 0, 0)
-        events.append(event)
-    send(events)
-
-
-def windows():
-    """Every visible top-level window: its handle, process, class and title."""
-    found = []
-
-    def each(hwnd, _):
-        if user32.IsWindowVisible(hwnd):
-            pid = wt.DWORD()
-            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            cls = ctypes.create_unicode_buffer(256)
-            title = ctypes.create_unicode_buffer(512)
-            user32.GetClassNameW(hwnd, cls, 256)
-            user32.GetWindowTextW(hwnd, title, 512)
-            found.append((hwnd, pid.value, cls.value, title.value))
-        return True
-
-    user32.EnumWindows(WNDENUMPROC(each), 0)
-    return found
-
-
-def wait_for_window(test, timeout=30):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        for hwnd, pid, cls, title in windows():
-            if test(pid, cls, title):
-                return hwnd
-        time.sleep(0.2)
-    return None
-
-
-def layout_of(hwnd):
-    return user32.GetKeyboardLayout(user32.GetWindowThreadProcessId(hwnd, None))
-
-
-def empty_clipboard():
-    if user32.OpenClipboard(None):
-        user32.EmptyClipboard()
-        user32.CloseClipboard()
-
 
 def ssh(host, *words, input=None):
     """One command on the host. ssh.exe on Windows hangs before it has so much
@@ -300,10 +135,6 @@ TERMINALS = {
 }
 
 
-class NotInFront(Exception):
-    pass
-
-
 def take(terminal, protocol, host, amberedit, out_dir, wait_ms, only, version):
     opener, term, _ = TERMINALS[terminal]
     name = "putty" if terminal == "putty" else f"windows-{terminal}"
@@ -333,31 +164,7 @@ def take(terminal, protocol, host, amberedit, out_dir, wait_ms, only, version):
     sync = subprocess.Popen(["ssh.exe", "-o", "BatchMode=yes", host,
                              f"cat {work}/sync"], stdin=subprocess.DEVNULL,
                             stdout=sync_out, stderr=subprocess.DEVNULL)
-    lines_in = queue.Queue()
-
-    def reader():
-        with open(sync_path, "rb") as f:
-            pending = b""
-            while True:
-                chunk = f.read()
-                if chunk:
-                    pending += chunk
-                    while b"\n" in pending:
-                        line, _, pending = pending.partition(b"\n")
-                        lines_in.put(line.decode("utf-8", "replace"))
-                elif sync.poll() is not None:
-                    break
-                else:
-                    time.sleep(0.02)
-        lines_in.put(None)
-
-    threading.Thread(target=reader, daemon=True).start()
-
-    def next_line(timeout):
-        try:
-            return lines_in.get(timeout=timeout)
-        except queue.Empty:
-            return None
+    next_line = follow(sync_path, lambda: sync.poll() is not None)
 
     tag = f"amberedit-keytest-{uuid.uuid4().hex[:8]}"
     proc = hwnd = None
@@ -371,30 +178,18 @@ def take(terminal, protocol, host, amberedit, out_dir, wait_ms, only, version):
         layout = layout_of(hwnd)
         pressed = 0
 
-        def in_front(what):
-            if user32.GetForegroundWindow() == hwnd:
-                return
-            user32.SetForegroundWindow(hwnd)
-            time.sleep(0.3)
-            if user32.GetForegroundWindow() != hwnd:
-                click(hwnd)
-                time.sleep(0.3)
-            if user32.GetForegroundWindow() != hwnd:
-                raise NotInFront(f"{stem}: the window is not in front at {what}; "
-                                 "stopped before pressing anything else")
-
         while line is not None:
             if line == "warmup":
-                in_front("the warm-up")
+                in_front(hwnd, "the warm-up")
                 press("Space", layout)
             elif line == "flush":
-                in_front("a flush")
+                in_front(hwnd, "a flush")
                 press("Esc", layout)
                 press("Space", layout)
             elif line.startswith("ready "):
                 name = line[len("ready "):]
                 if name not in NEVER_PRESSED:
-                    in_front(name)
+                    in_front(hwnd, name)
                     press(name, layout)
                     pressed += 1
             line = next_line(wait_ms / 1000 + 10)
@@ -438,7 +233,7 @@ def main():
                 print(take(terminal, protocol, args.host, args.amberedit, args.out,
                            args.wait, args.only, version), flush=True)
             except NotInFront as stop:
-                print(stop, flush=True)
+                print(f"{terminal}: {stop}", flush=True)
                 return 1
     return 0
 

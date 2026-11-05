@@ -1,0 +1,8 @@
+# Keys the Windows console reports as a code some other key is reported as too,
+# and what AmberEdit reads them as — testdata/keys/limits.lst for AmberEdit's own
+# Windows build, whose files hold PDCurses codes rather than bytes. A line is the
+# key, the codes as a file beside this one writes them, and what they are read as.
+
+# Ctrl-J is the line feed a pasted line ends with: conhost types a paste out key
+# by key, and a lone LF has to stay the line break it is in the text.
+Ctrl-J          U+000A      Enter

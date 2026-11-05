@@ -226,37 +226,63 @@ tl::expected<std::vector<Limit>, ErrorPtr> readLimits(const std::string& path) {
     return limits;
 }
 
-#ifdef _WIN32
-
-struct Checker::Impl {};
-
-Checker::Checker(std::vector<Limit>) : impl_(std::make_unique<Impl>()) {}
-Checker::~Checker() = default;
-
-tl::expected<CheckResult, ErrorPtr> Checker::check(const std::string&) {
-    CheckResult result;
-    result.skipped = "the Windows console reports key codes, not bytes";
-    return result;
-}
-
-int main(int, char*[]) {
-    std::cerr << "keytest: the Windows console reports key codes, not bytes; "
-                 "there is nothing here to take\n";
-    return 2;
-}
-
-#else
-
 namespace {
+
+/// What a file taken by `--keytest` holds: the TERM its header names, and each
+/// key with what arrived for it — the bytes unescaped, or on Windows the codes
+/// as they were written. A key nothing arrived for is left out.
+struct Taken {
+    std::string term;
+    std::vector<std::pair<std::string, std::string>> taken;
+};
+
+tl::expected<Taken, ErrorPtr> readTaken(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return failure("cannot read " + path);
+    Taken file;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.rfind('#', 0) == 0) {
+            if (file.term.empty()) file.term = termOf(line);
+            continue;
+        }
+        const std::vector<std::string> words = config::text::tokenize(uncommented(line));
+        if (words.size() < 2 || words[1] == "-") continue;
+        file.taken.emplace_back(words[0], unescapeBytes(words[1]));
+    }
+    return file;
+}
+
+/// Asks `recognise` what each key's bytes came to and counts the answers into
+/// `result`. A key read as another one the terminal sent the very same bytes
+/// for is a key the terminal did not tell apart, and nothing reading the bytes
+/// could do better; so is an Alt-letter a macOS terminal composed, and a key a
+/// limit names.
+template <typename Recognise>
+void judge(const std::vector<std::pair<std::string, std::string>>& taken,
+           const std::vector<Limit>& limits, CheckResult& result, Recognise recognise) {
+    const std::map<std::string, std::string> bytesOf(taken.begin(), taken.end());
+    for (const auto& [key, bytes] : taken) {
+        ++result.keys;
+        Mismatch mismatch{key, bytes, recognise(bytes)};
+        if (mismatch.readAs == key) continue;
+        const auto twin = bytesOf.find(mismatch.readAs);
+        const bool limited =
+            std::any_of(limits.begin(), limits.end(), [&](const Limit& limit) {
+                return limit.key == mismatch.key && limit.bytes == mismatch.bytes &&
+                       limit.readAs == mismatch.readAs;
+            });
+        if ((twin != bytesOf.end() && twin->second == bytes) ||
+            optionComposed(key, bytes) || limited) {
+            ++result.excused;
+        } else {
+            result.wrong.push_back(std::move(mismatch));
+        }
+    }
+}
 
 /// The letters both ends claim under Alt.
 constexpr const char* kAllLetters = "abcdefghijklmnopqrstuvwxyz";
-
-/// What the replay sends after a key's bytes to say they are over. A character
-/// no key sends and nothing binds, so whatever comes back before it is what the
-/// key was read as, and an unfinished sequence is cut off by it exactly as the
-/// next key pressed would cut it off.
-constexpr std::string_view kSentinel = "\xc2\xa4";  // ¤
 
 /// The words of `modifier_key_reporting`, or nothing where they are not.
 bool parseProtocols(const std::string& text, std::vector<term::KeyProtocol>& out) {
@@ -276,6 +302,185 @@ bool parseProtocols(const std::string& text, std::vector<term::KeyProtocol>& out
     }
     return !out.empty();
 }
+
+struct CaptureOptions {
+    std::string protocolText{"xterm kitty"};
+    std::vector<term::KeyProtocol> protocols{term::KeyProtocol::Xterm,
+                                             term::KeyProtocol::Kitty};
+    std::string label;
+    std::string outPath;
+    std::string syncPath;
+    int waitMs{15000};
+    std::vector<std::string> only;
+};
+
+/// The keys a run asks for: all of them, or the ones `--only` names.
+std::vector<Event> keysAsked(const CaptureOptions& options) {
+    std::vector<Event> list;
+    for (const Event& key : keys()) {
+        const std::string name = nameOf(key);
+        if (options.only.empty() ||
+            std::find(options.only.begin(), options.only.end(), name) !=
+                options.only.end()) {
+            list.push_back(key);
+        }
+    }
+    return list;
+}
+
+}  // namespace
+
+#ifdef _WIN32
+
+namespace {
+
+/// What the codes taken for one key come to, the events blank separated.
+std::string recogniseCodes(const std::string& codes) {
+    std::vector<std::string> seen;
+    std::string code;
+    for (std::size_t i = 0; i <= codes.size(); ++i) {
+        if (i < codes.size() && codes[i] != ',') {
+            code += codes[i];
+            continue;
+        }
+        const Event event = term::eventOfCode(code);
+        if (event.kind() != Event::Kind::None) seen.push_back(nameOf(event));
+        code.clear();
+    }
+    return joined(seen);
+}
+
+}  // namespace
+
+struct Checker::Impl {
+    std::vector<Limit> limits;
+};
+
+Checker::Checker(std::vector<Limit> limits) : impl_(std::make_unique<Impl>()) {
+    impl_->limits = std::move(limits);
+}
+
+Checker::~Checker() = default;
+
+tl::expected<CheckResult, ErrorPtr> Checker::check(const std::string& path) {
+    auto file = readTaken(path);
+    if (!file) return tl::make_unexpected(std::move(file).error());
+    CheckResult result;
+    judge(file->taken, impl_->limits, result, recogniseCodes);
+    return result;
+}
+
+namespace {
+
+/// The Windows half of `--keytest`: what the console reported for each key,
+/// as `Terminal::readCodes()` writes it, in place of the bytes there are none
+/// of. The same run in every other respect — the same keys, the same lines on
+/// `--sync`, a regular file being as good as a FIFO for a driver that reads it
+/// as it grows — and the codes are read back as they are taken, as the bytes
+/// are on the other systems.
+int captureMain(const CaptureOptions& options) {
+    const std::vector<Event> list = keysAsked(options);
+
+    const std::string label = options.label.empty() ? "unnamed" : options.label;
+    const std::string outPath =
+        options.outPath.empty() ? "keytest.txt" : options.outPath;
+    std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
+    if (!out) {
+        std::cerr << "keytest: cannot write " << outPath << "\n";
+        return 1;
+    }
+    std::FILE* sync = nullptr;
+    if (!options.syncPath.empty()) {
+        sync = std::fopen(options.syncPath.c_str(), "w");
+        if (sync == nullptr) {
+            std::cerr << "keytest: cannot open " << options.syncPath << "\n";
+            return 1;
+        }
+    }
+    const auto say = [sync](const std::string& line) {
+        if (sync == nullptr) return;
+        std::fputs((line + "\n").c_str(), sync);
+        std::fflush(sync);
+    };
+
+    out << "# terminal: " << label << "   console: " << term::cursesVersion() << "\n";
+    out << "# taken by: " << kProgramId << "\n";
+
+    std::size_t mismatches = 0;
+    {
+        term::Terminal terminal(kAllLetters, true, options.protocols);
+        (void)terminal.readCodes(300, 100);
+        if (sync != nullptr) {
+            terminal.draw(term::text("AmberEdit keytest: waiting for the driver"));
+            for (int tries = 0; tries < 30; ++tries) {
+                say("warmup");
+                if (!terminal.readCodes(1000, 300).empty()) break;
+            }
+            (void)terminal.readCodes(500, 300);
+        }
+
+        std::string last = "-";
+        for (std::size_t i = 0; i < list.size(); ++i) {
+            const std::string name = nameOf(list[i]);
+            using term::text;
+            term::Elements rows;
+            rows.push_back(text("AmberEdit keytest   " + label));
+            rows.push_back(text(""));
+            rows.push_back(term::bold(text("Press  " + name)));
+            rows.push_back(text("key " + std::to_string(i + 1) + " of " +
+                                std::to_string(list.size()) + "; nothing within " +
+                                std::to_string(options.waitMs / 1000) +
+                                " s skips it"));
+            rows.push_back(text(""));
+            rows.push_back(text("last:  " + last));
+            terminal.draw(term::vbox(std::move(rows)));
+
+            say("ready " + name);
+            const std::vector<std::string> codes =
+                terminal.readCodes(options.waitMs, 60);
+            std::string written = "-";
+            if (!codes.empty()) {
+                written.clear();
+                for (const std::string& code : codes) {
+                    if (!written.empty()) written += ',';
+                    written += code;
+                }
+            }
+            std::string comment;
+            if (!codes.empty()) {
+                const std::string seen = recogniseCodes(written);
+                const bool same = seen == name;
+                if (!same) ++mismatches;
+                comment = same ? "# ok" : "# seen: " + (seen.empty() ? "(nothing)" : seen);
+            }
+            out << padded(name, 16) << padded(written, 24) << comment << "\n";
+            out.flush();
+            last = name + "  " + written + "  " + comment;
+
+            say("done " + name + " " + written);
+            if (codes.empty()) {
+                say("flush");
+                (void)terminal.readCodes(1500, 300);
+            }
+        }
+    }
+    if (sync != nullptr) std::fclose(sync);
+    std::cout << outPath << ": " << list.size() << " keys, " << mismatches
+              << " read as something else\n";
+    return 0;
+}
+
+}  // namespace
+
+#else
+
+namespace {
+
+/// What the replay sends after a key's bytes to say they are over. A character
+/// no key sends and nothing binds, so whatever comes back before it is what the
+/// key was read as, and an unfinished sequence is cut off by it exactly as the
+/// next key pressed would cut it off.
+constexpr std::string_view kSentinel = "\xc2\xa4";  // ¤
 
 using Clock = std::chrono::steady_clock;
 
@@ -498,12 +703,6 @@ struct Checker::Impl {
         return (replays[term] = std::move(replay)).get();
     }
 
-    [[nodiscard]] bool excused(const Mismatch& mismatch) const {
-        return std::any_of(limits.begin(), limits.end(), [&](const Limit& limit) {
-            return limit.key == mismatch.key && limit.bytes == mismatch.bytes &&
-                   limit.readAs == mismatch.readAs;
-        });
-    }
 };
 
 Checker::Checker(std::vector<Limit> limits) : impl_(std::make_unique<Impl>()) {
@@ -513,67 +712,23 @@ Checker::Checker(std::vector<Limit> limits) : impl_(std::make_unique<Impl>()) {
 Checker::~Checker() = default;
 
 tl::expected<CheckResult, ErrorPtr> Checker::check(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return failure("cannot read " + path);
-
+    auto file = readTaken(path);
+    if (!file) return tl::make_unexpected(std::move(file).error());
     CheckResult result;
-    std::vector<std::pair<std::string, std::string>> taken;
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.rfind('#', 0) == 0) {
-            if (result.term.empty()) result.term = termOf(line);
-            continue;
-        }
-        const std::vector<std::string> words = config::text::tokenize(uncommented(line));
-        if (words.size() < 2 || words[1] == "-") continue;
-        taken.emplace_back(words[0], unescapeBytes(words[1]));
-    }
+    result.term = file->term;
     if (result.term.empty()) return failure(path + ": names no TERM");
 
     Replay* replay = impl_->replayFor(result.term, result.skipped);
     if (replay == nullptr) return result;
-    // What each key was taken as in this file: a key read as another one the
-    // terminal sent the very same bytes for is a key the terminal did not tell
-    // apart, and nothing reading the bytes could do better.
-    std::map<std::string, std::string> bytesOf(taken.begin(), taken.end());
-    for (const auto& [key, bytes] : taken) {
-        ++result.keys;
-        Mismatch mismatch{key, bytes, replay->recognise(bytes)};
-        if (mismatch.readAs == key) continue;
-        const auto twin = bytesOf.find(mismatch.readAs);
-        if ((twin != bytesOf.end() && twin->second == bytes) ||
-            optionComposed(key, bytes) || impl_->excused(mismatch)) {
-            ++result.excused;
-        } else {
-            result.wrong.push_back(std::move(mismatch));
-        }
-    }
+    judge(file->taken, impl_->limits, result,
+          [replay](const std::string& bytes) { return replay->recognise(bytes); });
     return result;
 }
 
 namespace {
 
-struct CaptureOptions {
-    std::string protocolText{"xterm kitty"};
-    std::vector<term::KeyProtocol> protocols{term::KeyProtocol::Xterm,
-                                             term::KeyProtocol::Kitty};
-    std::string label;
-    std::string outPath;
-    std::string syncPath;
-    int waitMs{15000};
-    std::vector<std::string> only;
-};
-
 int captureMain(const CaptureOptions& options) {
-    std::vector<Event> list;
-    for (const Event& key : keys()) {
-        const std::string name = nameOf(key);
-        if (options.only.empty() ||
-            std::find(options.only.begin(), options.only.end(), name) !=
-                options.only.end()) {
-            list.push_back(key);
-        }
-    }
+    const std::vector<Event> list = keysAsked(options);
 
     const char* termEnv = std::getenv("TERM");
     const std::string term = termEnv != nullptr ? termEnv : "";
@@ -691,6 +846,12 @@ int captureMain(const CaptureOptions& options) {
     return 0;
 }
 
+}  // namespace
+
+#endif
+
+namespace {
+
 int checkMain(int argc, char* argv[]) {
     std::vector<Limit> limits;
     std::vector<std::string> files;
@@ -777,7 +938,5 @@ int main(int argc, char* argv[]) {
     }
     return captureMain(options);
 }
-
-#endif
 
 }  // namespace amberedit::ui::keytest

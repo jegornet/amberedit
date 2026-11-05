@@ -154,6 +154,16 @@ AmberEdit makes of it** is asked on every build without a terminal:
 `Terminal::poll()` over a pty, under the `TERM` the file was taken with, and a
 key read as anything but itself fails the test.
 
+**The Windows build has no bytes to take**, and is tested the same way on what
+it has instead. PDCurses reads the console's key records and hands over a code
+of its own for each key — `CTL_HOME`, `ALT_A`, `U+0001` for Ctrl-A — so
+`--keytest` there writes the codes down, the library's own names for them, and
+`testdata/keys/pdcurses/` keeps one file per console. The Windows build's
+`[keys]` test reads each code back through `term::eventOfCode()`, which asks
+the function `poll()` asks, `keyOf()`, and needs no console to do it. The names
+and not the numbers are kept because the numbers are a library release's:
+PDCursesMod has renumbered its key codes before.
+
 - **`--keytest` and `--keycheck` are a build of their own**,
   `-DAMBEREDIT_KEYTEST=ON` (`src/ui/keytest.*`), and `--help` lists them only
   there. A release leaves them out — nothing a user of the editor runs — and CI
@@ -179,6 +189,11 @@ key read as anything but itself fails the test.
   terminal could not have told apart**; a key misread when the bytes were
   distinct is a bug in `ui/term/terminal.cpp`, and a line written to make the
   test pass hides it. KEYS.md says the same limits to a user.
+  `testdata/keys/pdcurses/limits.lst` is the Windows build's, on the same
+  terms, and holds one line that is a decision rather than the console's
+  limit: `Ctrl-J` is a lone LF, which a paste typed out by the console ends a
+  line with, and reading it as the chord would put the chord in every pasted
+  line break.
 - **`testdata/keys/` is never edited to make a test pass.** A terminal that
   changed is taken again. The one change made by hand is taking out what is not
   the terminal's: kitty pastes the clipboard on `Shift-Ins`, and a file carries
@@ -202,15 +217,24 @@ shape `testdata/keys/` is kept in.
   binds nothing, pressing through `wtype`, which hands the compositor a keymap
   of its own on every call — so each key waits a moment behind it, or reaches
   the terminal before its keymap and is lost. `drive_macos.py` posts through
-  Quartz at the HID level. `drive_windows.py` presses through `SendInput`, by
-  virtual key with the scan code beside it, into PuTTY and Windows Terminal
-  logged in over ssh to a Unix host where `--keytest` runs: the bytes a Windows
-  terminal sends land on the host's pty like any other terminal's, so they are
-  files of the same kind and the same test plays them. PuTTY gets its
-  connection from `ssh.exe` as a local proxy command over the raw protocol, so
-  it needs no key of its own, and runs as it ships but for a saved session
-  turning off the local echo and line editing raw turns on. Alt-F4 is never
-  pressed there — Windows closes the window on it.
+  Quartz at the HID level. `drive_windows_remote.py` presses through
+  `SendInput`, by virtual key with the scan code beside it, into PuTTY and
+  Windows Terminal logged in over ssh to a Unix host where `--keytest` runs:
+  the bytes a Windows terminal sends land on the host's pty like any other
+  terminal's, so they are files of the same kind and the same test plays them.
+  PuTTY gets its connection from `ssh.exe` as a local proxy command over the
+  raw protocol, so it needs no key of its own, and runs as it ships but for a
+  saved session turning off the local echo and line editing raw turns on.
+  Alt-F4 is never pressed there — Windows closes the window on it.
+  `drive_windows_local.py` presses the same way into AmberEdit's own Windows
+  build, in conhost — started as `conhost.exe`, so that a machine whose default
+  terminal is Windows Terminal does not hand the program over — and in Windows
+  Terminal, whose console is its own OpenConsole behind ConPTY. The two are
+  taken apart because they are not one console: Windows Terminal keeps `F11`
+  and `Shift-Ins`, and a chord crossing ConPTY is a sequence for a moment on
+  the way. One file per console, there being no protocol to ask a console for.
+  What both drivers press with and how they keep the window in front is
+  `windows_input.py`.
 - **A driver and `--keytest` keep in step over a FIFO, never by timing.** A
   window just opened may not have the keyboard yet, and a dead key on macOS
   sends nothing until the next one; either puts every answer after it one key
@@ -256,21 +280,25 @@ server, so the driver's commands and the FIFO's lines go through files. It
 checks before every key that its window is in front, clicks into it where it
 is not and stops where that does not bring it forward, and it empties the
 clipboard first, so that what `Ctrl-V` and `Shift-Ins` paste is nothing.
+The native build is MSYS2's CLANGARM64 or UCRT64 with the packages
+`.github/workflows/ci.yml` installs, configured with `-DAMBEREDIT_KEYTEST=ON`;
+it links statically, so the binary runs from the scheduled task outside MSYS2.
+`--sync` names an ordinary file there, which the driver follows as it grows —
+Windows has no FIFO — and the line `end` the driver's own `run.cmd` writes
+after the program is how it learns the run is over.
 
 Adding a terminal: a line in the driver's `TERMINALS` saying how it runs one
 program, a run, `collapse.py`, the files into `testdata/keys/` (macOS ones as
 `macos-*.txt` and Windows ones as `windows-*.txt`, the names being the Linux
-terminals' too), `--keycheck --limits
-testdata/keys/limits.lst` over them, and every mismatch either fixed in
+terminals' too; a console of the native Windows build as
+`testdata/keys/pdcurses/<name>.txt`, with no `collapse.py`), `--keycheck
+--limits testdata/keys/limits.lst` over them, and every mismatch either fixed in
 `terminal.cpp` or, where the terminal sent another key's bytes, a line in
 `limits.lst` and in KEYS.md.
 
 **Not taken**: the Linux console, deliberately — nobody reads mail on a bare
 virtual console any more, and the `linux` terminfo entry is what a session over
-it would be read with. And AmberEdit's own Windows build, whose console reports
-key codes rather than bytes and has `namedKey()` rather than a table of
-sequences — `--keytest` refuses to run there. A Windows terminal in front of a
-Unix host is another matter and is taken, as above.
+it would be read with.
 
 ## Packaging
 
@@ -1058,6 +1086,12 @@ Rules that hold the design together:
   the key's — so reading either byte as the chord would take Backspace away on
   whichever terminal sends that byte for it. Both stay Backspace in `poll()`,
   and a terminal not speaking the protocol simply has no Ctrl-Backspace.
+  **The Windows build is the exception**: the console reports Backspace as 08H
+  and the chord as 7FH whatever the window in front of it, there being no
+  terminal to choose, so `keyOf()` reads 7FH as the chord there. The 7FH is the
+  keyboard layout's — the `VK_BACK` row of its character table, `'\b'` bare and
+  with Shift and `0x007f` with Ctrl, as `kbdus.c` in Microsoft's
+  Windows-driver-samples writes it.
   `takesShift()` lets Shift go in front of Insert alone. By default it is
   `compose.delete_word`, the third key beside `Ctrl-W` and `Alt-Backspace`.
 - **Home and End are claimed in every form, Ctrl and all, through the same
@@ -5519,10 +5553,12 @@ together — `keys_mode` says which.
   and it alone lies here in CP437 as it arrived rather than recoded. Do not edit
   them to make a test pass.
 - `testdata/keys/` — what 19 Linux terminals, 5 on macOS, PuTTY and Windows
-  Terminal on Windows, and tmux and screen sent for every key under each of the four `modifier_key_reporting` values,
-  one file per set of bytes a terminal sends, and `limits.lst` beside them. See
-  [The keyboard tests](#the-keyboard-tests); do not edit them to make a test
-  pass — take the terminal again.
+  Terminal on Windows, and tmux and screen sent for every key under each of the
+  four `modifier_key_reporting` values, one file per set of bytes a terminal
+  sends, and `limits.lst` beside them; under `pdcurses/`, the codes conhost and
+  Windows Terminal reported to AmberEdit's own Windows build, with a
+  `limits.lst` of its own. See [The keyboard tests](#the-keyboard-tests); do
+  not edit them to make a test pass — take the terminal again.
 - `testdata/msgbase/localnet.*` — the Squish test base described above.
 - `testdata/msgbase/charsets.*` — a small Squish base for the charset tests: the
   word "Привет" in KOI8-R and in CP866, each with the CHRS kludge that says so,

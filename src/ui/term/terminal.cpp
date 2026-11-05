@@ -613,6 +613,37 @@ Event namedKey(int code) {
     return {};
 }
 
+/// What one code read off the keyboard is, where it is a key at all: a named
+/// key through `namedKey()`, and a character as itself — but for the control
+/// bytes a terminal still sends for the keys that predate terminfo, and Ctrl
+/// with a letter, which is what a C0 byte has meant since ASCII. Tab, Return
+/// and Backspace are keys in their own right rather than chords anyone presses
+/// as one. A code nothing binds is `Kind::None`.
+Event keyOf(bool named, wint_t code) {
+    if (named) return namedKey(static_cast<int>(code));
+    switch (code) {
+        case 27: return Event::Escape;
+        case 9: return Event::Tab;
+        case 10:
+        case 13: return Event::Return;
+        case 8: return Event::Backspace;
+#ifdef _WIN32
+        // The console reports Backspace as 08H and Ctrl with it as 7FH, always:
+        // there is no terminal in between to choose, so here the two are apart.
+        case 127: return Event::Named(Event::Name::Backspace, true, false, false);
+#else
+        case 127: return Event::Backspace;
+#endif
+        default: break;
+    }
+    if (code < 27) {
+        const auto letter = static_cast<char>('a' + static_cast<int>(code) - 1);
+        return Event::Character(std::string(1, letter), true, false, false);
+    }
+    if (code < 32) return {};
+    return Event::Character(encodeUtf8(static_cast<char32_t>(code)));
+}
+
 /// Everything AmberEdit acts on, and deliberately nothing else — see the note on
 /// the `mousemask` call for why the click bits have to stay out of it.
 mmask_t mouseEvents() {
@@ -1164,7 +1195,8 @@ Event Terminal::poll() {
         trace((status == KEY_CODE_YES ? "key code=" : "char code=") +
               std::to_string(static_cast<int>(code)));
 
-        if (status == KEY_CODE_YES) {
+        const bool named = status == KEY_CODE_YES;
+        if (named) {
             const auto key = static_cast<int>(code);
             if (key == KEY_RESIZE) {
                 syncSize();
@@ -1178,38 +1210,78 @@ Event Terminal::poll() {
             if (const auto found = customKeys.find(key); found != customKeys.end()) {
                 return found->second;
             }
-            const Event event = namedKey(key);
-            if (event.kind() == Event::Kind::None) continue;  // nothing binds it
-            return event;
         }
 
-        // An ordinary character, or one of the control bytes a terminal still
-        // sends for the keys that predate terminfo.
         // An answer to a question given up on, arriving late: taken off the
         // input whole rather than passed on as Escape and a run of letters.
-        if (code == 27 && (oscPending_ || da1Pending_) && swallowReply()) continue;
-
-        switch (code) {
-            case 27: return Event::Escape;
-            case 9: return Event::Tab;
-            case 10:
-            case 13: swallowLineEndPartner(code); return Event::Return;
-            case 8:
-            case 127: return Event::Backspace;
-            default: break;
+        if (!named && code == 27 && (oscPending_ || da1Pending_) && swallowReply()) {
+            continue;
         }
 
-        // C0: Ctrl with a letter, which is what the byte has meant since ASCII.
-        // Tab, Return and Backspace were taken above, being keys in their own
-        // right rather than chords anyone presses as one.
-        if (code < 27) {
-            const auto letter = static_cast<char>('a' + static_cast<int>(code) - 1);
-            return Event::Character(std::string(1, letter), true, false, false);
-        }
-        if (code < 32) continue;  // a control byte nothing binds
-
-        return Event::Character(encodeUtf8(static_cast<char32_t>(code)));
+        const Event event = keyOf(named, code);
+        if (event.kind() == Event::Kind::None) continue;  // nothing binds it
+        if (!named && (code == 10 || code == 13)) swallowLineEndPartner(code);
+        return event;
     }
 }
+
+#ifdef _WIN32
+
+namespace {
+
+/// A code written so that one word of a line holds it: the library's own name
+/// for a key code, `U+` and the hex for a character, and `K+` and the hex for a
+/// key code the library has no name for.
+std::string codeName(bool named, wint_t code) {
+    std::array<char, 16> hex{};
+    if (!named) {
+        std::snprintf(hex.data(), hex.size(), "U+%04X", static_cast<unsigned>(code));
+        return hex.data();
+    }
+    const char* name = keyname(static_cast<int>(code));
+    const std::string spelled = name != nullptr ? name : "";
+    const bool word = !spelled.empty() &&
+                      spelled.find_first_of(" ,#") == std::string::npos;
+    if (word) return spelled;
+    std::snprintf(hex.data(), hex.size(), "K+%X", static_cast<unsigned>(code));
+    return hex.data();
+}
+
+}  // namespace
+
+std::vector<std::string> Terminal::readCodes(int firstMs, int gapMs) {
+    std::vector<std::string> codes;
+    int wait = firstMs;
+    bool named = false;
+    while (const auto code = readRaw(wait, named)) {
+        codes.push_back(codeName(named, *code));
+        wait = gapMs;
+    }
+    return codes;
+}
+
+Event eventOfCode(const std::string& name) {
+    if (name.size() > 2 && (name[0] == 'U' || name[0] == 'K') && name[1] == '+') {
+        const auto code = static_cast<wint_t>(std::stoul(name.substr(2), nullptr, 16));
+        return keyOf(name[0] == 'K', code);
+    }
+    // The library names its own codes, so the code is found by asking it for
+    // every name it has. Asked once: the table does not change.
+    static const std::unordered_map<std::string, int> codes = [] {
+        std::unordered_map<std::string, int> out;
+        for (int code = KEY_MIN; code <= KEY_MAX; ++code) {
+            const char* spelled = keyname(code);
+            if (spelled != nullptr) out.emplace(spelled, code);
+        }
+        return out;
+    }();
+    const auto found = codes.find(name);
+    if (found == codes.end()) return {};
+    return keyOf(true, static_cast<wint_t>(found->second));
+}
+
+std::string cursesVersion() { return curses_version(); }
+
+#endif  // _WIN32
 
 }  // namespace amberedit::ui::term

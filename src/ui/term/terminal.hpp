@@ -165,6 +165,15 @@ public:
     void showCursor(int x, int y);
     void hideCursor();
 
+#ifdef _WIN32
+    /// What arrived from the keyboard within `firstMs`, and whatever followed
+    /// it with gaps no longer than `gapMs`, each code written as one word —
+    /// the library's own name for a key code (`CTL_HOME`, `ALT_A`), `U+` and
+    /// the hex for a character. For `--keytest`, which on Windows writes down
+    /// what the console reported rather than bytes: there are none to take.
+    [[nodiscard]] std::vector<std::string> readCodes(int firstMs, int gapMs);
+#endif
+
     /// What the terminal is being written in — UTF-8 unless the user asked for
     /// something else. Worth reporting when it is not what they expected.
     [[nodiscard]] const std::string& codeset() const;
@@ -219,5 +228,16 @@ private:
     int cursorX_{0};
     int cursorY_{0};
 };
+
+#ifdef _WIN32
+/// What `poll()` makes of a code `Terminal::readCodes()` wrote down, or
+/// `Kind::None` where it makes nothing of it. Asks no console, so that the codes
+/// taken off one can be played back where there is none.
+[[nodiscard]] Event eventOfCode(const std::string& name);
+
+/// Which curses library the codes come from, and which release of it: the
+/// codes are its own, and a file says what it was taken through.
+[[nodiscard]] std::string cursesVersion();
+#endif
 
 }  // namespace amberedit::ui::term
