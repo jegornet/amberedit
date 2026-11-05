@@ -323,10 +323,13 @@ void registerNavigationKeys() {
     // F1 to F4 as the kitty protocol spells them with no modifier at all:
     // `CSI P`, `CSI Q`, `CSI 13 ~` and `CSI S`, which iTerm2 sends under it.
     // F3 is a number rather than `CSI R` because that is the cursor position
-    // report. The VT220 numbers for all four go with them — rxvt and PuTTY send
-    // those — and none of these means anything else coming in. Left unnamed,
-    // each is read as Escape and then two typed characters.
-    const std::array<std::pair<const char*, Event>, 7> firstFour{{
+    // report. The VT220 numbers go with them, all twelve: rxvt and PuTTY send
+    // the first four that way, and every terminal sends F5 upwards that way —
+    // but a terminfo entry need not name them, and FreeBSD's entries for
+    // Alacritty, Ghostty, st and urxvt leave F10 to F12 out. None of these means
+    // anything else coming in. Left unnamed, each is read as Escape and then a
+    // run of typed characters.
+    const std::array<std::pair<const char*, Event>, 15> functionKeys{{
         {"\x1b[P", Event::F1},
         {"\x1b[Q", Event::F2},
         {"\x1b[S", Event::F4},
@@ -334,8 +337,16 @@ void registerNavigationKeys() {
         {"\x1b[12~", Event::F2},
         {"\x1b[13~", Event::F3},
         {"\x1b[14~", Event::F4},
+        {"\x1b[15~", Event::F5},
+        {"\x1b[17~", Event::F6},
+        {"\x1b[18~", Event::F7},
+        {"\x1b[19~", Event::F8},
+        {"\x1b[20~", Event::F9},
+        {"\x1b[21~", Event::F10},
+        {"\x1b[23~", Event::F11},
+        {"\x1b[24~", Event::F12},
     }};
-    for (const auto& [form, event] : firstFour) registerKey(form, event);
+    for (const auto& [form, event] : functionKeys) registerKey(form, event);
 
     // Shift-Tab, which walks the compose screen's ring backwards. terminfo
     // names it as `kcbt`, and not every entry names the `CSI Z` every terminal
