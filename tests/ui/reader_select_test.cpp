@@ -701,13 +701,7 @@ TEST_CASE("reader_drag_to_select: a click outside the text ends the mode "
         CHECK_FALSE(state.readSelect.on);
         reader.key(pointerAt(box.x_min + 1, box.y_min, term::MouseEvent::Motion::Released));
     }
-    // Nor does a drag begin on one.
     reader.draw();
-    const auto blank = state.readSelect.textRows[1].box;
-    reader.key(pointerAt(blank.x_min, blank.y_min, term::MouseEvent::Motion::Pressed));
-    reader.key(pointerAt(blank.x_min + 4, blank.y_min, term::MouseEvent::Motion::Moved));
-    CHECK_FALSE(state.readSelect.on);
-    reader.key(pointerAt(blank.x_min + 4, blank.y_min, term::MouseEvent::Motion::Released));
 
     // Under off the mode is left by its keys alone, as it always was.
     config.readerDragToSelect = amberedit::config::Visibility::Off;
@@ -717,8 +711,49 @@ TEST_CASE("reader_drag_to_select: a click outside the text ends the mode "
     CHECK(state.readSelect.on);
 }
 
-TEST_CASE("reader_drag_to_select: when_wide by default, and nothing where it is off "
-          "[messageread][select][mouse][config]") {
+TEST_CASE(
+    "reader_drag_to_select: a drag begun off the text selects from the nearest place "
+    "[messageread][select][mouse][config]") {
+    Reader reader({"Hello world", "", "last"});
+    auto& state = reader.state;
+    reader.fixture.config.readerDragToSelect = amberedit::config::Visibility::On;
+    reader.draw();
+    const auto rows = state.readSelect.textRows;
+    const auto drag = [&](int x0, int y0, int x1, int y1) {
+        reader.key(pointerAt(x0, y0, term::MouseEvent::Motion::Pressed));
+        reader.key(pointerAt(x1, y1, term::MouseEvent::Motion::Moved));
+        reader.key(pointerAt(x1, y1, term::MouseEvent::Motion::Released));
+    };
+
+    // From the empty line up into the first: what lies between is selected.
+    drag(rows[1].box.x_min + 4, rows[1].box.y_min, rows[0].box.x_min + 6,
+         rows[0].box.y_min);
+    REQUIRE(state.readSelect.on);
+    CHECK(reader_select::selectedText(state) == "world\n");
+
+    // From the blank under the end of the message: the end of its last line.
+    reader_select::stop(state);
+    reader.draw();
+    drag(rows[3].box.x_min + 20, rows[3].box.y_min, rows[2].box.x_min + 1,
+         rows[2].box.y_min);
+    REQUIRE(state.readSelect.on);
+    CHECK(reader_select::selectedText(state) == "ast");
+
+    // With the mode on, a press off the text ends it, and a drag from there
+    // begins afresh: the title row is nearest the first line of fields.
+    reader.draw();
+    const auto from = state.readSelect.fieldSpots[compose::kFromName].box;
+    drag(from.x_min, 0, from.x_min + 3, from.y_min);
+    REQUIRE(state.readSelect.on);
+    CHECK(state.readSelect.inHeader);
+    CHECK(state.readSelect.field == compose::kFromName);
+    CHECK(reader_select::selectedText(state) ==
+          reader_select::fieldValue(state, compose::kFromName).substr(0, 3));
+}
+
+TEST_CASE(
+    "reader_drag_to_select: when_wide by default, and nothing where it is off "
+    "[messageread][select][mouse][config]") {
     Reader reader({"first line", "second line"});
     auto& state = reader.state;
     auto& config = reader.fixture.config;

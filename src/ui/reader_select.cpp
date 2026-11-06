@@ -420,7 +420,8 @@ bool multiClick(AppState& state, const MouseEvent& click) {
 /// Whether row `row` of the reader's lines has anything written on it — under
 /// `reader_drag_to_select` a row with nothing, an empty line of the message or
 /// the blank under its end, is not text a press can land on: a click there is
-/// the click outside the text that ends the mode.
+/// the click outside the text that ends the mode, and a drag from there begins
+/// at the place `pressNear()` finds.
 bool rowHasText(const AppState& state, int row) {
     if (row < 0 || static_cast<size_t>(row) >= state.readLines.size()) return false;
     const std::string& line = state.readLines[static_cast<size_t>(row)].text;
@@ -479,6 +480,65 @@ bool press(AppState& state, const MouseEvent& click) {
     return true;
 }
 
+/// A drag `reader_drag_to_select` begins off the text and the fields: the
+/// selection starts at the nearest place it could have started from instead —
+/// above the text the field nearest the press, its near end where the press
+/// stood beside it; level with the text the row it stood on, an empty one
+/// included; and under the end of the message the end of its last line. Says
+/// whether there was anywhere at all.
+bool pressNear(AppState& state, int x, int y) {
+    auto& select = state.readSelect;
+    select.anchored = false;
+    select.heldField.reset();
+    select.heldText.reset();
+    select.clicks = {};
+    const auto& rows = select.textRows;
+    int nearest = -1;
+    std::pair<int, int> distance{0, 0};
+    for (size_t i = 0; i < select.fieldSpots.size(); ++i) {
+        const auto& box = select.fieldSpots[i].box;
+        if (!fieldShown(state, static_cast<int>(i)) || box.x_max < box.x_min) continue;
+        const auto gap = [](int at, int from, int to) {
+            return at < from ? from - at : at > to ? at - to : 0;
+        };
+        const std::pair<int, int> here{gap(y, box.y_min, box.y_max),
+                                       gap(x, box.x_min, box.x_max)};
+        if (nearest < 0 || here < distance) {
+            nearest = static_cast<int>(i);
+            distance = here;
+        }
+    }
+    if (!rows.empty() && (nearest < 0 || y >= rows.front().box.y_min)) {
+        select.inHeader = false;
+        select.fieldAnchor.reset();
+        const int on =
+            std::clamp(viewportRowAt(state, y), 0, static_cast<int>(rows.size()) - 1);
+        if (state.readScroll + on > lastRow(state)) {
+            select.text.row = lastRow(state);
+            select.text.col = select.text.line().size();
+            scrollToCursor(state);
+        } else {
+            pointTo(state, on, x);
+        }
+        select.text.anchor = select.text.cursor();
+        select.drag = AppState::ReaderSelect::Drag::Text;
+        return true;
+    }
+    if (nearest < 0) return false;
+    select.text.anchor.reset();
+    select.inHeader = true;
+    select.field = nearest;
+    const auto& spot = select.fieldSpots[static_cast<size_t>(nearest)];
+    const std::string value = fieldValue(state, nearest);
+    select.fieldCursor = x < spot.box.x_min ? 0
+                         : x > spot.box.x_max
+                             ? value.size()
+                             : offsetAtColumn(value, spot.origin, x - spot.box.x_min);
+    select.fieldAnchor = select.fieldCursor;
+    select.drag = AppState::ReaderSelect::Drag::Field;
+    return true;
+}
+
 /// The mode as nothing has touched it. Where the fields and the rows stand is
 /// the last frame's and not the mode's, so it stays: a drag that turns the mode
 /// on reads its press against it before the mode has drawn a frame.
@@ -492,14 +552,11 @@ void reset(AppState::ReaderSelect& select) {
     select.textRows = std::move(textRows);
 }
 
-/// Whether a point is on a header field or a row of the text as the last frame
-/// drew them — what a press has to land on to be the start of a selection.
-bool onText(const AppState& state, int x, int y) {
-    const auto& select = state.readSelect;
-    if (fieldAt(state, x, y) >= 0) return true;
-    const int on = viewportRowAt(state, y);
-    return on >= 0 && on < static_cast<int>(select.textRows.size()) &&
-           x >= select.textRows.front().box.x_min && rowHasText(state, state.readScroll + on);
+/// Whether a point is on the reader's own pane — what a press has to land on to
+/// be the start of a selection, once everything else on it has had its look.
+bool onPane(const AppState& state, int x, int y) {
+    return x >= state.readerPaneLeft() && x < state.readerPaneRight() && y >= 0 &&
+           y < state.height;
 }
 
 }  // namespace
@@ -630,7 +687,7 @@ bool arm(AppState& state, const Event& event) {
         return false;
     }
     select.armed.reset();
-    if (!state.readHeader || !onText(state, mouse->x, mouse->y)) return false;
+    if (!state.readHeader || !onPane(state, mouse->x, mouse->y)) return false;
     select.armed = AppState::ReaderSelect::Armed{mouse->x, mouse->y};
     return true;
 }
@@ -654,7 +711,7 @@ bool dragged(AppState& state, const Event& event) {
         down.motion = MouseEvent::Motion::Pressed;
         down.x = at.x;
         down.y = at.y;
-        if (!press(state, down)) {
+        if (!press(state, down) && !pressNear(state, at.x, at.y)) {
             stop(state);
             return false;
         }
@@ -746,9 +803,13 @@ bool handleEvent(AppState& state, const Event& event) {
     }
 
     // A press on neither the text nor a field is the click
-    // `reader_drag_to_select` ends the mode with, where it is on.
+    // `reader_drag_to_select` ends the mode with, where it is on — and, like
+    // any press with the mode off, one a drag may begin a selection from.
     if (const auto click = leftClick(event)) {
-        if (!press(state, *click) && state.readerDragToSelectShown()) stop(state);
+        if (!press(state, *click) && state.readerDragToSelectShown()) {
+            stop(state);
+            arm(state, event);
+        }
         return true;
     }
     // The wheel scrolls the message and carries the cursor along where the

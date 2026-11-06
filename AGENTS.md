@@ -2178,12 +2178,16 @@ hands it events.
   `ui/hint_bar.cpp`. The reply elsewhere and the comment reply quote the
   selection as well and are left off the row, which has room for one answer.
 - **A drag may begin the mode by itself, where `reader_drag_to_select` asks** —
-  `when_wide` unless the config says otherwise. A press on the text or a header
-  field with the mode off is held in `ReaderSelect::armed` and does nothing else
+  `when_wide` unless the config says otherwise. A press anywhere on the reader's
+  pane with the mode off is held in `ReaderSelect::armed` and does nothing else
   (`reader_select::arm()`); the first movement after it calls `start()` and then
   the very `press()` the mode answers a press with, at the place the press was,
   and the drag carries on from there through `dragged()` as one begun in the
-  mode does. A release before any movement is the click it was and leaves
+  mode does. **A drag begun off the text begins all the same**, at the nearest
+  place a selection could have begun — `pressNear()`: above the text the field
+  nearest the press, level with it the row it stood on, under the end of the
+  message the end of its last line — since a hand that starts a little wide of
+  the first word means that word. A release before any movement is the click it was and leaves
   nothing. **What the press is read against is the last frame**, which is why
   `render()` reflects the rows and the fields outside the mode wherever the
   setting is shown and why `reset()` keeps `fieldSpots` and `textRows` across
@@ -2193,12 +2197,13 @@ hands it events.
   corners, the sidebar, the thread markers, a link, the side taps — so a drag
   cannot start on any of them; `when_wide` keeps it off the window the side taps
   are on by default. With the mode on, a press on neither the text nor a field
-  ends it with nothing copied, as Esc does; outside this setting such a press is
-  swallowed and the mode stays. **A row with nothing written on it is not text
-  here** — an empty line of the message and the blank rows under its end, which
-  the mode otherwise reads as the end of the message (`rowHasText()`): a click
-  on one ends the mode and a drag does not begin there, while a selection
-  carried across one goes on as it always did.
+  ends it with nothing copied, as Esc does, and is armed as a press with the
+  mode off is, so a drag from it selects afresh; outside this setting such a
+  press is swallowed and the mode stays. **A row with nothing written on it is
+  not text here** — an empty line of the message and the blank rows under its
+  end, which the mode otherwise reads as the end of the message (`rowHasText()`):
+  a click on one ends the mode, while a drag from one and a selection carried
+  across one go on as they always did.
 - **`v` and not a chord**, the key a pager's and vim's visual mode are on: a
   bare letter reaches the reader from every terminal, where `Ctrl-M` is the byte
   Enter sends and arrives as a chord only on one reporting modified keys. Enter

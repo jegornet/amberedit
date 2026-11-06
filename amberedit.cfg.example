@@ -1161,8 +1161,10 @@ reader_side_tap_width 6
 
 # Whether a drag across the message in the reader selects text as it does in the
 # selection mode (reader.select, v), turning that mode on as the pointer starts to
-# move. A click outside the text and the header fields — an empty line and the
-# blank under the end of the message included — turns the mode off again.
+# move — from wherever on the reader the drag begins, the selection starting at
+# the nearest text or header field. A click outside the text and the header
+# fields — an empty line and the blank under the end of the message included —
+# turns the mode off again.
 # Optional; "when_wide" by default, the same four values as back_button. A press
 # on a link, a thread marker or a side strip does what it always does.
 reader_drag_to_select when_wide

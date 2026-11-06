@@ -66,9 +66,10 @@ void sync(AppState& state);
 /// break the message itself made is a line feed.
 [[nodiscard]] std::string selectedText(const AppState& state);
 
-/// A press on a field or in the text while the mode is off, under
+/// A press on the reader's pane while the mode is off, under
 /// `reader_drag_to_select`: remembered for the drag that may follow it, and true
-/// where it was — nothing else on the screen acts on such a press.
+/// where it was — nothing else on the screen acts on such a press. Whatever
+/// else on the pane acts on a press is asked first.
 bool arm(AppState& state, const term::Event& event);
 
 /// A press and a drag of the pointer carried on — the movement and the release
@@ -79,7 +80,8 @@ bool dragged(AppState& state, const term::Event& event);
 
 /// Every other event while the mode is on. Answers true for all of them: what
 /// the mode does not use, it swallows. Under `reader_drag_to_select` a press on
-/// neither the text nor a field ends the mode.
+/// neither the text nor a field ends the mode, and is `arm()`ed as one with the
+/// mode off is.
 bool handleEvent(AppState& state, const term::Event& event);
 
 }  // namespace amberedit::ui::reader_select
