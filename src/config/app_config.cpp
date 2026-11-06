@@ -2063,6 +2063,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseVisibility(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.readerSideTaps = *read;
+    } else if (key == "reader_drag_to_select") {
+        auto read = parseVisibility(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.readerDragToSelect = *read;
     } else if (key == "reader_side_tap_width") {
         auto read = entry.number();
         if (!read) return tl::make_unexpected(std::move(read).error());

@@ -629,3 +629,127 @@ TEST_CASE("Space holds the anchor down, and the bare arrows select "
     CHECK(state.clipboard == state.readHeader->from);
     CHECK_FALSE(state.readSelect.on);
 }
+
+TEST_CASE("reader_drag_to_select: a drag across the text turns the mode on and selects "
+          "[messageread][select][mouse][config]") {
+    Reader reader({"first line", "second line"});
+    auto& state = reader.state;
+    reader.fixture.config.readerDragToSelect = amberedit::config::Visibility::On;
+    REQUIRE_FALSE(state.readSelect.on);
+    const auto first = state.readSelect.textRows[0].box;
+    const auto second = state.readSelect.textRows[1].box;
+
+    // A press alone is nothing yet, and a release before any movement leaves
+    // the reader as it was.
+    CHECK(reader.key(pointerAt(first.x_min + 2, first.y_min, term::MouseEvent::Motion::Pressed)));
+    CHECK_FALSE(state.readSelect.on);
+    reader.key(pointerAt(first.x_min + 2, first.y_min, term::MouseEvent::Motion::Released));
+    CHECK_FALSE(state.readSelect.on);
+    CHECK(state.clipboard.empty());
+
+    // The first movement turns it on, the selection begun where the press was.
+    reader.key(pointerAt(first.x_min + 6, first.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(first.x_min + 3, second.y_min, term::MouseEvent::Motion::Moved));
+    CHECK(state.readSelect.on);
+    CHECK_FALSE(state.readSelect.inHeader);
+    CHECK(reader_select::selectedText(state) == "line\nsec");
+    // The release copies as any drag in the mode does, and the mode stays.
+    reader.key(pointerAt(first.x_min + 6, second.y_min, term::MouseEvent::Motion::Released));
+    CHECK(state.clipboard == "line\nsecond");
+    CHECK(state.readSelect.on);
+}
+
+TEST_CASE("reader_drag_to_select: a drag may begin on a header field "
+          "[messageread][select][mouse][config]") {
+    Reader reader({"text"});
+    auto& state = reader.state;
+    reader.fixture.config.readerDragToSelect = amberedit::config::Visibility::On;
+    const auto subject = state.readSelect.fieldSpots[compose::kSubject].box;
+    REQUIRE(subject.x_max >= subject.x_min);
+
+    reader.key(pointerAt(subject.x_min, subject.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(subject.x_min + 3, subject.y_min, term::MouseEvent::Motion::Moved));
+    CHECK(state.readSelect.on);
+    CHECK(state.readSelect.inHeader);
+    CHECK(state.readSelect.field == compose::kSubject);
+    CHECK(reader_select::selectedText(state) ==
+          reader_select::fieldValue(state, compose::kSubject).substr(0, 3));
+}
+
+TEST_CASE("reader_drag_to_select: a click outside the text ends the mode "
+          "[messageread][select][mouse][config]") {
+    Reader reader({"Hello world", "", "last"});
+    auto& state = reader.state;
+    auto& config = reader.fixture.config;
+    config.readerDragToSelect = amberedit::config::Visibility::On;
+    const auto title = pointerAt(state.width / 3, 0, term::MouseEvent::Motion::Pressed);
+
+    reader.key(Event::Character('v'));
+    reader.key(shifted(Event::Name::End));
+    reader.draw();
+    reader.key(title);
+    CHECK_FALSE(state.readSelect.on);
+    CHECK(state.clipboard.empty());
+
+    // An empty line of the message and the blank under its end are outside the
+    // text as much as the title is.
+    for (const int row : {1, 3}) {
+        reader.key(Event::Character('v'));
+        reader.draw();
+        const auto box = state.readSelect.textRows[static_cast<size_t>(row)].box;
+        reader.key(pointerAt(box.x_min + 1, box.y_min, term::MouseEvent::Motion::Pressed));
+        CHECK_FALSE(state.readSelect.on);
+        reader.key(pointerAt(box.x_min + 1, box.y_min, term::MouseEvent::Motion::Released));
+    }
+    // Nor does a drag begin on one.
+    reader.draw();
+    const auto blank = state.readSelect.textRows[1].box;
+    reader.key(pointerAt(blank.x_min, blank.y_min, term::MouseEvent::Motion::Pressed));
+    reader.key(pointerAt(blank.x_min + 4, blank.y_min, term::MouseEvent::Motion::Moved));
+    CHECK_FALSE(state.readSelect.on);
+    reader.key(pointerAt(blank.x_min + 4, blank.y_min, term::MouseEvent::Motion::Released));
+
+    // Under off the mode is left by its keys alone, as it always was.
+    config.readerDragToSelect = amberedit::config::Visibility::Off;
+    reader.key(Event::Character('v'));
+    reader.draw();
+    reader.key(title);
+    CHECK(state.readSelect.on);
+}
+
+TEST_CASE("reader_drag_to_select: when_wide by default, and nothing where it is off "
+          "[messageread][select][mouse][config]") {
+    Reader reader({"first line", "second line"});
+    auto& state = reader.state;
+    auto& config = reader.fixture.config;
+    CHECK(config.readerDragToSelect == amberedit::config::Visibility::WhenWide);
+    // The side taps would take a press at the edge of a narrow window for ←.
+    config.readerSideTaps = amberedit::config::Visibility::Off;
+
+    // Where the first row stands, taken while the rows are remembered: under
+    // off they are not, and nothing is there to be read.
+    const auto first = state.readSelect.textRows[0].box;
+    const auto dragAcross = [&] {
+        reader.draw();
+        reader.key(pointerAt(first.x_min, first.y_min, term::MouseEvent::Motion::Pressed));
+        reader.key(pointerAt(first.x_min + 5, first.y_min, term::MouseEvent::Motion::Moved));
+        reader.key(pointerAt(first.x_min + 5, first.y_min, term::MouseEvent::Motion::Released));
+    };
+
+    // A window under adaptive_ui_threshold is not wide.
+    state.width = config.adaptiveUiThreshold - 1;
+    message_read::relayout(state);
+    dragAcross();
+    CHECK_FALSE(state.readSelect.on);
+
+    config.readerDragToSelect = amberedit::config::Visibility::Off;
+    state.width = config.adaptiveUiThreshold;
+    message_read::relayout(state);
+    dragAcross();
+    CHECK_FALSE(state.readSelect.on);
+
+    config.readerDragToSelect = amberedit::config::Visibility::WhenWide;
+    dragAcross();
+    CHECK(state.readSelect.on);
+    CHECK(reader_select::selectedText(state) == "first");
+}

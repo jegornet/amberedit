@@ -1799,6 +1799,17 @@ struct AppConfig {
     /// looks like, not how far the press could have landed from the edge.
     int readerSideTapWidth{6};
 
+    /// Whether a drag across the message in the reader selects text without
+    /// `reader.select` having been pressed first, from `reader_drag_to_select`:
+    /// the press marks where the selection begins and the first movement after
+    /// it turns the selection mode on. A click outside the text and the header
+    /// fields while the mode is on turns it off.
+    ///
+    /// `when_wide` unless the config says otherwise — the window where a mouse
+    /// is likelier to be the thing in hand than a finger is, and the one where
+    /// the side taps, which a drag would otherwise start on, are off.
+    Visibility readerDragToSelect{Visibility::WhenWide};
+
     /// What the three menus hold, in the order they are to stand — from
     /// `arealist_menu`, `reader_menu` and `compose_menu`. Each names commands of
     /// its own screen, by the part of the name after the dot: `reply_elsewhere`

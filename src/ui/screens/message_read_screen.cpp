@@ -205,6 +205,13 @@ HeaderBlock headerBlock(AppState& state, const domain::MessageHeader& header,
     const auto field = [&](int stop, const std::string& value, int width,
                            theme::Color tint) {
         if (select.on) return selectableCell(state, stop, width, tint);
+        // Where a drag may begin the mode, where it was drawn is remembered as
+        // it is in the mode: the press is turned into a place in the field off
+        // this frame, drawn unscrolled, before the mode has drawn one of its own.
+        if (state.readerDragToSelectShown()) {
+            return headerCell(value, width, tint, search) |
+                   reflect(select.fieldSpots[static_cast<size_t>(stop)].box);
+        }
         return headerCell(value, width, tint, search);
     };
     const auto nameTint = [&](const std::string& name) {
@@ -2253,8 +2260,11 @@ Element render(AppState& state) {
 
     // While text is being selected, where each row of the viewport is drawn —
     // the blank ones under the end of the message included, a press there
-    // being a press at the end of it — and how wide the text runs.
+    // being a press at the end of it — and how wide the text runs. Where a drag
+    // may begin the mode the rows are remembered outside it as well, for the
+    // press to be read against.
     auto& select = state.readSelect;
+    const bool spotRows = select.on || state.readerDragToSelectShown();
     select.textRows.assign(static_cast<size_t>(std::max(0, viewportHeight)),
                            AppState::ComposeSpot{});
     const int textWidth =
@@ -2270,11 +2280,16 @@ Element render(AppState& state) {
             linkAt += source.links.size();
             continue;
         }
+        const auto spotted = [&](Element line) {
+            if (!spotRows) return line;
+            return std::move(line) |
+                   reflect(select.textRows[static_cast<size_t>(i - firstLine)].box);
+        };
         if (source.kludge) {
             // Service lines render darker, so they read as service data wherever in
             // the message they happen to sit, and are drawn whole: nothing in one
             // is a link, as the gathering above says.
-            bodyLines.push_back(text(source.text) | color(theme::palette.kludge));
+            bodyLines.push_back(spotted(text(source.text) | color(theme::palette.kludge)));
             continue;
         }
 
@@ -2287,12 +2302,12 @@ Element render(AppState& state) {
                                               : theme::palette.quoteEven)
                 : theme::palette.text;
 
-        bodyLines.push_back(bodyLine(source, base, state, linkAt));
+        bodyLines.push_back(spotted(bodyLine(source, base, state, linkAt)));
         linkAt += source.links.size();
     }
     while (static_cast<int>(bodyLines.size()) < viewportHeight) {
         Element blank = text("");
-        if (select.on) blank |= reflect(select.textRows[bodyLines.size()].box);
+        if (spotRows) blank |= reflect(select.textRows[bodyLines.size()].box);
         bodyLines.push_back(std::move(blank));
     }
 
@@ -2580,6 +2595,15 @@ bool handleEvent(AppState& state, const Event& event) {
             switchMessage(state, next ? 1 : -1);
             return true;
         }
+    }
+    // A press on the text or a field, where `reader_drag_to_select` asks: what it
+    // means is not known until the pointer moves, so it is remembered and
+    // nothing else happens. A drag turns the selection mode on — see
+    // `reader_select::dragged()` above — and a release before any leaves the
+    // reader as the press found it, bar the goto field a click closes anyway.
+    if (reader_select::arm(state, event)) {
+        state.readGoto.clear();
+        return true;
     }
     // The wheel scrolls the body a line at a time, the same as ↑↓.
     if (const int wheel = wheelDelta(event); wheel != 0) {

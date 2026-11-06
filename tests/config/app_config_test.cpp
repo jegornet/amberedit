@@ -1067,6 +1067,10 @@ TEST_CASE("AppConfig reads the reader's side taps [app_config]") {
     CHECK(with("reader_side_taps when_narrow\n").readerSideTaps ==
           Visibility::WhenNarrow);
     CHECK(with("reader_side_taps when_wide\n").readerSideTaps == Visibility::WhenWide);
+    CHECK(with("").readerDragToSelect == Visibility::WhenWide);
+    CHECK(with("reader_drag_to_select off\n").readerDragToSelect == Visibility::Off);
+    CHECK(with("reader_drag_to_select when_narrow\n").readerDragToSelect ==
+          Visibility::WhenNarrow);
 
     CHECK_FALSE(loads("reader_side_taps 1\n"));
     CHECK_FALSE(loads("reader_side_taps\n"));

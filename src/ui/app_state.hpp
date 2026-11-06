@@ -1335,6 +1335,15 @@ struct AppState {
         std::vector<ComposeSpot> fieldSpots;
         std::vector<ComposeSpot> textRows;
         ClickRun clicks;
+        /// Where a press landed on the text or a header field while the mode
+        /// was off, under `reader_drag_to_select`: the first movement after it
+        /// turns the mode on with the selection begun there. Dropped by the
+        /// release and by the mode starting or ending.
+        struct Armed {
+            int x{0};
+            int y{0};
+        };
+        std::optional<Armed> armed;
     };
     ReaderSelect readSelect;
     /// What a reply begun from the selection mode quotes in place of the whole
@@ -2172,6 +2181,14 @@ struct AppState {
     /// is pressed, so nothing is laid out differently for them.
     [[nodiscard]] bool readerSideTapsShown() const {
         return shown(config.readerSideTaps);
+    }
+
+    /// Whether a drag across the message begins a selection without the mode
+    /// having been asked for, and a click outside the text ends the mode, from
+    /// `reader_drag_to_select`. Asked of the event, every time, as the side taps
+    /// are.
+    [[nodiscard]] bool readerDragToSelectShown() const {
+        return shown(config.readerDragToSelect);
     }
 
     /// How many columns down each side of the message answer one, from
