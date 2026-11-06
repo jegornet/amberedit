@@ -30,17 +30,24 @@ Shift-Tab       KEY_BTAB                # ok
 Space           U+0020                  # ok
 Shift-Space     U+0020                  # seen: Space
 Alt-Up          ALT_UP                  # ok
+Shift-Up        KEY_SUP                 # ok
 Alt-Down        ALT_DOWN                # ok
+Shift-Down      KEY_SDOWN               # ok
 Ctrl-Left       CTL_LEFT                # ok
 Alt-Left        ALT_LEFT                # ok
+Shift-Left      KEY_SLEFT               # ok
 Ctrl-Right      CTL_RIGHT               # ok
 Alt-Right       ALT_RIGHT               # ok
+Shift-Right     KEY_SRIGHT              # ok
 Ctrl-Home       CTL_HOME                # ok
+Shift-Home      KEY_SHOME               # ok
 Ctrl-End        CTL_END                 # ok
+Shift-End       KEY_SEND                # ok
 Ctrl-Ins        CTL_INS                 # ok
 Shift-Ins       -                       
 Ctrl-Del        CTL_DEL                 # ok
 Alt-Del         ALT_DEL                 # ok
+Shift-Del       KEY_SDC                 # ok
 Ctrl-Backspace  U+007F                  # ok
 Alt-Backspace   ALT_BKSP                # ok
 Alt-F1          KEY_F(37)               # ok
@@ -125,3 +132,4 @@ b               U+0062                  # ok
 +               U+002B                  # ok
 =               U+003D                  # ok
 s               U+0073                  # ok
+v               U+0076                  # ok

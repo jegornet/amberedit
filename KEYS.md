@@ -131,6 +131,11 @@ Windows Terminal; the lists are `testdata/keys/limits.lst` and
   sends `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
   PuTTY on Windows sends nothing at all for Ctrl with `Home`, `End`, `Ins` or
   `Del`, whatever it is set to.
+- Shift with an arrow, `Home`, `End` or `Del` is the bare key in PuTTY as it
+  ships; with *Xterm 216+* (below) it selects. Terminal.app sends `Shift+↑`
+  `Shift+↓` as the bare arrows and keeps `Shift-Home` and `Shift-End`, Contour
+  keeps Shift with the arrows, `Home` and `End`, and xfce4-terminal keeps
+  `Shift+↑` `Shift+↓` — there the mouse selects.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
   with a menu letter for themselves, and AmberEdit never sees them. Windows
   Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, conhost `Ctrl-V`, and

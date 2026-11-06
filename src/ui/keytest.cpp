@@ -90,15 +90,20 @@ std::vector<Event> keys() {
     add(out, Event::Character(" ", false, false, true));
 
     // Each named key under whichever single modifier a layout may bind it with,
-    // and Ctrl with Home and End, which no layout may but the screens answer.
+    // and the chords no layout may bind but the screens answer: Ctrl with Home
+    // and End, and Shift with an arrow, Home or End, which select text.
     for (const Event::Name name : kNamedKeys) {
+        const bool homeEnd = name == Event::Name::Home || name == Event::Name::End;
+        const bool selects = homeEnd || name == Event::Name::ArrowUp ||
+                             name == Event::Name::ArrowDown ||
+                             name == Event::Name::ArrowLeft ||
+                             name == Event::Name::ArrowRight;
         const Event chords[] = {Event::Named(name, true, false, false),
                                 Event::Named(name, false, true, false),
                                 Event::Named(name, false, false, true)};
         for (const Event& chord : chords) {
-            const bool ctrlEnd =
-                chord.ctrl() && (name == Event::Name::Home || name == Event::Name::End);
-            if (ctrlEnd || keyNamed(nameOf(chord))) add(out, chord);
+            const bool moves = (chord.ctrl() && homeEnd) || (chord.shift() && selects);
+            if (moves || keyNamed(nameOf(chord))) add(out, chord);
         }
     }
 
