@@ -1182,8 +1182,12 @@ Rules that hold the design together:
   the movement over at all, and `Terminal::noteButton()` passes a movement on
   only while the left button is down — a terminal in 1003 reports a hand
   wandering too. Draining a run of reports, a release wins over a movement
-  gathered with it: it is what ends a drag. Only the editor reads `Moved` and
-  `Released` (see the selection bullet under [Writing a
+  gathered with it: it is what ends a drag. **The Windows build drains
+  nothing**: PDCurses stands one report behind each `KEY_MOUSE`, and its
+  `getmouse()` answers `OK` whenever it is asked, so `mouseEvent()` reads one
+  and stops — a loop waiting for `ERR` there spins on the first report, which
+  under `REPORT_MOUSE_POSITION` conhost sends before the first frame. Only the editor
+  reads `Moved` and `Released` (see the selection bullet under [Writing a
   message](#writing-a-message)); everything else still acts on the press alone.
 - **The wheel moves what scrolls, and a column of buttons does not.** A box with
   a long thing in it answers the wheel — the lists in `ui/area_dialog.*` and

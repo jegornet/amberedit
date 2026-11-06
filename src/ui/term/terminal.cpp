@@ -782,16 +782,22 @@ Event mouseEvent() {
               " x=" + std::to_string(report.x) + " y=" + std::to_string(report.y));
 
         const Event event = reportEvent(report);
-        if (event.kind() == Event::Kind::None) continue;
-
-        const MouseEvent::Motion motion = event.mouse().motion;
-        if (motion == MouseEvent::Motion::Pressed) {
-            if (press.kind() == Event::Kind::None) press = event;
-        } else if (other.kind() == Event::Kind::None ||
-                   (motion == MouseEvent::Motion::Released &&
-                    other.mouse().motion != MouseEvent::Motion::Released)) {
-            other = event;
+        if (event.kind() != Event::Kind::None) {
+            const MouseEvent::Motion motion = event.mouse().motion;
+            if (motion == MouseEvent::Motion::Pressed) {
+                if (press.kind() == Event::Kind::None) press = event;
+            } else if (other.kind() == Event::Kind::None ||
+                       (motion == MouseEvent::Motion::Released &&
+                        other.mouse().motion != MouseEvent::Motion::Released)) {
+                other = event;
+            }
         }
+#ifdef _WIN32
+        // PDCurses keeps no queue to drain: one report stands behind each
+        // KEY_MOUSE, and its getmouse() answers OK whenever it is asked, so a
+        // loop waiting for ERR never ends.
+        break;
+#endif
     }
 
     // The release is passed on when it is all there was, which is what a mouse
