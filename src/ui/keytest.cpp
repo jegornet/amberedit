@@ -524,7 +524,12 @@ std::string readBurst(int fd, int firstMs, int gapMs) {
     term::Terminal terminal(kAllLetters, true);
     const auto say = [out](const std::string& line) {
         const std::string text = line + "\n";
-        (void)::write(out, text.data(), text.size());
+        std::size_t done = 0;
+        while (done < text.size()) {
+            const ssize_t n = ::write(out, text.data() + done, text.size() - done);
+            if (n <= 0) return;
+            done += static_cast<std::size_t>(n);
+        }
     };
     say("ready");
     while (true) say(nameOf(terminal.poll()));
@@ -661,7 +666,9 @@ private:
         if (::poll(fds, 2, std::max(ms, 0)) <= 0) return;
         std::array<char, 4096> buffer{};
         if ((fds[0].revents & (POLLIN | POLLHUP)) != 0) {
-            (void)::read(master_, buffer.data(), buffer.size());
+            // What the terminal draws is thrown away: only the names are asked.
+            const ssize_t drawn = ::read(master_, buffer.data(), buffer.size());
+            static_cast<void>(drawn);
         }
         if ((fds[1].revents & (POLLIN | POLLHUP)) != 0) {
             const ssize_t n = ::read(names_, buffer.data(), buffer.size());
