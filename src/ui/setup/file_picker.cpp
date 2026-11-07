@@ -216,12 +216,14 @@ Element render(FilePicker& picker, int inner) {
     return vbox(std::move(lines));
 }
 
+bool handlePathPointer(FilePicker& picker, const Event& event,
+                       const FieldContext& context) {
+    if (!handleFieldMouse(picker.path, event, context)) return false;
+    picker.onPath = true;
+    return true;
+}
+
 PickOutcome handleClick(FilePicker& picker, const MouseEvent& click) {
-    if (picker.path.box.Contain(click.x, click.y)) {
-        picker.onPath = true;
-        clickField(picker.path, click.x);
-        return PickOutcome::Ignored;
-    }
     for (const auto& row : picker.rowBoxes) {
         if (!row.box.Contain(click.x, click.y)) continue;
         picker.onPath = false;
@@ -236,7 +238,8 @@ PickOutcome handleClick(FilePicker& picker, const MouseEvent& click) {
     return PickOutcome::Unclaimed;
 }
 
-PickOutcome handleEvent(FilePicker& picker, const Event& event) {
+PickOutcome handleEvent(FilePicker& picker, const Event& event,
+                        const FieldContext& context) {
     if (event == Event::Tab || event == Event::TabReverse || event == Event::Escape) {
         return PickOutcome::Unclaimed;
     }
@@ -246,11 +249,12 @@ PickOutcome handleEvent(FilePicker& picker, const Event& event) {
 
     if (picker.onPath) {
         if (event == Event::ArrowDown) {
+            picker.path.anchor.reset();
             picker.onPath = false;
             return PickOutcome::Ignored;
         }
-        return handleFieldKey(picker.path, event) ? PickOutcome::Ignored
-                                                  : PickOutcome::Unclaimed;
+        return handleFieldKey(picker.path, event, context) ? PickOutcome::Ignored
+                                                           : PickOutcome::Unclaimed;
     }
 
     // Typing a name is how the search starts, so the letters are claimed before

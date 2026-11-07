@@ -36,6 +36,7 @@
 #include "ui/header_format.hpp"
 #include "ui/keys.hpp"
 #include "ui/text_editor.hpp"
+#include "ui/text_field.hpp"
 #include "ui/wheel_throttle.hpp"
 
 namespace amberedit::ui {
@@ -912,26 +913,10 @@ struct AppState {
     /// kept in `lastFind` below rather than in the box.
     struct FindPicker {
         /// The words, as UTF-8. It opens holding whatever was last searched
-        /// for: looking for the same thing again is the commonest reason to
-        /// open it, and the first character typed is against a field the cursor
-        /// already stands at the end of.
-        std::string query;
-        size_t cursor{0};
-        /// The other end of what is selected of the words, the cursor being
-        /// this end — see `ui/line_edit.hpp`. The box opens with the whole of
-        /// what it holds selected, so typing writes over it.
-        std::optional<size_t> anchor;
-        /// A drag of the pointer across the words, from the press that began
-        /// it to the release; and the selection a press landed inside, held
-        /// for the drag to grow, as the editor's fields hold theirs.
-        bool dragging{false};
-        std::optional<HeldSelection<size_t>> held;
-        /// The presses on the field so far, for a double and a triple click.
-        ClickRun clicks;
-        /// The byte the field's leftmost column shows, filled in by
-        /// `ui::inputField()` — the one place the sideways scroll is worked out,
-        /// and so the only thing a click can be measured against.
-        size_t origin{0};
+        /// for, all of it selected: looking for the same thing again is the
+        /// commonest reason to open it, and the first character typed writes
+        /// over the old words rather than lengthening them.
+        TextField query;
         app::SearchScope scope{app::SearchScope::HeaderAndText};
 
         /// Which stop of the box the cursor is at.
@@ -950,7 +935,6 @@ struct AppState {
         /// Where the pieces were drawn, filled in by render() so that a click is
         /// tested against the box rather than against a second copy of its
         /// arithmetic.
-        term::Box queryBox;
         term::Box bothBox;
         term::Box headerBox;
         term::Box findBox;
@@ -974,12 +958,7 @@ struct AppState {
         /// It opens holding the charset the message is being read in, so that
         /// Enter on an untouched box changes nothing and the name to correct is
         /// there to be edited.
-        std::string charset;
-        size_t cursor{0};
-        /// The byte the field's leftmost column shows, filled in by
-        /// `ui::inputField()` — the one place the sideways scroll is worked
-        /// out, and so the only thing a click can be measured against.
-        size_t origin{0};
+        TextField charset;
 
         /// What the message is being read in as the box opens, and where that
         /// came from: the message's CHRS kludge, the area's `default_charset`,
@@ -1006,7 +985,6 @@ struct AppState {
         /// Where the pieces were drawn, filled in by render() so that a click
         /// is tested against the box rather than against a second copy of its
         /// arithmetic.
-        term::Box charsetBox;
         term::Box applyBox;
 
         /// Measured once off the window, as every modal is, and again only when
@@ -1426,12 +1404,7 @@ struct AppState {
         /// It is put back to the directory whenever the listing changes, so what
         /// it says is what is on the screen unless the user is in the middle of
         /// saying otherwise.
-        std::string path;
-        size_t pathCursor{0};
-        /// The byte its leftmost column shows: a path outgrows the box easily,
-        /// and a column counted from the left edge says nothing about which
-        /// character stands there. Filled in by the field as it is drawn.
-        size_t pathOrigin{0};
+        TextField path;
 
         /// Which of the dialog's stops the typing is on.
         enum class Focus {
@@ -1475,7 +1448,6 @@ struct AppState {
             term::Box box;
         };
         std::vector<Row> rowBoxes;
-        term::Box pathBox{term::Box::Nowhere()};
         term::Box textModeBox{term::Box::Nowhere()};
         term::Box uueModeBox{term::Box::Nowhere()};
     };
@@ -1540,16 +1512,13 @@ struct AppState {
         /// into what it names or says the path is not there. A file typed there
         /// is the name to write under rather than something to open — see
         /// `ui/export_dialog.hpp`.
-        std::string path;
-        size_t pathCursor{0};
-        size_t pathOrigin{0};
+        TextField path;
 
-        /// The name the message is written under, and where the cursor sits in
-        /// it. Seeded from the message itself the first time and kept between
-        /// askings on `AppState::exportName`, so that a second message can be
-        /// added to the same file without typing it again.
-        size_t nameCursor{0};
-        size_t nameOrigin{0};
+        /// The name the message is written under. It opens holding
+        /// `AppState::exportName`, what the last export was written under, so
+        /// that a second message can be added to the same file without typing
+        /// it again.
+        TextField name;
 
         /// Which of the dialog's stops the typing is on. `Name` is the box the
         /// name is typed into in text mode and the **Save button** in the other:
@@ -1612,8 +1581,9 @@ struct AppState {
             term::Box box;
         };
         std::vector<Row> rowBoxes;
-        term::Box pathBox{term::Box::Nowhere()};
-        term::Box nameBox{term::Box::Nowhere()};
+        /// The Save button standing where the name box does, when what is
+        /// written is the files a message carries.
+        term::Box saveBox{term::Box::Nowhere()};
     };
     std::optional<ExportPicker> exportPicker;
 

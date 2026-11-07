@@ -368,6 +368,23 @@ TEST_CASE("a guess the user has typed over is not made again [setup]") {
     CHECK(state.readCharset.value == "KOI8-R");
 }
 
+TEST_CASE("the wizard's fields are edited as a header field is [setup]") {
+    auto state = wizard();
+    REQUIRE(state.stop == setup::Stop::Name);
+    amberedit::ui::setFieldValue(state.name, "");
+    type(state, "Yegor Gluhov");
+    // Ctrl-W is the word before the cursor; Shift-Home and Ctrl-X cut the rest
+    // into the wizard's own clipboard, which Ctrl-V pastes back.
+    setup::handleEvent(state, Event::Character("w", true));
+    CHECK(state.name.value == "Yegor ");
+    setup::handleEvent(state, Event::Named(Event::Name::Home, false, false, true));
+    setup::handleEvent(state, Event::Character("x", true));
+    CHECK(state.name.value.empty());
+    CHECK(state.clipboard == "Yegor ");
+    setup::handleEvent(state, Event::Character("v", true));
+    CHECK(state.name.value == "Yegor ");
+}
+
 TEST_CASE("Esc takes two presses, having written nothing [setup]") {
     setup::SetupState state = wizard();
     CHECK(setup::handleEvent(state, Event::Escape) == setup::Outcome::Ignored);

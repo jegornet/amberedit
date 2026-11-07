@@ -77,13 +77,19 @@ void open(FilePicker& picker, const std::string& directory);
 /// The rows of the picker: the path box, a rule, and the listing.
 [[nodiscard]] term::Element render(FilePicker& picker, int inner);
 
-/// A click inside the picker. Answers Unclaimed where it landed outside it,
-/// which is how the wizard's own buttons get theirs.
+/// The pointer on the path box — a press, or a drag begun there. True where the
+/// event was the box's, and the typing is then in it.
+[[nodiscard]] bool handlePathPointer(FilePicker& picker, const term::Event& event,
+                                     const FieldContext& context);
+
+/// A click on the listing. Answers Unclaimed where it landed outside it, which
+/// is how the wizard's own buttons get theirs.
 PickOutcome handleClick(FilePicker& picker, const term::MouseEvent& click);
 
 /// A key in the picker. Tab and Escape are never claimed — they belong to the
 /// wizard around it — and neither is Enter on a file, which is answered with
 /// Picked so that the wizard decides what picking one means.
-PickOutcome handleEvent(FilePicker& picker, const term::Event& event);
+PickOutcome handleEvent(FilePicker& picker, const term::Event& event,
+                        const FieldContext& context);
 
 }  // namespace amberedit::ui::setup

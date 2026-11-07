@@ -1,6 +1,7 @@
 #include "ui/setup/setup_wizard.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <iterator>
 #include <string>
@@ -605,6 +606,47 @@ Element tooSmall(const SetupState& state) {
 
 // --- clicks ------------------------------------------------------------------
 
+/// What the wizard's fields are answered with: the default layout, since there
+/// is no `keys` file yet, and the wizard's own clipboard.
+FieldContext contextOf(SetupState& state) {
+    static const KeyMap kKeys = KeyMap::defaults();
+    FieldContext context{kKeys};
+    using namespace std::chrono;
+    context.now =
+        duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+    context.copy = [&state](std::string text, bool /*quiet*/) {
+        state.clipboard = std::move(text);
+    };
+    context.paste = [&state]() -> std::optional<std::string> { return state.clipboard; };
+    return context;
+}
+
+/// The pointer on one of the fields drawn — a press there, or a drag begun on
+/// one — which puts the typing in it.
+bool fieldPointer(SetupState& state, const Event& event, const FieldContext& context) {
+    struct Field {
+        Stop stop;
+        TextField* field;
+    };
+    const Field fields[] = {
+        {Stop::Name, &state.name},
+        {Stop::Address, &state.address},
+        {Stop::Charset, &charsetField(state)},
+        {Stop::NodelistDb, &state.nodelistDb},
+        {Stop::Target, &state.target},
+    };
+    for (const auto& field : fields) {
+        if (!handleFieldMouse(*field.field, event, context)) continue;
+        state.stop = field.stop;
+        return true;
+    }
+    if (handlePathPointer(state.picker, event, context)) {
+        state.stop = Stop::Picker;
+        return true;
+    }
+    return false;
+}
+
 Outcome handleClick(SetupState& state, const MouseEvent& click) {
     for (size_t i = 0; i < state.formatBoxes.size(); ++i) {
         if (!state.formatBoxes[i].Contain(click.x, click.y)) continue;
@@ -625,24 +667,6 @@ Outcome handleClick(SetupState& state, const MouseEvent& click) {
     if (state.nextBox.Contain(click.x, click.y)) {
         state.stop = Stop::Next;
         return advance(state);
-    }
-
-    struct Field {
-        Stop stop;
-        TextField* field;
-    };
-    const Field fields[] = {
-        {Stop::Name, &state.name},
-        {Stop::Address, &state.address},
-        {Stop::Charset, &charsetField(state)},
-        {Stop::NodelistDb, &state.nodelistDb},
-        {Stop::Target, &state.target},
-    };
-    for (const auto& field : fields) {
-        if (!field.field->box.Contain(click.x, click.y)) continue;
-        state.stop = field.stop;
-        clickField(*field.field, click.x);
-        return Outcome::Ignored;
     }
 
     if (state.step == Step::TosserFile || state.step == Step::Nodelist) {
@@ -739,6 +763,8 @@ Element render(SetupState& state) {
 }
 
 Outcome handleEvent(SetupState& state, const Event& event) {
+    const FieldContext context = contextOf(state);
+    if (fieldPointer(state, event, context)) return Outcome::Ignored;
     if (const auto click = leftClick(event)) return handleClick(state, *click);
 
     // What went wrong was about the answer as it stood, and the answer is being
@@ -773,7 +799,7 @@ Outcome handleEvent(SetupState& state, const Event& event) {
     }
 
     if (state.stop == Stop::Picker) {
-        const PickOutcome outcome = handleEvent(state.picker, event);
+        const PickOutcome outcome = handleEvent(state.picker, event, context);
         if (outcome == PickOutcome::Picked) return picked(state);
         if (outcome == PickOutcome::Ignored) return Outcome::Ignored;
         // Unclaimed: the wizard's own keys, below.
@@ -797,19 +823,20 @@ Outcome handleEvent(SetupState& state, const Event& event) {
 
     switch (state.stop) {
         case Stop::Name:
-            if (handleFieldKey(state.name, event)) return Outcome::Ignored;
+            if (handleFieldKey(state.name, event, context)) return Outcome::Ignored;
             break;
         case Stop::Address:
-            if (handleFieldKey(state.address, event)) return Outcome::Ignored;
+            if (handleFieldKey(state.address, event, context)) return Outcome::Ignored;
             break;
         case Stop::Charset:
-            if (handleFieldKey(charsetField(state), event)) return Outcome::Ignored;
+            if (handleFieldKey(charsetField(state), event, context))
+                return Outcome::Ignored;
             break;
         case Stop::NodelistDb:
-            if (handleFieldKey(state.nodelistDb, event)) return Outcome::Ignored;
+            if (handleFieldKey(state.nodelistDb, event, context)) return Outcome::Ignored;
             break;
         case Stop::Target:
-            if (handleFieldKey(state.target, event)) return Outcome::Ignored;
+            if (handleFieldKey(state.target, event, context)) return Outcome::Ignored;
             break;
         case Stop::Format:
             // The radio, which is walked with the arrows and set with a space —

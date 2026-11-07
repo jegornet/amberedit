@@ -16,6 +16,7 @@
 #include "domain/message.hpp"
 #include "i18n/i18n.hpp"
 #include "ui/area_list_format.hpp"
+#include "ui/dialog_field.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/dir_listing.hpp"
 #include "ui/event_util.hpp"
@@ -113,8 +114,7 @@ void readDirectory(AppState& state, Picker& picker) {
     picker.search.clear();
     // The path box says where the listing is from. Whatever was typed into it is
     // done with: it has been answered, and what it asked for is on the screen.
-    picker.path = state.importDirectory;
-    picker.pathCursor = picker.path.size();
+    setFieldValue(picker.path, state.importDirectory);
     // Files and directories both: what is being picked here is a file.
     picker.entries =
         ui::readDirectory(state.importDirectory, /*directoriesOnly=*/false, picker.error);
@@ -170,19 +170,6 @@ std::optional<char> typedAscii(const Event& event, bool spaceCounts) {
     return static_cast<char>(c);
 }
 
-/// What an event types into the path box, which is anything a path can hold:
-/// a name is whatever the filesystem took when it was made, and Cyrillic
-/// filenames are as ordinary as spaces in them.
-std::optional<std::string> typedText(const Event& event) {
-    if (!event.is_character() || event.ctrl() || event.alt()) return std::nullopt;
-    const std::string& input = event.character();
-    if (input.empty()) return std::nullopt;
-    if (input.size() == 1 && static_cast<unsigned char>(input[0]) < 0x20) {
-        return std::nullopt;
-    }
-    return input;
-}
-
 /// The next stop in the ring, `step` forwards or back.
 void focusAfter(Picker& picker, int step) {
     constexpr Focus kRing[] = {Focus::Path, Focus::Files, Focus::Mode};
@@ -193,9 +180,6 @@ void focusAfter(Picker& picker, int step) {
         static_cast<int>(at == std::end(kRing) ? 0 : at - std::begin(kRing));
     picker.focus =
         kRing[static_cast<size_t>(((index + step) % kStops + kStops) % kStops)];
-    if (picker.focus == Focus::Path) {
-        picker.pathCursor = std::min(picker.pathCursor, picker.path.size());
-    }
 }
 
 /// The path the file stands at, the directory and the name joined the one way a
@@ -259,7 +243,7 @@ Outcome runImport(AppState& state, Picker& picker) {
 /// One box for the two because a path is one thing to type. Which of them it is
 /// is the filesystem's answer and not a mode the user has to have set first.
 Outcome goToPath(AppState& state, Picker& picker) {
-    const fs::path wanted = resolvePath(state.importDirectory, picker.path);
+    const fs::path wanted = resolvePath(state.importDirectory, picker.path.value);
 
     std::error_code ec;
     const fs::file_status status = fs::status(wanted, ec);
@@ -378,12 +362,6 @@ Outcome handleClick(AppState& state, Picker& picker, const MouseEvent& click) {
         state.showClick();
         return runImport(state, picker);
     }
-    if (picker.pathBox.Contain(click.x, click.y)) {
-        picker.focus = Focus::Path;
-        picker.pathCursor = offsetAtColumn(picker.path, picker.pathOrigin,
-                                           click.x - picker.pathBox.x_min);
-        return Outcome::Ignored;
-    }
     if (picker.textModeBox.Contain(click.x, click.y)) {
         state.importMode = app::ImportMode::Text;
         picker.focus = Focus::Mode;
@@ -401,46 +379,13 @@ Outcome handleClick(AppState& state, Picker& picker, const MouseEvent& click) {
 
 // --- keys --------------------------------------------------------------------
 
-Outcome pathKey(Picker& picker, const Event& event) {
-    std::string& value = picker.path;
-    size_t& cursor = picker.pathCursor;
-    cursor = std::min(cursor, value.size());
-
-    if (const auto typed = typedText(event)) {
-        value.insert(cursor, *typed);
-        cursor += typed->size();
-        return Outcome::Ignored;
-    }
-    if (event == Event::Backspace) {
-        const size_t from = prevChar(value, cursor);
-        value.erase(from, cursor - from);
-        cursor = from;
-        return Outcome::Ignored;
-    }
-    if (event == Event::Delete) {
-        value.erase(cursor, charLen(value, cursor));
-        return Outcome::Ignored;
-    }
-    if (event == Event::ArrowLeft) {
-        cursor = prevChar(value, cursor);
-        return Outcome::Ignored;
-    }
-    if (event == Event::ArrowRight) {
-        cursor = std::min(value.size(), cursor + charLen(value, cursor));
-        return Outcome::Ignored;
-    }
-    if (event == Event::Home) {
-        cursor = 0;
-        return Outcome::Ignored;
-    }
-    if (event == Event::End) {
-        cursor = value.size();
-        return Outcome::Ignored;
-    }
+Outcome pathKey(AppState& state, Picker& picker, const Event& event) {
     if (event == Event::ArrowDown) {
+        picker.path.anchor.reset();
         picker.focus = Focus::Files;
         return Outcome::Ignored;
     }
+    static_cast<void>(handleFieldKey(picker.path, event, dialog_field::contextOf(state)));
     return Outcome::Ignored;
 }
 
@@ -481,7 +426,7 @@ Outcome filesKey(AppState& state, Picker& picker, const Event& event) {
         // drawn: the two are one column of the dialog.
         if (picker.cursor == 0) {
             picker.focus = Focus::Path;
-            picker.pathCursor = picker.path.size();
+            picker.path.cursor = picker.path.value.size();
             return Outcome::Ignored;
         }
         moveBy(picker, -1);
@@ -572,9 +517,6 @@ Element render(AppState& state, Element background) {
     Picker& picker = *state.importPicker;
     fitBox(state, picker);
     clampCursor(picker);
-    // The box that is typed into, in case what it holds has been put back under
-    // a cursor left where it was.
-    picker.pathCursor = std::min(picker.pathCursor, picker.path.size());
 
     const int inner = picker.inner;
     const auto total = static_cast<int>(picker.entries.size());
@@ -599,13 +541,7 @@ Element render(AppState& state, Element background) {
     // given. On the same fill the compose screen's header fields wear, so that a
     // row asking for something looks like one before anything is typed into it.
     const bool onPath = picker.focus == Focus::Path;
-    picker.pathBox = Box::Nowhere();
-    lines.push_back(dialog::framed(
-        inputField(picker.path, picker.pathCursor, inner, onPath,
-                   onPath ? theme::palette.selectionText : theme::palette.dialogLabel,
-                   fieldFiller(theme::palette.dialogHint), &picker.pathOrigin) |
-        bgcolor(onPath ? theme::palette.selection : theme::palette.dialogField) |
-        reflect(picker.pathBox)));
+    lines.push_back(dialog::framed(renderField(picker.path, inner, onPath)));
     lines.push_back(dialog::divider(inner));
 
     // The room is reserved first: the boxes are written into while the frame is
@@ -681,6 +617,10 @@ Element render(AppState& state, Element background) {
 Outcome handleEvent(AppState& state, const Event& event) {
     Picker& picker = *state.importPicker;
 
+    if (handleFieldMouse(picker.path, event, dialog_field::contextOf(state))) {
+        picker.focus = Focus::Path;
+        return Outcome::Ignored;
+    }
     if (const auto click = leftClick(event)) return handleClick(state, picker, *click);
 
     // The ring, and the two keys that end the dialog one way or the other. They
@@ -702,9 +642,8 @@ Outcome handleEvent(AppState& state, const Event& event) {
         // Two things Esc puts away before it puts the dialog away, both of them
         // something half typed: a path that has not been gone to, and a search
         // in the list. Either is what the key most plainly means where it is.
-        if (picker.focus == Focus::Path && picker.path != state.importDirectory) {
-            picker.path = state.importDirectory;
-            picker.pathCursor = picker.path.size();
+        if (picker.focus == Focus::Path && picker.path.value != state.importDirectory) {
+            setFieldValue(picker.path, state.importDirectory);
             return Outcome::Ignored;
         }
         if (picker.focus == Focus::Files && !picker.search.empty()) {
@@ -716,7 +655,7 @@ Outcome handleEvent(AppState& state, const Event& event) {
     }
 
     switch (picker.focus) {
-        case Focus::Path: return pathKey(picker, event);
+        case Focus::Path: return pathKey(state, picker, event);
         case Focus::Mode: return modeKey(state, picker, event);
         case Focus::Files: break;
     }

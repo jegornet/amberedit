@@ -22,6 +22,7 @@
 #include "ui/charset_dialog.hpp"
 #include "ui/clipboard_dialog.hpp"
 #include "ui/confirm_dialog.hpp"
+#include "ui/dialog_field.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/error_log.hpp"
 #include "ui/export_dialog.hpp"
@@ -683,8 +684,8 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             if (!pasted) {
                 state.errorMessage = pasted.error()->message();
                 state.errorEndsScreen = false;
-            } else if (state.findPicker) {
-                find_dialog::pasteText(state, *pasted);
+            } else if (dialog_field::focused(state) != nullptr) {
+                dialog_field::paste(state, *pasted);
             } else if (state.navigator.current() == app::ScreenId::Compose) {
                 screens::compose::pasteText(state, *pasted);
             }
@@ -991,7 +992,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             if (find_dialog::handleEvent(state, event) == find_dialog::Outcome::Search) {
                 // Copied out first: finding a message loads it, and nothing is
                 // to be read back off the box across that.
-                const std::string query = state.findPicker->query;
+                const std::string query = state.findPicker->query.value;
                 const app::SearchScope scope = state.findPicker->scope;
                 if (screens::message_read::findMessage(state, query, scope)) {
                     state.findPicker.reset();
@@ -1011,7 +1012,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 charset_dialog::Outcome::Read) {
                 // Copied out first: the box is put away before the message is
                 // read again, and nothing is to be read back off it across that.
-                const std::string charset = state.charsetPicker->charset;
+                const std::string charset = state.charsetPicker->charset.value;
                 state.charsetPicker.reset();
                 screens::message_read::readInCharset(state, charset);
             }

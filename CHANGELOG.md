@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- the find box edits text as a header field does; Ctrl-F selects the last search
+- dialog fields edit text as a header field does; Ctrl-F selects the last search
+- add theme roles dialog_focused_field and dialog_focused_text, the focused field in a dialog; left out, they are focused_field and focused_text
 
 ## 0.11.0 — 2026-11-07
 

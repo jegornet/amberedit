@@ -23,7 +23,7 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 45> kFields{{
+const std::array<std::pair<std::string_view, Field>, 47> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
@@ -39,6 +39,8 @@ const std::array<std::pair<std::string_view, Field>, 45> kFields{{
     {"dialog_label", &Palette::dialogLabel},
     {"dialog_hint", &Palette::dialogHint},
     {"dialog_field", &Palette::dialogField},
+    {"dialog_focused_field", &Palette::dialogFocusedField},
+    {"dialog_focused_text", &Palette::dialogFocusedText},
     {"dialog_flash", &Palette::dialogFlash},
     {"dialog_border", &Palette::dialogBorder},
     {"dialog_shadow", &Palette::dialogShadow},
@@ -71,12 +73,14 @@ const std::array<std::pair<std::string_view, Field>, 45> kFields{{
     {"animated_button_text", &Palette::animatedButtonText},
 }};
 
-/// The fills that follow another role where the file says nothing about them,
-/// rather than falling back to a color out of the built-in palette. All three
-/// are fills a theme may want picked out and which the interface reads
+/// The roles that follow another where the file says nothing about them,
+/// rather than falling back to a color out of the built-in palette. The first
+/// three are fills a theme may want picked out and which the interface reads
 /// perfectly well without — see `Palette::headerBackground` — and a built-in
 /// near-black behind the headings of a theme painted on white is what taking
-/// the usual default would come to.
+/// the usual default would come to. The last two are the field a box is being
+/// typed in, which is the compose screen's focused field unless a theme says
+/// otherwise.
 struct Follower {
     std::string_view key;
     Field field;
@@ -90,10 +94,12 @@ struct Follower {
 /// right: a role is resolved after the one it follows, so `input_field` reads a
 /// `header_background` that has already taken the screen where the file named
 /// neither.
-const std::array<Follower, 3> kFollowers{{
+const std::array<Follower, 5> kFollowers{{
     {"header_background", &Palette::headerBackground, &Palette::background},
     {"table_header_background", &Palette::tableHeaderBackground, &Palette::background},
     {"input_field", &Palette::inputField, &Palette::headerBackground},
+    {"dialog_focused_field", &Palette::dialogFocusedField, &Palette::focusedField},
+    {"dialog_focused_text", &Palette::dialogFocusedText, &Palette::focusedText},
 }};
 
 /// The keys that are not colors, the same way round: the name in the file

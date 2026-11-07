@@ -270,7 +270,11 @@ TEST_CASE("The export dialog writes under the name it is given [export_dialog]")
 
     // The name box has the typing, and it is empty until it is typed into.
     fixture.type("Мои письма.txt");
-    CHECK(fixture.state.exportName == "Мои письма.txt");
+    CHECK(fixture.state.exportPicker->name.value == "Мои письма.txt");
+    // It is edited as a header field is: Ctrl-W is the word before the cursor.
+    fixture.answer(Event::Character("w", true));
+    CHECK(fixture.state.exportPicker->name.value == "Мои письма.");
+    fixture.type("txt");
 
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Written);
     const std::string text = fixture.fileText("Мои письма.txt");
@@ -359,8 +363,7 @@ TEST_CASE("The export path box takes a directory and a file alike [export_dialog
 
     export_dialog::open(fixture.state);
     fixture.state.exportPicker->focus = AppState::ExportPicker::Focus::Path;
-    fixture.state.exportPicker->path.clear();
-    fixture.state.exportPicker->pathCursor = 0;
+    amberedit::ui::setFieldValue(fixture.state.exportPicker->path, "");
 
     // A directory typed there is walked into, and the typing goes to the name,
     // which is all that is left to say.
@@ -372,12 +375,11 @@ TEST_CASE("The export path box takes a directory and a file alike [export_dialog
     // A path naming a file that is not there is not an error here: this dialog
     // writes, so what it was given is where and under what name.
     fixture.state.exportPicker->focus = AppState::ExportPicker::Focus::Path;
-    fixture.state.exportPicker->path.clear();
-    fixture.state.exportPicker->pathCursor = 0;
+    amberedit::ui::setFieldValue(fixture.state.exportPicker->path, "");
     fixture.type(top + "/keep.txt");
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Ignored);
     CHECK(fixture.state.exportDirectory == top);
-    CHECK(fixture.state.exportName == "keep.txt");
+    CHECK(fixture.state.exportPicker->name.value == "keep.txt");
 
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Written);
     CHECK(std::filesystem::exists(std::filesystem::path(top) / "keep.txt"));
@@ -389,8 +391,7 @@ TEST_CASE("The export dialog says what went wrong [export_dialog]") {
 
     // A path that is nowhere near a directory.
     fixture.state.exportPicker->focus = AppState::ExportPicker::Focus::Path;
-    fixture.state.exportPicker->path.clear();
-    fixture.state.exportPicker->pathCursor = 0;
+    amberedit::ui::setFieldValue(fixture.state.exportPicker->path, "");
     fixture.type("/no/such/place/at/all");
     REQUIRE(fixture.answer(Event::Return) == export_dialog::Outcome::Ignored);
     CHECK(fixture.state.exportPicker->error == "Path not found");
@@ -400,7 +401,7 @@ TEST_CASE("The export dialog says what went wrong [export_dialog]") {
     // And a name that is no name at all: the message has to be called
     // something, and the box says so rather than writing a file named nothing.
     fixture.state.exportPicker->focus = AppState::ExportPicker::Focus::Name;
-    fixture.state.exportName = "   ";
+    amberedit::ui::setFieldValue(fixture.state.exportPicker->name, "   ");
     CHECK(fixture.answer(Event::Return) == export_dialog::Outcome::Ignored);
     CHECK(fixture.state.exportPicker->error == "No file name");
 }
@@ -452,7 +453,7 @@ TEST_CASE("The export dialog answers the pointer [export_dialog][mouse]") {
 
     // Pointing at a row walks into it — everything in this listing is a
     // directory, so there is nothing else a click could mean.
-    const auto& picker = *fixture.state.exportPicker;
+    auto& picker = *fixture.state.exportPicker;
     const auto row = std::find_if(
         picker.rowBoxes.begin(), picker.rowBoxes.end(),
         [&picker](const AppState::ExportPicker::Row& r) {
@@ -464,11 +465,11 @@ TEST_CASE("The export dialog answers the pointer [export_dialog][mouse]") {
 
     // And pointing at the name box puts the typing in it, at the character
     // under the pointer.
-    fixture.state.exportName = "digest.txt";
+    amberedit::ui::setFieldValue(picker.name, "digest.txt");
     static_cast<void>(fixture.draw());
-    fixture.answer(clickAt(picker.nameBox.x_min + 3, picker.nameBox.y_min));
+    fixture.answer(clickAt(picker.name.box.x_min + 3, picker.name.box.y_min));
     CHECK(picker.focus == AppState::ExportPicker::Focus::Name);
-    CHECK(picker.nameCursor == 3);
+    CHECK(picker.name.cursor == 3);
 }
 
 TEST_CASE(
@@ -564,7 +565,7 @@ TEST_CASE("A tall Save button takes its rows out of the listing "
 
     // A click lands on the button wherever on it the pointer came down: the
     // button is reflect()ed, so the box hit-tested is the box drawn.
-    const amberedit::ui::term::Box& where = fixture.state.exportPicker->nameBox;
+    const amberedit::ui::term::Box& where = fixture.state.exportPicker->saveBox;
     CHECK(where.y_max - where.y_min + 1 == 3);
     CHECK(fixture.answer(clickAt(where.x_min, where.y_max)) ==
           export_dialog::Outcome::Written);
@@ -707,7 +708,7 @@ TEST_CASE("A file already there is a question [export_dialog][exists]") {
     CHECK(fixture.answer(Event::Escape) == export_dialog::Outcome::Ignored);
     CHECK_FALSE(fixture.state.exportPicker->existing);
     REQUIRE(fixture.state.exportPicker);
-    CHECK(fixture.state.exportName == "digest.txt");
+    CHECK(fixture.state.exportPicker->name.value == "digest.txt");
     CHECK(fixture.fileText("digest.txt") == "what was there before\n");
 }
 
@@ -752,8 +753,8 @@ TEST_CASE(
     static_cast<void>(fixture.draw());
 
     // The names above it are a label; the button is what a click can land on.
-    const Event click = clickAt(fixture.state.exportPicker->nameBox.x_min + 1,
-                                fixture.state.exportPicker->nameBox.y_min);
+    const Event click = clickAt(fixture.state.exportPicker->saveBox.x_min + 1,
+                                fixture.state.exportPicker->saveBox.y_min);
     CHECK(fixture.answer(click) == export_dialog::Outcome::Written);
     CHECK(fixture.fileText("report.zip") == "PK");
 }

@@ -701,7 +701,7 @@ TEST_CASE("The marked messages are written into the one file [marks][squish]") {
     REQUIRE(fixture.state.exportPicker);
     CHECK(fixture.state.exportPicker->marked);
     fixture.state.exportDirectory = base.dir().string();
-    fixture.state.exportName = "digest.txt";
+    amberedit::ui::setFieldValue(fixture.state.exportPicker->name, "digest.txt");
 
     REQUIRE(export_dialog::handleEvent(fixture.state, Event::Return) ==
             export_dialog::Outcome::Written);
@@ -733,7 +733,7 @@ TEST_CASE("The export scope answered Current writes the one message [marks]") {
     export_dialog::open(fixture.state, {}, /*marked=*/false);
     REQUIRE(fixture.state.exportPicker);
     fixture.state.exportDirectory = base.dir().string();
-    fixture.state.exportName = "one.txt";
+    amberedit::ui::setFieldValue(fixture.state.exportPicker->name, "one.txt");
 
     REQUIRE(export_dialog::handleEvent(fixture.state, Event::Return) ==
             export_dialog::Outcome::Written);

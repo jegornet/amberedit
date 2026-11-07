@@ -74,6 +74,12 @@ struct SetupState {
 
     FilePicker picker;
 
+    /// What a copy in one of the fields took, for a paste into another. The
+    /// wizard's own: the config that would name a clipboard is the one being
+    /// written, so there is none to ask yet — and a terminal's own paste types
+    /// into a field all the same.
+    std::string clipboard;
+
     /// argv[0], for finding the installed message template.
     std::string programPath;
     /// The config that was written, once one has been.

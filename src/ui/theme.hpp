@@ -254,8 +254,16 @@ struct Palette {
     /// same reason the rest of this family is: the box's fill is not the
     /// screen's, so the slot that has to stand off it need not be either. What
     /// is written on it is `dialog_label`, and the field the typing is actually
-    /// in takes `selection`/`selection_text` as everything else does.
+    /// in takes `dialog_focused_field`/`dialog_focused_text` below.
     Color dialogField = builtin_theme::kInputFiller;
+    /// Behind the field in a box the typing is in, and what is written on it —
+    /// `focused_field`/`focused_text` inside a box. Not `selection`: what is
+    /// selected of the field is drawn in `selection`, and on a field lit in it
+    /// already the selection would not show. **A theme that says nothing about
+    /// either takes `focused_field` and `focused_text`**, so a field in a box
+    /// is lit the way the compose screen's header lights one.
+    Color dialogFocusedField = builtin_theme::kFocusedField;
+    Color dialogFocusedText = builtin_theme::kSelectionText;
     /// What a button in a box says while a click on it is being shown — the
     /// confirmation's Yes and No, a button of the menu behind the corner. It
     /// has to be seen against the box's own fill **and** against `selection`,

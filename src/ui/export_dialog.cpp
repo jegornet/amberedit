@@ -12,6 +12,7 @@
 #include "app/export_file.hpp"
 #include "config/text_util.hpp"
 #include "i18n/i18n.hpp"
+#include "ui/dialog_field.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/dir_listing.hpp"
 #include "ui/event_util.hpp"
@@ -149,8 +150,7 @@ void readInto(AppState& state, Picker& picker) {
     picker.cursor = 0;
     picker.offset = 0;
     picker.search.clear();
-    picker.path = state.exportDirectory;
-    picker.pathCursor = picker.path.size();
+    setFieldValue(picker.path, state.exportDirectory);
     picker.entries =
         ui::readDirectory(state.exportDirectory, /*directoriesOnly=*/true, picker.error);
 }
@@ -201,19 +201,6 @@ std::optional<char> typedAscii(const Event& event) {
     return static_cast<char>(c);
 }
 
-/// What an event types into the path or the name, which is anything a filename
-/// can hold: a name is whatever the filesystem will take, and Cyrillic names are
-/// as ordinary as spaces in them.
-std::optional<std::string> typedText(const Event& event) {
-    if (!event.is_character() || event.ctrl() || event.alt()) return std::nullopt;
-    const std::string& input = event.character();
-    if (input.empty()) return std::nullopt;
-    if (input.size() == 1 && static_cast<unsigned char>(input[0]) < 0x20) {
-        return std::nullopt;
-    }
-    return input;
-}
-
 /// The next stop in the ring, `step` forwards or back.
 void focusAfter(Picker& picker, int step) {
     constexpr Focus kRing[] = {Focus::Path, Focus::Files, Focus::Name};
@@ -235,6 +222,7 @@ void rememberPath(AppState& state, const std::string& path) {
         state.exportDirectory = written.parent_path().string();
     }
     state.exportName = written.filename().string();
+    if (state.exportPicker) setFieldValue(state.exportPicker->name, state.exportName);
 }
 
 /// Writes the message to `path`, `how` saying what becomes of a file already
@@ -343,7 +331,7 @@ Outcome runExport(AppState& state, Picker& picker) {
         return Outcome::Written;
     }
 
-    const std::string name(config::text::trim(state.exportName));
+    const std::string name(config::text::trim(picker.name.value));
     if (name.empty()) {
         picker.error = noName();
         return Outcome::Ignored;
@@ -368,7 +356,7 @@ Outcome runExport(AppState& state, Picker& picker) {
 /// there. A file named there is not opened — this dialog writes — so it is taken
 /// as the name to write under and the box goes back to saying where.
 Outcome goToPath(AppState& state, Picker& picker) {
-    const fs::path wanted = resolvePath(state.exportDirectory, picker.path);
+    const fs::path wanted = resolvePath(state.exportDirectory, picker.path.value);
 
     std::error_code ec;
     const fs::file_status status = fs::status(wanted, ec);
@@ -390,7 +378,7 @@ Outcome goToPath(AppState& state, Picker& picker) {
     if (!writingFiles(picker) && !wanted.filename().empty() &&
         fs::is_directory(fs::status(parent, parentEc))) {
         state.exportDirectory = parent.string();
-        state.exportName = wanted.filename().string();
+        setFieldValue(picker.name, wanted.filename().string());
         readInto(state, picker);
         picker.focus = Focus::Name;
         return Outcome::Ignored;
@@ -401,18 +389,6 @@ Outcome goToPath(AppState& state, Picker& picker) {
 }
 
 // --- drawing -----------------------------------------------------------------
-
-/// One line of text as a box that is typed into, on the fill the compose
-/// screen's header fields wear so that a row asking for something looks like one
-/// before anything is in it.
-Element box(const std::string& value, size_t cursor, int width, bool focused,
-            size_t* origin, term::Box& where) {
-    return inputField(value, cursor, width, focused,
-                      focused ? theme::palette.selectionText : theme::palette.dialogLabel,
-                      fieldFiller(theme::palette.dialogHint), origin) |
-           bgcolor(focused ? theme::palette.selection : theme::palette.dialogField) |
-           reflect(where);
-}
 
 /// The question a file already there raises, drawn over the box that raised it:
 /// the export dialog is still the screen, and the name being asked about is
@@ -534,70 +510,17 @@ Outcome handleClick(AppState& state, Picker& picker, const MouseEvent& click) {
         enterDirectory(state, picker, entry.name);
         return Outcome::Ignored;
     }
-    if (picker.pathBox.Contain(click.x, click.y)) {
-        picker.focus = Focus::Path;
-        picker.pathCursor = offsetAtColumn(picker.path, picker.pathOrigin,
-                                           click.x - picker.pathBox.x_min);
-        return Outcome::Ignored;
-    }
-    if (picker.nameBox.Contain(click.x, click.y)) {
+    if (picker.saveBox.Contain(click.x, click.y)) {
+        // A button pointed at is a button pressed: there is nothing to put a
+        // cursor into there, and the Save under the pointer is the whole of
+        // what is left to say.
         picker.focus = Focus::Name;
-        if (writingFiles(picker)) {
-            // A button pointed at is a button pressed: there is nothing to put a
-            // cursor into there, and the Save under the pointer is the whole of
-            // what is left to say.
-            state.showClick(AppState::Pressed::ExportSave);
-            return runExport(state, picker);
-        }
-        // Where in the name the pointer landed, the field being drawn scrolled
-        // where what is typed outgrows it.
-        picker.nameCursor = offsetAtColumn(state.exportName, picker.nameOrigin,
-                                           click.x - picker.nameBox.x_min);
-        return Outcome::Ignored;
+        state.showClick(AppState::Pressed::ExportSave);
+        return runExport(state, picker);
     }
     // Anywhere else, inside the box or outside it: swallowed, as every other
     // event is while the dialog is modal.
     return Outcome::Ignored;
-}
-
-/// The keys a box that is typed into answers, whichever of the two it is.
-/// False is a key the box does not bind, which the dialog then goes on to
-/// answer for itself.
-bool fieldKey(std::string& value, size_t& cursor, const Event& event) {
-    cursor = std::min(cursor, value.size());
-
-    if (const auto typed = typedText(event)) {
-        value.insert(cursor, *typed);
-        cursor += typed->size();
-        return true;
-    }
-    if (event == Event::Backspace) {
-        const size_t from = prevChar(value, cursor);
-        value.erase(from, cursor - from);
-        cursor = from;
-        return true;
-    }
-    if (event == Event::Delete) {
-        value.erase(cursor, charLen(value, cursor));
-        return true;
-    }
-    if (event == Event::ArrowLeft) {
-        cursor = prevChar(value, cursor);
-        return true;
-    }
-    if (event == Event::ArrowRight) {
-        cursor = std::min(value.size(), cursor + charLen(value, cursor));
-        return true;
-    }
-    if (event == Event::Home) {
-        cursor = 0;
-        return true;
-    }
-    if (event == Event::End) {
-        cursor = value.size();
-        return true;
-    }
-    return false;
 }
 
 Outcome filesKey(AppState& state, Picker& picker, const Event& event) {
@@ -632,7 +555,7 @@ Outcome filesKey(AppState& state, Picker& picker, const Event& event) {
         // drawn: the two are one column of the dialog.
         if (picker.cursor == 0) {
             picker.focus = Focus::Path;
-            picker.pathCursor = picker.path.size();
+            picker.path.cursor = picker.path.value.size();
             return Outcome::Ignored;
         }
         moveBy(picker, -1);
@@ -700,7 +623,7 @@ void open(AppState& state, std::vector<app::UueFile> files, bool marked) {
     // Only a text export can be about a set: the files were decoded out of the
     // message on screen, and there is no set of them to write.
     picker.marked = marked && picker.mode == Picker::Mode::Text;
-    picker.nameCursor = state.exportName.size();
+    setFieldValue(picker.name, state.exportName);
     state.exportPicker = std::move(picker);
     fitBox(state, *state.exportPicker);
     readInto(state, *state.exportPicker);
@@ -710,8 +633,6 @@ Element render(AppState& state, Element background) {
     Picker& picker = *state.exportPicker;
     fitBox(state, picker);
     clampCursor(picker);
-    picker.pathCursor = std::min(picker.pathCursor, picker.path.size());
-    picker.nameCursor = std::min(picker.nameCursor, state.exportName.size());
 
     const int inner = picker.inner;
     const auto total = static_cast<int>(picker.entries.size());
@@ -729,10 +650,8 @@ Element render(AppState& state, Element background) {
     }
 
     Elements lines{dialog::titleBar(label, inner, tint)};
-    picker.pathBox = Box::Nowhere();
-    lines.push_back(dialog::framed(box(picker.path, picker.pathCursor, inner,
-                                       picker.focus == Focus::Path, &picker.pathOrigin,
-                                       picker.pathBox)));
+    lines.push_back(
+        dialog::framed(renderField(picker.path, inner, picker.focus == Focus::Path)));
     lines.push_back(dialog::divider(inner));
 
     // The room is reserved first: the boxes are written into while the frame is
@@ -774,7 +693,8 @@ Element render(AppState& state, Element background) {
     }
     lines.push_back(dialog::divider(inner));
 
-    picker.nameBox = Box::Nowhere();
+    picker.saveBox = Box::Nowhere();
+    picker.name.box = Box::Nowhere();
     if (writingFiles(picker)) {
         // What the message carries, **a label and nothing more**: the names are
         // the message's rather than the user's, there is nothing to type over
@@ -814,17 +734,16 @@ Element render(AppState& state, Element background) {
         const int spare = std::max(0, inner - dialog::buttonWidth(saveLabel(), tall));
         lines.push_back(dialog::framed(
             hbox({text(std::string(static_cast<size_t>(spare / 2), ' ')),
-                  std::move(save) | reflect(picker.nameBox),
+                  std::move(save) | reflect(picker.saveBox),
                   text(std::string(static_cast<size_t>(spare - (spare / 2)), ' '))}),
             dialog::buttonRows(tall)));
     } else {
         // The name it goes under. A file already there is added to, not written
         // over, which is why this is typed rather than picked off the list above.
         const int nameWidth = std::max(1, inner - displayWidth(nameLabel()));
-        lines.push_back(dialog::framed(hbox(
-            {text(nameLabel()) | color(theme::palette.dialogLabel),
-             box(state.exportName, picker.nameCursor, nameWidth,
-                 picker.focus == Focus::Name, &picker.nameOrigin, picker.nameBox)})));
+        lines.push_back(dialog::framed(
+            hbox({text(nameLabel()) | color(theme::palette.dialogLabel),
+                  renderField(picker.name, nameWidth, picker.focus == Focus::Name)})));
     }
 
     lines.push_back(dialog::bottomBar(writingFiles(picker) ? filesHint() : hint(),
@@ -852,6 +771,15 @@ Outcome handleEvent(AppState& state, const Event& event) {
     // the boxes underneath have nothing left to say until it is answered.
     if (picker.existing) return existingKey(state, picker, event);
 
+    const FieldContext context = dialog_field::contextOf(state);
+    if (handleFieldMouse(picker.path, event, context)) {
+        picker.focus = Focus::Path;
+        return Outcome::Ignored;
+    }
+    if (!writingFiles(picker) && handleFieldMouse(picker.name, event, context)) {
+        picker.focus = Focus::Name;
+        return Outcome::Ignored;
+    }
     if (const auto click = leftClick(event)) return handleClick(state, picker, *click);
 
     if (event == Event::Tab) {
@@ -879,30 +807,31 @@ Outcome handleEvent(AppState& state, const Event& event) {
         // A path typed and not gone to, and a search in the list, are both put
         // away before the dialog is: either is what the key most plainly means
         // where it stands.
-        if (picker.focus == Focus::Path && picker.path != state.exportDirectory) {
-            picker.path = state.exportDirectory;
-            picker.pathCursor = picker.path.size();
+        if (picker.focus == Focus::Path && picker.path.value != state.exportDirectory) {
+            setFieldValue(picker.path, state.exportDirectory);
             return Outcome::Ignored;
         }
         if (picker.focus == Focus::Files && !picker.search.empty()) {
             picker.search.clear();
             return Outcome::Ignored;
         }
+        // The name typed stays for the next export, put away or not: it is what
+        // the box will open holding.
+        if (!writingFiles(picker)) state.exportName = picker.name.value;
         state.exportPicker.reset();
         return Outcome::Dismissed;
     }
 
     switch (picker.focus) {
         case Focus::Path:
-            if (fieldKey(picker.path, picker.pathCursor, event)) return Outcome::Ignored;
+            if (handleFieldKey(picker.path, event, context)) return Outcome::Ignored;
             if (event == Event::ArrowDown) picker.focus = Focus::Files;
             return Outcome::Ignored;
         case Focus::Name:
             // The names of the files a message carries are shown and not typed
             // into, so every key that edits a box is swallowed there — the block
             // is a button, and Enter above is the whole of what it answers.
-            if (!writingFiles(picker) &&
-                fieldKey(state.exportName, picker.nameCursor, event)) {
+            if (!writingFiles(picker) && handleFieldKey(picker.name, event, context)) {
                 return Outcome::Ignored;
             }
             if (event == Event::ArrowUp) picker.focus = Focus::Files;

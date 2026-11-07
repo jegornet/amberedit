@@ -370,7 +370,7 @@ TEST_CASE("Ctrl-F opens the find box on what was last looked for [find][squish]"
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::Character("f", true)));
     REQUIRE(fixture.state.findPicker);
-    CHECK(fixture.state.findPicker->query.empty());
+    CHECK(fixture.state.findPicker->query.value.empty());
 
     // Typed into, answered, and opened again: the words are still there, with
     // the cursor at the end of them.
@@ -379,18 +379,19 @@ TEST_CASE("Ctrl-F opens the find box on what was last looked for [find][squish]"
     }
     CHECK(find_dialog::handleEvent(fixture.state, Event::Return) ==
           find_dialog::Outcome::Search);
-    REQUIRE(message_read::findMessage(fixture.state, fixture.state.findPicker->query,
+    REQUIRE(message_read::findMessage(fixture.state,
+                                      fixture.state.findPicker->query.value,
                                       fixture.state.findPicker->scope));
     fixture.state.findPicker.reset();
 
     REQUIRE(message_read::handleEvent(fixture.state, Event::F6));
     REQUIRE(fixture.state.findPicker);
-    CHECK(fixture.state.findPicker->query == "needle");
-    CHECK(fixture.state.findPicker->cursor == 6);
+    CHECK(fixture.state.findPicker->query.value == "needle");
+    CHECK(fixture.state.findPicker->query.cursor == 6);
     // All of it selected, so the first character typed writes over it.
-    CHECK(fixture.state.findPicker->anchor == 0u);
+    CHECK(fixture.state.findPicker->query.anchor == 0u);
     find_dialog::handleEvent(fixture.state, Event::Character('x'));
-    CHECK(fixture.state.findPicker->query == "x");
+    CHECK(fixture.state.findPicker->query.value == "x");
 }
 
 TEST_CASE("The key that opened the find box selects its words again [find]") {
@@ -407,8 +408,8 @@ TEST_CASE("The key that opened the find box selects its words again [find]") {
     find_dialog::handleEvent(fixture.state, Event::Character("f", true));
     const auto& picker = *fixture.state.findPicker;
     CHECK(picker.focus == AppState::FindPicker::Focus::Query);
-    CHECK(picker.anchor == 0u);
-    CHECK(picker.cursor == picker.query.size());
+    CHECK(picker.query.anchor == 0u);
+    CHECK(picker.query.cursor == picker.query.value.size());
 }
 
 TEST_CASE("The find box's words are edited as a header field is [find][selection]") {
@@ -427,9 +428,9 @@ TEST_CASE("The find box's words are edited as a header field is [find][selection
 
     // Ctrl-W takes the word before the cursor, Alt-B walks back over one.
     find_dialog::handleEvent(fixture.state, Event::Character("w", true));
-    CHECK(picker.query == "one two ");
+    CHECK(picker.query.value == "one two ");
     find_dialog::handleEvent(fixture.state, Event::Character("b", false, true));
-    CHECK(picker.cursor == 4);
+    CHECK(picker.query.cursor == 4);
 
     // Shift-End selects to the end, Ctrl-C copies it, and a character typed
     // writes over it.
@@ -438,18 +439,18 @@ TEST_CASE("The find box's words are edited as a header field is [find][selection
     find_dialog::handleEvent(fixture.state, Event::Character("c", true));
     CHECK(fixture.state.clipboard == "two ");
     find_dialog::handleEvent(fixture.state, Event::Character('x'));
-    CHECK(picker.query == "one x");
+    CHECK(picker.query.value == "one x");
 
     // Ctrl-V puts the clipboard in at the cursor, its first line alone.
     fixture.state.clipboard = std::string("zz") + '\n' + "yy";
     find_dialog::handleEvent(fixture.state, Event::Character("v", true));
-    CHECK(picker.query == "one xzz");
+    CHECK(picker.query.value == "one xzz");
 
     // Shift-Home and Ctrl-X cut the lot.
     find_dialog::handleEvent(fixture.state,
                              Event::Named(Event::Name::Home, false, false, true));
     find_dialog::handleEvent(fixture.state, Event::Character("x", true));
-    CHECK(picker.query.empty());
+    CHECK(picker.query.value.empty());
     CHECK(fixture.state.clipboard == "one xzz");
 }
 
@@ -471,7 +472,7 @@ TEST_CASE("The pointer selects the find box's words [find][selection]") {
     }
     term::Screen screen(fixture.state.width, fixture.state.height);
     term::render(screen, find_dialog::render(fixture.state, term::text("")));
-    const term::Box box = picker.queryBox;
+    const term::Box box = picker.query.box;
 
     const auto pointer = [&](int x, term::MouseEvent::Motion motion) {
         term::MouseEvent mouse;
@@ -488,9 +489,9 @@ TEST_CASE("The pointer selects the find box's words [find][selection]") {
     pointer(5, term::MouseEvent::Motion::Moved);
     pointer(5, term::MouseEvent::Motion::Released);
     CHECK(fixture.state.clipboard == "lpha");
-    REQUIRE(picker.anchor);
-    CHECK(*picker.anchor == 1);
-    CHECK(picker.cursor == 5);
+    REQUIRE(picker.query.anchor);
+    CHECK(*picker.query.anchor == 1);
+    CHECK(picker.query.cursor == 5);
 
     // A double click is the word under it, a triple one the whole of the words.
     now += 1000;

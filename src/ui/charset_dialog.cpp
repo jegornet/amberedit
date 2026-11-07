@@ -10,9 +10,11 @@
 #include "encoding/charset_detector.hpp"
 #include "encoding/iconv_recoder.hpp"
 #include "i18n/i18n.hpp"
+#include "ui/dialog_field.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
 #include "ui/input_field.hpp"
+#include "ui/line_edit.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
 
@@ -92,21 +94,6 @@ void fitBox(const AppState& state, Picker& picker) {
     picker.inner = std::min(kInnerWidth, std::max(kMinInner, state.width - kFrame));
 }
 
-/// What an event types into the field. A charset name is an ASCII word — the
-/// letters, the digits and the handful of characters the Fidonet spellings use
-/// — but nothing is filtered out here: a name iconv cannot open is refused on
-/// Enter with the reason said out loud, which is a better answer than a key
-/// that silently does nothing while somebody is typing.
-std::optional<std::string> typedText(const Event& event) {
-    if (!event.is_character() || event.ctrl() || event.alt()) return std::nullopt;
-    const std::string& input = event.character();
-    if (input.empty()) return std::nullopt;
-    if (input.size() == 1 && static_cast<unsigned char>(input[0]) < 0x20) {
-        return std::nullopt;
-    }
-    return input;
-}
-
 /// The button that reads the message again, centred on a row of the box's own
 /// width — measured rather than centred by a filler, since every row here is as
 /// wide as it is written and one narrower than the rest would take the frame in
@@ -141,7 +128,7 @@ Element readButton(const AppState& state, Picker& picker, int inner) {
 Outcome runRead(Picker& picker) {
     picker.error.clear();
 
-    const std::string typed{config::text::trim(picker.charset)};
+    const std::string typed{config::text::trim(picker.charset.value)};
     if (typed.empty()) {
         picker.error = noCharset();
         return Outcome::Ignored;
@@ -157,8 +144,7 @@ Outcome runRead(Picker& picker) {
         return Outcome::Ignored;
     }
 
-    picker.charset = resolved;
-    picker.cursor = picker.charset.size();
+    setFieldValue(picker.charset, resolved);
     return Outcome::Read;
 }
 
@@ -178,8 +164,7 @@ void open(AppState& state) {
     // it: the commonest answer is a small edit of that name — KOI8-R for a
     // message the kludge called CP866 — and typing over what is there is one
     // keystroke either way.
-    picker.charset = picker.current;
-    picker.cursor = picker.charset.size();
+    setFieldValue(picker.charset, picker.current);
 
     state.charsetPicker = std::move(picker);
     fitBox(state, *state.charsetPicker);
@@ -188,21 +173,14 @@ void open(AppState& state) {
 Element render(AppState& state, Element background) {
     Picker& picker = *state.charsetPicker;
     fitBox(state, picker);
-    picker.cursor = std::min(picker.cursor, picker.charset.size());
 
     const int inner = picker.inner;
     const bool typing = picker.focus == Focus::Charset;
 
-    picker.charsetBox = Box::Nowhere();
     picker.applyBox = Box::Nowhere();
 
     const int fieldWidth = std::max(1, inner - displayWidth(label()));
-    Element field =
-        inputField(picker.charset, picker.cursor, fieldWidth, typing,
-                   typing ? theme::palette.selectionText : theme::palette.dialogLabel,
-                   fieldFiller(theme::palette.dialogHint), &picker.origin) |
-        bgcolor(typing ? theme::palette.selection : theme::palette.dialogField) |
-        reflect(picker.charsetBox);
+    Element field = renderField(picker.charset, fieldWidth, typing);
 
     Elements lines{
         dialog::titleBar(title(), inner),
@@ -228,19 +206,17 @@ Element render(AppState& state, Element background) {
 Outcome handleEvent(AppState& state, const Event& event) {
     Picker& picker = *state.charsetPicker;
 
+    const FieldContext context = dialog_field::contextOf(state);
+    if (handleFieldMouse(picker.charset, event, context)) {
+        picker.focus = Focus::Charset;
+        return Outcome::Ignored;
+    }
+
     if (const auto click = leftClick(event)) {
         if (picker.applyBox.Contain(click->x, click->y)) {
             picker.focus = Focus::Button;
             state.showClick(AppState::Pressed::CharsetButton);
             return runRead(picker);
-        }
-        if (picker.charsetBox.Contain(click->x, click->y)) {
-            picker.focus = Focus::Charset;
-            // offsetAtColumn() is measured against the scroll inputField()
-            // settled on, so a click never lands inside a UTF-8 sequence.
-            picker.cursor = offsetAtColumn(picker.charset, picker.origin,
-                                           click->x - picker.charsetBox.x_min);
-            return Outcome::Ignored;
         }
         // Anywhere else on the screen. A box one has thought better of is put
         // away by pointing away from it, and the message underneath is left
@@ -276,59 +252,23 @@ Outcome handleEvent(AppState& state, const Event& event) {
         // Anything typed while the button has the cursor goes back into the
         // field: the name is what this box is about, and a letter meant for it
         // is not a mistake worth swallowing.
-        if (typedText(event)) picker.focus = Focus::Charset;
+        if (line_edit::typesText(event)) picker.focus = Focus::Charset;
     }
 
     if (picker.focus != Focus::Charset) return Outcome::Ignored;
 
-    if (const auto typed = typedText(event)) {
-        picker.charset.insert(picker.cursor, *typed);
-        picker.cursor += typed->size();
-        // What was said about the last Enter is about a name that has since
-        // been typed over.
-        picker.error.clear();
-        return Outcome::Ignored;
-    }
-    if (event == Event::Backspace) {
-        if (picker.cursor > 0) {
-            const size_t from = prevChar(picker.charset, picker.cursor);
-            picker.charset.erase(from, picker.cursor - from);
-            picker.cursor = from;
-            picker.error.clear();
-        }
-        return Outcome::Ignored;
-    }
-    if (event == Event::Delete) {
-        if (picker.cursor < picker.charset.size()) {
-            picker.charset.erase(picker.cursor, charLen(picker.charset, picker.cursor));
-            picker.error.clear();
-        }
-        return Outcome::Ignored;
-    }
-    if (event == Event::ArrowLeft) {
-        picker.cursor = prevChar(picker.charset, picker.cursor);
-        return Outcome::Ignored;
-    }
-    if (event == Event::ArrowRight) {
-        if (picker.cursor < picker.charset.size()) {
-            picker.cursor += charLen(picker.charset, picker.cursor);
-        }
-        return Outcome::Ignored;
-    }
     // ↓ steps down out of the field onto the button, the box being read
-    // downwards.
+    // downwards. Everything else is the field's.
     if (event == Event::ArrowDown) {
+        picker.charset.anchor.reset();
         picker.focus = Focus::Button;
         return Outcome::Ignored;
     }
-    if (event == Event::Home) {
-        picker.cursor = 0;
-        return Outcome::Ignored;
-    }
-    if (event == Event::End) {
-        picker.cursor = picker.charset.size();
-        return Outcome::Ignored;
-    }
+    const std::string before = picker.charset.value;
+    static_cast<void>(handleFieldKey(picker.charset, event, context));
+    // What was said about the last Enter is about a name that has since been
+    // typed over.
+    if (picker.charset.value != before) picker.error.clear();
     return Outcome::Ignored;
 }
 

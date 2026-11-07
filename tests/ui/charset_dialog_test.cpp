@@ -91,8 +91,7 @@ void putTwo(AreaFixture& fixture) {
 /// holding.
 void typeCharset(AppState& state, const std::string& name) {
     REQUIRE(state.charsetPicker);
-    state.charsetPicker->charset.clear();
-    state.charsetPicker->cursor = 0;
+    amberedit::ui::setFieldValue(state.charsetPicker->charset, "");
     for (const char c : name) {
         CHECK(charset_dialog::handleEvent(state, Event::Character(c)) ==
               charset_dialog::Outcome::Ignored);
@@ -104,7 +103,7 @@ void typeCharset(AppState& state, const std::string& name) {
 charset_dialog::Outcome answer(AppState& state) {
     const auto outcome = charset_dialog::handleEvent(state, Event::Return);
     if (outcome == charset_dialog::Outcome::Read) {
-        const std::string charset = state.charsetPicker->charset;
+        const std::string charset = state.charsetPicker->charset.value;
         state.charsetPicker.reset();
         message_read::readInCharset(state, charset);
     }
@@ -174,7 +173,25 @@ TEST_CASE("The charset box says what the message is being read in [charset][squi
     CHECK(fixture.state.charsetPicker->current == "KOI8-R");
     CHECK(fixture.state.charsetPicker->from == From::Kludge);
     // And it opens holding that name, there being nothing else worth editing.
-    CHECK(fixture.state.charsetPicker->charset == "KOI8-R");
+    CHECK(fixture.state.charsetPicker->charset.value == "KOI8-R");
+}
+
+TEST_CASE("The charset box's name is edited as a header field is [charset][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path(), plain());
+    putMessage(fixture, "KOI8-R", /*declares=*/true, "Привет, мир");
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    charset_dialog::open(fixture.state);
+    REQUIRE(fixture.state.charsetPicker);
+    // Ctrl-W takes the word before the cursor, as in the editor.
+    charset_dialog::handleEvent(fixture.state, Event::Character("w", true));
+    CHECK(fixture.state.charsetPicker->charset.value == "KOI8-");
+    // And Shift-Home with a character typed writes over what it selected.
+    charset_dialog::handleEvent(fixture.state,
+                                Event::Named(Event::Name::Home, false, false, true));
+    charset_dialog::handleEvent(fixture.state, Event::Character('C'));
+    CHECK(fixture.state.charsetPicker->charset.value == "C");
 }
 
 TEST_CASE("A message declaring nothing is read under the area's default "

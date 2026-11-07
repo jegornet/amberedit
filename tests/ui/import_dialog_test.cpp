@@ -20,6 +20,7 @@
 #include "temp_dir.hpp"
 #include "test_strings.hpp"
 #include "ui/app_state.hpp"
+#include "ui/dialog_field.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/input_field.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -121,8 +122,7 @@ struct ImportFixture {
     /// Types a path into the box, character by character as a user would —
     /// the field is cleared first, which End and a row of Backspaces would do.
     void typePath(const std::string& path) {
-        state.importPicker->path.clear();
-        state.importPicker->pathCursor = 0;
+        amberedit::ui::setFieldValue(state.importPicker->path, "");
         for (size_t i = 0; i < path.size();) {
             const size_t length = amberedit::ui::charLen(path, i);
             answer(Event::Character(path.substr(i, length)));
@@ -397,7 +397,7 @@ TEST_CASE("The import dialog is drawn where it says it is [import_dialog]") {
     // One row box per row that names a file; the blank rows under the end of a
     // short listing answer no click at all.
     CHECK(picker.rowBoxes.size() == picker.entries.size());
-    CHECK(picker.pathBox.x_max >= picker.pathBox.x_min);
+    CHECK(picker.path.box.x_max >= picker.path.box.x_min);
     CHECK(picker.textModeBox.x_max >= picker.textModeBox.x_min);
     CHECK(picker.uueModeBox.x_min > picker.textModeBox.x_max);
 }
@@ -484,7 +484,7 @@ TEST_CASE("The path box walks into what it names [import_dialog]") {
     CHECK(std::filesystem::path(fixture.state.importDirectory).filename() == "sub");
     // The box says where the listing now is, and the typing has gone to the
     // list: a directory asked for by name is one to pick a file from.
-    CHECK(fixture.state.importPicker->path == fixture.state.importDirectory);
+    CHECK(fixture.state.importPicker->path.value == fixture.state.importDirectory);
     CHECK(fixture.state.importPicker->focus == AppState::ImportPicker::Focus::Files);
 
     // A file named in the box is read, wherever it stands — and where it stood
@@ -515,7 +515,7 @@ TEST_CASE("The path box says when the path is not there [import_dialog]") {
 
     // Esc puts the directory back into the box before it puts the box away.
     CHECK(fixture.answer(Event::Escape) == import_dialog::Outcome::Ignored);
-    CHECK(fixture.state.importPicker->path == where);
+    CHECK(fixture.state.importPicker->path.value == where);
     CHECK(fixture.answer(Event::Escape) == import_dialog::Outcome::Dismissed);
 }
 
@@ -527,11 +527,28 @@ TEST_CASE("The path box takes a name as it is typed [import_dialog]") {
     // Not ASCII, and with a space in it: a path is whatever the filesystem took
     // when the file was made.
     fixture.typePath("/tmp/Мои файлы");
-    CHECK(fixture.state.importPicker->path == "/tmp/Мои файлы");
+    CHECK(fixture.state.importPicker->path.value == "/tmp/Мои файлы");
 
     // Backspace steps over a whole character, not a byte of one.
     fixture.answer(Event::Backspace);
-    CHECK(fixture.state.importPicker->path == "/tmp/Мои файл");
+    CHECK(fixture.state.importPicker->path.value == "/tmp/Мои файл");
+}
+
+TEST_CASE("A paste the shell fetched goes into the path box [import_dialog]") {
+    ImportFixture fixture;
+    import_dialog::open(fixture.state);
+    fixture.state.importPicker->focus = AppState::ImportPicker::Focus::Path;
+    fixture.typePath("/tmp/");
+
+    // Where it lands is the field the typing is in, whichever box it stands in.
+    REQUIRE(amberedit::ui::dialog_field::focused(fixture.state) ==
+            &fixture.state.importPicker->path);
+    amberedit::ui::dialog_field::paste(fixture.state, std::string("inbox") + '\n' + "x");
+    CHECK(fixture.state.importPicker->path.value == "/tmp/inbox");
+
+    // And Ctrl-W takes the word back out.
+    fixture.answer(Event::Character("w", true));
+    CHECK(fixture.state.importPicker->path.value == "/tmp/");
 }
 
 TEST_CASE("The import dialog keys stand in the bottom of the frame [import_dialog]") {

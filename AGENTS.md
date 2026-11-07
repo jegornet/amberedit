@@ -2637,8 +2637,8 @@ decides what an occurrence is.
   buffer's own `moveWordLeft()`, `moveWordRight()`, `deleteWordBefore()` and
   `deleteWordAfter()` are
   written on — so the two halves of the screen cannot come to disagree about
-  where one begins. **The editing itself is `ui/line_edit.*`**, shared with the
-  find box: the word keys, the ends of the field, Backspace and Delete over a
+  where one begins. **The editing itself is `ui/line_edit.*`**, shared with
+  every field a dialog asks for (see [Dialogs](#dialogs)): the word keys, the ends of the field, Backspace and Delete over a
   selection, Shift and the arrows, the characters typed under `fieldLimit()` and
   a paste. `headerKey()` answers the walking and the crossing at an edge before
   it, and `onField()` is what turns the field's `FieldAnchor` into the
@@ -3288,6 +3288,24 @@ acting on the click.
 rule carries the keys, and what went wrong in their place, rather than either
 taking a row.
 
+- **Every field a box asks for is a `ui::TextField`, edited as a header field
+  is.** `ui/text_field.*` holds the value, the cursor, the selection and the drag,
+  and answers the editor's keys through `ui/line_edit.*` — the word keys,
+  `compose.line_start` and `line_end`, Shift and the arrows, `compose.copy`,
+  `compose.cut` and `compose.paste` — and the pointer the editor's way: a drag, a
+  double click for a word, a triple for the whole, copied where
+  `clipboard_copy_on_select` asks. ↑ and ↓ are left to the box, which walks its
+  stops by them. What it is answered with is a `FieldContext`, built per event:
+  `dialog_field::contextOf()` for the boxes over a screen — find, charset, import
+  and export — and `contextOf()` in `setup_wizard.cpp` for `--setup`, which has
+  no config to read a layout or a clipboard from, and so answers with
+  `KeyMap::defaults()` and a clipboard of its own on `SetupState`. A paste
+  through a clipboard that is not AmberEdit's own comes back from the shell to
+  `dialog_field::paste()`, which puts it in `dialog_field::focused()` — the field
+  the typing is in, in whichever box is up — so a box with a field added to it
+  is added there and nowhere else. The nodelist box's Lookup line and the
+  listings' quick search are not fields: they are typed onto the end and have
+  no cursor to put anywhere.
 - **Two boxes answer no key at all.** `ui/rescan_dialog.*` and
   `ui/progress_dialog.*` are the two that stand over a screen while the loop is
   blocked inside a call — every base being opened again, and a run over the
@@ -3413,14 +3431,8 @@ taking a row.
     mode outlive the dialog, on `AppState` rather than in the picker.
 - **`Ctrl-F` in the reader looks for a message in the area**, through
   `ui/find_dialog.*`: the words in a field, and under them a pair of radio
-  buttons saying how much of a message to read them against. **The field is
-  edited as a header field is**, through `ui/line_edit.*` and the editor's keys —
-  the word keys, Shift and the arrows, `compose.copy`, `compose.cut` and
-  `compose.paste` — and the mouse selects in it as in one: a drag, a double click
-  for a word, a triple for the whole, copied where `clipboard_copy_on_select`
-  asks. A paste through a clipboard that is not AmberEdit's own comes back from
-  the shell to `find_dialog::pasteText()`. **It opens with the words last looked
-  for selected**, so Enter looks for them again and the first character typed
+  buttons saying how much of a message to read them against. **It opens with the
+  words last looked for selected**, so Enter looks for them again and the first character typed
   writes over them, and `reader.find` pressed inside the box selects them again;
   Esc closes it whether or not anything is selected. Tab walks the three
   stops — the field, the answers, the **Find** button — and Enter searches from
@@ -3664,11 +3676,17 @@ taking a row.
   Every shipped theme states `input_field` and leaves the two `*_background`
   fills commented out, `themes/blue_header.cfg` and `themes/golded_colors.cfg`
   excepted: they state `header_background` and nothing else besides. A test
-  holds them to both.
+  holds them to both. **`dialog_focused_field` and `dialog_focused_text` follow
+  `focused_field` and `focused_text`** the same way, and every shipped theme
+  leaves both commented out, written with the theme's own focused pair so that
+  uncommenting them changes nothing: a field in a box is lit as the compose
+  screen's header lights one unless a theme says otherwise.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
-  `dialog_label`, `dialog_hint`, `dialog_field`, `dialog_flash`,
-  `dialog_border` — the frame, the rules closing it and the dividers inside it,
+  `dialog_label`, `dialog_hint`, `dialog_field`,
+  `dialog_focused_field`/`dialog_focused_text` — the field the typing is in,
+  never `selection`, which is what is selected of that field drawn in —
+  `dialog_flash`, `dialog_border` — the frame, the rules closing it and the dividers inside it,
   `separator`'s counterpart in a box — and `dialog_shadow`, plus `menu_button`,
   which is only ever drawn inside one. A new dialog reaches for those rather than for `text`,
   `list_text`, `table_header`, `header`, `mark`,
@@ -3678,8 +3696,9 @@ taking a row.
   lets `themes/16_colors.cfg` put a light grey DOS window with black in it over
   a screen that is light on black: one role cannot be legible on both. A test
   loads every shipped theme and checks that nothing a box draws with is the
-  color of the box — the frame, the fills it puts down over its own, `selection`
-  and `dialog_field`, and what is written on each of them included.
+  color of the box — the frame, the fills it puts down over its own, `selection`,
+  `dialog_field` and `dialog_focused_field`, and what is written on each of them
+  included — and that `selection` stands off `dialog_focused_field`.
 - **A terminal with fewer colors than a theme asks for** gets the nearest it has
   (`nearestWithin`), and one already holding the entry gets it untouched — which
   is what makes `themes/16_colors.cfg`, written in the sixteen ANSI colors,

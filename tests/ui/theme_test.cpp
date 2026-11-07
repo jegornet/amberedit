@@ -25,10 +25,12 @@ bool same(Color a, Color b) {
     return a == b;
 }
 
-/// The roles every shipped theme leaves commented out, which take the theme's
-/// own `background` where it does not name them. Named here because that is
-/// exactly what keeps them out of the keys the file states.
-const char* const kUnstatedRoles[] = {"header_background", "table_header_background"};
+/// The roles every shipped theme leaves commented out, which follow another of
+/// the theme's own where it does not name them — `background`, and the compose
+/// screen's focused field. Named here because that is exactly what keeps them
+/// out of the keys the file states.
+const char* const kUnstatedRoles[] = {"header_background", "table_header_background",
+                                      "dialog_focused_field", "dialog_focused_text"};
 
 /// A palette with every color role set to `index`, and how many that was.
 struct Everywhere {
@@ -543,6 +545,27 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
         CHECK_FALSE(same(theme.selectionText, theme.selection));
         CHECK_FALSE(same(theme.dialogFlash, theme.selection));
         CHECK_FALSE(same(theme.dialogLabel, theme.dialogField));
+
+        // The field the typing is in: a fill off the box's own, text off that
+        // fill, and the selection inside it off both — or what is selected of
+        // the field would not show.
+        CHECK_FALSE(same(theme.dialogFocusedField, theme.dialogBackground));
+        CHECK_FALSE(same(theme.dialogFocusedText, theme.dialogFocusedField));
+        CHECK_FALSE(same(theme.selection, theme.dialogFocusedField));
+    }
+}
+
+TEST_CASE("A box's focused field follows the compose screen's [theme]") {
+    // Left out of a theme, as every shipped one leaves them, the two roles are
+    // the theme's own `focused_field` and `focused_text`.
+    for (const char* file :
+         {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/black.cfg", "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
+        CAPTURE(file);
+        const Palette theme = valueOf(
+            amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
+        CHECK(same(theme.dialogFocusedField, theme.focusedField));
+        CHECK(same(theme.dialogFocusedText, theme.focusedText));
     }
 }
 
