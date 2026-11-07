@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 — 2026-11-07
 
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off

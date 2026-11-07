@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.10.2
+Version:        0.11.0
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,14 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Sat Nov 07 2026 Yegor Gluhov <git@jegor.net> - 0.11.0-1
+- select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field
+- add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off
+- undo and redo in the editor: Ctrl-Z or Ctrl-U to undo, Ctrl-R to redo
+- remove compose.restore_line: a line Ctrl-Y deleted is put back by undo, which Ctrl-U now is
+- add reader selection mode (V key). Reply in the selection mode quotes only what is selected, or the whole message where nothing is selected. Space key in the selection mode holds the anchor down, so the arrows select without Shift; Space again releases it. Also, the reader's default hint bar offers v select in place of ctrl-n nodelist
+- add reader_drag_to_select: a drag across the message in the reader — begun anywhere on it, from the nearest text — selects text without pressing v, and a click outside the text leaves the selection mode — when_wide (the default), on, off or when_narrow
+
 * Thu Nov 05 2026 Yegor Gluhov <git@jegor.net> - 0.10.2-1
 - add Ctrl-Backspace, Alt-Delete and Ctrl-Delete to delete words in the editor, Ctrl-Left and Ctrl-Right to move by them
 - delete an empty line with Ctrl-W, Alt-Backspace and Ctrl-Backspace, as Backspace does
