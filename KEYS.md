@@ -152,7 +152,7 @@ protocol and sends every chord AmberEdit binds but the few it keeps for itself
 - *Terminal → Keyboard → Shift/Ctrl/Alt with the arrow keys*: `xterm-style bitmap`
 - *Terminal → Features → Disable application cursor keys mode*: on — without it every arrow arrives
   bare, whatever is held with it
-- *Connection → Data → Terminal-type string*: `xterm-256color` 
+- *Connection → Data → Terminal-type string*: `putty-256color` 
 
 Then Ctrl and Alt with the arrows, and Alt with `Del` and the function keys,
 work. Ctrl with `Home`, `End`, `Ins`, `Del` and `Backspace` still does not:
