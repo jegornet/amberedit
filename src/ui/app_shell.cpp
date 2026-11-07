@@ -683,6 +683,8 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             if (!pasted) {
                 state.errorMessage = pasted.error()->message();
                 state.errorEndsScreen = false;
+            } else if (state.findPicker) {
+                find_dialog::pasteText(state, *pasted);
             } else if (state.navigator.current() == app::ScreenId::Compose) {
                 screens::compose::pasteText(state, *pasted);
             }

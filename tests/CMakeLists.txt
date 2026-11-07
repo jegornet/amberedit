@@ -174,6 +174,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/text_field.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/info_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/input_field.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/line_edit.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/keys.cpp
   # The keyboard diagnostics, whatever AMBEREDIT_KEYTEST says: that option is
   # whether the program offers them, and these tests are what plays the bytes

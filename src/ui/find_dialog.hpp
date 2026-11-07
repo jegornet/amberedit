@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string_view>
+
 #include "ui/app_state.hpp"
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
@@ -39,5 +41,10 @@ void open(AppState& state);
 /// Answers a key or a click while the dialog is up. Everything else is
 /// swallowed: the dialog is modal, as every other one here is.
 Outcome handleEvent(AppState& state, const term::Event& event);
+
+/// Puts what a paste brought into the words, in place of what is selected of
+/// them — the first line alone, the field holding one. The shell calls it for
+/// a clipboard that is not AmberEdit's own, which it answers itself.
+void pasteText(AppState& state, std::string_view text);
 
 }  // namespace amberedit::ui::find_dialog

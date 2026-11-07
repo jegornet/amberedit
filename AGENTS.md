@@ -2637,7 +2637,12 @@ decides what an occurrence is.
   buffer's own `moveWordLeft()`, `moveWordRight()`, `deleteWordBefore()` and
   `deleteWordAfter()` are
   written on — so the two halves of the screen cannot come to disagree about
-  where one begins. **A field is one line**, and that is the only difference: the
+  where one begins. **The editing itself is `ui/line_edit.*`**, shared with the
+  find box: the word keys, the ends of the field, Backspace and Delete over a
+  selection, Shift and the arrows, the characters typed under `fieldLimit()` and
+  a paste. `headerKey()` answers the walking and the crossing at an edge before
+  it, and `onField()` is what turns the field's `FieldAnchor` into the
+  `line_edit::Line` it edits. **A field is one line**, and that is the only difference: the
   two answer `std::nullopt` where nothing but separators lies that way, which in
   the text carries the motion onto the line above or below and in a field is the
   edge it stops at. These four are live under `external_editor` for the same
@@ -3408,7 +3413,16 @@ taking a row.
     mode outlive the dialog, on `AppState` rather than in the picker.
 - **`Ctrl-F` in the reader looks for a message in the area**, through
   `ui/find_dialog.*`: the words in a field, and under them a pair of radio
-  buttons saying how much of a message to read them against. Tab walks the three
+  buttons saying how much of a message to read them against. **The field is
+  edited as a header field is**, through `ui/line_edit.*` and the editor's keys —
+  the word keys, Shift and the arrows, `compose.copy`, `compose.cut` and
+  `compose.paste` — and the mouse selects in it as in one: a drag, a double click
+  for a word, a triple for the whole, copied where `clipboard_copy_on_select`
+  asks. A paste through a clipboard that is not AmberEdit's own comes back from
+  the shell to `find_dialog::pasteText()`. **It opens with the words last looked
+  for selected**, so Enter looks for them again and the first character typed
+  writes over them, and `reader.find` pressed inside the box selects them again;
+  Esc closes it whether or not anything is selected. Tab walks the three
   stops — the field, the answers, the **Find** button — and Enter searches from
   wherever the cursor is, the button being where the ring comes to rest rather
   than the only place the box can be answered from. A radio is turned over by

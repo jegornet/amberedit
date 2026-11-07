@@ -18,10 +18,10 @@ namespace amberedit::ui {
 /// how far the text has scrolled and where the field was last drawn — and the
 /// two keystroke and click rules that every field in AmberEdit answers by.
 ///
-/// It is here because the setup wizard has six of them. The compose screen, the
-/// import dialog and the find box each keep their own copy of this arithmetic
-/// and are not moved onto it in the same breath: they work, and a wizard is no
-/// reason to reopen them.
+/// It is here because the setup wizard has six of them. The compose screen's
+/// header and the find box are edited by `ui/line_edit.hpp` instead, which
+/// carries a selection and the editor's word keys; the import dialog keeps its
+/// own copy of this arithmetic.
 struct TextField {
     std::string value;
     size_t cursor{0};

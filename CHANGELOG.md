@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- the find box edits text as a header field does; Ctrl-F selects the last search
+
 ## 0.11.0 — 2026-11-07
 
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field

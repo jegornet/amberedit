@@ -33,6 +33,7 @@
 #include "ui/header_format.hpp"
 #include "ui/import_dialog.hpp"
 #include "ui/input_field.hpp"
+#include "ui/line_edit.hpp"
 #include "ui/menu_button.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
@@ -132,10 +133,29 @@ Element field(const std::string& value, size_t cursor, int width, bool active,
 /// What of the field the typing is in is selected, or nothing.
 FieldSelection fieldSelection(const AppState& state) {
     if (!state.composeHasSelection()) return {};
-    const size_t size = valueOf(state.compose, state.composeField).size();
-    const size_t anchor = std::min(state.composeFieldAnchor->at, size);
-    const size_t cursor = std::min(state.composeCursor, size);
-    return {std::min(anchor, cursor), std::max(anchor, cursor)};
+    return line_edit::selection(valueOf(state.compose, state.composeField),
+                                state.composeCursor, state.composeFieldAnchor->at);
+}
+
+/// Runs `edit` over the field the typing is in as a `line_edit::Line`: its
+/// text, the cursor, its own anchor — an anchor left in another field is none
+/// here — and the characters it takes. What the edit leaves of the anchor is
+/// written back as this field's.
+template <typename Edit>
+bool onField(AppState& state, Edit edit) {
+    std::optional<size_t> anchor;
+    if (state.composeFieldAnchor && state.composeFieldAnchor->field == state.composeField) {
+        anchor = state.composeFieldAnchor->at;
+    }
+    const bool answered = edit(line_edit::Line{valueOf(state.compose, state.composeField),
+                                               state.composeCursor, anchor,
+                                               fieldLimit(state.composeField)});
+    if (anchor) {
+        state.composeFieldAnchor = AppState::FieldAnchor{state.composeField, *anchor};
+    } else {
+        state.composeFieldAnchor.reset();
+    }
+    return answered;
 }
 
 /// The stop of the block a piece of the format is, or -1 for a label, a literal
@@ -1755,32 +1775,8 @@ bool overDragged(const AppState& state, int x, int y) {
                        [&](const AppState::ComposeSpot& spot) { return spot.box.Contain(x, y); });
 }
 
-/// Whether a key is one a selection is made with: Shift with an arrow, Home or
-/// End. The arrows and the pair without Shift move the cursor and drop the
-/// selection; with it they move the cursor and leave the other end standing.
-bool extendsSelection(const Event& event) {
-    if (!event.shift() || event.ctrl() || event.alt() ||
-        event.kind() != Event::Kind::Key) {
-        return false;
-    }
-    switch (event.name()) {
-        case Event::Name::ArrowLeft:
-        case Event::Name::ArrowRight:
-        case Event::Name::ArrowUp:
-        case Event::Name::ArrowDown:
-        case Event::Name::Home:
-        case Event::Name::End: return true;
-        default: return false;
-    }
-}
-
-/// Whether a key types into what has the typing — the keys that, over a
-/// selection, write over it rather than beside it.
-bool typesText(const Event& event) {
-    if (!event.is_character() || event.ctrl() || event.alt()) return false;
-    const std::string& input = event.character();
-    return !(input.size() == 1 && static_cast<unsigned char>(input[0]) < 0x20);
-}
+using line_edit::extendsSelection;
+using line_edit::typesText;
 
 /// Shift with a key that moves, in a field: the cursor moves as the bare key
 /// would move it inside the field and the anchor stays where the selection
@@ -1789,21 +1785,10 @@ bool typesText(const Event& event) {
 /// beside it the way the bare arrows do: a selection is of one field's text.
 void extendInField(AppState& state, const Event& event) {
     if (state.composeField >= kAttributes) return;
-    if (!state.composeFieldAnchor || state.composeFieldAnchor->field != state.composeField) {
-        state.composeFieldAnchor =
-            AppState::FieldAnchor{state.composeField, state.composeCursor};
-    }
-    const std::string& value = valueOf(state.compose, state.composeField);
-    size_t& cursor = state.composeCursor;
-    switch (event.name()) {
-        case Event::Name::ArrowLeft: cursor = prevChar(value, cursor); break;
-        case Event::Name::ArrowRight:
-            cursor = std::min(value.size(), cursor + charLen(value, cursor));
-            break;
-        case Event::Name::ArrowUp:
-        case Event::Name::Home: cursor = 0; break;
-        default: cursor = value.size(); break;
-    }
+    onField(state, [&](line_edit::Line line) {
+        line_edit::extend(line, event);
+        return true;
+    });
 }
 
 /// The same in the text, where Up and Down go a row as they always do — and
@@ -2342,99 +2327,26 @@ bool headerKey(AppState& state, const Event& event) {
     // none: a key it does not bind is the screen's, not a no-op of its own.
     if (onButton) return false;
 
-    std::string& value = valueOf(state.compose, state.composeField);
-    size_t& cursor = state.composeCursor;
-
-    if (overSelection) {
-        deleteSelected(state);
-        if (event == Event::Backspace || event == Event::Delete) return true;
-    }
-
-    // The word keys the message text answers, answering the same way in a
-    // field: what is edited up here is a line of text like any other, and a
-    // header the arrows alone can cross is a header nobody corrects twice.
-    // Before the arrows, and for the reason `textKey()` gives — Alt-Left is a
-    // left arrow with a modifier on it. A field holds one line, so a motion
-    // with no word that way stops at the edge of it rather than walking on.
-    if (state.keys.is(event, Command::ComposeWordLeft)) {
-        cursor = wordStartBefore(value, cursor).value_or(0);
-        return true;
-    }
-    if (state.keys.is(event, Command::ComposeWordRight)) {
-        cursor = wordEndAfter(value, cursor).value_or(value.size());
-        return true;
-    }
-    if (state.keys.is(event, Command::ComposeDeleteWord)) {
-        const size_t from = wordStartBefore(value, cursor).value_or(0);
-        value.erase(from, cursor - from);
-        cursor = from;
-        return true;
-    }
-    if (state.keys.is(event, Command::ComposeDeleteNextWord)) {
-        const size_t to = wordEndAfter(value, cursor).value_or(value.size());
-        value.erase(cursor, to - cursor);
-        return true;
-    }
     // Stops stand side by side on a line, so the arrows cross from one to the
     // next at the edge between them, the way they cross a line end in the text:
     // → off the end of a name onto the start of its address, ← off the start of
     // an address onto the end of its name.
-    if (event == Event::ArrowLeft) {
-        if (cursor == 0 && crossBeside(state, -1)) return true;
-        cursor = prevChar(value, cursor);
+    const size_t size = valueOf(state.compose, state.composeField).size();
+    if (event == Event::ArrowLeft && state.composeCursor == 0 && crossBeside(state, -1)) {
         return true;
     }
-    if (event == Event::ArrowRight) {
-        if (cursor == value.size() && crossBeside(state, 1)) return true;
-        cursor = std::min(value.size(), cursor + charLen(value, cursor));
+    if (event == Event::ArrowRight && state.composeCursor >= size && crossBeside(state, 1)) {
         return true;
     }
-    // The ends of the field, from the keys marked for them and from the chords
-    // a terminal that sends nothing for Home and End leaves as the only way
-    // there — the pair every readline-shaped line editor answers.
-    if (event == Event::Home || state.keys.is(event, Command::ComposeLineStart)) {
-        cursor = 0;
-        return true;
-    }
-    if (event == Event::End || state.keys.is(event, Command::ComposeLineEnd)) {
-        cursor = value.size();
-        return true;
-    }
-    if (event == Event::Backspace) {
-        const size_t from = prevChar(value, cursor);
-        value.erase(from, cursor - from);
-        cursor = from;
-        return true;
-    }
-    if (event == Event::Delete) {
-        value.erase(cursor, charLen(value, cursor));
-        return true;
-    }
-    // Any chord is swallowed rather than typed: a chord arrives as a character
-    // event with Ctrl or Alt held, and Ctrl-X falling through to be typed into
-    // the subject as `x` is exactly what must not happen. The chords this screen
-    // does bind were answered before the key got here.
-    if (event.ctrl() || event.alt()) return false;
-    // Whatever the terminal reports as text. The input layer decodes a code
-    // point before making an event of it, so a Cyrillic letter arrives whole and
-    // is inserted as one; control bytes are not text and are left to the
-    // branches above.
-    if (event.is_character()) {
-        const std::string& input = event.character();
-        if (input.size() == 1 && static_cast<unsigned char>(input[0]) < 0x20)
-            return false;
-        // A full field takes nothing more: what does not fit in the base would
-        // be cut off there without a word, and a name half stored is worse than
-        // one the editor would not let be typed. The keystroke is swallowed
-        // rather than passed on — it was aimed at this field, and there is
-        // nowhere else on the screen for it to go.
-        const size_t limit = fieldLimit(state.composeField);
-        if (limit != 0 && charCount(value) + charCount(input) > limit) return true;
-        value.insert(cursor, input);
-        cursor += input.size();
-        return true;
-    }
-    return false;
+
+    // Everything else is the editing every one-line field answers alike — the
+    // word keys, the ends of the field, Backspace and Delete over a selection
+    // or beside the cursor, and the characters typed, held to `fieldLimit()`.
+    // A chord nothing there binds comes back false rather than being typed as
+    // its letter.
+    return onField(state, [&](line_edit::Line line) {
+        return line_edit::editKey(line, event, state.keys);
+    });
 }
 
 /// A keystroke aimed at the text.
@@ -3423,21 +3335,12 @@ void pasteText(AppState& state, std::string_view text) {
 
     if (state.composeInHeader) {
         if (state.composeField == kAttributes) return;
-        std::string& value = valueOf(state.compose, state.composeField);
-        const std::string& line = lines.front();
         // As many characters as the field has room for, counted the way a
         // keystroke is held to it in `headerKey()`.
-        size_t take = line.size();
-        if (const size_t limit = fieldLimit(state.composeField); limit != 0) {
-            const size_t used = charCount(value);
-            const size_t room = limit > used ? limit - used : 0;
-            take = 0;
-            for (size_t n = 0; take < line.size() && n < room; ++n) {
-                take += charLen(line, take);
-            }
-        }
-        value.insert(state.composeCursor, line, 0, take);
-        state.composeCursor += take;
+        onField(state, [&](line_edit::Line line) {
+            line_edit::insert(line, lines.front());
+            return true;
+        });
         return;
     }
     if (state.externalEditing()) return;

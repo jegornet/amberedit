@@ -917,6 +917,17 @@ struct AppState {
         /// already stands at the end of.
         std::string query;
         size_t cursor{0};
+        /// The other end of what is selected of the words, the cursor being
+        /// this end — see `ui/line_edit.hpp`. The box opens with the whole of
+        /// what it holds selected, so typing writes over it.
+        std::optional<size_t> anchor;
+        /// A drag of the pointer across the words, from the press that began
+        /// it to the release; and the selection a press landed inside, held
+        /// for the drag to grow, as the editor's fields hold theirs.
+        bool dragging{false};
+        std::optional<HeldSelection<size_t>> held;
+        /// The presses on the field so far, for a double and a triple click.
+        ClickRun clicks;
         /// The byte the field's leftmost column shows, filled in by
         /// `ui::inputField()` — the one place the sideways scroll is worked out,
         /// and so the only thing a click can be measured against.

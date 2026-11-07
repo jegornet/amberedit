@@ -387,6 +387,120 @@ TEST_CASE("Ctrl-F opens the find box on what was last looked for [find][squish]"
     REQUIRE(fixture.state.findPicker);
     CHECK(fixture.state.findPicker->query == "needle");
     CHECK(fixture.state.findPicker->cursor == 6);
+    // All of it selected, so the first character typed writes over it.
+    CHECK(fixture.state.findPicker->anchor == 0u);
+    find_dialog::handleEvent(fixture.state, Event::Character('x'));
+    CHECK(fixture.state.findPicker->query == "x");
+}
+
+TEST_CASE("The key that opened the find box selects its words again [find]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path(), plain());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    find_dialog::open(fixture.state);
+    REQUIRE(fixture.state.findPicker);
+    for (const char c : std::string("two words")) {
+        find_dialog::handleEvent(fixture.state, Event::Character(c));
+    }
+    find_dialog::handleEvent(fixture.state, Event::Tab);
+    find_dialog::handleEvent(fixture.state, Event::Character("f", true));
+    const auto& picker = *fixture.state.findPicker;
+    CHECK(picker.focus == AppState::FindPicker::Focus::Query);
+    CHECK(picker.anchor == 0u);
+    CHECK(picker.cursor == picker.query.size());
+}
+
+TEST_CASE("The find box's words are edited as a header field is [find][selection]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path(), plain());
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.config.clipboardCopyIndicate = false;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    find_dialog::open(fixture.state);
+    REQUIRE(fixture.state.findPicker);
+    auto& picker = *fixture.state.findPicker;
+    for (const char c : std::string("one two three")) {
+        find_dialog::handleEvent(fixture.state, Event::Character(c));
+    }
+
+    // Ctrl-W takes the word before the cursor, Alt-B walks back over one.
+    find_dialog::handleEvent(fixture.state, Event::Character("w", true));
+    CHECK(picker.query == "one two ");
+    find_dialog::handleEvent(fixture.state, Event::Character("b", false, true));
+    CHECK(picker.cursor == 4);
+
+    // Shift-End selects to the end, Ctrl-C copies it, and a character typed
+    // writes over it.
+    find_dialog::handleEvent(fixture.state,
+                             Event::Named(Event::Name::End, false, false, true));
+    find_dialog::handleEvent(fixture.state, Event::Character("c", true));
+    CHECK(fixture.state.clipboard == "two ");
+    find_dialog::handleEvent(fixture.state, Event::Character('x'));
+    CHECK(picker.query == "one x");
+
+    // Ctrl-V puts the clipboard in at the cursor, its first line alone.
+    fixture.state.clipboard = std::string("zz") + '\n' + "yy";
+    find_dialog::handleEvent(fixture.state, Event::Character("v", true));
+    CHECK(picker.query == "one xzz");
+
+    // Shift-Home and Ctrl-X cut the lot.
+    find_dialog::handleEvent(fixture.state,
+                             Event::Named(Event::Name::Home, false, false, true));
+    find_dialog::handleEvent(fixture.state, Event::Character("x", true));
+    CHECK(picker.query.empty());
+    CHECK(fixture.state.clipboard == "one xzz");
+}
+
+TEST_CASE("The pointer selects the find box's words [find][selection]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path(), plain());
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.config.clipboardCopyIndicate = false;
+    fixture.config.clipboardCopyOnSelect = amberedit::config::CopyOnSelect::Mouse;
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+    amberedit::ui::Millis now = 0;
+    fixture.state.monotonicMs = [&] { return now; };
+
+    find_dialog::open(fixture.state);
+    REQUIRE(fixture.state.findPicker);
+    auto& picker = *fixture.state.findPicker;
+    for (const char c : std::string("alpha beta")) {
+        find_dialog::handleEvent(fixture.state, Event::Character(c));
+    }
+    term::Screen screen(fixture.state.width, fixture.state.height);
+    term::render(screen, find_dialog::render(fixture.state, term::text("")));
+    const term::Box box = picker.queryBox;
+
+    const auto pointer = [&](int x, term::MouseEvent::Motion motion) {
+        term::MouseEvent mouse;
+        mouse.button = term::MouseEvent::Button::Left;
+        mouse.motion = motion;
+        mouse.x = box.x_min + x;
+        mouse.y = box.y_min;
+        return find_dialog::handleEvent(fixture.state, Event::Mouse(mouse));
+    };
+
+    // A drag from the second column to the fifth selects what is between and
+    // copies it as the button is let go.
+    pointer(1, term::MouseEvent::Motion::Pressed);
+    pointer(5, term::MouseEvent::Motion::Moved);
+    pointer(5, term::MouseEvent::Motion::Released);
+    CHECK(fixture.state.clipboard == "lpha");
+    REQUIRE(picker.anchor);
+    CHECK(*picker.anchor == 1);
+    CHECK(picker.cursor == 5);
+
+    // A double click is the word under it, a triple one the whole of the words.
+    now += 1000;
+    pointer(7, term::MouseEvent::Motion::Pressed);
+    pointer(7, term::MouseEvent::Motion::Pressed);
+    CHECK(fixture.state.clipboard == "beta");
+    pointer(7, term::MouseEvent::Motion::Pressed);
+    CHECK(fixture.state.clipboard == "alpha beta");
+    // The box is still up throughout.
+    CHECK(fixture.state.findPicker);
 }
 
 TEST_CASE("The reader's menu offers Find [find][squish]") {

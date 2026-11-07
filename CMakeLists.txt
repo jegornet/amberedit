@@ -737,6 +737,7 @@ add_executable(amberedit
   src/ui/import_dialog.cpp
   src/ui/info_dialog.cpp
   src/ui/input_field.cpp
+  src/ui/line_edit.cpp
   src/ui/keys.cpp
   src/ui/mark_dialog.cpp
   src/ui/menu_dialog.cpp
