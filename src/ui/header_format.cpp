@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <tuple>
 
 #include "i18n/i18n.hpp"
 #include "ui/text_layout.hpp"
@@ -155,6 +156,69 @@ std::optional<int> locationColumn(const Layout& layout) {
         return std::nullopt;
     }
     return std::nullopt;
+}
+
+std::vector<int> stopsInOrder(const Stops& stops) {
+    std::vector<int> order;
+    for (size_t stop = 0; stop < stops.size(); ++stop) {
+        if (stops[stop]) order.push_back(static_cast<int>(stop));
+    }
+    std::sort(order.begin(), order.end(), [&stops](int a, int b) {
+        const Stop& first = *stops[static_cast<size_t>(a)];
+        const Stop& second = *stops[static_cast<size_t>(b)];
+        return std::tie(first.line, first.left) < std::tie(second.line, second.left);
+    });
+    return order;
+}
+
+int stopToward(const Stops& stops, const Stop& from, int step) {
+    int best = -1;
+    int bestLine = 0;
+    int bestOverlap = 0;
+    int bestGap = 0;
+    int bestLeft = 0;
+    for (size_t stop = 0; stop < stops.size(); ++stop) {
+        const auto& spot = stops[stop];
+        if (!spot) continue;
+        const int distance = (spot->line - from.line) * step;
+        if (distance <= 0) continue;
+        const int overlap = std::max(
+            0, std::min(spot->right, from.right) - std::max(spot->left, from.left));
+        const int gap = overlap > 0 ? 0
+                                    : std::max(spot->left - from.right + 1,
+                                               from.left - spot->right + 1);
+        const bool better =
+            best < 0 || distance < (bestLine - from.line) * step ||
+            (distance == (bestLine - from.line) * step &&
+             (overlap > bestOverlap ||
+              (overlap == bestOverlap &&
+               (gap < bestGap || (gap == bestGap && spot->left < bestLeft)))));
+        if (!better) continue;
+        best = static_cast<int>(stop);
+        bestLine = spot->line;
+        bestOverlap = overlap;
+        bestGap = gap;
+        bestLeft = spot->left;
+    }
+    return best;
+}
+
+int stopBeside(const Stops& stops, int current, int step) {
+    const auto& from = stops[static_cast<size_t>(current)];
+    if (!from) return -1;
+    int best = -1;
+    int bestLeft = 0;
+    for (size_t stop = 0; stop < stops.size(); ++stop) {
+        const auto& spot = stops[stop];
+        if (!spot || static_cast<int>(stop) == current || spot->line != from->line)
+            continue;
+        if ((spot->left - from->left) * step <= 0) continue;
+        if (best < 0 || (spot->left - bestLeft) * step < 0) {
+            best = static_cast<int>(stop);
+            bestLeft = spot->left;
+        }
+    }
+    return best;
 }
 
 }  // namespace amberedit::ui::header_format

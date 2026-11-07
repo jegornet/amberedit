@@ -523,6 +523,18 @@ enum class KeysMode {
     Clear,  ///< `clear` — the file is the layout entire, and nothing is kept
 };
 
+/// Which selections in the editor go to the clipboard by themselves, from
+/// `clipboard_copy_on_select`.
+enum class CopyOnSelect {
+    /// `always` — every selection, as it is made: a drag as the button is let
+    /// go, Shift and an arrow at every step.
+    Always,
+    /// `mouse` — a drag alone, as the button is let go.
+    Mouse,
+    /// `off` — none; Ctrl-C and Ctrl-X are the only way to the clipboard.
+    Off,
+};
+
 /// A protocol the terminal is asked to report modified keys in, one word of
 /// `modifier_key_reporting`.
 enum class KeyReporting {
@@ -1414,6 +1426,12 @@ struct AppConfig {
     /// screen, and a key that seems to do nothing is a key pressed again.
     bool clipboardCopyIndicate{true};
 
+    /// Which selections in the editor are copied as they are made, from
+    /// `clipboard_copy_on_select`. `mouse` by default: a drag is often the whole
+    /// of the gesture, where Shift and the arrows are more often a step on the
+    /// way to Ctrl-C or Ctrl-X.
+    CopyOnSelect clipboardCopyOnSelect{CopyOnSelect::Mouse};
+
     /// What `clipboard` comes to on this system: `windows` is `internal` on any
     /// other, there being no system clipboard there for a program to ask.
     [[nodiscard]] ClipboardMode clipboardInEffect() const;
@@ -1781,6 +1799,17 @@ struct AppConfig {
     /// looks like, not how far the press could have landed from the edge.
     int readerSideTapWidth{6};
 
+    /// Whether a drag across the message in the reader selects text without
+    /// `reader.select` having been pressed first, from `reader_drag_to_select`:
+    /// the press marks where the selection begins and the first movement after
+    /// it turns the selection mode on. A click outside the text and the header
+    /// fields while the mode is on turns it off.
+    ///
+    /// `when_wide` unless the config says otherwise — the window where a mouse
+    /// is likelier to be the thing in hand than a finger is, and the one where
+    /// the side taps, which a drag would otherwise start on, are off.
+    Visibility readerDragToSelect{Visibility::WhenWide};
+
     /// What the three menus hold, in the order they are to stand — from
     /// `arealist_menu`, `reader_menu` and `compose_menu`. Each names commands of
     /// its own screen, by the part of the name after the dot: `reply_elsewhere`
@@ -1792,11 +1821,12 @@ struct AppConfig {
     /// about a message is a question most readers never ask, a message is
     /// written out to a file now and then, and answering the recipient rather
     /// than the sender is a thing wanted now and then — `c`/F2, `i`, `w` and
-    /// `g`/Alt-G do all four without a button.
+    /// `g`/Alt-G do all four without a button. The shell is left out too,
+    /// `Ctrl-X` reaching it, and the last button is selecting text instead.
     std::vector<Command> readerMenu{Command::ReaderList,           Command::ReaderReply,
                                     Command::ReaderReplyElsewhere, Command::ReaderNew,
                                     Command::ReaderForward,        Command::ReaderFind,
-                                    Command::ReaderNodelist,       Command::ReaderShell};
+                                    Command::ReaderNodelist,       Command::ReaderSelect};
 
     /// The editor's two: storing the message and reading a file into it. The
     /// rest of what it does is editing, which is the keyboard's — Ctrl-Y and
@@ -1861,9 +1891,9 @@ struct AppConfig {
     std::vector<Command> msglistHints;
     std::vector<Command> readerHints{Command::ReaderReply,  Command::ReaderReplyElsewhere,
                                      Command::ReaderNew,    Command::ReaderList,
-                                     Command::ReaderExport, Command::ReaderNodelist};
-    std::vector<Command> composeHints{Command::ComposeSave, Command::ComposeDeleteLine,
-                                      Command::ComposeImport};
+                                     Command::ReaderExport, Command::ReaderSelect};
+    std::vector<Command> composeHints{Command::ComposeSave, Command::ComposeUndo,
+                                      Command::ComposeRedo, Command::ComposeImport};
 
     /// How wide one button of a menu stands, in columns, from
     /// `menu_buttons_width` — the frame around the label included, so it is the

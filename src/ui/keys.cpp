@@ -67,16 +67,17 @@ bool takesAlt(Event::Name name) {
 /// nothing here already keeps for moving about. Insert is: Ctrl-Ins and
 /// Shift-Ins are how a clipboard has been copied to and pasted from since the
 /// keyboards that had no Ctrl-C and Ctrl-V for it, and every terminal still
-/// spells both.
+/// spells both. Delete is with Shift alone — Shift-Del is the third of that set,
+/// the one a selection is cut with.
 bool takesShift(Event::Name name) {
-    return name == Event::Name::Insert;
+    return name == Event::Name::Insert || name == Event::Name::Delete;
 }
 
 /// The same for Ctrl: Insert, Delete, Left and Right — the word motion every
 /// editor outside a terminal puts there — and Backspace, which only the kitty
 /// protocol tells apart from Backspace itself, see `registerModifiedKeys()`.
 bool takesCtrl(Event::Name name) {
-    return takesShift(name) || name == Event::Name::Backspace ||
+    return name == Event::Name::Insert || name == Event::Name::Backspace ||
            name == Event::Name::Delete || name == Event::Name::ArrowLeft ||
            name == Event::Name::ArrowRight;
 }
@@ -174,8 +175,9 @@ std::optional<Event> keyNamed(std::string_view spelling) {
 
     if (const NamedKey* named = namedKey(parsed.body)) {
         // Alt with an arrow, a function key, Backspace or Delete is one a
-        // terminal can be asked to report, and so is Ctrl or Shift with Insert
-        // and Ctrl with Backspace, Delete, Left or Right; nothing else
+        // terminal can be asked to report, and so is Ctrl or Shift with Insert,
+        // Shift with Delete and Ctrl with Backspace, Delete, Left or Right;
+        // nothing else
         // here is bindable under a modifier, and a spelling that asks for one is
         // either a key that would never arrive or — Ctrl with Home and End —
         // one reserved above. One modifier at a time: no terminal agrees on
@@ -232,9 +234,10 @@ std::string hintSpellingOf(const Event& key, bool capitalize) {
     const std::string full = spellingOf(key);
     if (!capitalize) return config::text::toLower(full);
     // A modifier and a named key already carry their own capitals — `Ctrl-R`,
-    // `F7`, `Del` — and are written as they stand; a bare letter is the only
+    // `F7`, `Del`, `Space` — and are written as they stand; a bare letter is the only
     // part with a case of its own to raise.
-    if (key.ctrl() || key.alt() || key.shift() || key.kind() == Event::Kind::Key) {
+    if (key.ctrl() || key.alt() || key.shift() || key.kind() == Event::Kind::Key ||
+        key.input() == " ") {
         return full;
     }
     return config::text::toUpper(full);
@@ -277,6 +280,13 @@ tl::expected<KeyMap, ErrorPtr> KeyMap::parse(std::string_view text,
                            "— as in `l reader.list`");
         }
 
+        // A command that is no more: the line is passed over and said out loud,
+        // the layout standing as it would without it — see `Commands::retired()`.
+        if (Commands::retired(tokens[1])) {
+            map.warnings_.push_back(where + tokens[1] +
+                                    " is no longer a command and is ignored");
+            continue;
+        }
         const Commands::Info* command = Commands::named(tokens[1]);
         if (command == nullptr) {
             return failure(where + "no command is called " + tokens[1]);

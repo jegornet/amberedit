@@ -290,8 +290,15 @@ endif()
 # where it is documented, but it is in no header, so it is declared by hand and
 # probed for rather than assumed: a C library that has gettext and not this
 # should still build, and simply not be able to put a catalog back down.
+#
+# iconv goes in behind libintl for the reason the link line below puts it there:
+# a static libintl.a — MSYS2's — leaves `libiconv_open` for whatever follows it,
+# and a probe linked without it fails over that and reports the counter missing.
 cmake_push_check_state()
 set(CMAKE_REQUIRED_LIBRARIES ${Intl_LIBRARIES})
+if(NOT ICONV_IN_LIBC)
+  list(APPEND CMAKE_REQUIRED_LIBRARIES ${ICONV_LIBRARY})
+endif()
 set(CMAKE_REQUIRED_INCLUDES ${Intl_INCLUDE_DIRS})
 check_cxx_source_compiles("
   #include <libintl.h>
@@ -736,12 +743,14 @@ add_executable(amberedit
   src/ui/message_marks.cpp
   src/ui/nodelist_dialog.cpp
   src/ui/progress_dialog.cpp
+  src/ui/reader_select.cpp
   src/ui/reader_sidebar.cpp
   src/ui/reply_dialog.cpp
   src/ui/rescan_dialog.cpp
   src/ui/text_field.cpp
   src/ui/text_layout.cpp
   src/ui/text_editor.cpp
+  src/ui/edit_history.cpp
   src/ui/edit_layout.cpp
   src/ui/theme.cpp
   src/ui/setup/file_picker.cpp

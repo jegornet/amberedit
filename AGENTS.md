@@ -1092,7 +1092,7 @@ Rules that hold the design together:
   keyboard layout's — the `VK_BACK` row of its character table, `'\b'` bare and
   with Shift and `0x007f` with Ctrl, as `kbdus.c` in Microsoft's
   Windows-driver-samples writes it.
-  `takesShift()` lets Shift go in front of Insert alone. By default it is
+  `takesShift()` lets Shift go in front of Insert and Delete alone. By default it is
   `compose.delete_word`, the third key beside `Ctrl-W` and `Alt-Backspace`.
 - **Home and End are claimed in every form, Ctrl and all, through the same
   `define_key()`.**
@@ -1157,9 +1157,9 @@ Rules that hold the design together:
   command. Two things make Ctrl-Q work, both in `app_shell.cpp`: flow control has
   to be turned off, or the line discipline eats Ctrl-Q as XON, and the chord has
   to be matched in two forms — the raw C0 byte and the kitty protocol's
-  `CSI <codepoint>;5u`. The input layer folds both into one event. `Ctrl-C` is
-  bound to nothing and `raw()` keeps the terminal from making a signal of it, so
-  it does nothing at all until a layout gives it something to do.
+  `CSI <codepoint>;5u`. The input layer folds both into one event. `raw()` keeps
+  the terminal from making a signal of `Ctrl-C`, which leaves it a key like any
+  other: copying, in the reader and in the editor, by default.
 - The wheel moves a line per notch on every screen — the cursor in the lists, the
   body in the reader — through `ui::wheelDelta()` (`ui/event_util.hpp`), which
   returns -1/0/+1 and leaves each screen to decide what that moves. A list whose
@@ -1172,6 +1172,23 @@ Rules that hold the design together:
   terminfo's decision: an entry with `xm` gets SGR 1006 and works at any width,
   one without falls back to the original mode, whose coordinates stop at column
   223. Apple's terminfo has no `xm`; every current Linux one does.
+- **A drag is asked for by AmberEdit, not by ncurses.** ncurses writes mode 1000
+  — presses and releases — and nothing else whatever the mask says, so
+  `Terminal::draw()` writes xterm's 1002, button-event tracking, after the first
+  frame has gone out: the terminal keeps one tracking mode, the one asked for
+  last, and ncurses writes its own as the screen is first drawn. It comes off
+  before `endwin()` in the destructor and in `handOver()`, and goes back on with
+  the frame after. `REPORT_MOUSE_POSITION` is in the mask so that ncurses hands
+  the movement over at all, and `Terminal::noteButton()` passes a movement on
+  only while the left button is down — a terminal in 1003 reports a hand
+  wandering too. Draining a run of reports, a release wins over a movement
+  gathered with it: it is what ends a drag. **The Windows build drains
+  nothing**: PDCurses stands one report behind each `KEY_MOUSE`, and its
+  `getmouse()` answers `OK` whenever it is asked, so `mouseEvent()` reads one
+  and stops — a loop waiting for `ERR` there spins on the first report, which
+  under `REPORT_MOUSE_POSITION` conhost sends before the first frame. Only the editor
+  reads `Moved` and `Released` (see the selection bullet under [Writing a
+  message](#writing-a-message)); everything else still acts on the press alone.
 - **The wheel moves what scrolls, and a column of buttons does not.** A box with
   a long thing in it answers the wheel — the lists in `ui/area_dialog.*` and
   `ui/nodelist_dialog.*` move their cursor, `ui/external_dialog.*` scrolls the
@@ -1233,6 +1250,21 @@ Rules that hold the design together:
   `addresseeOf()` is to be kept in step with the dispatch chain in `app_shell.cpp`
   in the same way: the two list the same modals in the same order, and a box left
   out of the first is one the tail of a flick can still scroll.
+- **A release nobody reported is made up for by the press after it.** A terminal
+  says nothing of a button let go outside its window, so a drag carried past the
+  edge ends with ncurses still holding button 1 down, and the next press arrives
+  as `REPORT_MOUSE_POSITION` — a click on a button that drags the selection to
+  it instead. `Terminal::noteButton()` rewrites such a movement into the press it
+  is: a held button is reported cell by cell as the pointer crosses them, so a
+  movement that comes after `kLostReleaseGapMs` of nothing and lands more than a
+  cell from the last report is not a drag. The release that follows it is a real
+  one and puts ncurses right. **A button held while the pointer left the window
+  and came back reads exactly the same**, and nothing ncurses hands over tells
+  them apart, so such a press carries `MouseEvent::resumed` and the screen with
+  a drag under way settles it by where it landed: over what the drag is selecting
+  in it carries the drag on, and anywhere else — a button, the hint bar — it is
+  the click it reads as. What that costs is one click in the text after a release
+  really lost, which extends the selection rather than dropping it.
 - **Typeahead is dropped by reading it, never by `flushinp()`.**
   `Terminal::flushInput()` reads every event off the queue through ncurses and
   throws it away after. ncurses remembers which buttons are down and forgets
@@ -2042,6 +2074,143 @@ Rules that hold the design together:
   them. It is read off `AppState::areaConfig` and not off `config`, being a
   setting an area group may state.
 
+### Selecting text in the reader
+
+`reader.select` — `v`, and `select` closing the default `reader_menu` in
+the place `shell` had. `ui/reader_select.*` is the whole of the mode and
+`AppState::readSelect` the whole of its state; the screen only draws it and
+hands it events.
+
+- **A mode that reads and never writes.** While it is on, a key either moves
+  the cursor, copies, or leaves, and everything else is swallowed —
+  `message_read::handleEvent()` hands every event to `reader_select::handleEvent()`
+  once the corner buttons, the sidebar and the thread markers have had their
+  look. The reader's own commands are not answered: a cursor standing in the
+  text is the cue that letters do something there, and `c` opening the
+  editor under it would be the surprise. The arrows are the cursor's, so ← and → do
+  not walk between messages, the side taps are off, and a click on a link puts
+  the cursor on it rather than opening it — selecting an address to copy is one
+  of the things the mode is for.
+- **The three answers are the exception, and they quote the selection.**
+  `reader.reply`, `reader.reply_elsewhere` and `reader.comment_reply` are taken
+  by the reader before the mode sees the key, through `answer()` in
+  `message_read_screen.cpp` — the one way every answer is begun, by key or by
+  menu button, in the mode or out of it. What is selected becomes
+  `AppState::quoteSelection`, which `buildRequest()` hands the builder as
+  `BuildRequest::quoteOnly` in place of the message's own lines; nothing
+  selected quotes the whole message, as an answer begun outside the mode does.
+  `answer()` settles it for every answer rather than only for one begun in the
+  mode, because `n` stands an area picker between the key and the reply: a
+  picker given up on would otherwise leave a selection behind for the next
+  reply to quote. It lives as long as the reply — the template is expanded again
+  as the header is left — and `leaveEditor()` drops it.
+- **It lives as long as the message on screen.** `loadMessage()` and
+  `showEmptyArea()` end it, so a thread marker, a row of the sidebar or anything
+  else that opens another message leaves the mode with it. A menu button picked
+  while it is on ends it first — every other command is about the message, not
+  the cursor — and its own button is how the menu ends it.
+- **The corners are the mode's two ways out.** The back button ends it with
+  nothing copied, where Esc would, rather than leaving the area. The menu button
+  is drawn `✓` instead of `≡` (`menu_button::kDoneLabel`, the same width so the
+  row does not move) and is `reader_select::finish()`: what is selected is
+  copied and the mode ends, no menu put up. A button pressed is asked to finish,
+  so it ends the mode with nothing selected as well, where Enter waits.
+- **The cursor walks the rows as the reader laid them out.** `ReaderSelect::text`
+  is a `TextBuffer` holding one line per `readLines` row, so the editor's motions
+  (`moveLeft`, `moveWordRight`, …) are the ones used; ↑↓ go a row and keep the
+  column. `reader_select::sync()` refills it after every `relayout()` and drops
+  the anchor, whose ends were places in rows that are no longer there. The text
+  is not wrapped a column narrower for the cursor the way the editor's is: that
+  would reflow every long paragraph the moment the mode was entered, and a
+  cursor at the end of a row filling the window is drawn by scrolling that one
+  row a column, which `ui::inputField()` already does.
+- **A row the window broke is one line on the clipboard.** `wrapBody()` records
+  on each `DisplayLine` whether the row below continues it and what the break
+  took out — `continues` and `joiner`, the blanks `wrapText()` dropped or nothing
+  where a word was cut — and `selectedText()` joins rows with that. Only a break
+  the message itself made is a line feed.
+- **The header is the editor's five fields, walked the editor's way.**
+  `compose::Field` numbering, the attributes button left out, and walked as the
+  block is drawn: `headerBlock()` writes where each field stands into
+  `ReaderSelect::stops` on every frame, and `header_format`'s `stopsInOrder()`,
+  `stopToward()` and `stopBeside()` are the walk the editor makes over its own
+  block, so the two cannot come to disagree whatever `header_format` says. Tab
+  and Shift-Tab go round the fields as they are read and through the text, ↑ off
+  the first row of the text goes to the field nearest the left edge on the lowest
+  line holding one, and ↓ off the lowest field into the text at the first row on
+  screen. The editor's own `compose.word_left`, `word_right`, `line_start` and
+  `line_end` keys are read for the same motions.
+  `reader_select::fieldValue()` is the one place the reader says what a field
+  holds — `headerBlock()` reads it too — so the text selected is the text drawn.
+  A field the window had no column for is no stop, and neither is the To address
+  outside netmail.
+- **While the mode is on the fields are `ui::inputField()`s with no fill**, the
+  cursor an inverted cell and the selection in `selection`, each in the columns
+  `header_format` gave it: the mode moves nothing, and a value wider than its
+  column scrolls under the cursor. Rows the selection or the cursor is on are
+  drawn plain in their base color, as the editor draws its own, and every other
+  row is drawn by `bodyLine()` as always, links and colors included.
+- **A double click is a word and a triple one the line**, as in the editor — and
+  the line is the one the message wrote, every row the window broke it into,
+  since that is what a line means when it is copied.
+- **Copying ends the mode; a selection copying itself does not.** Enter and the
+  reader's copy key copy what is selected and leave, the "Copied" box with them;
+  with nothing selected they do nothing and the mode stays. Esc and the mode's
+  own key leave with nothing copied — Esc does not first drop the selection, as
+  the editor's does, there being no message under it to keep editing.
+  `clipboard_copy_on_select` is answered exactly as in the editor — the release
+  of a drag, every Shift step under `always`, a double or a triple click — quietly
+  and with the mode left on: nobody asked for that copy.
+- **Space holds the anchor down**, `ReaderSelect::anchored`: put down where the
+  cursor stands, it makes the bare arrows, Home and End select as they would with
+  Shift, and the word, page and Ctrl-Home/End keys carry the selection on rather
+  than dropping it. Space again lifts it and leaves what it selected standing,
+  for the next bare motion to drop. Tab out of the half it was put down in lifts
+  it — a selection is one field's or the text's — and so do a press of the
+  pointer, which puts an anchor of its own down, and `sync()`, which drops the
+  selection under it. Space is the screen's to answer and no layout's, which is
+  why it needs no command: inside the mode it has nothing else to do, the arrows
+  being the cursor's and there being no page to turn.
+- **The hint bar is the mode's while it is on**: the arrows — with Shift, or bare
+  while the anchor is held — Space, the reader's copy and reply keys and Esc, in
+  place of `reader_hints`. The arrows are a gesture and not a key, so their hint
+  carries none and a click on it presses nothing — `readerSelectionHints()` in
+  `ui/hint_bar.cpp`. The reply elsewhere and the comment reply quote the
+  selection as well and are left off the row, which has room for one answer.
+- **A drag may begin the mode by itself, where `reader_drag_to_select` asks** —
+  `when_wide` unless the config says otherwise. A press anywhere on the reader's
+  pane with the mode off is held in `ReaderSelect::armed` and does nothing else
+  (`reader_select::arm()`); the first movement after it calls `start()` and then
+  the very `press()` the mode answers a press with, at the place the press was,
+  and the drag carries on from there through `dragged()` as one begun in the
+  mode does. **A drag begun off the text begins all the same**, at the nearest
+  place a selection could have begun — `pressNear()`: above the text the field
+  nearest the press, level with it the row it stood on, under the end of the
+  message the end of its last line — since a hand that starts a little wide of
+  the first word means that word. A release before any movement is the click it was and leaves
+  nothing. **What the press is read against is the last frame**, which is why
+  `render()` reflects the rows and the fields outside the mode wherever the
+  setting is shown and why `reset()` keeps `fieldSpots` and `textRows` across
+  it: the mode has drawn no frame of its own yet when the press is turned into a
+  place. Off the mode the fields are drawn unscrolled, so an origin of zero is
+  right for them. **Everything that already acts on a press comes first** — the
+  corners, the sidebar, the thread markers, a link, the side taps — so a drag
+  cannot start on any of them; `when_wide` keeps it off the window the side taps
+  are on by default. With the mode on, a press on neither the text nor a field
+  ends it with nothing copied, as Esc does, and is armed as a press with the
+  mode off is, so a drag from it selects afresh; outside this setting such a
+  press is swallowed and the mode stays. **A row with nothing written on it is
+  not text here** — an empty line of the message and the blank rows under its
+  end, which the mode otherwise reads as the end of the message (`rowHasText()`):
+  a click on one ends the mode, while a drag from one and a selection carried
+  across one go on as they always did.
+- **`v` and not a chord**, the key a pager's and vim's visual mode are on: a
+  bare letter reaches the reader from every terminal, where `Ctrl-M` is the byte
+  Enter sends and arrives as a chord only on one reporting modified keys. Enter
+  in the reader opens nothing — it is the mode's copy key once the mode is on,
+  and a key that both began a selection and ended one would do the wrong of the
+  two half the time.
+
 ### Marked messages
 
 The user picking a handful of messages out of an area and saying, later, what to
@@ -2681,22 +2850,100 @@ decides what an occurrence is.
   box per row into `AppState::DeleteLineSpots`, three of them because the button
   is drawn a cell at a time with nothing standing over all three rows; the click
   is `deleteLine()`, the same call `Ctrl-Y` makes.
-- **What `Ctrl-Y` deletes is kept, and `Ctrl-U` puts it back.** `TextBuffer`
-  carries the stack (`deleted`), `deleteLine()` pushes onto it and
-  `restoreLine()` pops: four presses out and four presses back leave the text as
-  it was, which is what makes deleting a block of quoting and thinking better of
-  it undoable. The line goes back **above the row the cursor is on** — where
-  `Ctrl-Y` took one out, so the two undo each other, and a cursor moved
-  elsewhere first makes the pair a way of moving a line. The two ends need the
-  row the deletion is remembered with: off the bottom there is nothing left to
-  go back above, and the blank the last line of all is emptied into is written
-  over rather than pushed down. **Nothing else fills the stack** — the block
-  `Ctrl-D` takes out and the word `Ctrl-W` takes out are not lines, and a stack
-  that mixed them in would put back something other than what was last seen to
-  go. **It lives and dies with the message**: `leaveEditor()` clears the whole
-  `TextBuffer`, so what was deleted out of one message is nothing the next may
-  be handed. It is not in the hint bar — the row names what there is to do here,
-  and undoing a deletion is only worth knowing about once the deletion is.
+- **A selection is an anchor, and the cursor is its other end.** In the text it
+  is `TextBuffer::anchor`, in a header field `AppState::composeFieldAnchor`,
+  which carries the field so that an anchor left in one field selects nothing in
+  the next; `AppState::composeHasSelection()` asks whichever half the typing is
+  in, and `handleEvent()` drops the other half's anchor when the typing moves
+  across. Shift with an arrow, `Home` or `End` puts the anchor down where none
+  stands and moves the cursor (`extendsSelection()`); every other key drops it,
+  bar the ones that write over it — Backspace and Delete take the selection out,
+  a character, Enter in the text and a paste go in its place. **In a field the
+  shifted keys stay in the field**: Up and Down are its two ends and Left does
+  not cross onto the name beside an address, a selection being of one field's
+  text. A press on a field or in the text puts the anchor under the pointer and
+  begins `AppState::composeDrag`; a movement carries the cursor along — off the
+  top or the bottom of the window onto the row past it, which is what scrolls a
+  selection over more than the window holds — and the release ends it. A press
+  not dragged leaves anchor and cursor together, which selects nothing.
+  - **A drag begun inside a selection grows it; one begun anywhere else selects
+    afresh.** `HeldSelection` in `ui/text_editor.hpp` is the whole of it, shared
+    with the reader's mode: the two ends are read before the press moves the
+    cursor, and the drag then runs from whichever end the pointer has gone past,
+    keeping everything between. Nothing is decided until the pointer moves, so a
+    click inside a selection still drops it, that being how a cursor is put down
+    there.
+  - **Esc over a selection drops the selection**, and asks nothing: the
+    confirmation is the next Esc's.
+  - **Copy and cut go where `clipboard` says**, as the reader's copy does —
+    `compose.copy` (`Ctrl-C`, `Ctrl-Ins`) and `compose.cut` (`Ctrl-X`,
+    `Shift-Del`) — and do nothing with nothing selected. The lines are joined by
+    a line feed. A copy leaves the selection standing.
+  - **A selection may copy itself**, as `clipboard_copy_on_select` says: a drag
+    as it ends — the release in `dispatch()`, once and not as the pointer
+    travels — under `mouse` and `always`, and under `always` every step of
+    Shift and an arrow as well (`copyKeyboardSelection()`): no terminal reports
+    Shift being let go, so each step is the selection made. Both call the same
+    `copySelection()` `Ctrl-C` does, quietly — no "Copied" box,
+    `AppState::clipboardCopyQuiet` carrying that to the shell for a clipboard
+    the shell answers — because it happens on every gesture and nobody asked to
+    be told.
+  - **A double click selects a word and a triple one the line** — in a header
+    field the field, a field being one line — and either is copied under
+    `mouse` and `always` as a drag would be. `mouseinterval(0)` keeps ncurses
+    from ever reporting one, so `ui/click_count.hpp` counts them: presses on one
+    cell within `kMultiClickMs`, by `AppState::monotonicMs()`, the run kept in
+    `composeClicks`. A word is `wordAround()` in `ui/text_editor.hpp`, the
+    letters and digits the word keys walk over, or a run of blanks, or the one
+    other character there. The line is its characters without the break: a line
+    picked out to be copied is wanted on its own. No drag follows either, so the
+    release after it moves nothing; a fourth press begins a run of its own.
+    `multiClick()` is the editor's half and `reader_select.cpp`'s of the same
+    name the reader's.
+  - **A line break is selected or it is not, and nothing guesses which.** The
+    characters of a line and the line itself are two selections: `Shift-End`
+    stops before the break, `Shift-→` from there or `Shift-↓` from the start of
+    the line takes it in, and a drag takes it in by reaching the line below. A
+    selected break is copied as a line feed and cut with the line, and is drawn
+    as the rest of its row selected out to the edge of the text — a whole line
+    reads as one however short it is. `app::pastedLines()` keeps a closing break
+    as an empty last line, so a line copied with its break pastes as a line.
+  - **The hint bar is the selection's while there is one**: copy, cut and Esc,
+    in place of `compose_hints` — what there is to do then is to do something
+    with it. Esc is no command and no layout binds it, so `HintSpot::key` is
+    what a click on a hint presses, the command being optional beside it.
+  - **It is drawn in `selection_text` on `selection`**, through
+    `theme::selectionBold()` as every bar is, by `ui::inputField()`'s
+    `FieldSelection` on a field and the cursor's row and by `selectedRun()` on
+    the rest. The cursor's own cell stays the cursor.
+- **`Ctrl-Z` and `Ctrl-U` undo and `Ctrl-R` redoes, and the history watches rather
+  than being told.** `ui/edit_history.*` is the whole of it and
+  `AppState::composeHistory` the one instance: `compose::handleEvent()` hands it
+  the text, the header fields and where the typing stands once before a key is
+  answered and once after, and whatever differs from what it saw last is a
+  step. So no command that edits the message knows there is a history — a
+  paste the shell answered, a file imported or a utility handing the message
+  back is caught by the look taken before the next key, as a step of its own —
+  and a command added later is undoable the day it lands. A step keeps the run
+  of lines between the first that differs and the last, before and after, and
+  the header fields whole where one of them changed; a keystroke costs a
+  comparison of the message and not a copy of it.
+  - **Typing gathers into a step a word at a time**, and a run of Backspace or
+    Delete into one: a keystroke of the same kind, where the last one left the
+    typing, on the one line or the one field. A blank after a word begins the
+    next step, and anything else between two keys — the cursor moved, the
+    typing gone elsewhere, an undo — ends the run. Over a selection a key is a
+    step of its own.
+  - **An undo puts the typing back where the change was made**, field or text,
+    and drops the selection. Under `external_editor` it stays in the header,
+    the text not being typed into there.
+  - **It goes with the message, and with the template.** `leaveEditor()` clears
+    it, and so does `fillFromTemplate()`: a template expanded afresh rewrites
+    the text under every step held, and a step put back into a text it was
+    never part of would put its lines in the wrong place.
+  - **A line `Ctrl-Y` deletes is a step like any other**, and there is no
+    stack of deleted lines beside the history: two ways of taking a deletion
+    back would disagree about which change came last.
 - **The wheel in the editor scrolls the text and drags the cursor** —
   `wheelScroll()`, a row per notch. The cursor stays where it was written while
   it is on the screen and is carried onto the nearest row still showing when the
@@ -5202,6 +5449,15 @@ together — `keys_mode` says which.
     character into the other. Only the underscore is written — the table, every
     error message and every example file spell a name one way, and the hyphen is
     read and never offered.
+- **A command taken out leaves its name behind, to be warned about.**
+  `kRetired` in `config/commands.cpp` holds the names no command answers to
+  any more — `compose.restore_line` — and `Commands::retired()` and
+  `retiredOn()` are how they are asked about. A `keys` line binding one is
+  passed over (`KeyMap::warnings()`), a menu or hint list naming one is read
+  without it (`AppConfig::warnings`), and `main()` prints both before the
+  screen is taken. Not refused: the file was right when it was written, and an
+  upgrade that stopped AmberEdit starting over it would be breaking a config
+  that asked for nothing new.
 - **The list lives in `config/` rather than in `ui/`** because the config layer
   is what has to name a command — `arealist_menu`, `reader_hints` — and it may
   not include the interface. What is drawn is a word and a glyph, which are data;
@@ -5454,9 +5710,9 @@ together — `keys_mode` says which.
     whole, any line ending taken off, every line through `messageLine()` — what
     the import does to a file, since a clipboard is another program's bytes as
     much as a file is.
-  - `Ctrl-Ins` and `Shift-Ins` are the one place Shift goes with a named key in
-    a layout (`takesShift()` and `takesCtrl()` in `ui/keys.cpp`), one modifier
-    at a time. A terminal that keeps `Shift-Ins` for its own paste never reports it,
+  - `Shift-Ins` and `Shift-Del` are the one place Shift goes with a named key
+    in a layout (`takesShift()` in `ui/keys.cpp`), one modifier at a time.
+    A terminal that keeps `Shift-Ins` for its own paste never reports it,
     and the text then arrives typed — the terminal's clipboard, not
     `clipboard`'s.
 - **The hint bar reads the layout rather than naming keys of its own**
@@ -5510,7 +5766,9 @@ together — `keys_mode` says which.
   anything else would make the row a lie. Where each hint landed comes off
   `render()` in `AppState::hintSpots`, as every other clickable thing does, and
   the two spaces between hints belong to the row so that a click lands on a hint
-  or on nothing.
+  or on nothing. Each spot keeps the key it was written under, which is what
+  the click presses — the editor's selection row has an Esc hint that no
+  command stands behind.
 
 ## Reference material in the tree
 
@@ -5585,7 +5843,8 @@ netmail is answered with — see [Confirmation
 receipts](#confirmation-receipts); a keyboard
 layout of one's own, from `keys`, and the help box behind `app.help` that reads
 it back; the user's own shell behind `reader.shell`;
-copying the message on screen and pasting into the one being written, through
+copying the message on screen, or what is selected of it in the reader's
+selection mode, and pasting into the one being written, through
 the clipboard `clipboard` names;
 the ten external utilities `extern_util0`..`extern_util9` name, run from a key,
 a menu button or a hint on the area list, in the reader or in the editor, handed

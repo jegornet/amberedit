@@ -4,17 +4,23 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace amberedit::ui {
 
-/// A line that was deleted, kept to be put back.
-struct DeletedLine {
-    std::string text;
-    /// The row it stood on when it was taken out. Only the end of the text needs
-    /// it: a line deleted off the bottom has nothing left under it to go back
-    /// above, and without this it would come back one line too high.
+/// A place in the text: a line and a byte offset into it.
+struct TextPoint {
     int row{0};
+    size_t col{0};
+
+    [[nodiscard]] bool operator==(const TextPoint& other) const {
+        return row == other.row && col == other.col;
+    }
+    [[nodiscard]] bool operator!=(const TextPoint& other) const { return !(*this == other); }
+    [[nodiscard]] bool operator<(const TextPoint& other) const {
+        return row != other.row ? row < other.row : col < other.col;
+    }
 };
 
 /// The text of a message being written, and where the cursor stands in it.
@@ -27,11 +33,13 @@ struct TextBuffer {
     int row{0};
     size_t col{0};
 
-    /// The lines `deleteLine()` has taken out, newest last — what `restoreLine()`
-    /// puts back, one press for one press. It lives with the buffer and so with
-    /// the message: the editor closing takes the whole `TextBuffer` with it, and
-    /// what was deleted out of one message is nothing the next one may be handed.
-    std::vector<DeletedLine> deleted;
+    /// The other end of the selection, the cursor being the end that moves —
+    /// where Shift was first held with an arrow, or where the pointer was
+    /// pressed before it was dragged. Nothing where no selection has been
+    /// begun; one standing on the cursor selects nothing.
+    std::optional<TextPoint> anchor;
+
+    [[nodiscard]] TextPoint cursor() const { return {row, col}; }
 
     [[nodiscard]] const std::string& line() const {
         return lines[static_cast<size_t>(row)];
@@ -68,20 +76,9 @@ void deleteBefore(TextBuffer& buffer);
 /// the same depth gives up its prefix to the join.
 void deleteAt(TextBuffer& buffer);
 
-/// Deletes the whole line the cursor is on, keeping it on `buffer.deleted` for
-/// `restoreLine()` to put back.
+/// Deletes the whole line the cursor is on. Taking it back is an undo, as for
+/// every other change to the text.
 void deleteLine(TextBuffer& buffer);
-
-/// Puts the last deleted line back in, above the line the cursor stands on, and
-/// leaves the cursor at the start of it. Says whether there was one to put back.
-///
-/// It is a stack and not one line: Ctrl-Y pressed four times and Ctrl-U pressed
-/// four times leave the text as it was, the lines coming back in the order they
-/// went — which is what makes deleting a block of quoting and thinking better of
-/// it a thing the editor can undo. Nothing else fills it: the block Ctrl-D takes
-/// out and the word Ctrl-W takes out are not lines, and a stack that mixed them
-/// in would put back something other than what was last seen to go.
-bool restoreLine(TextBuffer& buffer);
 
 /// Takes out the block of quoted text the cursor stands in: from the line it
 /// is on down to the first line that is neither a quote nor blank, which stays.
@@ -138,6 +135,62 @@ void moveWordLeft(TextBuffer& buffer);
 /// means what it means in the text rather than nearly that.
 [[nodiscard]] std::optional<size_t> wordStartBefore(const std::string& text, size_t at);
 [[nodiscard]] std::optional<size_t> wordEndAfter(const std::string& text, size_t at);
+
+/// The word a double click at `at` selects, as [begin, end): the run of letters
+/// and digits it lands in — a word as `wordStartBefore()` means one — or the run
+/// of blanks, or the one other character standing there. Past the end of the
+/// text is the last character of it; an empty text is {0, 0}.
+[[nodiscard]] std::pair<size_t, size_t> wordAround(const std::string& text, size_t at);
+
+/// A selection a press landed inside, held for the drag that may come of it:
+/// dragged, it grows towards the pointer and keeps everything it held; a click
+/// that never moves drops it, as a click anywhere else does. `Point` is a
+/// TextPoint in the text and a byte offset in a one-line field.
+template <typename Point>
+struct HeldSelection {
+    Point from;
+    Point to;
+    Point pressed;
+    bool moved{false};
+
+    /// Whether a press at `at` lands on a selection from `begin` to `end`. The
+    /// end is the place after the last character selected, which is not on it.
+    [[nodiscard]] static bool covers(const Point& begin, const Point& end, const Point& at) {
+        return !(at < begin) && at < end;
+    }
+
+    /// The anchor and the cursor with the pointer at `pointer`.
+    [[nodiscard]] std::pair<Point, Point> endsFor(const Point& pointer) {
+        if (pointer != pressed) moved = true;
+        if (!moved) return {pressed, pressed};
+        if (pointer < from) return {to, pointer};
+        if (to < pointer) return {from, pointer};
+        return {from, to};
+    }
+};
+
+/// The selection, front end first: from the anchor to the cursor or the other
+/// way round, whichever comes first in the text. Nothing where no text is
+/// selected — no anchor, or one standing on the cursor. Both ends are held to
+/// the text as it now stands, so an anchor a change has left past the end of a
+/// line or of the message answers for the end of it.
+[[nodiscard]] std::optional<std::pair<TextPoint, TextPoint>> selectionOf(
+    const TextBuffer& buffer);
+
+/// What is selected, a line break in it written as a line feed — what a
+/// clipboard is handed. Empty where nothing is.
+///
+/// A break is in the selection exactly when the selection runs on past it to
+/// the line below: `Shift-End` stops before the break closing a line, and
+/// `Shift-→` from there, or `Shift-↓` from the start of it, takes the break in.
+/// The two are different selections and are copied differently — the
+/// characters of a line, or the line itself.
+[[nodiscard]] std::string selectedText(const TextBuffer& buffer);
+
+/// Takes the selection out of the text, joining what stood before it to what
+/// stood after it, and leaves the cursor where it began. The selection goes
+/// with it either way. Says whether there was anything to take out.
+bool deleteSelection(TextBuffer& buffer);
 
 /// The text with the trailing empty lines dropped — what a message is saved
 /// as. A blank line the user left at the end is padding, not content.

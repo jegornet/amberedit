@@ -129,6 +129,11 @@ public:
     /// sequence is claimed only where a layout has a use for it.
     [[nodiscard]] bool altBackspace() const;
 
+    /// What the file said that was passed over rather than refused — a line
+    /// binding a command that is no more (`Commands::retired()`), each naming
+    /// the file and the line. `main()` prints them before the screen is taken.
+    [[nodiscard]] const std::vector<std::string>& warnings() const { return warnings_; }
+
 private:
     void bind(Command command, term::Event key);
 
@@ -137,6 +142,7 @@ private:
     [[nodiscard]] bool claims(const term::Event& key, Command command) const;
 
     std::vector<std::vector<term::Event>> bound_{kCommandCount};
+    std::vector<std::string> warnings_;
 };
 
 }  // namespace amberedit::ui

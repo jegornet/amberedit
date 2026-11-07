@@ -61,7 +61,10 @@ TEST_CASE("Pasted text is held to what a message can carry [clipboard]") {
         "a\tb\r\nc\x01"
         "d\x1b"
         "\xff\n");
-    REQUIRE(lines.size() == 2);
+    REQUIRE(lines.size() == 3);
     CHECK(lines[0] == "a       b");
     CHECK(lines[1] == "cd\xEF\xBF\xBD");
+    // The break closing it is a break, kept as the empty line after it.
+    CHECK(lines[2].empty());
+    CHECK(pastedLines("word").size() == 1);
 }

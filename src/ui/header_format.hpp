@@ -65,4 +65,34 @@ using Cap = std::function<int(config::HeaderFieldKind)>;
 /// end.
 [[nodiscard]] std::optional<int> locationColumn(const Layout& layout);
 
+/// Where a stop of the block stands: its line and the columns it spans. What the
+/// cursor walks is the block as this window draws it, in the editor and in the
+/// reader's selection mode alike.
+struct Stop {
+    int line{0};
+    int left{0};
+    int right{0};
+};
+
+/// Every stop by its number, or nothing for one the block does not draw.
+using Stops = std::vector<std::optional<Stop>>;
+
+/// The stops as the block is read: a line at a time from the top, along each
+/// line from the left, whatever line the format puts each on.
+[[nodiscard]] std::vector<int> stopsInOrder(const Stops& stops);
+
+/// The stop nearest `from` on the nearest line in `step`'s direction that has
+/// one, or -1 where no line that way does:
+///
+/// - the nearest line holding a stop at all, so a line of stamps alone is
+///   stepped over;
+/// - on it, the stop sharing the most columns with `from`;
+/// - sharing none, the one standing nearest beside it;
+/// - and between two equally near, the one further left.
+[[nodiscard]] int stopToward(const Stops& stops, const Stop& from, int step);
+
+/// The stop beside `current` on its own line — `step` +1 the next to the right,
+/// -1 the next to the left — or -1 where none stands that way.
+[[nodiscard]] int stopBeside(const Stops& stops, int current, int step);
+
 }  // namespace amberedit::ui::header_format

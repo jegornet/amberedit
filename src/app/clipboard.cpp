@@ -59,6 +59,10 @@ std::vector<std::string> pastedLines(std::string_view text) {
         whole = recoder.toUtf8(whole, "UTF-8");
     }
     std::vector<std::string> lines = config::text::splitLines(whole);
+    // A break closing the text is a line break pasted like any other: a line
+    // copied whole goes in as a line, the text after the cursor carried down
+    // under it, rather than run into it.
+    if (!whole.empty() && whole.back() == '\n') lines.emplace_back();
     for (std::string& line : lines) line = config::text::messageLine(line);
     return lines;
 }

@@ -1,6 +1,7 @@
 #include "ui/hint_bar.hpp"
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -8,6 +9,7 @@
 
 #include "config/text_util.hpp"
 #include "encoding/text_search.hpp"
+#include "i18n/i18n.hpp"
 #include "ui/command_live.hpp"
 #include "ui/event_util.hpp"
 #include "ui/keys.hpp"
@@ -38,8 +40,12 @@ const std::vector<Command>& commandsOf(const AppState& state) {
 
 /// One hint: what it runs, the key it is written under, and how it reads.
 struct Hint {
-    Command command{};
-    Event key;
+    /// Nothing for a hint that names a key rather than a command — Esc, which
+    /// drops a selection and which no layout binds.
+    std::optional<Command> command;
+    /// Nothing for a hint that names a gesture rather than a key — Shift with
+    /// the arrows — which no one key stands for and a click cannot press.
+    std::optional<Event> key;
     /// `q reply` — the key and what it does, which is the whole of the hint,
     /// in the case `hint_bar_capitalize` asks for.
     std::string text;
@@ -62,12 +68,75 @@ std::string lowered(std::string_view label) {
     return out;
 }
 
+/// A hint written the row's way: the key and the word, in the case
+/// `hint_bar_capitalize` asks for.
+Hint hintFor(const AppState& state, std::optional<Command> command, const Event& key,
+             const std::string& label) {
+    const bool capitals = state.config.hintBarCapitalize;
+    return {command, key,
+            hintSpellingOf(key, capitals) + " " + (capitals ? label : lowered(label))};
+}
+
+/// A hint for a gesture rather than a key: what the selection mode is made
+/// with — the arrows, with Shift unless the anchor is held — written the way
+/// the row spells a key and pressed by nothing.
+Hint gestureHint(const AppState& state, bool shifted, const std::string& label) {
+    const bool capitals = state.config.hintBarCapitalize;
+    std::string gesture = capitals ? "Arrows" : "arrows";
+    if (shifted) gesture = (capitals ? "Shift-" : "shift-") + gesture;
+    return {std::nullopt, std::nullopt, gesture + " " + (capitals ? label : lowered(label))};
+}
+
+/// The editor's row while text is selected, which stands in place of
+/// `compose_hints` for as long as the selection does: what there is to do then
+/// is to do something with it, and the three hints are the whole of that.
+/// Copy and cut are written under whatever keys the layout gives them; Esc is
+/// the screen's own and no layout's.
+std::vector<Hint> selectionHints(const AppState& state) {
+    std::vector<Hint> hints;
+    for (const Command command : {Command::ComposeCopy, Command::ComposeCut}) {
+        const auto key = state.keys.preferredKey(command);
+        if (key) hints.push_back(hintFor(state, command, *key, state.config.labelOf(command)));
+    }
+    hints.push_back(hintFor(state, std::nullopt, Event::Escape, _("Clear selection")));
+    return hints;
+}
+
+/// The reader's row while text is being selected there, in place of
+/// `reader_hints`: how a selection is made, the anchor that makes it with the
+/// bare arrows, copying, which leaves the mode, the reply, which quotes what is
+/// selected, and leaving it without either. Each command is written under the
+/// key the layout gives it; the arrows, Space and Esc are the mode's own. The
+/// reply elsewhere and the comment reply quote the selection as well, and are
+/// left for the help box to name: the row has room for one answer.
+std::vector<Hint> readerSelectionHints(const AppState& state) {
+    const bool anchored = state.readSelect.anchored;
+    std::vector<Hint> hints;
+    hints.push_back(gestureHint(state, !anchored, _("Select")));
+    hints.push_back(hintFor(state, std::nullopt, Event::Character(' '),
+                            anchored ? _("Release") : _("Anchor")));
+    for (const Command command : {Command::ReaderCopy, Command::ReaderReply}) {
+        if (const auto key = state.keys.preferredKey(command)) {
+            hints.push_back(hintFor(state, command, *key, state.config.labelOf(command)));
+        }
+    }
+    hints.push_back(hintFor(state, std::nullopt, Event::Escape, _("Cancel")));
+    return hints;
+}
+
 /// The hints for whichever screen is up.
 ///
 /// A command the layout leaves unbound is left out: there is no key to put in
 /// front of it, and a label on its own would say to press nothing. Where several
 /// keys run it, the shortest is the one written — `KeyMap::preferredKey()`.
 std::vector<Hint> hintsOf(const AppState& state) {
+    if (state.navigator.current() == app::ScreenId::Compose &&
+        state.composeHasSelection()) {
+        return selectionHints(state);
+    }
+    if (state.navigator.current() == app::ScreenId::MessageRead && state.readSelect.on) {
+        return readerSelectionHints(state);
+    }
     std::vector<Hint> hints;
     for (const Command command : commandsOf(state)) {
         if (!commandLive(state, command)) continue;
@@ -77,13 +146,8 @@ std::vector<Hint> hintsOf(const AppState& state) {
         // the same command, `AppConfig::labelOf()`: what a command is called is
         // settled in one place — a utility's own title, everything else's word
         // out of the catalog — and a row calling it something else would be a
-        // second name for one thing. Its case is the row's own, from
-        // `hint_bar_capitalize`, and the key is written to match.
-        const bool capitals = state.config.hintBarCapitalize;
-        const std::string label = state.config.labelOf(command);
-        hints.push_back(
-            {command, *key,
-             hintSpellingOf(*key, capitals) + " " + (capitals ? label : lowered(label))});
+        // second name for one thing.
+        hints.push_back(hintFor(state, command, *key, state.config.labelOf(command)));
     }
     return hints;
 }
@@ -185,7 +249,7 @@ Element render(AppState& state) {
     pieces.push_back(term::text(" "));
     for (size_t i = 0; i < fits; ++i) {
         if (i != 0) pieces.push_back(term::text("  "));
-        state.hintSpots.push_back({hints[i].command, {}});
+        state.hintSpots.push_back({hints[i].command, hints[i].key, {}});
         const bool pressed =
             state.isPressed(AppState::Pressed::Hint, static_cast<uint32_t>(i));
         pieces.push_back(term::text(hints[i].text) | color(colorOf(pressed)) |
@@ -210,17 +274,19 @@ std::optional<Event> clicked(AppState& state, const Event& event) {
     for (size_t i = 0; i < state.hintSpots.size(); ++i) {
         if (!state.hintSpots[i].box.Contain(click->x, click->y)) continue;
 
-        // The command is taken off the row before anything else: showing the
-        // click draws a frame, and `render()` builds the spots afresh every time
-        // it does — which leaves nothing behind the entry it came from.
-        const Command command = state.hintSpots[i].command;
+        // A gesture is pressed by nothing, and a click on it lands on no hint.
+        if (!state.hintSpots[i].key) continue;
+        // The key is taken off the row before anything else: showing the click
+        // draws a frame, and `render()` builds the spots afresh every time it
+        // does — which leaves nothing behind the entry it came from.
+        const Event key = *state.hintSpots[i].key;
         state.showClick(AppState::Pressed::Hint, static_cast<uint32_t>(i));
 
         // The key the hint is written under rather than a second way into the
         // command: the row says which key runs it, so a click doing anything
         // other than that key would make the row a lie. A command with no key is
         // not in the row at all, so there is always one to answer with.
-        return state.keys.preferredKey(command);
+        return key;
     }
     return std::nullopt;
 }

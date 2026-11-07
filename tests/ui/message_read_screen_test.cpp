@@ -968,6 +968,8 @@ TEST_CASE("A click on the side columns of the text moves between messages "
     // Stated rather than left to the window: which way the default goes is the
     // next test's question, and this one is about what the columns do.
     fixture.config.readerSideTaps = Visibility::On;
+    // A press off the zone is otherwise the start of a drag that may select.
+    fixture.config.readerDragToSelect = Visibility::Off;
 
     // The mark is on the first message, so the area opens on the second — one
     // with a message on either side of it.
@@ -1010,6 +1012,8 @@ TEST_CASE("reader_side_tap_width is how many columns those are "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.readerSideTaps = Visibility::On;
+    // A press off the zone is otherwise the start of a drag that may select.
+    fixture.config.readerDragToSelect = Visibility::Off;
     // Six by default — a strip aimed at with a finger — and a config may make it
     // anything up to half of a narrow window.
     REQUIRE(fixture.config.readerSideTapWidth == 6);
@@ -1089,6 +1093,8 @@ TEST_CASE("The side columns are the text's and no other row "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     fixture.config.readerSideTaps = Visibility::On;
+    // A press off the zone is otherwise the start of a drag that may select.
+    fixture.config.readerDragToSelect = Visibility::Off;
     fixture.lastRead->set(uidAt(fixture, 1));
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == 1);
@@ -1136,6 +1142,8 @@ TEST_CASE("reader_side_taps when_narrow follows the width of the window "
     TempSquishBase base;
     AreaFixture fixture(base.path());
     REQUIRE(fixture.config.readerSideTaps == Visibility::WhenNarrow);
+    // A press off the zone is otherwise the start of a drag that may select.
+    fixture.config.readerDragToSelect = Visibility::Off;
     fixture.lastRead->set(uidAt(fixture, 1));
     REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
     REQUIRE(fixture.state.messageCursor == 1);
@@ -2176,13 +2184,17 @@ TEST_CASE("The shell is offered in an empty area [messageread][squish]") {
     REQUIRE(fixture.state.messageCount == 0);
 
     // Everything that acts on the message needs one to act on. The shell is not
-    // one of those, so its button is offered rather than drawn quietly.
+    // one of those, so its button is offered rather than drawn quietly; selecting
+    // text is, there being no text to select.
+    fixture.config.readerMenu = {Command::ReaderShell, Command::ReaderSelect};
     message_read::openMenu(fixture.state);
     REQUIRE(fixture.state.menuView);
     const auto& items = fixture.state.menuView->items;
-    REQUIRE(!items.empty());
-    CHECK(items.back().command == amberedit::config::Command::ReaderShell);
-    CHECK(items.back().enabled);
+    REQUIRE(items.size() == 2);
+    CHECK(items[0].command == Command::ReaderShell);
+    CHECK(items[0].enabled);
+    CHECK(items[1].command == Command::ReaderSelect);
+    CHECK_FALSE(items[1].enabled);
 }
 
 TEST_CASE("The function keys answer beside the letters they double "

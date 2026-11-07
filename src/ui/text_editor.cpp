@@ -193,11 +193,6 @@ void deleteAt(TextBuffer& buffer) {
 }
 
 void deleteLine(TextBuffer& buffer) {
-    // Onto the stack before anything else, blank line and all: a blank one was
-    // as much a press of Ctrl-Y as any other, and leaving it out would have
-    // Ctrl-U put back the line above it instead.
-    buffer.deleted.push_back(DeletedLine{buffer.line(), buffer.row});
-
     if (buffer.lines.size() == 1) {
         buffer.lines[0].clear();
         buffer.col = 0;
@@ -208,37 +203,6 @@ void deleteLine(TextBuffer& buffer) {
         buffer.row = static_cast<int>(buffer.lines.size()) - 1;
     }
     buffer.col = 0;
-}
-
-bool restoreLine(TextBuffer& buffer) {
-    if (buffer.deleted.empty()) return false;
-    const DeletedLine taken = buffer.deleted.back();
-    buffer.deleted.pop_back();
-
-    // The one line of an empty buffer is the blank `deleteLine()` left standing
-    // where the whole text used to be; the line goes back into it rather than
-    // above it, or undoing the deletion would leave a blank line behind.
-    if (buffer.lines.size() == 1 && buffer.lines[0].empty()) {
-        buffer.lines[0] = taken.text;
-        buffer.row = 0;
-        buffer.col = 0;
-        return true;
-    }
-
-    // Above the line the cursor stands on, which is where Ctrl-Y took one out —
-    // so the two undo each other, and a line put back somewhere else goes where
-    // the cursor was carried to. The end of the text is the exception: a line
-    // deleted off the bottom left the cursor on the line above it, and going in
-    // above that one would swap the pair.
-    auto at = static_cast<size_t>(buffer.row);
-    const bool atEnd = at + 1 == buffer.lines.size();
-    if (atEnd && taken.row >= static_cast<int>(buffer.lines.size()))
-        at = buffer.lines.size();
-
-    buffer.lines.insert(buffer.lines.begin() + static_cast<ptrdiff_t>(at), taken.text);
-    buffer.row = static_cast<int>(at);
-    buffer.col = 0;
-    return true;
 }
 
 void deleteWordBefore(TextBuffer& buffer) {
@@ -334,6 +298,34 @@ std::optional<size_t> wordEndAfter(const std::string& text, size_t at) {
     return at;
 }
 
+std::pair<size_t, size_t> wordAround(const std::string& text, size_t at) {
+    if (text.empty()) return {0, 0};
+    // Past the end of the line is the last character of it, as a pointer
+    // beyond the text means the word it trails off from.
+    at = std::min(at, text.size());
+    if (at == text.size()) at = prevBoundary(text, at);
+    while (at > 0 && (static_cast<unsigned char>(text[at]) & 0xC0u) == 0x80u) --at;
+
+    // A run of one kind: letters and digits, or blanks. Anything else is a
+    // character on its own — a bracket or a quote marker is not a word, and
+    // taking the punctuation beside it would take half a line with it.
+    const auto kind = [&text](size_t pos) {
+        const char byte = text[pos];
+        if (isWordByte(byte)) return 0;
+        if (byte == ' ' || byte == '\t') return 1;
+        return 2;
+    };
+    const int mine = kind(at);
+    size_t begin = at;
+    size_t end = at + charLength(text, at);
+    if (mine == 2) return {begin, end};
+    while (begin > 0 && kind(prevBoundary(text, begin)) == mine) {
+        begin = prevBoundary(text, begin);
+    }
+    while (end < text.size() && kind(end) == mine) end += charLength(text, end);
+    return {begin, end};
+}
+
 void moveWordRight(TextBuffer& buffer) {
     while (true) {
         if (const auto at = wordEndAfter(buffer.line(), buffer.col)) {
@@ -382,6 +374,57 @@ std::vector<std::string> trimmedLines(const TextBuffer& buffer) {
         out.pop_back();
     }
     return out;
+}
+
+namespace {
+
+/// The point held to the text as it stands: a line that is there, and a byte
+/// of it that is.
+TextPoint clamped(const TextBuffer& buffer, TextPoint point) {
+    point.row = std::clamp(point.row, 0, static_cast<int>(buffer.lines.size()) - 1);
+    point.col = std::min(point.col, buffer.lines[static_cast<size_t>(point.row)].size());
+    return point;
+}
+
+}  // namespace
+
+std::optional<std::pair<TextPoint, TextPoint>> selectionOf(const TextBuffer& buffer) {
+    if (!buffer.anchor || buffer.lines.empty()) return std::nullopt;
+    const TextPoint anchor = clamped(buffer, *buffer.anchor);
+    const TextPoint cursor = clamped(buffer, buffer.cursor());
+    if (anchor == cursor) return std::nullopt;
+    return anchor < cursor ? std::make_pair(anchor, cursor)
+                           : std::make_pair(cursor, anchor);
+}
+
+std::string selectedText(const TextBuffer& buffer) {
+    const auto range = selectionOf(buffer);
+    if (!range) return {};
+    const auto& [from, to] = *range;
+    std::string out;
+    for (int row = from.row; row <= to.row; ++row) {
+        const std::string& line = buffer.lines[static_cast<size_t>(row)];
+        const size_t begin = row == from.row ? from.col : 0;
+        const size_t end = row == to.row ? to.col : line.size();
+        if (row != from.row) out += '\n';
+        out.append(line, begin, end - begin);
+    }
+    return out;
+}
+
+bool deleteSelection(TextBuffer& buffer) {
+    const auto range = selectionOf(buffer);
+    buffer.anchor.reset();
+    if (!range) return false;
+    const auto& [from, to] = *range;
+    auto& lines = buffer.lines;
+    const std::string tail = lines[static_cast<size_t>(to.row)].substr(to.col);
+    lines[static_cast<size_t>(from.row)].erase(from.col);
+    lines[static_cast<size_t>(from.row)] += tail;
+    lines.erase(lines.begin() + from.row + 1, lines.begin() + to.row + 1);
+    buffer.row = from.row;
+    buffer.col = from.col;
+    return true;
 }
 
 }  // namespace amberedit::ui

@@ -1,5 +1,6 @@
 #include "config/commands.hpp"
 
+#include <algorithm>
 #include <array>
 #include <iterator>
 #include <string>
@@ -83,6 +84,8 @@ constexpr Commands::Info kCommands[] = {
      N_("Run the system shell"), "❯", "Ctrl-X", true},
     {Command::ReaderCopy, "reader.copy", CommandScreen::Reader, N_("Copy"),
      N_("Copy the message to the clipboard"), "⎘", "Ctrl-C Ctrl-Ins", true},
+    {Command::ReaderSelect, "reader.select", CommandScreen::Reader, N_("Select"),
+     N_("Select text in the message to copy it"), "⛶", "v Alt-V", true},
     {Command::ComposeSave, "compose.save", CommandScreen::Compose, N_("Save"),
      N_("Save the message"), "✓", "Ctrl-S F2 Alt-S", true},
     {Command::ComposeAttributes, "compose.attributes", CommandScreen::Compose,
@@ -94,8 +97,6 @@ constexpr Commands::Info kCommands[] = {
     {Command::ComposeDeleteLine, "compose.delete_line", CommandScreen::Compose,
      N_("Delete line"), N_("Delete the line the cursor is on"), "", "Ctrl-Y Alt-D",
      false},
-    {Command::ComposeRestoreLine, "compose.restore_line", CommandScreen::Compose,
-     N_("Restore line"), N_("Put the last deleted line back"), "", "Ctrl-U", false},
     {Command::ComposeDeleteQuote, "compose.delete_quote", CommandScreen::Compose,
      N_("Delete quote"), N_("Delete the quoted text after the cursor"), "",
      "Ctrl-D Alt-Z", false},
@@ -116,6 +117,23 @@ constexpr Commands::Info kCommands[] = {
      N_("To the end of the line"), "", "Ctrl-E", false},
     {Command::ComposePaste, "compose.paste", CommandScreen::Compose, N_("Paste"),
      N_("Paste from the clipboard at the cursor"), "⎀", "Ctrl-V Shift-Ins", true},
+    {Command::ComposeCopy, "compose.copy", CommandScreen::Compose, N_("Copy"),
+     N_("Copy the selected text to the clipboard"), "", "Ctrl-C Ctrl-Ins", false},
+    {Command::ComposeCut, "compose.cut", CommandScreen::Compose, N_("Cut"),
+     N_("Move the selected text to the clipboard"), "", "Ctrl-X Shift-Del", false},
+    {Command::ComposeUndo, "compose.undo", CommandScreen::Compose, N_("Undo"),
+     N_("Take the last change back"), "↶", "Ctrl-Z Ctrl-U", true},
+    {Command::ComposeRedo, "compose.redo", CommandScreen::Compose, N_("Redo"),
+     N_("Make the change undone again"), "↷", "Ctrl-R", true},
+};
+
+/// The names `Commands::retired()` answers for, whole, with the screen the
+/// short half of each is written on.
+constexpr struct RetiredCommand {
+    CommandScreen screen;
+    std::string_view name;
+} kRetired[] = {
+    {CommandScreen::Compose, "compose.restore_line"},
 };
 
 /// The screens an external utility can be run from, in the order their commands
@@ -252,6 +270,20 @@ const Commands::Info* Commands::named(std::string_view name) {
         if (nameIs(name, info.name)) return &info;
     }
     return nullptr;
+}
+
+bool Commands::retired(std::string_view name) {
+    return std::any_of(std::begin(kRetired), std::end(kRetired),
+                       [name](const RetiredCommand& old) { return nameIs(name, old.name); });
+}
+
+bool Commands::retiredOn(CommandScreen screen, std::string_view name) {
+    return std::any_of(std::begin(kRetired), std::end(kRetired),
+                       [screen, name](const RetiredCommand& old) {
+                           const size_t dot = old.name.find('.');
+                           return old.screen == screen &&
+                                  nameIs(name, old.name.substr(dot + 1));
+                       });
 }
 
 const Commands::Info* Commands::namedOn(CommandScreen screen, std::string_view name,

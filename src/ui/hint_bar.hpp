@@ -29,7 +29,10 @@
 /// none, every key on it moving the cursor, and its row is not given back, so
 /// that the screens on either side of it are not a row taller: it carries the
 /// subject of the message under the cursor instead, after whatever hints there
-/// are.
+/// are. The editor's row is copy, cut and Esc for as long as text is selected,
+/// whatever `compose_hints` holds: that is what there is to do with a selection.
+/// The reader's is the arrows, Space, copy, reply and Esc for as long as its
+/// selection mode is on.
 namespace amberedit::ui::hint_bar {
 
 /// The row's text, without the padding it is drawn with: `text(state)` is what

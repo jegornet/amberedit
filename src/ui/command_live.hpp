@@ -23,7 +23,6 @@ namespace amberedit::ui {
     switch (command) {
         case Command::ComposeImport:
         case Command::ComposeDeleteLine:
-        case Command::ComposeRestoreLine:
         case Command::ComposeDeleteQuote: return false;
         default: return true;
     }

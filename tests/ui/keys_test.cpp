@@ -103,7 +103,7 @@ TEST_CASE("The defaults are the layout AmberEdit has always had [keys]") {
 
     // Alt reaches the terminal only for the letters a layout binds, and these
     // are they.
-    CHECK(keys.altLetters() == "bcdefghiklmnqswz");
+    CHECK(keys.altLetters() == "bcdefghiklmnqsvwz");
     // And the ESC in front of Backspace is claimed for the same reason.
     CHECK(keys.altBackspace());
 }
@@ -169,7 +169,6 @@ TEST_CASE("A key is read the way it is written [keys]") {
     CHECK_FALSE(keyNamed("Ctrl-F5"));
     CHECK_FALSE(keyNamed("Ctrl-+"));
     CHECK_FALSE(keyNamed("Shift-Backspace"));
-    CHECK_FALSE(keyNamed("Shift-Del"));
     CHECK_FALSE(keyNamed("Ctrl-Up"));
     CHECK_FALSE(keyNamed("Alt-F13"));
     CHECK_FALSE(keyNamed("Alt-Home"));
@@ -187,11 +186,12 @@ TEST_CASE("A key is read the way it is written [keys]") {
     }
 }
 
-TEST_CASE("Shift goes with Insert and with no other named key [keys]") {
+TEST_CASE("Shift goes with Insert and Delete and with no other named key [keys]") {
     CHECK(keyNamed("Ctrl-Ins") == Event::Named(Event::Name::Insert, true, false, false));
     CHECK(keyNamed("shift-insert") ==
           Event::Named(Event::Name::Insert, false, false, true));
     CHECK(keyNamed("Ins") == Event::Insert);
+    CHECK(keyNamed("Shift-Del") == Event::Named(Event::Name::Delete, false, false, true));
 
     // A shifted character is the other character, and is written as itself.
     CHECK_FALSE(keyNamed("Shift-g"));
@@ -204,7 +204,11 @@ TEST_CASE("Shift goes with Insert and with no other named key [keys]") {
     CHECK(isReservedKey("Shift-Tab"));
     CHECK(isReservedKey("Shift-Space"));
 
-    for (const char* spelling : {"Ctrl-Ins", "Shift-Ins"}) {
+    // Shift with an arrow is a selection being made, and moves about too.
+    CHECK(isReservedKey("Shift-Left"));
+    CHECK(isReservedKey("Shift-End"));
+
+    for (const char* spelling : {"Ctrl-Ins", "Shift-Ins", "Shift-Del"}) {
         const auto key = keyNamed(spelling);
         REQUIRE(key);
         CHECK(spellingOf(*key) == spelling);
@@ -257,6 +261,21 @@ TEST_CASE("A layout that cannot be read says which line is wrong [keys]") {
     const std::string error6 =
         errorOf(KeyMap::parse("x app.quit\nx compose.save\n", "keys"));
     CHECK_MESSAGE(contains(error6, "x is already app.quit"), error6);
+}
+
+TEST_CASE("A line binding a command that is no more is passed over and said [keys]") {
+    const KeyMap map = valueOf(
+        KeyMap::parse("Ctrl-U compose.restore_line\nCtrl-S compose.save\n", "keys"));
+    REQUIRE(map.warnings().size() == 1);
+    CHECK_MESSAGE(contains(map.warnings().front(),
+                           "keys:1: compose.restore_line is no longer a command"),
+                  map.warnings().front());
+    // The rest of the file is read as it would be without the line.
+    CHECK(map.is(Event::Character("s", true, false, false), Command::ComposeSave));
+    CHECK_FALSE(map.is(Event::Character("u", true, false, false), Command::ComposeUndo));
+    // Merged over the defaults, the line leaves Ctrl-U on undo.
+    CHECK(map.mergedOnto(KeyMap::defaults())
+              .is(Event::Character("u", true, false, false), Command::ComposeUndo));
 }
 
 TEST_CASE("A layout written with the older names is still read [keys]") {
@@ -343,7 +362,7 @@ TEST_CASE("A merged layout writes no key twice [keys]") {
           std::vector<Event>{Event::Character('l'), Event::F9, alt('l')});
     // The letters the terminal is told about are both layouts' — the file's
     // Alt-J and the defaults the file left alone.
-    CHECK(keys.altLetters() == "bcdefghijklmnqswz");
+    CHECK(keys.altLetters() == "bcdefghijklmnqsvwz");
     CHECK(keys.altBackspace());
     // And the default key for the command the file moved is still there: a
     // chord and a letter on one command is what merging leaves.

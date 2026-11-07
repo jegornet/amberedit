@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <cwchar>
 #include <functional>
 #include <memory>
@@ -214,6 +215,29 @@ private:
     /// leaves alone. Anything else waiting is handed back to ncurses.
     void swallowLineEndPartner(wint_t first);
 
+    /// Notes a mouse event's effect on whether the left button is held, and
+    /// answers whether it is worth passing on: a movement is only while the
+    /// button is down, being a drag then and a hand wandering otherwise. A
+    /// movement that is really a press after a release nobody reported is
+    /// rewritten into the press it is.
+    bool noteButton(Event& event);
+
+    /// How long the pointer has to have been still for a movement that jumps to
+    /// be taken for a press: longer than the reports of a drag ever stand apart,
+    /// which is a few tens of milliseconds, and shorter than a hand takes to let
+    /// go of the button and click somewhere else.
+    static constexpr long long kLostReleaseGapMs = 250;
+
+    /// Asks the terminal to report the pointer moving while a button is held —
+    /// xterm's button-event tracking, mode 1002 — or stops it. ncurses asks for
+    /// presses and releases alone, and a drag is what a selection is made with.
+    /// Written straight to the terminal as `ModifiedKeyReporting` is, and taken
+    /// back off before the terminal is handed to anything else.
+    void setDragReporting(bool on);
+
+    static constexpr const char* kDragOn = "\x1b[?1002h";
+    static constexpr const char* kDragOff = "\x1b[?1002l";
+
     Screen screen_;
     /// Which protocols the terminal is asked for modified keys in, kept for
     /// asking again when `handOver()` takes the terminal back.
@@ -224,6 +248,13 @@ private:
     bool oscPending_{false};
     bool da1Pending_{false};
     bool running_{true};
+    bool dragReporting_{false};
+    bool leftHeld_{false};
+    /// Where and when the last mouse report was, which is what tells a press
+    /// reported as a movement from the movement of a drag.
+    std::chrono::steady_clock::time_point lastMouseAt_{};
+    int lastMouseX_{0};
+    int lastMouseY_{0};
     bool cursorVisible_{false};
     int cursorX_{0};
     int cursorY_{0};

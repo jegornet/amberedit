@@ -1067,6 +1067,10 @@ TEST_CASE("AppConfig reads the reader's side taps [app_config]") {
     CHECK(with("reader_side_taps when_narrow\n").readerSideTaps ==
           Visibility::WhenNarrow);
     CHECK(with("reader_side_taps when_wide\n").readerSideTaps == Visibility::WhenWide);
+    CHECK(with("").readerDragToSelect == Visibility::WhenWide);
+    CHECK(with("reader_drag_to_select off\n").readerDragToSelect == Visibility::Off);
+    CHECK(with("reader_drag_to_select when_narrow\n").readerDragToSelect ==
+          Visibility::WhenNarrow);
 
     CHECK_FALSE(loads("reader_side_taps 1\n"));
     CHECK_FALSE(loads("reader_side_taps\n"));
@@ -1260,7 +1264,7 @@ TEST_CASE("AppConfig reads the menus [app_config]") {
           std::vector<Command>{Command::ReaderList, Command::ReaderReply,
                                Command::ReaderReplyElsewhere, Command::ReaderNew,
                                Command::ReaderForward, Command::ReaderFind,
-                               Command::ReaderNodelist, Command::ReaderShell});
+                               Command::ReaderNodelist, Command::ReaderSelect});
     CHECK(defaults.composeMenu ==
           std::vector<Command>{Command::ComposeSave, Command::ComposeImport});
     CHECK(with("compose_menu import save\n").composeMenu ==
@@ -1335,9 +1339,10 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
     CHECK(defaults.readerHints ==
           std::vector<Command>{Command::ReaderReply, Command::ReaderReplyElsewhere,
                                Command::ReaderNew, Command::ReaderList,
-                               Command::ReaderExport, Command::ReaderNodelist});
+                               Command::ReaderExport, Command::ReaderSelect});
     CHECK(defaults.composeHints == std::vector<Command>{Command::ComposeSave,
-                                                        Command::ComposeDeleteLine,
+                                                        Command::ComposeUndo,
+                                                        Command::ComposeRedo,
                                                         Command::ComposeImport});
 
     // The hints stand in the order they are written, and a row may name
@@ -1347,6 +1352,16 @@ TEST_CASE("AppConfig reads the hint bars [app_config]") {
           std::vector<Command>{Command::ReaderInfo, Command::ReaderKludges});
     CHECK(with("compose_hints word_left line_end\n").composeHints ==
           std::vector<Command>{Command::ComposeWordLeft, Command::ComposeLineEnd});
+
+    // A command that is no more is left out of the list and warned about, the
+    // config loading as it would without it.
+    const AppConfig retired = with("compose_hints save restore_line import\n");
+    CHECK(retired.composeHints ==
+          std::vector<Command>{Command::ComposeSave, Command::ComposeImport});
+    REQUIRE(retired.warnings.size() == 1);
+    CHECK_MESSAGE(contains(retired.warnings.front(),
+                           "compose_hints: 'restore_line' is no longer a command"),
+                  retired.warnings.front());
 
     // The names were written with a `-` once, and a config that still writes
     // one is read as it stands.
@@ -2546,6 +2561,14 @@ TEST_CASE("AppConfig reads which clipboard copies and pastes go through [app_con
 
     CHECK(with("").clipboardCopyIndicate);
     CHECK_FALSE(with("clipboard_copy_indicate off\n").clipboardCopyIndicate);
+    using amberedit::config::CopyOnSelect;
+    CHECK(with("").clipboardCopyOnSelect == CopyOnSelect::Mouse);
+    CHECK(with("clipboard_copy_on_select Always\n").clipboardCopyOnSelect ==
+          CopyOnSelect::Always);
+    CHECK(with("clipboard_copy_on_select off\n").clipboardCopyOnSelect ==
+          CopyOnSelect::Off);
+    const std::string badCopy = errorWith("clipboard_copy_on_select keys\n");
+    CHECK_MESSAGE(contains(badCopy, "expected always | mouse | off"), badCopy);
 
     const std::string unknown = errorWith("clipboard x11\n");
     CHECK_MESSAGE(contains(unknown, "unknown clipboard: 'x11'"), unknown);

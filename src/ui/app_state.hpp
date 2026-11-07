@@ -29,8 +29,11 @@
 #include "nodelist/nodelist_db.hpp"
 #include "ports/i_msgbase.hpp"
 #include "ui/bbs_codes.hpp"
+#include "ui/click_count.hpp"
 #include "ui/dir_listing.hpp"
+#include "ui/edit_history.hpp"
 #include "ui/event_util.hpp"
+#include "ui/header_format.hpp"
 #include "ui/keys.hpp"
 #include "ui/text_editor.hpp"
 #include "ui/wheel_throttle.hpp"
@@ -352,6 +355,11 @@ struct AppState {
     /// same reason: the terminal and the programs a copy may go through are the
     /// shell's, and a screen has neither.
     std::optional<std::string> clipboardCopyRequested;
+
+    /// Whether that copy goes through without the "Copied" box — a mouse
+    /// selection copied as the button is let go, which happens on every drag
+    /// and is not something the user asked to be told about.
+    bool clipboardCopyQuiet{false};
 
     /// Whether the editor has asked for a paste from a clipboard that is not
     /// this one. Set and answered as `clipboardCopyRequested` is; what comes
@@ -869,6 +877,13 @@ struct AppState {
         /// rows over in the same shape the pipe codes leave a line in — so
         /// nothing else about the drawing has to know where a row came from.
         bool canvas{false};
+        /// Whether the row below is the rest of the same line, broken here by
+        /// the window rather than by the message — and what the break took out
+        /// of it, the blanks between two words or nothing at all where a word
+        /// too long for the row was cut. What a selection is copied with: a
+        /// line the window broke is one line on the clipboard.
+        bool continues{false};
+        std::string joiner;
     };
     std::vector<DisplayLine> readLines;
     int readScroll{0};
@@ -1231,6 +1246,29 @@ struct AppState {
     /// message it answers.
     bool composeInHeader{false};
 
+    /// The other end of the selection in a header field, the cursor being the
+    /// end that moves: which field, and the byte of it. The field is kept with
+    /// it so that an anchor left in one field selects nothing in the next.
+    /// The text's own is `edit.anchor`; `composeHasSelection()` asks whichever
+    /// half the typing is in.
+    struct FieldAnchor {
+        int field{0};
+        size_t at{0};
+    };
+    std::optional<FieldAnchor> composeFieldAnchor;
+
+    /// What a drag of the pointer is selecting: nothing until the button goes
+    /// down on a field or in the text, then that, until it comes back up.
+    enum class ComposeDrag : uint8_t { None, Field, Text };
+    ComposeDrag composeDrag{ComposeDrag::None};
+    /// The selection the drag under way was pressed inside of, if it was.
+    std::optional<HeldSelection<size_t>> composeHeldField;
+    std::optional<HeldSelection<TextPoint>> composeHeldText;
+
+    /// The presses on the message so far, for telling a double click — a word
+    /// — and a triple one — the line, or the whole of a field — from clicks.
+    ClickRun composeClicks;
+
     /// Where the Change button beside the attributes was drawn, filled in by the
     /// compose screen's render().
     term::Box changeAttributesBox;
@@ -1254,6 +1292,67 @@ struct AppState {
     /// not the line in the buffer, which is that plus `editScroll`. Only the row
     /// the cursor is on ever has an origin: it is the only one drawn scrolled.
     std::vector<ComposeSpot> composeTextRows;
+
+    /// The reader's selection mode — `reader.select` — in which a cursor stands
+    /// in the message and text is selected to be copied, and the message is
+    /// never edited. `ui/reader_select.*` is the whole of what it does; nothing
+    /// here outlives the message it was begun over, `loadMessage()` ending it.
+    struct ReaderSelect {
+        bool on{false};
+        /// Which half the cursor is in: a header field, or the text.
+        bool inHeader{false};
+        /// The field, in `compose::Field` numbering — the same five the editor
+        /// types into, the attributes button aside.
+        int field{0};
+        size_t fieldCursor{0};
+        /// The other end of a selection in that field; dropped whenever the
+        /// cursor goes to another one.
+        std::optional<size_t> fieldAnchor;
+        /// The anchor held down — Space — so that the arrows, Home and End
+        /// select without Shift, as a held Shift would. Lifted by Space again,
+        /// by Tab out of the half it was put down in, by a press of the pointer
+        /// and by anything that drops the selection under it.
+        bool anchored{false};
+        /// The rows of the message as the reader has them laid out, one line of
+        /// the buffer per row on the screen, with the cursor and the anchor in
+        /// it — so that every motion the editor's buffer knows is the one used
+        /// here. Its lines are never changed but by `reader_select::sync()`.
+        TextBuffer text;
+        enum class Drag : uint8_t { None, Field, Text };
+        Drag drag{Drag::None};
+        /// The selection the drag under way was pressed inside of, if it was.
+        std::optional<HeldSelection<size_t>> heldField;
+        std::optional<HeldSelection<TextPoint>> heldText;
+        /// Where the frame drew each field, in `compose::Field` order, which is
+        /// what the cursor walks: `header_format` and the window decide what
+        /// the block holds and where. Nothing for a field that is no stop — the
+        /// To address outside netmail, the attributes button, one the window
+        /// had no column for.
+        header_format::Stops stops;
+        /// Where each field and each row on screen was drawn, as the editor
+        /// keeps them: one per field in `compose::Field` order, the attributes
+        /// button's left `Nowhere`, and one per row of the viewport.
+        std::vector<ComposeSpot> fieldSpots;
+        std::vector<ComposeSpot> textRows;
+        ClickRun clicks;
+        /// Where a press landed on the text or a header field while the mode
+        /// was off, under `reader_drag_to_select`: the first movement after it
+        /// turns the mode on with the selection begun there. Dropped by the
+        /// release and by the mode starting or ending.
+        struct Armed {
+            int x{0};
+            int y{0};
+        };
+        std::optional<Armed> armed;
+    };
+    ReaderSelect readSelect;
+    /// What a reply begun from the selection mode quotes in place of the whole
+    /// message — the selection as it stood, a line per line break in it. Set by
+    /// the reader for every answer it begins, emptied where nothing was
+    /// selected, so a reply begun afterwards never quotes a stale one; read by
+    /// the compose screen for as long as the reply is open, since the template
+    /// is expanded again as the header is left, and dropped by `leaveEditor()`.
+    std::optional<std::vector<std::string>> quoteSelection;
 
     /// Where the editor drew the delete-line button, row by row, filled in by
     /// its render(). Three boxes rather than one: the button is drawn a cell at
@@ -1547,6 +1646,11 @@ struct AppState {
     /// screen. Filled in from the template when the editor opens.
     TextBuffer edit;
     int editScroll{0};
+    /// What `compose.undo` takes back and `compose.redo` puts back again: the
+    /// text and the header fields together, a step per change. It goes with the
+    /// message — `leaveEditor()` clears it, and so does the template being
+    /// expanded afresh, which rewrites the text under every step it holds.
+    EditHistory composeHistory;
     /// That text exactly as the template produced it, kept so that a header
     /// still being filled in can be answered by expanding the template again.
     ///
@@ -1709,10 +1813,11 @@ struct AppState {
     WheelThrottle listWheel;
 
     /// What time it is, in milliseconds off a monotonic clock — the only clock
-    /// the interface reads, and it reads it for one thing: how far apart two
-    /// notches of the wheel arrived. It is a member so that a test can hand the
-    /// screens a clock it moves itself, a real wheel being the one thing a test
-    /// cannot roll.
+    /// the interface reads, and it reads it for two things: how far apart two
+    /// notches of the wheel arrived, and how far apart two clicks on a header
+    /// field did. It is a member so that a test can hand the screens a clock it
+    /// moves itself, a real wheel and a real hand being what a test cannot
+    /// supply.
     std::function<Millis()> monotonicMs{[] {
         using namespace std::chrono;
         return duration_cast<milliseconds>(steady_clock::now().time_since_epoch())
@@ -2045,7 +2150,12 @@ struct AppState {
     /// drawn rather than against a second guess at the same arithmetic. In the
     /// order they are drawn, which is the order `Pressed::Hint` numbers them in.
     struct HintSpot {
-        Command command{};
+        /// What it runs, or nothing where the hint is for a key that moves
+        /// about rather than a command — the Esc a selection is dropped with.
+        std::optional<Command> command;
+        /// The key it is written under, which is what a click on it presses —
+        /// nothing for a gesture, Shift with the arrows, which no click can.
+        std::optional<term::Event> key;
         term::Box box;
     };
     std::vector<HintSpot> hintSpots;
@@ -2071,6 +2181,14 @@ struct AppState {
     /// is pressed, so nothing is laid out differently for them.
     [[nodiscard]] bool readerSideTapsShown() const {
         return shown(config.readerSideTaps);
+    }
+
+    /// Whether a drag across the message begins a selection without the mode
+    /// having been asked for, and a click outside the text ends the mode, from
+    /// `reader_drag_to_select`. Asked of the event, every time, as the side taps
+    /// are.
+    [[nodiscard]] bool readerDragToSelectShown() const {
+        return shown(config.readerDragToSelect);
     }
 
     /// How many columns down each side of the message answer one, from
@@ -2119,6 +2237,17 @@ struct AppState {
     /// names an editor takes the internal one away entirely, so the compose
     /// screen shows the text and never lets a key into it.
     [[nodiscard]] bool externalEditing() const { return !config.externalEditor.empty(); }
+
+    /// Whether anything is selected on the compose screen, in whichever half of
+    /// it the typing is in — a header field or the text. Under `external_editor`
+    /// the text is never typed into and so never selected in.
+    [[nodiscard]] bool composeHasSelection() const {
+        if (composeInHeader) {
+            return composeFieldAnchor && composeFieldAnchor->field == composeField &&
+                   composeFieldAnchor->at != composeCursor;
+        }
+        return !externalEditing() && selectionOf(edit).has_value();
+    }
 
     /// The header block the reader draws, from `header_format`: the wide format
     /// where the reader itself has `adaptive_ui_threshold` columns or more — the

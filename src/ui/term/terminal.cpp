@@ -5,6 +5,7 @@
 #include <unistd.h>
 #endif
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -243,6 +244,35 @@ void registerModifiedKeys(const std::string& altLetters, bool altBackspace) {
     const Event shiftInsert = Event::Named(Event::Name::Insert, false, false, true);
     registerKey("\x1b[2;2~", shiftInsert);
     registerKey("\x1b[2$", shiftInsert);
+
+    // Shift with Delete, the key a selection is cut with beside Ctrl-X. The
+    // same two spellings as Insert above; terminfo's `kDC` with Shift is
+    // `KEY_SDC`, which `namedKey()` reads too.
+    const Event shiftDelete = Event::Named(Event::Name::Delete, false, false, true);
+    registerKey("\x1b[3;2~", shiftDelete);
+    registerKey("\x1b[3$", shiftDelete);
+
+    // Shift with an arrow, Home or End — what text is selected with. terminfo
+    // names some of these (`kLFT`, `kRIT`, `kri`, `kind`, `kHOM`, `kEND`) and
+    // only on some entries, and a TERM describing another terminal than the one
+    // at the other end names the wrong ones; registering xterm's and rxvt's
+    // spellings too costs nothing, neither meaning anything else.
+    for (const auto& [final, name] : arrows) {
+        const Event shifted = Event::Named(name, false, false, true);
+        registerKey(std::string("\x1b[1;2") + final, shifted);
+        // rxvt writes the final byte in lower case and the modifier nowhere.
+        registerKey(std::string("\x1b[") +
+                        static_cast<char>(final - 'A' + 'a'),
+                    shifted);
+    }
+    const Event shiftHome = Event::Named(Event::Name::Home, false, false, true);
+    for (const char* form : {"\x1b[1;2H", "\x1b[1;2~", "\x1b[7$"}) {
+        registerKey(form, shiftHome);
+    }
+    const Event shiftEnd = Event::Named(Event::Name::End, false, false, true);
+    for (const char* form : {"\x1b[1;2F", "\x1b[4;2~", "\x1b[8$"}) {
+        registerKey(form, shiftEnd);
+    }
 
     // Shift+Space, which is a key the terminal will not tell anyone about unless
     // asked: kitty spells it one way, xterm's modifyOtherKeys the other.
@@ -576,6 +606,20 @@ Event namedKey(int code) {
         case KEY_DC: return Event::Delete;
         case KEY_IC: return Event::Insert;
         case KEY_SIC: return Event::Named(Event::Name::Insert, false, false, true);
+        case KEY_SDC: return Event::Named(Event::Name::Delete, false, false, true);
+        case KEY_SLEFT: return Event::Named(Event::Name::ArrowLeft, false, false, true);
+        case KEY_SRIGHT: return Event::Named(Event::Name::ArrowRight, false, false, true);
+        case KEY_SHOME: return Event::Named(Event::Name::Home, false, false, true);
+        case KEY_SEND: return Event::Named(Event::Name::End, false, false, true);
+#ifdef _WIN32
+        // PDCurses names Shift with the vertical arrows; ncurses has only the
+        // scroll keys terminfo calls `kri` and `kind`, read below.
+        case KEY_SUP: return Event::Named(Event::Name::ArrowUp, false, false, true);
+        case KEY_SDOWN: return Event::Named(Event::Name::ArrowDown, false, false, true);
+#else
+        case KEY_SR: return Event::Named(Event::Name::ArrowUp, false, false, true);
+        case KEY_SF: return Event::Named(Event::Name::ArrowDown, false, false, true);
+#endif
         case KEY_BTAB: return Event::TabReverse;
         case KEY_ENTER: return Event::Return;
         default: break;
@@ -658,9 +702,13 @@ Event keyOf(bool named, wint_t code) {
 /// Everything AmberEdit acts on, and deliberately nothing else — see the note on
 /// the `mousemask` call for why the click bits have to stay out of it.
 mmask_t mouseEvents() {
+    // The position as well, for the drag a selection is made with — reported
+    // only while a button is held, `kDragOn` being what asks the terminal for
+    // it, and passed on only while the left one is (`Terminal::poll()`).
     mmask_t mask = static_cast<mmask_t>(BUTTON1_PRESSED) |
                    static_cast<mmask_t>(BUTTON1_RELEASED) |
-                   static_cast<mmask_t>(BUTTON4_PRESSED);
+                   static_cast<mmask_t>(BUTTON4_PRESSED) |
+                   static_cast<mmask_t>(REPORT_MOUSE_POSITION);
 #ifdef BUTTON5_PRESSED
     // Absent where ncurses was built with the older, narrower button mask, which
     // has no room for a fifth button.
@@ -697,6 +745,12 @@ Event reportEvent(const MEVENT& report) {
     } else if ((report.bstate & static_cast<mmask_t>(BUTTON1_RELEASED)) != 0) {
         mouse.button = MouseEvent::Button::Left;
         mouse.motion = MouseEvent::Motion::Released;
+    } else if ((report.bstate & static_cast<mmask_t>(REPORT_MOUSE_POSITION)) != 0) {
+        // Which button is held is not in the report; the left one is the only
+        // one anything drags with, and `poll()` passes a movement on only
+        // while it is down.
+        mouse.button = MouseEvent::Button::Left;
+        mouse.motion = MouseEvent::Motion::Moved;
     } else {
         // A button AmberEdit does not bind, or a bare movement report. Swallowed
         // rather than passed on as a nameless click.
@@ -728,19 +782,31 @@ Event mouseEvent() {
               " x=" + std::to_string(report.x) + " y=" + std::to_string(report.y));
 
         const Event event = reportEvent(report);
-        if (event.kind() == Event::Kind::None) continue;
-
-        if (event.mouse().motion == MouseEvent::Motion::Pressed) {
-            if (press.kind() == Event::Kind::None) press = event;
-        } else if (other.kind() == Event::Kind::None) {
-            other = event;
+        if (event.kind() != Event::Kind::None) {
+            const MouseEvent::Motion motion = event.mouse().motion;
+            if (motion == MouseEvent::Motion::Pressed) {
+                if (press.kind() == Event::Kind::None) press = event;
+            } else if (other.kind() == Event::Kind::None ||
+                       (motion == MouseEvent::Motion::Released &&
+                        other.mouse().motion != MouseEvent::Motion::Released)) {
+                other = event;
+            }
         }
+#ifdef _WIN32
+        // PDCurses keeps no queue to drain: one report stands behind each
+        // KEY_MOUSE, and its getmouse() answers OK whenever it is asked, so a
+        // loop waiting for ERR never ends.
+        break;
+#endif
     }
 
     // The release is passed on when it is all there was, which is what a mouse
-    // sends as the button comes back up. Nothing binds it, and nothing should:
-    // whatever the press did — opened a screen, closed a dialog — has already
-    // happened, and acting again would act on what has since moved underneath.
+    // sends as the button comes back up, and ahead of a movement gathered with
+    // it: it is what ends a drag, and a drag that missed its end would go on
+    // selecting under a pointer nobody is holding down. Only a drag acts on
+    // it — whatever a press did, opened a screen or closed a dialog, has
+    // already happened, and acting again would act on what has since moved
+    // underneath.
     return press.kind() != Event::Kind::None ? press : other;
 }
 
@@ -798,6 +864,7 @@ Terminal::~Terminal() {
     // In the reverse order they were put on, and before the screen is given
     // back: the terminal has to be told to stop reporting modified keys while it
     // is still the one being talked to.
+    if (dragReporting_) setDragReporting(false);
     keyReporting.reset();
     flowControl.reset();
     // And the palette entries a truecolor theme was lent, for the same reason:
@@ -878,6 +945,55 @@ void Terminal::draw(const Element& document) {
     }
 
     wrefresh(stdscr);
+
+    // After the first frame and not before: ncurses writes its own mouse mode
+    // as the screen is first drawn, and a terminal keeps one tracking mode at a
+    // time — the one asked for last.
+    if (!dragReporting_) setDragReporting(true);
+}
+
+bool Terminal::noteButton(Event& event) {
+    if (!event.is_mouse() || event.mouse().button != MouseEvent::Button::Left) return true;
+    MouseEvent mouse = event.mouse();
+    const auto now = std::chrono::steady_clock::now();
+    const auto gap =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - lastMouseAt_).count();
+    const int distance = std::max(std::abs(mouse.x - lastMouseX_), std::abs(mouse.y - lastMouseY_));
+    lastMouseAt_ = now;
+    lastMouseX_ = mouse.x;
+    lastMouseY_ = mouse.y;
+
+    switch (mouse.motion) {
+        case MouseEvent::Motion::Pressed: leftHeld_ = true; return true;
+        case MouseEvent::Motion::Released: leftHeld_ = false; return true;
+        case MouseEvent::Motion::Moved:
+            if (!leftHeld_) return false;
+            // A press ncurses took for a movement: the release before it was
+            // never reported — a terminal says nothing of a button let go
+            // outside its window — so ncurses still has the button down and
+            // reports the next press as the pointer moving with it. A button
+            // really held is reported cell by cell as the pointer crosses
+            // them, so a movement that comes after a pause and lands away from
+            // where the last report left the pointer is a fresh press, and is
+            // passed on as one. A button held while the pointer went out of the
+            // window and came back reads exactly the same, which `resumed` says
+            // for whatever has a drag to carry on.
+            if (gap > kLostReleaseGapMs && distance > 1) {
+                mouse.motion = MouseEvent::Motion::Pressed;
+                mouse.resumed = true;
+                event = Event::Mouse(mouse);
+            }
+            return true;
+    }
+    return true;
+}
+
+void Terminal::setDragReporting(bool on) {
+#ifndef _WIN32
+    std::fputs(on ? kDragOn : kDragOff, stdout);
+    std::fflush(stdout);
+#endif
+    dragReporting_ = on;
 }
 
 void Terminal::handOver(const std::function<void()>& work) {
@@ -891,6 +1007,8 @@ void Terminal::handOver(const std::function<void()>& work) {
     // asked after FlowControlOff has gone rather than before, so that what is
     // kept is what ncurses set up and flow control is turned off again on the
     // way in — by the same object, in the same order, as at the start of the run.
+    if (dragReporting_) setDragReporting(false);
+    leftHeld_ = false;
     keyReporting.reset();
     flowControl.reset();
     // The entries lent to a truecolor theme go back too: the program being
@@ -959,7 +1077,8 @@ bool Terminal::escapePressed() {
             // A mouse report has to be taken off ncurses' own queue as well,
             // or the next one read would be this one.
             if (key == KEY_MOUSE) {
-                static_cast<void>(mouseEvent());
+                Event report = mouseEvent();
+                static_cast<void>(noteButton(report));
                 continue;
             }
             if (const auto found = customKeys.find(key);
@@ -1009,7 +1128,8 @@ std::optional<wint_t> Terminal::readRaw(int waitMs, bool& named) {
                 continue;
             }
             if (key == KEY_MOUSE) {
-                static_cast<void>(mouseEvent());
+                Event report = mouseEvent();
+                static_cast<void>(noteButton(report));
                 continue;
             }
             named = true;
@@ -1214,8 +1334,8 @@ Event Terminal::poll() {
                 return Event::Resize;
             }
             if (key == KEY_MOUSE) {
-                const Event event = mouseEvent();
-                if (event.kind() == Event::Kind::None) continue;
+                Event event = mouseEvent();
+                if (event.kind() == Event::Kind::None || !noteButton(event)) continue;
                 return event;
             }
             if (const auto found = customKeys.find(key); found != customKeys.end()) {

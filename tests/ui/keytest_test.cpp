@@ -37,7 +37,8 @@ TEST_CASE("every key a run asks for has a name of its own [keys]") {
     std::sort(sorted.begin(), sorted.end());
     CHECK(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
     for (const char* expected : {"Shift-Tab", "Space", "Shift-Space", "Ctrl-Home",
-                                 "Alt-F12", "Ctrl-A", "Alt-Z", "Shift-Ins"}) {
+                                 "Alt-F12", "Ctrl-A", "Alt-Z", "Shift-Ins",
+                                 "Shift-Del", "Shift-Left", "Shift-End", "v"}) {
         CHECK_MESSAGE(std::find(names.begin(), names.end(), expected) != names.end(),
                       expected);
     }

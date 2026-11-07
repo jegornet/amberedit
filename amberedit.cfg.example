@@ -470,6 +470,15 @@ reader_show_message_size off
 # Optional; on by default.
 #clipboard_copy_indicate on
 
+# Whether selected text selected should be automatically copied
+# Optional; "mouse" by default:
+#   always  every selection: each step is a copy, which under "external" runs
+#           the program once per keystroke
+#   mouse   mouse selection, copied on release, and a word or a line selected
+#           by a double or a triple click
+#   off     none, Ctrl-C and Ctrl-X only
+#clipboard_copy_on_select mouse
+
 # --- area list ----------------------------------------------------------------
 
 # How the area list is sorted. Optional; "te" by default. A set of letters,
@@ -1089,8 +1098,9 @@ hint_bar_capitalize off
 #                   thread_down  quit  help
 #
 #   compose_hints   save  attributes  import  header_back  delete_line
-#                   restore_line  delete_quote  delete_word  word_left
-#                   word_right  line_start  line_end  quit  help
+#                   delete_quote  delete_word  word_left  word_right
+#                   line_start  line_end  paste  copy  cut  undo  redo
+#                   quit  help
 #
 # The area list, the reader and the editor each name "extern_util0" through
 # "extern_util9" besides — see extern_utilN above. A hint for one shows the
@@ -1102,10 +1112,13 @@ hint_bar_capitalize off
 # is given: every key on it either moves the cursor or marks the message under
 # it, and neither is worth a row of the screen. A list may otherwise be as long
 # as you like — what the window has no room for is left off the end of the row.
-arealist_hints next_unread toggle_unread rescan
-msglist_hints none
-reader_hints reply reply_elsewhere new list export nodelist
-compose_hints save delete_line import
+#
+# While text is selected in the editor its row is copy, cut and Esc instead,
+# whatever compose_hints says.
+#arealist_hints next_unread toggle_unread rescan
+#msglist_hints none
+#reader_hints reply reply_elsewhere new list export select
+#compose_hints save undo redo import
 
 # Whether the reader and the message list show a back button — a left arrow in
 # the top-left corner. Optional; "when_narrow" by default. Esc does the same
@@ -1145,6 +1158,16 @@ reader_side_taps when_narrow
 # window the interface still lays out whole no middle to click in. The two lines
 # may stand in either order.
 reader_side_tap_width 6
+
+# Whether a drag across the message in the reader selects text as it does in the
+# selection mode (reader.select, v), turning that mode on as the pointer starts to
+# move — from wherever on the reader the drag begins, the selection starting at
+# the nearest text or header field. A click outside the text and the header
+# fields — an empty line and the blank under the end of the message included —
+# turns the mode off again.
+# Optional; "when_wide" by default, the same four values as back_button. A press
+# on a link, a thread marker or a side strip does what it always does.
+reader_drag_to_select when_wide
 
 # The context menu: a column of buttons, one command each, opened by the button
 # in the top-right corner of the area list, of the reader and of the editor.
@@ -1186,6 +1209,8 @@ reader_side_tap_width 6
 #                                  leave it
 #                 copy             the message to the clipboard, as
 #                                  Ctrl-C does
+#                 select           select text in the message to copy it,
+#                                  as v does
 #
 #   compose_menu  save             store the message being written, as ^S does
 #                 import           read a file into the message, as ^O does
@@ -1201,19 +1226,20 @@ reader_side_tap_width 6
 # does menu_button off — the first for one screen, the second for all three.
 #
 # The three lines below are the defaults. "change", "info", "export",
-# "comment_reply", "mark_toggle" and "mark_menu" are left out of the reader's,
-# and "next_unread", "mark_toggle" and "catch_up" out of the list's — write them
-# in to have them:
+# "comment_reply", "mark_toggle", "mark_menu", "shell" and "copy" are left out of
+# the reader's, and "next_unread", "mark_toggle" and "catch_up" out of the
+# list's — write them in to have them:
 #
 #   reader_menu   list reply reply_elsewhere comment_reply new forward find
-#                 change info export nodelist mark_toggle mark_menu shell
+#                 change info export nodelist mark_toggle mark_menu shell copy
+#                 select
 #
 #   arealist_menu rescan toggle_unread next_unread mark_toggle catch_up
 #
 # The message list carries no menu button and has no setting for one: marking
 # the message under the cursor is its one command, and one button is no menu.
 arealist_menu rescan toggle_unread
-reader_menu list reply reply_elsewhere new forward find nodelist shell
+reader_menu list reply reply_elsewhere new forward find nodelist select
 compose_menu save import
 
 # Whether the area list, the reader and the editor show the menu button at all.

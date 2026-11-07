@@ -74,6 +74,7 @@ standing in both.
 | `s` / `Alt-S` | mark a run of messages at once: all, none, inverted, or everything before or after this one |
 | `Ctrl-X` | run your own shell — leaving it comes straight back to the message      |
 | `Ctrl-C` / `Ctrl-Ins` | copy the message to the clipboard (`clipboard`), header and all, as `w` writes it; kludges only where `k` shows them |
+| `v` / `Alt-V` | select text: Shift with the arrows, or `Space` to anchor and the bare arrows; `q`, `n` and `g` there reply quoting only what is selected. In a wide window a drag across the text does the same without `v`, and a click outside it leaves (`reader_drag_to_select`) |
 | `i` / `Alt-I` | technical info from the message base                                         |
 | `w` / `F7` / `Alt-W` | export the message to a text file or decode UUE if any — with messages marked, asks whether you mean those or this one |
 | `Ctrl-N` / `F10` | the nodelist                                                                 |
@@ -90,18 +91,22 @@ standing in both.
 | `←` `→` at the edge of a field | the field or button beside it on the same line |
 | `Alt-H` | edit header                                                         |
 | `Ctrl-S` / `F2` / `Alt-S` | save (asks first)                                         |
-| `Esc` | drop the message (asks first)                                      |
+| `Esc` | drop the message (asks first); over a selection, drop the selection |
 | `Ctrl-F` | edit message attributes                                         |
 | `Ctrl-O` / `F3` | open a file to insert as text or uuencoded             |
 | `Ctrl-Y` / `Alt-D` | delete the line — or the button beside it, on the right-hand edge |
-| `Ctrl-U` | put back the last line `Ctrl-Y` took, above the cursor              |
 | `Ctrl-D` / `Alt-Z` | delete the quoted text after the cursor                   |
 | `Ctrl-W` / `Alt-Backspace` / `Ctrl-Backspace` | delete the word before the cursor; `Ctrl-Backspace` only under the kitty keyboard protocol or in the Windows build |
 | `Alt-Del` / `Ctrl-Del` | delete the word after the cursor                           |
 | `Alt-B` `Alt-F` / `Alt+←` `Alt+→` / `Ctrl+←` `Ctrl+→` | by words                   |
 | `Ctrl-A` `Ctrl-E` | to the start of the line and to its end, as `Home` and `End`     |
 | `Ctrl-Home` `Ctrl-End` | to the start of the text and to its end, from the header too |
-| `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor; many terminals keep `Shift-Ins` for their own paste |
+| `Ctrl-V` / `Shift-Ins` | paste from the clipboard (`clipboard`) at the cursor, over the selection where there is one; many terminals keep `Shift-Ins` for their own paste |
+| `Shift` + arrows, `Home`, `End` | select text, in the message or in a header field; dragging the mouse does the same and copies it (`clipboard_copy_on_select`), a drag begun inside a selection growing it; a double click selects a word, a triple one the line or the whole header field; the same in the reader's selection mode |
+| `Ctrl-C` / `Ctrl-Ins` | copy the selection to the clipboard                    |
+| `Ctrl-X` / `Shift-Del` | cut the selection to the clipboard                    |
+| `Ctrl-Z` / `Ctrl-U` | undo the last change, in the text or a header field — a line `Ctrl-Y` deleted included; typing goes back a word at a time |
+| `Ctrl-R` | redo what was undone |
 
 ## Known issues
 
@@ -126,6 +131,11 @@ Windows Terminal; the lists are `testdata/keys/limits.lst` and
   sends `Ctrl+←` `Ctrl+→` as the bare arrows and `Ctrl-Del` as `Backspace`.
   PuTTY on Windows sends nothing at all for Ctrl with `Home`, `End`, `Ins` or
   `Del`, whatever it is set to.
+- Shift with an arrow, `Home`, `End` or `Del` is the bare key in PuTTY as it
+  ships; with *Xterm 216+* (below) it selects. Terminal.app sends `Shift+↑`
+  `Shift+↓` as the bare arrows and keeps `Shift-Home` and `Shift-End`, Contour
+  keeps Shift with the arrows, `Home` and `End`, and xfce4-terminal keeps
+  `Shift+↑` `Shift+↓` — there the mouse selects.
 - Many terminals keep `F1`, `F10`, `F11`, `Shift-Ins`, `Ctrl-Ins` or Alt
   with a menu letter for themselves, and AmberEdit never sees them. Windows
   Terminal keeps `F11`, `Ctrl-V` and `Shift-Ins`, conhost `Ctrl-V`, and
