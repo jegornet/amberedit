@@ -119,8 +119,16 @@ Rocky 8, 9 and 10, Fedora, Arch, Debian 12 and stable, and Ubuntu 22.04, 24.04
 and 26.04 this way, **each of them on x86_64 and arm64 both** except Arch, plus
 macOS and Windows on both architectures. Arch is the far end of the span
 whose near end is the floor: rolling, so normally ahead of even Fedora on GCC,
-and the one job where the wide ncurses is the only ncurses there is. Three things
+and the one job where the wide ncurses is the only ncurses there is. Four things
 about the file are decisions rather than detail:
+
+- **Every job builds with `-DAMBEREDIT_WERROR=ON`**, so a compiler warning
+  fails the job that printed it: GitHub tells nobody about a warning in a green
+  log, and the distributions disagree on what they warn about — Ubuntu's GCC
+  fortifies glibc by default, so a discarded `read()` warns there and nowhere
+  else. The option stays off everywhere but CI, packaging included: a package
+  is built by compilers newer than any job here, and a warning a new GCC
+  invents must not be a package that stops building.
 
 - The Linux jobs run their distribution under `docker run` from an ordinary
   `ubuntu-latest`, **not** through Actions' `container:` key. `container:` makes

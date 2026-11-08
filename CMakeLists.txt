@@ -34,6 +34,19 @@ endif()
 
 option(AMBEREDIT_BUILD_TESTS "Build AmberEdit unit tests" ON)
 
+# --- warnings as errors ------------------------------------------------------
+# CI turns this on, so that a warning fails the job that printed it rather than
+# scrolling past in a green log. Off by default: a package is built by
+# compilers newer than any CI job has run, and a warning a new GCC invents must
+# not be a package that stops building. Not CMAKE_COMPILE_WARNING_AS_ERROR,
+# which is CMake 3.24 and silently ignored by the 3.20 RHEL 8 ships.
+# add_compile_options() does not reach try_compile(), so the probes below are
+# judged as they always were.
+option(AMBEREDIT_WERROR "Treat compiler warnings as errors" OFF)
+if(AMBEREDIT_WERROR)
+  add_compile_options(-Werror)
+endif()
+
 # Up here rather than beside the install() rules, because the message catalogs
 # are found through a path compiled into the binary and that path is
 # ${CMAKE_INSTALL_FULL_LOCALEDIR} — which is empty until this has run.

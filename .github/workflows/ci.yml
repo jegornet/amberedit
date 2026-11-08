@@ -137,7 +137,7 @@ jobs:
             set -eu
             eval "$DEPS"
             cp -a /src /work && rm -rf /work/build
-            cmake -S /work -B /out -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON
+            cmake -S /work -B /out -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON -DAMBEREDIT_WERROR=ON
             cmake --build /out -j"$(nproc)"
             cd /out && ctest --output-on-failure'
 
@@ -164,7 +164,7 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON \
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON -DAMBEREDIT_WERROR=ON \
                 -DCMAKE_PREFIX_PATH="$(brew --prefix ncurses);$(brew --prefix tl-expected);$(brew --prefix doctest);$(brew --prefix gettext)"
 
       - name: Build
@@ -242,7 +242,7 @@ jobs:
           install: ${{ matrix.packages }}
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON -DAMBEREDIT_WERROR=ON
 
       - name: Build
         run: cmake --build build -j"$(nproc)"
@@ -307,6 +307,6 @@ jobs:
           usesh: true
           prepare: pkg install -y cmake gettext doctest expected pkgconf libiconv
           run: |
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DAMBEREDIT_KEYTEST=ON -DAMBEREDIT_WERROR=ON
             cmake --build build -j"$(sysctl -n hw.ncpu)"
             ctest --test-dir build --output-on-failure
