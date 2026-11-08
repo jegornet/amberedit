@@ -54,6 +54,10 @@ struct RawHeader {
     /// adapter's job.
     uint32_t replyTo{0};
     std::vector<uint32_t> replies;
+    /// The next answer to the message this one answers, where the format keeps
+    /// that link on the answer itself — JAM's ReplyNext. Zero in the formats
+    /// that keep the answers on the message answered and nowhere else.
+    uint32_t replyNext{0};
 };
 
 /// A stored message, header and both halves of its body.

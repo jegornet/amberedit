@@ -637,6 +637,7 @@ tl::expected<void, ErrorPtr> JamBase::read(uint32_t index, RawMessage& out,
     out.header.written = fromUnixStamp(header.dateWritten);
     out.header.arrived = fromUnixStamp(header.dateProcessed);
     out.header.replyTo = header.replyTo;
+    out.header.replyNext = header.replyNext;
     // The answers are a chain — the message names its first, each answer names
     // the next answer to the same message — and walking it here costs memory
     // lookups only, the headers being in the active table. The cap is because

@@ -65,6 +65,7 @@ standing in both.
 | `c` / `F2` / `Alt-C` | change the message                                                           |
 | `d` / `Del` / `Alt-D` | delete it (asks first) — with messages marked, asks whether you mean those or this one |
 | `-` `+` / `=` | up and down the thread                                                       |
+| `*` | the next answer to the message this one answers                                    |
 | `Ctrl-F` / `F6` | look for a message in the area                                               |
 | `l` / `F9` / `Alt-L` | the list of messages                                                         |
 | `k` / `Alt-K` | show the kludges — a reply then quotes them, a forward carries them          |

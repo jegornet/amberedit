@@ -183,8 +183,14 @@ struct MessageThread {
     uint32_t replyTo{0};
     /// The messages answering this one, in the order the base keeps them.
     std::vector<uint32_t> replies;
+    /// The next answer to the message this one answers — the message after
+    /// this one among `replyTo`'s `replies` — or 0 where this is the last of
+    /// them or answers nothing.
+    uint32_t replyNext{0};
 
-    [[nodiscard]] bool empty() const { return replyTo == 0 && replies.empty(); }
+    [[nodiscard]] bool empty() const {
+        return replyTo == 0 && replies.empty() && replyNext == 0;
+    }
 };
 
 /// A message being written, as a base is asked to store it.

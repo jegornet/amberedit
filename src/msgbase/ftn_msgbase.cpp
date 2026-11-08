@@ -485,6 +485,27 @@ domain::MessageThread FtnMsgBase::thread(uint32_t index) const {
             out.replies.push_back(number);
         }
     }
+
+    // The next answer to the same message. JAM keeps it on the answer itself,
+    // and that link is taken where it names a message still here; everywhere
+    // else — and in a JAM base whose link names nothing — it is read off the
+    // message answered, as the answer after this one among its own. An answer
+    // after this one that has since been deleted is stepped over to the next
+    // that has not.
+    out.replyNext = driver_->indexOfUid(raw.header.replyNext, /*exact=*/true);
+    if (out.replyNext == 0 && out.replyTo != 0) {
+        RawMessage parent;
+        if (driver_->read(out.replyTo, parent, /*withText=*/false)) {
+            const uint32_t self = driver_->uidOf(index);
+            const auto& siblings = parent.header.replies;
+            auto at = std::find(siblings.begin(), siblings.end(), self);
+            if (at != siblings.end()) {
+                for (++at; at != siblings.end() && out.replyNext == 0; ++at) {
+                    out.replyNext = driver_->indexOfUid(*at, /*exact=*/true);
+                }
+            }
+        }
+    }
     return out;
 }
 

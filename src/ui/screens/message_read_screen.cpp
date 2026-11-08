@@ -651,6 +651,13 @@ void followUp(AppState& state) {
     goToMessage(state, state.readThread.replyTo);
 }
 
+/// Follows the thread sideways: to the next answer to the message this one
+/// answers. The last of them has none, and the key does nothing there.
+void followNext(AppState& state) {
+    if (state.readThread.replyNext == 0) return;
+    goToMessage(state, state.readThread.replyNext);
+}
+
 /// Follows the thread down: to the message answering this one, or — where
 /// several do — to the list of them, since only the user knows which.
 void followDown(AppState& state) {
@@ -2202,9 +2209,10 @@ Element render(AppState& state) {
                                    : goingTo ? std::string(" ")
                                              : " " + numbers);
 
-    // "-10 +12 +15": this message answers the tenth, and the twelfth and
-    // fifteenth answer it. The links come from the base's own thread fields,
-    // and a message that is in no thread shows nothing at all.
+    // "-10 +12 +15 *17": this message answers the tenth, the twelfth and
+    // fifteenth answer it, and the seventeenth is the next answer to the tenth.
+    // The links come from the base's own thread fields, and a message that is
+    // in no thread shows nothing at all.
     struct Marker {
         std::string text;
         uint32_t number;
@@ -2216,6 +2224,10 @@ Element render(AppState& state) {
     }
     for (const uint32_t reply : state.readThread.replies) {
         markers.push_back({" +" + std::to_string(reply), reply});
+    }
+    if (state.readThread.replyNext != 0) {
+        markers.push_back({" *" + std::to_string(state.readThread.replyNext),
+                           state.readThread.replyNext});
     }
 
     // What a search landed here found, lit in the header block as it is in the
@@ -2706,14 +2718,18 @@ bool handleEvent(AppState& state, const Event& event) {
         askForward(state, /*marked=*/false);
         return true;
     }
-    // Up and down the thread. The markers beside the message number say what
-    // these two would do, and a click on one does it as well.
+    // Up, down and along the thread. The markers beside the message number say
+    // what these three would do, and a click on one does it as well.
     if (state.keys.is(event, Command::ReaderThreadUp)) {
         followUp(state);
         return true;
     }
     if (state.keys.is(event, Command::ReaderThreadDown)) {
         followDown(state);
+        return true;
+    }
+    if (state.keys.is(event, Command::ReaderThreadNext)) {
+        followNext(state);
         return true;
     }
     // Deleting is asked about first: the base has no way back from it, and the

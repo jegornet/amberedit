@@ -45,6 +45,7 @@ enum class Command : uint8_t {
     ReaderScrollbar,        ///< reader.scrollbar
     ReaderThreadUp,         ///< reader.thread_up
     ReaderThreadDown,       ///< reader.thread_down
+    ReaderThreadNext,       ///< reader.thread_next
     ReaderMarkToggle,       ///< reader.mark_toggle
     ReaderMarkMenu,         ///< reader.mark_menu
     ReaderShell,            ///< reader.shell

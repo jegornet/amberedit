@@ -135,6 +135,7 @@ Alt-V           reader.select
 -               reader.thread_up
 +               reader.thread_down
 =               reader.thread_down
+*               reader.thread_next
 
 # --- the editor ---------------------------------------------------------------
 Ctrl-S          compose.save

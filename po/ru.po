@@ -45,7 +45,7 @@ msgstr "файл уже есть: {0}"
 msgid "template: {0}"
 msgstr "шаблон: {0}"
 
-#: src/config/app_config.cpp:2916
+#: src/config/app_config.cpp:2920
 msgid "no description"
 msgstr "нет описания"
 
@@ -98,7 +98,7 @@ msgid "Read the message bases again"
 msgstr "Перечитать базы сообщений"
 
 #: src/config/commands.cpp:37 src/config/commands.cpp:41
-#: src/config/commands.cpp:79
+#: src/config/commands.cpp:82
 msgid "Mark"
 msgstr "Пометить"
 
@@ -114,7 +114,7 @@ msgstr "Прочитано"
 msgid "Mark the area read"
 msgstr "Пометить область прочитанной"
 
-#: src/config/commands.cpp:41 src/config/commands.cpp:80
+#: src/config/commands.cpp:41 src/config/commands.cpp:83
 msgid "Mark the message, or take the mark off"
 msgstr "Пометить сообщение или снять пометку"
 
@@ -182,7 +182,7 @@ msgstr "Экспорт"
 msgid "Write the message, or a file in it, to disk"
 msgstr "Сохранить сообщение или файл из него на диск"
 
-#: src/config/commands.cpp:61 src/ui/find_dialog.cpp:67
+#: src/config/commands.cpp:61 src/ui/find_dialog.cpp:69
 msgid "Find"
 msgstr "Поиск"
 
@@ -254,177 +254,185 @@ msgstr "Следующий ответ на это сообщение"
 msgid "Thread down"
 msgstr "Вниз по треду"
 
-#: src/config/commands.cpp:81
+#: src/config/commands.cpp:80
+msgid "The next answer to the message this one answers"
+msgstr "Следующий ответ на то же сообщение"
+
+#: src/config/commands.cpp:80
+msgid "Thread next"
+msgstr "Дальше по треду"
+
+#: src/config/commands.cpp:84
 msgid "Marks"
 msgstr "Пометки"
 
-#: src/config/commands.cpp:82
+#: src/config/commands.cpp:85
 msgid "Mark a run of messages at once"
 msgstr "Пометить сразу несколько сообщений"
 
-#: src/config/commands.cpp:83
+#: src/config/commands.cpp:86
 msgid "Shell"
 msgstr "Шелл"
 
-#: src/config/commands.cpp:84
+#: src/config/commands.cpp:87
 msgid "Run the system shell"
 msgstr "Запустить системный шелл"
 
-#: src/config/commands.cpp:85 src/config/commands.cpp:120
+#: src/config/commands.cpp:88 src/config/commands.cpp:123
 #: src/ui/forward_dialog.cpp:121
 msgid "Copy"
 msgstr "Скопировать"
 
-#: src/config/commands.cpp:86
+#: src/config/commands.cpp:89
 msgid "Copy the message to the clipboard"
 msgstr "Скопировать сообщение в буфер обмена"
 
-#: src/config/commands.cpp:87 src/ui/hint_bar.cpp:115
+#: src/config/commands.cpp:90 src/ui/hint_bar.cpp:115
 msgid "Select"
 msgstr "Выделить"
 
-#: src/config/commands.cpp:88
+#: src/config/commands.cpp:91
 msgid "Select text in the message to copy it"
 msgstr "Выделить текст сообщения, чтобы его скопировать"
 
-#: src/config/commands.cpp:89 src/ui/export_dialog.cpp:83
-#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:458
+#: src/config/commands.cpp:92 src/ui/export_dialog.cpp:84
+#: src/ui/external_dialog.cpp:73 src/ui/setup/setup_wizard.cpp:459
 msgid "Save"
 msgstr "Сохранить"
 
-#: src/config/commands.cpp:90
+#: src/config/commands.cpp:93
 msgid "Save the message"
 msgstr "Сохранить сообщение"
 
-#: src/config/commands.cpp:92
+#: src/config/commands.cpp:95
 msgid "Attributes"
 msgstr "Атрибуты"
 
-#: src/config/commands.cpp:92
+#: src/config/commands.cpp:95
 msgid "Change the message attributes"
 msgstr "Изменить атрибуты сообщения"
 
-#: src/config/commands.cpp:93
+#: src/config/commands.cpp:96
 msgid "Import"
 msgstr "Импорт"
 
-#: src/config/commands.cpp:94
+#: src/config/commands.cpp:97
 msgid "Read a file into the message"
 msgstr "Вставить файл в сообщение"
 
-#: src/config/commands.cpp:96
+#: src/config/commands.cpp:99
 msgid "Back up into the header fields"
 msgstr "Вернуться к полям заголовка"
 
-#: src/config/commands.cpp:96 src/ui/external_dialog.cpp:79
+#: src/config/commands.cpp:99 src/ui/external_dialog.cpp:79
 msgid "Header"
 msgstr "Заголовок"
 
-#: src/config/commands.cpp:98
+#: src/config/commands.cpp:101
 msgid "Delete line"
 msgstr "Удалить строку"
 
-#: src/config/commands.cpp:98
+#: src/config/commands.cpp:101
 msgid "Delete the line the cursor is on"
 msgstr "Удалить строку под курсором"
 
-#: src/config/commands.cpp:101
+#: src/config/commands.cpp:104
 msgid "Delete quote"
 msgstr "Удалить цитату"
 
-#: src/config/commands.cpp:101
+#: src/config/commands.cpp:104
 msgid "Delete the quoted text after the cursor"
 msgstr "Удалить цитату после курсора"
 
-#: src/config/commands.cpp:104
+#: src/config/commands.cpp:107
 msgid "Delete the word before the cursor"
 msgstr "Удалить слово перед курсором"
 
-#: src/config/commands.cpp:104
+#: src/config/commands.cpp:107
 msgid "Delete word"
 msgstr "Удалить слово"
 
-#: src/config/commands.cpp:107
+#: src/config/commands.cpp:110
 msgid "Delete next word"
 msgstr "Удалить следующее слово"
 
-#: src/config/commands.cpp:107
+#: src/config/commands.cpp:110
 msgid "Delete the word after the cursor"
 msgstr "Удалить слово после курсора"
 
-#: src/config/commands.cpp:110
+#: src/config/commands.cpp:113
 msgid "A word to the left"
 msgstr "На слово влево"
 
-#: src/config/commands.cpp:110
+#: src/config/commands.cpp:113
 msgid "Word left"
 msgstr "Слово влево"
 
-#: src/config/commands.cpp:112
+#: src/config/commands.cpp:115
 msgid "A word to the right"
 msgstr "На слово вправо"
 
-#: src/config/commands.cpp:112
+#: src/config/commands.cpp:115
 msgid "Word right"
 msgstr "Слово вправо"
 
-#: src/config/commands.cpp:115
+#: src/config/commands.cpp:118
 msgid "Line start"
 msgstr "В начало строки"
 
-#: src/config/commands.cpp:115
+#: src/config/commands.cpp:118
 msgid "To the start of the line"
 msgstr "В начало строки"
 
-#: src/config/commands.cpp:116
+#: src/config/commands.cpp:119
 msgid "Line end"
 msgstr "В конец строки"
 
-#: src/config/commands.cpp:117
+#: src/config/commands.cpp:120
 msgid "To the end of the line"
 msgstr "В конец строки"
 
-#: src/config/commands.cpp:118
+#: src/config/commands.cpp:121
 msgid "Paste"
 msgstr "Вставить"
 
-#: src/config/commands.cpp:119
+#: src/config/commands.cpp:122
 msgid "Paste from the clipboard at the cursor"
 msgstr "Вставить из буфера обмена в позицию курсора"
 
-#: src/config/commands.cpp:121
+#: src/config/commands.cpp:124
 msgid "Copy the selected text to the clipboard"
 msgstr "Скопировать выделенный текст в буфер обмена"
 
-#: src/config/commands.cpp:122
+#: src/config/commands.cpp:125
 msgid "Cut"
 msgstr "Вырезать"
 
-#: src/config/commands.cpp:123
+#: src/config/commands.cpp:126
 msgid "Move the selected text to the clipboard"
 msgstr "Вырезать выделенный текст в буфер обмена"
 
-#: src/config/commands.cpp:124
+#: src/config/commands.cpp:127
 msgid "Undo"
 msgstr "Отменить"
 
-#: src/config/commands.cpp:125
+#: src/config/commands.cpp:128
 msgid "Take the last change back"
 msgstr "Отменить последнее изменение"
 
-#: src/config/commands.cpp:126
+#: src/config/commands.cpp:129
 msgid "Redo"
 msgstr "Повторить"
 
-#: src/config/commands.cpp:127
+#: src/config/commands.cpp:130
 msgid "Make the change undone again"
 msgstr "Вернуть отменённое изменение"
 
-#: src/config/commands.cpp:203
+#: src/config/commands.cpp:206
 msgid "Run the program the config names"
 msgstr "Запустить программу из конфига"
 
-#: src/config/commands.cpp:203
+#: src/config/commands.cpp:206
 msgid "Utility"
 msgstr "Утилита"
 
@@ -446,7 +454,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.11.0\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-11-06 00:13+0100\n"
+"POT-Creation-Date: 2026-11-08 17:10+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -637,29 +645,29 @@ msgstr "базу не удалось открыть"
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
 
-#: src/ui/app_shell.cpp:114
+#: src/ui/app_shell.cpp:115
 msgid ""
 "this terminal does not hand its clipboard over to programs (OSC 52 reads)"
 msgstr "этот терминал не отдаёт программам свой буфер обмена (чтение OSC 52)"
 
-#: src/ui/app_shell.cpp:117
+#: src/ui/app_shell.cpp:118
 msgid "the terminal did not answer with its clipboard"
 msgstr "терминал не прислал свой буфер обмена"
 
-#: src/ui/app_shell.cpp:121
+#: src/ui/app_shell.cpp:122
 msgid "the terminal answered with a clipboard it garbled"
 msgstr "терминал прислал буфер обмена в повреждённом виде"
 
-#: src/ui/app_shell.cpp:204
+#: src/ui/app_shell.cpp:205
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:997
+#: src/ui/app_shell.cpp:1000
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:713 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:714 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -798,42 +806,42 @@ msgstr " Атрибуты сообщения "
 msgid "space toggle · ctrl-z clear · enter done · esc cancel"
 msgstr "пробел — вкл/выкл · ctrl-z — снять всё · enter — готово · esc — отмена"
 
-#: src/ui/charset_dialog.cpp:42
+#: src/ui/charset_dialog.cpp:44
 msgid " Charset "
 msgstr " Кодировка "
 
-#: src/ui/charset_dialog.cpp:45 src/ui/setup/setup_wizard.cpp:531
+#: src/ui/charset_dialog.cpp:47 src/ui/setup/setup_wizard.cpp:532
 msgid " Charset: "
 msgstr " Кодир.:  "
 
-#: src/ui/charset_dialog.cpp:48
+#: src/ui/charset_dialog.cpp:50
 msgid "Enter read · Esc close"
 msgstr "Enter прочитать · Esc закрыть"
 
-#: src/ui/charset_dialog.cpp:53
+#: src/ui/charset_dialog.cpp:55
 msgid "Name a charset"
 msgstr "Назовите кодировку"
 
-#: src/ui/charset_dialog.cpp:58
+#: src/ui/charset_dialog.cpp:60
 msgid "Read"
 msgstr "Прочитать"
 
-#: src/ui/charset_dialog.cpp:75
+#: src/ui/charset_dialog.cpp:77
 #, c++-format
 msgid " Read as {0}, which its CHRS kludge names."
 msgstr " Читается как {0} — её называет кладж CHRS."
 
-#: src/ui/charset_dialog.cpp:78
+#: src/ui/charset_dialog.cpp:80
 #, c++-format
 msgid " Read as {0}, which you asked for."
 msgstr " Читается как {0} — так вы попросили."
 
-#: src/ui/charset_dialog.cpp:82
+#: src/ui/charset_dialog.cpp:84
 #, c++-format
 msgid " Read as {0}, the area's default."
 msgstr " Читается как {0} — умолчание области."
 
-#: src/ui/charset_dialog.cpp:152
+#: src/ui/charset_dialog.cpp:139
 #, c++-format
 msgid "{0} names no charset in particular"
 msgstr "«{0}» не называет никакой определённой кодировки"
@@ -935,65 +943,65 @@ msgstr "OK"
 msgid "Enter · Esc"
 msgstr "Enter · Esc"
 
-#: src/ui/export_dialog.cpp:68
+#: src/ui/export_dialog.cpp:69
 msgid "Enter write · Tab move · Esc close"
 msgstr "Enter записать · Tab перейти · Esc закрыть"
 
-#: src/ui/export_dialog.cpp:71
+#: src/ui/export_dialog.cpp:72
 msgid "Enter save · Tab move · Esc close"
 msgstr "Enter сохранить · Tab перейти · Esc закрыть"
 
-#: src/ui/export_dialog.cpp:74
+#: src/ui/export_dialog.cpp:75
 msgid " File: "
 msgstr " Файл: "
 
-#: src/ui/export_dialog.cpp:77
+#: src/ui/export_dialog.cpp:78
 msgid " Files: "
 msgstr " Файлы: "
 
-#: src/ui/export_dialog.cpp:87 src/ui/import_dialog.cpp:83
+#: src/ui/export_dialog.cpp:88 src/ui/import_dialog.cpp:84
 #: src/ui/setup/file_picker.cpp:132
 msgid "Path not found"
 msgstr "Путь не найден"
 
-#: src/ui/export_dialog.cpp:91
+#: src/ui/export_dialog.cpp:92
 msgid "No file name"
 msgstr "Нет имени файла"
 
-#: src/ui/export_dialog.cpp:435
+#: src/ui/export_dialog.cpp:411
 msgid "File exists:"
 msgstr "Файл уже есть:"
 
-#: src/ui/export_dialog.cpp:441
+#: src/ui/export_dialog.cpp:417
 msgid "Overwrite"
 msgstr "Переписать"
 
-#: src/ui/export_dialog.cpp:443
+#: src/ui/export_dialog.cpp:419
 msgid "Append"
 msgstr "Дописать"
 
-#: src/ui/export_dialog.cpp:446
+#: src/ui/export_dialog.cpp:422
 msgid "←→ choose · Enter confirm · o/a · Esc cancel"
 msgstr "←→ выбор · Enter подтвердить · o/a · Esc отмена"
 
-#: src/ui/export_dialog.cpp:719
+#: src/ui/export_dialog.cpp:640
 msgid " Export files "
 msgstr " Экспорт файлов "
 
-#: src/ui/export_dialog.cpp:720
+#: src/ui/export_dialog.cpp:641
 msgid " Export marked "
 msgstr " Экспорт помеченных "
 
-#: src/ui/export_dialog.cpp:721
+#: src/ui/export_dialog.cpp:642
 msgid " Export message "
 msgstr " Экспорт сообщения "
 
-#: src/ui/export_dialog.cpp:726
+#: src/ui/export_dialog.cpp:647
 #, c++-format
 msgid " Dir: {0}▌ "
 msgstr " Каталог: {0}▌ "
 
-#: src/ui/export_dialog.cpp:793 src/ui/export_mode_dialog.cpp:84
+#: src/ui/export_dialog.cpp:713 src/ui/export_mode_dialog.cpp:84
 #, c++-format
 msgid "… and {0} more"
 msgstr "… и ещё {0}"
@@ -1006,8 +1014,8 @@ msgstr "Сообщение содержит файлы в кодировке UUE
 msgid "Files"
 msgstr "Файлы"
 
-#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:659
-#: src/ui/import_dialog.cpp:662
+#: src/ui/export_mode_dialog.cpp:123 src/ui/import_dialog.cpp:595
+#: src/ui/import_dialog.cpp:598
 msgid "Text"
 msgstr "Текст"
 
@@ -1031,31 +1039,31 @@ msgstr "Сообщение, каким его оставил ваш редакт
 msgid "←→ choose · Enter confirm · s/d/c/h · ↑↓ scroll · Esc header"
 msgstr "←→ выбор · Enter подтвердить · s/d/c/h · ↑↓ прокрутка · Esc заголовок"
 
-#: src/ui/find_dialog.cpp:42
+#: src/ui/find_dialog.cpp:44
 msgid " Find "
 msgstr " Поиск "
 
-#: src/ui/find_dialog.cpp:45
+#: src/ui/find_dialog.cpp:47
 msgid " Text: "
 msgstr " Текст: "
 
-#: src/ui/find_dialog.cpp:48
+#: src/ui/find_dialog.cpp:50
 msgid "Enter find · Tab move · Esc close"
 msgstr "Enter искать · Tab перейти · Esc закрыть"
 
-#: src/ui/find_dialog.cpp:54
+#: src/ui/find_dialog.cpp:56
 msgid "Nothing to look for"
 msgstr "Нечего искать"
 
-#: src/ui/find_dialog.cpp:59
+#: src/ui/find_dialog.cpp:61
 msgid "Header + text"
 msgstr "Заголовок и текст"
 
-#: src/ui/find_dialog.cpp:62
+#: src/ui/find_dialog.cpp:64
 msgid "Header only"
 msgstr "Только заголовок"
 
-#: src/ui/find_dialog.cpp:216
+#: src/ui/find_dialog.cpp:200
 msgid " Look in:"
 msgstr " Искать в:"
 
@@ -1152,24 +1160,24 @@ msgstr "Отпустить"
 msgid "Cancel"
 msgstr "Отмена"
 
-#: src/ui/import_dialog.cpp:78
+#: src/ui/import_dialog.cpp:79
 msgid "Enter open · Tab move · Esc close"
 msgstr "Enter открыть · Tab перейти · Esc закрыть"
 
-#: src/ui/import_dialog.cpp:288
+#: src/ui/import_dialog.cpp:272
 msgid " Mode:    "
 msgstr " Режим:   "
 
-#: src/ui/import_dialog.cpp:585
+#: src/ui/import_dialog.cpp:527
 msgid " Import file "
 msgstr " Импорт файла "
 
-#: src/ui/import_dialog.cpp:590
+#: src/ui/import_dialog.cpp:532
 #, c++-format
 msgid " File: {0}▌ "
 msgstr " Файл: {0}▌ "
 
-#: src/ui/import_dialog.cpp:659 src/ui/import_dialog.cpp:665
+#: src/ui/import_dialog.cpp:595 src/ui/import_dialog.cpp:601
 msgid "UUE"
 msgstr "UUE"
 
@@ -1360,44 +1368,44 @@ msgstr " Область: {0}▌"
 msgid "Every area has been read."
 msgstr "Все области прочитаны."
 
-#: src/ui/screens/compose_screen.cpp:387
+#: src/ui/screens/compose_screen.cpp:407
 msgid "change"
 msgstr "правка"
 
-#: src/ui/screens/compose_screen.cpp:388
+#: src/ui/screens/compose_screen.cpp:408
 msgid "forward"
 msgstr "пересылка"
 
-#: src/ui/screens/compose_screen.cpp:389
+#: src/ui/screens/compose_screen.cpp:409
 msgid "moved reply"
 msgstr "ответ в другой области"
 
-#: src/ui/screens/compose_screen.cpp:390
+#: src/ui/screens/compose_screen.cpp:410
 msgid "reply"
 msgstr "ответ"
 
-#: src/ui/screens/compose_screen.cpp:391
+#: src/ui/screens/compose_screen.cpp:411
 msgid "new message"
 msgstr "новое сообщение"
 
-#: src/ui/screens/compose_screen.cpp:987
+#: src/ui/screens/compose_screen.cpp:1007
 #, c++-format
 msgid ""
 "The message was not stored: {0} It is still here, and nothing has been lost."
 msgstr "Сообщение не сохранено: {0} Оно осталось здесь, ничего не потеряно."
 
-#: src/ui/screens/compose_screen.cpp:1496
+#: src/ui/screens/compose_screen.cpp:1516
 #, c++-format
 msgid ""
 "No copy was made for: {0}. The lines naming them are still in the message."
 msgstr "Копия не сделана для: {0}. Строки с ними остались в сообщении."
 
-#: src/ui/screens/compose_screen.cpp:1502
+#: src/ui/screens/compose_screen.cpp:1522
 #, c++-format
 msgid "The copy did not reach: {0}. The message itself is stored."
 msgstr "Копия не дошла до: {0}. Само сообщение сохранено."
 
-#: src/ui/screens/compose_screen.cpp:1528
+#: src/ui/screens/compose_screen.cpp:1548
 #, c++-format
 msgid ""
 "{0} is open for reading only: its files are not yours to write, so nothing "
@@ -1406,16 +1414,16 @@ msgstr ""
 "{0} открыта только для чтения: её файлы вам не принадлежат, так что писать в "
 "неё и править в ней ничего нельзя."
 
-#: src/ui/screens/message_read_screen.cpp:596
+#: src/ui/screens/message_read_screen.cpp:603
 msgid "This is a twit message. Press Space to view it"
 msgstr "Сообщение из твит-листа. Нажмите пробел, чтобы прочитать его"
 
-#: src/ui/screens/message_read_screen.cpp:2173
+#: src/ui/screens/message_read_screen.cpp:2187
 #, c++-format
 msgid " from {0}"
 msgstr " из {0}"
 
-#: src/ui/screens/message_read_screen.cpp:2194
+#: src/ui/screens/message_read_screen.cpp:2208
 msgid " empty"
 msgstr " пусто"
 
@@ -1436,218 +1444,218 @@ msgstr "записано: {0}"
 msgid "Start AmberEdit from this directory."
 msgstr "Запускайте AmberEdit из этого каталога."
 
-#: src/ui/setup/setup_wizard.cpp:53
+#: src/ui/setup/setup_wizard.cpp:54
 msgid "Enter open · Tab move · Esc leave"
 msgstr "Enter открыть · Tab перейти · Esc выйти"
 
-#: src/ui/setup/setup_wizard.cpp:54
+#: src/ui/setup/setup_wizard.cpp:55
 msgid "Enter goes back · Tab move · Esc leave"
 msgstr "Enter назад · Tab перейти · Esc выйти"
 
-#: src/ui/setup/setup_wizard.cpp:55
+#: src/ui/setup/setup_wizard.cpp:56
 msgid "Enter skips this · Tab move · Esc leave"
 msgstr "Enter пропустить · Tab перейти · Esc выйти"
 
-#: src/ui/setup/setup_wizard.cpp:58
+#: src/ui/setup/setup_wizard.cpp:59
 msgid "Enter writes the config · Tab move · Esc leave"
 msgstr "Enter записать конфиг · Tab перейти · Esc выйти"
 
-#: src/ui/setup/setup_wizard.cpp:59
+#: src/ui/setup/setup_wizard.cpp:60
 msgid "Enter goes on · Tab move · Esc leave"
 msgstr "Enter дальше · Tab перейти · Esc выйти"
 
-#: src/ui/setup/setup_wizard.cpp:62
+#: src/ui/setup/setup_wizard.cpp:63
 msgid "Enter next field · Tab move · Esc leave"
 msgstr "Enter следующее поле · Tab перейти · Esc выйти"
 
-#: src/ui/setup/setup_wizard.cpp:65
+#: src/ui/setup/setup_wizard.cpp:66
 msgid "Esc again to leave — nothing has been written"
 msgstr "Esc ещё раз, чтобы выйти — ничего не записано"
 
-#: src/ui/setup/setup_wizard.cpp:81
+#: src/ui/setup/setup_wizard.cpp:82
 msgid "HPT (Fidoconfig)"
 msgstr "HPT (Fidoconfig)"
 
-#: src/ui/setup/setup_wizard.cpp:87
+#: src/ui/setup/setup_wizard.cpp:88
 msgid "Looking for an areas.bbs."
 msgstr "Ищется areas.bbs."
 
-#: src/ui/setup/setup_wizard.cpp:88
+#: src/ui/setup/setup_wizard.cpp:89
 msgid "Looking for a squish.cfg."
 msgstr "Ищется squish.cfg."
 
-#: src/ui/setup/setup_wizard.cpp:91
+#: src/ui/setup/setup_wizard.cpp:92
 msgid "An HPT config is called whatever your sysop called it."
 msgstr "Конфиг HPT, он же FIDOCONFIG."
 
-#: src/ui/setup/setup_wizard.cpp:239
+#: src/ui/setup/setup_wizard.cpp:240
 msgid "pick your tosser's config — it is where the areas come from"
 msgstr "выберите конфиг вашего тоссера — области берутся из него"
 
-#: src/ui/setup/setup_wizard.cpp:336
+#: src/ui/setup/setup_wizard.cpp:337
 msgid "pick a nodelist, or Skip — AmberEdit reads mail without one"
 msgstr ""
 "выберите нодлист или нажмите «Пропустить» — AmberEdit читает почту и без него"
 
-#: src/ui/setup/setup_wizard.cpp:340
+#: src/ui/setup/setup_wizard.cpp:341
 msgid "say where the compiled nodelist goes"
 msgstr "укажите, куда класть скомпилированный нодлист"
 
-#: src/ui/setup/setup_wizard.cpp:456
+#: src/ui/setup/setup_wizard.cpp:457
 msgid "Skip"
 msgstr "Пропустить"
 
-#: src/ui/setup/setup_wizard.cpp:457
+#: src/ui/setup/setup_wizard.cpp:458
 msgid "Back"
 msgstr "Назад"
 
-#: src/ui/setup/setup_wizard.cpp:458
+#: src/ui/setup/setup_wizard.cpp:459
 msgid "Next"
 msgstr "Дальше"
 
-#: src/ui/setup/setup_wizard.cpp:473
+#: src/ui/setup/setup_wizard.cpp:474
 msgid " General parameters — step 1 of 7 "
 msgstr " Общие параметры — шаг 1 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:474
+#: src/ui/setup/setup_wizard.cpp:475
 msgid " Tosser config file — step 2 of 7 "
 msgstr " Конфиг тоссера — шаг 2 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:475
+#: src/ui/setup/setup_wizard.cpp:476
 msgid " Incoming charset — step 3 of 7 "
 msgstr " Кодировка входящих — шаг 3 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:476
+#: src/ui/setup/setup_wizard.cpp:477
 msgid " Outgoing charset — step 4 of 7 "
 msgstr " Кодировка исходящих — шаг 4 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:477
+#: src/ui/setup/setup_wizard.cpp:478
 msgid " Config file charset — step 5 of 7 "
 msgstr " Кодировка конфигов — шаг 5 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:478
+#: src/ui/setup/setup_wizard.cpp:479
 msgid " Nodelist file — step 6 of 7 "
 msgstr " Файл нодлиста — шаг 6 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:481
+#: src/ui/setup/setup_wizard.cpp:482
 msgid " The config to write — step 7 of 7 "
 msgstr " Какой конфиг записать — шаг 7 из 7 "
 
-#: src/ui/setup/setup_wizard.cpp:485
+#: src/ui/setup/setup_wizard.cpp:486
 msgid "Who the messages you write are from."
 msgstr "От кого будут сообщения, которые вы пишете."
 
-#: src/ui/setup/setup_wizard.cpp:488
+#: src/ui/setup/setup_wizard.cpp:489
 msgid " Name:    "
 msgstr " Имя:     "
 
-#: src/ui/setup/setup_wizard.cpp:489
+#: src/ui/setup/setup_wizard.cpp:490
 msgid " Address: "
 msgstr " Адрес:   "
 
-#: src/ui/setup/setup_wizard.cpp:492
+#: src/ui/setup/setup_wizard.cpp:493
 msgid "e.g. John Doe, 2:382/9999"
 msgstr "напр. Vasya Pupkin, 2:5020/9999"
 
-#: src/ui/setup/setup_wizard.cpp:494
+#: src/ui/setup/setup_wizard.cpp:495
 msgid "Your areas come from your tosser's config, which is:"
 msgstr "Тип конфига тоссера:"
 
-#: src/ui/setup/setup_wizard.cpp:517
+#: src/ui/setup/setup_wizard.cpp:518
 msgid "The charset THIS CONFIG FILE and the files it names"
 msgstr "Кодировка, в которой написан ЭТОТ КОНФИГ и файлы,"
 
-#: src/ui/setup/setup_wizard.cpp:519
+#: src/ui/setup/setup_wizard.cpp:520
 msgid "are written in — your tosser's config, the template."
 msgstr "на которые он ссылается — конфиг тоссера, темплейт."
 
-#: src/ui/setup/setup_wizard.cpp:523
+#: src/ui/setup/setup_wizard.cpp:524
 msgid "The charset in which the message you READ, when it has"
 msgstr "Кодировка, в которой вы ЧИТАЕТЕ сообщение, когда"
 
-#: src/ui/setup/setup_wizard.cpp:524
+#: src/ui/setup/setup_wizard.cpp:525
 msgid "The charset in which the message you WRITE is"
 msgstr "Кодировка, в которой вы ПИШЕТЕ сообщение"
 
-#: src/ui/setup/setup_wizard.cpp:528
+#: src/ui/setup/setup_wizard.cpp:529
 msgid "no CHRS kludge — or it says something like IBMPC 2."
 msgstr "у него нет клуджа CHRS — или там что-то вроде IBMPC 2."
 
-#: src/ui/setup/setup_wizard.cpp:533
+#: src/ui/setup/setup_wizard.cpp:534
 msgid "Depends on your existing setup"
 msgstr "Зависит от вашей системы"
 
-#: src/ui/setup/setup_wizard.cpp:534
+#: src/ui/setup/setup_wizard.cpp:535
 msgid "e.g. CP866 or CP437 or LATIN-1"
 msgstr "напр. CP866, или CP437, или LATIN-1"
 
-#: src/ui/setup/setup_wizard.cpp:535
+#: src/ui/setup/setup_wizard.cpp:536
 msgid "e.g. UTF-8 or CP866 or CP437 or LATIN-1"
 msgstr "напр. UTF-8, или CP866, или CP437, или LATIN-1"
 
-#: src/ui/setup/setup_wizard.cpp:540
+#: src/ui/setup/setup_wizard.cpp:541
 msgid "A nodelist, to look addresses and sysops up in."
 msgstr "Нодлист, чтобы искать в нём адреса и сисопов."
 
-#: src/ui/setup/setup_wizard.cpp:542
+#: src/ui/setup/setup_wizard.cpp:543
 msgid "It may be a ZIP archive. Skip if you have none."
 msgstr "Это может быть ZIP-архив. Пропустите, если его нет."
 
-#: src/ui/setup/setup_wizard.cpp:548
+#: src/ui/setup/setup_wizard.cpp:549
 msgid " Compiled to: "
 msgstr " Компилировать в: "
 
-#: src/ui/setup/setup_wizard.cpp:570 src/ui/setup/setup_wizard.cpp:579
+#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:580
 msgid "Address:"
 msgstr "Адрес:"
 
-#: src/ui/setup/setup_wizard.cpp:570 src/ui/setup/setup_wizard.cpp:578
+#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:579
 msgid "Name:"
 msgstr "Имя:"
 
-#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:580
+#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:581
 msgid "Areas:"
 msgstr "Области:"
 
-#: src/ui/setup/setup_wizard.cpp:571 src/ui/setup/setup_wizard.cpp:582
+#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:583
 msgid "Charset:"
 msgstr "Кодировка:"
 
-#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:585
+#: src/ui/setup/setup_wizard.cpp:573 src/ui/setup/setup_wizard.cpp:586
 msgid "Files in:"
 msgstr "Файлы в:"
 
-#: src/ui/setup/setup_wizard.cpp:572 src/ui/setup/setup_wizard.cpp:586
+#: src/ui/setup/setup_wizard.cpp:573 src/ui/setup/setup_wizard.cpp:587
 msgid "Nodelist:"
 msgstr "Нодлист:"
 
-#: src/ui/setup/setup_wizard.cpp:583
+#: src/ui/setup/setup_wizard.cpp:584
 #, c++-format
 msgid "{0} read, {1} written"
 msgstr "{0} на чтение, {1} на запись"
 
-#: src/ui/setup/setup_wizard.cpp:586
+#: src/ui/setup/setup_wizard.cpp:587
 msgid "none"
 msgstr "нет"
 
-#: src/ui/setup/setup_wizard.cpp:589
+#: src/ui/setup/setup_wizard.cpp:590
 msgid " Config: "
 msgstr " Конфиг: "
 
-#: src/ui/setup/setup_wizard.cpp:590
+#: src/ui/setup/setup_wizard.cpp:591
 msgid "The whole commented config, with your answers in it."
 msgstr "Весь конфиг с комментариями и вашими ответами в нём."
 
-#: src/ui/setup/setup_wizard.cpp:597
+#: src/ui/setup/setup_wizard.cpp:598
 #, c++-format
 msgid "The setup wizard needs {0}x{1}, this window is {2}x{3}."
 msgstr "Мастеру настройки нужно {0}x{1}, а это окно {2}x{3}."
 
-#: src/ui/setup/setup_wizard.cpp:601
+#: src/ui/setup/setup_wizard.cpp:602
 msgid "Make it bigger, or Esc to leave."
 msgstr "Растяните его или нажмите Esc, чтобы выйти."
 
-#: src/ui/setup/setup_wizard.cpp:717
+#: src/ui/setup/setup_wizard.cpp:741
 msgid "Where your tosser's config is."
 msgstr "Где лежит конфиг вашего тоссера."
 
@@ -1747,7 +1755,7 @@ msgstr "по пути {0} уже есть файл"
 msgid "there is no directory {0}"
 msgstr "каталога {0} нет"
 
-#: src/ui/theme.cpp:285
+#: src/ui/theme.cpp:291
 msgid ""
 "this terminal reports no color at all, so the interface is drawn in whatever "
 "two colors the terminal itself uses. If it does have color after all, "
@@ -1757,7 +1765,7 @@ msgstr ""
 "теми двумя цветами, которыми терминал пользуется сам. Если цвет всё же есть, "
 "color_warning off в конфиге убирает это сообщение."
 
-#: src/ui/theme.cpp:291
+#: src/ui/theme.cpp:297
 #, c++-format
 msgid ""
 "colors may be distorted: this terminal can show only {0} colors, which is "

@@ -2831,3 +2831,28 @@ TEST_CASE(
     }
     CHECK(amberedit::test::contains(all, "│  Copied  │"));
 }
+
+TEST_CASE("The next answer to the same message is shown as *N and gone to by * "
+          "[messageread][squish]") {
+    TempSquishBase base;
+    AreaFixture fixture(base.path());
+    REQUIRE(message_list::enterArea(fixture.state, fixture.area).has_value());
+
+    // After the other two markers, in the order the reader reads them: what the
+    // message answers, what answers it, and the next answer beside it.
+    fixture.state.readThread.replyTo = 5;
+    fixture.state.readThread.replies = {9};
+    fixture.state.readThread.replyNext = 7;
+    const std::string title = rowsOf(fixture)[0];
+    CHECK_MESSAGE(title.find(" -5 +9 *7") != std::string::npos, title);
+
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('*')));
+    REQUIRE(fixture.state.readHeader.has_value());
+    CHECK(fixture.state.readHeader->number == 7);
+
+    // Where there is no next answer there is no marker, and the key stays put.
+    fixture.state.readThread = {};
+    CHECK(rowsOf(fixture)[0].find(" *") == std::string::npos);
+    REQUIRE(message_read::handleEvent(fixture.state, Event::Character('*')));
+    CHECK(fixture.state.readHeader->number == 7);
+}

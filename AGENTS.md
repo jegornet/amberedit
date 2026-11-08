@@ -798,6 +798,16 @@ Rules that hold the design together:
   scope](#current-scope). What says the same thing to the network is the
   `^AREPLY` line of FTS-0009, which `buildDraft()` writes from the answered
   message's MSGID whatever `reply_link` says.
+- **The thread is three links, and `*` walks the third.** `MessageThread` is
+  what a message answers (`-`), what answers it (`+`) and the next answer to
+  the message it answers (`*`, `reader.thread_next`), and the reader's title
+  draws a marker for each one there is, in that order. `FtnMsgBase::thread()`
+  works the third out: JAM's own ReplyNext where it names a message still here,
+  and otherwise the answer after this one among the replies the message
+  answered keeps — Squish and Fido `*.msg` keep no link from one answer to the
+  next. One header more read per message opened, and only for an answer. A
+  marker is drawn only where its key would go somewhere, so `*` on the last
+  answer, like `-` on a message answering none, shows nothing and does nothing.
 - **The three lastread files have code of their own**, apart from the format
   drivers: `msgbase/lastread_file.*` does the byte-level I/O, one store per
   format sits on top, and `MsgBaseLastReadStore` picks between them by base type.

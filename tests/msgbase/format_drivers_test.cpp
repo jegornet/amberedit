@@ -745,3 +745,45 @@ TEST_CASE("Rcv is mirrored in the Squish index record [squish]") {
     // And the hash of the recipient's name under it is untouched.
     CHECK((after & 0x7fffffffu) == (before & 0x7fffffffu));
 }
+
+TEST_CASE("The next answer to the same message is read off the message answered "
+          "[squish]") {
+    // A message answered three times, linked the way a tosser links them: the
+    // answers name it, and it names the three of them. Squish keeps no link
+    // from one answer to the next, so that one is read off the message
+    // answered.
+    TempDir dir;
+    const std::string path = (dir.path() / "echo").string();
+    REQUIRE(SquishBase().create(path).has_value());
+    {
+        SquishBase driver;
+        REQUIRE(driver.open(path, /*echo=*/true, 2).has_value());
+        std::vector<amberedit::msgbase::RawDraft> drafts(4);
+        for (auto& draft : drafts) draft.text = "text\r";
+        // A fresh Squish base hands out UMSGIDs from 1, in the order written.
+        drafts[0].header.replies = {2, 3, 4};
+        for (size_t i = 1; i < drafts.size(); ++i) drafts[i].header.replyTo = 1;
+        REQUIRE(driver.writeAll(drafts).written == 4);
+        REQUIRE(driver.uidOf(4) == 4);
+    }
+
+    AreaConfig area;
+    area.tag = "echo";
+    area.kind = AreaKind::Echo;
+    area.path = path;
+    area.type = MsgBaseType::Squish;
+    FtnMsgBase msgbase("CP866");
+    REQUIRE(msgbase.open(area).has_value());
+
+    CHECK(msgbase.thread(1).replyNext == 0);  // answers nothing
+    CHECK(msgbase.thread(2).replyNext == 3);
+    CHECK(msgbase.thread(3).replyNext == 4);
+    CHECK(msgbase.thread(4).replyNext == 0);  // the last answer
+    CHECK_FALSE(msgbase.thread(4).empty());
+
+    // An answer since deleted is stepped over to the one after it, which is
+    // the third message now.
+    REQUIRE(msgbase.remove(3).has_value());
+    CHECK(msgbase.thread(2).replyNext == 3);
+    CHECK(msgbase.thread(3).replyNext == 0);
+}
