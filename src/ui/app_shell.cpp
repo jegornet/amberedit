@@ -39,9 +39,11 @@
 #include "ui/mark_dialog.hpp"
 #include "ui/menu_dialog.hpp"
 #include "ui/nodelist_dialog.hpp"
+#include "ui/output_dialog.hpp"
 #include "ui/progress_dialog.hpp"
 #include "ui/reply_dialog.hpp"
 #include "ui/rescan_dialog.hpp"
+#include "ui/running_dialog.hpp"
 #include "ui/scope_dialog.hpp"
 #include "ui/screens/area_list_screen.hpp"
 #include "ui/screens/compose_screen.hpp"
@@ -224,6 +226,10 @@ Element document(AppState& state) {
     if (state.infoView) {
         body = info_dialog::render(state, std::move(body));
     }
+    // What a `-printresult` utility wrote, over whichever screen ran it.
+    if (state.outputView) {
+        body = output_dialog::render(state, std::move(body));
+    }
     // Over whichever of the four screens is up, F1 being answered on all of
     // them — and over none of the boxes above, which answer for themselves.
     if (state.helpView) {
@@ -286,6 +292,11 @@ Element document(AppState& state) {
     // the message being read as readily as over the list.
     if (state.rescanning) {
         body = rescan_dialog::render(state, std::move(body));
+    }
+    // The same over a `-noterm` utility being waited for, which blocks the loop
+    // the same way and is up for exactly as long.
+    if (!state.externUtilRunning.empty()) {
+        body = running_dialog::render(state, std::move(body));
     }
     // And the same for a long run over the marked messages, which blocks the
     // loop in exactly the same way. Neither can be up while anything else is:
@@ -500,27 +511,33 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
 
         // An external utility, which is the shell with the program named in
         // advance: the same frame's wait, the same handover, and the same
-        // silence about what it exited with.
+        // silence about what it exited with — where it runs as the line writes
+        // it with no option. `-noterm` is waited for with the screen left up
+        // and the running modal over it; `-detach` is started and left, and
+        // nothing that follows a program coming back follows it.
         //
         // Which screen asked decides one thing and one only — what `$msg` is,
         // where the line writes it down. The program is the slot's whatever
         // screen ran it.
         if (state.externUtilRequested) {
+            using Run = config::ExternUtil::Run;
             const Command command = *state.externUtilRequested;
             state.externUtilRequested.reset();
             const auto slot = Commands::externUtilOf(command);
-            const std::vector<std::string>& words =
-                state.config.externUtils[*slot].command;
+            const config::ExternUtil& util = state.config.externUtils[*slot];
+            const std::vector<std::string>& words = util.command;
             const bool onMessage = extern_util::handsOverMessage(state, command);
 
             std::string failed;
             // Made before the handover, exactly as the editor's is below: a
             // `tmpdir` that will not take the file is a failure with nothing to
             // hand the screen over for, and the box saying so wants the screen
-            // this still has.
+            // this still has. No file at all where the line writes no `$msg`.
             std::string path;
             if (onMessage) {
-                auto made = app::externUtilMsgPath(state.config.tempDirPath);
+                auto made = util.run == Run::Detached
+                                ? app::externUtilDetachedPath(state.config.tempDirPath)
+                                : app::externUtilMsgPath(state.config.tempDirPath);
                 if (made) {
                     path = *made;
                 } else {
@@ -528,37 +545,64 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 }
             }
             app::ExternalEdit left;
-            if (failed.empty()) {
-                terminal.handOver(
-                    [&state, &command, &words, onMessage, &path, &left, &failed] {
-                        if (!onMessage) {
-                            const auto ran =
-                                app::runProgram(app::commandWithMessageFile(words, path));
-                            if (!ran) failed = ran.error()->message();
-                            return;
-                        }
-                        // `msg_file_charset`, for the reason the editor below
-                        // is handed it: the file is one the config says how to
-                        // write, and a utility on this machine reads one the
-                        // same way an editor on it does.
-                        auto ran = app::runUtilOnMessage(
-                            words, path, extern_util::messageFor(state, command),
-                            state.config.msgFileCharset);
-                        if (!ran) {
-                            failed = ran.error()->message();
+            const auto runIt = [&state, &command, &util, &words, onMessage, &path, &left,
+                                &failed] {
+                if (!onMessage) {
+                    const std::vector<std::string> line =
+                        app::commandWithMessageFile(words, path);
+                    if (util.run == Run::PrintResult) {
+                        auto printed = app::runProgramForOutput(line);
+                        if (!printed) {
+                            failed = printed.error()->message();
                         } else {
-                            left = std::move(*ran);
+                            left.output = std::move(*printed);
                         }
-                    });
+                        return;
+                    }
+                    const auto ran = util.run == Run::Terminal ? app::runProgram(line)
+                                     : util.run == Run::NoTerminal
+                                         ? app::runProgramWithoutTerminal(line)
+                                         : app::startProgram(line);
+                    if (!ran) failed = ran.error()->message();
+                    return;
+                }
+                // `msg_file_charset`, for the reason the editor below is handed
+                // it: the file is one the config says how to write, and a
+                // utility on this machine reads one the same way an editor on
+                // it does.
+                auto ran = app::runUtilOnMessage(words, util.run, path,
+                                                 extern_util::messageFor(state, command),
+                                                 state.config.msgFileCharset);
+                if (!ran) {
+                    failed = ran.error()->message();
+                } else {
+                    left = std::move(*ran);
+                }
+            };
+            if (failed.empty()) {
+                switch (util.run) {
+                    case Run::Terminal: terminal.handOver(runIt); break;
+                    case Run::NoTerminal:
+                    case Run::PrintResult:
+                        // The frame with the modal on it goes out before the
+                        // wait, there being no other moment to draw one.
+                        state.externUtilRunning = util.title;
+                        state.drawFrame();
+                        runIt();
+                        state.externUtilRunning.clear();
+                        break;
+                    case Run::Detached: runIt(); break;
+                }
             }
             if (!failed.empty()) {
                 state.errorMessage = failed;
                 // Whichever screen asked is still standing behind the box, and
                 // is where acknowledging it leaves the user.
                 state.errorEndsScreen = false;
-            } else {
+            } else if (util.run != Run::Detached) {
                 // And the same on the way back, for the same reason: a utility
-                // is a program that had the base to itself.
+                // is a program that had the base to itself. A detached one has
+                // not come back, and there is no moment at which it does.
                 takeSize();
                 after_handover::refresh(state);
                 // What the utility made of the message, where it was handed
@@ -569,10 +613,20 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 if (onMessage && Commands::of(command).screen == CommandScreen::Compose) {
                     screens::compose::externUtilReturned(state, std::move(left.lines));
                 }
+                // And what it wrote while it ran, where the line asked for it
+                // to be shown — read in `msg_file_charset`, the charset the
+                // config says programs on this machine are spoken to in.
+                if (util.run == Run::PrintResult) {
+                    output_dialog::open(
+                        state, util.title,
+                        app::outputLines(left.output.bytes, state.config.msgFileCharset),
+                        left.output.cut);
+                }
             }
-            // Whatever was typed while the utility had the terminal was aimed
-            // at it and not at the screen coming back.
-            terminal.flushInput();
+            // Whatever was typed while the utility ran was aimed at it, or at a
+            // screen nobody was answering for, and not at the screen coming
+            // back. A detached one took no time to start.
+            if (util.run != Run::Detached) terminal.flushInput();
             continue;
         }
 
@@ -1138,6 +1192,13 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
                 state.replyChoices.clear();
                 screens::message_read::goToMessage(state, number);
             }
+            continue;
+        }
+
+        // A utility's output shows and does not ask in the same way, and puts
+        // itself away.
+        if (state.outputView) {
+            output_dialog::handleEvent(state, event);
             continue;
         }
 

@@ -139,6 +139,34 @@ struct AppState {
     };
     std::optional<HelpView> helpView;
 
+    /// What an `extern_utilN -printresult` utility wrote, shown once it has
+    /// ended. Absent when it is not up; it is modal and remembers nothing
+    /// between two runs.
+    ///
+    /// The lines are the program's, kept as it wrote them; the rows are those
+    /// lines wrapped to the box, worked out again only where the window has
+    /// changed size — a box measured against what it holds would be another
+    /// size for every program.
+    struct OutputView {
+        /// The utility's title, which is what the box is called.
+        std::string title;
+        std::vector<std::string> lines;
+        /// Whether the program wrote more than was kept.
+        bool cut{false};
+        std::vector<std::string> rows;
+        int scroll{0};
+        int inner{0};
+        int visible{1};
+        bool scrollbar{false};
+        int layoutWidth{0};
+        int layoutHeight{0};
+        /// Where the box and its OK button landed on the last frame, for a
+        /// click.
+        term::Box box;
+        term::Box okBox;
+    };
+    std::optional<OutputView> outputView;
+
     // --- area list --------------------------------------------------------
     int areaCursor{0};
     int areaOffset{0};
@@ -344,6 +372,11 @@ struct AppState {
     /// different answers to `$msg` — nothing on the area list, a message to look
     /// at in the reader, a message to make something of in the editor.
     std::optional<config::Command> externUtilRequested;
+    /// The title of the `-noterm` utility being waited for, as the modal names
+    /// it, and empty while none is. Set by the shell around the run and
+    /// cleared by it after: the loop is blocked in between, so nothing else
+    /// ever sees it set but the frame drawn from inside that wait.
+    std::string externUtilRunning;
 
     // --- the clipboard ------------------------------------------------------
     /// What `clipboard internal` holds: the text `reader.copy` last put there,
@@ -1753,6 +1786,7 @@ struct AppState {
         ConfirmYes,  ///< the confirmation dialog's answers
         ConfirmNo,
         ErrorOk,           ///< the one button of the error box
+        OutputOk,          ///< the one button of a utility's output box
         ForwardChoice,     ///< one of Forward/Move/Copy, which `pressedLink` says
         ExportChoice,      ///< one of the export's two, which `pressedLink` says
         ExistingChoice,    ///< Overwrite or Append, where a file was already there

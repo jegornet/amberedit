@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -36,6 +37,10 @@ struct CommandOutput {
     CommandStage stage{CommandStage::Started};
     std::string reason;
     std::string output;
+    /// Whether the program wrote more than the limit it was read with, and
+    /// `output` holds only the front of it. Never set by `readFromCommand()`,
+    /// which reads with none.
+    bool cut{false};
 };
 
 /// Runs `command` with `input` on its standard input, and waits for it to end.
@@ -54,6 +59,36 @@ struct CommandOutput {
 /// standard output gathered, and waits for it to end. Its standard error goes
 /// nowhere, for the reason `feedCommand()` gives.
 [[nodiscard]] CommandOutput readFromCommand(const std::vector<std::string>& command);
+
+/// Runs `command` with nothing on its standard input and waits for it to end,
+/// gathering what it writes to its standard output and its standard error
+/// together, in the order it wrote them — one pipe behind both descriptors, as
+/// a terminal would have shown them.
+///
+/// The first `limit` bytes are kept and the rest is read and thrown away, so a
+/// program with a great deal to say neither costs the memory nor blocks on a
+/// pipe nobody is reading; `cut` says it happened.
+[[nodiscard]] CommandOutput readOutputOf(const std::vector<std::string>& command,
+                                         size_t limit);
+
+/// Runs `command` and waits for it to end, with the terminal left where it is
+/// and nothing of it given to the program: its standard input, output and error
+/// are the null device. What it exits with is not reported, as for
+/// `runCommand()`.
+[[nodiscard]] CommandResult runWithoutTerminal(const std::vector<std::string>& command);
+
+/// Starts `command` and comes back as soon as it is running, never waiting for
+/// it to end.
+///
+/// It is given nothing of the terminal, as `runWithoutTerminal()` gives it
+/// nothing, and is put in a session of its own on POSIX and a process group of
+/// its own on Windows, so that neither the keys the terminal turns into signals
+/// nor the terminal going away reach it. Nor is it left for AmberEdit to reap:
+/// on POSIX it is the grandchild of a fork whose child exits at once, so that
+/// whatever outlives this process is not a zombie of it meanwhile.
+///
+/// `NotWaited` never comes back: there is nothing that is waited for.
+[[nodiscard]] CommandResult startDetached(const std::vector<std::string>& command);
 
 /// The user's own interactive shell.
 ///

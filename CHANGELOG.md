@@ -5,6 +5,7 @@
 - add reader.thread_next on `*`: the next answer to the message this one answers
 - dialog fields edit text as a header field does; Ctrl-F selects the last search
 - add theme roles dialog_focused_field and dialog_focused_text, the focused field in a dialog; left out, they are focused_field and focused_text
+- extern_utilN takes a run mode before the title: -noterm waits for the utility without handing it the terminal, -printresult does the same and then shows what it wrote to stdout and stderr in a scrollable box, -detach starts it in the background and does not wait
 
 ## 0.11.0 — 2026-11-07
 

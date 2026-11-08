@@ -32,6 +32,7 @@ enum class Addressee : uint8_t {
     Scope,
     Info,
     Replies,
+    Output,
     Help,
 };
 
@@ -52,6 +53,7 @@ enum class Addressee : uint8_t {
     if (state.scopePicker) return Addressee::Scope;
     if (state.infoView) return Addressee::Info;
     if (!state.replyChoices.empty()) return Addressee::Replies;
+    if (state.outputView) return Addressee::Output;
     if (state.helpView) return Addressee::Help;
     return Addressee::Screen;
 }

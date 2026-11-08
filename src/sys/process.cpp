@@ -65,6 +65,16 @@ CommandResult failedToStart(std::string reason) {
     return {CommandStage::NotStarted, std::move(reason)};
 }
 
+/// What was read off the program's output, kept up to `limit` bytes and the
+/// rest let go — still read, so that the program is never left blocked on a
+/// full pipe.
+void keep(CommandOutput& result, const char* bytes, size_t count, size_t limit) {
+    const size_t room =
+        result.output.size() < limit ? limit - result.output.size() : size_t{0};
+    if (count > room) result.cut = true;
+    result.output.append(bytes, std::min(count, room));
+}
+
 #ifdef _WIN32
 
 /// The system's words for the last failure, in the user's own language since
@@ -218,7 +228,8 @@ bool openPipe(Handle& read, Handle& write, bool childReads) {
 
 /// The run behind `feedCommand()` and `readFromCommand()`, as on POSIX.
 CommandOutput runPiped(const std::vector<std::string>& command, const std::string* input,
-                       bool gather) {
+                       bool gather, bool withErrors = false,
+                       size_t limit = std::string::npos) {
     if (command.empty()) return {};
 
     std::string line;
@@ -255,7 +266,7 @@ CommandOutput runPiped(const std::vector<std::string>& command, const std::strin
     startup.dwFlags = STARTF_USESTDHANDLES;
     startup.hStdInput = input != nullptr ? inRead.get() : nowhere.get();
     startup.hStdOutput = gather ? outWrite.get() : nowhere.get();
-    startup.hStdError = nowhere.get();
+    startup.hStdError = gather && withErrors ? outWrite.get() : nowhere.get();
     PROCESS_INFORMATION process{};
 
     // No console of its own: the program is not being given the terminal, and
@@ -291,7 +302,7 @@ CommandOutput runPiped(const std::vector<std::string>& command, const std::strin
         DWORD got = 0;
         while (::ReadFile(outRead.get(), buffer, sizeof(buffer), &got, nullptr) != 0 &&
                got > 0) {
-            result.output.append(buffer, got);
+            keep(result, buffer, got, limit);
         }
         outRead.close();
     }
@@ -312,6 +323,43 @@ CommandResult feedCommand(const std::vector<std::string>& command,
 
 CommandOutput readFromCommand(const std::vector<std::string>& command) {
     return runPiped(command, nullptr, /*gather=*/true);
+}
+
+CommandOutput readOutputOf(const std::vector<std::string>& command, size_t limit) {
+    return runPiped(command, nullptr, /*gather=*/true, /*withErrors=*/true, limit);
+}
+
+CommandResult runWithoutTerminal(const std::vector<std::string>& command) {
+    CommandOutput ran = runPiped(command, nullptr, /*gather=*/false);
+    return {ran.stage, std::move(ran.reason)};
+}
+
+CommandResult startDetached(const std::vector<std::string>& command) {
+    if (command.empty()) return {};
+
+    std::string line;
+    for (const std::string& word : command) {
+        if (!line.empty()) line += ' ';
+        appendQuoted(line, word);
+    }
+    std::wstring mutableLine = widen(line);
+    mutableLine.push_back(L'\0');
+
+    STARTUPINFOW startup{};
+    startup.cb = sizeof(startup);
+    PROCESS_INFORMATION process{};
+
+    // No handle inherited and no console at all: the console is AmberEdit's,
+    // and a program left running would otherwise go on writing into it — or
+    // be closed with it.
+    if (::CreateProcessW(nullptr, mutableLine.data(), nullptr, nullptr, FALSE,
+                         DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP, nullptr, nullptr,
+                         &startup, &process) == 0) {
+        return failedToStart(lastErrorText());
+    }
+    ::CloseHandle(process.hThread);
+    ::CloseHandle(process.hProcess);
+    return {};
 }
 
 std::string userShellPath() {
@@ -523,7 +571,8 @@ private:
 /// not, its standard output gathered where `gather` asks and thrown away where
 /// it does not, and its standard error thrown away always.
 CommandOutput runPiped(const std::vector<std::string>& command, const std::string* input,
-                       bool gather) {
+                       bool gather, bool withErrors = false,
+                       size_t limit = std::string::npos) {
     if (command.empty()) return {};
 
     std::vector<std::string> words = command;
@@ -552,7 +601,7 @@ CommandOutput runPiped(const std::vector<std::string>& command, const std::strin
         report.closeRead();
         ::dup2(input != nullptr ? in.read.get() : nowhere.get(), STDIN_FILENO);
         ::dup2(gather ? out.write.get() : nowhere.get(), STDOUT_FILENO);
-        ::dup2(nowhere.get(), STDERR_FILENO);
+        ::dup2(gather && withErrors ? out.write.get() : nowhere.get(), STDERR_FILENO);
         // Nothing but the three above and the report pipe goes across the exec:
         // the parent's own ends held open in the child would keep the program
         // from ever seeing the end of its input.
@@ -602,7 +651,7 @@ CommandOutput runPiped(const std::vector<std::string>& command, const std::strin
                 if (errno == EINTR) continue;
                 break;
             }
-            result.output.append(buffer, static_cast<size_t>(got));
+            keep(result, buffer, static_cast<size_t>(got), limit);
         }
         out.read.close();
     }
@@ -626,6 +675,70 @@ CommandResult feedCommand(const std::vector<std::string>& command,
 
 CommandOutput readFromCommand(const std::vector<std::string>& command) {
     return runPiped(command, nullptr, /*gather=*/true);
+}
+
+CommandOutput readOutputOf(const std::vector<std::string>& command, size_t limit) {
+    return runPiped(command, nullptr, /*gather=*/true, /*withErrors=*/true, limit);
+}
+
+CommandResult runWithoutTerminal(const std::vector<std::string>& command) {
+    CommandOutput ran = runPiped(command, nullptr, /*gather=*/false);
+    return {ran.stage, std::move(ran.reason)};
+}
+
+CommandResult startDetached(const std::vector<std::string>& command) {
+    if (command.empty()) return {};
+
+    std::vector<std::string> words = command;
+    std::vector<char*> argv;
+    argv.reserve(words.size() + 1);
+    for (std::string& word : words) argv.push_back(word.data());
+    argv.push_back(nullptr);
+
+    // The same report pipe `runCommand()` has, carried across two forks: its
+    // write end is closed by the grandchild's exec, and by the child's exit, so
+    // end-of-file still means the program started.
+    Pipe report;
+    if (!report.open()) return failedToStart(std::strerror(errno));
+    Descriptor nowhere(::open("/dev/null", O_RDWR));
+    if (nowhere.get() < 0) return failedToStart(std::strerror(errno));
+
+    const pid_t child = ::fork();
+    if (child < 0) return failedToStart(std::strerror(errno));
+
+    if (child == 0) {
+        report.closeRead();
+        const auto giveUp = [&report] {
+            const int failed = errno;
+            const ssize_t said = ::write(report.write(), &failed, sizeof(failed));
+            static_cast<void>(said);
+            ::_exit(127);
+        };
+        // A session of its own and so no controlling terminal: Ctrl-C at the
+        // reader is not aimed at it, and the terminal closing is not its end.
+        if (::setsid() < 0) giveUp();
+        const pid_t grandchild = ::fork();
+        if (grandchild < 0) giveUp();
+        if (grandchild > 0) ::_exit(0);
+
+        ::dup2(nowhere.get(), STDIN_FILENO);
+        ::dup2(nowhere.get(), STDOUT_FILENO);
+        ::dup2(nowhere.get(), STDERR_FILENO);
+        nowhere.close();
+        ::execvp(argv[0], argv.data());
+        giveUp();
+    }
+
+    report.closeWrite();
+    nowhere.close();
+    // The child exits as soon as it has forked, so this is no wait on the
+    // program; it is what keeps the child from being a zombie of this process.
+    while (::waitpid(child, nullptr, 0) < 0) {
+        if (errno != EINTR) break;
+    }
+    const int failed = execErrno(report.read());
+    if (failed != 0) return failedToStart(std::strerror(failed));
+    return {};
 }
 
 std::string userShellPath() {

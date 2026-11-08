@@ -849,24 +849,40 @@ reader_underline_links on
 #urlhandler lynx $url
 
 # The external utilities: up to ten programs, extern_util0 through extern_util9,
-# each written as a title and then the command. Optional, none set by default.
+# each written as an optional run mode, a title and then the command. Optional,
+# none set by default.
 #
-#   extern_util0 "Scan"  /usr/local/bin/hpt scan
-#   extern_util1 "Read"  less $msg
-#   extern_util2 "Spell Check" hunspell -d ru_RU,en_US $msg
+#   extern_util0 "Read"  less $msg
+#   extern_util1 "Spell Check" hunspell -d ru_RU,en_US $msg
+#   extern_util2 -noterm "Scan"  /usr/local/bin/hpt scan
+#   extern_util3 -printresult "Disk free" df -h
+#   extern_util4 -detach "Poll" /usr/local/bin/poll
 #
-# The title comes first and is always written: it is what a menu button and a
-# hint are drawn with. The rest is the program and its arguments, run directly
-# and not through a shell — looked for on $PATH, an argument with a space in it
-# written in double quotes, nothing to escape. AmberEdit hands the terminal over
-# for as long as the utility runs, as it does for your own shell behind
-# reader.shell, and says nothing about what it exited with.
+# The title is always written: it is what a menu button and a hint are drawn
+# with. The rest is the program and its arguments, run directly and not through
+# a shell — looked for on $PATH, an argument with a space in it written in
+# double quotes, nothing to escape. AmberEdit says nothing about what it exited
+# with. The run mode, before the title:
+#
+#   (none)        the utility gets the terminal, as your own shell behind
+#                 reader.shell does, and AmberEdit waits for it to end
+#   -noterm       AmberEdit waits for it to end with its own screen left up;
+#                 the utility gets no terminal (input and output are the null
+#                 device)
+#   -printresult  as -noterm, and what the utility wrote to its standard
+#                 output and standard error is shown in a box afterwards,
+#                 scrolled with the arrows and closed with OK. Decoded from
+#                 msg_file_charset; only the first megabyte is kept
+#   -detach       started in the background and not waited for; no terminal
 #
 # $msg in the command hands the utility the message as well, the way
 # external_editor does: it is written into a file under tmpdir in the charset
-# msg_file_charset names, $msg is the path to it, and the file is taken away
-# when the utility ends. Which message, and what becomes of the file, is the screen
-# you ran the utility from:
+# msg_file_charset names, and $msg is the path to it. Without $msg no file is
+# written. The file is taken away when the utility ends — except under -detach,
+# where AmberEdit cannot know when that is: there every run gets a file of its
+# own (amberedit-<pid>-util-<n>.msg) and the utility, or you, must delete it.
+# Under -detach nothing is read back from the file either. Which message, and
+# what becomes of the file, is the screen you ran the utility from:
 #
 #   * the reader: the message on screen, service lines left out whether or not
 #     "k" shows them. What the utility writes back is ignored;
@@ -885,10 +901,10 @@ reader_underline_links on
 # a hint list or in a key binding — is refused as AmberEdit starts.
 #extern_util0 "Spell Check" hunspell -d ru_RU,en_US $msg
 
-# Whether coming back from a program that had the terminal — one of the
-# utilities above, or your own shell behind reader.shell — also reads every
-# other area again, the way Ctrl-R does on the area list. Optional; off by
-# default.
+# Whether coming back from a program — one of the utilities above, -noterm
+# and -printresult ones included, or your own shell behind reader.shell — also reads every other
+# area again, the way Ctrl-R does on the area list. A -detach utility is never
+# waited for, so nothing is read again after it. Optional; off by default.
 #
 # The link handler is deliberately not covered by either half: a browser does
 # not write to a message base.

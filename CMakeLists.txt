@@ -757,11 +757,13 @@ add_executable(amberedit
   src/ui/menu_dialog.cpp
   src/ui/message_marks.cpp
   src/ui/nodelist_dialog.cpp
+  src/ui/output_dialog.cpp
   src/ui/progress_dialog.cpp
   src/ui/reader_select.cpp
   src/ui/reader_sidebar.cpp
   src/ui/reply_dialog.cpp
   src/ui/rescan_dialog.cpp
+  src/ui/running_dialog.cpp
   src/ui/text_field.cpp
   src/ui/text_layout.cpp
   src/ui/text_editor.cpp

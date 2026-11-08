@@ -4,6 +4,7 @@
 #include <array>
 #include <cctype>
 #include <charconv>
+#include <cstddef>
 #include <cstdlib>
 #include <filesystem>
 #include <map>
@@ -388,26 +389,48 @@ std::optional<size_t> externUtilKey(const std::string& key) {
     return static_cast<size_t>(digit - '0');
 }
 
-/// One `extern_utilN "title" program [arguments]` line.
+/// One `extern_utilN [-noterm|-printresult|-detach] "title" program [arguments]`
+/// line.
 ///
 /// The title comes first and is always written, quotes or no quotes: the parser
 /// hands the line over as words, so nothing in `diff -u` could say which of them
 /// was meant as the name on a button. One value is a line that named the program
 /// and forgot what to call it — or called it something and named no program —
 /// and either way there is no guessing which.
+///
+/// **A first value opening with `-` is an option and never a title**, and one
+/// that is neither of the two is refused: the quotes are gone by the time the
+/// words arrive, so `-notrem` read as a title would leave the title as the
+/// program and run `Scan` with nothing said about it.
 tl::expected<ExternUtil, ErrorPtr> readExternUtil(const CfgEntry& entry) {
-    if (entry.values.size() < 2) {
+    ExternUtil util;
+    size_t first = 0;
+    if (!entry.values.empty() && text::startsWith(entry.values.front(), "-")) {
+        const std::string& option = entry.values.front();
+        if (text::iequals(option, "-noterm")) {
+            util.run = ExternUtil::Run::NoTerminal;
+        } else if (text::iequals(option, "-printresult")) {
+            util.run = ExternUtil::Run::PrintResult;
+        } else if (text::iequals(option, "-detach")) {
+            util.run = ExternUtil::Run::Detached;
+        } else {
+            return entry.fail(entry.key + ": '" + option +
+                              "' is not an option; -noterm, -printresult and -detach are");
+        }
+        first = 1;
+    }
+    if (entry.values.size() < first + 2) {
         return entry.fail(entry.key + " is a title and then the program to run, as in " +
                           entry.key + " \"Files\" /usr/bin/mc");
     }
-    ExternUtil util;
-    util.title = entry.values.front();
+    util.title = entry.values[first];
     if (text::trim(util.title).empty()) {
         return entry.fail(entry.key +
                           ": the title is what a menu button and a hint call the "
                           "utility, and cannot be blank");
     }
-    util.command.assign(entry.values.begin() + 1, entry.values.end());
+    util.command.assign(entry.values.begin() + static_cast<std::ptrdiff_t>(first) + 1,
+                        entry.values.end());
     return util;
 }
 

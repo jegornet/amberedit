@@ -23,12 +23,17 @@
 ///                        a program a clipboard is copied to
 ///   stdout <text>        writes `text` to its standard output — a program a
 ///                        clipboard is pasted from
+///   both <out> <err>     writes `out` to its standard output and then `err` to
+///                        its standard error — a program whose output is shown
+///   many <count> <text>  writes `text` to its standard output `count` times —
+///                        a program with more to say than is kept of it
 ///
 /// In `text` the two characters `\n`, `\r` and `\t` stand for those characters
 /// and `\\` for a backslash. Written that way rather than passed as themselves
 /// so that no part of this depends on what a command line may carry.
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -119,6 +124,25 @@ int main(int argc, char* argv[]) {
 #endif
         const std::string text = unescaped(words[1]);
         std::fwrite(text.data(), 1, text.size(), stdout);
+        return 0;
+    }
+
+    if (mode == "both") {
+        if (words.size() < 3) return 2;
+        const std::string out = unescaped(words[1]);
+        const std::string err = unescaped(words[2]);
+        std::fwrite(out.data(), 1, out.size(), stdout);
+        std::fflush(stdout);
+        std::fwrite(err.data(), 1, err.size(), stderr);
+        std::fflush(stderr);
+        return 3;
+    }
+
+    if (mode == "many") {
+        if (words.size() < 3) return 2;
+        const long count = std::strtol(words[1].c_str(), nullptr, 10);
+        const std::string text = unescaped(words[2]);
+        for (long i = 0; i < count; ++i) std::fwrite(text.data(), 1, text.size(), stdout);
         return 0;
     }
 

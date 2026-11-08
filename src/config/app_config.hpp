@@ -30,15 +30,38 @@ struct AkaMatch {
     std::vector<domain::AddressPattern> patterns;
 };
 
-/// One `extern_util0`..`extern_util9` line: a program AmberEdit hands the
-/// terminal over to, and the word a menu button and a hint call it by.
+/// One `extern_util0`..`extern_util9` line: a program AmberEdit runs, and the
+/// word a menu button and a hint call it by.
 ///
 /// It is the shell of `reader.shell` with the program named in advance —
 /// everything wanted mid-read that is not a mail editor's work, reached by one
-/// key instead of a prompt and a command line. What it does while it has the
-/// terminal is between it and the user: a utility that ran and exited non-zero
-/// is not a failure AmberEdit reports, exactly as a shell is not.
+/// key instead of a prompt and a command line. What it exits with is between it
+/// and the user in every one of the three ways it may be run: a utility that
+/// ran and exited non-zero is not a failure AmberEdit reports, exactly as a
+/// shell is not.
 struct ExternUtil {
+    /// How the program is run, which is the option a line may write ahead of
+    /// the title.
+    enum class Run {
+        /// Handed the terminal and waited for — the line as written with no
+        /// option.
+        Terminal,
+        /// `-noterm`: waited for with the screen left up, and given nothing of
+        /// the terminal — its standard input, output and error are the null
+        /// device. For a program with nothing to say to anybody, a scan or a
+        /// pack, where handing the screen over would only flash a shell prompt.
+        NoTerminal,
+        /// `-printresult`: `NoTerminal`, with what the program writes to its
+        /// standard output and its standard error gathered as it runs and
+        /// shown in a box of its own once it has ended.
+        PrintResult,
+        /// `-detach`: started and left running, in a session of its own with
+        /// nothing of the terminal, and not waited for. Nothing comes back from
+        /// it — not the base read again, not the file `$msg` named, which it is
+        /// left to take away.
+        Detached,
+    };
+
     /// What the menu and the hint bar write it as — the first value of the
     /// line, and the reason a utility is written `extern_util0 "title" program`
     /// rather than as a program alone. It is the user's own word and no catalog
@@ -49,6 +72,7 @@ struct ExternUtil {
     /// prompt would look for it, and nothing goes through a shell — an argument
     /// is one argument however many spaces the quotes around it hold.
     std::vector<std::string> command;
+    Run run{Run::Terminal};
 
     /// Whether any `extern_utilN` line set this slot. A slot nothing sets can
     /// be named nowhere: the config refuses it in a menu or a hint list, and

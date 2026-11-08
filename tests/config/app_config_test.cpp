@@ -579,6 +579,37 @@ TEST_CASE("AppConfig reads the external utilities [app_config]") {
     CHECK_FALSE(loads("group\n  member *\n  extern_util0 \"Files\" mc\nendgroup\n"));
 }
 
+TEST_CASE("An external utility may say how it is run [app_config]") {
+    using Run = amberedit::config::ExternUtil::Run;
+    // Handed the terminal unless the line says otherwise.
+    CHECK(with("extern_util0 \"Files\" mc\n").externUtils[0].run == Run::Terminal);
+
+    const AppConfig quiet =
+        with("extern_util1 -noterm \"Scan\" /usr/local/bin/hpt scan\n");
+    CHECK(quiet.externUtils[1].run == Run::NoTerminal);
+    CHECK(quiet.externUtils[1].title == "Scan");
+    CHECK(quiet.externUtils[1].command ==
+          std::vector<std::string>{"/usr/local/bin/hpt", "scan"});
+
+    const AppConfig away = with("extern_util2 -detach \"Pager\" less $msg\n");
+    CHECK(away.externUtils[2].run == Run::Detached);
+    CHECK(away.externUtils[2].title == "Pager");
+    CHECK(away.externUtils[2].command == std::vector<std::string>{"less", "$msg"});
+
+    CHECK(with("extern_util3 -printresult \"Check\" df -h\n").externUtils[3].run ==
+          Run::PrintResult);
+
+    // An option is no title, and one misspelt is refused rather than left to
+    // turn the title into the program.
+    const std::string misspelt = errorWith("extern_util0 -notrem \"Scan\" hpt scan\n");
+    CHECK_MESSAGE(contains(misspelt, "-notrem"), misspelt);
+    CHECK_FALSE(loads("extern_util0 -noterm hpt\n"));
+    CHECK_FALSE(loads("extern_util0 -detach\n"));
+    // An option standing anywhere else is an argument of the program.
+    CHECK(with("extern_util0 \"List\" ls -noterm\n").externUtils[0].command ==
+          std::vector<std::string>{"ls", "-noterm"});
+}
+
 TEST_CASE("AppConfig reads the rescan-on-return setting [app_config]") {
     // Off unless the config asks: the area being read is reopened either way,
     // and this is the whole list on top of it.

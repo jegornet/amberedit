@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "app/run_program.hpp"
+#include "config/app_config.hpp"
 #include "support/error.hpp"
 
 /// A message handed to somebody else's program in a file, and read back out of
@@ -83,6 +85,9 @@ struct ExternalEdit {
     /// a message may hold, `config::text::messageLine()`. What was handed over,
     /// where nothing was changed.
     std::vector<std::string> lines;
+    /// What a utility run with `-printresult` wrote while it ran, to be shown
+    /// once it has ended. Empty for every other run, the editor's included.
+    ProgramOutput output;
 };
 
 /// Writes `lines` to `path` in `charset`, runs the editor on it, and reads back
@@ -110,6 +115,16 @@ struct ExternalEdit {
 [[nodiscard]] tl::expected<std::string, ErrorPtr> externUtilMsgPath(
     const std::string& configuredTempDir);
 
+/// The file a utility started with `-detach` is handed the message in: a name
+/// no file under the temporary directory has yet, a fresh one per run.
+///
+/// Not `externUtilMsgPath()`'s one name per process. A detached utility is not
+/// waited for, so the file is never taken away and may still be being read when
+/// the same utility is started again; a second run writing over the first one's
+/// file would change the message under a program already reading it.
+[[nodiscard]] tl::expected<std::string, ErrorPtr> externUtilDetachedPath(
+    const std::string& configuredTempDir);
+
 /// What an external utility made of the message: `runExternalEditor()` above,
 /// run on the program an `extern_utilN` line names, with the file taken away
 /// again at the end of it.
@@ -125,8 +140,17 @@ struct ExternalEdit {
 /// `less`, a spell checker — and what the program left in the file is nothing
 /// to a message already stored in a base. The editor hands over a message being
 /// written, and what comes back becomes it.
+///
+/// `run` is how the program is run. `Terminal` is called inside the terminal's
+/// handover and `NoTerminal` and `PrintResult` with the screen still up, and all
+/// three are the trip above — `PrintResult` handing back what the program wrote
+/// in `output` beside it. **`Detached` is half of it**: the file is written and the program
+/// started, and nothing is read back or taken away — the program is still
+/// running when this returns, and the file is the program's from then on. What
+/// comes back is the lines as they were handed over, `changed` false.
 [[nodiscard]] tl::expected<ExternalEdit, ErrorPtr> runUtilOnMessage(
-    const std::vector<std::string>& command, const std::string& path,
-    const std::vector<std::string>& lines, const std::string& charset);
+    const std::vector<std::string>& command, config::ExternUtil::Run run,
+    const std::string& path, const std::vector<std::string>& lines,
+    const std::string& charset);
 
 }  // namespace amberedit::app

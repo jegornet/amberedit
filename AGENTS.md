@@ -3324,15 +3324,17 @@ taking a row.
   is added there and nowhere else. The nodelist box's Lookup line and the
   listings' quick search are not fields: they are typed onto the end and have
   no cursor to put anywhere.
-- **Two boxes answer no key at all.** `ui/rescan_dialog.*` and
-  `ui/progress_dialog.*` are the two that stand over a screen while the loop is
-  blocked inside a call — every base being opened again, and a run over the
-  marked messages — so neither has a `handleEvent()` and neither can be clicked
-  away: nothing is polled until it comes down. Both are drawn from inside that
-  call through `AppState::drawFrame`. The one key that reaches the second does
-  not come through the dialog either — Escape is read off the terminal from
+- **Three boxes answer no key at all.** `ui/rescan_dialog.*`,
+  `ui/progress_dialog.*` and `ui/running_dialog.*` are the three that stand over
+  a screen while the loop is blocked inside a call — every base being opened
+  again, a run over the marked messages, and an `extern_utilN -noterm` or
+  `-printresult` program being waited for — so none has a `handleEvent()` and none can be clicked
+  away: nothing is polled until it comes down. All three are drawn from inside
+  that call through `AppState::drawFrame`. The one key that reaches the second
+  does not come through the dialog either — Escape is read off the terminal from
   inside the run and breaks it off, see
-  [Marked messages](#marked-messages).
+  [Marked messages](#marked-messages). Nothing breaks off the third: the
+  program is somebody else's, and AmberEdit has no business killing it.
 - **`--setup` is the one dialog that runs before there is a config.** It has no
   `AppState` to hang on — that is built out of an `AppConfig` and an
   `AreaManager`, and the whole point of the wizard is that there is neither yet —
@@ -5707,6 +5709,41 @@ together — `keys_mode` says which.
   the one check that wants both files at once, which is why it is there and not
   in either of them. A key that ran nothing at all is exactly the shape of a
   mistake nobody finds.
+
+  **How a utility runs is the line's, in four ways, and `ExternUtil::Run` is
+  the whole of the answer.** A first value `-noterm`, `-printresult` or
+  `-detach` is the option and the title follows it; any other first value
+  opening with `-` is refused rather than read as a title, since the quotes are
+  gone by the time the words reach `readExternUtil()`, and a misspelt option
+  taken for the title would run the title as the program. `Terminal` is the handover above. `NoTerminal` is
+  `sys::runWithoutTerminal()` — waited for, with the null device for all three
+  standard descriptors — called with the screen still up under
+  `ui/running_dialog.*`, and everything after it is a handover's:
+  `after_handover::refresh()`, the editor taking the file back, the typeahead
+  dropped. `PrintResult` is `NoTerminal` through `sys::readOutputOf()` instead —
+  both standard descriptors behind one pipe, so the two streams come back in
+  the order the program wrote them, the front `app::kOutputLimit` bytes kept and
+  the rest read and dropped so the program never blocks — and once everything a
+  `NoTerminal` run is followed by has run, `ui/output_dialog.*` shows it.
+  `app::outputLines()` is what makes the bytes something to show: decoded out of
+  `msg_file_charset`, a carriage return inside a line starting it over, escape
+  sequences taken out whole, `messageLine()` over the rest. An empty output is
+  said to be empty rather than shown as a blank box. `Detached` is
+  `sys::startDetached()`: a double fork with `setsid()` in
+  between on POSIX — so that nothing outlives this process as its zombie and no
+  key at the reader is a signal to it — and `DETACHED_PROCESS` on Windows, and
+  **nothing that follows a program coming back follows it**, there being no
+  moment it comes back at. What the exit code says is ignored in all three.
+  - **A file is written only where the line writes `$msg`**, in all three
+    modes: `handsOverMessage()` is asked before any path is made.
+  - **A detached utility's file is its own and is never taken away.**
+    `externUtilDetachedPath()` counts up to a name nothing under `tmpdir` has,
+    because the one name per process `externUtilMsgPath()` gives would be
+    written over by the next run while the last is still reading it; and
+    `runUtilOnMessage()` removes it only where the program did not start. The
+    lines come back as they went, unchanged — the program has not finished, so
+    there is nothing to read. Deleting the file is the utility's or the user's,
+    and `amberedit.cfg.example` says so.
 - **The clipboard is four answers to one setting, and the screens know two of
   them.** `reader.copy` takes the message as `app::exportedLines()` writes it
   into a file — the `Area` row, the header block, the rule and the text,

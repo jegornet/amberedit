@@ -86,6 +86,7 @@ add_executable(amberedit_tests
   ui/keys_test.cpp
   ui/keytest_test.cpp
   ui/nodelist_dialog_test.cpp
+  ui/output_dialog_test.cpp
   ui/compose_screen_test.cpp
   ui/external_editor_test.cpp
   ui/change_message_test.cpp
@@ -186,6 +187,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/menu_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/message_marks.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/nodelist_dialog.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/output_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/progress_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/reader_select.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/reader_sidebar.cpp

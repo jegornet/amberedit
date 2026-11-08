@@ -2,10 +2,12 @@
 
 #include <doctest/doctest.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "temp_dir.hpp"
@@ -15,6 +17,7 @@
 using amberedit::app::commandWithMessageFile;
 using amberedit::app::externalEditPath;
 using amberedit::app::ExternalEdit;
+using amberedit::app::externUtilDetachedPath;
 using amberedit::app::externUtilMsgPath;
 using amberedit::app::namesMessageFile;
 using amberedit::app::runExternalEditor;
@@ -23,6 +26,7 @@ using amberedit::test::contains;
 using amberedit::test::errorOf;
 using amberedit::test::TempDir;
 using amberedit::test::WithTempDirEnv;
+using Run = amberedit::config::ExternUtil::Run;
 
 namespace {
 
@@ -209,8 +213,8 @@ TEST_CASE("A utility writes its copy of the message somewhere else [externaledit
 TEST_CASE("What a utility left is read back and the file goes [externaleditor]") {
     TempDir dir;
     const std::string file = dir.path("util.msg");
-    const auto left = runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"), file,
-                                       {"Helo, Michiel"}, "UTF-8");
+    const auto left = runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"),
+                                       Run::Terminal, file, {"Helo, Michiel"}, "UTF-8");
     REQUIRE(left.has_value());
     CHECK(left->changed);
     CHECK(left->lines == std::vector<std::string>{"Hello, Michiel"});
@@ -223,7 +227,81 @@ TEST_CASE("A utility that would not start leaves no file behind [externaleditor]
     TempDir dir;
     const std::string file = dir.path("util.msg");
     const std::string error = errorOf(runUtilOnMessage(
-        {"amberedit-no-such-utility", "$msg"}, file, {"Hello"}, "UTF-8"));
+        {"amberedit-no-such-utility", "$msg"}, Run::Terminal, file, {"Hello"}, "UTF-8"));
     CHECK_MESSAGE(contains(error, "amberedit-no-such-utility"), error);
     CHECK_FALSE(std::filesystem::exists(file));
+}
+
+TEST_CASE("A utility run without the terminal makes the same trip [externaleditor]") {
+    TempDir dir;
+    const std::string file = dir.path("util.msg");
+    const auto left = runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"),
+                                       Run::NoTerminal, file, {"Helo, Michiel"}, "UTF-8");
+    REQUIRE(left.has_value());
+    CHECK(left->changed);
+    CHECK(left->lines == std::vector<std::string>{"Hello, Michiel"});
+    CHECK_FALSE(std::filesystem::exists(file));
+}
+
+TEST_CASE(
+    "A detached utility is left the file and nothing is read back [externaleditor]") {
+    TempDir dir;
+    const std::string file = dir.path("util.msg");
+    const auto left = runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"),
+                                       Run::Detached, file, {"Helo, Michiel"}, "UTF-8");
+    REQUIRE(left.has_value());
+    // What was handed over, whatever the program goes on to write: it has not
+    // finished when the call comes back, so there is nothing to read yet.
+    CHECK_FALSE(left->changed);
+    CHECK(left->lines == std::vector<std::string>{"Helo, Michiel"});
+    // And the file is not taken away from under it: it is the program's now.
+    bool written = false;
+    for (int tries = 0; tries < 500 && !written; ++tries) {
+        written = contentsOf(file) == "Hello, Michiel\n";
+        if (!written) std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(written);
+
+    // One that never started has nobody to leave a file to.
+    const std::string gone = dir.path("gone.msg");
+    const std::string error = errorOf(runUtilOnMessage(
+        {"amberedit-no-such-utility", "$msg"}, Run::Detached, gone, {"Hello"}, "UTF-8"));
+    CHECK_MESSAGE(contains(error, "amberedit-no-such-utility"), error);
+    CHECK_FALSE(std::filesystem::exists(gone));
+}
+
+TEST_CASE("A detached utility gets a file no other run has [externaleditor]") {
+    TempDir dir;
+    const auto first = externUtilDetachedPath(dir.path("work"));
+    REQUIRE(first.has_value());
+    CHECK(contains(*first, dir.path("work")));
+    CHECK(*first != *externUtilMsgPath(dir.path("work")));
+    // A file left by an earlier run is passed over rather than written into:
+    // the program it was handed to may be reading it still.
+    std::ofstream(*first) << "still read\n";
+    const auto second = externUtilDetachedPath(dir.path("work"));
+    REQUIRE(second.has_value());
+    CHECK(*second != *first);
+    CHECK(contentsOf(*first) == "still read\n");
+}
+
+TEST_CASE(
+    "A utility run for its output makes the same trip and hands it back "
+    "[externaleditor]") {
+    TempDir dir;
+    const std::string file = dir.path("util.msg");
+    const auto left =
+        runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"), Run::PrintResult, file,
+                         {"Helo, Michiel"}, "UTF-8");
+    REQUIRE(left.has_value());
+    CHECK(left->changed);
+    CHECK(left->lines == std::vector<std::string>{"Hello, Michiel"});
+    CHECK(left->output.bytes.empty());
+    CHECK_FALSE(std::filesystem::exists(file));
+
+    const auto said = runUtilOnMessage(
+        {amberedit::test::stubProgram(), "both", "checked $msg\\n", "2 errors\\n"},
+        Run::PrintResult, file, {"Hello"}, "UTF-8");
+    REQUIRE(said.has_value());
+    CHECK(said->output.bytes == "checked " + file + "\n2 errors\n");
 }

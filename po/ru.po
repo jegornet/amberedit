@@ -2,13 +2,13 @@
 msgid "the config names no tosser config and declares no areas of its own"
 msgstr "конфиг не называет конфиг тоссера и не объявляет своих областей"
 
-#: src/app/clipboard.cpp:17 src/app/run_program.cpp:21
+#: src/app/clipboard.cpp:17 src/app/run_program.cpp:24
 #: src/app/user_shell.cpp:39
 #, c++-format
 msgid "cannot wait for {0}: {1}"
 msgstr "не удаётся дождаться {0}: {1}"
 
-#: src/app/clipboard.cpp:19 src/app/run_program.cpp:18
+#: src/app/clipboard.cpp:19 src/app/run_program.cpp:21
 #: src/app/user_shell.cpp:24 src/app/user_shell.cpp:36
 #, c++-format
 msgid "cannot run {0}: {1}"
@@ -27,6 +27,7 @@ msgstr "не удаётся вставить из буфера обмена: {0}
 #: src/app/export_file.cpp:232 src/app/export_file.cpp:235
 #: src/app/export_file.cpp:292 src/app/export_file.cpp:297
 #: src/app/external_editor.cpp:26 src/app/external_editor.cpp:31
+#: src/app/external_editor.cpp:87
 #, c++-format
 msgid "cannot write file: {0}"
 msgstr "не удаётся записать файл: {0}"
@@ -45,7 +46,7 @@ msgstr "файл уже есть: {0}"
 msgid "template: {0}"
 msgstr "шаблон: {0}"
 
-#: src/config/app_config.cpp:2920
+#: src/config/app_config.cpp:2943
 msgid "no description"
 msgstr "нет описания"
 
@@ -454,7 +455,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.11.0\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-11-08 17:10+0100\n"
+"POT-Creation-Date: 2026-11-09 00:27+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -645,29 +646,29 @@ msgstr "базу не удалось открыть"
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
 
-#: src/ui/app_shell.cpp:115
+#: src/ui/app_shell.cpp:117
 msgid ""
 "this terminal does not hand its clipboard over to programs (OSC 52 reads)"
 msgstr "этот терминал не отдаёт программам свой буфер обмена (чтение OSC 52)"
 
-#: src/ui/app_shell.cpp:118
+#: src/ui/app_shell.cpp:120
 msgid "the terminal did not answer with its clipboard"
 msgstr "терминал не прислал свой буфер обмена"
 
-#: src/ui/app_shell.cpp:122
+#: src/ui/app_shell.cpp:124
 msgid "the terminal answered with a clipboard it garbled"
 msgstr "терминал прислал буфер обмена в повреждённом виде"
 
-#: src/ui/app_shell.cpp:205
+#: src/ui/app_shell.cpp:207
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:1000
+#: src/ui/app_shell.cpp:1054
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:714 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:747 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -935,11 +936,11 @@ msgstr "Да"
 msgid "cannot read {0}"
 msgstr "не удаётся прочитать {0}"
 
-#: src/ui/error_dialog.cpp:29
+#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:103
 msgid "OK"
 msgstr "OK"
 
-#: src/ui/error_dialog.cpp:49
+#: src/ui/error_dialog.cpp:49 src/ui/output_dialog.cpp:116
 msgid "Enter · Esc"
 msgstr "Enter · Esc"
 
@@ -1247,6 +1248,14 @@ msgstr "Дата"
 msgid " Lookup: {0}▌ "
 msgstr " Поиск: {0}▌ "
 
+#: src/ui/output_dialog.cpp:72
+msgid "(the program wrote nothing)"
+msgstr "(программа ничего не вывела)"
+
+#: src/ui/output_dialog.cpp:115
+msgid "only the first megabyte is shown"
+msgstr "показан только первый мегабайт"
+
 #: src/ui/progress_dialog.cpp:35
 msgid "Copying messages..."
 msgstr "Копируются сообщения..."
@@ -1280,6 +1289,10 @@ msgstr "читается {0}"
 #: src/ui/rescan_dialog.cpp:37
 msgid "Rescanning areas..."
 msgstr "Пересканирование областей..."
+
+#: src/ui/running_dialog.cpp:26
+msgid "Running..."
+msgstr "Выполняется..."
 
 #: src/ui/scope_dialog.cpp:76
 msgid "Which messages are to be deleted?"
