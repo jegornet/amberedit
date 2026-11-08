@@ -9,6 +9,7 @@
 #include "i18n/i18n.hpp"
 #include "ui/dialog_frame.hpp"
 #include "ui/event_util.hpp"
+#include "ui/keys.hpp"
 #include "ui/scrollbar.hpp"
 #include "ui/text_layout.hpp"
 #include "ui/theme.hpp"
@@ -63,6 +64,29 @@ void close(AppState& state) {
     state.outputView.reset();
 }
 
+/// Puts the output on the clipboard, the way every copy does: AmberEdit's own
+/// answered on the spot, any other left for the shell, which has the terminal
+/// and the programs. Nothing at all where the program wrote nothing.
+void copy(AppState& state) {
+    std::string text = copiedText(*state.outputView);
+    if (text.empty()) return;
+    if (state.config.clipboardInEffect() == config::ClipboardMode::Internal) {
+        state.clipboard = std::move(text);
+        state.copiedNotice = state.config.clipboardCopyIndicate;
+    } else {
+        state.clipboardCopyRequested = std::move(text);
+    }
+}
+
+/// The key the box copies on, from anywhere in it: Ctrl-C whatever the layout
+/// says, and whatever keys the layout gives copying in the reader and the
+/// editor besides — Ctrl-Ins among them — so that the hand reaches for what it
+/// reaches for everywhere else.
+bool isCopyKey(const AppState& state, const Event& event) {
+    return isCtrl(event, 'c') || state.keys.is(event, Command::ReaderCopy) ||
+           state.keys.is(event, Command::ComposeCopy);
+}
+
 }  // namespace
 
 void open(AppState& state, std::string title, std::vector<std::string> lines, bool cut) {
@@ -70,8 +94,21 @@ void open(AppState& state, std::string title, std::vector<std::string> lines, bo
     view.title = std::move(title);
     view.lines = std::move(lines);
     view.cut = cut;
-    if (view.lines.empty()) view.lines.emplace_back(_("(the program wrote nothing)"));
+    if (view.lines.empty()) {
+        view.empty = true;
+        view.lines.emplace_back(_("(the program wrote nothing)"));
+    }
     state.outputView = std::move(view);
+}
+
+std::string copiedText(const AppState::OutputView& view) {
+    if (view.empty) return {};
+    std::string text;
+    for (size_t i = 0; i < view.lines.size(); ++i) {
+        if (i != 0) text += '\n';
+        text += view.lines[i];
+    }
+    return text;
 }
 
 Element render(AppState& state, Element background) {
@@ -103,19 +140,30 @@ Element render(AppState& state, Element background) {
     const bool tall = state.dialogTallButtons();
     const int buttonRows = dialog::buttonRows(tall);
     const std::string okLabel = _("OK");
-    const int buttonWidth = std::min(inner, dialog::buttonWidth(okLabel, tall));
-    const int left = (inner - buttonWidth) / 2;
-    const int right = inner - buttonWidth - left;
-    Element ok = dialog::button(okLabel, /*selected=*/true,
+    const std::string copyLabel = _("Copy");
+    constexpr int kButtonGap = 2;
+    const int buttonsWidth =
+        std::min(inner, dialog::buttonWidth(okLabel, tall) + kButtonGap +
+                            dialog::buttonWidth(copyLabel, tall));
+    const int left = (inner - buttonsWidth) / 2;
+    const int right = inner - buttonsWidth - left;
+    Element ok = dialog::button(okLabel, !view.copySelected,
                                 state.isPressed(AppState::Pressed::OutputOk), tall) |
                  reflect(view.okBox);
+    Element copyButton =
+        dialog::button(copyLabel, view.copySelected,
+                       state.isPressed(AppState::Pressed::OutputCopy), tall) |
+        reflect(view.copyBox);
+    // Copy first and OK last, where the button that ends the box stands in
+    // every other box — and OK still the one Enter is on as it opens.
     lines.push_back(dialog::framed(
-        hbox({text(std::string(static_cast<size_t>(left), ' ')), std::move(ok),
+        hbox({text(std::string(static_cast<size_t>(left), ' ')), std::move(copyButton),
+              text(std::string(kButtonGap, ' ')), std::move(ok),
               text(std::string(static_cast<size_t>(right), ' '))}),
         buttonRows));
 
-    const std::string hint =
-        view.cut ? _("only the first megabyte is shown") : std::string(_("Enter · Esc"));
+    const std::string hint = view.cut ? _("only the first megabyte is shown")
+                                      : std::string(_("Ctrl-C copies · Esc closes"));
     lines.push_back(dialog::bottomBar(hint, {}, inner));
 
     return dbox({std::move(background),
@@ -134,15 +182,36 @@ void handleEvent(AppState& state, const Event& event) {
         if (view.okBox.Contain(click->x, click->y)) {
             state.showClick(AppState::Pressed::OutputOk);
             close(state);
+        } else if (view.copyBox.Contain(click->x, click->y)) {
+            view.copySelected = true;
+            state.showClick(AppState::Pressed::OutputCopy);
+            copy(state);
         } else if (!view.box.Contain(click->x, click->y)) {
             close(state);
         }
-        // Inside the box and off the button: the text, which there is nothing
+        // Inside the box and off the buttons: the text, which there is nothing
         // to do with but read.
         return;
     }
     if (const int wheel = wheelDelta(event); wheel != 0) {
         scrollBy(wheel);
+        return;
+    }
+    if (isCopyKey(state, event)) {
+        copy(state);
+        return;
+    }
+    if (event == Event::ArrowLeft || event == Event::ArrowRight || event == Event::Tab ||
+        event == Event::TabReverse) {
+        view.copySelected = !view.copySelected;
+        return;
+    }
+    if (event == Event::Return) {
+        if (view.copySelected) {
+            copy(state);
+        } else {
+            close(state);
+        }
         return;
     }
     if (event == Event::ArrowDown) {
@@ -157,9 +226,8 @@ void handleEvent(AppState& state, const Event& event) {
         view.scroll = 0;
     } else if (event == Event::End) {
         view.scroll = last;
-    } else if (event == Event::Return || event == Event::Escape ||
-               event == Event::Backspace || event == Event::Character('o') ||
-               event == Event::Character('O')) {
+    } else if (event == Event::Escape || event == Event::Backspace ||
+               event == Event::Character('o') || event == Event::Character('O')) {
         close(state);
     }
 }

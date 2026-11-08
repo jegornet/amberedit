@@ -5728,7 +5728,15 @@ together — `keys_mode` says which.
   `app::outputLines()` is what makes the bytes something to show: decoded out of
   `msg_file_charset`, a carriage return inside a line starting it over, escape
   sequences taken out whole, `messageLine()` over the rest. An empty output is
-  said to be empty rather than shown as a blank box. `Detached` is
+  said to be empty rather than shown as a blank box. **Enter starts on OK and
+  Copy stands left of it**: the box is there to be read and put away, so the key
+  that ends most boxes ends this one, and copying is the button an arrow or Tab
+  reaches, Ctrl-C from anywhere in the box, or the reader's and the editor's
+  copy keys — whichever screen the box stands over, since a box over the area
+  list has no copy key of its own to borrow. What is copied is the lines as
+  `outputLines()` made them, not the rows they were wrapped into, and the
+  clipboard is `clipboard`'s exactly as every other copy's: the box stays up and
+  the shell answers the request on its next pass. `Detached` is
   `sys::startDetached()`: a double fork with `setsid()` in
   between on POSIX — so that nothing outlives this process as its zombie and no
   key at the reader is a signal to it — and `DETACHED_PROCESS` on Windows, and

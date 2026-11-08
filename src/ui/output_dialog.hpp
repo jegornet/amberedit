@@ -11,11 +11,14 @@
 /// it has ended — its standard output and its standard error together, as a
 /// terminal would have shown them.
 ///
-/// It shows and does not ask, as the info and help boxes do, and the one button
-/// it carries is there to say so: what is in it was said by somebody else's
-/// program, and OK is the user having read it. The arrows, the page keys, Home,
-/// End and the wheel scroll it where it is longer than the box; Enter, Esc, `o`
-/// and the button put it away, and so does a click outside it.
+/// It shows and does not ask, as the info and help boxes do. Of its two buttons
+/// OK is the one Enter is on as it opens — what is in it was said by somebody
+/// else's program, and OK is the user having read it — and Copy left of it puts
+/// the output on the clipboard `clipboard` names and leaves the box standing,
+/// as Ctrl-C does from anywhere in it. ← → and Tab move Enter between the two;
+/// ↑ ↓, the page keys, Home, End and the wheel scroll the output where it is
+/// longer than the box; Esc, `o` and OK put it away, and so does a click
+/// outside it.
 namespace amberedit::ui::output_dialog {
 
 /// Puts the box up over whatever screen ran the utility, called `title`. Empty
@@ -25,6 +28,11 @@ void open(AppState& state, std::string title, std::vector<std::string> lines, bo
 
 /// Draws it over `background`.
 [[nodiscard]] term::Element render(AppState& state, term::Element background);
+
+/// What Copy puts on the clipboard: the lines as the program wrote them, one
+/// to a line feed, and not as the box wrapped them. Empty where the program
+/// wrote nothing.
+[[nodiscard]] std::string copiedText(const AppState::OutputView& view);
 
 /// Answers a key or a click. The box closes itself — `state.outputView` is
 /// empty afterwards.

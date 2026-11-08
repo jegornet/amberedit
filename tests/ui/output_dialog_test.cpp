@@ -163,3 +163,56 @@ TEST_CASE("The output box is put away by its keys and its button [output]") {
     output_dialog::handleEvent(fixture.state, Event::Mouse(leftPressAt(0, 0)));
     CHECK_FALSE(fixture.state.outputView.has_value());
 }
+
+TEST_CASE("The output box opens on OK and copies by Ctrl-C or its button [output]") {
+    Fixture fixture;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    output_dialog::open(fixture.state, "Scan", {"scanned 12", "no outbound"}, false);
+    static_cast<void>(rowsOf(fixture.state));
+    CHECK_FALSE(fixture.state.outputView->copySelected);
+
+    // Ctrl-C from anywhere in the box, the lines as the program wrote them, and
+    // the box left standing.
+    output_dialog::handleEvent(fixture.state, Event::Character("c", /*ctrl=*/true));
+    CHECK(fixture.state.clipboard == "scanned 12\nno outbound");
+    REQUIRE(fixture.state.outputView.has_value());
+
+    // Copy stands to the left of OK.
+    static_cast<void>(rowsOf(fixture.state));
+    CHECK(fixture.state.outputView->copyBox.x_max <
+          fixture.state.outputView->okBox.x_min);
+
+    // The button the same, Enter moved onto it by the arrow towards it.
+    fixture.state.clipboard.clear();
+    output_dialog::handleEvent(fixture.state, Event::ArrowLeft);
+    CHECK(fixture.state.outputView->copySelected);
+    output_dialog::handleEvent(fixture.state, Event::Return);
+    CHECK(fixture.state.clipboard == "scanned 12\nno outbound");
+    REQUIRE(fixture.state.outputView.has_value());
+
+    // A click on Copy.
+    fixture.state.clipboard.clear();
+    static_cast<void>(rowsOf(fixture.state));
+    const term::Box copy = fixture.state.outputView->copyBox;
+    output_dialog::handleEvent(fixture.state,
+                               Event::Mouse(leftPressAt((copy.x_min + copy.x_max) / 2,
+                                                        (copy.y_min + copy.y_max) / 2)));
+    CHECK(fixture.state.clipboard == "scanned 12\nno outbound");
+    REQUIRE(fixture.state.outputView.has_value());
+
+    // Back on OK, Enter puts the box away.
+    output_dialog::handleEvent(fixture.state, Event::Tab);
+    CHECK_FALSE(fixture.state.outputView->copySelected);
+    output_dialog::handleEvent(fixture.state, Event::Return);
+    CHECK_FALSE(fixture.state.outputView.has_value());
+}
+
+TEST_CASE("Nothing written is nothing to copy [output]") {
+    Fixture fixture;
+    fixture.config.clipboard = amberedit::config::ClipboardMode::Internal;
+    fixture.state.clipboard = "kept";
+    output_dialog::open(fixture.state, "Scan", {}, false);
+    CHECK(output_dialog::copiedText(*fixture.state.outputView).empty());
+    output_dialog::handleEvent(fixture.state, Event::Character("c", /*ctrl=*/true));
+    CHECK(fixture.state.clipboard == "kept");
+}

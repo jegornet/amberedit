@@ -280,7 +280,7 @@ msgid "Run the system shell"
 msgstr "Запустить системный шелл"
 
 #: src/config/commands.cpp:88 src/config/commands.cpp:123
-#: src/ui/forward_dialog.cpp:121
+#: src/ui/forward_dialog.cpp:121 src/ui/output_dialog.cpp:143
 msgid "Copy"
 msgstr "Скопировать"
 
@@ -455,7 +455,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.11.0\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-11-09 00:27+0100\n"
+"POT-Creation-Date: 2026-11-09 00:49+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -668,7 +668,7 @@ msgstr " ошибка: {0}"
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:747 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:754 src/ui/nodelist_dialog.cpp:282
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -936,11 +936,11 @@ msgstr "Да"
 msgid "cannot read {0}"
 msgstr "не удаётся прочитать {0}"
 
-#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:103
+#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:142
 msgid "OK"
 msgstr "OK"
 
-#: src/ui/error_dialog.cpp:49 src/ui/output_dialog.cpp:116
+#: src/ui/error_dialog.cpp:49
 msgid "Enter · Esc"
 msgstr "Enter · Esc"
 
@@ -1248,13 +1248,17 @@ msgstr "Дата"
 msgid " Lookup: {0}▌ "
 msgstr " Поиск: {0}▌ "
 
-#: src/ui/output_dialog.cpp:72
+#: src/ui/output_dialog.cpp:99
 msgid "(the program wrote nothing)"
 msgstr "(программа ничего не вывела)"
 
-#: src/ui/output_dialog.cpp:115
+#: src/ui/output_dialog.cpp:163
 msgid "only the first megabyte is shown"
 msgstr "показан только первый мегабайт"
+
+#: src/ui/output_dialog.cpp:164
+msgid "Ctrl-C copies · Esc closes"
+msgstr "Ctrl-C скопировать · Esc закрыть"
 
 #: src/ui/progress_dialog.cpp:35
 msgid "Copying messages..."

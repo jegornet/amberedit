@@ -153,6 +153,12 @@ struct AppState {
         std::vector<std::string> lines;
         /// Whether the program wrote more than was kept.
         bool cut{false};
+        /// Whether it wrote nothing, and `lines` is the line saying so —
+        /// which is shown and never copied.
+        bool empty{false};
+        /// Whether Enter is on Copy rather than on OK. OK unless ← → or Tab
+        /// moved it: what the box is for is being read and put away.
+        bool copySelected{false};
         std::vector<std::string> rows;
         int scroll{0};
         int inner{0};
@@ -164,6 +170,7 @@ struct AppState {
         /// click.
         term::Box box;
         term::Box okBox;
+        term::Box copyBox;
     };
     std::optional<OutputView> outputView;
 
@@ -1786,7 +1793,8 @@ struct AppState {
         ConfirmYes,  ///< the confirmation dialog's answers
         ConfirmNo,
         ErrorOk,           ///< the one button of the error box
-        OutputOk,          ///< the one button of a utility's output box
+        OutputOk,          ///< a utility's output box: OK
+        OutputCopy,        ///< and Copy beside it
         ForwardChoice,     ///< one of Forward/Move/Copy, which `pressedLink` says
         ExportChoice,      ///< one of the export's two, which `pressedLink` says
         ExistingChoice,    ///< Overwrite or Append, where a file was already there

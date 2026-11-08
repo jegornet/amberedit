@@ -871,7 +871,8 @@ reader_underline_links on
 #                 device)
 #   -printresult  as -noterm, and what the utility wrote to its standard
 #                 output and standard error is shown in a box afterwards,
-#                 scrolled with the arrows and closed with OK. Decoded from
+#                 scrolled with the arrows and closed with OK; Ctrl-C or the
+#                 Copy button puts it on the clipboard. Decoded from
 #                 msg_file_charset; only the first megabyte is kept
 #   -detach       started in the background and not waited for; no terminal
 #
