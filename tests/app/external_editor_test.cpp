@@ -278,7 +278,7 @@ TEST_CASE("A detached utility gets a file no other run has [externaleditor]") {
     CHECK(*first != *externUtilMsgPath(dir.path("work")));
     // A file left by an earlier run is passed over rather than written into:
     // the program it was handed to may be reading it still.
-    std::ofstream(*first) << "still read\n";
+    std::ofstream(*first, std::ios::binary) << "still read\n";
     const auto second = externUtilDetachedPath(dir.path("work"));
     REQUIRE(second.has_value());
     CHECK(*second != *first);
@@ -289,7 +289,9 @@ TEST_CASE(
     "A utility run for its output makes the same trip and hands it back "
     "[externaleditor]") {
     TempDir dir;
-    const std::string file = dir.path("util.msg");
+    // Forward slashes, so that a Windows path's `\tmp` does not reach the helper
+    // as one of the escapes it reads its text with.
+    const std::string file = std::filesystem::path(dir.path("util.msg")).generic_string();
     const auto left =
         runUtilOnMessage(anEditorWriting("Hello, Michiel\\n"), Run::PrintResult, file,
                          {"Helo, Michiel"}, "UTF-8");

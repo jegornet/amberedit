@@ -131,6 +131,10 @@ int main(int argc, char* argv[]) {
         if (words.size() < 3) return 2;
         const std::string out = unescaped(words[1]);
         const std::string err = unescaped(words[2]);
+#ifdef _WIN32
+        _setmode(_fileno(stdout), _O_BINARY);
+        _setmode(_fileno(stderr), _O_BINARY);
+#endif
         std::fwrite(out.data(), 1, out.size(), stdout);
         std::fflush(stdout);
         std::fwrite(err.data(), 1, err.size(), stderr);
