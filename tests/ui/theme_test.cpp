@@ -26,11 +26,12 @@ bool same(Color a, Color b) {
 }
 
 /// The roles every shipped theme leaves commented out, which follow another of
-/// the theme's own where it does not name them — `background`, and the compose
-/// screen's focused field. Named here because that is exactly what keeps them
-/// out of the keys the file states.
-const char* const kUnstatedRoles[] = {"header_background", "table_header_background",
-                                      "dialog_focused_field", "dialog_focused_text"};
+/// the theme's own where it does not name them — `background`, the compose
+/// screen's focused field and the screen's scrollbar. Named here because that is
+/// exactly what keeps them out of the keys the file states.
+const char* const kUnstatedRoles[] = {"header_background",    "table_header_background",
+                                      "dialog_focused_field", "dialog_focused_text",
+                                      "dialog_scroll_track",  "dialog_scroll_thumb"};
 
 /// A palette with every color role set to `index`, and how many that was.
 struct Everywhere {
@@ -143,9 +144,8 @@ TEST_CASE("The fills a theme may leave out follow the role under them [theme]") 
     // the heading row stand on the screen the rest of the theme chose. The one
     // exceptions are `themes/blue_header.cfg` and `themes/golded_colors.cfg`,
     // which fill the header block below.
-    for (const char* file :
-         {"themes/16_colors.cfg", "themes/black.cfg", "themes/white.cfg",
-          "themes/truecolor_bg_night.cfg"}) {
+    for (const char* file : {"themes/16_colors.cfg", "themes/black.cfg",
+                             "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
             amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
@@ -456,7 +456,9 @@ TEST_CASE("The truecolor theme is written in colors and states every role [theme
                           amberedit::config::text::asciiIsHexDigit));
         ++colors;
     }
-    CHECK(colors == allRolesAt(240).stated);
+    // Every color the black theme states, and the box's scrollbar, which this
+    // theme writes in where the others leave it to follow the screen's.
+    CHECK(colors == allRolesAt(240).stated + 2);
 
     // And what was parsed is triples and not entries, role for role. Reading it
     // back through the palette rather than off the file is what proves the
@@ -494,11 +496,17 @@ TEST_CASE("Every shipped theme states the same keys [theme]") {
 
     const std::set<std::string> written = keysOf("themes/black.cfg");
     REQUIRE(written.size() > 30);
-    for (const char* file : {"themes/16_colors.cfg", "themes/white.cfg",
-                             "themes/truecolor_bg_night.cfg"}) {
+    for (const char* file : {"themes/16_colors.cfg", "themes/white.cfg"}) {
         CAPTURE(file);
         CHECK(keysOf(file) == written);
     }
+
+    // `themes/truecolor_bg_night.cfg` writes in the box's scrollbar, which the
+    // others leave to follow the screen's, and nothing else besides.
+    std::set<std::string> night = written;
+    night.insert("dialog_scroll_track");
+    night.insert("dialog_scroll_thumb");
+    CHECK(keysOf("themes/truecolor_bg_night.cfg") == night);
 
     // `themes/blue_header.cfg` and `themes/golded_colors.cfg` write in one of the
     // two fills every other shipped theme leaves commented out, so they state
@@ -567,6 +575,30 @@ TEST_CASE("A box's focused field follows the compose screen's [theme]") {
         CHECK(same(theme.dialogFocusedField, theme.focusedField));
         CHECK(same(theme.dialogFocusedText, theme.focusedText));
     }
+}
+
+TEST_CASE("A box's scrollbar follows the screen's [theme]") {
+    // Left out of a theme, as every shipped one but `truecolor_bg_night.cfg`
+    // leaves them, the two roles are the theme's own `scroll_track` and
+    // `scroll_thumb`; named, they are their own and leave the screen's alone.
+    for (const char* file :
+         {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/black.cfg", "themes/white.cfg"}) {
+        CAPTURE(file);
+        const Palette theme = valueOf(
+            amberedit::ui::theme::loadPalette(amberedit::test::projectPath(file)));
+        CHECK(same(theme.dialogScrollTrack, theme.scrollTrack));
+        CHECK(same(theme.dialogScrollThumb, theme.scrollThumb));
+    }
+
+    const Palette named =
+        valueOf(parsePalette("scroll_track 239\nscroll_thumb 241\n"
+                             "dialog_scroll_track 100\ndialog_scroll_thumb 101\n",
+                             "built-here.cfg"));
+    CHECK(same(named.scrollTrack, Color{239}));
+    CHECK(same(named.scrollThumb, Color{241}));
+    CHECK(same(named.dialogScrollTrack, Color{100}));
+    CHECK(same(named.dialogScrollThumb, Color{101}));
 }
 
 TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {

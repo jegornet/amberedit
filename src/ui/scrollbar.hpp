@@ -17,7 +17,15 @@
 /// height of the window — the blank fill under them follows from that — and the
 /// nodelist's are written into a frame row by row, so those two take the bar a
 /// cell at a time (`cell()`).
+///
+/// The one thing that tells a box's bar from a screen's is its colors: a box
+/// stands on a fill of its own, so it draws in `dialog_scroll_track` and
+/// `dialog_scroll_thumb` where a screen draws in `scroll_track` and
+/// `scroll_thumb`.
 namespace amberedit::ui::scrollbar {
+
+/// What the bar stands on, which is what decides its colors.
+enum class On { Screen, Dialog };
 
 /// Which rows of the viewport the thumb covers, [first, last).
 struct Thumb {
@@ -40,11 +48,16 @@ struct Thumb {
 }
 
 /// The bar's cell on row `index` of the viewport, counted from its top.
-[[nodiscard]] inline term::Element cell(int index, const Thumb& thumb) {
+[[nodiscard]] inline term::Element cell(int index, const Thumb& thumb,
+                                        On on = On::Screen) {
     const bool onThumb = index >= thumb.first && index < thumb.last;
+    const bool inBox = on == On::Dialog;
+    const theme::Color thumbColor =
+        inBox ? theme::palette.dialogScrollThumb : theme::palette.scrollThumb;
+    const theme::Color trackColor =
+        inBox ? theme::palette.dialogScrollTrack : theme::palette.scrollTrack;
     return term::text(onThumb ? "█" : "│") |
-           term::color(onThumb ? theme::palette.scrollThumb
-                               : theme::palette.scrollTrack);
+           term::color(onThumb ? thumbColor : trackColor);
 }
 
 /// The whole bar, as tall as the viewport.

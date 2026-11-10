@@ -262,7 +262,8 @@ std::vector<size_t> matchesFor(const nodelist::NodelistDb& db, const std::string
 void refilter(const AppState& state, AppState::NodelistView& view) {
     view.matches.clear();
     view.listMatches = !view.lookup.empty() && state.nodelistDb;
-    if (view.listMatches) view.matches = matchesFor(*state.nodelistDb, view.lookup, view.home);
+    if (view.listMatches)
+        view.matches = matchesFor(*state.nodelistDb, view.lookup, view.home);
     view.found = !view.listMatches || !view.matches.empty();
     view.cursor = 0;
     view.offset = 0;
@@ -329,7 +330,8 @@ void openWith(AppState& state, AppState::NodelistView::Purpose purpose,
         refilter(state, view);
     } else if (state.nodelistDb && !state.nodelistDb->empty()) {
         const auto total = static_cast<int>(state.nodelistDb->size());
-        const Landing landing = lookupIn(*state.nodelistDb, view.lookup, view.home, 0, false);
+        const Landing landing =
+            lookupIn(*state.nodelistDb, view.lookup, view.home, 0, false);
         view.found = landing.found;
         centreOn(view, landing.index, total, view.rows);
     }
@@ -418,7 +420,8 @@ Element render(AppState& state, Element background) {
     const scrollbar::Thumb thumb = scrollbar::thumbOf(view.rows, total, view.offset);
     const auto framedRow = [&](Element content, int row) {
         if (!scrollbarShown) return dialog::framed(std::move(content));
-        return dialog::framed(hbox({std::move(content), scrollbar::cell(row, thumb)}));
+        return dialog::framed(hbox(
+            {std::move(content), scrollbar::cell(row, thumb, scrollbar::On::Dialog)}));
     };
 
     const Columns columns = columnsFor(listWidth);
