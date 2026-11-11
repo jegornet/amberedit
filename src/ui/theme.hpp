@@ -286,6 +286,15 @@ struct Palette {
     /// that still belongs to it, and because how far a theme is willing to
     /// darken what is behind a dialog is the theme's business.
     Color dialogShadow = builtin_theme::kDialogShadow;
+    /// The scrollbar inside a box — the track and the thumb beside a list longer
+    /// than the box: the nodelist's, the help box's and a utility's output.
+    /// `scroll_track`/`scroll_thumb` inside a box, and a pair of its own for the
+    /// family's usual reason: the bar stands on the box's fill rather than the
+    /// screen's. **A theme that says nothing about either takes `scroll_track`
+    /// and `scroll_thumb`**, so a box's bar is the screen's unless a theme says
+    /// otherwise.
+    Color dialogScrollTrack = builtin_theme::kSeparator;
+    Color dialogScrollThumb = builtin_theme::kFocusedField;
     /// The message header block — the From/To/Subj labels and their values. A
     /// step under `text`: the block says who wrote what to whom, and the
     /// message itself is what is being read.
@@ -359,7 +368,7 @@ struct Palette {
     /// reply stay apart.
     Color quoteEven = builtin_theme::kQuoteEven;
     Color quoteOdd = builtin_theme::kQuoteOdd;
-    /// Service text: kludge lines, the scrollbar's thumb, an area the area list
+    /// Service text: kludge lines, an area the area list
     /// shows but will not open, and the stand-in `arealist_description_default`
     /// puts where an area describes itself with nothing, which is the program
     /// talking as a kludge line is. Inside a box the counterpart is
@@ -374,6 +383,8 @@ struct Palette {
     Color kludge = builtin_theme::kKludge;
     Color screenButtons = builtin_theme::kDialogHint;
     Color dimmed = builtin_theme::kDialogHint;
+    /// The thumb of a scrollbar drawn on a screen — the reader's, the two
+    /// lists' and the editor's. Inside a box it is `dialog_scroll_thumb`.
     Color scrollThumb = builtin_theme::kFocusedField;
     /// Quiet but a step brighter: the tagline, tearline and origin closing a
     /// message, and the line at the top of every screen — the lists' column
@@ -414,7 +425,8 @@ struct Palette {
     Color hintBar = builtin_theme::kDialogHint;
 
     /// Drawn rather than written: the rules a screen sets its blocks apart
-    /// with, and the scrollbar's track. A box's own frame is `dialog_border`.
+    /// with, and the track of a scrollbar drawn on a screen. A box's own frame
+    /// is `dialog_border` and its scrollbar's track `dialog_scroll_track`.
     Color separator = builtin_theme::kSeparator;
     Color scrollTrack = builtin_theme::kSeparator;
     /// Something to see to rather than to read: a screen that could not be

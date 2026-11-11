@@ -191,9 +191,11 @@ Element render(AppState& state, Element background) {
             text(padRight(content, listWidth)) |
             color(heading ? theme::palette.dialogLabel : theme::palette.dialogText);
         if (heading) row = std::move(row) | bold;
-        lines.push_back(scrollbarShown ? dialog::framed(hbox(
-                                             {std::move(row), scrollbar::cell(i, thumb)}))
-                                       : dialog::framed(std::move(row)));
+        lines.push_back(
+            scrollbarShown
+                ? dialog::framed(hbox(
+                      {std::move(row), scrollbar::cell(i, thumb, scrollbar::On::Dialog)}))
+                : dialog::framed(std::move(row)));
     }
     lines.push_back(dialog::bottomBar(_("Esc closes"), {}, inner));
 

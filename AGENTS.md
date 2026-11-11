@@ -3701,17 +3701,26 @@ taking a row.
   leaves both commented out, written with the theme's own focused pair so that
   uncommenting them changes nothing: a field in a box is lit as the compose
   screen's header lights one unless a theme says otherwise.
+  **`dialog_scroll_track` and `dialog_scroll_thumb` follow `scroll_track` and
+  `scroll_thumb`** the same way: a box's bar is the screen's unless a theme
+  says otherwise. Every shipped theme leaves them commented out but
+  `themes/truecolor_bg_night.cfg`, which states both and nothing else besides
+  the other themes' keys; a test holds it to that. `scrollbar::cell()` takes `scrollbar::On::Dialog` to
+  draw in them, and the three boxes with a bar — the nodelist, the help box and
+  a utility's output — pass it.
 - **A box has a palette of its own, and a dialog draws from it and not from the
   screen's.** `dialog_background`, `dialog_text`, `dialog_title`,
   `dialog_label`, `dialog_hint`, `dialog_field`,
   `dialog_focused_field`/`dialog_focused_text` — the field the typing is in,
   never `selection`, which is what is selected of that field drawn in —
   `dialog_flash`, `dialog_border` — the frame, the rules closing it and the dividers inside it,
-  `separator`'s counterpart in a box — and `dialog_shadow`, plus `menu_button`,
+  `separator`'s counterpart in a box — `dialog_scroll_track`/`dialog_scroll_thumb`
+  and `dialog_shadow`, plus `menu_button`,
   which is only ever drawn inside one. A new dialog reaches for those rather than for `text`,
   `list_text`, `table_header`, `header`, `mark`,
   `screen_buttons`/`dimmed`/`kludge`, `input_field`/`input_text`,
-  `focused_field`/`focused_text`, `input_filler` and `animated_button_text`,
+  `focused_field`/`focused_text`, `scroll_track`/`scroll_thumb`, `input_filler`
+  and `animated_button_text`,
   which are the screen's counterparts and stay on the screen. The split is what
   lets `themes/16_colors.cfg` put a light grey DOS window with black in it over
   a screen that is light on black: one role cannot be legible on both. A test

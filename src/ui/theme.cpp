@@ -23,7 +23,7 @@ namespace {
 /// it.
 using Field = Color Palette::*;
 
-const std::array<std::pair<std::string_view, Field>, 47> kFields{{
+const std::array<std::pair<std::string_view, Field>, 49> kFields{{
     {"background", &Palette::background},
     {"selection", &Palette::selection},
     {"selection_text", &Palette::selectionText},
@@ -44,6 +44,8 @@ const std::array<std::pair<std::string_view, Field>, 47> kFields{{
     {"dialog_flash", &Palette::dialogFlash},
     {"dialog_border", &Palette::dialogBorder},
     {"dialog_shadow", &Palette::dialogShadow},
+    {"dialog_scroll_track", &Palette::dialogScrollTrack},
+    {"dialog_scroll_thumb", &Palette::dialogScrollThumb},
     {"header", &Palette::header},
     {"header_background", &Palette::headerBackground},
     {"own_name", &Palette::ownName},
@@ -78,8 +80,9 @@ const std::array<std::pair<std::string_view, Field>, 47> kFields{{
 /// three are fills a theme may want picked out and which the interface reads
 /// perfectly well without — see `Palette::headerBackground` — and a built-in
 /// near-black behind the headings of a theme painted on white is what taking
-/// the usual default would come to. The last two are the field a box is being
-/// typed in, which is the compose screen's focused field unless a theme says
+/// the usual default would come to. The last four are a box's counterparts of
+/// the screen's: the field it is being typed in, which is the compose screen's
+/// focused field, and its scrollbar, which is the screen's, unless a theme says
 /// otherwise.
 struct Follower {
     std::string_view key;
@@ -94,12 +97,14 @@ struct Follower {
 /// right: a role is resolved after the one it follows, so `input_field` reads a
 /// `header_background` that has already taken the screen where the file named
 /// neither.
-const std::array<Follower, 5> kFollowers{{
+const std::array<Follower, 7> kFollowers{{
     {"header_background", &Palette::headerBackground, &Palette::background},
     {"table_header_background", &Palette::tableHeaderBackground, &Palette::background},
     {"input_field", &Palette::inputField, &Palette::headerBackground},
     {"dialog_focused_field", &Palette::dialogFocusedField, &Palette::focusedField},
     {"dialog_focused_text", &Palette::dialogFocusedText, &Palette::focusedText},
+    {"dialog_scroll_track", &Palette::dialogScrollTrack, &Palette::scrollTrack},
+    {"dialog_scroll_thumb", &Palette::dialogScrollThumb, &Palette::scrollThumb},
 }};
 
 /// The keys that are not colors, the same way round: the name in the file

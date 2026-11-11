@@ -129,9 +129,11 @@ Element render(AppState& state, Element background) {
                        : std::string{};
         Element row =
             text(padRight(content, textWidth)) | color(theme::palette.dialogText);
-        lines.push_back(view.scrollbar ? dialog::framed(hbox(
-                                             {std::move(row), scrollbar::cell(i, thumb)}))
-                                       : dialog::framed(std::move(row)));
+        lines.push_back(
+            view.scrollbar
+                ? dialog::framed(hbox(
+                      {std::move(row), scrollbar::cell(i, thumb, scrollbar::On::Dialog)}))
+                : dialog::framed(std::move(row)));
     }
     lines.push_back(dialog::framed(text(std::string(static_cast<size_t>(inner), ' '))));
 
