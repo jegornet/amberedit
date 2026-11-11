@@ -509,6 +509,23 @@ enum class EdgeBehavior {
     NextUnreadOnly,
 };
 
+/// The case every echotag is read in, from `echotag_case`.
+enum class EchotagCase {
+    /// `unchanged` — as the tosser config or the `area` block writes it.
+    Unchanged,
+    /// `upper` — `ENET.SYSOP`.
+    Upper,
+    /// `lower` — `enet.sysop`.
+    Lower,
+    /// `mixed` — `Enet.Sysop`: a letter capitalised at the start and after
+    /// anything that is neither a letter nor a digit, every other one lowered.
+    Mixed,
+};
+
+/// `tag` in the case `echotagCase` asks for. Only ASCII letters change, so the
+/// tag measures what it measured on the screen.
+[[nodiscard]] std::string echotagCased(const std::string& tag, EchotagCase echotagCase);
+
 /// Where the typing goes when a reply is opened, from `reply_focus`.
 enum class ReplyFocus {
     /// `body` — into the text, the header having been filled in from the
@@ -1563,6 +1580,12 @@ struct AppConfig {
     /// forward and a new message open on the recipient whatever this says, and
     /// a message being changed opens in its text.
     ReplyFocus replyFocus{ReplyFocus::Body};
+
+    /// `echotag_case`: the case every echotag is read in, whichever config
+    /// declared the area. `unchanged` by default. Applied once, where
+    /// `AreaManager::reload()` takes the areas in, so the tag the program holds
+    /// is the converted one everywhere.
+    EchotagCase echotagCase{EchotagCase::Unchanged};
 
     /// Where entering an area from the area list lands, from
     /// `reader_lastread_auto_next`: on the message after the lastread mark, or

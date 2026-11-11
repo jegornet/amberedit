@@ -163,6 +163,18 @@ tosser_config_format fidoconfig
 #
 # map_path c:\fido /mnt/fido    # maps c:\fido\mail\test to /mnt/fido/mail/test
 
+# The case echotags are read in, from the tosser config and the "area" blocks
+# alike. Optional; "unchanged" by default.
+#
+#   unchanged  as the config writes it
+#   upper      ENET.SYSOP
+#   lower      enet.sysop
+#   mixed      Enet.Sysop
+#
+# The converted tag is the tag everywhere: on the screen, in a template's @CEcho
+# and @OEcho, in an export and in the echotosslog line the tosser reads.
+#echotag_case unchanged
+
 # An area of your own, in the fields a tosser config states one with. The blocks
 # are ADDED to what the tosser config declares — a local base for your own notes
 # is no business of the tosser's — and they are the whole area list where there

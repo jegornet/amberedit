@@ -44,6 +44,24 @@ std::string areaSeparatorKey(std::string_view id) {
     return key;
 }
 
+std::string echotagCased(const std::string& tag, EchotagCase echotagCase) {
+    switch (echotagCase) {
+        case EchotagCase::Unchanged: return tag;
+        case EchotagCase::Upper: return text::toUpper(tag);
+        case EchotagCase::Lower: return text::toLower(tag);
+        case EchotagCase::Mixed: break;
+    }
+    std::string cased = tag;
+    bool wordStart = true;
+    for (char& c : cased) {
+        const bool letter = text::asciiLower(c) != text::asciiUpper(c);
+        const bool digit = c >= '0' && c <= '9';
+        if (letter) c = wordStart ? text::asciiUpper(c) : text::asciiLower(c);
+        wordStart = !letter && !digit;
+    }
+    return cased;
+}
+
 namespace {
 
 tl::expected<TosserConfigFormat, ErrorPtr> parseFormat(const CfgEntry& entry) {
@@ -1076,6 +1094,18 @@ tl::expected<ReplyFocus, ErrorPtr> parseReplyFocus(const CfgEntry& entry) {
     return entry.fail("reply_focus: '" + *only + "' is not one of its values (body | to)");
 }
 
+tl::expected<EchotagCase, ErrorPtr> parseEchotagCase(const CfgEntry& entry) {
+    auto only = entry.one();
+    if (!only) return tl::make_unexpected(std::move(only).error());
+    const std::string value = text::toLower(*only);
+    if (value == "unchanged") return EchotagCase::Unchanged;
+    if (value == "upper") return EchotagCase::Upper;
+    if (value == "lower") return EchotagCase::Lower;
+    if (value == "mixed") return EchotagCase::Mixed;
+    return entry.fail("echotag_case: '" + *only +
+                      "' is not one of its values (unchanged | upper | lower | mixed)");
+}
+
 tl::expected<QuoteFooter, ErrorPtr> parseQuoteFooter(const CfgEntry& entry) {
     auto only = entry.one();
     if (!only) return tl::make_unexpected(std::move(only).error());
@@ -1940,6 +1970,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseReplyFocus(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.replyFocus = *read;
+    } else if (key == "echotag_case") {
+        auto read = parseEchotagCase(entry);
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.echotagCase = *read;
     } else if (key == "reader_lastread_auto_next") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

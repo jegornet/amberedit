@@ -4551,6 +4551,19 @@ taking a row.
   there is what somebody wrote about this one area on purpose, and
   `AreaManager::reload()` still marks such an entry `passthrough` rather than
   opening a base for it.
+- **`echotag_case` is applied as the areas are taken in, and once.**
+  `AreaManager::reload()` puts every tag through `config::echotagCased()`
+  straight after `loadAreas()` — the one place the tosser's areas and the
+  `area` blocks meet — so the tag the program holds is the converted one
+  everywhere: the list, the titles, `@CEcho`/`@OEcho`, an export, the
+  `echotosslog`. Not in the parsers, which would be four copies, and not where
+  a tag is drawn, which would leave the screen and the message disagreeing.
+  It costs nothing elsewhere because **a tag the config writes is matched
+  without regard to case wherever it is matched** — a group's `member`,
+  `reply_to_area`, a `CC:`/`XC:` mask, the echolist, the duplicate check
+  between the tosser and the blocks — and that is the rule to keep: a tag out
+  of the config text compared to `AreaConfig::tag` with `==` breaks the moment
+  this setting is on.
 - **`map_path` translates the tosser config's paths and no others.** The lines
   are read into `AppConfig::tosserPaths` (a repeatable key, the same source
   refused twice), and `config::PathMap` is what applies them: whole components

@@ -930,6 +930,35 @@ TEST_CASE("AppConfig reads where the reader stands after a save [app_config]") {
     CHECK_FALSE(loads("group g\nmember *\nreader_position_after_save new\nendgroup\n"));
 }
 
+TEST_CASE("echotag_case says the case echotags are read in [app_config]") {
+    using amberedit::config::EchotagCase;
+    CHECK(with("").echotagCase == EchotagCase::Unchanged);
+    CHECK(with("echotag_case unchanged\n").echotagCase == EchotagCase::Unchanged);
+    CHECK(with("echotag_case upper\n").echotagCase == EchotagCase::Upper);
+    CHECK(with("echotag_case lower\n").echotagCase == EchotagCase::Lower);
+    CHECK(with("echotag_case MIXED\n").echotagCase == EchotagCase::Mixed);
+    CHECK_FALSE(loads("echotag_case title\n"));
+    CHECK_FALSE(loads("echotag_case upper lower\n"));
+    // A tag is the area's name, and a group is picked by the name.
+    CHECK_FALSE(loads("group g\nmember *\nechotag_case upper\nendgroup\n"));
+}
+
+TEST_CASE("echotagCased writes a tag in the case asked for [app_config]") {
+    using amberedit::config::EchotagCase;
+    using amberedit::config::echotagCased;
+    CHECK(echotagCased("eNet.SysOp", EchotagCase::Unchanged) == "eNet.SysOp");
+    CHECK(echotagCased("enet.sysop", EchotagCase::Upper) == "ENET.SYSOP");
+    CHECK(echotagCased("ENET.SYSOP", EchotagCase::Lower) == "enet.sysop");
+    CHECK(echotagCased("ENET.SYSOP", EchotagCase::Mixed) == "Enet.Sysop");
+    // A word begins after anything that is neither a letter nor a digit, and a
+    // digit carries the word on.
+    CHECK(echotagCased("RU.FIDO_NEWS", EchotagCase::Mixed) == "Ru.Fido_News");
+    CHECK(echotagCased("R50.SYSOP", EchotagCase::Mixed) == "R50.Sysop");
+    CHECK(echotagCased("2GE-X", EchotagCase::Mixed) == "2ge-X");
+    // Nothing but ASCII letters changes.
+    CHECK(echotagCased("ru.привет", EchotagCase::Upper) == "RU.привет");
+}
+
 TEST_CASE("reply_focus says where a reply opens [app_config]") {
     using amberedit::config::ReplyFocus;
     // In the text unless the config says otherwise.

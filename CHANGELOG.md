@@ -7,6 +7,7 @@
 - add theme roles dialog_focused_field and dialog_focused_text, the focused field in a dialog; left out, they are focused_field and focused_text
 - add theme roles dialog_scroll_track and dialog_scroll_thumb, the scrollbar in a dialog; dim scrollbar in truecolor_bg_night theme
 - extern_utilN takes a run mode before the title: -noterm waits for the utility without handing it the terminal, -printresult does the same and then shows what it wrote to stdout and stderr in a scrollable box, copied by Ctrl-C or its Copy button, -detach starts it in the background and does not wait
+- add echotag_case: echotags read from the tosser config and the area blocks as written (unchanged, the default), upper, lower or mixed
 
 ## 0.11.0 — 2026-11-07
 

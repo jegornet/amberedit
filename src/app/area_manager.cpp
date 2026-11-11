@@ -246,6 +246,10 @@ tl::expected<void, ErrorPtr> AreaManager::reload(const ProgressFn& onArea) {
     for (auto& config : *sourced) {
         AreaEntry entry;
         entry.config = std::move(config);
+        // Here and nowhere else, so that every tag the program holds — the
+        // list, the titles, the templates, the echotoss log — is the one
+        // `echotag_case` asked for, whichever config declared the area.
+        entry.config.tag = config::echotagCased(entry.config.tag, appConfig_.echotagCase);
 
         // Before the base is opened rather than after: what the caller shows is
         // the area being waited on, and by the time it is read the wait is over.

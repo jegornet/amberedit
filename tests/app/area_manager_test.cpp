@@ -359,6 +359,21 @@ TEST_CASE("reload() lists every area, available or not [areamanager]") {
     }
 }
 
+TEST_CASE("reload() reads every tag in echotag_case's case [areamanager]") {
+    AppConfig config = configWithAddress("2:5020/1");
+    config.echotagCase = amberedit::config::EchotagCase::Mixed;
+    config.areaListSort = {{AreaSortKey::Echotag, false}};
+    std::vector<std::string> reached;
+    auto manager = makeManager({areaNamed("RU.LINUX"), areaNamed("alt.test")}, config);
+    REQUIRE(manager.reload([&reached](const std::string& tag) { reached.push_back(tag); })
+                .has_value());
+
+    // The list holds the converted tag, and so does everything handed it on the
+    // way: the tag is converted as the area is taken in, not as it is drawn.
+    CHECK(tagsOf(manager.areas()) == std::vector<std::string>{"Alt.Test", "Ru.Linux"});
+    CHECK(reached == std::vector<std::string>{"Ru.Linux", "Alt.Test"});
+}
+
 TEST_CASE("reload() names each area before it opens it [areamanager]") {
     // What the rescan modal shows. The order is the config's, since the list is
     // only sorted once every base has been read.
