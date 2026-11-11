@@ -191,14 +191,14 @@ std::vector<std::string> tagsOf(const std::vector<AreaEntry>& areas) {
 
 }  // namespace
 
-TEST_CASE("sortAreas orders the list by echoid [areamanager][sort]") {
+TEST_CASE("sortAreas orders the list by echotag [areamanager][sort]") {
     std::vector<AreaEntry> areas{entryOf("Ru.Linux"), entryOf("alt.test"),
                                  entryOf("ru.fido")};
 
-    sortAreas(areas, {{AreaSortKey::Echoid, false}});
+    sortAreas(areas, {{AreaSortKey::Echotag, false}});
     CHECK(tagsOf(areas) == std::vector<std::string>{"alt.test", "ru.fido", "Ru.Linux"});
 
-    sortAreas(areas, {{AreaSortKey::Echoid, true}});
+    sortAreas(areas, {{AreaSortKey::Echotag, true}});
     CHECK(tagsOf(areas) == std::vector<std::string>{"Ru.Linux", "ru.fido", "alt.test"});
 }
 
@@ -221,7 +221,7 @@ TEST_CASE("sortAreas breaks a tie with the next criterion [areamanager][sort]") 
     std::vector<AreaEntry> areas{entryOf("ru.fido", 3), entryOf("alt.test", 0),
                                  entryOf("ru.linux", 7), entryOf("a.quiet.one", 3)};
 
-    sortAreas(areas, {{AreaSortKey::Unread, true}, {AreaSortKey::Echoid, false}});
+    sortAreas(areas, {{AreaSortKey::Unread, true}, {AreaSortKey::Echotag, false}});
     CHECK(tagsOf(areas) ==
           std::vector<std::string>{"ru.linux", "a.quiet.one", "ru.fido", "alt.test"});
 }
@@ -259,21 +259,21 @@ TEST_CASE(
         entryOf("d.four", 0, AreaKind::Echo, ""),
     };
 
-    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}},
+    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echotag, false}},
               sections);
     CHECK(tagsOf(areas) ==
           std::vector<std::string>{"c.three", "a.one", "d.four", "b.two"});
 
     // The same lines with the numbers taken off are the old order back: every
     // group alphabetical, the ungrouped areas at the top.
-    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}},
+    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echotag, false}},
               {{"Group Mid", "Middling", {}}, {"zeta", "Zed", {}}});
     CHECK(tagsOf(areas) ==
           std::vector<std::string>{"d.four", "b.two", "c.three", "a.one"});
 
     // "No Group" is a section like any other, and it answers to the one
     // spelling the list knows it by.
-    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}},
+    sortAreas(areas, {{AreaSortKey::Group, false}, {AreaSortKey::Echotag, false}},
               {{"no group", "Other Areas", 5}, {"zeta", "Zed", 0}});
     CHECK(tagsOf(areas) ==
           std::vector<std::string>{"a.one", "d.four", "b.two", "c.three"});
@@ -306,19 +306,19 @@ TEST_CASE(
     "[areamanager][sort]") {
     using amberedit::config::AreaSeparatorName;
 
-    // A list sorted by echoid is not in sections at all — the areas one would
+    // A list sorted by echotag is not in sections at all — the areas one would
     // hold are not even next to each other — so the numbers say nothing here.
     const std::vector<AreaSeparatorName> sections{{"zeta", "Zed", 0}};
     std::vector<AreaEntry> areas{entryOf("ru.fido", 0, AreaKind::Echo, "Alpha"),
                                  entryOf("alt.test", 0, AreaKind::Echo, "Zeta")};
 
-    sortAreas(areas, {{AreaSortKey::Echoid, false}}, sections);
+    sortAreas(areas, {{AreaSortKey::Echotag, false}}, sections);
     CHECK(tagsOf(areas) == std::vector<std::string>{"alt.test", "ru.fido"});
 }
 
 TEST_CASE("reload() sorts the list the config asks for [areamanager][sort]") {
     AppConfig config = configWithAddress("2:5020/1");
-    config.areaListSort = {{AreaSortKey::Echoid, true}};
+    config.areaListSort = {{AreaSortKey::Echotag, true}};
 
     auto manager = makeManager({areaNamed("alt.test"), areaNamed("ru.linux")}, config);
     static_cast<void>(manager.reload());
@@ -330,7 +330,7 @@ TEST_CASE(
     "reload() puts the sections where arealist_separator_name numbered them "
     "[areamanager][sort]") {
     AppConfig config = configWithAddress("2:5020/1");
-    config.areaListSort = {{AreaSortKey::Group, false}, {AreaSortKey::Echoid, false}};
+    config.areaListSort = {{AreaSortKey::Group, false}, {AreaSortKey::Echotag, false}};
     config.areaListSeparatorNames = {{"Group Work", "Work", 0}, {"fun", "Fun", {}}};
 
     AreaConfig fun = areaNamed("alt.test");

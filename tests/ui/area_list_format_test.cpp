@@ -94,7 +94,7 @@ TEST_CASE("Each line of a multi-line format is laid out on its own "
     const auto rows = area_format::layout(fields("e c u\\nd n"), 25);
     REQUIRE(rows.size() == 2);
     REQUIRE(rows[0].size() == 5);
-    CHECK(rows[0][0].kind == AreaFieldKind::Echoid);
+    CHECK(rows[0][0].kind == AreaFieldKind::Echotag);
     CHECK(rows[0][0].width == 15);
     REQUIRE(rows[1].size() == 3);
     CHECK(rows[1][0].kind == AreaFieldKind::Description);

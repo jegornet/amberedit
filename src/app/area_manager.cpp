@@ -127,7 +127,7 @@ int compareBy(AreaSortKey key, const AreaEntry& a, const AreaEntry& b,
     switch (key) {
         case AreaSortKey::Address:
             return compareAddresses(a.config.address, b.config.address);
-        case AreaSortKey::Echoid: return compareNames(a.config.tag, b.config.tag);
+        case AreaSortKey::Echotag: return compareNames(a.config.tag, b.config.tag);
         case AreaSortKey::Group: return compareNames(a.config.group, b.config.group);
         case AreaSortKey::Type:
             return compareValues(typeRank(a.config.kind), typeRank(b.config.kind));

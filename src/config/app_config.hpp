@@ -257,7 +257,7 @@ struct TwitRule {
 /// What one letter of `arealist_sort` sorts the area list by.
 enum class AreaSortKey {
     Address,  ///< 'a' — the AKA the area is presented under
-    Echoid,   ///< 'e' — the area tag
+    Echotag,  ///< 'e' — the area tag
     Group,    ///< 'g' — the tosser's group, where the format has one
     Type,     ///< 't' — netmail, then echo, then local, bad and dupe
     Unread,   ///< 'u' — how many messages are unread
@@ -265,7 +265,7 @@ enum class AreaSortKey {
 
 /// One criterion of `arealist_sort`: what to sort by and which way round.
 struct AreaSortCriterion {
-    AreaSortKey key{AreaSortKey::Echoid};
+    AreaSortKey key{AreaSortKey::Echotag};
     /// `-` before the letter. Ascending is the default, as `+` says out loud.
     bool descending{false};
 
@@ -313,7 +313,7 @@ inline constexpr std::string_view kNoGroupSection = "No Group";
 /// What one field of `arealist_format` shows.
 enum class AreaFieldKind {
     Number,       ///< 'a' — the area's place in the list, counted from one
-    Echoid,       ///< 'e' — the area tag
+    Echotag,      ///< 'e' — the area tag
     Marked,       ///< 'm' — an arrow where the area is marked, a blank where it is not
     Description,  ///< 'd' — the tosser config's -d, or what an echolist says
     Group,        ///< 'g' — the tosser's group, where the format has one
@@ -325,7 +325,7 @@ enum class AreaFieldKind {
 
 /// One field of `arealist_format`: what it shows and how wide it stands.
 struct AreaListField {
-    AreaFieldKind kind{AreaFieldKind::Echoid};
+    AreaFieldKind kind{AreaFieldKind::Echotag};
     /// Columns. Zero is what `e0` asks for: the field takes what the
     /// fixed-width ones leave on the line it stands on, and where several on
     /// one line ask, they share it equally.
@@ -1094,7 +1094,7 @@ struct AppConfig {
     /// alphabetical order under it — `arealist_sort te`. An empty list means the
     /// tosser config's own order, which `arealist_sort ""` asks for.
     std::vector<AreaSortCriterion> areaListSort{{AreaSortKey::Type, false},
-                                                {AreaSortKey::Echoid, false}};
+                                                {AreaSortKey::Echotag, false}};
 
     /// Whether the area list draws a rule between its sections, and the section's
     /// name in the middle of it — `arealist_separators`, off by default.
@@ -1128,7 +1128,7 @@ struct AppConfig {
     /// areas.bbs has no groups at all, and where a fidoconfig has them `g` puts
     /// the column back.
     AreaListFormat areaListFormatNarrow{{{AreaFieldKind::Marked, 1},
-                                         {AreaFieldKind::Echoid, 0},
+                                         {AreaFieldKind::Echotag, 0},
                                          {AreaFieldKind::Space, 1},
                                          {AreaFieldKind::Total, 4},
                                          {AreaFieldKind::Space, 1},
@@ -1147,7 +1147,7 @@ struct AppConfig {
     /// put the description beside the name, so a row there is a row and the
     /// screen holds twice the areas the narrow one does.
     AreaListFormat areaListFormatWide{{{AreaFieldKind::Marked, 1},
-                                       {AreaFieldKind::Echoid, 0},
+                                       {AreaFieldKind::Echotag, 0},
                                        {AreaFieldKind::Space, 1},
                                        {AreaFieldKind::Description, 0},
                                        {AreaFieldKind::Space, 1},

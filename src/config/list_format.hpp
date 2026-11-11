@@ -84,7 +84,7 @@ struct ListFormatSpec {
     std::string_view setting;
     std::vector<ListFormatLetter> letters;
     /// The letters and what they show, as a complaint about an unknown one
-    /// lists them: `a number, e echoid, …`.
+    /// lists them: `a number, e echotag, …`.
     std::string_view fields;
     /// A format worth writing, and the wide window's beside it — what an
     /// example in a complaint is built from. The defaults, in practice.

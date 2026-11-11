@@ -25,7 +25,7 @@ bool isNumeric(AreaFieldKind kind) {
 std::string headingOf(AreaFieldKind kind) {
     switch (kind) {
         case AreaFieldKind::Number: return C_("area list column", "#");
-        case AreaFieldKind::Echoid: return C_("area list column", "Area");
+        case AreaFieldKind::Echotag: return C_("area list column", "Area");
         case AreaFieldKind::Marked: return "";
         case AreaFieldKind::Description: return C_("area list column", "Description");
         case AreaFieldKind::Group: return C_("area list column", "Grp");
@@ -62,7 +62,7 @@ std::string cellText(const app::AreaEntry& entry, int ordinal, bool marked,
     switch (column.kind) {
         case AreaFieldKind::Number:
             return countText(static_cast<uint64_t>(std::max(0, ordinal)), column.width);
-        case AreaFieldKind::Echoid:
+        case AreaFieldKind::Echotag:
             return truncateToWidth(entry.config.tag, column.width);
         case AreaFieldKind::Marked: return marked ? ">" : "";
         case AreaFieldKind::Description:

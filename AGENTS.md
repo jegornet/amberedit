@@ -2085,7 +2085,7 @@ Rules that hold the design together:
 
 - **`reply_to_area` moves the picker's cursor**, and outside this screen says
   where an echo's carbon copies go. `askArea()` looks the tag up in the
-  manager's list — case-folded, as every echoid is — and only for `For::Reply`:
+  manager's list — case-folded, as every echotag is — and only for `For::Reply`:
   the other three purposes carry the message itself somewhere, which no one
   setting can name an area for. A tag naming no area leaves the cursor at the
   top, since the areas come from the tosser config and a setting cannot add to

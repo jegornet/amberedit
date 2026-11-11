@@ -16,7 +16,7 @@ namespace amberedit::ui::area_format {
 /// works from these — the heading and the rows are laid out by the same list,
 /// which is what keeps a column's heading over its column.
 struct Column {
-    config::AreaFieldKind kind{config::AreaFieldKind::Echoid};
+    config::AreaFieldKind kind{config::AreaFieldKind::Echotag};
     int width{0};
 };
 

@@ -274,7 +274,7 @@ void withSeparators(Fixture& fixture, amberedit::config::AreaSortKey by) {
     // The default puts the name over the description column, and these formats
     // have no description in them.
     fixture.config.areaSeparatorAlign = {amberedit::config::AreaSeparatorAlign::Center};
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.config.arealistMenu.clear();
     fixture.state.width = 20;
@@ -452,7 +452,7 @@ TEST_CASE("The wheel spends a row's worth of notches on a two-line row [arealist
     fixture.state.height = 24;
     // Two lines to the row, whatever the window: the name on one and the
     // description under it, which is what the narrow default holds.
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
 
@@ -476,7 +476,7 @@ TEST_CASE("The wheel spends a row's worth of notches on a two-line row [arealist
 TEST_CASE("A notch the throttle swallows still ends the quick search [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     amberedit::ui::Millis now = 1000;
@@ -499,7 +499,7 @@ TEST_CASE("The area list draws the columns arealist_format asks for [arealist]")
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
                                             {AreaFieldKind::Space, 1},
-                                            {AreaFieldKind::Echoid, 0}}};
+                                            {AreaFieldKind::Echotag, 0}}};
     fixture.state.width = 20;
     // The corner is not what this is about: a menu button would take the
     // right-hand end of the heading row, and what is being read here is the
@@ -521,7 +521,7 @@ TEST_CASE("The area list marks the area under the cursor [arealist][marks]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.config.areaListFormatNarrow = {
-        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}}};
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.state.width = 20;
     fixture.config.arealistMenu.clear();
@@ -742,8 +742,8 @@ TEST_CASE(
     described.description = "The first area";
     Fixture fixture({described});
     fixture.config.adaptiveUiThreshold = 30;
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
-    fixture.config.areaListFormatWide = {{{AreaFieldKind::Echoid, 8},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}}};
+    fixture.config.areaListFormatWide = {{{AreaFieldKind::Echotag, 8},
                                           {AreaFieldKind::Space, 1},
                                           {AreaFieldKind::Description, 0}}};
     // Which format a row follows is the question; the corner would only take
@@ -780,7 +780,7 @@ TEST_CASE(
     Fixture fixture({first, second});
     // The name on one line and the description under it — what a narrow window
     // has no columns to put side by side.
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
     fixture.state.width = 20;
     fixture.state.height = 9;  // seven lines: three whole rows, and one over
@@ -809,7 +809,7 @@ TEST_CASE("A window too short for a whole row still shows an area [arealist]") {
     AreaConfig first = passthroughArea("one");
     first.description = "The first area";
     Fixture fixture({first, passthroughArea("two")});
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
     fixture.state.width = 20;
     fixture.state.height = 3;  // one line for the list, and a row wants two
@@ -826,7 +826,7 @@ TEST_CASE("A window too short for a whole row still shows an area [arealist]") {
 TEST_CASE("A click on any line of a row is a click on that area [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(6));
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
     fixture.state.width = 20;
     fixture.state.height = 10;
@@ -859,9 +859,9 @@ TEST_CASE(
     fixture.config.adaptiveUiThreshold = 30;
     // Two lines to a row in a narrow window and one in a wide one, which is
     // what the defaults do: a screen of twelve lines holds six areas or twelve.
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
-    fixture.config.areaListFormatWide = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatWide = {{{AreaFieldKind::Echotag, 0}}};
     fixture.state.height = 14;  // twelve lines for the list
 
     namespace term = amberedit::ui::term;
@@ -894,7 +894,7 @@ TEST_CASE(
 TEST_CASE("The scrollbar beside tall rows counts areas, not lines [arealist]") {
     using amberedit::config::AreaFieldKind;
     Fixture fixture(numberedAreas(20));
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}},
                                            {{AreaFieldKind::Description, 0}}};
     fixture.config.areaListScrollbar = true;
     fixture.state.width = 20;
@@ -932,7 +932,7 @@ TEST_CASE(
     // are both below it.
     Fixture fixture(
         {squishArea("zero", under.path()), speaks, squishArea("two", bare.path())});
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 8},
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 8},
                                             {AreaFieldKind::Space, 1},
                                             {AreaFieldKind::Description, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
@@ -982,7 +982,7 @@ TEST_CASE("The mark is drawn in the theme's mark color [arealist][marks][squish]
     Fixture fixture({squishArea("one", first.path()), squishArea("two", second.path()),
                      passthroughArea("three")});
     fixture.config.areaListFormatNarrow = {
-        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}}};
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.state.width = 20;
     fixture.config.arealistMenu.clear();
@@ -1026,7 +1026,7 @@ TEST_CASE("selection_bold adds weight to the bar and changes nothing else "
     const TempSquishBase first;
     const TempSquishBase second;
     Fixture fixture({squishArea("one", first.path()), squishArea("two", second.path())});
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 8}}};
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 8}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.state.width = 30;
     fixture.state.height = 8;
@@ -1055,7 +1055,7 @@ TEST_CASE("The area list draws the scrollbar where the list does not fit [areali
     Fixture fixture(numberedAreas(20));
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
                                             {AreaFieldKind::Space, 1},
-                                            {AreaFieldKind::Echoid, 0}}};
+                                            {AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListScrollbar = true;  // off by default
     fixture.state.width = 20;
     fixture.state.height = 8;  // six rows for the list
@@ -1087,7 +1087,7 @@ TEST_CASE("The area list draws no scrollbar for a list that fits [arealist]") {
     fixture.config.areaListScrollbar = true;
     // A row of one line, so that six lines are six areas: what fits is what the
     // bar is about here, and the default row stands two lines tall.
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}}};
     fixture.state.width = 20;
     fixture.state.height = 8;  // six rows for six areas
 
@@ -1104,7 +1104,7 @@ TEST_CASE("arealist_scrollbar off leaves the rows the whole width [arealist]") {
     Fixture fixture(numberedAreas(20));
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
                                             {AreaFieldKind::Space, 1},
-                                            {AreaFieldKind::Echoid, 0}}};
+                                            {AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListScrollbar = false;  // the default, said out loud
     fixture.state.width = 20;
     fixture.state.height = 8;
@@ -1299,7 +1299,7 @@ TEST_CASE("Ctrl-U leaves only the areas with something unread [arealist][squish]
     markToEnd(fixture, "second");
     REQUIRE(fixture.manager.areas()[1].unread == 0);
 
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.state.width = 20;
     fixture.state.height = 8;
@@ -1343,7 +1343,7 @@ TEST_CASE("The rows of the filtered list are numbered as they stand [arealist][s
 
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
                                             {AreaFieldKind::Space, 1},
-                                            {AreaFieldKind::Echoid, 0}}};
+                                            {AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.state.width = 20;
     fixture.state.height = 8;
@@ -1515,7 +1515,7 @@ TEST_CASE(
     Fixture fixture(threeAreas(first, second, third));
     markToEnd(fixture, "second");
 
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.state.width = 20;
     fixture.state.height = 8;
@@ -1683,7 +1683,7 @@ TEST_CASE("menu_button off leaves the headings the whole row [arealist][menu]") 
     using amberedit::config::AreaFieldKind;
     using amberedit::config::Visibility;
     Fixture fixture({passthroughArea("one")});
-    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echoid, 0}}};
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Echotag, 0}}};
     fixture.state.width = 20;
     fixture.config.menuButton = Visibility::Off;
     CHECK_FALSE(fixture.state.arealistMenuShown());
@@ -2172,7 +2172,7 @@ TEST_CASE("A sort that puts no areas in runs draws no rules [arealist][separator
     // Sorted by name, the two kinds are not next to each other, so there is
     // nothing a rule between them could divide. The setting is ignored rather
     // than refused: it says how to draw a list sorted by type or by group.
-    withSeparators(fixture, AreaSortKey::Echoid);
+    withSeparators(fixture, AreaSortKey::Echotag);
 
     const auto screen = drawn(fixture);
     CHECK(rowText(screen, 1) == "────────────────────");
@@ -2376,7 +2376,7 @@ TEST_CASE("arealist_separators_align places the name [arealist][separators]") {
     // fifth column of the screen, which is where the letter `e` puts the name.
     fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
                                             {AreaFieldKind::Space, 1},
-                                            {AreaFieldKind::Echoid, 0}}};
+                                            {AreaFieldKind::Echotag, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
 
     const auto ruleWith = [&fixture](amberedit::config::AreaSeparatorAlignment align) {
@@ -2391,7 +2391,7 @@ TEST_CASE("arealist_separators_align places the name [arealist][separators]") {
     CHECK(ruleWith({AreaSeparatorAlign::Right}) == "──────────── Netmail");
     // The name stands where the column does, its first letter in the column's
     // first one.
-    CHECK(ruleWith({AreaSeparatorAlign::Field, AreaFieldKind::Echoid}) ==
+    CHECK(ruleWith({AreaSeparatorAlign::Field, AreaFieldKind::Echotag}) ==
           "──── Netmail ───────");
     // The leftmost column starts a column in, which is the row's own margin, so
     // the name standing over it keeps the space and loses the line.
@@ -2414,7 +2414,7 @@ TEST_CASE("A column on the row's second line is still a column [arealist][separa
     // column and a gap: where in the row the format put it makes no difference,
     // the column being a column of the table either way.
     fixture.config.areaListFormatNarrow = {
-        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echoid, 0}},
+        {{AreaFieldKind::Marked, 1}, {AreaFieldKind::Echotag, 0}},
         {{AreaFieldKind::Space, 3}, {AreaFieldKind::Description, 0}}};
     fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
     fixture.config.areaSeparatorAlign = {AreaSeparatorAlign::Field,

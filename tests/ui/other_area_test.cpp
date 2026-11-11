@@ -1196,10 +1196,10 @@ TEST_CASE("The forward button asks the same question m does [other_area]") {
 TEST_CASE(
     "The picker opens on the first area, not on the one being read "
     "[other_area]") {
-    // Descending by echoid, so the area being read below is the last of the two
+    // Descending by echotag, so the area being read below is the last of the two
     // and the first one is somebody else — with the default order the two would
     // coincide and the check would pass either way.
-    TwoAreaFixture fixture({{amberedit::config::AreaSortKey::Echoid, true}});
+    TwoAreaFixture fixture({{amberedit::config::AreaSortKey::Echotag, true}});
     REQUIRE(fixture.rowOf("test.other") == 0);
 
     // Read the area that sorts last.
@@ -1218,7 +1218,7 @@ TEST_CASE(
 
 TEST_CASE("reply_to_area is where the reply picker opens [other_area]") {
     TwoAreaFixture fixture;
-    // Written in another case than the area carries, since an echoid names the
+    // Written in another case than the area carries, since an echotag names the
     // same echo however it is spelled.
     fixture.config.replyToArea = "TEST.OTHER";
     REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
@@ -1274,7 +1274,7 @@ TEST_CASE("The picker lists the areas in the area list's own order [other_area]"
     // `arealist_sort` orders one list, and both screens draw it: whatever it
     // says, the dialog says the same, ascending or descending.
     for (const bool descending : {false, true}) {
-        TwoAreaFixture fixture({{amberedit::config::AreaSortKey::Echoid, descending}});
+        TwoAreaFixture fixture({{amberedit::config::AreaSortKey::Echotag, descending}});
         REQUIRE(message_list::enterArea(fixture.state, fixture.source).has_value());
         message_read::handleEvent(fixture.state, Event::Character('n'));
         REQUIRE(fixture.state.areaPicker);

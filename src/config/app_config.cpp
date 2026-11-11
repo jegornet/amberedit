@@ -95,13 +95,13 @@ tl::expected<std::vector<AreaSortCriterion>, ErrorPtr> parseAreaSort(
             AreaSortKey key{};
             switch (text::asciiLower(raw)) {
                 case 'a': key = AreaSortKey::Address; break;
-                case 'e': key = AreaSortKey::Echoid; break;
+                case 'e': key = AreaSortKey::Echotag; break;
                 case 'g': key = AreaSortKey::Group; break;
                 case 't': key = AreaSortKey::Type; break;
                 case 'u': key = AreaSortKey::Unread; break;
                 default:
                     return entry.fail("arealist_sort: '" + std::string(1, raw) +
-                                      "' is not a sort criterion (a address, e echoid, "
+                                      "' is not a sort criterion (a address, e echotag, "
                                       "g group, t type, u unread, each optionally "
                                       "preceded by - or +)");
             }
@@ -131,7 +131,7 @@ const ListFormatSpec& areaFormatSpec() {
     static const ListFormatSpec spec{
         "arealist_format",
         {{'a', 4}, {'e', 0}, {'m', 1}, {'d', 0}, {'g', 5}, {'c', 4}, {'u', 4}, {'n', 1}},
-        "a number, e echoid, m mark, d description, g group, c messages, u unread, "
+        "a number, e echotag, m mark, d description, g group, c messages, u unread, "
         "n unread marker",
         "me c u\\n d n",
         "me d c un",
@@ -142,7 +142,7 @@ const ListFormatSpec& areaFormatSpec() {
 AreaFieldKind areaFieldOf(char letter) {
     switch (letter) {
         case 'a': return AreaFieldKind::Number;
-        case 'e': return AreaFieldKind::Echoid;
+        case 'e': return AreaFieldKind::Echotag;
         case 'm': return AreaFieldKind::Marked;
         case 'd': return AreaFieldKind::Description;
         case 'g': return AreaFieldKind::Group;

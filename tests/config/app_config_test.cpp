@@ -1543,7 +1543,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     // leaves.
     CHECK(with("").areaListFormatNarrow ==
           AreaListFormat{Line{{AreaFieldKind::Marked, 1},
-                              {AreaFieldKind::Echoid, 0},
+                              {AreaFieldKind::Echotag, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Total, 4},
                               {AreaFieldKind::Space, 1},
@@ -1556,7 +1556,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     // name, the two sharing what the counts leave.
     CHECK(with("").areaListFormatWide ==
           AreaListFormat{Line{{AreaFieldKind::Marked, 1},
-                              {AreaFieldKind::Echoid, 0},
+                              {AreaFieldKind::Echotag, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Description, 0},
                               {AreaFieldKind::Space, 1},
@@ -1572,7 +1572,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     CHECK(wideFormatOf("\"e c un\"") == formatOf("\"e c un\""));
 
     // A format with no \n in it is the one line every row used to be.
-    CHECK(formatOf("\"e c un\"") == AreaListFormat{Line{{AreaFieldKind::Echoid, 0},
+    CHECK(formatOf("\"e c un\"") == AreaListFormat{Line{{AreaFieldKind::Echotag, 0},
                                                         {AreaFieldKind::Space, 1},
                                                         {AreaFieldKind::Total, 4},
                                                         {AreaFieldKind::Space, 1},
@@ -1583,11 +1583,11 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     CHECK(formatOf("\"a e\" \"a e d\"") ==
           AreaListFormat{Line{{AreaFieldKind::Number, 4},
                               {AreaFieldKind::Space, 1},
-                              {AreaFieldKind::Echoid, 0}}});
+                              {AreaFieldKind::Echotag, 0}}});
     CHECK(wideFormatOf("\"a e\" \"a e d\"") ==
           AreaListFormat{Line{{AreaFieldKind::Number, 4},
                               {AreaFieldKind::Space, 1},
-                              {AreaFieldKind::Echoid, 0},
+                              {AreaFieldKind::Echotag, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Description, 0}}});
 
@@ -1596,7 +1596,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     CHECK(formatOf("\"a e0 c3 u3n\"") ==
           AreaListFormat{Line{{AreaFieldKind::Number, 4},
                               {AreaFieldKind::Space, 1},
-                              {AreaFieldKind::Echoid, 0},
+                              {AreaFieldKind::Echotag, 0},
                               {AreaFieldKind::Space, 1},
                               {AreaFieldKind::Total, 3},
                               {AreaFieldKind::Space, 1},
@@ -1605,7 +1605,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
 
     // Every letter, with the default widths the table promises.
     CHECK(formatOf("aemdgcun") == AreaListFormat{Line{{AreaFieldKind::Number, 4},
-                                                      {AreaFieldKind::Echoid, 0},
+                                                      {AreaFieldKind::Echotag, 0},
                                                       {AreaFieldKind::Marked, 1},
                                                       {AreaFieldKind::Description, 0},
                                                       {AreaFieldKind::Group, 5},
@@ -1619,7 +1619,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     // at both ends of a row.
     CHECK(formatOf("\"a e a\"") == AreaListFormat{Line{{AreaFieldKind::Number, 4},
                                                        {AreaFieldKind::Space, 1},
-                                                       {AreaFieldKind::Echoid, 0},
+                                                       {AreaFieldKind::Echotag, 0},
                                                        {AreaFieldKind::Space, 1},
                                                        {AreaFieldKind::Number, 4}}});
 
@@ -1627,7 +1627,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     // layout of its own: what stands on one says nothing about the next.
     CHECK(formatOf("\"a\\ne\\nd\"") ==
           AreaListFormat{Line{{AreaFieldKind::Number, 4}},
-                         Line{{AreaFieldKind::Echoid, 0}},
+                         Line{{AreaFieldKind::Echotag, 0}},
                          Line{{AreaFieldKind::Description, 0}}});
     // The backslash is the config's own text — it knows no escapes of its own —
     // so \N is read as \n is, the letters being read case-insensitively
@@ -1637,7 +1637,7 @@ TEST_CASE("AppConfig reads what a row of the area list holds [app_config]") {
     // space is a line asked for, where an empty one is a \n written once too
     // often.
     CHECK(formatOf("\"e\\n \\nd\"") ==
-          AreaListFormat{Line{{AreaFieldKind::Echoid, 0}},
+          AreaListFormat{Line{{AreaFieldKind::Echotag, 0}},
                          Line{{AreaFieldKind::Space, 1}},
                          Line{{AreaFieldKind::Description, 0}}});
 
@@ -2004,17 +2004,17 @@ TEST_CASE("AppConfig reads the area list order [app_config]") {
         return errorWith("arealist_sort " + value + "\n");
     };
     const Order ascending{{AreaSortKey::Address, false},
-                          {AreaSortKey::Echoid, false},
+                          {AreaSortKey::Echotag, false},
                           {AreaSortKey::Group, false},
                           {AreaSortKey::Type, false},
                           {AreaSortKey::Unread, false}};
 
     // The default sorts the netmail areas to the top and alphabetically under it.
     CHECK(with("").areaListSort ==
-          Order{{AreaSortKey::Type, false}, {AreaSortKey::Echoid, false}});
+          Order{{AreaSortKey::Type, false}, {AreaSortKey::Echotag, false}});
 
     // The modifier belongs to the letter after it, and only to that one.
-    const Order mixed{{AreaSortKey::Unread, true}, {AreaSortKey::Echoid, false}};
+    const Order mixed{{AreaSortKey::Unread, true}, {AreaSortKey::Echotag, false}};
     CHECK(sortOf("-u+e") == mixed);
     CHECK(sortOf("-ue") == mixed);
 
@@ -2140,7 +2140,7 @@ TEST_CASE("AppConfig reads where a section rule's name stands [app_config]") {
     // A letter of arealist_format names the column the name stands over, read
     // without regard to case as the format's own letters are.
     CHECK(alignOf("e") ==
-          AreaSeparatorAlignment{AreaSeparatorAlign::Field, AreaFieldKind::Echoid});
+          AreaSeparatorAlignment{AreaSeparatorAlign::Field, AreaFieldKind::Echotag});
     CHECK(alignOf("U") ==
           AreaSeparatorAlignment{AreaSeparatorAlign::Field, AreaFieldKind::Unread});
     // A letter the format is free to name but this config's format does not is
@@ -2903,7 +2903,7 @@ TEST_CASE("The example config is one AmberEdit reads [app_config]") {
     CHECK(cfg.originText() == "Somewhere in the world");
     CHECK(cfg.areaListSort == std::vector<amberedit::config::AreaSortCriterion>{
                                   {amberedit::config::AreaSortKey::Type, false},
-                                  {amberedit::config::AreaSortKey::Echoid, false}});
+                                  {amberedit::config::AreaSortKey::Echotag, false}});
     // The aka and akamatch lines ship commented out, and are meant to: they
     // name addresses that belong to nobody who copies the file, and an
     // uncommented one would have a new user sending netmail from an address

@@ -484,13 +484,13 @@ reader_show_message_size off
 # How the area list is sorted. Optional; "te" by default. A set of letters,
 # written in any case:
 #   a   the address (AKA) the area is presented under
-#   e   the echoid (the area tag)
+#   e   the area tag (echotag)
 #   g   the group, where the tosser config has one
 #   t   the type, in the order netmail, echo, local, bad, dupe
 #   u   unread messages (try it!)
 # Each letter may be preceded by "-" for descending or "+" for ascending (the
 # default). The first letter decides and the rest break its ties, so "-u+e" is
-# unread descending and then echoid ascending; spaces between letters mean
+# unread descending and then echotag ascending; spaces between letters mean
 # nothing. Areas the letters leave equal stay in the order the tosser config
 # names them, and arealist_sort "" leaves the whole list in that order. The
 # unread counts are those of the moment the list was built.
@@ -504,7 +504,7 @@ arealist_sort te
 # window is. Each format is a set of letters, written in any case, each
 # optionally followed by the width in columns it is given:
 #   a   the area's number in the list, counted from one      4 columns
-#   e   the echoid (the area tag)                            what is left
+#   e   the area tag (echotag)                               what is left
 #   m   a ">" where you have marked the area (Ctrl-T)        1 column
 #   d   the description (-d in fidoconfig, or an echolist)   what is left
 #   g   the group, where the tosser config has one           5 columns
@@ -580,7 +580,7 @@ arealist_separators off
 # over the description column.
 #
 # "left" and "right" stand it flush against that end of the rule, "center" in
-# the middle. A letter of arealist_format (e.g. "e" for echoid) puts its first
+# the middle. A letter of arealist_format (e.g. "e" for echotag) puts its first
 # character in that column's first one.
 #arealist_separators_align e
 
