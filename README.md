@@ -64,7 +64,7 @@ and what differs on macOS and Windows.
 
 ## Windows
 
-**Windows 10 or later, x64**. The zip holds one executable and the files it
+**Windows 10 or later, x64 or arm64**. The zip holds one executable and the files it
 reads; there are no DLLs to put beside it and nothing to install.
 
 Older versions of Windows are not supported. AmberEdit is built against the Universal
