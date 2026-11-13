@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.11.0
+Version:        0.11.1
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -110,6 +110,15 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Fri Nov 13 2026 Yegor Gluhov <git@jegor.net> - 0.11.1-1
+- add reader.thread_next on `*`: the next answer to the message this one answers
+- dialog fields edit text as a header field does; Ctrl-F selects the last search
+- add theme roles dialog_focused_field and dialog_focused_text, the focused field in a dialog; left out, they are focused_field and focused_text
+- add theme roles dialog_scroll_track and dialog_scroll_thumb, the scrollbar in a dialog; dim scrollbar in truecolor_bg_night theme
+- extern_utilN takes a run mode before the title: -noterm waits for the utility without handing it the terminal, -printresult does the same and then shows what it wrote to stdout and stderr in a scrollable box, copied by Ctrl-C or its Copy button, -detach starts it in the background and does not wait
+- add flag_new_netmail and flag_new_echomail: an empty flag file made when a new message is written into a netmail or an echo area
+- add echotag_case: area ids read from the tosser config and the area blocks as written (unchanged, the default), upper, lower or mixed
+
 * Sat Nov 07 2026 Yegor Gluhov <git@jegor.net> - 0.11.0-1
 - select text in the editor with Shift and the arrows or the mouse; Ctrl-C / Ctrl-Ins copy it, Ctrl-X / Shift-Del cut it. A double click selects a word, a triple click the line or the whole header field
 - add clipboard_copy_on_select: text selected in the editor is copied by itself — always, mouse (the default) or off

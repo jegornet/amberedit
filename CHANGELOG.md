@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.1 — 2026-11-13
 
 - add reader.thread_next on `*`: the next answer to the message this one answers
 - dialog fields edit text as a header field does; Ctrl-F selects the last search
