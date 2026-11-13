@@ -9,6 +9,7 @@
 #include "encoding/charset_detector.hpp"
 #include "encoding/iconv_recoder.hpp"
 #include "msgbase/format_driver.hpp"
+#include "msgbase/scan_notices.hpp"
 #include "ports/i_msgbase.hpp"
 
 namespace amberedit::msgbase {
@@ -41,13 +42,14 @@ public:
     ///        the room FTS-0001 has. From `ucs_kludges`, and independent of
     ///        `fieldLimits`: a field written into one of those lines is cut
     ///        whatever that setting says, since the line is what says it was.
-    /// @param echotossLogPath file the name of this area is added to after a
-    ///        message has been written into it, from `echotosslog`. Empty —
-    ///        which is what a config naming none leaves — writes nowhere. See
-    ///        `msgbase/echotoss_log.hpp`; this class is where it is called because
-    ///        this is the one place a message reaching a base is a fact.
+    /// @param notices where a message written into this area is announced: the
+    ///        `echotosslog` its tag is added to, and the `flag_new_netmail` or
+    ///        `flag_new_echomail` raised for it by its kind. Each empty — which
+    ///        is what a config naming none leaves — announces nowhere. See
+    ///        `msgbase/scan_notices.hpp`; this class is where they are written
+    ///        because this is the one place a message reaching a base is a fact.
     explicit FtnMsgBase(std::string_view defaultCharset, bool fieldLimits = true,
-                        bool ucsKludges = true, std::string echotossLogPath = {});
+                        bool ucsKludges = true, ScanNotices notices = {});
     ~FtnMsgBase() override;
 
     FtnMsgBase(const FtnMsgBase&) = delete;
@@ -158,12 +160,18 @@ private:
     /// one message and a set of them are stamped by the same rule.
     [[nodiscard]] RawDraft encodeForWriting(const domain::MessageDraft& draft) const;
 
+    /// Tells whoever `notices_` names that this area has a message to scan out:
+    /// its tag into the `echotosslog`, and the flag for its kind — netmail's or
+    /// echomail's, and none for a local, bad or dupe area. Shared by the two calls
+    /// that append, which decide whether there is anything to announce.
+    void announceWritten() const;
+
     std::unique_ptr<FormatDriver> driver_;
     domain::AreaConfig areaConfig_;
     encoding::CharsetDetector detector_;
     bool fieldLimits_{true};
     bool ucsKludges_{true};
-    std::string echotossLogPath_;
+    ScanNotices notices_;
     mutable encoding::IconvRecoder recoder_;
 };
 

@@ -26,4 +26,27 @@ namespace amberedit::msgbase {
 /// second attempt to be had from the user, only a second copy of the message.
 void appendEchotossLog(const std::string& path, const std::string& tag);
 
+/// Makes the flag file `flag_new_netmail` or `flag_new_echomail` names: a file
+/// of no bytes, whose being there is the whole of what it says — that a message
+/// has been written which a tosser or a mailer watching for the file has to act
+/// on.
+///
+/// A file already there is left exactly as it is, bytes and all: the flag is
+/// up, and whoever takes it down is the program it was raised for. An empty
+/// `path` — a config naming no flag — makes nothing. A failure is passed over
+/// in silence, for the reason `appendEchotossLog()` gives.
+void raiseFlag(const std::string& path);
+
+/// Where a message written into an area is announced: the three settings a
+/// tosser may be pointed at, any of them empty where the config names none.
+/// `FtnMsgBase` holds one and asks it after the base has taken a message.
+struct ScanNotices {
+    /// `echotosslog` — every area written into, by its tag.
+    std::string echotossLog;
+    /// `flag_new_netmail` — raised for a netmail area.
+    std::string netmailFlag;
+    /// `flag_new_echomail` — raised for an echo area.
+    std::string echomailFlag;
+};
+
 }  // namespace amberedit::msgbase

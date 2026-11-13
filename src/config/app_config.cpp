@@ -1640,6 +1640,14 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = readPath(entry, "a file to name written areas in");
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.echotossLogPath = *read;
+    } else if (key == "flag_new_netmail") {
+        auto read = readPath(entry, "a flag file to raise for new netmail");
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.netmailFlagPath = *read;
+    } else if (key == "flag_new_echomail") {
+        auto read = readPath(entry, "a flag file to raise for new echomail");
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.echomailFlagPath = *read;
     } else if (key == "config_charset") {
         auto read = readCharset(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());

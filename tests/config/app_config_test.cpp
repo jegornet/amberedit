@@ -478,6 +478,33 @@ TEST_CASE("echotosslog is not a per-area setting [app_config]") {
                    "a setting for the whole config and not for one area"));
 }
 
+TEST_CASE("AppConfig reads the new mail flags [app_config]") {
+    CHECK(with("").netmailFlagPath.empty());
+    CHECK(with("").echomailFlagPath.empty());
+    const auto cfg = with(
+        "flag_new_netmail /var/spool/ftn/netmail.new\n"
+        "flag_new_echomail /var/spool/ftn/echomail.new\n");
+    CHECK(cfg.netmailFlagPath == "/var/spool/ftn/netmail.new");
+    CHECK(cfg.echomailFlagPath == "/var/spool/ftn/echomail.new");
+
+    const char* const home = std::getenv("HOME");
+    if (home != nullptr) {
+        CHECK(with("flag_new_netmail ~/ftn/tmp/netmail.new\n").netmailFlagPath ==
+              std::string(home) + "/ftn/tmp/netmail.new");
+    }
+}
+
+TEST_CASE("The new mail flags are not per-area settings [app_config]") {
+    // One flag per kind of mail for the whole system: it is what a tosser
+    // watches, and an area raising a flag of its own would be raising it for
+    // nobody.
+    for (const char* key : {"flag_new_netmail", "flag_new_echomail"}) {
+        CHECK(contains(errorWith(std::string("group\n  member *\n  ") + key +
+                                 " /tmp/x.new\nendgroup\n"),
+                       "a setting for the whole config and not for one area"));
+    }
+}
+
 TEST_CASE("The example config's map_path lines parse uncommented [app_config]") {
     // They ship commented out — they name a machine that is nobody's — so
     // nothing in the example itself reads them. Written out here as the example

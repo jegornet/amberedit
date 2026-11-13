@@ -4920,7 +4920,7 @@ the loser of a race over a number rescans and takes the next. Rewriting one is
 locked all the same — the file is the message.
 
 **A message a tosser has to scan out names its area in the `echotosslog`** —
-`msgbase/echotoss_log.cpp`, called from `FtnMsgBase::write()` and
+`msgbase/scan_notices.cpp`, called from `FtnMsgBase::write()` and
 `FtnMsgBase::writeAll()` and nowhere else, because those are the places a message
 reaching a base is a fact and the tag is at hand. **Which messages: Loc set and
 Snt clear** (`needsScanningOut()`), and it is the message's own two attributes
@@ -4943,6 +4943,17 @@ someone has opened is ever written into. A log that will not open is passed over
 in silence: the message is in the base by then, and a failure coming back as one
 would leave the editor open on a message already stored, which is a second copy
 of it waiting to be written.
+
+**`flag_new_netmail` and `flag_new_echomail` are raised for the same messages,
+from the same place** — `FtnMsgBase::announceWritten()`, which both `write()`
+and `writeAll()` call where they would write the `echotosslog` line, and which
+writes that line too. The flag is chosen by `AreaConfig::kind`: netmail's for a
+netmail area, echomail's for an echo, and **none for a local, bad or dupe
+area** — a local area is sent nowhere and the other two are the tosser's own.
+`raiseFlag()` opens the file for appending and writes nothing, so a flag not
+there is made empty and one already up is left as it stands, bytes and all:
+taking it down is the business of the program it was raised for. A failure is
+silent for the reason the log's is.
 
 **An address the header is short of is completed from the kludges** —
 `completeAddresses()` in `raw_message.cpp`, called by the Squish and Fido `*.msg`

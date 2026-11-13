@@ -907,6 +907,15 @@ struct AppConfig {
     /// message of the user's own carried the same way does.
     std::string echotossLogPath;
 
+    /// Flag files raised — made empty where they are not there — after a message
+    /// that has to go out has been written into a netmail area or an echo area,
+    /// from `flag_new_netmail` and `flag_new_echomail`. Empty where the config
+    /// names none. The same messages the `echotosslog` line is written for, and
+    /// written by the same adapter (`msgbase/raiseFlag`); a local, bad or dupe
+    /// area raises neither, having nothing a tosser sends anywhere.
+    std::string netmailFlagPath;
+    std::string echomailFlagPath;
+
     /// Character set this config file itself is written in, and with it every
     /// file the config names: the tosser config and the files it includes, the
     /// message template and its `@include`s, and the `@file:` lists a setting

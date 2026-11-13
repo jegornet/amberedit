@@ -1,4 +1,4 @@
-#include "msgbase/echotoss_log.hpp"
+#include "msgbase/scan_notices.hpp"
 
 #include <fstream>
 #include <ios>
@@ -17,6 +17,13 @@ void appendEchotossLog(const std::string& path, const std::string& tag) {
     std::ofstream out(path, std::ios::app | std::ios::binary);
     if (!out) return;
     out << tag << '\n';
+}
+
+void raiseFlag(const std::string& path) {
+    if (path.empty()) return;
+    // Appending nothing: a flag not there is made empty, and one a tosser has
+    // not yet taken down — or one it wrote something into — is not truncated.
+    std::ofstream out(path, std::ios::app | std::ios::binary);
 }
 
 }  // namespace amberedit::msgbase

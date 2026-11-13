@@ -276,6 +276,13 @@ lastread_user 0
 # written down anywhere, which is the default.
 #echotosslog ~/ftn/tmp/echotoss.log
 
+# Flag files (empty, 0 bytes) created when you write a new message into
+# a netmail or an echo area — for a tosser or a mailer that watches for them.
+# Optional; none by default. A flag already there is left as it is. Local, bad
+# and dupe areas don't raise any flags.
+#flag_new_netmail ~/ftn/tmp/netmail.new
+#flag_new_echomail ~/ftn/tmp/echomail.new
+
 # --- nodelists & pointlists ---------------------------------------------------
 
 # The nodelists you keep. Optional; one line per nodelist, and their ORDER IS

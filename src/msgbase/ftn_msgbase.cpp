@@ -12,8 +12,8 @@
 #include "config/text_util.hpp"
 #include "msgbase/jam_base.hpp"
 #include "msgbase/opus_base.hpp"
+#include "msgbase/scan_notices.hpp"
 #include "msgbase/squish_base.hpp"
-#include "msgbase/echotoss_log.hpp"
 #include "sys/time.hpp"
 
 namespace amberedit::msgbase {
@@ -223,11 +223,11 @@ std::string listOf(const std::vector<std::string>& files) {
 }  // namespace
 
 FtnMsgBase::FtnMsgBase(std::string_view defaultCharset, bool fieldLimits, bool ucsKludges,
-                       std::string echotossLogPath)
+                       ScanNotices notices)
     : detector_(defaultCharset),
       fieldLimits_(fieldLimits),
       ucsKludges_(ucsKludges),
-      echotossLogPath_(std::move(echotossLogPath)) {}
+      notices_(std::move(notices)) {}
 
 FtnMsgBase::~FtnMsgBase() = default;
 
@@ -347,8 +347,7 @@ tl::expected<void, ErrorPtr> FtnMsgBase::create(const AreaConfig& area) {
         // `Incomplete` and name what is gone — "there is already a base" would
         // send the user looking for one that no longer opens.
         if (const std::vector<std::string> missing = missingParts(area.type, area.path);
-            !missing.empty() &&
-            missing.size() < partsOf(area.type, area.path).size()) {
+            !missing.empty() && missing.size() < partsOf(area.type, area.path).size()) {
             return failure<MsgBaseError>(MsgBaseError::Kind::Incomplete, area.path,
                                          listOf(missing));
         }
@@ -650,13 +649,11 @@ tl::expected<uint32_t, ErrorPtr> FtnMsgBase::write(const domain::MessageDraft& d
     if (!written)
         return failure("cannot write the message: " + written.error()->message());
     // The area now holds a message nothing outside AmberEdit has been told
-    // about. Where the config names an `echotosslog`, this is where the area is
-    // named in it — after the base has taken the message and not before, so
-    // that nothing is announced that was never written, and only for a message
-    // there is something to announce about: see `needsScanningOut()`.
-    if (needsScanningOut(draft.attributes)) {
-        appendEchotossLog(echotossLogPath_, areaConfig_.tag);
-    }
+    // about. This is where it is announced — after the base has taken the
+    // message and not before, so that nothing is announced that was never
+    // written, and only for a message there is something to announce about: see
+    // `needsScanningOut()`.
+    if (needsScanningOut(draft.attributes)) announceWritten();
     return *written;
 }
 
@@ -685,13 +682,13 @@ ports::WriteReport FtnMsgBase::writeAll(const std::vector<domain::MessageDraft>&
         // answer a caller acts on, and "cannot write 2000 messages" said of a
         // run that wrote 1999 of them would be the one thing it must not
         // believe.
-        report.failed = failure("wrote " + std::to_string(report.written) + " of " +
-                                std::to_string(raw.size()) +
-                                " messages: " + done.failed->message())
-                            .value();
+        report.failed =
+            failure("wrote " + std::to_string(report.written) + " of " +
+                    std::to_string(raw.size()) + " messages: " + done.failed->message())
+                .value();
     }
 
-    // One line for the set, and only where something in it has to go out of this
+    // One announcement for the set, and only where something in it has to go out of this
     // area — the same question `write()` asks of its one message, asked of the
     // ones that reached the base rather than of the ones that were offered. A
     // carried set is usually mail that arrived from the network and says nothing
@@ -702,9 +699,21 @@ ports::WriteReport FtnMsgBase::writeAll(const std::vector<domain::MessageDraft>&
     if (std::any_of(drafts.begin(), arrived, [](const domain::MessageDraft& one) {
             return needsScanningOut(one.attributes);
         })) {
-        appendEchotossLog(echotossLogPath_, areaConfig_.tag);
+        announceWritten();
     }
     return report;
+}
+
+void FtnMsgBase::announceWritten() const {
+    appendEchotossLog(notices_.echotossLog, areaConfig_.tag);
+    // A flag says which kind of mail is waiting, so only the two kinds a tosser
+    // sends anywhere raise one: a local area goes nowhere, and bad and dupe are
+    // the tosser's own.
+    if (areaConfig_.kind == domain::AreaKind::Netmail) {
+        raiseFlag(notices_.netmailFlag);
+    } else if (areaConfig_.kind == domain::AreaKind::Echo) {
+        raiseFlag(notices_.echomailFlag);
+    }
 }
 
 tl::expected<void, ErrorPtr> FtnMsgBase::replace(uint32_t index,

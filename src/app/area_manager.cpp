@@ -305,12 +305,14 @@ tl::expected<ports::IMsgBase*, ErrorPtr> AreaManager::openArea(const AreaConfig&
 
     // In the charset this area is read in, which an area group may have a word
     // about — the same answer reload() opened it with.
-    // The toss log goes to this base and not to the one reload() counts with:
-    // a message is only ever written through an area someone has opened, and a
-    // base that counts writes nothing to name.
+    // The toss log and the flags go to this base and not to the one reload()
+    // counts with: a message is only ever written through an area someone has
+    // opened, and a base that counts writes nothing to announce.
     auto base = std::make_unique<msgbase::FtnMsgBase>(
         appConfig_.effectiveFor(area).defaultCharset, appConfig_.composeFts1FieldLimits,
-        appConfig_.ucsKludges, appConfig_.echotossLogPath);
+        appConfig_.ucsKludges,
+        msgbase::ScanNotices{appConfig_.echotossLogPath, appConfig_.netmailFlagPath,
+                             appConfig_.echomailFlagPath});
     if (auto opened = base->open(area); !opened) {
         // Nothing on disk at all is the ordinary state of an area the tosser
         // config declares and no tosser has yet written into: the base is made

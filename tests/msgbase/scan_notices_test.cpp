@@ -8,15 +8,18 @@
 #include "domain/ftn_address.hpp"
 #include "domain/message.hpp"
 #include "msgbase/ftn_msgbase.hpp"
-#include "msgbase/echotoss_log.hpp"
+#include "msgbase/scan_notices.hpp"
 #include "temp_dir.hpp"
 #include "temp_squish_base.hpp"
 #include "test_strings.hpp"
 
 using amberedit::domain::AreaConfig;
+using amberedit::domain::AreaKind;
 using amberedit::domain::MsgBaseType;
 using amberedit::msgbase::appendEchotossLog;
 using amberedit::msgbase::FtnMsgBase;
+using amberedit::msgbase::raiseFlag;
+using amberedit::msgbase::ScanNotices;
 using amberedit::test::TempDir;
 using amberedit::test::TempSquishBase;
 using amberedit::test::valueOf;
@@ -32,8 +35,10 @@ std::string bytesOf(const std::string& path) {
                        std::istreambuf_iterator<char>());
 }
 
-AreaConfig areaAt(const std::string& tag, const std::string& path) {
+AreaConfig areaAt(const std::string& tag, const std::string& path,
+                  AreaKind kind = AreaKind::Echo) {
     AreaConfig area;
+    area.kind = kind;
     area.tag = tag;
     area.path = path;
     area.type = MsgBaseType::Squish;
@@ -123,7 +128,8 @@ TEST_CASE("A message written into an area names it in the toss log [tosslog][squ
     const TempDir dir;
     const std::string path = dir.path("echotoss.log");
     TempSquishBase base;
-    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true, path);
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true,
+                       ScanNotices{path});
     REQUIRE(msgbase.open(areaAt("localnet", base.path())).has_value());
 
     const uint32_t number = valueOf(msgbase.write(helloDraft()));
@@ -140,7 +146,8 @@ TEST_CASE("Only a message that has to go out names its area [tosslog][squish]") 
     const TempDir dir;
     const std::string path = dir.path("echotoss.log");
     TempSquishBase base;
-    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true, path);
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true,
+                       ScanNotices{path});
     REQUIRE(msgbase.open(areaAt("localnet", base.path())).has_value());
 
     SUBCASE("mail that arrived from the network says nothing") {
@@ -159,12 +166,14 @@ TEST_CASE("Only a message that has to go out names its area [tosslog][squish]") 
     }
 }
 
-TEST_CASE("A set names the area once, and only if something in it goes out "
-          "[tosslog][squish]") {
+TEST_CASE(
+    "A set names the area once, and only if something in it goes out "
+    "[tosslog][squish]") {
     const TempDir dir;
     const std::string path = dir.path("echotoss.log");
     TempSquishBase base;
-    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true, path);
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true,
+                       ScanNotices{path});
     REQUIRE(msgbase.open(areaAt("localnet", base.path())).has_value());
 
     SUBCASE("a set of mail that arrived says nothing") {
@@ -193,4 +202,74 @@ TEST_CASE("A base with no toss log named writes none [tosslog][squish]") {
 
     REQUIRE(valueOf(msgbase.write(helloDraft())) != 0);
     CHECK_FALSE(std::ifstream(path).good());
+}
+
+TEST_CASE("A flag is a file of no bytes, and one already up is left alone [tosslog]") {
+    const TempDir dir;
+    const std::string path = dir.path("echomail.new");
+
+    raiseFlag("");
+    CHECK_FALSE(std::ifstream(path).good());
+
+    raiseFlag(path);
+    REQUIRE(std::ifstream(path).good());
+    CHECK(bytesOf(path).empty());
+
+    // Whatever stands in a flag already is the business of whoever raised it.
+    {
+        std::ofstream out(path, std::ios::binary);
+        out << "x";
+    }
+    raiseFlag(path);
+    CHECK(bytesOf(path) == "x");
+}
+
+TEST_CASE("A message written raises the flag for its area's kind [tosslog][squish]") {
+    const TempDir dir;
+    const std::string netmail = dir.path("netmail.new");
+    const std::string echomail = dir.path("echomail.new");
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP866", /*fieldLimits=*/true, /*ucsKludges=*/true,
+                       ScanNotices{{}, netmail, echomail});
+
+    SUBCASE("an echo raises the echomail flag") {
+        REQUIRE(
+            msgbase.open(areaAt("localnet", base.path(), AreaKind::Echo)).has_value());
+        REQUIRE(valueOf(msgbase.write(helloDraft())) != 0);
+        CHECK(std::ifstream(echomail).good());
+        CHECK_FALSE(std::ifstream(netmail).good());
+    }
+    SUBCASE("netmail raises the netmail flag") {
+        REQUIRE(
+            msgbase.open(areaAt("netmail", base.path(), AreaKind::Netmail)).has_value());
+        REQUIRE(valueOf(msgbase.write(helloDraft())) != 0);
+        CHECK(std::ifstream(netmail).good());
+        CHECK_FALSE(std::ifstream(echomail).good());
+    }
+    SUBCASE("a local, bad or dupe area raises neither") {
+        for (const AreaKind kind : {AreaKind::Local, AreaKind::Bad, AreaKind::Dupe}) {
+            REQUIRE(msgbase.open(areaAt("local", base.path(), kind)).has_value());
+            REQUIRE(valueOf(msgbase.write(helloDraft())) != 0);
+            msgbase.close();
+        }
+        CHECK_FALSE(std::ifstream(netmail).good());
+        CHECK_FALSE(std::ifstream(echomail).good());
+    }
+    SUBCASE("mail that arrived from the network raises nothing") {
+        REQUIRE(
+            msgbase.open(areaAt("localnet", base.path(), AreaKind::Echo)).has_value());
+        REQUIRE(valueOf(msgbase.write(arrivedDraft())) != 0);
+        const std::vector<amberedit::domain::MessageDraft> carried = {arrivedDraft(),
+                                                                      sentDraft()};
+        REQUIRE(msgbase.writeAll(carried).written == 2);
+        CHECK_FALSE(std::ifstream(echomail).good());
+    }
+    SUBCASE("a set with the user's own message in it raises the flag") {
+        REQUIRE(
+            msgbase.open(areaAt("localnet", base.path(), AreaKind::Echo)).has_value());
+        const std::vector<amberedit::domain::MessageDraft> carried = {arrivedDraft(),
+                                                                      helloDraft()};
+        REQUIRE(msgbase.writeAll(carried).written == 2);
+        CHECK(std::ifstream(echomail).good());
+    }
 }
