@@ -4176,6 +4176,16 @@ taking a row.
   setting the locale to match it (`LC_CTYPE=ru_RU.KOI8-R`) and nothing else. Do
   not reach for `iconv` for this. `Terminal::codeset()` says what the locale
   settled on and nothing reports it to the user.
+- **A glyph the terminal's charset has no byte for is drawn as the nearest one
+  it has.** `term::drawable()` is asked for every code point `Terminal::draw()`
+  hands ncurses, and off UTF-8 answers through `standIn()`: a dialog's rounded
+  corner as the square one and then `+`, an arrow as `<`, anything with no
+  substitute as `?`. Left to ncurses such a cell is not drawn at all — glibc's
+  wcrtomb() refuses it — or is drawn as whatever stand-in byte the C library
+  writes while reporting success; so whether a charset carries a code point is
+  asked by writing it and reading it back. The
+  substitutes in `kStandIns` are the glyphs the interface draws with, and a glyph
+  added to a frame or a button goes into that table with an ASCII last resort.
 - **A nodelist or an echolist that declares nothing is read in the locale's
   charset.** `encoding::localeCharset()` is `LC_CTYPE` from the environment, and
   what asks is a `nodelist` or an `echolist` line stating no charset of its own

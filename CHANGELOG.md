@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- fix dialog frames and button glyphs missing on an 8-bit terminal (KOI8-R, CP866 locale): a glyph the charset lacks is drawn as the nearest it has — a square corner for a rounded one, ASCII for an arrow
+
 ## 0.11.1 — 2026-11-13
 
 - add reader.thread_next on `*`: the next answer to the message this one answers

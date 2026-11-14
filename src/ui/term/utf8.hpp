@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -64,5 +65,25 @@ namespace amberedit::ui::term {
 ///
 /// Idempotent, and safe to call from a test that has no terminal at all.
 const std::string& ensureUtf8Locale();
+
+/// The code point to hand ncurses for `code`: `code` itself wherever the
+/// terminal's charset carries it, which on a UTF-8 terminal is everywhere, and
+/// otherwise `standIn()`'s answer, worked out once per code point.
+///
+/// ncurses writes a cell through wcrtomb(), and a single-byte charset has no
+/// byte for most of what the interface draws its frames and buttons with — the
+/// rounded corners of every dialog are in neither CP866 nor KOI8-R. What then
+/// reaches the terminal is the C library's to say: glibc refuses and ncurses
+/// writes nothing, and a library may as well hand back a stand-in byte of its
+/// own. Either way the frame has holes in it.
+[[nodiscard]] char32_t drawable(char32_t code);
+
+/// The rule behind `drawable()`, with what the charset carries put to
+/// `carried`, so that it can be asked without a locale: `code` where it is
+/// carried, else the first of its substitutes that is — a rounded corner the
+/// square one, then `+` — else `?`, and 0 for a zero-width mark nothing stands
+/// in for, which is then left out of the cell.
+[[nodiscard]] char32_t standIn(char32_t code,
+                               const std::function<bool(char32_t)>& carried);
 
 }  // namespace amberedit::ui::term

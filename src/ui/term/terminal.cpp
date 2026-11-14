@@ -917,10 +917,13 @@ void Terminal::draw(const Element& document) {
             size_t pos = 0;
             size_t count = 0;
             while (pos < cell.glyph.size() && count < CCHARW_MAX) {
-                const size_t written = appendWide(wide, count, decodeUtf8(cell.glyph, pos));
+                const char32_t code = drawable(decodeUtf8(cell.glyph, pos));
+                if (code == 0) continue;  // a mark the charset cannot carry
+                const size_t written = appendWide(wide, count, code);
                 if (written == 0) break;  // no room for both halves of a pair
                 count += written;
             }
+            if (count == 0) wide[count++] = L' ';
             wide[count] = L'\0';
 
             int pair = pairFor(cell.fg, cell.bg);

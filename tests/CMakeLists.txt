@@ -107,6 +107,7 @@ add_executable(amberedit_tests
   ui/reader_select_test.cpp
   ui/reader_sidebar_test.cpp
   ui/text_layout_test.cpp
+  ui/stand_in_test.cpp
   ui/bbs_codes_test.cpp
   ui/ansi_canvas_test.cpp
   ui/text_editor_test.cpp
