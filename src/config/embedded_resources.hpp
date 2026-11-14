@@ -19,10 +19,10 @@ namespace amberedit::config::resources {
 /// wizard writes this one out beside the config it is writing.
 [[nodiscard]] std::string_view defaultTemplate();
 
-/// `themes/16_colors.cfg`, the palette drawn on a terminal of fewer than
+/// `themes/8_colors.cfg`, the palette drawn on a terminal of fewer than
 /// sixteen colors where the config names no theme — see
 /// `ui::theme::fitToTerminal()`. Compiled in because it is wanted whether or
 /// not the themes were installed, `--setup` out of a build tree included.
-[[nodiscard]] std::string_view sixteenColorTheme();
+[[nodiscard]] std::string_view eightColorTheme();
 
 }  // namespace amberedit::config::resources

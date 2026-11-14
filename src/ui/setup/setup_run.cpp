@@ -44,7 +44,7 @@ int runSetup(const std::string& programPath) {
     // not exist yet — writing one is what this run is for. The wizard draws in
     // the built-in palette, which is written from 16 up, so a terminal of sixteen
     // colors has already shown the user a wizard it could not draw properly; one
-    // of fewer was given the sixteen-color theme and has nothing to be told.
+    // of fewer was given the eight-color theme and has nothing to be told.
     if (const std::string warning = theme::colorWarning(); !warning.empty()) {
         std::cerr << i18n::format(_("warning: {0}"), {warning}) << "\n";
     }

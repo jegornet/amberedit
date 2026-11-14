@@ -367,7 +367,7 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
     Terminal terminal(keys.altLetters(), keys.altBackspace(), std::move(reporting));
 
     // A terminal of eight colors draws the built-in palette's dark greys all as
-    // black, frames and dialogs into one another, so it gets the sixteen-color
+    // black, frames and dialogs into one another, so it gets the eight-color
     // theme instead — unless the config chose a theme, which is drawn as chosen.
     if (config.themePath.empty()) theme::fitToTerminal();
 

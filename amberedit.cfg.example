@@ -1393,7 +1393,7 @@ template_time_format "%H:%M"
 
 # Theme file to draw the interface with. Optional: without it AmberEdit uses its
 # built-in palette, which themes/black.cfg is a copy of — or, on a terminal of
-# fewer than sixteen colors, the palette of themes/16_colors.cfg.
+# fewer than sixteen colors, the palette of themes/8_colors.cfg.
 #
 # A theme is a file of "role color" lines, and a color in one is told by its
 # length: one to three decimal digits — 232 — is an entry in the terminal's own
@@ -1407,6 +1407,7 @@ template_time_format "%H:%M"
 #theme /usr/share/amberedit/themes/blue_header.cfg   # black, with a navy header
 #theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
 #theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
+#theme /usr/share/amberedit/themes/8_colors.cfg      # the same in eight colors
 #theme /usr/share/amberedit/themes/truecolor_bg_night.cfg   # truecolor, BG Night
 #theme /usr/share/amberedit/themes/golded_colors.cfg  # colored like GoldED+
 

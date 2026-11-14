@@ -3859,15 +3859,16 @@ taking a row.
     terminal answered; `term::nearestWithin()` approximating each number is the
     only automatic thing that happens to it.
   - **Where the config names none, a terminal of fewer than sixteen colors is
-    given `themes/16_colors.cfg` instead of the built-in palette** —
+    given `themes/8_colors.cfg` instead of the built-in palette** —
     `theme::fitToTerminal()`, called by `runApp()` and by `--setup` once the
     terminal is open. The built-in palette is written from 16 up, and on eight
     colors its dark greys all come out black: the frame of a dialog and the
-    dialog itself, the screen and the fields on it. The sixteen-color theme is
-    written for that terminal and is never worth a warning on it. The file is
-    compiled in (`config::resources::sixteenColorTheme()`) because it is wanted
-    whether or not the themes were installed, and a test holds the copy in the
-    binary to the file in the tree.
+    dialog itself, the screen and the fields on it. The eight-color theme is
+    written for that terminal, nothing in it above 7, and is never worth a
+    warning on it. The file is compiled in
+    (`config::resources::eightColorTheme()`) because it is wanted whether or not
+    the themes were installed, and a test holds the copy in the binary to the
+    file in the tree.
   - **The line names `color_warning`**, which is what switches it off. A `TERM`
     naming less than the emulator behind it makes the color count the line
     quotes plain wrong, and the reader is told what to turn off rather than left
@@ -5960,8 +5961,10 @@ together — `keys_mode` says which.
   same palette with `header_background` filled in navy; `golded_colors.cfg` is
   colored like GoldED+, and with `blue_header.cfg` the only shipped themes that
   state either `*_background` fill; `white.cfg` is paper for a light terminal,
-  `16_colors.cfg` a sixteen-color DOS one, and `truecolor_bg_night.cfg`
-  ("Belgrade Night") the one written in six hex digits throughout.
+  `16_colors.cfg` a sixteen-color DOS one, `8_colors.cfg` that one held to
+  eight — the palette a terminal of fewer than sixteen colors falls back to —
+  and `truecolor_bg_night.cfg` ("Belgrade Night") the one written in six hex
+  digits throughout.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in
