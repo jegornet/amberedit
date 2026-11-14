@@ -211,7 +211,9 @@ tosser_config_format fidoconfig
 default_charset CP866
 
 # Character set a message you WRITE is encoded in, and that its own CHRS kludge
-# announces. Required; may be set per area in a group block.
+# announces. Required; may be set per area in a group block. Cyrillic the
+# charset has no room for — writing in CP437 or LATIN-1 — is spelt out in Latin:
+# Привет as Privet.
 compose_charset CP866
 
 # Whether a reply is written in the charset the message it answers was written

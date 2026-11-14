@@ -4111,6 +4111,26 @@ taking a row.
   begun in. `areareplydirect` and `reply_to_area` are read off the area on
   screen instead, and are not a contradiction — they decide where a reply goes,
   before there is a target area to ask.
+- **A Cyrillic letter the charset has no room for is spelt out in Latin, and
+  only what is left after that is a `?`.** `encoding::transliterated()`, called
+  by `IconvRecoder::intoCharset()` ahead of iconv, so it holds for everything
+  written in a charset — a message and its header fields, an export, the file an
+  external editor is handed, the config `--setup` writes. Ahead of iconv and
+  not in its place because iconv cannot be relied on for it: `//TRANSLIT`
+  writes `??????` for `Привет` under glibc, refuses it on macOS, and spells it
+  under a newer glibc with the right locale — three messages out of one draft.
+  A letter is spelt only where `fitsCharset()` says the charset lacks it, so
+  CP866 and KOI8-R keep every letter they have, and KOI8-R spells the Ukrainian
+  ones alone. The table is one fixed informal spelling in ASCII (`zh`, `h`, `c`,
+  `sch`, `yu`, `ya`, `'` for ь) and is not a setting. It covers the Russian,
+  Ukrainian and Belarusian letters, the Serbian, Macedonian and Bulgarian ones
+  (`dj`, `lj`, `nj`, `dz`, `gj`, `kj`) and those of the Turkic languages written
+  in Cyrillic, Kazakh to Chuvash and Sakha (`q`, `gh`, `ng`, `ә` as `a`, `ө` and
+  `ӧ` as `o`), Tajik riding along on the letters it shares with them. **A letter is spelt one way whatever
+  language it stands in**, the text not saying which language that is: a letter
+  shared with Russian keeps the Russian spelling, so Bulgarian щ is `sch`. The
+  quick check in `intoCharset()` looks for lead bytes D0 to D3, which is where
+  every letter in the table lives; a letter added past U+04FF needs it widened.
 - **`charsetIdentifier()` is the only place a charset name is spelled for CHRS.**
   Every charset a message could be written in arrives as an iconv name — the
   config resolved `compose_charset` when it read the line, and a charset kept

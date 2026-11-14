@@ -531,6 +531,7 @@ add_library(amberedit_core STATIC
   src/encoding/iconv_recoder.cpp
   src/encoding/locale_charset.cpp
   src/encoding/text_search.cpp
+  src/encoding/translit.cpp
   src/msgbase/binary_file.cpp
   src/msgbase/file_lock.cpp
   src/msgbase/jam_crc32.cpp
