@@ -474,7 +474,9 @@ endif()
 # and the sample one is not installed (see the install() rules at the end: the
 # binary, the template and the themes go in, the documentation does not). So it
 # is compiled in, and `default.tpl` with it for a `--setup` run that finds no
-# installed copy of the template to point the config at.
+# installed copy of the template to point the config at. `themes/16_colors.cfg`
+# is the third: the palette a terminal short of sixteen colors falls back to,
+# which has to be at hand whether or not the themes were installed.
 #
 # The generated source is part of the core rather than of the executable so that
 # the tests reach it: what the wizard writes is checked by parsing it back, and
@@ -485,12 +487,14 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND}
           -DEXAMPLE_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/amberedit.cfg.example
           -DDEFAULT_TEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/default.tpl
+          -DSIXTEEN_COLOR_THEME=${CMAKE_CURRENT_SOURCE_DIR}/themes/16_colors.cfg
           -DOUTPUT=${amberedit_embedded}
           -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/amberedit.cfg.example
           ${CMAKE_CURRENT_SOURCE_DIR}/default.tpl
+          ${CMAKE_CURRENT_SOURCE_DIR}/themes/16_colors.cfg
           ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
-  COMMENT "Embedding amberedit.cfg.example and default.tpl"
+  COMMENT "Embedding amberedit.cfg.example, default.tpl and themes/16_colors.cfg"
   VERBATIM)
 
 # --- application core --------------------------------------------------------

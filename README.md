@@ -165,7 +165,8 @@ one quantised to the nearest palette entry; see
 [PuTTY-truecolor.md](PuTTY-truecolor.md) for instructions on how to fix this.
 
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
-with when the config names no theme, and the file to copy and edit.
+with when the config names no theme, and the file to copy and edit. A terminal
+of fewer than sixteen colors gets `themes/16_colors.cfg` instead.
 `themes/blue_header.cfg` is that same black palette with `header_background`
 filled in navy.
 `themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer

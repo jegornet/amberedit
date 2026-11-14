@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- a terminal of fewer than sixteen colors is drawn in themes/16_colors.cfg where the config names no theme; the built-in palette's dark greys all came out black there, frames into dialogs
 - fix dialog frames and button glyphs missing on an 8-bit terminal (KOI8-R, CP866 locale): a glyph the charset lacks is drawn as the nearest it has — a square corner for a rounded one, ASCII for an arrow
 
 ## 0.11.1 — 2026-11-13

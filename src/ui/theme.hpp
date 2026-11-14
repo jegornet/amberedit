@@ -557,4 +557,19 @@ inline Palette palette;
 /// terminal, and the config is read by the callers.
 [[nodiscard]] std::string colorWarning();
 
+/// `themes/16_colors.cfg` as the build put it into the binary.
+[[nodiscard]] Palette sixteenColorPalette();
+
+/// Puts `sixteenColorPalette()` in force where the terminal turned out to have
+/// fewer than sixteen colors.
+///
+/// The built-in palette is written from 16 up, and on a terminal of eight every
+/// one of its dark greys comes out black: a dialog's frame vanishes into the
+/// dialog. The sixteen-color theme is written for exactly that terminal. Called
+/// only where the config names no theme — a theme somebody chose is drawn as
+/// they chose it — and only once the screen is open, `start_color()` being what
+/// makes the terminal say how many colors it has; it has to run before the
+/// first frame, since a color pair is fixed the first time it is asked for.
+void fitToTerminal();
+
 }  // namespace amberedit::ui::theme

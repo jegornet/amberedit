@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "config/cfg_file.hpp"
+#include "config/embedded_resources.hpp"
 #include "config/text_util.hpp"
 #include "i18n/i18n.hpp"
 
@@ -321,6 +322,18 @@ tl::expected<Palette, ErrorPtr> loadPalette(const std::string& path) {
     if (!text)
         return failure("cannot read theme " + path + ": " + text.error()->message());
     return parsePalette(*text, path);
+}
+
+Palette sixteenColorPalette() {
+    // The file is shipped and a test parses it, so a failure here is a build
+    // that did not run its tests; the built-in palette is still a palette.
+    const auto parsed =
+        parsePalette(std::string(config::resources::sixteenColorTheme()), "16_colors.cfg");
+    return parsed ? *parsed : Palette{};
+}
+
+void fitToTerminal() {
+    if (term::paletteSize() < 16) palette = sixteenColorPalette();
 }
 
 }  // namespace amberedit::ui::theme

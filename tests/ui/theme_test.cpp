@@ -5,6 +5,7 @@
 #include <string>
 
 #include "config/cfg_file.hpp"
+#include "config/embedded_resources.hpp"
 #include "config/text_util.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
@@ -371,6 +372,29 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.found, builtIn.found));
     CHECK(same(loaded.foundText, builtIn.foundText));
     CHECK(same(loaded.animatedButtonText, builtIn.animatedButtonText));
+}
+
+TEST_CASE("The sixteen-color palette in the binary is the shipped file [theme]") {
+    const std::string shipped = valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("themes/16_colors.cfg")));
+    CHECK(std::string(amberedit::config::resources::sixteenColorTheme()) == shipped);
+    CHECK(amberedit::ui::theme::sixteenColorPalette().dialogBorder ==
+          valueOf(parsePalette(shipped)).dialogBorder);
+}
+
+TEST_CASE("On eight colors a frame stands off its dialog in the sixteen-color "
+          "palette only [theme]") {
+    // What the fallback is for: the built-in palette's frame and dialog are two
+    // dark greys, and eight colors have one dark color to give both of them.
+    const auto onEight = [](Color c) {
+        return amberedit::ui::term::nearestWithin(c.index(), 8);
+    };
+    const Palette builtIn;
+    CHECK(onEight(builtIn.dialogBorder) == onEight(builtIn.dialogBackground));
+
+    const Palette sixteen = amberedit::ui::theme::sixteenColorPalette();
+    CHECK(onEight(sixteen.dialogBorder) != onEight(sixteen.dialogBackground));
+    CHECK(approximatedRoles(sixteen, 8) == 0);
 }
 
 TEST_CASE("The sixteen-color theme loads and states every role [theme]") {

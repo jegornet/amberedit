@@ -3664,9 +3664,11 @@ taking a row.
   its own; a role not in `Palette` does not exist. Its fields are entries in the
   terminal's own 256-color palette or truecolor triples — `term::Color` holds
   either, told apart by its `trueColor` flag and never by the number, and there
-  is no separate theme color type. It is a global **written once**, in `runApp()`
-  before the screen opens, and only read afterwards; do not write to it anywhere
-  else.
+  is no separate theme color type. It is a global written in two places and read
+  everywhere else: in `main()` from the theme the config names, before the screen
+  opens, and by `theme::fitToTerminal()` just after it opens and before the first
+  frame — see the bullet on the fallback below. Do not write to it anywhere else:
+  a color pair is fixed the first time a frame asks for it.
 - **Two fills, and the terminal's own is neither of them.** `app_shell` paints
   `background` across the whole window with `text` on it, and every modal paints
   `dialog_background` with `dialog_text` over the box it has just cleared
@@ -3853,9 +3855,19 @@ taking a row.
     has fewer than 256 colors, there being no entry left to lend it there; on a
     terminal that has them it says nothing, since whether the lent entry was
     really redrawn is not something a terminal can be asked.
-  - **Nothing is switched on the answer.** The theme the config named is the
-    theme that is drawn; `term::nearestWithin()` approximating each number stays
-    the only automatic thing that happens, and there is no fallback theme.
+  - **A theme the config named is the theme that is drawn**, whatever the
+    terminal answered; `term::nearestWithin()` approximating each number is the
+    only automatic thing that happens to it.
+  - **Where the config names none, a terminal of fewer than sixteen colors is
+    given `themes/16_colors.cfg` instead of the built-in palette** —
+    `theme::fitToTerminal()`, called by `runApp()` and by `--setup` once the
+    terminal is open. The built-in palette is written from 16 up, and on eight
+    colors its dark greys all come out black: the frame of a dialog and the
+    dialog itself, the screen and the fields on it. The sixteen-color theme is
+    written for that terminal and is never worth a warning on it. The file is
+    compiled in (`config::resources::sixteenColorTheme()`) because it is wanted
+    whether or not the themes were installed, and a test holds the copy in the
+    binary to the file in the tree.
   - **The line names `color_warning`**, which is what switches it off. A `TERM`
     naming less than the emulator behind it makes the color count the line
     quotes plain wrong, and the reader is told what to turn off rather than left
