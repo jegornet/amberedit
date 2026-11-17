@@ -3,8 +3,9 @@
 ## Unreleased
 
 - transliterate Cyrillic a compose charset lacks (Привет → Privet) instead of writing question marks
-- add themes/8_colors.cfg, used where no theme is set and the terminal has 8 colors (TERM=linux, TERM=xterm)
 - draw glyphs an 8-bit charset lacks as the nearest it has, so dialog frames show under KOI8-R and CP866
+- add themes/8_colors.cfg, used where no theme is set and the terminal has 8 colors (TERM=linux, TERM=xterm)
+- adjust white theme colors
 
 ## 0.11.1 — 2026-11-13
 
