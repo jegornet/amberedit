@@ -3,6 +3,7 @@
 ## Unreleased
 
 - transliterate Cyrillic a compose charset lacks (Привет → Privet) instead of writing question marks
+- send each frame as one synchronized update, so a list scrolled inside a dialog no longer flashes a band of the terminal's background
 - draw glyphs an 8-bit charset lacks as the nearest it has, so dialog frames show under KOI8-R and CP866
 - add themes/8_colors.cfg, used where no theme is set and the terminal has 8 colors (TERM=linux, TERM=xterm)
 - adjust white theme colors

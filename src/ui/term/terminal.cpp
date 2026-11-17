@@ -947,7 +947,25 @@ void Terminal::draw(const Element& document) {
         wmove(stdscr, screen_.height() - 1, screen_.width() - 1);
     }
 
+    // The frame goes out as one synchronized update, DEC mode 2026: the terminal
+    // holds the screen it shows until the closing half arrives. ncurses moves
+    // lines that moved by scrolling a region of the terminal, and a region is
+    // every column of its rows — a list scrolled inside a modal scrolls the
+    // screen either side of it too, and the line it opens is cleared in the
+    // terminal's own background until the writes after it put it right. Shown
+    // as the bytes arrive, that is a band of the wrong color across the box for
+    // the length of a frame. Nothing ncurses offers turns the scrolling off —
+    // `idlok(FALSE)` does not reach it — so the half-drawn frame is kept off the
+    // screen instead. A terminal that does not know the mode ignores both.
+#ifndef _WIN32
+    std::fputs("\x1b[?2026h", stdout);
+    std::fflush(stdout);
+#endif
     wrefresh(stdscr);
+#ifndef _WIN32
+    std::fputs("\x1b[?2026l", stdout);
+    std::fflush(stdout);
+#endif
 
     // After the first frame and not before: ncurses writes its own mouse mode
     // as the screen is first drawn, and a terminal keeps one tracking mode at a
