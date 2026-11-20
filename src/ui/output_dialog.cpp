@@ -168,8 +168,8 @@ Element render(AppState& state, Element background) {
                                       : std::string(_("Ctrl-C copies · Esc closes"));
     lines.push_back(dialog::bottomBar(hint, {}, inner));
 
-    return dbox({std::move(background),
-                 dialog::surface(vbox(std::move(lines)) | reflect(view.box)) | center});
+    return dbox({std::move(background), dialog::surface(vbox(std::move(lines))) |
+                                            reflect(state.modalBox) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {
@@ -188,10 +188,8 @@ void handleEvent(AppState& state, const Event& event) {
             view.copySelected = true;
             state.showClick(AppState::Pressed::OutputCopy);
             copy(state);
-        } else if (!view.box.Contain(click->x, click->y)) {
-            close(state);
         }
-        // Inside the box and off the buttons: the text, which there is nothing
+        // Off the buttons: the text, which there is nothing
         // to do with but read.
         return;
     }

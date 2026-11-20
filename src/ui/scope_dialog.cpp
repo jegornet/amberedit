@@ -143,7 +143,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows
     // through it nor colors it.
-    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
+    return dbox({std::move(background),
+                 dialog::surface(std::move(box)) | reflect(state.modalBox) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {
@@ -164,9 +165,10 @@ Outcome handleEvent(AppState& state, const Event& event) {
         if (picker.markedBox.Contain(click->x, click->y)) return pick(Mode::Marked);
         if (picker.currentBox.Contain(click->x, click->y)) return pick(Mode::Current);
         if (picker.cancelBox.Contain(click->x, click->y)) return pick(Mode::Cancel);
-        // Anywhere else, inside the box or outside it: swallowed, as every other
-        // event is while the dialog is modal. Not dismissed — a click that
-        // missed a button is not an answer to a question about deleting.
+        // Anywhere else in the box: swallowed, as every other event is while
+        // the dialog is modal. Not dismissed — a click that missed a button
+        // inside the box is not an answer to a question about deleting; one
+        // outside it reaches here as Escape, which is Cancel.
         return Outcome::Ignored;
     }
 

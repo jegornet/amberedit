@@ -150,7 +150,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows
     // through it nor colors it.
-    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
+    return dbox({std::move(background),
+                 dialog::surface(std::move(box)) | reflect(state.modalBox) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {
@@ -170,8 +171,8 @@ Outcome handleEvent(AppState& state, const Event& event) {
             state.showClick(AppState::Pressed::MarkChoice, static_cast<uint32_t>(i));
             return Outcome::Picked;
         }
-        // Anywhere else, inside the box or outside it: swallowed, as every other
-        // event is while the dialog is modal.
+        // Anywhere else in the box: swallowed, as every other event is while the dialog
+        // is modal.
         return Outcome::Ignored;
     }
 

@@ -53,7 +53,8 @@ Element render(AppState& state, Element background) {
     auto box = hbox({text("  "), vbox(std::move(content)), text("  ")}) | border |
                color(theme::palette.dialogBorder);
 
-    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
+    return dbox({std::move(background),
+                 dialog::surface(std::move(box)) | reflect(state.modalBox) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {
@@ -73,8 +74,8 @@ void handleEvent(AppState& state, const Event& event) {
             state.showClick(AppState::Pressed::ErrorOk);
             acknowledge();
         }
-        // Anywhere else, inside the box or outside it: swallowed, as every
-        // other event is while the box is modal.
+        // Anywhere else in the box: swallowed, as every other event is while the box is
+        // modal.
         return;
     }
     if (event == Event::Return || event == Event::Escape ||

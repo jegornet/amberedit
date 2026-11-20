@@ -258,7 +258,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the header underneath neither shows
     // through it nor colors it.
-    return dbox({std::move(background), dialog::surface(vbox(std::move(rows))) | center});
+    return dbox({std::move(background), dialog::surface(vbox(std::move(rows))) |
+                                            reflect(state.modalBox) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {
@@ -284,8 +285,8 @@ void handleEvent(AppState& state, const Event& event) {
             state.showClick(AppState::Pressed::AttributesDone);
             state.attributePicker.reset();
         }
-        // Anywhere else, inside the box or outside it: swallowed, as every
-        // other event is while the dialog is modal.
+        // Anywhere else in the box: swallowed, as every other event is while the dialog
+        // is modal.
         return;
     }
 

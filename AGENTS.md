@@ -3301,7 +3301,13 @@ in **`dialog::surface()`** rather than in `clear_under` — the wipe with the
 box's own `dialog_background` and `dialog_text` laid down over it, so that no
 cell of a dialog is left in whatever color the terminal draws with when nothing
 is asked for; and a click outside it dismisses it without the screen underneath
-acting on the click.
+acting on the click. That last is not each box's to answer: every `render()`
+reflects its box into `AppState::modalBox` off `dialog::surface()`, `document()`
+puts it back to `Box::Nowhere()` at the top of every frame, and `runApp()` turns
+a press outside it into Escape (`clickedOutside()` in `ui/event_util.hpp`) ahead
+of every modal — so a click outside means exactly what Esc means there, and a
+new dialog gets it by reflecting its box like the rest. The three boxes that
+answer no key reflect nothing.
 `ui/dir_listing.*` and `dialog::bottomBar()` are shared the same way — the bottom
 rule carries the keys, and what went wrong in their place, rather than either
 taking a row.

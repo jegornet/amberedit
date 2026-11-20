@@ -199,8 +199,8 @@ Element render(AppState& state, Element background) {
     }
     lines.push_back(dialog::bottomBar(_("Esc closes"), {}, inner));
 
-    return dbox(
-        {std::move(background), dialog::surface(vbox(std::move(lines))) | center});
+    return dbox({std::move(background), dialog::surface(vbox(std::move(lines))) |
+                                            reflect(state.modalBox) | center});
 }
 
 void handleEvent(AppState& state, const Event& event) {

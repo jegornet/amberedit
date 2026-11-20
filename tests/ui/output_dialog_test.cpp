@@ -8,6 +8,7 @@
 
 #include "msgbase/null_lastread_store.hpp"
 #include "ui/app_state.hpp"
+#include "ui/event_util.hpp"
 #include "ui/term/element.hpp"
 #include "ui/term/event.hpp"
 #include "ui/term/screen.hpp"
@@ -16,6 +17,7 @@ using amberedit::app::AreaManager;
 using amberedit::config::AppConfig;
 using amberedit::domain::AreaConfig;
 using amberedit::ui::AppState;
+using amberedit::ui::clickedOutside;
 using amberedit::ui::term::Event;
 
 namespace output_dialog = amberedit::ui::output_dialog;
@@ -147,7 +149,7 @@ TEST_CASE("The output box is put away by its keys and its button [output]") {
     output_dialog::open(fixture.state, "Scan", {"done"}, false);
     static_cast<void>(rowsOf(fixture.state));
     const term::Box ok = fixture.state.outputView->okBox;
-    const term::Box box = fixture.state.outputView->box;
+    const term::Box box = fixture.state.modalBox;
     // A click on the text inside the box is nothing.
     output_dialog::handleEvent(fixture.state,
                                Event::Mouse(leftPressAt(box.x_min + 2, box.y_min + 1)));
@@ -157,11 +159,14 @@ TEST_CASE("The output box is put away by its keys and its button [output]") {
         Event::Mouse(leftPressAt((ok.x_min + ok.x_max) / 2, (ok.y_min + ok.y_max) / 2)));
     CHECK_FALSE(fixture.state.outputView.has_value());
 
-    // And a click outside it.
+    // And a click outside it, which `runApp()` hands every modal as Escape.
     output_dialog::open(fixture.state, "Scan", {"done"}, false);
     static_cast<void>(rowsOf(fixture.state));
-    output_dialog::handleEvent(fixture.state, Event::Mouse(leftPressAt(0, 0)));
-    CHECK_FALSE(fixture.state.outputView.has_value());
+    CHECK(clickedOutside(Event::Mouse(leftPressAt(0, 0)), fixture.state.modalBox));
+    CHECK_FALSE(clickedOutside(Event::Mouse(leftPressAt(box.x_min + 2, box.y_min + 1)),
+                               fixture.state.modalBox));
+    // With no box drawn there is no outside, and the click is the screen's.
+    CHECK_FALSE(clickedOutside(Event::Mouse(leftPressAt(0, 0)), term::Box::Nowhere()));
 }
 
 TEST_CASE("The output box opens on OK and copies by Ctrl-C or its button [output]") {

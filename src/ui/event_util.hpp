@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include "ui/term/box.hpp"
 #include "ui/term/event.hpp"
 
 namespace amberedit::ui {
@@ -47,6 +48,15 @@ namespace amberedit::ui {
         mouse->motion != term::MouseEvent::Motion::Pressed)
         return std::nullopt;
     return mouse;
+}
+
+/// Whether the event is a left click landing outside `box` — the box a modal
+/// was drawn in, which such a click puts away as Escape would. A box nothing
+/// was drawn in, `Box::Nowhere()`, has no outside: with no modal up a click is
+/// the screen's.
+[[nodiscard]] inline bool clickedOutside(const term::Event& event, const term::Box& box) {
+    const auto click = leftClick(event);
+    return click && !(box == term::Box::Nowhere()) && !box.Contain(click->x, click->y);
 }
 
 /// Which way a wheel event points: -1 up, +1 down, 0 when the event is not a

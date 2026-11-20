@@ -466,8 +466,8 @@ Outcome existingKey(AppState& state, Picker& picker, const Event& event) {
             return pick(Answer::Overwrite);
         }
         if (existing.appendBox.Contain(click->x, click->y)) return pick(Answer::Append);
-        // Anywhere else, inside the box or outside it: swallowed, as every other
-        // event is while the question is up.
+        // Anywhere else in the box: swallowed, as every other event is while the question
+        // is up.
         return Outcome::Ignored;
     }
 
@@ -518,8 +518,8 @@ Outcome handleClick(AppState& state, Picker& picker, const MouseEvent& click) {
         state.showClick(AppState::Pressed::ExportSave);
         return runExport(state, picker);
     }
-    // Anywhere else, inside the box or outside it: swallowed, as every other
-    // event is while the dialog is modal.
+    // Anywhere else in the box: swallowed, as every other event is while the dialog is
+    // modal.
     return Outcome::Ignored;
 }
 
@@ -752,13 +752,13 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows
     // through it nor colors it.
-    Element drawn =
-        dbox({std::move(background), dialog::surface(vbox(std::move(lines))) | center});
+    Element drawn = dbox({std::move(background), dialog::surface(vbox(std::move(lines))) |
+                                                     reflect(state.modalBox) | center});
     if (picker.existing) {
         // Over the box rather than in its place: what is being asked about is
         // the name standing in it.
-        drawn = dbox({std::move(drawn),
-                      dialog::surface(existingQuestion(state, picker)) | center});
+        drawn = dbox({std::move(drawn), dialog::surface(existingQuestion(state, picker)) |
+                                            reflect(state.modalBox) | center});
     }
     return drawn;
 }

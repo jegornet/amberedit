@@ -97,7 +97,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows
     // through it nor colors it.
-    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
+    return dbox({std::move(background),
+                 dialog::surface(std::move(box)) | reflect(state.modalBox) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {
@@ -119,8 +120,8 @@ Outcome handleEvent(AppState& state, const Event& event) {
         if (review.dropBox.Contain(click->x, click->y)) return pick(Answer::Drop);
         if (review.againBox.Contain(click->x, click->y)) return pick(Answer::Again);
         if (review.headerBox.Contain(click->x, click->y)) return pick(Answer::Header);
-        // Anywhere else, inside the box or outside it: swallowed, as every
-        // other event is while the box is modal.
+        // Anywhere else in the box: swallowed, as every other event is while the box is
+        // modal.
         return Outcome::Ignored;
     }
 
