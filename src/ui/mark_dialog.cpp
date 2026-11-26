@@ -124,7 +124,7 @@ Element render(AppState& state, Element background) {
     picker.boxes.assign(kAnswerCount, Box::Nowhere());
 
     Elements rows{
-        text(_("Mark messages:")) | bold | color(theme::palette.dialogText) | center,
+        text(_("Mark messages:")) | theme::dialogsBold | color(theme::palette.dialogText) | center,
         text(""),
     };
     // reflect() writes back where the button landed once the box has been

@@ -163,6 +163,24 @@ struct Palette {
     /// left. There the weight is the whole of the mark, and dropping it would
     /// leave the row saying nothing rather than saying it quietly.
     bool selectionBold = false;
+    /// Whether the top line of the reader, the message list and the editor —
+    /// the screen's title in `table_header`, the area list's quick search in its
+    /// place, and the reader's mark arrow beside the title — is drawn bold.
+    /// `table_header_bold`, off by default for the reason `selection_bold` is:
+    /// on a terminal drawing bold as a brighter foreground the weight is a color
+    /// the theme did not choose.
+    bool tableHeaderBold = false;
+    /// Whether the labels of the message header block, and the literals
+    /// `header_format` writes between its fields, are drawn bold —
+    /// `header_labels_bold`, off by default. The fields themselves never are.
+    bool headerLabelsBold = false;
+    /// Whether the words a box stands to say are drawn bold — the question of a
+    /// confirmation, the one line of a box that waits on something, the error in
+    /// a box's bottom rule and the headings of the help and info boxes.
+    /// `dialogs_bold`, off by default. The marks that are bold with no fill
+    /// behind them — a ticked attribute, the cursor row of a picker the typing
+    /// has left — are not among them: there the weight is the whole of the mark.
+    bool dialogsBold = false;
     /// Behind the message the reader's sidebar marks. A second selection fill
     /// because the panel is marking rather than choosing: the message is the one
     /// on the screen beside it, the keyboard is in the reader and never in the
@@ -472,6 +490,13 @@ inline Palette palette;
 /// It reads the palette in force, as the colors beside it do, so a call site
 /// carries nothing about the setting but the name.
 [[nodiscard]] term::Element selectionBold(term::Element child);
+
+/// The same for `table_header_bold`, `header_labels_bold` and `dialogs_bold`:
+/// each is `bold` where its switch is on, and what each covers is said where
+/// its field on `Palette` is.
+[[nodiscard]] term::Element tableHeaderBold(term::Element child);
+[[nodiscard]] term::Element headerLabelsBold(term::Element child);
+[[nodiscard]] term::Element dialogsBold(term::Element child);
 
 /// Reads a theme file: a line of `role <color>` per color, in the same format
 /// the AmberEdit config is written in — the roles being Palette's fields in

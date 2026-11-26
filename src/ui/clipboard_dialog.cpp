@@ -28,7 +28,7 @@ Element boxed(Element content, Element background) {
 
 Element renderCopied(const AppState& state, Element background) {
     const int width = std::max(1, state.width - 6);
-    return boxed(text(truncateToWidth(_("Copied"), width)) | bold |
+    return boxed(text(truncateToWidth(_("Copied"), width)) | theme::dialogsBold |
                      color(theme::palette.dialogText),
                  std::move(background));
 }
@@ -39,7 +39,7 @@ Element renderWaiting(const AppState& state, Element background) {
     const std::string hint = _("Esc cancel");
     const int inner = std::min(width, std::max(displayWidth(asking), displayWidth(hint)));
     return boxed(vbox({
-                     text(truncateToWidth(asking, inner)) | bold |
+                     text(truncateToWidth(asking, inner)) | theme::dialogsBold |
                          color(theme::palette.dialogText) | center,
                      text(""),
                      text(truncateToWidth(hint, inner)) |

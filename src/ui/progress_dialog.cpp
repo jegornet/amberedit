@@ -61,7 +61,7 @@ Element render(const AppState& state, Element background) {
     const std::string keys = progress.breakable ? _("Esc cancel") : "";
 
     auto content = vbox({
-        text(truncateToWidth(headingOf(progress.doing), width)) | bold |
+        text(truncateToWidth(headingOf(progress.doing), width)) | theme::dialogsBold |
             color(theme::palette.dialogText) | center,
         text(""),
         text(padRight(truncateToWidth(counted, width), width)) |

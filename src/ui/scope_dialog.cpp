@@ -126,7 +126,7 @@ Element render(AppState& state, Element background) {
         {std::to_string(picker.marked)});
 
     auto content = vbox({
-        text(question(picker.purpose)) | bold | color(theme::palette.dialogText) | center,
+        text(question(picker.purpose)) | theme::dialogsBold | color(theme::palette.dialogText) | center,
         text(count) | color(theme::palette.dialogHint) | center,
         text(""),
         hbox(std::move(buttons)) | center,

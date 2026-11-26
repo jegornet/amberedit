@@ -125,7 +125,7 @@ Element render(AppState& state, Element background) {
 
     auto content = vbox({
         text(picker.marked ? _("Marked message actions:") : _("Message actions:")) |
-            bold | color(theme::palette.dialogText) | center,
+            theme::dialogsBold | color(theme::palette.dialogText) | center,
         text(""),
         hbox(std::move(buttons)) | center,
         text(""),

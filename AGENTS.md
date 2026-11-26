@@ -3830,7 +3830,7 @@ taking a row.
   measures itself against the window had to change. It is also the one node that
   paints outside its own box; `Screen::at()` drops what falls off the edge, so a
   box against the right-hand side simply casts less.
-- **A theme is colors and three switches.** Each is `on` or `off` as every other
+- **A theme is colors and six switches.** Each is `on` or `off` as every other
   switch AmberEdit reads is written, a `bool` on `Palette` and a line in
   `kSwitches` — the same table treatment the colors get, so another one is a
   line rather than a special case — and each is stated in every file under
@@ -3856,6 +3856,21 @@ taking a row.
     has left (the import, export and setup pickers, `bold` on `dialog_label`),
     where the weight is the whole of the mark and dropping it would leave the
     row saying nothing at all.
+  - `table_header_bold`, `header_labels_bold` and `dialogs_bold` are that bold
+    without a fill, a switch for each of three places, and **each is read in one
+    place** as `selection_bold` is: `theme::tableHeaderBold()` for the screen's
+    title in the top line (the area list's quick search and the reader's mark
+    arrow with it), `theme::headerLabelsBold()` for the labels and literals of
+    the header block — the fields never take it — and `theme::dialogsBold()` for
+    the words a box stands to say: a confirmation's question, the one line of
+    the rescan, running, copied and progress boxes, the error in
+    `dialog::bottomBar()`, and the headings of the help and info boxes. Off in
+    the built-in palette and every shipped theme but `8_colors.cfg`, where all
+    three are on: eight colors leave the weight as the one thing a title or a
+    question has to stand out by. What stays a bare `bold` is the mark the
+    weight is the whole of — a ticked attribute, a picker's cursor row once the
+    typing has left it, a search hit, `*bold*` in a message. The three stand in
+    every theme file beside `selection_bold`, under one comment.
   - `ansi_map_black_to_background` says whether the black an ANSI picture draws
     with is drawn in the theme's own `background`. **It reaches a canvas row and
     nothing else**: `bodyLine()` asks `source.canvas` before it asks the switch,

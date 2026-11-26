@@ -533,7 +533,7 @@ Element render(AppState& state) {
     // looking at, and a name cut short still says which area this is.
     const int titleWidth = std::max(goingTo ? 0 : 1, titleRoom - gotoWidth);
     Element title = text(truncateToWidth(titleText, static_cast<size_t>(titleWidth))) |
-                    bold | color(theme::palette.tableHeader);
+                    theme::tableHeaderBold | color(theme::palette.tableHeader);
     if (goingTo) title = hbox({std::move(title), std::move(gotoField)});
     if (state.backButtonShown()) {
         title = hbox({back_button::topRow(pressedBack), std::move(title)});

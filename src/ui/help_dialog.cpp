@@ -190,7 +190,7 @@ Element render(AppState& state, Element background) {
         Element row =
             text(padRight(content, listWidth)) |
             color(heading ? theme::palette.dialogLabel : theme::palette.dialogText);
-        if (heading) row = std::move(row) | bold;
+        if (heading) row = std::move(row) | theme::dialogsBold;
         lines.push_back(
             scrollbarShown
                 ? dialog::framed(hbox(

@@ -124,7 +124,7 @@ Element render(AppState& state, Element background) {
     };
 
     auto content = vbox({
-        text(question(state)) | bold | color(theme::palette.dialogText) | center,
+        text(question(state)) | theme::dialogsBold | color(theme::palette.dialogText) | center,
         text(""),
         (upright ? vbox(std::move(buttons)) : hbox(std::move(buttons))) | center,
         text(""),

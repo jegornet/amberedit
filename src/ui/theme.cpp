@@ -113,10 +113,13 @@ const std::array<Follower, 7> kFollowers{{
 /// is a line here as a color is a line above.
 using Switch = bool Palette::*;
 
-const std::array<std::pair<std::string_view, Switch>, 3> kSwitches{{
+const std::array<std::pair<std::string_view, Switch>, 6> kSwitches{{
     {"ansi_map_black_to_background", &Palette::ansiMapBlackToBackground},
     {"input_filler_show", &Palette::inputFillerShown},
     {"selection_bold", &Palette::selectionBold},
+    {"table_header_bold", &Palette::tableHeaderBold},
+    {"header_labels_bold", &Palette::headerLabelsBold},
+    {"dialogs_bold", &Palette::dialogsBold},
 }};
 
 /// The names a role was called by before it was renamed, each standing for the
@@ -235,6 +238,21 @@ tl::expected<Palette, ErrorPtr> fromEntries(
 
 term::Element selectionBold(term::Element child) {
     if (!palette.selectionBold) return child;
+    return term::bold(std::move(child));
+}
+
+term::Element tableHeaderBold(term::Element child) {
+    if (!palette.tableHeaderBold) return child;
+    return term::bold(std::move(child));
+}
+
+term::Element headerLabelsBold(term::Element child) {
+    if (!palette.headerLabelsBold) return child;
+    return term::bold(std::move(child));
+}
+
+term::Element dialogsBold(term::Element child) {
+    if (!palette.dialogsBold) return child;
     return term::bold(std::move(child));
 }
 

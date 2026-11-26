@@ -408,7 +408,7 @@ Element existingQuestion(AppState& state, Picker& picker) {
     };
 
     auto content = vbox({
-        text(_("File exists:")) | bold | color(theme::palette.dialogText),
+        text(_("File exists:")) | theme::dialogsBold | color(theme::palette.dialogText),
         text("  " + truncateToWidth(fs::path(existing.path).filename().string(),
                                     kExistingNameWidth)) |
             color(theme::palette.dialogLabel),

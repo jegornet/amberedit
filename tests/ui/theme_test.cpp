@@ -9,6 +9,8 @@
 #include "config/text_util.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
+#include "ui/term/element.hpp"
+#include "ui/term/screen.hpp"
 #include "ui/theme.hpp"
 
 using amberedit::test::contains;
@@ -211,6 +213,17 @@ TEST_CASE("A theme carries settings that are not colors [theme]") {
     CHECK_FALSE(valueOf(parsePalette("selection_bold off")).selectionBold);
     CHECK_FALSE(valueOf(parsePalette("text 33")).selectionBold);
 
+    // The three weights beside it, each off where the file says nothing.
+    CHECK(valueOf(parsePalette("table_header_bold on")).tableHeaderBold);
+    CHECK_FALSE(valueOf(parsePalette("table_header_bold off")).tableHeaderBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).tableHeaderBold);
+    CHECK(valueOf(parsePalette("header_labels_bold on")).headerLabelsBold);
+    CHECK_FALSE(valueOf(parsePalette("header_labels_bold off")).headerLabelsBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).headerLabelsBold);
+    CHECK(valueOf(parsePalette("dialogs_bold on")).dialogsBold);
+    CHECK_FALSE(valueOf(parsePalette("dialogs_bold off")).dialogsBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).dialogsBold);
+
     // `ansi_map_black_to_background` the same way, and off where the file says
     // nothing: a picture is drawn as it was drawn unless the theme says its own
     // screen is not the black the art was composed against.
@@ -229,6 +242,35 @@ TEST_CASE("A theme carries settings that are not colors [theme]") {
     const std::string mapped =
         errorOf(parsePalette("ansi_map_black_to_background 1", "theme.cfg"));
     REQUIRE_MESSAGE(contains(mapped, "on or off"), mapped);
+}
+
+TEST_CASE("Each bold switch adds the weight where it is on and only there [theme]") {
+    namespace term = amberedit::ui::term;
+    namespace theme = amberedit::ui::theme;
+    struct Restore {
+        Palette was{theme::palette};
+        ~Restore() { theme::palette = was; }
+    } restore;
+
+    const auto boldOf = [](term::Element element) {
+        term::Screen screen(1, 1);
+        term::render(screen, std::move(element));
+        return (screen.at(0, 0).attrs & term::kBold) != 0;
+    };
+    theme::palette = Palette{};
+    CHECK_FALSE(boldOf(term::text("x") | theme::tableHeaderBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::headerLabelsBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::dialogsBold));
+
+    // One switch turned on reaches its own elements and leaves the others.
+    theme::palette.dialogsBold = true;
+    CHECK(boldOf(term::text("x") | theme::dialogsBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::tableHeaderBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::headerLabelsBold));
+    theme::palette.tableHeaderBold = true;
+    theme::palette.headerLabelsBold = true;
+    CHECK(boldOf(term::text("x") | theme::tableHeaderBold));
+    CHECK(boldOf(term::text("x") | theme::headerLabelsBold));
 }
 
 TEST_CASE("A key that is not a color is refused [theme]") {
@@ -336,6 +378,9 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.inputFiller, builtIn.inputFiller));
     CHECK(loaded.inputFillerShown == builtIn.inputFillerShown);
     CHECK(loaded.selectionBold == builtIn.selectionBold);
+    CHECK(loaded.tableHeaderBold == builtIn.tableHeaderBold);
+    CHECK(loaded.headerLabelsBold == builtIn.headerLabelsBold);
+    CHECK(loaded.dialogsBold == builtIn.dialogsBold);
     CHECK(loaded.ansiMapBlackToBackground == builtIn.ansiMapBlackToBackground);
     CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK(same(loaded.dialogText, builtIn.dialogText));

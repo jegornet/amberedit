@@ -194,7 +194,7 @@ Element render(AppState& state, Element background) {
         Element row =
             text(" " + padRight(content, columns) + " ") |
             color(heading ? theme::palette.dialogLabel : theme::palette.dialogText);
-        if (heading) row = std::move(row) | bold;
+        if (heading) row = std::move(row) | theme::dialogsBold;
         lines.push_back(hbox({side(), std::move(row), side()}));
     }
     // Where in the report the box has got to, on the bottom side of the frame —

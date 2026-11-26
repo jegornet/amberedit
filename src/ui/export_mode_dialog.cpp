@@ -99,7 +99,7 @@ Element render(AppState& state, Element background) {
     AppState::ExportModePicker& picker = *state.exportModePicker;
 
     Elements rows{
-        text(heading()) | bold | color(theme::palette.dialogText),
+        text(heading()) | theme::dialogsBold | color(theme::palette.dialogText),
         text(""),
     };
     for (const auto& name : namesShown(picker.files)) {

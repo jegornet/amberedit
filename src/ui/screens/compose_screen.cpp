@@ -361,7 +361,7 @@ Elements headerRows(AppState& state, bool editing) {
                             : piece.text;
                     cells.push_back(
                         text(padRight(truncateToWidth(shown, piece.width), piece.width)) |
-                        bold | color(theme::palette.header));
+                        theme::headerLabelsBold | color(theme::palette.header));
                     break;
                 }
                 // The stamps in the block's own color, and on no fill: they are
@@ -430,7 +430,7 @@ Element chrome(const AppState& state, Elements body) {
     const bool menu = state.composeMenuShown();
     const int titleRoom = std::max(1, state.width - (back ? back_button::kWidth : 0) -
                                           (menu ? menu_button::kWidth : 0));
-    auto title = text(truncateToWidth(titleText(state), titleRoom)) | bold |
+    auto title = text(truncateToWidth(titleText(state), titleRoom)) | theme::tableHeaderBold |
                  color(theme::palette.tableHeader);
 
     const bool pressedBack = state.isPressed(AppState::Pressed::Back);

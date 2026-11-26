@@ -80,7 +80,7 @@ Element render(AppState& state, Element background) {
     };
 
     auto content = vbox({
-        text(_("The message, as your editor left it:")) | bold |
+        text(_("The message, as your editor left it:")) | theme::dialogsBold |
             color(theme::palette.dialogText) | center,
         text(""),
         hbox(std::move(buttons)) | center,

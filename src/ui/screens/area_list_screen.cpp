@@ -835,7 +835,7 @@ Element render(AppState& state) {
         const bool matched = searchRow(state, shown).has_value();
         header = text(truncateToWidth(i18n::format(_(" Area: {0}▌"), {state.areaSearch}),
                                       headerRoom)) |
-                 bold |
+                 theme::tableHeaderBold |
                  color(matched ? theme::palette.tableHeader : theme::palette.error);
     }
 

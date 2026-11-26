@@ -139,11 +139,11 @@ A theme is a file of `role  color` lines. A color can be:
 
 A theme may hold both spellings.
 
-Three of its keys are switches rather than colors, written `on` or `off` like
+Six of its keys are switches rather than colors, written `on` or `off` like
 every other switch AmberEdit reads:
 
-- `selection_bold`, whether what wears the selection fill — the current row of a
-  list, the selected button of a box — is drawn bold along with it. Off unless a
+- `selection_bold`, `table_header_bold`, `header_labels_bold`, `dialogs_bold`:
+  bold selection bar, screen title, header labels and dialog text. Off unless a
   theme says otherwise.
 - `input_filler_show`, whether the room a field has left is underscored. On
   unless a theme says otherwise.
