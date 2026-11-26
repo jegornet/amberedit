@@ -3610,6 +3610,30 @@ taking a row.
     the message on screen is dead, `new` and `nodelist` being what is left, and
     on the area list only `next_unread` can be, where nothing anywhere is unread.
 
+### The window title
+
+- **The title names the screen and nothing over it**, where `set_window_title`
+  asks — on by default. `ui::windowTitle()` is the whole of the text: the
+  screen from `navigator.current()`, the area it is about, and
+  `kProgramName` after — the compose screen's area being `composeArea()`, so a
+  forward is titled by where it goes. The reader is the area's tag alone, with
+  no word in front: it is where the user spends the session, and in a tab bar
+  the tag is what is read. A box is not a screen here: it is
+  something asked on the way, and a title that changed under every confirmation
+  would flicker in a tab bar for no news. `runApp()` asks for it before every
+  frame and `Terminal::setTitle()` writes only a change.
+- **The terminal is asked to keep the title it had**, xterm's stack — `CSI
+  22;2t` before the first title, `CSI 23;2t` in the destructor and in
+  `handOver()`, so a shell or a utility runs under its own and the next frame
+  puts ours back. A terminal with no stack ignores both and keeps the last
+  title written; nothing reports which kind a terminal is, so nothing is asked.
+  The title goes out in the locale's charset through `drawable()`, as a cell
+  does, with control characters dropped: a BEL inside would end the sequence.
+- **The Windows console is `ui/term/windows_console_title.cpp`**, a file of its own
+  because `<windows.h>` and `curses.h` both define `MOUSE_MOVED`. The console
+  keeps no stack, so the title it had is read with `GetConsoleTitleW()` and put
+  back by hand.
+
 ### Text, theme and colors
 
 - **Layout is measured in terminal columns, by `term::stringWidth()`.**

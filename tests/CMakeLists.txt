@@ -80,6 +80,7 @@ add_executable(amberedit_tests
   ui/after_handover_test.cpp
   ui/help_dialog_test.cpp
   ui/hint_bar_test.cpp
+  ui/window_title_test.cpp
   ui/import_dialog_test.cpp
   ui/setup_wizard_test.cpp
   ui/info_dialog_test.cpp
@@ -169,6 +170,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/forward_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/help_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/hint_bar.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/window_title.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/import_dialog.cpp
   # The setup wizard, all of it but the file that owns a Terminal: the wizard
   # answers events and draws into a Screen like every other dialog, and that is

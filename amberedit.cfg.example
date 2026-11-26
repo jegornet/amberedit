@@ -427,6 +427,37 @@ reader_show_message_size off
 # terminal, which is still there to print to.
 #error_log ~/ftn/log/amberedit.log
 
+# --- the terminal window ------------------------------------------------------
+
+# Whether the terminal window's title names the screen that is up — "Areas",
+# "Messages in enet.sysop", "enet.sysop" in the reader, "Writing to enet.sysop".
+# Optional; "on" by default.
+set_window_title on
+
+# Theme file to draw the interface with. Optional: without it AmberEdit uses its
+# built-in palette, which themes/black.cfg is a copy of — or, on a terminal of
+# fewer than sixteen colors, the palette of themes/8_colors.cfg.
+#
+# A theme is a file of "role color" lines, and a color in one is told by its
+# length: one to three decimal digits — 232 — is an entry in the terminal's own
+# 256-color palette, and exactly six hex digits — aaffb2 — is the color itself.
+# Nothing marks either, and neither takes a '#' in front of it: a '#' starts a
+# comment here as it does everywhere else in this file.
+#
+# A theme written in truecolor is at your own risk: AmberEdit cannot reliably
+# determine whether your terminal supports 24-bit colors.
+#theme /usr/share/amberedit/themes/black.cfg         # the built-in palette
+#theme /usr/share/amberedit/themes/blue_header.cfg   # black, with a navy header
+#theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
+#theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
+#theme /usr/share/amberedit/themes/8_colors.cfg      # the same in eight colors
+#theme /usr/share/amberedit/themes/truecolor_bg_night.cfg   # truecolor, BG Night
+#theme /usr/share/amberedit/themes/golded_colors.cfg  # colored like GoldED+
+
+# Whether AmberEdit warns the user when the terminal cannot display the full
+# color palette defined in the current theme. Optional; on by default.
+#color_warning on
+
 # --- the keyboard -------------------------------------------------------------
 
 # A keyboard layout. Optional; without one AmberEdit uses its own, which is what
@@ -1390,30 +1421,6 @@ template_date_format "%d %b %y"
 template_time_format "%H:%M"
 
 # --- writing a message --------------------------------------------------------
-
-# Theme file to draw the interface with. Optional: without it AmberEdit uses its
-# built-in palette, which themes/black.cfg is a copy of — or, on a terminal of
-# fewer than sixteen colors, the palette of themes/8_colors.cfg.
-#
-# A theme is a file of "role color" lines, and a color in one is told by its
-# length: one to three decimal digits — 232 — is an entry in the terminal's own
-# 256-color palette, and exactly six hex digits — aaffb2 — is the color itself.
-# Nothing marks either, and neither takes a '#' in front of it: a '#' starts a
-# comment here as it does everywhere else in this file.
-#
-# A theme written in truecolor is at your own risk: AmberEdit cannot reliably
-# determine whether your terminal supports 24-bit colors.
-#theme /usr/share/amberedit/themes/black.cfg         # the built-in palette
-#theme /usr/share/amberedit/themes/blue_header.cfg   # black, with a navy header
-#theme /usr/share/amberedit/themes/white.cfg         # paper, for a light terminal
-#theme /usr/share/amberedit/themes/16_colors.cfg     # sixteen-color DOS look
-#theme /usr/share/amberedit/themes/8_colors.cfg      # the same in eight colors
-#theme /usr/share/amberedit/themes/truecolor_bg_night.cfg   # truecolor, BG Night
-#theme /usr/share/amberedit/themes/golded_colors.cfg  # colored like GoldED+
-
-# Whether AmberEdit warns the user when the terminal cannot display the full
-# color palette defined in the current theme. Optional; on by default.
-#color_warning on
 
 # The interface's own language is the environment's, as it is for every other
 # program on the system: LANGUAGE, LC_ALL, LC_MESSAGES, LANG, in that order of

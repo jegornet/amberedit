@@ -91,6 +91,18 @@ public:
     /// nothing reports that, so this is asked for by a key.
     void forgetScreen();
 
+    /// Puts `title` in the window's title bar, the tab's label where the
+    /// terminal has tabs. `title` is UTF-8, and is written in the locale's
+    /// charset like everything else drawn.
+    ///
+    /// The title the window had is asked to be kept the first time this is
+    /// called — xterm's title stack, `CSI 22;2t` — and put back by the
+    /// destructor and by `handOver()`, so the shell gets its own back. A
+    /// terminal with no stack ignores both and keeps the last title written;
+    /// nothing reports which kind it is. A title the same as the last one
+    /// writes nothing, so this may be called on every frame.
+    void setTitle(std::string_view title);
+
     /// Whether Escape is among whatever has been typed and not yet read, taking
     /// the lot off the queue either way.
     ///
@@ -255,6 +267,12 @@ private:
     std::chrono::steady_clock::time_point lastMouseAt_{};
     int lastMouseX_{0};
     int lastMouseY_{0};
+    /// Drops the title `setTitle()` put up and asks for the one it found.
+    void restoreTitle();
+
+    /// The title last written, and whether the one found was asked to be kept.
+    std::string title_;
+    bool titleSaved_{false};
     bool cursorVisible_{false};
     int cursorX_{0};
     int cursorY_{0};

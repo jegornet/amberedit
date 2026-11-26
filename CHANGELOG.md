@@ -8,6 +8,7 @@
 - add themes/8_colors.cfg, used where no theme is set and the terminal has 8 colors (TERM=linux, TERM=xterm)
 - adjust white theme colors
 - a click outside any dialog closes it
+- add set_window_title: the terminal window's title names the screen and its area, on by default
 
 ## 0.11.1 — 2026-11-13
 

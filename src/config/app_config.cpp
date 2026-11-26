@@ -2245,6 +2245,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.colorWarning = *read;
+    } else if (key == "set_window_title") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.setWindowTitle = *read;
     } else if (key == "template") {
         auto read = entry.text();
         if (!read) return tl::make_unexpected(std::move(read).error());

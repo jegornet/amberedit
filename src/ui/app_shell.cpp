@@ -54,6 +54,7 @@
 #include "ui/term/event.hpp"
 #include "ui/term/terminal.hpp"
 #include "ui/theme.hpp"
+#include "ui/window_title.hpp"
 
 namespace amberedit::ui {
 
@@ -455,6 +456,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         }
 
         takeSize();
+        // Before the frame and from the same state: the title names the screen
+        // the frame shows. Asked every pass, Terminal writing only a change.
+        if (config.setWindowTitle) terminal.setTitle(windowTitle(state));
         terminal.draw(document(state));
 
         // The box saying a copy went through is the frame just drawn, held for

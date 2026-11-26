@@ -699,6 +699,11 @@ add_library(amberedit_term STATIC
   src/ui/term/terminal.cpp
   src/ui/term/utf8.cpp
 )
+if(WIN32)
+  # The console's own title, kept out of terminal.cpp: <windows.h> and
+  # curses.h define one macro between them.
+  target_sources(amberedit_term PRIVATE src/ui/term/windows_console_title.cpp)
+endif()
 target_include_directories(amberedit_term PUBLIC src)
 target_link_libraries(amberedit_term PUBLIC ${amberedit_curses_lib})
 # PDCurses learns nothing from how it was built: `curses.h` declares `cchar_t`
@@ -775,6 +780,7 @@ add_executable(amberedit
   src/ui/edit_history.cpp
   src/ui/edit_layout.cpp
   src/ui/theme.cpp
+  src/ui/window_title.cpp
   src/ui/setup/file_picker.cpp
   src/ui/setup/setup_run.cpp
   src/ui/setup/setup_wizard.cpp
