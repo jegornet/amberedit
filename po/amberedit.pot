@@ -1744,16 +1744,21 @@ msgid ""
 "the config disables this message."
 msgstr ""
 
-#: src/ui/window_title.cpp:12
+#: src/ui/window_title.cpp:10
 msgid "Areas"
 msgstr ""
 
-#: src/ui/window_title.cpp:14
+#: src/ui/window_title.cpp:12
 #, c++-format
 msgid "Messages in {0}"
 msgstr ""
 
-#: src/ui/window_title.cpp:22
+#: src/ui/window_title.cpp:14
+#, c++-format
+msgid "Reading {0}"
+msgstr ""
+
+#: src/ui/window_title.cpp:18
 #, c++-format
 msgid "Writing to {0}"
 msgstr ""

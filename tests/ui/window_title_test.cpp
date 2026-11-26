@@ -48,20 +48,20 @@ struct Fixture {
 
 TEST_CASE("The window title names the screen and its area [windowtitle]") {
     CHECK(windowTitle(Fixture(ScreenId::AreaList, "ru.fidonet.today").state) ==
-          "Areas — AmberEdit");
+          "Areas");
     CHECK(windowTitle(Fixture(ScreenId::MessageList, "ru.fidonet.today").state) ==
-          "Messages in ru.fidonet.today — AmberEdit");
+          "Messages in ru.fidonet.today");
     CHECK(windowTitle(Fixture(ScreenId::MessageRead, "ru.fidonet.today").state) ==
-          "ru.fidonet.today — AmberEdit");
+          "Reading ru.fidonet.today");
     CHECK(windowTitle(Fixture(ScreenId::Compose, "ru.fidonet.today").state) ==
-          "Writing to ru.fidonet.today — AmberEdit");
+          "Writing to ru.fidonet.today");
 }
 
 TEST_CASE("A forward is titled by the area it goes into [windowtitle]") {
     Fixture fixture(ScreenId::Compose, "ru.fidonet.today");
     fixture.state.compose.forward = true;
     fixture.state.targetArea.tag = "netmail";
-    CHECK(windowTitle(fixture.state) == "Writing to netmail — AmberEdit");
+    CHECK(windowTitle(fixture.state) == "Writing to netmail");
 }
 
 TEST_CASE("A box over a screen leaves the title alone [windowtitle]") {

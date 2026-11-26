@@ -1097,8 +1097,8 @@ void Terminal::setTitle(std::string_view title) {
         if (written == static_cast<size_t>(-1)) continue;
         bytes.append(out, written);
     }
-    if (!titleSaved_) std::fputs("\x1b[22;2t", stdout);
-    std::fputs("\x1b]2;", stdout);
+    if (!titleSaved_) std::fputs("\x1b[22;0t", stdout);
+    std::fputs("\x1b]0;", stdout);
     std::fputs(bytes.c_str(), stdout);
     std::fputs("\x07", stdout);
     std::fflush(stdout);
@@ -1111,7 +1111,7 @@ void Terminal::restoreTitle() {
 #ifdef _WIN32
     restoreConsoleTitle();
 #else
-    std::fputs("\x1b[23;2t", stdout);
+    std::fputs("\x1b[23;0t", stdout);
     std::fflush(stdout);
 #endif
     titleSaved_ = false;

@@ -96,7 +96,7 @@ public:
     /// charset like everything else drawn.
     ///
     /// The title the window had is asked to be kept the first time this is
-    /// called — xterm's title stack, `CSI 22;2t` — and put back by the
+    /// called — xterm's title stack, `CSI 22;0t` — and put back by the
     /// destructor and by `handOver()`, so the shell gets its own back. A
     /// terminal with no stack ignores both and keeps the last title written;
     /// nothing reports which kind it is. A title the same as the last one

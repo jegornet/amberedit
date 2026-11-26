@@ -3614,16 +3614,19 @@ taking a row.
 
 - **The title names the screen and nothing over it**, where `set_window_title`
   asks — on by default. `ui::windowTitle()` is the whole of the text: the
-  screen from `navigator.current()`, the area it is about, and
-  `kProgramName` after — the compose screen's area being `composeArea()`, so a
-  forward is titled by where it goes. The reader is the area's tag alone, with
-  no word in front: it is where the user spends the session, and in a tab bar
-  the tag is what is read. A box is not a screen here: it is
+  screen from `navigator.current()` and the area it is about, and no program
+  name — a tab is narrow, and the name is the same in every one of them. The
+  compose screen's area is `composeArea()`, so a
+  forward is titled by where it goes. A box is not a screen here: it is
   something asked on the way, and a title that changed under every confirmation
   would flicker in a tab bar for no news. `runApp()` asks for it before every
   frame and `Terminal::setTitle()` writes only a change.
+- **The title is OSC 0, the window's and the tab's at once, and never OSC 2
+  alone.** iTerm2 writes a tab and a window drawn without a title bar from the
+  icon name, OSC 1, so a title sent as the window's alone reaches nothing the
+  user sees there.
 - **The terminal is asked to keep the title it had**, xterm's stack — `CSI
-  22;2t` before the first title, `CSI 23;2t` in the destructor and in
+  22;0t` before the first title, `CSI 23;0t` in the destructor and in
   `handOver()`, so a shell or a utility runs under its own and the next frame
   puts ours back. A terminal with no stack ignores both and keeps the last
   title written; nothing reports which kind a terminal is, so nothing is asked.

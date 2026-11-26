@@ -1797,16 +1797,21 @@ msgstr ""
 "16_colors.cfg, использующую только системные цвета. Если цвета отображены "
 "корректно, color_warning off в конфиге убирает это сообщение."
 
-#: src/ui/window_title.cpp:12
+#: src/ui/window_title.cpp:10
 msgid "Areas"
 msgstr "Области"
 
-#: src/ui/window_title.cpp:14
+#: src/ui/window_title.cpp:12
 #, c++-format
 msgid "Messages in {0}"
 msgstr "Сообщения в {0}"
 
-#: src/ui/window_title.cpp:22
+#: src/ui/window_title.cpp:14
+#, c++-format
+msgid "Reading {0}"
+msgstr "Чтение {0}"
+
+#: src/ui/window_title.cpp:18
 #, c++-format
 msgid "Writing to {0}"
 msgstr "Написание в {0}"

@@ -430,7 +430,7 @@ reader_show_message_size off
 # --- the terminal window ------------------------------------------------------
 
 # Whether the terminal window's title names the screen that is up — "Areas",
-# "Messages in enet.sysop", "enet.sysop" in the reader, "Writing to enet.sysop".
+# "Messages in enet.sysop", "Reading enet.sysop", "Writing to enet.sysop".
 # Optional; "on" by default.
 set_window_title on
 
