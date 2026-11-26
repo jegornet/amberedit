@@ -1750,15 +1750,15 @@ msgstr ""
 
 #: src/ui/window_title.cpp:12
 #, c++-format
-msgid "Messages in {0}"
+msgid "{0}: messages"
 msgstr ""
 
 #: src/ui/window_title.cpp:14
 #, c++-format
-msgid "Reading {0}"
+msgid "{0}: reading"
 msgstr ""
 
 #: src/ui/window_title.cpp:18
 #, c++-format
-msgid "Writing to {0}"
+msgid "{0}: composing"
 msgstr ""

@@ -1803,18 +1803,18 @@ msgstr "Области"
 
 #: src/ui/window_title.cpp:12
 #, c++-format
-msgid "Messages in {0}"
-msgstr "Сообщения в {0}"
+msgid "{0}: messages"
+msgstr "{0}: сообщения"
 
 #: src/ui/window_title.cpp:14
 #, c++-format
-msgid "Reading {0}"
-msgstr "Чтение {0}"
+msgid "{0}: reading"
+msgstr "{0}: чтение"
 
 #: src/ui/window_title.cpp:18
 #, c++-format
-msgid "Writing to {0}"
-msgstr "Написание в {0}"
+msgid "{0}: composing"
+msgstr "{0}: написание"
 
 #~ msgid "Put the last deleted line back"
 #~ msgstr "Вернуть последнюю удалённую строку"
