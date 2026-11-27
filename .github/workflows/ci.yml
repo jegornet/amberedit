@@ -58,7 +58,7 @@ jobs:
           - distro: rocky8
             name: Rocky Linux 8 (GCC 8, the floor)
             image: rockylinux:8
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           - distro: rocky9
             name: Rocky Linux 9
             image: rockylinux:9

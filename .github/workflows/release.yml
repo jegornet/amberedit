@@ -97,7 +97,7 @@ jobs:
           - distro: el8
             image: rockylinux:8
             srpm: true
-            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext
+            deps: dnf -y install epel-release && dnf -y install gcc-c++ cmake make git rpm-build rpmdevtools ncurses-devel zlib-devel expected-devel doctest-devel gettext glibc-gconv-extra
           # EPEL 9 and later carry the 2.13 series the tests want as
           # makes the same distinction, so these two lines and the spec have to
           # agree.

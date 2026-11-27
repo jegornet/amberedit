@@ -98,7 +98,7 @@ Clang accepts most of C++20 under `-std=c++17` with only a warning:
 docker run --rm -v "$PWD":/src:ro rockylinux:8 sh -c '
   dnf -y install epel-release &&
   dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel \
-                 expected-devel doctest-devel &&
+                 expected-devel doctest-devel glibc-gconv-extra &&
   cp -a /src /work && rm -rf /work/build &&
   cmake -S /work -B /out && cmake --build /out -j"$(nproc)" &&
   cd /out && ctest --output-on-failure'
@@ -350,14 +350,15 @@ the one commit.
   Fedora replaced zlib with zlib-ng: the package holding `zlib.h` is
   `zlib-ng-compat-devel` there and `zlib-devel` on 8 and 9, and the one
   `pkgconfig()` spelling finds whichever the distribution has. It carries one
-  dependency nothing can work out on its own: **`glibc-gconv-extra` on RHEL 9 and
-  later and on Fedora**, where CP866, CP437 and KOI8-R were split out of the base
-  glibc. A gconv module is opened by name at run time, so there is no linkage for
+  dependency nothing can work out on its own: **`glibc-gconv-extra`**, where
+  CP866, CP437 and KOI8-R live on RHEL 8 and later and on Fedora rather than in
+  the base glibc. A gconv module is opened by name at run time, so there is no linkage for
   rpm to find and no configure-time probe that would help — the charsets are
-  simply missing at run time and messages read as mojibake. RHEL 8 is the last
-  release with them in libc, so the dependency is conditional; Debian, Ubuntu and
-  macOS all carry the full set. The CI and release matrices install it too, or
-  `%check` fails three charset tests and nothing says why.
+  simply missing at run time and messages read as mojibake. RHEL 8 is no
+  exception, though an image whose glibc gets upgraded on the way in pulls the
+  package in and hides that; Debian, Ubuntu and macOS all carry the full set. The
+  CI and release matrices name it on every RPM distribution, or the charset tests
+  fail and nothing says why.
 - `debian/` — deb, built for Debian stable and Ubuntu 22.04, 24.04 and 26.04.
   `dh` runs the tests as part of the build; `doctest-dev` is the build dependency
   and is spelled the same on all five. `libexpected-dev` is in *universe* on
