@@ -29,6 +29,7 @@ int runSetup(const std::string& programPath) {
         // The terminal is given back at the end of this block, which is what
         // lets everything below be said in plain text.
         term::Terminal terminal;
+        theme::fitToTerminal();
         while (terminal.running()) {
             state.width = terminal.width();
             state.height = terminal.height();
@@ -41,8 +42,9 @@ int runSetup(const std::string& programPath) {
 
     // Said unconditionally, `color_warning` being a line in a config that does
     // not exist yet — writing one is what this run is for. The wizard draws in
-    // the built-in palette, which is written from 16 up, so a terminal short of
-    // colors has already shown the user a wizard it could not draw properly.
+    // the built-in palette, which is written from 16 up, so a terminal of sixteen
+    // colors has already shown the user a wizard it could not draw properly; one
+    // of fewer was given the eight-color theme and has nothing to be told.
     if (const std::string warning = theme::colorWarning(); !warning.empty()) {
         std::cerr << i18n::format(_("warning: {0}"), {warning}) << "\n";
     }

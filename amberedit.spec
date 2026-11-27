@@ -46,17 +46,14 @@ BuildRequires:  expected-devel
 BuildRequires:  gettext
 
 # The single-byte charsets FidoNet runs on — CP866, CP437, KOI8-R — are not in
-# the base glibc on RHEL 9 and later or on Fedora: the gconv modules for them
-# were split out into glibc-gconv-extra, and RHEL 8 is the last release carrying
-# them in libc. Nothing detects this automatically, because a gconv module is
-# opened by name at run time and leaves no linkage for rpm to find. Without it
-# iconv_open("CP866") fails and a CP866 message shows as mojibake — which is the
-# whole of what this program is for. It is wanted at build time as well, since
-# %%check converts between these charsets.
-%if 0%{?rhel} >= 9 || 0%{?fedora}
+# the base glibc on any release this builds for, RHEL 8 included, or on Fedora:
+# the gconv modules for them are in glibc-gconv-extra. Nothing detects this
+# automatically, because a gconv module is opened by name at run time and leaves
+# no linkage for rpm to find. Without it iconv_open("CP866") fails and a CP866
+# message shows as mojibake — which is the whole of what this program is for. It
+# is wanted at build time as well, since %%check converts between these charsets.
 BuildRequires:  glibc-gconv-extra
 Requires:       glibc-gconv-extra
-%endif
 %if %{with check}
 # Header-only, so it is wanted at build time and never at run time. One name on
 # every release this builds on, EPEL 8 included — which is the whole reason the

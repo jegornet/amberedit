@@ -2,6 +2,7 @@
 
 #include <string>
 #include <string_view>
+#include <unordered_map>
 
 #include "support/error.hpp"
 
@@ -32,7 +33,9 @@ public:
     [[nodiscard]] tl::expected<std::string, ErrorPtr> intoUtf8(
         std::string_view text, const std::string& fromCharset);
 
-    /// The same the other way, for a message on its way into a base.
+    /// The same the other way, for a message on its way into a base. A Cyrillic
+    /// letter the target has no room for is spelt out in Latin first — see
+    /// `transliterated()` — and only what is left after that becomes '?'.
     [[nodiscard]] tl::expected<std::string, ErrorPtr> intoCharset(
         std::string_view text, const std::string& toCharset);
 
@@ -65,6 +68,10 @@ private:
     /// reopen one per line.
     void* outDescriptor_{nullptr};
     std::string currentTo_;
+    /// Which letters `carriedFor_` has room for, asked of iconv once a letter:
+    /// a message is written a line at a time and its letters are a few dozen.
+    std::string carriedFor_;
+    std::unordered_map<std::string, bool> carried_;
 };
 
 /// Whether iconv on this machine knows the charset, both ways round — a name it

@@ -23,6 +23,7 @@ add_executable(amberedit_tests
   encoding/charset_detector_test.cpp
   encoding/iconv_recoder_test.cpp
   encoding/text_search_test.cpp
+  encoding/translit_test.cpp
   msgbase/binary_file_test.cpp
   msgbase/ftn_msgbase_test.cpp
   msgbase/format_drivers_test.cpp
@@ -79,6 +80,7 @@ add_executable(amberedit_tests
   ui/after_handover_test.cpp
   ui/help_dialog_test.cpp
   ui/hint_bar_test.cpp
+  ui/window_title_test.cpp
   ui/import_dialog_test.cpp
   ui/setup_wizard_test.cpp
   ui/info_dialog_test.cpp
@@ -107,6 +109,7 @@ add_executable(amberedit_tests
   ui/reader_select_test.cpp
   ui/reader_sidebar_test.cpp
   ui/text_layout_test.cpp
+  ui/stand_in_test.cpp
   ui/bbs_codes_test.cpp
   ui/ansi_canvas_test.cpp
   ui/text_editor_test.cpp
@@ -167,6 +170,7 @@ target_sources(amberedit_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/src/ui/forward_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/help_dialog.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/hint_bar.cpp
+  ${CMAKE_SOURCE_DIR}/src/ui/window_title.cpp
   ${CMAKE_SOURCE_DIR}/src/ui/import_dialog.cpp
   # The setup wizard, all of it but the file that owns a Terminal: the wizard
   # answers events and draws into a Screen like every other dialog, and that is

@@ -722,6 +722,35 @@ TEST_CASE("FtnMsgBase writes a message and reads it back [squish]") {
     CHECK(body.charset == "CP866");
 }
 
+TEST_CASE("A message written into a charset with no Cyrillic is spelt out in Latin "
+          "[squish][translit]") {
+    TempSquishBase base;
+    FtnMsgBase msgbase("CP437");
+    REQUIRE(msgbase.open(localnetArea(base.path())).has_value());
+
+    amberedit::domain::MessageDraft draft;
+    draft.from = "Егор Глухов";
+    draft.to = "All";
+    draft.subject = "Привет";
+    draft.origAddr = *amberedit::domain::FtnAddress::parse("2:382/736");
+    draft.attributes = amberedit::domain::attr::kLocal;
+    draft.charset = "CP437";
+    draft.kludges = {"CHRS: CP437 2"};
+    draft.lines = {"Щука в ЖЖ", "--- AmberEdit", " * Origin: test (2:382/736)"};
+
+    const uint32_t number = amberedit::test::valueOf(msgbase.write(draft));
+    const auto header = msgbase.header(number);
+    CHECK(header.from == "Egor Gluhov");
+    CHECK(header.subject == "Privet");
+    const auto body = msgbase.body(number);
+    REQUIRE_FALSE(body.lines.empty());
+    std::string text;
+    for (const auto& line : body.lines) {
+        if (!line.kludge) text.append(line.text).append("|");
+    }
+    CHECK(amberedit::test::contains(text, "Schuka v ZHZH|"));
+}
+
 TEST_CASE("The header fields are cut to the bytes a packet keeps for them [squish]") {
     // FTS-0001 keeps 36 bytes for either name and 72 for the subject, the
     // terminating zero among them. The alphabet is two bytes a letter in UTF-8,

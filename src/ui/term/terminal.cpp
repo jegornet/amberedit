@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <climits>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -19,6 +20,9 @@
 #include "ui/term/color.hpp"
 #include "ui/term/ncurses.hpp"
 #include "ui/term/utf8.hpp"
+#ifdef _WIN32
+#include "ui/term/windows_console_title.hpp"
+#endif
 
 namespace amberedit::ui::term {
 namespace {
@@ -867,6 +871,7 @@ Terminal::~Terminal() {
     if (dragReporting_) setDragReporting(false);
     keyReporting.reset();
     flowControl.reset();
+    restoreTitle();
     // And the palette entries a truecolor theme was lent, for the same reason:
     // they are the terminal's and outlive the screen, so a shell handed one back
     // with the top of its palette repainted would draw everything else wrong for
@@ -917,10 +922,13 @@ void Terminal::draw(const Element& document) {
             size_t pos = 0;
             size_t count = 0;
             while (pos < cell.glyph.size() && count < CCHARW_MAX) {
-                const size_t written = appendWide(wide, count, decodeUtf8(cell.glyph, pos));
+                const char32_t code = drawable(decodeUtf8(cell.glyph, pos));
+                if (code == 0) continue;  // a mark the charset cannot carry
+                const size_t written = appendWide(wide, count, code);
                 if (written == 0) break;  // no room for both halves of a pair
                 count += written;
             }
+            if (count == 0) wide[count++] = L' ';
             wide[count] = L'\0';
 
             int pair = pairFor(cell.fg, cell.bg);
@@ -944,7 +952,25 @@ void Terminal::draw(const Element& document) {
         wmove(stdscr, screen_.height() - 1, screen_.width() - 1);
     }
 
+    // The frame goes out as one synchronized update, DEC mode 2026: the terminal
+    // holds the screen it shows until the closing half arrives. ncurses moves
+    // lines that moved by scrolling a region of the terminal, and a region is
+    // every column of its rows — a list scrolled inside a modal scrolls the
+    // screen either side of it too, and the line it opens is cleared in the
+    // terminal's own background until the writes after it put it right. Shown
+    // as the bytes arrive, that is a band of the wrong color across the box for
+    // the length of a frame. Nothing ncurses offers turns the scrolling off —
+    // `idlok(FALSE)` does not reach it — so the half-drawn frame is kept off the
+    // screen instead. A terminal that does not know the mode ignores both.
+#ifndef _WIN32
+    std::fputs("\x1b[?2026h", stdout);
+    std::fflush(stdout);
+#endif
     wrefresh(stdscr);
+#ifndef _WIN32
+    std::fputs("\x1b[?2026l", stdout);
+    std::fflush(stdout);
+#endif
 
     // After the first frame and not before: ncurses writes its own mouse mode
     // as the screen is first drawn, and a terminal keeps one tracking mode at a
@@ -1011,6 +1037,10 @@ void Terminal::handOver(const std::function<void()>& work) {
     leftHeld_ = false;
     keyReporting.reset();
     flowControl.reset();
+    // The program handed the terminal draws under its own title, and a shell
+    // sets none of its own as often as it does. The title goes back up with
+    // the first frame after, `setTitle()` being asked on every one.
+    restoreTitle();
     // The entries lent to a truecolor theme go back too: the program being
     // handed the terminal draws in the palette it found the terminal in, and an
     // editor opened over a theme that had borrowed the top of it would be drawn
@@ -1044,6 +1074,48 @@ void Terminal::handOver(const std::function<void()>& work) {
 }
 
 void Terminal::forgetScreen() { wclear(stdscr); }
+
+void Terminal::setTitle(std::string_view title) {
+    if (titleSaved_ && title == title_) return;
+    title_ = std::string(title);
+#ifdef _WIN32
+    if (!titleSaved_) saveConsoleTitle();
+    setConsoleTitle(title_);
+#else
+    // In the locale's charset, through the same stand-ins a cell is drawn
+    // with: a title is bytes to the terminal as much as a cell is. Control
+    // characters are dropped — a BEL or an ESC inside would end the sequence
+    // early and leave the rest of the title to be read as typing.
+    std::string bytes;
+    size_t pos = 0;
+    while (pos < title_.size()) {
+        const char32_t code = drawable(decodeUtf8(title_, pos));
+        if (code < 0x20 || (code >= 0x7f && code < 0xa0)) continue;
+        char out[MB_LEN_MAX];
+        std::mbstate_t state{};
+        const size_t written = std::wcrtomb(out, static_cast<wchar_t>(code), &state);
+        if (written == static_cast<size_t>(-1)) continue;
+        bytes.append(out, written);
+    }
+    if (!titleSaved_) std::fputs("\x1b[22;0t", stdout);
+    std::fputs("\x1b]0;", stdout);
+    std::fputs(bytes.c_str(), stdout);
+    std::fputs("\x07", stdout);
+    std::fflush(stdout);
+#endif
+    titleSaved_ = true;
+}
+
+void Terminal::restoreTitle() {
+    if (!titleSaved_) return;
+#ifdef _WIN32
+    restoreConsoleTitle();
+#else
+    std::fputs("\x1b[23;0t", stdout);
+    std::fflush(stdout);
+#endif
+    titleSaved_ = false;
+}
 
 // Read off one event at a time rather than thrown away with flushinp(): that
 // drops the bytes before ncurses has parsed them, and a mouse release among

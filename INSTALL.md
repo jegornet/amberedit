@@ -54,7 +54,7 @@ sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
                  expected-devel doctest-devel gettext glibc-gconv-extra
 ```
 
-**RHEL 9 and its clones (Rocky, Alma)** — `expected-devel` and `doctest-devel` come
+**RHEL 8 and 9 and their clones (Rocky, Alma)** — `expected-devel` and `doctest-devel` come
 from EPEL:
 
 ```bash
@@ -71,16 +71,6 @@ install:
 sudo dnf install epel-release
 sudo dnf install gcc-c++ cmake git ncurses-devel zlib-ng-compat-devel \
                  expected-devel doctest-devel gettext glibc-gconv-extra
-```
-
-**RHEL 8 and its clones** — the same, without `glibc-gconv-extra`: it is the
-last release that carries those gconv modules in libc, and there is no such
-package for it.
-
-```bash
-sudo dnf install epel-release
-sudo dnf install gcc-c++ cmake git ncurses-devel zlib-devel \
-                 expected-devel doctest-devel gettext
 ```
 
 **Debian, Ubuntu** — on Ubuntu `libexpected-dev` is in universe:
@@ -147,9 +137,9 @@ works once that prefix is one your `man` looks in — `man -l` reads the file
 directly where it is not.
 
 **`glibc-gconv-extra`** is above for a reason: CP866, CP437 and KOI8-R are not
-in the base glibc on RHEL 9 and later or on Fedora — the gconv modules for them
-were split into that package. Without it `iconv_open("CP866")` fails, every
-legacy-encoded message reads as mojibake, and three of the tests fail. The RPM
+in the base glibc on RHEL 8 and later or on Fedora — the gconv modules for them
+are in that package. Without it `iconv_open("CP866")` fails, every
+legacy-encoded message reads as mojibake, and the charset tests fail. The RPM
 depends on it; a build from source has no way to ask. Debian, Ubuntu, Arch,
 macOS and FreeBSD all carry the full set — on FreeBSD the locales too, so
 `LANG=ru_RU.UTF-8 amberedit` is Russian there with nothing generated first.

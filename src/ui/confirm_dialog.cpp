@@ -124,7 +124,7 @@ Element render(AppState& state, Element background) {
     };
 
     auto content = vbox({
-        text(question(state)) | bold | color(theme::palette.dialogText) | center,
+        text(question(state)) | theme::dialogsBold | color(theme::palette.dialogText) | center,
         text(""),
         (upright ? vbox(std::move(buttons)) : hbox(std::move(buttons))) | center,
         text(""),
@@ -139,7 +139,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the area list neither shows through it nor
     // colors it.
-    return dbox({std::move(background), dialog::surface(box) | center});
+    return dbox(
+        {std::move(background), dialog::surface(box) | reflect(state.modalBox) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {
@@ -158,7 +159,7 @@ Outcome handleEvent(AppState& state, const Event& event) {
             state.confirm = AppState::Confirm::None;
             return Outcome::Dismissed;
         }
-        // Anywhere else in the dialog, and outside it: the click is swallowed,
+        // Anywhere else in the dialog the click is swallowed,
         // as every other event is while the dialog is modal.
         return Outcome::Ignored;
     }

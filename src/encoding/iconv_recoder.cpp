@@ -8,6 +8,8 @@
 #include <cstddef>
 #include <utility>
 
+#include "encoding/translit.hpp"
+
 namespace amberedit::encoding {
 namespace {
 
@@ -235,6 +237,29 @@ tl::expected<std::string, ErrorPtr> IconvRecoder::intoCharset(
     if (toCharset == "UTF-8" || toCharset == "UTF8") return std::string(text);
     if (auto opened = ensureOutDescriptor(toCharset); !opened) {
         return tl::make_unexpected(std::move(opened).error());
+    }
+
+    // Spelt out before iconv sees it, since what iconv makes of a Cyrillic
+    // letter it has no room for differs from one C library to the next. Every
+    // letter transliterated() spells out is two bytes led by D0 to D3, so a
+    // text without them has nothing to spell.
+    std::string spelled;
+    const bool cyrillic = std::any_of(text.begin(), text.end(), [](char c) {
+        const auto byte = static_cast<unsigned char>(c);
+        return byte >= 0xD0 && byte <= 0xD3;
+    });
+    if (cyrillic) {
+        if (carriedFor_ != toCharset) {
+            carried_.clear();
+            carriedFor_ = toCharset;
+        }
+        spelled = transliterated(text, [this, &toCharset](std::string_view letter) {
+            const std::string key(letter);
+            const auto known = carried_.find(key);
+            if (known != carried_.end()) return known->second;
+            return carried_[key] = fitsCharset(letter, toCharset);
+        });
+        text = spelled;
     }
     iconv(asIconv(outDescriptor_), nullptr, nullptr, nullptr, nullptr);
 

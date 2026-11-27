@@ -6,8 +6,10 @@
 
 #include <array>
 #include <cctype>
+#include <climits>
 #include <clocale>
 #include <cwchar>
+#include <unordered_map>
 
 #ifdef _WIN32
 #include <cstdint>
@@ -51,6 +53,52 @@ constexpr std::array<const char*, 4> kUtf8Locales{"C.UTF-8", "C.utf8", "en_US.UT
                                                   "UTF-8"};
 
 #endif  // _WIN32
+
+/// What may be drawn in place of a glyph the terminal's charset has no byte
+/// for, nearest first. The list is the glyphs the interface itself draws with;
+/// the last substitute of each is ASCII, which every charset carries.
+///
+/// A glyph the charset does carry is never looked up here: `standIn()` asks
+/// that first. So under CP866 or KOI8-R, both of which have the box drawing,
+/// `─ │ ┌ ┐ └ ┘ ├ ┤` are drawn as themselves and a rounded corner becomes the
+/// square one; the rows sending those to `-`, `|` and `+` are for a charset
+/// with no box drawing at all, Latin-1 or plain ASCII.
+struct StandIn {
+    char32_t code;
+    std::array<char32_t, 2> instead;
+};
+
+constexpr std::array<StandIn, 33> kStandIns{{
+    {U'╭', {U'┌', U'+'}}, {U'╮', {U'┐', U'+'}}, {U'╰', {U'└', U'+'}},
+    {U'╯', {U'┘', U'+'}}, {U'┌', {U'+'}},       {U'┐', {U'+'}},
+    {U'└', {U'+'}},       {U'┘', {U'+'}},       {U'├', {U'+'}},
+    {U'┤', {U'+'}},       {U'─', {U'-'}},       {U'│', {U'|'}},
+    {U'█', {U'#'}},       {U'▌', {U'|'}},       {U'←', {U'<'}},
+    {U'→', {U'>'}},       {U'↑', {U'^'}},       {U'↓', {U'v'}},
+    {U'⇩', {U'↓', U'v'}}, {U'▶', {U'►', U'>'}}, {U'◀', {U'◄', U'<'}},
+    {U'❯', {U'>'}},       {U'✓', {U'√', U'v'}}, {U'☓', {U'×', U'x'}},
+    {U'≡', {U'='}},       {U'—', {U'-'}},       {U'…', {U'.'}},
+    {U'·', {U'.'}},       {U'•', {U'∙', U'*'}}, {U'★', {U'*'}},
+    {U'☆', {U'*'}},       {U'✱', {U'*'}},       {U'↩', {U'<'}},
+}};
+
+/// Whether the locale's charset has a byte for `code`, asked there and back:
+/// glibc refuses a character it cannot write, but a C library may also write a
+/// stand-in byte of its own and report success, and only reading the byte back
+/// tells that from the character itself.
+bool localeCarries(char32_t code) {
+#if WCHAR_MAX <= 0xFFFF
+    if (code > 0xFFFF) return false;
+#endif
+    char bytes[MB_LEN_MAX];
+    std::mbstate_t out{};
+    const size_t written = std::wcrtomb(bytes, static_cast<wchar_t>(code), &out);
+    if (written == static_cast<size_t>(-1) || written == 0) return false;
+    wchar_t back = 0;
+    std::mbstate_t in{};
+    return std::mbrtowc(&back, bytes, written, &in) == written &&
+           static_cast<char32_t>(back) == code;
+}
 
 }  // namespace
 
@@ -215,6 +263,34 @@ const std::string& ensureUtf8Locale() {
 #endif
     }();
     return codeset;
+}
+
+char32_t standIn(char32_t code, const std::function<bool(char32_t)>& carried) {
+    if (carried(code)) return code;
+    for (const StandIn& entry : kStandIns) {
+        if (entry.code != code) continue;
+        for (const char32_t instead : entry.instead) {
+            if (instead != 0 && carried(instead)) return instead;
+        }
+        break;
+    }
+    return codepointWidth(code) == 0 ? 0 : U'?';
+}
+
+char32_t drawable(char32_t code) {
+#ifdef _WIN32
+    // PDCurses converts to the console itself, whatever its code page.
+    return code;
+#else
+    static const bool utf8 = isUtf8Codeset(ensureUtf8Locale());
+    if (utf8 || code < 0x80) return code;
+    // The interface draws a few dozen glyphs and a message a charset's worth,
+    // and this is asked for every cell of every frame.
+    static std::unordered_map<char32_t, char32_t> answers;
+    const auto known = answers.find(code);
+    if (known != answers.end()) return known->second;
+    return answers[code] = standIn(code, localeCarries);
+#endif
 }
 
 }  // namespace amberedit::ui::term

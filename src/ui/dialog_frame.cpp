@@ -39,7 +39,7 @@ Element labelledRule(const std::string& left, const std::string& right,
     // Only the label is lit: the rule either side of it is the frame's, and a
     // bold rule would read as a second thing having changed.
     auto middle = text(shown) | color(tint);
-    if (strong) middle = std::move(middle) | bold;
+    if (strong) middle = std::move(middle) | theme::dialogsBold;
     return hbox({text(left + rule(before)) | color(theme::palette.dialogBorder),
                  std::move(middle),
                  text(rule(after) + right) | color(theme::palette.dialogBorder)});

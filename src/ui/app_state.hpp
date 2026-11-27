@@ -166,9 +166,7 @@ struct AppState {
         bool scrollbar{false};
         int layoutWidth{0};
         int layoutHeight{0};
-        /// Where the box and its OK button landed on the last frame, for a
-        /// click.
-        term::Box box;
+        /// Where its OK and Copy buttons landed on the last frame, for a click.
         term::Box okBox;
         term::Box copyBox;
     };
@@ -2182,6 +2180,13 @@ struct AppState {
         term::Box box;
     };
     std::vector<HintSpot> hintSpots;
+
+    /// Where the topmost box of the last frame stood — reflected by every
+    /// modal's `render()` off its `dialog::surface()`, and `Box::Nowhere()`
+    /// where the frame drew none. `runApp()` reads a click landing anywhere
+    /// else as the Escape that puts the box away, so no dialog has to tell a
+    /// click outside itself from one on nothing in particular inside.
+    term::Box modalBox = term::Box::Nowhere();
 
     /// Whether the last row of the terminal is the hint bar, from `hint_bar`.
     ///

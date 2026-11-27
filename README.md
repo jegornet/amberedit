@@ -139,11 +139,11 @@ A theme is a file of `role  color` lines. A color can be:
 
 A theme may hold both spellings.
 
-Three of its keys are switches rather than colors, written `on` or `off` like
+Six of its keys are switches rather than colors, written `on` or `off` like
 every other switch AmberEdit reads:
 
-- `selection_bold`, whether what wears the selection fill — the current row of a
-  list, the selected button of a box — is drawn bold along with it. Off unless a
+- `selection_bold`, `table_header_bold`, `header_labels_bold`, `dialogs_bold`:
+  bold selection bar, screen title, header labels and dialog text. Off unless a
   theme says otherwise.
 - `input_filler_show`, whether the room a field has left is underscored. On
   unless a theme says otherwise.
@@ -165,11 +165,13 @@ one quantised to the nearest palette entry; see
 [PuTTY-truecolor.md](PuTTY-truecolor.md) for instructions on how to fix this.
 
 `themes/black.cfg` is the built-in palette written out — what AmberEdit draws
-with when the config names no theme, and the file to copy and edit.
+with when the config names no theme, and the file to copy and edit. A terminal
+of fewer than sixteen colors gets `themes/8_colors.cfg` instead.
 `themes/blue_header.cfg` is that same black palette with `header_background`
 filled in navy.
 `themes/16_colors.cfg` uses nothing above 15, you might want to set it if you prefer
 customizing the pallete in your terminal app.
+`themes/8_colors.cfg` is the same look in nothing above 7
 `themes/truecolor_bg_night.cfg` — "Belgrade Night" — is the truecolor one.
 `themes/white.cfg` is paper, for a light terminal.
 `themes/golded_colors.cfg` is colored like on of GoldED+'s themes

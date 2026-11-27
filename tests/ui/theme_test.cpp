@@ -5,9 +5,12 @@
 #include <string>
 
 #include "config/cfg_file.hpp"
+#include "config/embedded_resources.hpp"
 #include "config/text_util.hpp"
 #include "test_paths.hpp"
 #include "test_strings.hpp"
+#include "ui/term/element.hpp"
+#include "ui/term/screen.hpp"
 #include "ui/theme.hpp"
 
 using amberedit::test::contains;
@@ -144,7 +147,7 @@ TEST_CASE("The fills a theme may leave out follow the role under them [theme]") 
     // the heading row stand on the screen the rest of the theme chose. The one
     // exceptions are `themes/blue_header.cfg` and `themes/golded_colors.cfg`,
     // which fill the header block below.
-    for (const char* file : {"themes/16_colors.cfg", "themes/black.cfg",
+    for (const char* file : {"themes/16_colors.cfg", "themes/8_colors.cfg", "themes/black.cfg",
                              "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -210,6 +213,17 @@ TEST_CASE("A theme carries settings that are not colors [theme]") {
     CHECK_FALSE(valueOf(parsePalette("selection_bold off")).selectionBold);
     CHECK_FALSE(valueOf(parsePalette("text 33")).selectionBold);
 
+    // The three weights beside it, each off where the file says nothing.
+    CHECK(valueOf(parsePalette("table_header_bold on")).tableHeaderBold);
+    CHECK_FALSE(valueOf(parsePalette("table_header_bold off")).tableHeaderBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).tableHeaderBold);
+    CHECK(valueOf(parsePalette("header_labels_bold on")).headerLabelsBold);
+    CHECK_FALSE(valueOf(parsePalette("header_labels_bold off")).headerLabelsBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).headerLabelsBold);
+    CHECK(valueOf(parsePalette("dialogs_bold on")).dialogsBold);
+    CHECK_FALSE(valueOf(parsePalette("dialogs_bold off")).dialogsBold);
+    CHECK_FALSE(valueOf(parsePalette("text 33")).dialogsBold);
+
     // `ansi_map_black_to_background` the same way, and off where the file says
     // nothing: a picture is drawn as it was drawn unless the theme says its own
     // screen is not the black the art was composed against.
@@ -228,6 +242,35 @@ TEST_CASE("A theme carries settings that are not colors [theme]") {
     const std::string mapped =
         errorOf(parsePalette("ansi_map_black_to_background 1", "theme.cfg"));
     REQUIRE_MESSAGE(contains(mapped, "on or off"), mapped);
+}
+
+TEST_CASE("Each bold switch adds the weight where it is on and only there [theme]") {
+    namespace term = amberedit::ui::term;
+    namespace theme = amberedit::ui::theme;
+    struct Restore {
+        Palette was{theme::palette};
+        ~Restore() { theme::palette = was; }
+    } restore;
+
+    const auto boldOf = [](term::Element element) {
+        term::Screen screen(1, 1);
+        term::render(screen, std::move(element));
+        return (screen.at(0, 0).attrs & term::kBold) != 0;
+    };
+    theme::palette = Palette{};
+    CHECK_FALSE(boldOf(term::text("x") | theme::tableHeaderBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::headerLabelsBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::dialogsBold));
+
+    // One switch turned on reaches its own elements and leaves the others.
+    theme::palette.dialogsBold = true;
+    CHECK(boldOf(term::text("x") | theme::dialogsBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::tableHeaderBold));
+    CHECK_FALSE(boldOf(term::text("x") | theme::headerLabelsBold));
+    theme::palette.tableHeaderBold = true;
+    theme::palette.headerLabelsBold = true;
+    CHECK(boldOf(term::text("x") | theme::tableHeaderBold));
+    CHECK(boldOf(term::text("x") | theme::headerLabelsBold));
 }
 
 TEST_CASE("A key that is not a color is refused [theme]") {
@@ -335,6 +378,9 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.inputFiller, builtIn.inputFiller));
     CHECK(loaded.inputFillerShown == builtIn.inputFillerShown);
     CHECK(loaded.selectionBold == builtIn.selectionBold);
+    CHECK(loaded.tableHeaderBold == builtIn.tableHeaderBold);
+    CHECK(loaded.headerLabelsBold == builtIn.headerLabelsBold);
+    CHECK(loaded.dialogsBold == builtIn.dialogsBold);
     CHECK(loaded.ansiMapBlackToBackground == builtIn.ansiMapBlackToBackground);
     CHECK(same(loaded.dialogBackground, builtIn.dialogBackground));
     CHECK(same(loaded.dialogText, builtIn.dialogText));
@@ -371,6 +417,50 @@ TEST_CASE("The black theme is the built-in palette, written out [theme]") {
     CHECK(same(loaded.found, builtIn.found));
     CHECK(same(loaded.foundText, builtIn.foundText));
     CHECK(same(loaded.animatedButtonText, builtIn.animatedButtonText));
+}
+
+TEST_CASE("The eight-color palette in the binary is the shipped file [theme]") {
+    const std::string shipped = valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("themes/8_colors.cfg")));
+    CHECK(std::string(amberedit::config::resources::eightColorTheme()) == shipped);
+    CHECK(amberedit::ui::theme::eightColorPalette().dialogBorder ==
+          valueOf(parsePalette(shipped)).dialogBorder);
+}
+
+TEST_CASE("On eight colors a frame stands off its dialog in the eight-color "
+          "palette only [theme]") {
+    // What the fallback is for: the built-in palette's frame and dialog are two
+    // dark greys, and eight colors have one dark color to give both of them.
+    const auto onEight = [](Color c) {
+        return amberedit::ui::term::nearestWithin(c.index(), 8);
+    };
+    const Palette builtIn;
+    CHECK(onEight(builtIn.dialogBorder) == onEight(builtIn.dialogBackground));
+
+    const Palette eight = amberedit::ui::theme::eightColorPalette();
+    CHECK(onEight(eight.dialogBorder) != onEight(eight.dialogBackground));
+    CHECK(approximatedRoles(eight, 8) == 0);
+}
+
+TEST_CASE("The eight-color theme uses nothing above 7, and its quiet roles are "
+          "dark blue [theme]") {
+    const std::string text = valueOf(amberedit::config::text::readFile(
+        amberedit::test::projectPath("themes/8_colors.cfg")));
+    const auto entries = valueOf(amberedit::config::parseCfg(text, "8_colors.cfg"));
+    for (const auto& entry : entries) {
+        for (const auto& value : entry.values) {
+            // A color here is a palette entry, digits only; on and off are the
+            // theme's switches.
+            if (value == "on" || value == "off") continue;
+            CHECK_MESSAGE((value.size() == 1 && value[0] >= '0' && value[0] <= '7'),
+                          (entry.key + " " + value));
+        }
+    }
+    const Palette eight = amberedit::ui::theme::eightColorPalette();
+    for (const Color quiet : {eight.dimmed, eight.kludge, eight.screenButtons, eight.hintBar,
+                              eight.dialogHint, eight.inputFiller, eight.scrollTrack}) {
+        CHECK(quiet == Color(4));
+    }
 }
 
 TEST_CASE("The sixteen-color theme loads and states every role [theme]") {
@@ -496,7 +586,7 @@ TEST_CASE("Every shipped theme states the same keys [theme]") {
 
     const std::set<std::string> written = keysOf("themes/black.cfg");
     REQUIRE(written.size() > 30);
-    for (const char* file : {"themes/16_colors.cfg", "themes/white.cfg"}) {
+    for (const char* file : {"themes/16_colors.cfg", "themes/8_colors.cfg", "themes/white.cfg"}) {
         CAPTURE(file);
         CHECK(keysOf(file) == written);
     }
@@ -524,6 +614,7 @@ TEST_CASE("Nothing a shipped theme draws a box with is the box's own color [them
     // text is there, in the color of what is behind it.
     for (const char* file :
          {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/8_colors.cfg",
           "themes/black.cfg", "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -568,6 +659,7 @@ TEST_CASE("A box's focused field follows the compose screen's [theme]") {
     // the theme's own `focused_field` and `focused_text`.
     for (const char* file :
          {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/8_colors.cfg",
           "themes/black.cfg", "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -583,6 +675,7 @@ TEST_CASE("A box's scrollbar follows the screen's [theme]") {
     // `scroll_thumb`; named, they are their own and leave the screen's alone.
     for (const char* file :
          {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/8_colors.cfg",
           "themes/black.cfg", "themes/white.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -608,6 +701,7 @@ TEST_CASE("A field a shipped theme draws is legible in either state [theme]") {
     // behind it is a field that looks empty.
     for (const char* file :
          {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/8_colors.cfg",
           "themes/black.cfg", "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(
@@ -638,6 +732,7 @@ TEST_CASE("What a search lights up is legible on the fill lighting it [theme]") 
     // `found`, and the two being one color is a hit that reads as a blank.
     for (const char* file :
          {"themes/blue_header.cfg", "themes/golded_colors.cfg", "themes/16_colors.cfg",
+          "themes/8_colors.cfg",
           "themes/black.cfg", "themes/white.cfg", "themes/truecolor_bg_night.cfg"}) {
         CAPTURE(file);
         const Palette theme = valueOf(

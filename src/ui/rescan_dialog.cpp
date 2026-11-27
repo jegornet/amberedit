@@ -34,7 +34,7 @@ Element render(const AppState& state, Element background) {
 
     const int width = std::max(1, std::min(kLineWidth, state.width - 6));
     auto content = vbox({
-        text(truncateToWidth(_("Rescanning areas..."), width)) | bold |
+        text(truncateToWidth(_("Rescanning areas..."), width)) | theme::dialogsBold |
             color(theme::palette.dialogText) | center,
         text(""),
         text(padRight(truncateToWidth(doing, width), width)) |

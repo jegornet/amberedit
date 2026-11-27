@@ -25,6 +25,7 @@
 #include "ui/dialog_field.hpp"
 #include "ui/error_dialog.hpp"
 #include "ui/error_log.hpp"
+#include "ui/event_util.hpp"
 #include "ui/export_dialog.hpp"
 #include "ui/export_mode_dialog.hpp"
 #include "ui/extern_util.hpp"
@@ -53,6 +54,7 @@
 #include "ui/term/event.hpp"
 #include "ui/term/terminal.hpp"
 #include "ui/theme.hpp"
+#include "ui/window_title.hpp"
 
 namespace amberedit::ui {
 
@@ -184,6 +186,9 @@ void deleteMarkedMessages(AppState& state) {
 /// it can fail, and a base that cannot be read must not bring the application
 /// down while the user is looking at it.
 Element document(AppState& state) {
+    // Nowhere until a modal drawn below says where it stands: a frame with no
+    // box up leaves a click to the screen.
+    state.modalBox = term::Box::Nowhere();
     Element body = text("");
     try {
         switch (state.navigator.current()) {
@@ -366,6 +371,11 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
     }
     Terminal terminal(keys.altLetters(), keys.altBackspace(), std::move(reporting));
 
+    // A terminal of eight colors draws the built-in palette's dark greys all as
+    // black, frames and dialogs into one another, so it gets the eight-color
+    // theme instead — unless the config chose a theme, which is drawn as chosen.
+    if (config.themePath.empty()) theme::fitToTerminal();
+
     // The first moment the terminal has said how many colors it has: it is
     // `start_color()`, inside the constructor above, that makes it say. Kept
     // here rather than on the way out so that a session which ends badly has
@@ -446,6 +456,9 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
         }
 
         takeSize();
+        // Before the frame and from the same state: the title names the screen
+        // the frame shows. Asked every pass, Terminal writing only a change.
+        if (config.setWindowTitle) terminal.setTitle(windowTitle(state));
         terminal.draw(document(state));
 
         // The box saying a copy went through is the frame just drawn, held for
@@ -775,6 +788,14 @@ int runApp(app::AreaManager& manager, const config::AppConfig& config,
             terminal.exit();
             continue;
         }
+
+        // A click outside the box on the screen is the Escape that puts it
+        // away, for every modal at once and ahead of each: pointing away from a
+        // box is how one is dismissed everywhere else, and the screen underneath
+        // is not acted on — the click is not passed down to it. Only the press:
+        // a drag begun in a field and carried past the frame is still the
+        // field's, and ends there.
+        if (clickedOutside(event, state.modalBox)) event = Event::Escape;
 
         // The attributes dialog is modal and takes every key the layout has not
         // made `app.quit`: its chords are its own and no layout can move them —

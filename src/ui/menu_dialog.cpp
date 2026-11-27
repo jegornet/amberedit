@@ -177,7 +177,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the menu and lays the dialog's
     // own fill down in its place, so what it stands over neither shows through
     // its margins nor colors them.
-    return dbox({std::move(background), dialog::surface(vbox(std::move(rows))) | center});
+    return dbox({std::move(background), dialog::surface(vbox(std::move(rows))) |
+                                            reflect(state.modalBox) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {
@@ -197,9 +198,10 @@ Outcome handleEvent(AppState& state, const Event& event) {
             state.showClick(AppState::Pressed::Menu, static_cast<uint32_t>(i));
             return Outcome::Picked;
         }
-        // Anywhere else on the screen. A menu one has thought better of is
-        // dismissed by pointing away from it — that is what a click outside one
-        // means everywhere else, and the screen underneath is not acted on.
+        // Anywhere else in the box, off every button: a menu one has thought
+        // better of is dismissed by pointing away from its buttons, the margins
+        // round them included. A click outside the box never gets here —
+        // `runApp()` answers it as Escape, as it does for every modal.
         state.menuView.reset();
         return Outcome::Dismissed;
     }

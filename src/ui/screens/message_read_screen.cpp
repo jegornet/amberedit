@@ -157,8 +157,8 @@ struct HeaderBlock {
 /// The header block over the message, as `header_format` lays it out: a row per
 /// line of the format, each piece of it in the columns the layout gave it.
 ///
-/// The labels and the literals beside them are drawn bold in the block's own
-/// color, as a label always has been; the fields in that color too, a name that
+/// The labels and the literals beside them are drawn in the block's own color,
+/// bold where the theme's `header_labels_bold` asks; the fields in that color too, a name that
 /// is the user's own in `own_name`, and a search lights what it found in the
 /// names, the addresses and the subject. The same format the editor draws over a
 /// message being written, so that a message read and a message written line up
@@ -238,7 +238,7 @@ HeaderBlock headerBlock(AppState& state, const domain::MessageHeader& header,
                             : cell.text;
                     cells.push_back(
                         text(padRight(truncateToWidth(shown, cell.width), cell.width)) |
-                        bold | color(theme::palette.header));
+                        theme::headerLabelsBold | color(theme::palette.header));
                     break;
                 }
                 case HeaderFieldKind::FromName:
@@ -2399,7 +2399,7 @@ Element render(AppState& state) {
     // click can go to the message it names. The room is reserved first: the
     // boxes are written into while the frame is laid out, and a vector that
     // grew under them would leave the earlier ones pointing at freed memory.
-    Elements titleCells{text(titleShown) | bold | color(theme::palette.tableHeader)};
+    Elements titleCells{text(titleShown) | theme::tableHeaderBold | color(theme::palette.tableHeader)};
     if (goingTo) titleCells.push_back(std::move(gotoField));
     state.readThreadLinks.clear();
     state.readThreadLinks.reserve(markers.size());
@@ -2417,7 +2417,7 @@ Element render(AppState& state) {
     // pushing the row past its edge.
     if (titleLeft > 0 && marks::isMarked(state, header.number)) {
         --titleLeft;
-        titleCells.push_back(text(">") | bold | color(theme::palette.mark));
+        titleCells.push_back(text(">") | theme::tableHeaderBold | color(theme::palette.mark));
     }
     for (const auto& marker : markers) {
         const int width = displayWidth(marker.text);

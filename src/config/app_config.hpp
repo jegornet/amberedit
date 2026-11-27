@@ -2100,6 +2100,10 @@ struct AppConfig {
     /// said about itself. See `ui::theme::colorWarning`.
     bool colorWarning{true};
 
+    /// `set_window_title`: whether the window's title names the screen that is
+    /// up. See `ui::windowTitle` and `term::Terminal::setTitle`.
+    bool setWindowTitle{true};
+
     /// What a quoted line is prefixed with, from `quote_string`.
     /// The default is GoldED's, where the letters before the '>' stand for the
     /// initials of whoever is being quoted; putting them there is the business

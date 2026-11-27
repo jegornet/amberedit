@@ -99,7 +99,7 @@ Element render(AppState& state, Element background) {
     AppState::ExportModePicker& picker = *state.exportModePicker;
 
     Elements rows{
-        text(heading()) | bold | color(theme::palette.dialogText),
+        text(heading()) | theme::dialogsBold | color(theme::palette.dialogText),
         text(""),
     };
     for (const auto& name : namesShown(picker.files)) {
@@ -135,7 +135,8 @@ Element render(AppState& state, Element background) {
     // dialog::surface() wipes the screen behind the box and lays the dialog's
     // own fill down in its place, so the message underneath neither shows
     // through it nor colors it.
-    return dbox({std::move(background), dialog::surface(std::move(box)) | center});
+    return dbox({std::move(background),
+                 dialog::surface(std::move(box)) | reflect(state.modalBox) | center});
 }
 
 Outcome handleEvent(AppState& state, const Event& event) {
@@ -155,8 +156,8 @@ Outcome handleEvent(AppState& state, const Event& event) {
         };
         if (picker.filesBox.Contain(click->x, click->y)) return pick(Mode::Uue);
         if (picker.textBox.Contain(click->x, click->y)) return pick(Mode::Text);
-        // Anywhere else, inside the box or outside it: swallowed, as every other
-        // event is while the dialog is modal.
+        // Anywhere else in the box: swallowed, as every other event is while the dialog
+        // is modal.
         return Outcome::Ignored;
     }
 

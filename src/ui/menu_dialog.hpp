@@ -79,8 +79,8 @@ void open(AppState& state, std::vector<AppState::MenuView::Item> items);
 [[nodiscard]] term::Element render(AppState& state, term::Element background);
 
 /// Answers a key or a click while the menu is up. It is modal, as every other
-/// box is — but a click outside it closes it rather than being swallowed: that
-/// is what a menu one has thought better of is dismissed with everywhere else.
+/// box is, and a click in its margins, off every button, closes it as one
+/// outside it does.
 Outcome handleEvent(AppState& state, const term::Event& event);
 
 }  // namespace amberedit::ui::menu_dialog

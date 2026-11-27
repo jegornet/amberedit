@@ -116,18 +116,44 @@ TEST_CASE("Everything fits UTF-8, and nothing fits a charset iconv has never hea
     CHECK_FALSE(fitsCharset(kPrivetUtf8, ""));
 }
 
-TEST_CASE("fitsCharset does not answer yes by writing a question mark [iconv]") {
-    // Which is what IconvRecoder::intoCharset() does, //TRANSLIT and a '?' for
-    // whatever is left, and so it succeeds at everything. What comes out is
-    // not fixed: older iconv writes "??????" where a newer one transliterates
-    // "Privet". Either way the Cyrillic is gone, and CP437, which has none of
-    // it, holds nothing but ASCII afterwards.
+TEST_CASE("fitsCharset does not answer yes by writing the text another way [iconv]") {
+    // Which is what IconvRecoder::intoCharset() does — it spells Cyrillic out
+    // in Latin, and so it succeeds at everything.
     IconvRecoder recoder;
-    const std::string written = recoder.fromUtf8(kPrivetUtf8, "CP437");
-    CHECK_FALSE(written.empty());
-    CHECK(written != kPrivetUtf8);
-    for (const char c : written) {
-        CHECK(static_cast<unsigned char>(c) < 0x80);
-    }
+    CHECK(recoder.fromUtf8(kPrivetUtf8, "CP437") == "Privet");
     CHECK_FALSE(fitsCharset(kPrivetUtf8, "CP437"));
+}
+
+TEST_CASE("Cyrillic a charset has no room for is spelt out in Latin [iconv][translit]") {
+    IconvRecoder recoder;
+    CHECK(recoder.fromUtf8("Ёжик в тумане", "CP437") == "Yozhik v tumane");
+    CHECK(recoder.fromUtf8("ЩУКА и Щука", "ISO-8859-1") == "SCHUKA i Schuka");
+    CHECK(recoder.fromUtf8("Привет, мир!", "US-ASCII") == "Privet, mir!");
+}
+
+TEST_CASE("A charset holding Cyrillic keeps its own letters [iconv][translit]") {
+    IconvRecoder recoder;
+    CHECK(recoder.fromUtf8(kPrivetUtf8, "CP866") == kPrivetCp866);
+    CHECK(recoder.fromUtf8(kPrivetUtf8, "KOI8-R") == kPrivetKoi8);
+    // One recoder written into both, as a base is: what one charset carries
+    // is not remembered for the other.
+    CHECK(recoder.fromUtf8(kPrivetUtf8, "CP437") == "Privet");
+    CHECK(recoder.fromUtf8(kPrivetUtf8, "CP866") == kPrivetCp866);
+}
+
+TEST_CASE("Ukrainian letters are spelt out too, and what has no spelling is a "
+          "question mark [iconv][translit]") {
+    // KOI8-R has the Russian letters and neither Ї nor Ґ: those two alone are
+    // spelt, and the rest of each word stays Cyrillic.
+    IconvRecoder recoder;
+    CHECK(recoder.fromUtf8("Їжак ґанок", "KOI8-R") ==
+          recoder.fromUtf8("Yiжак gанок", "KOI8-R"));
+    CHECK(recoder.fromUtf8("Їжак ґанок", "CP437") == "Yizhak ganok");
+    CHECK(recoder.fromUtf8("日", "CP437") == "?");
+}
+
+TEST_CASE("Letters past U+04C0 are spelt out as well [iconv][translit]") {
+    // ә and ө are led by D3 in UTF-8, beyond the run the Russian letters are in.
+    IconvRecoder recoder;
+    CHECK(recoder.fromUtf8("әлем өзен", "CP437") == "alem ozen");
 }

@@ -46,7 +46,7 @@ msgstr "файл уже есть: {0}"
 msgid "template: {0}"
 msgstr "шаблон: {0}"
 
-#: src/config/app_config.cpp:2943
+#: src/config/app_config.cpp:2989
 msgid "no description"
 msgstr "нет описания"
 
@@ -280,7 +280,7 @@ msgid "Run the system shell"
 msgstr "Запустить системный шелл"
 
 #: src/config/commands.cpp:88 src/config/commands.cpp:123
-#: src/ui/forward_dialog.cpp:121 src/ui/output_dialog.cpp:143
+#: src/ui/forward_dialog.cpp:121 src/ui/output_dialog.cpp:145
 msgid "Copy"
 msgstr "Скопировать"
 
@@ -455,7 +455,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.11.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-11-09 00:49+0100\n"
+"POT-Creation-Date: 2026-11-25 20:54+0100\n"
 "PO-Revision-Date: 2026-08-24 16:32+0200\n"
 "Last-Translator: AmberEdit contributors\n"
 "Language-Team: Russian\n"
@@ -529,7 +529,7 @@ msgid "{0}{1} into {2}"
 msgstr "{0}{1} в {2}"
 
 #: src/main.cpp:108 src/main.cpp:138 src/main.cpp:257 src/main.cpp:317
-#: src/main.cpp:345 src/main.cpp:418 src/ui/setup/setup_run.cpp:47
+#: src/main.cpp:345 src/main.cpp:418 src/ui/setup/setup_run.cpp:49
 #, c++-format
 msgid "warning: {0}"
 msgstr "предупреждение: {0}"
@@ -646,29 +646,29 @@ msgstr "базу не удалось открыть"
 msgid "Cannot open the area: {0}"
 msgstr "Не удаётся открыть область: {0}"
 
-#: src/ui/app_shell.cpp:117
+#: src/ui/app_shell.cpp:119
 msgid ""
 "this terminal does not hand its clipboard over to programs (OSC 52 reads)"
 msgstr "этот терминал не отдаёт программам свой буфер обмена (чтение OSC 52)"
 
-#: src/ui/app_shell.cpp:120
+#: src/ui/app_shell.cpp:122
 msgid "the terminal did not answer with its clipboard"
 msgstr "терминал не прислал свой буфер обмена"
 
-#: src/ui/app_shell.cpp:124
+#: src/ui/app_shell.cpp:126
 msgid "the terminal answered with a clipboard it garbled"
 msgstr "терминал прислал буфер обмена в повреждённом виде"
 
-#: src/ui/app_shell.cpp:207
+#: src/ui/app_shell.cpp:212
 #, c++-format
 msgid " error: {0}"
 msgstr " ошибка: {0}"
 
-#: src/ui/app_shell.cpp:1054
+#: src/ui/app_shell.cpp:1075
 msgid "Not found"
 msgstr "Не найдено"
 
-#: src/ui/app_state.hpp:754 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:752 src/ui/nodelist_dialog.cpp:283
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr "нет нодлиста — допишите в конфиг строки nodelist и nodelist_db"
 
@@ -936,7 +936,7 @@ msgstr "Да"
 msgid "cannot read {0}"
 msgstr "не удаётся прочитать {0}"
 
-#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:142
+#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:144
 msgid "OK"
 msgstr "OK"
 
@@ -1141,7 +1141,7 @@ msgstr "Везде"
 msgid "no key on this screen runs anything"
 msgstr "на этом экране ни одна клавиша ничего не делает"
 
-#: src/ui/help_dialog.cpp:198
+#: src/ui/help_dialog.cpp:200
 msgid "Esc closes"
 msgstr "Esc закрыть"
 
@@ -1243,7 +1243,7 @@ msgctxt "message list column"
 msgid "Date"
 msgstr "Дата"
 
-#: src/ui/nodelist_dialog.cpp:405
+#: src/ui/nodelist_dialog.cpp:407
 #, c++-format
 msgid " Lookup: {0}▌ "
 msgstr " Поиск: {0}▌ "
@@ -1252,11 +1252,11 @@ msgstr " Поиск: {0}▌ "
 msgid "(the program wrote nothing)"
 msgstr "(программа ничего не вывела)"
 
-#: src/ui/output_dialog.cpp:163
+#: src/ui/output_dialog.cpp:167
 msgid "only the first megabyte is shown"
 msgstr "показан только первый мегабайт"
 
-#: src/ui/output_dialog.cpp:164
+#: src/ui/output_dialog.cpp:168
 msgid "Ctrl-C copies · Esc closes"
 msgstr "Ctrl-C скопировать · Esc закрыть"
 
@@ -1448,16 +1448,16 @@ msgstr " пусто"
 msgid "error: --setup asks questions, so it needs a terminal"
 msgstr "ошибка: --setup задаёт вопросы, и потому ему нужен терминал"
 
-#: src/ui/setup/setup_run.cpp:51
+#: src/ui/setup/setup_run.cpp:53
 msgid "nothing was written — AmberEdit still has no config"
 msgstr "ничего не записано — у AmberEdit по-прежнему нет конфига"
 
-#: src/ui/setup/setup_run.cpp:54
+#: src/ui/setup/setup_run.cpp:56
 #, c++-format
 msgid "written: {0}"
 msgstr "записано: {0}"
 
-#: src/ui/setup/setup_run.cpp:55
+#: src/ui/setup/setup_run.cpp:57
 msgid "Start AmberEdit from this directory."
 msgstr "Запускайте AmberEdit из этого каталога."
 
@@ -1772,7 +1772,7 @@ msgstr "по пути {0} уже есть файл"
 msgid "there is no directory {0}"
 msgstr "каталога {0} нет"
 
-#: src/ui/theme.cpp:291
+#: src/ui/theme.cpp:297
 msgid ""
 "this terminal reports no color at all, so the interface is drawn in whatever "
 "two colors the terminal itself uses. If it does have color after all, "
@@ -1782,7 +1782,7 @@ msgstr ""
 "теми двумя цветами, которыми терминал пользуется сам. Если цвет всё же есть, "
 "color_warning off в конфиге убирает это сообщение."
 
-#: src/ui/theme.cpp:297
+#: src/ui/theme.cpp:303
 #, c++-format
 msgid ""
 "colors may be distorted: this terminal can show only {0} colors, which is "
@@ -1796,6 +1796,25 @@ msgstr ""
 "переменной окружения TERM=xterm-256color, либо можно установить тему themes/"
 "16_colors.cfg, использующую только системные цвета. Если цвета отображены "
 "корректно, color_warning off в конфиге убирает это сообщение."
+
+#: src/ui/window_title.cpp:10
+msgid "Areas"
+msgstr "Области"
+
+#: src/ui/window_title.cpp:12
+#, c++-format
+msgid "{0}: messages"
+msgstr "{0}: сообщения"
+
+#: src/ui/window_title.cpp:14
+#, c++-format
+msgid "{0}: reading"
+msgstr "{0}: чтение"
+
+#: src/ui/window_title.cpp:18
+#, c++-format
+msgid "{0}: composing"
+msgstr "{0}: написание"
 
 #~ msgid "Put the last deleted line back"
 #~ msgstr "Вернуть последнюю удалённую строку"

@@ -18,7 +18,7 @@
 /// as Ctrl-C does from anywhere in it. ← → and Tab move Enter between the two;
 /// ↑ ↓, the page keys, Home, End and the wheel scroll the output where it is
 /// longer than the box; Esc, `o` and OK put it away, and so does a click
-/// outside it.
+/// outside it, which `runApp()` answers as Esc.
 namespace amberedit::ui::output_dialog {
 
 /// Puts the box up over whatever screen ran the utility, called `title`. Empty

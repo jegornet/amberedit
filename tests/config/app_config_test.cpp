@@ -1056,6 +1056,11 @@ TEST_CASE("AppConfig reads the list scrollbar settings [app_config]") {
     CHECK(with("color_warning on\n").colorWarning);
     CHECK_FALSE(with("color_warning off\n").colorWarning);
     CHECK_FALSE(loads("color_warning yes\n"));
+
+    // Whether the window's title names the screen that is up.
+    CHECK(with("").setWindowTitle);
+    CHECK_FALSE(with("set_window_title off\n").setWindowTitle);
+    CHECK_FALSE(loads("set_window_title yes\n"));
 }
 
 TEST_CASE("AppConfig reads what the message list's goto field does [app_config]") {

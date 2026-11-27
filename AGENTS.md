@@ -98,7 +98,7 @@ Clang accepts most of C++20 under `-std=c++17` with only a warning:
 docker run --rm -v "$PWD":/src:ro rockylinux:8 sh -c '
   dnf -y install epel-release &&
   dnf -y install gcc-c++ cmake make ncurses-devel zlib-devel \
-                 expected-devel doctest-devel &&
+                 expected-devel doctest-devel glibc-gconv-extra &&
   cp -a /src /work && rm -rf /work/build &&
   cmake -S /work -B /out && cmake --build /out -j"$(nproc)" &&
   cd /out && ctest --output-on-failure'
@@ -350,14 +350,15 @@ the one commit.
   Fedora replaced zlib with zlib-ng: the package holding `zlib.h` is
   `zlib-ng-compat-devel` there and `zlib-devel` on 8 and 9, and the one
   `pkgconfig()` spelling finds whichever the distribution has. It carries one
-  dependency nothing can work out on its own: **`glibc-gconv-extra` on RHEL 9 and
-  later and on Fedora**, where CP866, CP437 and KOI8-R were split out of the base
-  glibc. A gconv module is opened by name at run time, so there is no linkage for
+  dependency nothing can work out on its own: **`glibc-gconv-extra`**, where
+  CP866, CP437 and KOI8-R live on RHEL 8 and later and on Fedora rather than in
+  the base glibc. A gconv module is opened by name at run time, so there is no linkage for
   rpm to find and no configure-time probe that would help — the charsets are
-  simply missing at run time and messages read as mojibake. RHEL 8 is the last
-  release with them in libc, so the dependency is conditional; Debian, Ubuntu and
-  macOS all carry the full set. The CI and release matrices install it too, or
-  `%check` fails three charset tests and nothing says why.
+  simply missing at run time and messages read as mojibake. RHEL 8 is no
+  exception, though an image whose glibc gets upgraded on the way in pulls the
+  package in and hides that; Debian, Ubuntu and macOS all carry the full set. The
+  CI and release matrices name it on every RPM distribution, or the charset tests
+  fail and nothing says why.
 - `debian/` — deb, built for Debian stable and Ubuntu 22.04, 24.04 and 26.04.
   `dh` runs the tests as part of the build; `doctest-dev` is the build dependency
   and is spelled the same on all five. `libexpected-dev` is in *universe* on
@@ -3301,7 +3302,13 @@ in **`dialog::surface()`** rather than in `clear_under` — the wipe with the
 box's own `dialog_background` and `dialog_text` laid down over it, so that no
 cell of a dialog is left in whatever color the terminal draws with when nothing
 is asked for; and a click outside it dismisses it without the screen underneath
-acting on the click.
+acting on the click. That last is not each box's to answer: every `render()`
+reflects its box into `AppState::modalBox` off `dialog::surface()`, `document()`
+puts it back to `Box::Nowhere()` at the top of every frame, and `runApp()` turns
+a press outside it into Escape (`clickedOutside()` in `ui/event_util.hpp`) ahead
+of every modal — so a click outside means exactly what Esc means there, and a
+new dialog gets it by reflecting its box like the rest. The three boxes that
+answer no key reflect nothing.
 `ui/dir_listing.*` and `dialog::bottomBar()` are shared the same way — the bottom
 rule carries the keys, and what went wrong in their place, rather than either
 taking a row.
@@ -3604,6 +3611,33 @@ taking a row.
     the message on screen is dead, `new` and `nodelist` being what is left, and
     on the area list only `next_unread` can be, where nothing anywhere is unread.
 
+### The window title
+
+- **The title names the screen and nothing over it**, where `set_window_title`
+  asks — on by default. `ui::windowTitle()` is the whole of the text: the
+  screen from `navigator.current()` and the area it is about, and no program
+  name — a tab is narrow, and the name is the same in every one of them. The
+  compose screen's area is `composeArea()`, so a
+  forward is titled by where it goes. A box is not a screen here: it is
+  something asked on the way, and a title that changed under every confirmation
+  would flicker in a tab bar for no news. `runApp()` asks for it before every
+  frame and `Terminal::setTitle()` writes only a change.
+- **The title is OSC 0, the window's and the tab's at once, and never OSC 2
+  alone.** iTerm2 writes a tab and a window drawn without a title bar from the
+  icon name, OSC 1, so a title sent as the window's alone reaches nothing the
+  user sees there.
+- **The terminal is asked to keep the title it had**, xterm's stack — `CSI
+  22;0t` before the first title, `CSI 23;0t` in the destructor and in
+  `handOver()`, so a shell or a utility runs under its own and the next frame
+  puts ours back. A terminal with no stack ignores both and keeps the last
+  title written; nothing reports which kind a terminal is, so nothing is asked.
+  The title goes out in the locale's charset through `drawable()`, as a cell
+  does, with control characters dropped: a BEL inside would end the sequence.
+- **The Windows console is `ui/term/windows_console_title.cpp`**, a file of its own
+  because `<windows.h>` and `curses.h` both define `MOUSE_MOVED`. The console
+  keeps no stack, so the title it had is read with `GetConsoleTitleW()` and put
+  back by hand.
+
 ### Text, theme and colors
 
 - **Layout is measured in terminal columns, by `term::stringWidth()`.**
@@ -3664,9 +3698,11 @@ taking a row.
   its own; a role not in `Palette` does not exist. Its fields are entries in the
   terminal's own 256-color palette or truecolor triples — `term::Color` holds
   either, told apart by its `trueColor` flag and never by the number, and there
-  is no separate theme color type. It is a global **written once**, in `runApp()`
-  before the screen opens, and only read afterwards; do not write to it anywhere
-  else.
+  is no separate theme color type. It is a global written in two places and read
+  everywhere else: in `main()` from the theme the config names, before the screen
+  opens, and by `theme::fitToTerminal()` just after it opens and before the first
+  frame — see the bullet on the fallback below. Do not write to it anywhere else:
+  a color pair is fixed the first time a frame asks for it.
 - **Two fills, and the terminal's own is neither of them.** `app_shell` paints
   `background` across the whole window with `text` on it, and every modal paints
   `dialog_background` with `dialog_text` over the box it has just cleared
@@ -3795,7 +3831,7 @@ taking a row.
   measures itself against the window had to change. It is also the one node that
   paints outside its own box; `Screen::at()` drops what falls off the edge, so a
   box against the right-hand side simply casts less.
-- **A theme is colors and three switches.** Each is `on` or `off` as every other
+- **A theme is colors and six switches.** Each is `on` or `off` as every other
   switch AmberEdit reads is written, a `bool` on `Palette` and a line in
   `kSwitches` — the same table treatment the colors get, so another one is a
   line rather than a special case — and each is stated in every file under
@@ -3821,6 +3857,21 @@ taking a row.
     has left (the import, export and setup pickers, `bold` on `dialog_label`),
     where the weight is the whole of the mark and dropping it would leave the
     row saying nothing at all.
+  - `table_header_bold`, `header_labels_bold` and `dialogs_bold` are that bold
+    without a fill, a switch for each of three places, and **each is read in one
+    place** as `selection_bold` is: `theme::tableHeaderBold()` for the screen's
+    title in the top line (the area list's quick search and the reader's mark
+    arrow with it), `theme::headerLabelsBold()` for the labels and literals of
+    the header block — the fields never take it — and `theme::dialogsBold()` for
+    the words a box stands to say: a confirmation's question, the one line of
+    the rescan, running, copied and progress boxes, the error in
+    `dialog::bottomBar()`, and the headings of the help and info boxes. Off in
+    the built-in palette and every shipped theme but `8_colors.cfg`, where all
+    three are on: eight colors leave the weight as the one thing a title or a
+    question has to stand out by. What stays a bare `bold` is the mark the
+    weight is the whole of — a ticked attribute, a picker's cursor row once the
+    typing has left it, a search hit, `*bold*` in a message. The three stand in
+    every theme file beside `selection_bold`, under one comment.
   - `ansi_map_black_to_background` says whether the black an ANSI picture draws
     with is drawn in the theme's own `background`. **It reaches a canvas row and
     nothing else**: `bodyLine()` asks `source.canvas` before it asks the switch,
@@ -3853,9 +3904,20 @@ taking a row.
     has fewer than 256 colors, there being no entry left to lend it there; on a
     terminal that has them it says nothing, since whether the lent entry was
     really redrawn is not something a terminal can be asked.
-  - **Nothing is switched on the answer.** The theme the config named is the
-    theme that is drawn; `term::nearestWithin()` approximating each number stays
-    the only automatic thing that happens, and there is no fallback theme.
+  - **A theme the config named is the theme that is drawn**, whatever the
+    terminal answered; `term::nearestWithin()` approximating each number is the
+    only automatic thing that happens to it.
+  - **Where the config names none, a terminal of fewer than sixteen colors is
+    given `themes/8_colors.cfg` instead of the built-in palette** —
+    `theme::fitToTerminal()`, called by `runApp()` and by `--setup` once the
+    terminal is open. The built-in palette is written from 16 up, and on eight
+    colors its dark greys all come out black: the frame of a dialog and the
+    dialog itself, the screen and the fields on it. The eight-color theme is
+    written for that terminal, nothing in it above 7, and is never worth a
+    warning on it. The file is compiled in
+    (`config::resources::eightColorTheme()`) because it is wanted whether or not
+    the themes were installed, and a test holds the copy in the binary to the
+    file in the tree.
   - **The line names `color_warning`**, which is what switches it off. A `TERM`
     naming less than the emulator behind it makes the color count the line
     quotes plain wrong, and the reader is told what to turn off rather than left
@@ -4099,6 +4161,26 @@ taking a row.
   begun in. `areareplydirect` and `reply_to_area` are read off the area on
   screen instead, and are not a contradiction — they decide where a reply goes,
   before there is a target area to ask.
+- **A Cyrillic letter the charset has no room for is spelt out in Latin, and
+  only what is left after that is a `?`.** `encoding::transliterated()`, called
+  by `IconvRecoder::intoCharset()` ahead of iconv, so it holds for everything
+  written in a charset — a message and its header fields, an export, the file an
+  external editor is handed, the config `--setup` writes. Ahead of iconv and
+  not in its place because iconv cannot be relied on for it: `//TRANSLIT`
+  writes `??????` for `Привет` under glibc, refuses it on macOS, and spells it
+  under a newer glibc with the right locale — three messages out of one draft.
+  A letter is spelt only where `fitsCharset()` says the charset lacks it, so
+  CP866 and KOI8-R keep every letter they have, and KOI8-R spells the Ukrainian
+  ones alone. The table is one fixed informal spelling in ASCII (`zh`, `h`, `c`,
+  `sch`, `yu`, `ya`, `'` for ь) and is not a setting. It covers the Russian,
+  Ukrainian and Belarusian letters, the Serbian, Macedonian and Bulgarian ones
+  (`dj`, `lj`, `nj`, `dz`, `gj`, `kj`) and those of the Turkic languages written
+  in Cyrillic, Kazakh to Chuvash and Sakha (`q`, `gh`, `ng`, `ә` as `a`, `ө` and
+  `ӧ` as `o`), Tajik riding along on the letters it shares with them. **A letter is spelt one way whatever
+  language it stands in**, the text not saying which language that is: a letter
+  shared with Russian keeps the Russian spelling, so Bulgarian щ is `sch`. The
+  quick check in `intoCharset()` looks for lead bytes D0 to D3, which is where
+  every letter in the table lives; a letter added past U+04FF needs it widened.
 - **`charsetIdentifier()` is the only place a charset name is spelled for CHRS.**
   Every charset a message could be written in arrives as an iconv name — the
   config resolved `compose_charset` when it read the line, and a charset kept
@@ -4176,6 +4258,16 @@ taking a row.
   setting the locale to match it (`LC_CTYPE=ru_RU.KOI8-R`) and nothing else. Do
   not reach for `iconv` for this. `Terminal::codeset()` says what the locale
   settled on and nothing reports it to the user.
+- **A glyph the terminal's charset has no byte for is drawn as the nearest one
+  it has.** `term::drawable()` is asked for every code point `Terminal::draw()`
+  hands ncurses, and off UTF-8 answers through `standIn()`: a dialog's rounded
+  corner as the square one and then `+`, an arrow as `<`, anything with no
+  substitute as `?`. Left to ncurses such a cell is not drawn at all — glibc's
+  wcrtomb() refuses it — or is drawn as whatever stand-in byte the C library
+  writes while reporting success; so whether a charset carries a code point is
+  asked by writing it and reading it back. The
+  substitutes in `kStandIns` are the glyphs the interface draws with, and a glyph
+  added to a frame or a button goes into that table with an ASCII last resort.
 - **A nodelist or an echolist that declares nothing is read in the locale's
   charset.** `encoding::localeCharset()` is `LC_CTYPE` from the environment, and
   what asks is a `nodelist` or an `echolist` line stating no charset of its own
@@ -5918,8 +6010,10 @@ together — `keys_mode` says which.
   same palette with `header_background` filled in navy; `golded_colors.cfg` is
   colored like GoldED+, and with `blue_header.cfg` the only shipped themes that
   state either `*_background` fill; `white.cfg` is paper for a light terminal,
-  `16_colors.cfg` a sixteen-color DOS one, and `truecolor_bg_night.cfg`
-  ("Belgrade Night") the one written in six hex digits throughout.
+  `16_colors.cfg` a sixteen-color DOS one, `8_colors.cfg` that one held to
+  eight — the palette a terminal of fewer than sixteen colors falls back to —
+  and `truecolor_bg_night.cfg` ("Belgrade Night") the one written in six hex
+  digits throughout.
 - `testdata/tossers/areas`, `areas.bbs`, `squish.cfg` — real tosser configs,
   which double as the parser test fixtures. Do not edit them to make a test pass.
 - `testdata/nodelist/Z2DAILY.225` — a real day's Z2DAILY, 1227 nodes, ending in

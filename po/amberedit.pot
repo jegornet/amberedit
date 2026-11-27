@@ -46,7 +46,7 @@ msgstr ""
 msgid "template: {0}"
 msgstr ""
 
-#: src/config/app_config.cpp:2943
+#: src/config/app_config.cpp:2989
 msgid "no description"
 msgstr ""
 
@@ -280,7 +280,7 @@ msgid "Run the system shell"
 msgstr ""
 
 #: src/config/commands.cpp:88 src/config/commands.cpp:123
-#: src/ui/forward_dialog.cpp:121 src/ui/output_dialog.cpp:143
+#: src/ui/forward_dialog.cpp:121 src/ui/output_dialog.cpp:145
 msgid "Copy"
 msgstr ""
 
@@ -448,7 +448,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: AmberEdit 0.11.1\n"
 "Report-Msgid-Bugs-To: https://github.com/jegornet/amberedit/issues\n"
-"POT-Creation-Date: 2026-11-09 00:49+0100\n"
+"POT-Creation-Date: 2026-11-25 20:54+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -501,7 +501,7 @@ msgid "{0}{1} into {2}"
 msgstr ""
 
 #: src/main.cpp:108 src/main.cpp:138 src/main.cpp:257 src/main.cpp:317
-#: src/main.cpp:345 src/main.cpp:418 src/ui/setup/setup_run.cpp:47
+#: src/main.cpp:345 src/main.cpp:418 src/ui/setup/setup_run.cpp:49
 #, c++-format
 msgid "warning: {0}"
 msgstr ""
@@ -611,29 +611,29 @@ msgstr ""
 msgid "Cannot open the area: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:117
+#: src/ui/app_shell.cpp:119
 msgid ""
 "this terminal does not hand its clipboard over to programs (OSC 52 reads)"
 msgstr ""
 
-#: src/ui/app_shell.cpp:120
+#: src/ui/app_shell.cpp:122
 msgid "the terminal did not answer with its clipboard"
 msgstr ""
 
-#: src/ui/app_shell.cpp:124
+#: src/ui/app_shell.cpp:126
 msgid "the terminal answered with a clipboard it garbled"
 msgstr ""
 
-#: src/ui/app_shell.cpp:207
+#: src/ui/app_shell.cpp:212
 #, c++-format
 msgid " error: {0}"
 msgstr ""
 
-#: src/ui/app_shell.cpp:1054
+#: src/ui/app_shell.cpp:1075
 msgid "Not found"
 msgstr ""
 
-#: src/ui/app_state.hpp:754 src/ui/nodelist_dialog.cpp:282
+#: src/ui/app_state.hpp:752 src/ui/nodelist_dialog.cpp:283
 msgid "no nodelist — append nodelist and nodelist_db lines to the config"
 msgstr ""
 
@@ -901,7 +901,7 @@ msgstr ""
 msgid "cannot read {0}"
 msgstr ""
 
-#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:142
+#: src/ui/error_dialog.cpp:29 src/ui/output_dialog.cpp:144
 msgid "OK"
 msgstr ""
 
@@ -1106,7 +1106,7 @@ msgstr ""
 msgid "no key on this screen runs anything"
 msgstr ""
 
-#: src/ui/help_dialog.cpp:198
+#: src/ui/help_dialog.cpp:200
 msgid "Esc closes"
 msgstr ""
 
@@ -1208,7 +1208,7 @@ msgctxt "message list column"
 msgid "Date"
 msgstr ""
 
-#: src/ui/nodelist_dialog.cpp:405
+#: src/ui/nodelist_dialog.cpp:407
 #, c++-format
 msgid " Lookup: {0}▌ "
 msgstr ""
@@ -1217,11 +1217,11 @@ msgstr ""
 msgid "(the program wrote nothing)"
 msgstr ""
 
-#: src/ui/output_dialog.cpp:163
+#: src/ui/output_dialog.cpp:167
 msgid "only the first megabyte is shown"
 msgstr ""
 
-#: src/ui/output_dialog.cpp:164
+#: src/ui/output_dialog.cpp:168
 msgid "Ctrl-C copies · Esc closes"
 msgstr ""
 
@@ -1409,16 +1409,16 @@ msgstr ""
 msgid "error: --setup asks questions, so it needs a terminal"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:51
+#: src/ui/setup/setup_run.cpp:53
 msgid "nothing was written — AmberEdit still has no config"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:54
+#: src/ui/setup/setup_run.cpp:56
 #, c++-format
 msgid "written: {0}"
 msgstr ""
 
-#: src/ui/setup/setup_run.cpp:55
+#: src/ui/setup/setup_run.cpp:57
 msgid "Start AmberEdit from this directory."
 msgstr ""
 
@@ -1727,14 +1727,14 @@ msgstr ""
 msgid "there is no directory {0}"
 msgstr ""
 
-#: src/ui/theme.cpp:291
+#: src/ui/theme.cpp:297
 msgid ""
 "this terminal reports no color at all, so the interface is drawn in whatever "
 "two colors the terminal itself uses. If it does have color after all, "
 "color_warning off in the config disables this message."
 msgstr ""
 
-#: src/ui/theme.cpp:297
+#: src/ui/theme.cpp:303
 #, c++-format
 msgid ""
 "colors may be distorted: this terminal can show only {0} colors, which is "
@@ -1742,4 +1742,23 @@ msgid ""
 "xterm-256color usually fixes it, or you can use themes/16_colors.cfg, which "
 "uses only the system colors. If the colors look right, color_warning off in "
 "the config disables this message."
+msgstr ""
+
+#: src/ui/window_title.cpp:10
+msgid "Areas"
+msgstr ""
+
+#: src/ui/window_title.cpp:12
+#, c++-format
+msgid "{0}: messages"
+msgstr ""
+
+#: src/ui/window_title.cpp:14
+#, c++-format
+msgid "{0}: reading"
+msgstr ""
+
+#: src/ui/window_title.cpp:18
+#, c++-format
+msgid "{0}: composing"
 msgstr ""

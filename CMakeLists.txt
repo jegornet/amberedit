@@ -474,7 +474,9 @@ endif()
 # and the sample one is not installed (see the install() rules at the end: the
 # binary, the template and the themes go in, the documentation does not). So it
 # is compiled in, and `default.tpl` with it for a `--setup` run that finds no
-# installed copy of the template to point the config at.
+# installed copy of the template to point the config at. `themes/8_colors.cfg`
+# is the third: the palette a terminal short of sixteen colors falls back to,
+# which has to be at hand whether or not the themes were installed.
 #
 # The generated source is part of the core rather than of the executable so that
 # the tests reach it: what the wizard writes is checked by parsing it back, and
@@ -485,12 +487,14 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND}
           -DEXAMPLE_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/amberedit.cfg.example
           -DDEFAULT_TEMPLATE=${CMAKE_CURRENT_SOURCE_DIR}/default.tpl
+          -DEIGHT_COLOR_THEME=${CMAKE_CURRENT_SOURCE_DIR}/themes/8_colors.cfg
           -DOUTPUT=${amberedit_embedded}
           -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/amberedit.cfg.example
           ${CMAKE_CURRENT_SOURCE_DIR}/default.tpl
+          ${CMAKE_CURRENT_SOURCE_DIR}/themes/8_colors.cfg
           ${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_resources.cmake
-  COMMENT "Embedding amberedit.cfg.example and default.tpl"
+  COMMENT "Embedding amberedit.cfg.example, default.tpl and themes/8_colors.cfg"
   VERBATIM)
 
 # --- application core --------------------------------------------------------
@@ -527,6 +531,7 @@ add_library(amberedit_core STATIC
   src/encoding/iconv_recoder.cpp
   src/encoding/locale_charset.cpp
   src/encoding/text_search.cpp
+  src/encoding/translit.cpp
   src/msgbase/binary_file.cpp
   src/msgbase/file_lock.cpp
   src/msgbase/jam_crc32.cpp
@@ -694,6 +699,11 @@ add_library(amberedit_term STATIC
   src/ui/term/terminal.cpp
   src/ui/term/utf8.cpp
 )
+if(WIN32)
+  # The console's own title, kept out of terminal.cpp: <windows.h> and
+  # curses.h define one macro between them.
+  target_sources(amberedit_term PRIVATE src/ui/term/windows_console_title.cpp)
+endif()
 target_include_directories(amberedit_term PUBLIC src)
 target_link_libraries(amberedit_term PUBLIC ${amberedit_curses_lib})
 # PDCurses learns nothing from how it was built: `curses.h` declares `cchar_t`
@@ -770,6 +780,7 @@ add_executable(amberedit
   src/ui/edit_history.cpp
   src/ui/edit_layout.cpp
   src/ui/theme.cpp
+  src/ui/window_title.cpp
   src/ui/setup/file_picker.cpp
   src/ui/setup/setup_run.cpp
   src/ui/setup/setup_wizard.cpp

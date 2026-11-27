@@ -23,7 +23,7 @@ constexpr int kLineWidth = 40;
 Element render(const AppState& state, Element background) {
     const int width = std::max(1, std::min(kLineWidth, state.width - 6));
     auto content = vbox({
-        text(truncateToWidth(_("Running..."), width)) | bold |
+        text(truncateToWidth(_("Running..."), width)) | theme::dialogsBold |
             color(theme::palette.dialogText) | center,
         text(""),
         text(padRight(truncateToWidth(state.externUtilRunning, width), width)) |

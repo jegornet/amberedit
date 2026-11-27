@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "config/cfg_file.hpp"
+#include "config/embedded_resources.hpp"
 #include "config/text_util.hpp"
 #include "i18n/i18n.hpp"
 
@@ -112,10 +113,13 @@ const std::array<Follower, 7> kFollowers{{
 /// is a line here as a color is a line above.
 using Switch = bool Palette::*;
 
-const std::array<std::pair<std::string_view, Switch>, 3> kSwitches{{
+const std::array<std::pair<std::string_view, Switch>, 6> kSwitches{{
     {"ansi_map_black_to_background", &Palette::ansiMapBlackToBackground},
     {"input_filler_show", &Palette::inputFillerShown},
     {"selection_bold", &Palette::selectionBold},
+    {"table_header_bold", &Palette::tableHeaderBold},
+    {"header_labels_bold", &Palette::headerLabelsBold},
+    {"dialogs_bold", &Palette::dialogsBold},
 }};
 
 /// The names a role was called by before it was renamed, each standing for the
@@ -237,6 +241,21 @@ term::Element selectionBold(term::Element child) {
     return term::bold(std::move(child));
 }
 
+term::Element tableHeaderBold(term::Element child) {
+    if (!palette.tableHeaderBold) return child;
+    return term::bold(std::move(child));
+}
+
+term::Element headerLabelsBold(term::Element child) {
+    if (!palette.headerLabelsBold) return child;
+    return term::bold(std::move(child));
+}
+
+term::Element dialogsBold(term::Element child) {
+    if (!palette.dialogsBold) return child;
+    return term::bold(std::move(child));
+}
+
 int approximatedRoles(const Palette& palette, int available) {
     // Every number a theme can hold, and a direct-color terminal reports a whole
     // 24-bit range here. Nothing is out of reach at either.
@@ -321,6 +340,18 @@ tl::expected<Palette, ErrorPtr> loadPalette(const std::string& path) {
     if (!text)
         return failure("cannot read theme " + path + ": " + text.error()->message());
     return parsePalette(*text, path);
+}
+
+Palette eightColorPalette() {
+    // The file is shipped and a test parses it, so a failure here is a build
+    // that did not run its tests; the built-in palette is still a palette.
+    const auto parsed =
+        parsePalette(std::string(config::resources::eightColorTheme()), "8_colors.cfg");
+    return parsed ? *parsed : Palette{};
+}
+
+void fitToTerminal() {
+    if (term::paletteSize() < 16) palette = eightColorPalette();
 }
 
 }  // namespace amberedit::ui::theme
