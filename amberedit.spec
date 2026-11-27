@@ -11,7 +11,7 @@
 %bcond_without check
 
 Name:           amberedit
-Version:        0.11.1
+Version:        0.11.2
 Release:        1%{?dist}
 Summary:        FidoNet mail editor
 
@@ -107,6 +107,16 @@ squish.cfg. Supports both UTF-8 and legacy encodings such as CP866 or CP437.
 %{_datadir}/%{name}/themes
 
 %changelog
+* Fri Nov 27 2026 Yegor Gluhov <git@jegor.net> - 0.11.2-1
+- transliterate Cyrillic a compose charset lacks (Привет → Privet) instead of writing question marks
+- send each frame as one synchronized update, so a list scrolled inside a dialog no longer flashes a band of the terminal's background
+- draw glyphs an 8-bit charset lacks as the nearest it has, so dialog frames show under KOI8-R and CP866
+- add themes/8_colors.cfg, used where no theme is set and the terminal has 8 colors (TERM=linux, TERM=xterm)
+- add theme switches table_header_bold, header_labels_bold and dialogs_bold: whether the screen title, the header block labels and dialog questions, notices, errors and headings are bold; off in every theme but 8_colors
+- adjust white theme colors
+- a click outside any dialog closes it
+- add set_window_title: the terminal window's title names the screen and its area, on by default
+
 * Fri Nov 13 2026 Yegor Gluhov <git@jegor.net> - 0.11.1-1
 - add reader.thread_next on `*`: the next answer to the message this one answers
 - dialog fields edit text as a header field does; Ctrl-F selects the last search
