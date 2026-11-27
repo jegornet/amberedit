@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.2 — 2026-11-27
 
 - transliterate Cyrillic a compose charset lacks (Привет → Privet) instead of writing question marks
 - send each frame as one synchronized update, so a list scrolled inside a dialog no longer flashes a band of the terminal's background
