@@ -82,6 +82,14 @@ Element selectedRun(const std::string& piece, size_t from, theme::Color tint,
     return runs.size() == 1 ? std::move(runs.front()) : hbox(std::move(runs));
 }
 
+Element typedLine(const std::string& line, Caret caret) {
+    static const std::string kMark = "▌";
+    const size_t at = line.rfind(kMark);
+    if (caret != Caret::Terminal || at == std::string::npos) return text(line);
+    return hbox({text(line.substr(0, at)), term::caret(text(" ")),
+                 text(line.substr(at + kMark.size()))});
+}
+
 std::optional<theme::Color> fieldFiller(theme::Color color) {
     if (!theme::palette.inputFillerShown) return std::nullopt;
     return color;
@@ -89,7 +97,7 @@ std::optional<theme::Color> fieldFiller(theme::Color color) {
 
 Element inputField(const std::string& value, size_t cursor, int width, bool active,
                    theme::Color tint, std::optional<theme::Color> filler,
-                   size_t* origin, FieldSelection selection) {
+                   size_t* origin, FieldSelection selection, Caret caret) {
     // Never past the end of what is there. A field whose text has just been
     // replaced under a cursor left where it was is the way this happens, and a
     // frame is the wrong place to find out about it.
@@ -134,7 +142,9 @@ Element inputField(const std::string& value, size_t cursor, int width, bool acti
     // where the field now begins.
     const size_t leftFrom = cursor - left.size();
     const size_t rightFrom = cursor + atLen;
-    return drawn(hbox({selectedRun(left, leftFrom, tint, selection), text(at) | inverted,
+    Element atCell = caret == Caret::Terminal ? term::caret(text(at) | color(tint))
+                                              : text(at) | inverted;
+    return drawn(hbox({selectedRun(left, leftFrom, tint, selection), std::move(atCell),
                        selectedRun(right, rightFrom, tint, selection),
                        roomAfter(width - used, filler,
                                  pastEnd && rightFrom + right.size() == value.size())}),

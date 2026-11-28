@@ -851,14 +851,17 @@ Element render(AppState& state) {
         text(substrByWidth(toRow(" " + area_format::header(layout)), 0, headerRoom)) |
         color(theme::palette.tableHeader);
     if (searching) {
-        // "▌" stands in for the cursor: the terminal's own is hidden for the
-        // whole application, and an input line without one reads as a label.
+        // "▌" is where the cursor stands, which `terminal_cursor` turns into the
+        // terminal's own (`typedLine()`): an input line without one reads as a
+        // label.
         const bool matched = searchRow(state, shown).has_value();
         // The label stands where the column heading did, so typing a letter
         // does not slide the word sideways (`searchColumn()`).
         const std::string pad(static_cast<size_t>(searchColumn(layout) - kIndent), ' ');
-        header = text(truncateToWidth(
-                     pad + i18n::format(_(" Area: {0}▌"), {state.areaSearch}), headerRoom)) |
+        header = typedLine(truncateToWidth(pad + i18n::format(_(" Area: {0}▌"),
+                                                              {state.areaSearch}),
+                                           headerRoom),
+                           state.caret()) |
                  theme::tableHeaderBold |
                  color(matched ? theme::palette.tableHeader : theme::palette.error);
     }

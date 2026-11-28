@@ -642,16 +642,18 @@ Element render(AppState& state, Element background) {
                                              : _(" Export message ");
     theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
-        // "▌" stands in for the cursor: the terminal's own is hidden for the
-        // whole application, and an input line without one reads as a label.
+        // "▌" is where the cursor stands, which `terminal_cursor` turns into the
+        // terminal's own (`typedLine()`): an input line without one reads as a
+        // label.
         label = i18n::format(_(" Dir: {0}▌ "), {picker.search});
         tint = findByPrefix(picker.entries, picker.search) ? theme::palette.dialogTitle
                                                            : theme::palette.error;
     }
 
-    Elements lines{dialog::titleBar(label, inner, tint)};
+    Elements lines{dialog::titleBar(label, inner, tint,
+                                    picker.search.empty() ? Caret::Inverted : state.caret())};
     lines.push_back(
-        dialog::framed(renderField(picker.path, inner, picker.focus == Focus::Path)));
+        dialog::framed(renderField(picker.path, inner, picker.focus == Focus::Path, state.caret())));
     lines.push_back(dialog::divider(inner));
 
     // The room is reserved first: the boxes are written into while the frame is
@@ -743,7 +745,8 @@ Element render(AppState& state, Element background) {
         const int nameWidth = std::max(1, inner - displayWidth(nameLabel()));
         lines.push_back(dialog::framed(
             hbox({text(nameLabel()) | color(theme::palette.dialogLabel),
-                  renderField(picker.name, nameWidth, picker.focus == Focus::Name)})));
+                  renderField(picker.name, nameWidth, picker.focus == Focus::Name,
+                              state.caret())})));
     }
 
     lines.push_back(dialog::bottomBar(writingFiles(picker) ? filesHint() : hint(),

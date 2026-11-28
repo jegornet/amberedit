@@ -1753,6 +1753,14 @@ struct AppConfig {
     /// than asking for one of its own.
     Visibility composeDeleteLineButton{Visibility::WhenNarrow};
 
+    /// Whether the terminal's own cursor stands where the typing goes — in the
+    /// editor, in every box that asks for something and in the quick searches —
+    /// from `terminal_cursor`. On by default: the terminal's cursor is the one an
+    /// input method opens its window at and a screen reader follows, and it takes
+    /// the shape and the blinking its user chose. Off, the place is marked with
+    /// an inverted cell, and a quick search with a `▌` after the query.
+    bool terminalCursor{true};
+
     /// What the header block holds over a message, in the reader and in the
     /// editor alike, from `header_format`'s two values — the narrow window's
     /// and the wide one's, on either side of `adaptive_ui_threshold` as the

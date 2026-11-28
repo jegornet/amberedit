@@ -402,10 +402,12 @@ Element render(AppState& state, Element background) {
     }
 
     Elements lines{
-        // "▌" stands in for the cursor: the terminal's own is hidden for the
-        // whole application, and an input line without one reads as a label.
+        // "▌" is where the cursor stands, which `terminal_cursor` turns into the
+        // terminal's own (`typedLine()`): an input line without one reads as a
+        // label.
         dialog::titleBar(i18n::format(_(" Lookup: {0}▌ "), {view.lookup}), inner,
-                         view.found ? theme::palette.dialogTitle : theme::palette.error),
+                         view.found ? theme::palette.dialogTitle : theme::palette.error,
+                         state.caret()),
         dialog::line(first, inner, theme::palette.dialogLabel),
         dialog::line(second, inner, theme::palette.dialogText),
         dialog::divider(inner),

@@ -121,12 +121,16 @@ const std::string& valueOf(const app::ComposeFields& fields, int field) {
 /// `filler` underscores the room the field has left. The header fields ask for
 /// it; the Date and Recd stamps and the row of message text under the cursor do
 /// not, being shown or written rather than asked for.
+///
+/// `caret` is `terminal_cursor`'s answer (`AppState::caret()`), and matters only
+/// where the field is `active`.
 Element field(const std::string& value, size_t cursor, int width, bool active,
               theme::Color tint, std::optional<theme::Color> filler = std::nullopt,
-              AppState::ComposeSpot* spot = nullptr, FieldSelection selection = {}) {
+              AppState::ComposeSpot* spot = nullptr, FieldSelection selection = {},
+              Caret caret = Caret::Inverted) {
     if (spot == nullptr) return inputField(value, cursor, width, active, tint, filler);
     return inputField(value, cursor, width, active, tint, filler, &spot->origin,
-                      selection) |
+                      selection, caret) |
            reflect(spot->box);
 }
 
@@ -322,7 +326,7 @@ Elements headerRows(AppState& state, bool editing) {
                      focused ? theme::palette.focusedText : theme::palette.inputText,
                      fieldFiller(theme::palette.inputFiller),
                      &state.composeFieldSpots[static_cast<size_t>(which)],
-                     focused ? fieldSelection(state) : FieldSelection{}) |
+                     focused ? fieldSelection(state) : FieldSelection{}, state.caret()) |
                bgcolor(focused ? theme::palette.focusedField : theme::palette.inputField);
     };
 
@@ -2699,7 +2703,8 @@ Element render(AppState& state) {
         const size_t within = std::min(
             state.edit.col > row.begin ? state.edit.col - row.begin : 0, piece.size());
         content.push_back(placed(
-            field(piece, within, layout.width, true, base, std::nullopt, &spot, chosen),
+            field(piece, within, layout.width, true, base, std::nullopt, &spot, chosen,
+                  state.caret()),
             i));
         // `field()` counts the scroll from the start of what it was given, and
         // what it was given starts partway into the line.

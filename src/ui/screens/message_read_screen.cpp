@@ -116,7 +116,7 @@ Element selectableCell(AppState& state, int field, int width, theme::Color tint)
     const bool active = select.inHeader && select.field == field;
     return inputField(reader_select::fieldValue(state, field), select.fieldCursor, width,
                       active, tint, std::nullopt, &spot.origin,
-                      reader_select::fieldSelection(state, field)) |
+                      reader_select::fieldSelection(state, field), state.caret()) |
            reflect(spot.box);
 }
 
@@ -577,7 +577,7 @@ Element selectingLine(AppState& state, int row, size_t at, int width, size_t fir
     if (!select.inHeader && select.text.row == row) {
         auto& spot = state.readSelect.textRows[at];
         return inputField(source.text, std::min(select.text.col, source.text.size()), width,
-                          true, base, std::nullopt, &spot.origin, chosen);
+                          true, base, std::nullopt, &spot.origin, chosen, state.caret());
     }
     if (chosen.empty()) {
         if (source.kludge) return text(source.text) | color(base);
@@ -2380,7 +2380,8 @@ Element render(AppState& state) {
         gotoWidth = std::max(1, std::min(displayWidth(numbers), titleRoom));
         gotoField = inputField(state.readGoto, state.readGoto.size(), gotoWidth, true,
                                theme::palette.focusedText,
-                               fieldFiller(theme::palette.inputFiller)) |
+                               fieldFiller(theme::palette.inputFiller), nullptr, {},
+                               state.caret()) |
                     bgcolor(theme::palette.focusedField);
     }
 

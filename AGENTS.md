@@ -1875,8 +1875,9 @@ Rules that hold the design together:
     and Subj come through, on `focused_field` with `focused_text` on it and
     `input_filler` underscoring the room it has left. A box asking for a number
     should read as the boxes asking for a name and a subject do, and the cursor
-    in it is the inverted cell it is everywhere else — nothing here draws a
-    cursor of its own.
+    in it is the one every field has (see the cursor bullet under [Text, theme
+    and colors](#text-theme-and-colors)) — nothing here draws a cursor of its
+    own.
   - **The box is `12/44`'s own columns and nothing besides**, fixed at that
     whatever is typed into it. The space in front of it is the title's, the one
     that set the pair off from the area's name, and the space behind it is the
@@ -2164,7 +2165,7 @@ hands it events.
   A field the window had no column for is no stop, and neither is the To address
   outside netmail.
 - **While the mode is on the fields are `ui::inputField()`s with no fill**, the
-  cursor an inverted cell and the selection in `selection`, each in the columns
+  cursor every field has and the selection in `selection`, each in the columns
   `header_format` gave it: the mode moves nothing, and a value wider than its
   column scrolls under the cursor. Rows the selection or the cursor is on are
   drawn plain in their base color, as the editor draws its own, and every other
@@ -3640,6 +3641,27 @@ taking a row.
 
 ### Text, theme and colors
 
+- **The cursor is the terminal's own wherever something is typed**, where
+  `terminal_cursor` asks — on by default — and an inverted cell where it does
+  not. `AppState::caret()` is the one place the setting is read, and what it
+  answers is handed down as a `ui::Caret`: to `ui::inputField()` — the editor,
+  every `TextField` a box asks for, the goto fields, the reader's selection
+  mode — and to `ui::typedLine()` for a line typed onto the end of, a quick
+  search or the nodelist's Lookup, whose msgid writes a `▌` where the cursor
+  stands. Under `Terminal` the cell is drawn plain and wrapped in
+  `term::caret()`; the frame's `Screen::cursor` is where that landed, and
+  `Terminal::draw()` puts the cursor there and hides it where the frame named
+  none. `--setup` has no config to ask and passes the default.
+  - **Never both marks at once**: a block cursor over an inverted cell swaps
+    the colors back, and several terminals then show nothing at all.
+  - **A box takes the cursor of the screen under it, wherever it stood.**
+    `clear_under()` — which every dialog is laid over the screen with, through
+    `dialog::surface()` — empties `Screen::cursor` before the box's own contents
+    are drawn, so a field inside the box puts it back and a field outside it,
+    which no longer has the keyboard, cannot keep it.
+  - Why it is worth having: an input method opens its window at the terminal's
+    cursor, a screen reader follows it, and it takes the shape and the blinking
+    its user set; the inverted cell has none of that.
 - **Layout is measured in terminal columns, by `term::stringWidth()`.**
   `ui::displayWidth()` wraps it, and `substrByWidth`/`truncateToWidth`/`padRight`/
   `padLeft`/`wrapText` all budget in those units — that is what `ui/text_layout`

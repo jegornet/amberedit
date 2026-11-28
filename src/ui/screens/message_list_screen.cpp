@@ -524,7 +524,8 @@ Element render(AppState& state) {
         gotoWidth = std::max(1, std::min(displayWidth(numbers), titleRoom));
         gotoField = inputField(state.listGoto, state.listGoto.size(), gotoWidth, true,
                                theme::palette.focusedText,
-                               fieldFiller(theme::palette.inputFiller)) |
+                               fieldFiller(theme::palette.inputFiller), nullptr, {},
+                               state.caret()) |
                     bgcolor(theme::palette.focusedField);
     }
 

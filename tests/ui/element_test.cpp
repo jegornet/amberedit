@@ -215,3 +215,29 @@ TEST_CASE("a palette number the terminal lacks falls back [element]") {
     // Never out of range, whatever it was handed.
     CHECK(nearestWithin(200, 8) < 8);
 }
+
+TEST_CASE("caret puts the terminal's cursor in its first cell [element]") {
+    Screen screen(10, 3);
+    render(screen, vbox({text("one"), hbox({text("ab"), caret(text("cd"))})}));
+    CHECK(screen.cursor == Box{2, 2, 1, 1});
+
+    // A frame that asks for none has none: the cursor is not carried over.
+    render(screen, text("one"));
+    CHECK(screen.cursor.IsEmpty());
+}
+
+TEST_CASE("a box laid over the screen takes the cursor away [element]") {
+    // Far from where the cursor stands: a dialog has the keyboard wherever it is.
+    Screen screen(10, 3);
+    render(screen, dbox({caret(text("ab")), vbox({filler(), clear_under(text("x"))})}));
+    CHECK(screen.cursor.IsEmpty());
+}
+
+TEST_CASE("a box keeps the cursor its own field puts down [element]") {
+    // The wipe comes before what the box holds is drawn, so a field inside the
+    // dialog puts the cursor back where the typing now goes.
+    Screen screen(10, 3);
+    render(screen, dbox({caret(text("ab")),
+                         vbox({filler(), clear_under(hbox({text("x"), caret(text("y"))}))})}));
+    CHECK(screen.cursor == Box{1, 1, 2, 2});
+}

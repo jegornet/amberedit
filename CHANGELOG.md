@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- add terminal_cursor: the terminal's own cursor marks where the typing goes, in the editor, the dialogs and the quick searches, rather than an inverted cell; on by default
 - the area list's quick search stands under the Area heading where the area column comes first, rather than jumping a column left
 
 ## 0.11.2 — 2026-11-27

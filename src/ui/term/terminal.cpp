@@ -886,14 +886,6 @@ int Terminal::height() const { return screen_.height(); }
 
 const std::string& Terminal::codeset() const { return ensureUtf8Locale(); }
 
-void Terminal::showCursor(int x, int y) {
-    cursorVisible_ = true;
-    cursorX_ = x;
-    cursorY_ = y;
-}
-
-void Terminal::hideCursor() { cursorVisible_ = false; }
-
 void Terminal::syncSize() {
     if (screen_.width() == COLS && screen_.height() == LINES) return;
     screen_.resize(COLS, LINES);
@@ -910,6 +902,11 @@ void Terminal::draw(const Element& document) {
     syncSize();
 
     render(screen_, document);
+    // Where the frame put the cursor — the editor's field or line, and only
+    // where nothing was drawn over it since.
+    cursorVisible_ = !screen_.cursor.IsEmpty();
+    cursorX_ = screen_.cursor.x_min;
+    cursorY_ = screen_.cursor.y_min;
 
     for (int y = 0; y < screen_.height(); ++y) {
         for (int x = 0; x < screen_.width(); ++x) {

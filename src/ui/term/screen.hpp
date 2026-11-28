@@ -62,6 +62,15 @@ public:
     /// button half off the edge must not be clickable where it is not drawn.
     Box stencil{};
 
+    /// The cell the terminal's own cursor is to stand in, or `Box::Nowhere()`
+    /// where the frame asks for none — a frame with nothing being typed into, or
+    /// any frame under `terminal_cursor off`. Set by `caret()` as it is drawn, and
+    /// taken back by `clear_under()`, which is what every dialog is laid over
+    /// the screen with: a box that is up has the keyboard, wherever on the
+    /// screen it stands, and a cursor left in the field behind it would say the
+    /// typing goes there.
+    Box cursor{Box::Nowhere()};
+
 private:
     int width_{0};
     int height_{0};

@@ -180,7 +180,7 @@ Element render(AppState& state, Element background) {
     picker.applyBox = Box::Nowhere();
 
     const int fieldWidth = std::max(1, inner - displayWidth(label()));
-    Element field = renderField(picker.charset, fieldWidth, typing);
+    Element field = renderField(picker.charset, fieldWidth, typing, state.caret());
 
     Elements lines{
         dialog::titleBar(title(), inner),

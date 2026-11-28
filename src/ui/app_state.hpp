@@ -2092,6 +2092,13 @@ struct AppState {
     /// narrower than that is one the user has deliberately made small.
     [[nodiscard]] bool wideWindow() const { return width >= config.adaptiveUiThreshold; }
 
+    /// How a field marks where the typing goes: the terminal's own cursor or an
+    /// inverted cell, as `terminal_cursor` says. Every field and quick search
+    /// over a screen asks here, so the two are never mixed on one screen.
+    [[nodiscard]] Caret caret() const {
+        return config.terminalCursor ? Caret::Terminal : Caret::Inverted;
+    }
+
     /// What a row of the area list holds in this window: `arealist_format`'s
     /// two formats read on the same line as everything else adaptive, and on
     /// every frame for the same reason — a window can be dragged, and the row

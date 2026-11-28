@@ -100,7 +100,8 @@ protected:
 /// attributes both, back to the terminal's own. Used with `dbox` so that what a
 /// dialog covers does not show through it, and never on its own: the cells it
 /// leaves are in a color no theme chose, so `dialog::surface()` puts the box's
-/// own fill down over them in the same breath.
+/// own fill down over them in the same breath. It takes the terminal's cursor
+/// off the screen too, wherever `caret()` had put it: a dialog has the keyboard.
 [[nodiscard]] Element clear_under(Element child);
 
 /// The element with a shadow falling `dx` columns to the right of it and `dy`
@@ -122,6 +123,12 @@ protected:
 [[nodiscard]] Element bgcolor(Color color, Element child);
 [[nodiscard]] Decorator color(Color color);
 [[nodiscard]] Decorator bgcolor(Color color);
+
+/// Puts the terminal's own cursor in the element's first cell — the frame's
+/// `Screen::cursor`. A `clear_under()` drawn later in the same frame — a dialog
+/// put over the screen — takes it away again, so the cursor is only ever where
+/// the typing goes.
+[[nodiscard]] Element caret(Element child);
 
 /// Writes back where the element was finally drawn, so that a click can be
 /// tested against what is on the screen rather than against a position worked

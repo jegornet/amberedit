@@ -105,6 +105,9 @@ void pasteIntoField(TextField& field, std::string_view text, size_t limit = 0);
 /// The field, drawn the way every box that is typed into is drawn: `dialog_field`
 /// at rest and `dialog_focused_field` while it is the one being typed in, with
 /// the room it has left underscored and what is selected of it in `selection`.
-[[nodiscard]] term::Element renderField(TextField& field, int width, bool active);
+/// `caret` is `AppState::caret()`, or the setting's default where there is no
+/// config to ask — `--setup`.
+[[nodiscard]] term::Element renderField(TextField& field, int width, bool active,
+                                        Caret caret);
 
 }  // namespace amberedit::ui

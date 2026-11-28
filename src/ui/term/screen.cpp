@@ -21,7 +21,11 @@ const Cell& Screen::at(int x, int y) const {
                   static_cast<size_t>(x)];
 }
 
-void Screen::clear() { std::fill(cells_.begin(), cells_.end(), Cell{}); }
+void Screen::clear() {
+    std::fill(cells_.begin(), cells_.end(), Cell{});
+    cursor = Box::Nowhere();
+}
+
 
 void Screen::resize(int width, int height) {
     width_ = std::max(0, width);

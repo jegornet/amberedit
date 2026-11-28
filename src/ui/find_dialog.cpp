@@ -183,7 +183,7 @@ Element render(AppState& state, Element background) {
     const bool typing = picker.focus == Focus::Query;
 
     const int fieldWidth = std::max(1, inner - displayWidth(label()));
-    Element field = renderField(picker.query, fieldWidth, typing);
+    Element field = renderField(picker.query, fieldWidth, typing, state.caret());
 
     const bool onScope = picker.focus == Focus::Scope;
     picker.bothBox = Box::Nowhere();

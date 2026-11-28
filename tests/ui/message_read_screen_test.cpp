@@ -2466,13 +2466,14 @@ TEST_CASE("The number being typed is drawn as a header block field is "
     CHECK(screen.at(start + width, 0).bg != theme::palette.focusedField);
 
     // What is in it is what a field of the block holds: the digits in
-    // `focused_text`, the cursor an inverted cell on the blank after them, and
-    // the room it has left underscored.
+    // `focused_text`, the terminal's cursor on the blank after them, and the
+    // room it has left underscored.
     CHECK(screen.at(start, 0).glyph == "1");
     CHECK(screen.at(start, 0).fg == theme::palette.focusedText);
     CHECK(screen.at(start + 1, 0).glyph == "2");
     CHECK(screen.at(start + 2, 0).glyph == " ");
-    CHECK((screen.at(start + 2, 0).attrs & term::kInverted) != 0);
+    CHECK(screen.cursor == term::Box{start + 2, start + 2, 0, 0});
+    CHECK((screen.at(start + 2, 0).attrs & term::kInverted) == 0);
     REQUIRE(theme::palette.inputFillerShown);
     CHECK(screen.at(start + 3, 0).glyph == "_");
     CHECK(screen.at(start + 3, 0).fg == theme::palette.inputFiller);

@@ -2105,6 +2105,10 @@ tl::expected<bool, ErrorPtr> applySetting(AppConfig& cfg, const CfgEntry& entry)
         auto read = parseVisibility(entry);
         if (!read) return tl::make_unexpected(std::move(read).error());
         cfg.composeDeleteLineButton = *read;
+    } else if (key == "terminal_cursor") {
+        auto read = entry.flag();
+        if (!read) return tl::make_unexpected(std::move(read).error());
+        cfg.terminalCursor = *read;
     } else if (key == "show_location") {
         auto read = entry.flag();
         if (!read) return tl::make_unexpected(std::move(read).error());

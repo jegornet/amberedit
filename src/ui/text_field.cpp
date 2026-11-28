@@ -180,14 +180,14 @@ void pasteIntoField(TextField& field, std::string_view text, size_t limit) {
     field.touched = true;
 }
 
-Element renderField(TextField& field, int width, bool active) {
+Element renderField(TextField& field, int width, bool active, Caret caret) {
     field.cursor = std::min(field.cursor, field.value.size());
     field.box = Box::Nowhere();
     return inputField(
                field.value, field.cursor, width, active,
                active ? theme::palette.dialogFocusedText : theme::palette.dialogLabel,
                fieldFiller(theme::palette.dialogHint), &field.origin,
-               active ? fieldSelection(field) : FieldSelection{}) |
+               active ? fieldSelection(field) : FieldSelection{}, caret) |
            bgcolor(active ? theme::palette.dialogFocusedField
                           : theme::palette.dialogField) |
            reflect(field.box);

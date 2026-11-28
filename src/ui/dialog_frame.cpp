@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 
+#include "ui/input_field.hpp"
 #include "ui/text_layout.hpp"
 
 namespace amberedit::ui::dialog {
@@ -32,13 +33,13 @@ std::string rule(int width) {
 /// along the bottom start where reading does.
 Element labelledRule(const std::string& left, const std::string& right,
                      const std::string& label, int width, theme::Color tint, bool centred,
-                     bool strong = false) {
+                     bool strong = false, Caret caret = Caret::Inverted) {
     const std::string shown = truncateToWidth(label, width);
     const int before = centred ? std::max(0, (width - displayWidth(shown)) / 2) : 0;
     const int after = std::max(0, width - before - displayWidth(shown));
     // Only the label is lit: the rule either side of it is the frame's, and a
     // bold rule would read as a second thing having changed.
-    auto middle = text(shown) | color(tint);
+    auto middle = typedLine(shown, caret) | color(tint);
     if (strong) middle = std::move(middle) | theme::dialogsBold;
     return hbox({text(left + rule(before)) | color(theme::palette.dialogBorder),
                  std::move(middle),
@@ -47,8 +48,9 @@ Element labelledRule(const std::string& left, const std::string& right,
 
 }  // namespace
 
-Element titleBar(const std::string& label, int width, theme::Color tint) {
-    return labelledRule("╭", "╮", label, width, tint, /*centred=*/true);
+Element titleBar(const std::string& label, int width, theme::Color tint, Caret caret) {
+    return labelledRule("╭", "╮", label, width, tint, /*centred=*/true, /*strong=*/false,
+                        caret);
 }
 
 Element bottomBar(const std::string& hint, const std::string& error, int width) {

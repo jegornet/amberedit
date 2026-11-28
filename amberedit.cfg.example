@@ -1209,6 +1209,13 @@ back_button when_narrow
 # to the full width elsewhere would rewrap under it at every keystroke.
 compose_delete_line_button when_narrow
 
+# Whether the terminal's own cursor shows where the typing goes: in the editor,
+# in the dialogs that ask for something, in the quick searches and in the reader's
+# selection mode. Optional; "on" by default. It takes the shape and the blinking
+# the terminal is set to, and an input method opens its window beside it. "off"
+# marks the place with an inverted cell instead.
+terminal_cursor on
+
 # Whether the columns down either side of the message text send the reader to the
 # previous and the next message when they are clicked. Optional; "when_narrow" by
 # default, the same four values as back_button and the same line they are read

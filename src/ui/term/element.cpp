@@ -287,6 +287,9 @@ public:
         for (int y = box_.y_min; y <= box_.y_max; ++y) {
             for (int x = box_.x_min; x <= box_.x_max; ++x) screen.at(x, y) = Cell{};
         }
+        // A box over the screen has the keyboard, so the cursor of the screen
+        // under it goes, however far from the box it stood (`Screen::cursor`).
+        screen.cursor = Box::Nowhere();
         Node::Render(screen);
     }
 };
@@ -396,6 +399,20 @@ private:
     Box& target_;
 };
 
+/// The terminal's cursor in the first cell of the element, where that cell is on
+/// the screen at all — a row scrolled out of view has nowhere to put it.
+class Caret : public Decorated {
+public:
+    using Decorated::Decorated;
+
+    void Render(Screen& screen) override {
+        const Box cell{box_.x_min, box_.x_min, box_.y_min, box_.y_min};
+        const Box shown = Box::Intersection(screen.stencil, Box::Intersection(box_, cell));
+        if (!shown.IsEmpty()) screen.cursor = shown;
+        Node::Render(screen);
+    }
+};
+
 }  // namespace
 
 Node::Node(Elements children) : children_(std::move(children)) {}
@@ -463,6 +480,8 @@ Decorator color(Color color) {
 Decorator bgcolor(Color color) {
     return [color](Element child) { return term::bgcolor(color, std::move(child)); };
 }
+
+Element caret(Element child) { return std::make_shared<Caret>(std::move(child)); }
 
 Decorator reflect(Box& box) {
     return [&box](Element child) -> Element {

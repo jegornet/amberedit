@@ -1464,6 +1464,28 @@ TEST_CASE("The quick search stands where the Area heading did [arealist]") {
     CHECK(searched() == 1);
 }
 
+TEST_CASE("The quick search carries the terminal's cursor after the query [arealist]") {
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.arealistMenu.clear();
+    fixture.state.width = 40;
+    fixture.state.height = 10;
+    REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
+
+    // The block becomes a blank, and the cursor stands in it.
+    auto screen = drawn(fixture);
+    const auto at = rowText(screen, 0).find("Area: t");
+    REQUIRE(at != std::string::npos);
+    CHECK(rowText(screen, 0).find("▌") == std::string::npos);
+    const int column = static_cast<int>(at + std::string("Area: t").size());
+    CHECK(screen.cursor == amberedit::ui::term::Box{column, column, 0, 0});
+
+    // Off, the block stands for it as it always did, and the terminal's is hidden.
+    fixture.config.terminalCursor = false;
+    screen = drawn(fixture);
+    CHECK(rowText(screen, 0).find("Area: t▌") != std::string::npos);
+    CHECK(screen.cursor.IsEmpty());
+}
+
 TEST_CASE("With nothing unread the list says so in the middle [arealist][squish]") {
     const TempSquishBase only;
     Fixture fixture({squishArea("localnet", only.path())});

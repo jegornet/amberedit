@@ -12,8 +12,8 @@
 /// standing in it needs.
 ///
 /// There is one of these because there is one way a field behaves: the cursor
-/// is drawn as an inverted character — the terminal's own is hidden for the
-/// whole application — text wider than the column scrolls sideways to keep it
+/// is the terminal's own put in its cell — or, under `terminal_cursor off`, an
+/// inverted character — text wider than the column scrolls sideways to keep it
 /// on screen, and where a click lands is worked out from the same scroll that
 /// drew the row. The compose screen's header fields and the import dialog's
 /// path and charset boxes all come through here, so the hit test cannot drift
@@ -51,6 +51,13 @@ struct FieldSelection {
     [[nodiscard]] bool empty() const { return begin >= end; }
 };
 
+/// How a field marks the place the typing goes. `Inverted` draws the cell with
+/// its colors swapped, which needs nothing of the terminal; `Terminal` draws it
+/// like its neighbours and puts the terminal's own cursor there (`term::caret()`).
+/// Never both: a terminal's block cursor over an inverted cell swaps the colors
+/// back, and on several terminals the cursor then disappears.
+enum class Caret { Inverted, Terminal };
+
 /// The field itself, `width` columns wide and written in `tint`.
 ///
 /// The active one carries the cursor and is the only one that scrolls: an
@@ -74,13 +81,22 @@ struct FieldSelection {
                                        bool active, theme::Color tint,
                                        std::optional<theme::Color> filler = std::nullopt,
                                        size_t* origin = nullptr,
-                                       FieldSelection selection = {});
+                                       FieldSelection selection = {},
+                                       Caret caret = Caret::Inverted);
 
 /// `piece` written in `tint`, the part of it `selection` covers drawn as
 /// selected — `from` being the byte of the whole text `piece` begins at, so
 /// that a selection counted against the whole is cut against any piece of it.
 [[nodiscard]] term::Element selectedRun(const std::string& piece, size_t from,
                                         theme::Color tint, FieldSelection selection);
+
+/// A line that is typed onto the end of — a quick search, the nodelist's Lookup —
+/// written with `▌` where the cursor stands, as its msgid writes it. Under
+/// `Inverted` that is drawn as it is written, the block standing for the cursor;
+/// under `Terminal` the block becomes a blank and the terminal's cursor stands
+/// in it. The last `▌` is the one, the query in front of it being somebody's
+/// typing; a line cut short of it carries no cursor at all.
+[[nodiscard]] term::Element typedLine(const std::string& line, Caret caret);
 
 /// `color` where the theme asks for the underscores and nothing where it does
 /// not — `input_filler_show`. What a field passes as its `filler`: whether it

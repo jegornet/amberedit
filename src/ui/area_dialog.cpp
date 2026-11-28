@@ -89,18 +89,6 @@ std::string titleFor(AppState::AreaPicker::For purpose) {
     return _(" Reply in area ");
 }
 
-/// The top of the frame, with a label in the middle of it — the title, or the
-/// search query while one is being typed, the way the area list gives its
-/// heading row over to it.
-Element titleBar(const std::string& label, int width, theme::Color tint) {
-    const std::string shown = truncateToWidth(label, width);
-    const int left = std::max(0, (width - displayWidth(shown)) / 2);
-    const int right = std::max(0, width - left - displayWidth(shown));
-    return hbox({text("╭" + horizontalRule(left)) | color(theme::palette.dialogBorder),
-                 text(shown) | color(tint),
-                 text(horizontalRule(right) + "╮") | color(theme::palette.dialogBorder)});
-}
-
 }  // namespace
 
 Element render(AppState& state, Element background) {
@@ -118,15 +106,17 @@ Element render(AppState& state, Element background) {
     std::string label = titleFor(picker.purpose);
     theme::Color tint = theme::palette.dialogTitle;
     if (!picker.search.empty()) {
-        // "▌" stands in for the cursor: the terminal's own is hidden for the
-        // whole application, and an input line without one reads as a label.
+        // "▌" is where the cursor stands, which `terminal_cursor` turns into the
+        // terminal's own (`typedLine()`): an input line without one reads as a
+        // label.
         label = i18n::format(_(" Area: {0}▌ "), {picker.search});
         tint = findAreaByPrefix(areas, picker.search) ? theme::palette.dialogTitle
                                                       : theme::palette.error;
     }
 
     const auto side = [] { return text("│") | color(theme::palette.dialogBorder); };
-    Elements lines{titleBar(label, inner, tint)};
+    Elements lines{dialog::titleBar(label, inner, tint,
+                            picker.search.empty() ? Caret::Inverted : state.caret())};
 
     // The room is reserved first: the boxes are written into while the frame is
     // laid out, and a vector that grew under them would leave the earlier rows

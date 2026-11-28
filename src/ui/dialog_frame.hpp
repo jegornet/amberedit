@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "ui/input_field.hpp"
 #include "ui/term/element.hpp"
 #include "ui/theme.hpp"
 
@@ -14,9 +15,13 @@
 /// the frame rather than the frame again.
 namespace amberedit::ui::dialog {
 
-/// The top of the frame, with a label in the middle of it.
+/// The top of the frame, with a label in the middle of it. A label that is a
+/// line being typed — a quick search — carries its `▌` and passes the `caret`
+/// that marks it (`ui::typedLine()`); every other label leaves it at `Inverted`,
+/// which draws the label exactly as it is written.
 [[nodiscard]] term::Element titleBar(const std::string& label, int width,
-                                     theme::Color tint = theme::palette.dialogTitle);
+                                     theme::Color tint = theme::palette.dialogTitle,
+                                     Caret caret = Caret::Inverted);
 
 /// The bottom of it: the keys the dialog answers to, standing in the rule the
 /// way the title stands in the top one — and what went wrong **in their place**

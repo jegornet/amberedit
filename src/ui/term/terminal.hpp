@@ -173,11 +173,6 @@ public:
     [[nodiscard]] int width() const;
     [[nodiscard]] int height() const;
 
-    /// Where the cursor should sit, or nowhere at all. Only the message editor
-    /// wants one; every other screen leaves it hidden.
-    void showCursor(int x, int y);
-    void hideCursor();
-
 #ifdef _WIN32
     /// What arrived from the keyboard within `firstMs`, and whatever followed
     /// it with gaps no longer than `gapMs`, each code written as one word —
@@ -273,6 +268,8 @@ private:
     /// The title last written, and whether the one found was asked to be kept.
     std::string title_;
     bool titleSaved_{false};
+    /// Where the last frame put the cursor, kept for the way back from
+    /// `handOver()`, which shows it or not before the next frame is drawn.
     bool cursorVisible_{false};
     int cursorX_{0};
     int cursorY_{0};

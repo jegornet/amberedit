@@ -38,6 +38,7 @@ using amberedit::config::Command;
 using amberedit::domain::AreaConfig;
 using amberedit::domain::AreaKind;
 using amberedit::domain::FtnAddress;
+using amberedit::ui::term::Box;
 using amberedit::ui::term::Event;
 
 namespace compose = amberedit::ui::screens::compose;
@@ -241,6 +242,58 @@ TEST_CASE("A new message opens in the header, over the text it will be [compose]
     // close it from the moment it is begun.
     CHECK(state.edit.lines.size() >= 2);
     CHECK(textHas(state, " * Origin:"));
+}
+
+TEST_CASE("The editor puts the terminal's own cursor where the typing goes [compose]") {
+    ComposeFixture fixture(AreaKind::Netmail, "2:382/736");
+    auto& state = fixture.state;
+    compose::startNew(state);
+    REQUIRE(state.composeInHeader);
+    REQUIRE(fixture.config.terminalCursor);  // on unless a config says otherwise
+
+    // In the field the typing is in, at the cursor, and the cell is drawn as its
+    // neighbours are: an inverted cell under a block cursor would swap back.
+    term::Screen screen(state.width, state.height);
+    term::render(screen, compose::render(state));
+    const Box spot = state.composeFieldSpots[static_cast<size_t>(state.composeField)].box;
+    REQUIRE_FALSE(screen.cursor.IsEmpty());
+    CHECK(screen.cursor.y_min == spot.y_min);
+    CHECK(screen.cursor.x_min ==
+          spot.x_min + static_cast<int>(state.composeCursor));
+    CHECK((screen.at(screen.cursor.x_min, screen.cursor.y_min).attrs &
+           term::kInverted) == 0);
+
+    // In the text, on the row the cursor is on.
+    fixture.walkToText();
+    state.edit.lines = {"hello"};
+    state.edit.row = 0;
+    state.edit.col = 2;
+    term::render(screen, compose::render(state));
+    const Box row = state.composeTextRows.front().box;
+    CHECK(screen.cursor == Box{row.x_min + 2, row.x_min + 2, row.y_min, row.y_min});
+
+    // A box over the editor has the keyboard, and the cursor goes with it.
+    compose::handleEvent(state, ctrl('f'));
+    REQUIRE(state.attributePicker);
+    term::render(screen, attributes_dialog::render(state, compose::render(state)));
+    CHECK(screen.cursor.IsEmpty());
+}
+
+TEST_CASE("terminal_cursor off marks the place with an inverted cell [compose]") {
+    ComposeFixture fixture(AreaKind::Netmail, "2:382/736");
+    fixture.config.terminalCursor = false;
+    auto& state = fixture.state;
+    compose::startNew(state);
+    fixture.walkToText();
+    state.edit.lines = {"hello"};
+    state.edit.row = 0;
+    state.edit.col = 2;
+
+    term::Screen screen(state.width, state.height);
+    term::render(screen, compose::render(state));
+    CHECK(screen.cursor.IsEmpty());
+    const Box row = state.composeTextRows.front().box;
+    CHECK((screen.at(row.x_min + 2, row.y_min).attrs & term::kInverted) != 0);
 }
 
 TEST_CASE("Enter off the subject hands the typing down to the text [compose]") {
