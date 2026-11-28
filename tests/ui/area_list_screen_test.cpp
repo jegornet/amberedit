@@ -1467,6 +1467,7 @@ TEST_CASE("The quick search stands where the Area heading did [arealist]") {
 TEST_CASE("The quick search carries the terminal's cursor after the query [arealist]") {
     Fixture fixture({passthroughArea("one"), passthroughArea("two")});
     fixture.config.arealistMenu.clear();
+    fixture.config.terminalCursor = true;
     fixture.state.width = 40;
     fixture.state.height = 10;
     REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));

@@ -249,7 +249,7 @@ TEST_CASE("The editor puts the terminal's own cursor where the typing goes [comp
     auto& state = fixture.state;
     compose::startNew(state);
     REQUIRE(state.composeInHeader);
-    REQUIRE(fixture.config.terminalCursor);  // on unless a config says otherwise
+    fixture.config.terminalCursor = true;
 
     // In the field the typing is in, at the cursor, and the cell is drawn as its
     // neighbours are: an inverted cell under a block cursor would swap back.
@@ -281,7 +281,7 @@ TEST_CASE("The editor puts the terminal's own cursor where the typing goes [comp
 
 TEST_CASE("terminal_cursor off marks the place with an inverted cell [compose]") {
     ComposeFixture fixture(AreaKind::Netmail, "2:382/736");
-    fixture.config.terminalCursor = false;
+    REQUIRE_FALSE(fixture.config.terminalCursor);  // off unless a config says otherwise
     auto& state = fixture.state;
     compose::startNew(state);
     fixture.walkToText();

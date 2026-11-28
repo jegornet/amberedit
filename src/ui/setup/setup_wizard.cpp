@@ -403,7 +403,7 @@ Element labelledField(const std::string& label, TextField& field, int inner,
                       bool active) {
     const int width = std::max(1, inner - displayWidth(label));
     return dialog::framed(hbox({text(label) | color(theme::palette.dialogLabel),
-                                renderField(field, width, active, Caret::Terminal)}));
+                                renderField(field, width, active, Caret::Inverted)}));
 }
 
 /// A line of prose in the box — what the step is about, or an example of what

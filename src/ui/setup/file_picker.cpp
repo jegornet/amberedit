@@ -170,7 +170,7 @@ Element render(FilePicker& picker, int inner) {
     const auto total = static_cast<int>(picker.entries.size());
 
     Elements lines;
-    lines.push_back(dialog::framed(renderField(picker.path, inner, picker.onPath, Caret::Terminal)));
+    lines.push_back(dialog::framed(renderField(picker.path, inner, picker.onPath, Caret::Inverted)));
     lines.push_back(dialog::divider(inner));
 
     // The room is reserved first: the boxes are written into while the frame is

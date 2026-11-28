@@ -1755,11 +1755,11 @@ struct AppConfig {
 
     /// Whether the terminal's own cursor stands where the typing goes — in the
     /// editor, in every box that asks for something and in the quick searches —
-    /// from `terminal_cursor`. On by default: the terminal's cursor is the one an
-    /// input method opens its window at and a screen reader follows, and it takes
-    /// the shape and the blinking its user chose. Off, the place is marked with
-    /// an inverted cell, and a quick search with a `▌` after the query.
-    bool terminalCursor{true};
+    /// from `terminal_cursor`. Off by default, the place marked with an inverted
+    /// cell and a quick search with a `▌` after the query. On, it is the
+    /// terminal's cursor — the one an input method opens its window at and a
+    /// screen reader follows, in the shape and the blinking its user chose.
+    bool terminalCursor{false};
 
     /// What the header block holds over a message, in the reader and in the
     /// editor alike, from `header_format`'s two values — the narrow window's

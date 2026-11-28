@@ -3642,7 +3642,7 @@ taking a row.
 ### Text, theme and colors
 
 - **The cursor is the terminal's own wherever something is typed**, where
-  `terminal_cursor` asks — on by default — and an inverted cell where it does
+  `terminal_cursor` asks — off by default — and an inverted cell where it does
   not. `AppState::caret()` is the one place the setting is read, and what it
   answers is handed down as a `ui::Caret`: to `ui::inputField()` — the editor,
   every `TextField` a box asks for, the goto fields, the reader's selection
