@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- the area list's quick search stands under the Area heading where the area column comes first, rather than jumping a column left
+
 ## 0.11.2 — 2026-11-27
 
 - transliterate Cyrillic a compose charset lacks (Привет → Privet) instead of writing question marks

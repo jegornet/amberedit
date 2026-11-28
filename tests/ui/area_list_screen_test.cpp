@@ -1430,6 +1430,40 @@ TEST_CASE("The quick search looks only at the rows on the list [arealist][squish
     CHECK(fixture.state.areaCursor == 2);
 }
 
+TEST_CASE("The quick search stands where the Area heading did [arealist]") {
+    using amberedit::config::AreaFieldKind;
+    Fixture fixture({passthroughArea("one"), passthroughArea("two")});
+    fixture.config.arealistMenu.clear();
+    fixture.state.width = 40;
+    fixture.state.height = 10;
+    const auto columnOf = [&fixture](const std::string& word) {
+        return rowText(drawn(fixture), 0).find(word);
+    };
+    const auto searched = [&fixture, &columnOf] {
+        REQUIRE(area_list::handleEvent(fixture.state, Event::Character("t")));
+        const auto at = columnOf("Area:");
+        REQUIRE(area_list::handleEvent(fixture.state, Event::Escape));
+        return at;
+    };
+
+    // The mark, the star and the gaps in front of the name are read past.
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Marked, 1},
+                                            {AreaFieldKind::UnreadFlag, 1},
+                                            {AreaFieldKind::Space, 1},
+                                            {AreaFieldKind::Echotag, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    const auto heading = columnOf("Area");
+    REQUIRE(heading == 4);
+    CHECK(searched() == heading);
+
+    // A count in front of it is not, and the query keeps to the left edge.
+    fixture.config.areaListFormatNarrow = {{{AreaFieldKind::Number, 3},
+                                            {AreaFieldKind::Space, 1},
+                                            {AreaFieldKind::Echotag, 0}}};
+    fixture.config.areaListFormatWide = fixture.config.areaListFormatNarrow;
+    CHECK(searched() == 1);
+}
+
 TEST_CASE("With nothing unread the list says so in the middle [arealist][squish]") {
     const TempSquishBase only;
     Fixture fixture({squishArea("localnet", only.path())});

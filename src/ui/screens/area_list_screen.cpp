@@ -233,6 +233,27 @@ std::optional<int> fieldColumn(const area_format::Layout& layout,
     return std::nullopt;
 }
 
+/// Where the quick search's "Area:" starts: under the heading of the area
+/// column where that column opens the top line — nothing standing in front of
+/// it but the mark, the unread star and the gaps between them, which are a
+/// column or two the eye reads past — and against the left edge otherwise. A
+/// count or a group in front of the name would put the query out in the middle
+/// of the row, under a heading that has nothing to do with it.
+int searchColumn(const area_format::Layout& layout) {
+    if (layout.empty()) return kIndent;
+    int at = kIndent;
+    for (const area_format::Column& column : layout.front()) {
+        if (column.kind == config::AreaFieldKind::Echotag) return at;
+        const bool passedOver = column.width <= 0 ||
+                                column.kind == config::AreaFieldKind::Marked ||
+                                column.kind == config::AreaFieldKind::UnreadFlag ||
+                                column.kind == config::AreaFieldKind::Space;
+        if (!passedOver) break;
+        at += column.width;
+    }
+    return kIndent;
+}
+
 /// `arealist_separators_align` as this window answers it, and under `Field` the
 /// column the name is to stand over.
 ///
@@ -833,8 +854,11 @@ Element render(AppState& state) {
         // "▌" stands in for the cursor: the terminal's own is hidden for the
         // whole application, and an input line without one reads as a label.
         const bool matched = searchRow(state, shown).has_value();
-        header = text(truncateToWidth(i18n::format(_(" Area: {0}▌"), {state.areaSearch}),
-                                      headerRoom)) |
+        // The label stands where the column heading did, so typing a letter
+        // does not slide the word sideways (`searchColumn()`).
+        const std::string pad(static_cast<size_t>(searchColumn(layout) - kIndent), ' ');
+        header = text(truncateToWidth(
+                     pad + i18n::format(_(" Area: {0}▌"), {state.areaSearch}), headerRoom)) |
                  theme::tableHeaderBold |
                  color(matched ? theme::palette.tableHeader : theme::palette.error);
     }
